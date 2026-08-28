@@ -1,0 +1,182 @@
+# CLI Reference
+
+This reference explains behavior and constraints rather than duplicating the complete generated help. Run the following against the binary you are using whenever exact flags or defaults matter:
+
+```powershell
+channelterm --help
+channelterm attach --help
+channelterm list --help
+channelterm mcp --help
+channelterm serial --help
+```
+
+The current parser also implements `channelterm connect --help`, although `connect` is not listed in the current top-level help text.
+
+## Top-level command
+
+Syntax:
+
+```text
+channelterm [options] [command]
+```
+
+With no arguments, ChannelTerm prints top-level usage and exits successfully. `help`, `--help`, and `-h` do the same. `version` and `--version` print `channelterm 0.1.0`. An unknown command returns an error and the process exits with status 1.
+
+The top-level help currently lists `attach`, `list`, `mcp`, `serial`, `help`, and `version`.
+
+## `serial`
+
+Purpose: open a private, process-owned serial Session and bridge local terminal input and output.
+
+```text
+channelterm serial [--profile NAME] [--port PORT] [options]
+```
+
+| Option | Default | Accepted values and effect |
+| --- | --- | --- |
+| `--port` | none | Operating-system serial endpoint. The resolved configuration must contain one. |
+| `--baud` | 115200 | Positive integer baud rate. An omitted flag does not override a profile value. |
+| `--data-bits` | 8 | `5`, `6`, `7`, or `8`. |
+| `--parity` | `none` | `none`, `odd`, `even`, `mark`, or `space`. |
+| `--stop-bits` | `1` | `1`, `1.5`, or `2`. |
+| `--flow-control` | `none` | Schema values: `none`, `software`, `hardware`. Only `none` is currently implemented by the backend. |
+| `--wake` | false | Sends one carriage return after a newly opened Session connects. |
+| `--highlight` | `auto` | `auto`, `always`, or `never`; affects local presentation only. |
+| `--profile` | none | Named profile from the selected TOML file. |
+| `--config` | default path | Alternate TOML configuration path. Missing files are created for an opening workflow. |
+| `--save` | none | Saves resolved settings under a non-empty profile name before opening. |
+| `--help`, `-h` | false | Print command help without opening a port. |
+
+Side effects and lifecycle:
+
+- The command loads or creates configuration, may save a profile, opens the physical port, configures local raw mode when stdin is a terminal, and closes the Session on exit.
+- It sends no startup input unless `--wake` resolves to true.
+- `Ctrl+C` is remote input. Use `Ctrl+] q` for a local exit.
+- Received Session bytes remain raw; optional highlighting is applied only while writing this CLI's output.
+
+Examples:
+
+```powershell
+channelterm serial --port COM8
+channelterm serial --port COM8 --baud 921600 --parity even --stop-bits 2
+channelterm serial --profile board --baud 115200 --highlight never
+channelterm serial --port COM8 --save board
+```
+
+Important errors include a missing port, an unknown profile, empty `--save`, unsupported or invalid serial values, a busy/missing/inaccessible port, invalid highlight mode, unexpected positional arguments, raw-console setup failure, and I/O or close errors. Saving happens before the physical open, so a saved profile may remain after an open failure.
+
+## `connect`
+
+Purpose: resolve a current local target reference from serial discovery and open it as a private Session.
+
+```text
+channelterm connect TARGET_REF [serial options]
+```
+
+`TARGET_REF` must be first and currently must resolve as a present `SER-*` serial target. `--port` is rejected because the target already selects the endpoint. All remaining serial options use `serial` semantics, including profile inheritance, `--save`, `--wake`, highlighting, and local ownership.
+
+```powershell
+channelterm connect SER-COM8 --baud 115200
+```
+
+Errors include a missing or flag-first target, an unsupported reference family, a reference that is no longer present, a forbidden `--port` override, and the same configuration/open errors as `serial`.
+
+## `attach`
+
+Purpose: attach the local terminal either to a host-managed shared Session or, with an explicit privacy flag, to a local private serial target.
+
+```text
+channelterm attach TARGET_OR_SESSION [options]
+```
+
+The normal target-first forms are:
+
+- `attach SER-COM8`: ensure the default local Session Host is running, create or reuse its Session for `COM8`, then attach.
+- `attach SER-1`: attach to an existing Session by short reference.
+- `attach <session_id>`: attach by opaque ID.
+- `attach SER-COM8 --private`: open a private local connection without MCP.
+
+| Option | Default | Accepted values and effect |
+| --- | --- | --- |
+| `--endpoint` | `http://127.0.0.1:37099/mcp` | Complete Streamable HTTP MCP endpoint. |
+| `--private`, `--no-mcp` | false | Open a serial target locally; valid only for a target reference. |
+| `--highlight` | `auto` | `auto`, `always`, or `never`. |
+| `--profile`, `--config`, `--baud`, `--data-bits`, `--parity`, `--stop-bits`, `--flow-control`, `--wake`, `--save` | as for `serial` | Used only when the first argument is a serial target. |
+| `--label` | empty | Display-only label for a newly created shared Session; not an identifier. |
+| `--help`, `-h` | false | Print command help without connecting. |
+
+For compatibility, flags may precede an existing Session reference, but the documented human-oriented syntax places the target or Session first. Serial options with a Session reference are rejected. `--private` with a Session reference is rejected.
+
+When opening a target against the default local endpoint, `attach` may start `channelterm mcp --transport http` in the background and wait up to five seconds for readiness. It will not auto-start a custom or remote endpoint. Opening a target through MCP requires a local loopback endpoint. A reused Session retains its original metadata and connection settings; new attach flags do not reconfigure it. Supplying `--save` still runs the open/save workflow rather than bypassing it for an already listed Session.
+
+The initial attach read returns recent retained output, then uses private cursors to wait for later output and activity. New non-empty Agent writes are shown as local `AI` activity blocks; prior activity and CR/LF-only writes are not rendered. `Ctrl+] q` closes only the MCP client connection. It does not call `terminal_close`.
+
+Examples:
+
+```powershell
+channelterm attach SER-COM8 --baud 115200 --label board
+channelterm attach SER-1
+channelterm attach SER-COM8 --private --highlight never
+channelterm attach SER-1 --endpoint http://127.0.0.1:12345/terminal
+```
+
+Important errors include a missing Session reference, an offline custom host, a Session not found or already closed, an invalid target, forbidden target/Session option combinations, host startup timeout, MCP tool failure, serial configuration failure, and terminal I/O failure.
+
+## `list`
+
+Purpose: combine local serial discovery, saved profiles, and an optional MCP Session snapshot without opening a port or changing configuration.
+
+```text
+channelterm list [--transport NAME] [--kind KIND] [options]
+```
+
+| Option | Default | Accepted values and effect |
+| --- | --- | --- |
+| `--transport` | all | Comma-separated transport names. Unsupported names are valid filters that currently match no local source. |
+| `--kind` | all | Comma-separated `device`, `profile`, or `session`; unknown kinds are errors. |
+| `--endpoint` | `http://127.0.0.1:37099/mcp` | MCP HTTP source for active Sessions. |
+| `--config` | default path | Existing TOML file used for profile rows. It is never created by `list`. |
+| `--json` | false | Emit one indented JSON result object with all available fields. |
+| `--long`, `-l` | false | Add opaque Session IDs to the text table. It does not change JSON. |
+| `--no-mcp` | false | Skip the MCP query and report MCP state as `disabled`. |
+| `--help`, `-h` | false | Print command help. |
+
+If MCP is unreachable, the command reports it as `offline` but still returns local devices and profiles. Local target/profile rows and a Session from a local loopback host are merged when they describe the same endpoint. A remote host's Session is not merged with a similarly named local port.
+
+The JSON object has `mcp` and `items` fields. Each item reports `kind`, `transport`, `target`, `state`, `occupancy`, `source`, and optional reference, Session, and label fields. Treat the JSON fields as the script-oriented output; the compact table is presentation-oriented.
+
+Examples:
+
+```powershell
+channelterm list
+channelterm list --kind device --transport serial --no-mcp
+channelterm list --kind session --long
+channelterm list --json
+```
+
+Important errors include an unknown kind, unexpected positional argument, serial enumeration failure, invalid configuration, and local source failure. MCP unavailability by itself is not a command failure.
+
+## `mcp`
+
+Purpose: start a long-running MCP server and own its Session Manager and Device Registry for the process lifetime.
+
+```text
+channelterm mcp [--transport stdio|http] [--listen ADDRESS] [--path PATH] [--connection-policy ask|auto|deny]
+```
+
+| Option | Default | Accepted values and effect |
+| --- | --- | --- |
+| `--transport` | `stdio` | `stdio` or `http`. |
+| `--listen` | `127.0.0.1:37099` | TCP listen address used only in HTTP mode. |
+| `--path` | `/mcp` | HTTP handler path; must start with `/`. |
+| `--connection-policy` | configuration, then `ask` | Explicit `ask`, `auto`, or `deny` override. |
+
+Startup loads or creates `config.toml` and `state.json`, starts serial discovery, registers tools, and then serves until cancellation or client/process termination. Stdio writes no status text to stdout. HTTP writes its effective endpoint to stderr and warns when the bound address is not loopback. The current HTTP mode should be treated as unauthenticated terminal control.
+
+```powershell
+channelterm mcp
+channelterm mcp --transport http
+channelterm mcp --transport http --listen 127.0.0.1:12345 --path /terminal
+```
+
+Important errors include an unsupported transport, path without a leading slash, invalid connection policy, invalid configuration or state, initial discovery failure, listen failure, and protocol serving failure. Normal client EOF and process cancellation are normal shutdowns.
