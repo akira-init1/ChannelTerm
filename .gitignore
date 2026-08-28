@@ -1,0 +1,43 @@
+# Go build, test, coverage, and profiling artifacts.
+bin/
+dist/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+coverage.out
+coverage.html
+*.coverprofile
+*.prof
+
+# Local credentials and machine-specific connection settings.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+configs/*.local.yaml
+configs/*.local.yml
+
+# ChannelTerm's automatically maintained local device-identity database.
+state.json
+
+# Editor and operating-system metadata.
+*.code-workspace
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Local AI / agent state.
+.ai/
+.codex/
+.openai/
+.projectmem/
+.claude/settings.local.json
+.roo/
+.cline/
