@@ -30,6 +30,7 @@ This file records stable ownership boundaries, not a duplicate source tree. The 
 | ---- | --------------------- |
 | `cmd/channelterm/` | Process entry point and dependency composition |
 | `internal/cli/` | CLI commands, local presentation, interactive input, and OS terminal adaptation |
+| `internal/init/mcp/` | Supported MCP-client discovery plus client-configuration rendering and safe installation |
 | `internal/core/app/` | Adapter-neutral application use cases |
 | `internal/core/session/` | Session lifecycle, shared I/O, buffering, activity, and Session management |
 | `internal/core/config/` | Configuration models, loading, saving, and overrides |
@@ -68,6 +69,7 @@ Place code according to architectural responsibility, not according to the featu
 | ----------------------------------------- | --------------------------------- | ---------------------------------------------------- |
 | Process startup / dependency assembly     | `cmd/channelterm/`                | business logic, protocol logic                       |
 | CLI command/flag parsing and local output | `internal/cli/command/`           | Session lifecycle implementation, Transport behavior |
+| MCP client configuration discovery/install | `internal/init/mcp/`              | Session lifecycle, MCP host/tool implementation      |
 | CLI-only highlighting/rendering           | `internal/cli/highlight/`         | stored terminal data, MCP output                     |
 | Interactive local escape/input state      | `internal/cli/interactive/`       | Session ownership, OS raw-mode implementation        |
 | OS terminal/raw console behavior          | `internal/cli/terminalinput/`     | remote terminal protocol semantics                   |

@@ -15,6 +15,8 @@ ChannelTerm/
 |   |   |-- highlight/              Presentation-only ANSI highlighting
 |   |   |-- interactive/            Ctrl+] local escape state machine
 |   |   `-- terminalinput/          Raw console setup and restoration
+|   |-- init/
+|   |   `-- mcp/                    MCP client discovery, rendering, and safe config installation
 |   |-- core/
 |   |   |-- app/                    Adapter-neutral application use cases
 |   |   |-- config/                 TOML config, state paths, precedence, persistence
@@ -46,7 +48,7 @@ Tests use `*_test.go` beside the packages they exercise. The repository does not
 
 The main ownership distinctions are deliberate:
 
-- **Adapter:** `cmd/channelterm`, `internal/cli`, and `internal/mcp` own process composition and external protocol or presentation concerns. They may depend inward; Core may not depend on them.
+- **Adapter:** `cmd/channelterm`, `internal/cli`, and `internal/mcp` own process composition and external protocol or presentation concerns. `internal/init/mcp` owns local MCP-client configuration discovery and installation. These packages may depend inward; Core may not depend on them.
 - **Application:** `internal/core/app` orchestrates adapter-neutral use cases without owning process lifetime or presentation.
 - **Core services:** `internal/core/session`, `config`, `connectionpolicy`, `device`, and `tool` own their protocol-neutral responsibilities. Session owns retained bytes and lifecycle.
 - **Transport:** `internal/core/transport` defines the live byte-stream contract. `internal/core/transport/serial` owns only the physical serial stream and discovery implementation.
