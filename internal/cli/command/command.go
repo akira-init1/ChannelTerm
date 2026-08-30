@@ -23,6 +23,7 @@ import (
 	"github.com/akira-init1/ChannelTerm/internal/core/session"
 	"github.com/akira-init1/ChannelTerm/internal/core/tool"
 	serialtransport "github.com/akira-init1/ChannelTerm/internal/core/transport/serial"
+	initmcp "github.com/akira-init1/ChannelTerm/internal/init/mcp"
 	"github.com/akira-init1/ChannelTerm/internal/mcp"
 	"github.com/akira-init1/ChannelTerm/internal/mcp/terminal"
 	protocol "github.com/modelcontextprotocol/go-sdk/mcp"
@@ -93,6 +94,9 @@ func runWithDependencies(ctx context.Context, args []string, input io.Reader, ou
 	if len(args) > 0 && args[0] == "mcp" {
 		return runMCP(ctx, args[1:], output)
 	}
+	if len(args) > 0 && args[0] == "init" {
+		return runInit(args[1:], output)
+	}
 
 	flags := flag.NewFlagSet("channelterm", flag.ContinueOnError)
 	flags.SetOutput(output)
@@ -104,6 +108,7 @@ func runWithDependencies(ctx context.Context, args []string, input io.Reader, ou
 		fmt.Fprintln(output, "Commands:")
 		fmt.Fprintln(output, "  attach  Attach to a Session hosted by local MCP HTTP")
 		fmt.Fprintln(output, "  help    Show this help message")
+		fmt.Fprintln(output, "  init    Configure supported MCP clients")
 		fmt.Fprintln(output, "  list    List local devices, saved profiles, and MCP sessions")
 		fmt.Fprintln(output, "  mcp     Start the Session Host MCP server")
 		fmt.Fprintln(output, "  serial  Connect to a serial port")
@@ -143,6 +148,106 @@ func runWithDependencies(ctx context.Context, args []string, input io.Reader, ou
 	}
 	flags.Usage()
 	return nil
+}
+
+// runInit discovers supported MCP clients, installs their ChannelTerm endpoint
+// configuration, or prints the exact generated examples without writing files.
+func runInit(args []string, output io.Writer) error {
+	adapters, err := initmcp.NewAdapters(initmcp.Options{})
+	if err != nil {
+		return fmt.Errorf("initialize MCP client adapters: %w", err)
+	}
+	return runInitWithAdapters(args, output, adapters)
+}
+
+// runInitWithAdapters keeps init command tests independent from real user
+// configuration while production uses the standard adapter locations.
+func runInitWithAdapters(args []string, output io.Writer, adapters []initmcp.Adapter) error {
+	flags := flag.NewFlagSet("init", flag.ContinueOnError)
+	flags.SetOutput(output)
+	install := flags.Bool("mcp", false, "detect supported MCP clients and install ChannelTerm configuration")
+	show := flags.Bool("mcp-show", false, "print ChannelTerm MCP configuration examples without writing files")
+	flags.Usage = func() {
+		fmt.Fprintln(output, "Usage: channelterm init --mcp | --mcp-show [codex|claude|opencode|zoo]")
+		fmt.Fprintln(output)
+		fmt.Fprintln(output, "Install or display ChannelTerm MCP client configurations.")
+		fmt.Fprintln(output)
+		flags.PrintDefaults()
+	}
+	if err := flags.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return nil
+		}
+		return err
+	}
+	if *install == *show {
+		return errors.New("choose exactly one of --mcp or --mcp-show")
+	}
+	if flags.NArg() > 1 {
+		return fmt.Errorf("unexpected init argument %q", flags.Arg(1))
+	}
+	if *install && flags.NArg() != 0 {
+		return fmt.Errorf("unexpected init argument %q", flags.Arg(0))
+	}
+	endpoint := initmcp.DefaultEndpoint()
+	if *show {
+		selected, err := selectMCPAdapters(adapters, flags.Arg(0))
+		if err != nil {
+			return err
+		}
+		for index, adapter := range selected {
+			example, err := adapter.Example(endpoint)
+			if err != nil {
+				return fmt.Errorf("generate %s MCP configuration: %w", adapter.Name(), err)
+			}
+			if index > 0 {
+				fmt.Fprintln(output)
+			}
+			fmt.Fprintf(output, "%s:\n%s", adapter.Name(), example)
+		}
+		return nil
+	}
+
+	detected := 0
+	for _, adapter := range adapters {
+		available, err := adapter.Detect()
+		if err != nil {
+			return fmt.Errorf("detect %s: %w", adapter.Name(), err)
+		}
+		if !available {
+			continue
+		}
+		detected++
+		result, err := adapter.Install(endpoint)
+		if err != nil {
+			return fmt.Errorf("install %s MCP configuration: %w", adapter.Name(), err)
+		}
+		if result.AlreadyPresent {
+			fmt.Fprintf(output, "%s: ChannelTerm MCP configuration already exists (%s).\n", adapter.Name(), result.Path)
+			continue
+		}
+		fmt.Fprintf(output, "%s: installed ChannelTerm MCP configuration (%s).\n", adapter.Name(), result.Path)
+	}
+	if detected == 0 {
+		return errors.New("no supported MCP clients were detected")
+	}
+	return nil
+}
+
+// selectMCPAdapters treats an omitted identifier as a request for every
+// supported format, while a non-empty identifier must resolve exactly once so
+// --mcp-show cannot silently print an unexpected client configuration.
+func selectMCPAdapters(adapters []initmcp.Adapter, identifier string) ([]initmcp.Adapter, error) {
+	identifier = strings.ToLower(strings.TrimSpace(identifier))
+	if identifier == "" {
+		return adapters, nil
+	}
+	for _, adapter := range adapters {
+		if adapter.ID() == identifier {
+			return []initmcp.Adapter{adapter}, nil
+		}
+	}
+	return nil, fmt.Errorf("unsupported MCP client %q; use codex, claude, opencode, or zoo", identifier)
 }
 
 // runMCP starts an MCP Server using the normal terminal Tool Registry.
