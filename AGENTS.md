@@ -535,9 +535,11 @@ chore/<name>
 
 If the current branch already matches the task, continue on it. Keep one feature's implementation, tests, documentation, and follow-up fixes on the same branch; do not mechanically create another branch for a small addition to the same goal.
 
-Normal development must not push directly to `main` or `master`. Changes to the default branch go through a pull request. Force-pushing or rewriting history requires an explicit maintainer request.
+Never push directly to `main` or `master`. Changes to the default branch go through a pull request. Force-pushing or rewriting history requires an explicit maintainer request.
 
-Use Conventional Commits when commits are requested/part of the workflow:
+For each completed, independent repository task (feature, bug fix, refactor, docs, test, build, CI, or chore), create one local Conventional Commit by default after the required implementation, tests, documentation, and verification have succeeded. Do not commit unfinished work or work with required checks that failed. A user instruction such as `do not commit` disables this default for that task.
+
+Use Conventional Commits:
 
 ```text
 feat: add ...
@@ -550,7 +552,7 @@ ci: update ...
 chore: maintain ...
 ```
 
-One commit/change unit should contain one independently understandable goal plus the tests and docs required for that goal.
+One independently acceptable feature, bug fix, or refactor normally forms one final commit, including its required tests and documentation. Do not mechanically split commits just because several files changed, and do not require every external contributor to have only one historical commit.
 
 Before staging/committing:
 
@@ -560,23 +562,21 @@ git diff
 git diff --check
 ```
 
-Prefer explicitly staging task files. Do not blindly use `git add .` or `git add -A` when unrelated changes may exist.
+Explicitly stage only files related to the current task. Preserve unrelated working-tree changes: do not reset, clean, overwrite, stage, or commit them. Do not blindly use `git add .` or `git add -A` when unrelated changes may exist.
 
-Without explicit maintainer/user approval, do not:
+After the default local commit, stop the Git publishing workflow. Without explicit maintainer/user approval, do not:
 
-- push to `main` or `master`;
+- run `git push` to any other branch;
 - force-push;
 - rewrite Git history;
 - run destructive `reset --hard` or `git clean`;
 - rebase a shared branch;
 - delete local/remote branches;
 - delete or modify tags;
-- merge a pull request;
+- create or merge a pull request;
 - create/modify a release;
 - change the repository license;
 - rewrite authorship or commit dates.
-
-Do not commit or push unless the task/workflow explicitly asks for it.
 
 ## 22. AI-Agent Reviewability Rules
 
