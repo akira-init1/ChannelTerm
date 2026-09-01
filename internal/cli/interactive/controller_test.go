@@ -15,6 +15,7 @@ func TestControllerProcessesTerminalInput(t *testing.T) {
 		escapeByte byte
 	}{
 		{name: "ordinary input", input: []byte("echo ok\r"), want: []Action{{Kind: ActionRemote, Data: []byte("echo ok\r")}}},
+		{name: "VT navigation input remains remote", input: []byte("\x1b[A\x1b[B\x1b[C\x1b[D\x1b[H\x1b[F"), want: []Action{{Kind: ActionRemote, Data: []byte("\x1b[A\x1b[B\x1b[C\x1b[D\x1b[H\x1b[F")}}},
 		{name: "control C remains remote", input: []byte{0x03}, want: []Action{{Kind: ActionRemote, Data: []byte{0x03}}}},
 		{name: "quit", input: []byte{0x1D, 'q'}, want: []Action{{Kind: ActionQuit}}},
 		{name: "help", input: []byte{0x1D, '?'}, want: []Action{{Kind: ActionHelp}}},
