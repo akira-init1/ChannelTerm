@@ -19,6 +19,7 @@ func TestControllerProcessesTerminalInput(t *testing.T) {
 		{name: "control C remains remote", input: []byte{0x03}, want: []Action{{Kind: ActionRemote, Data: []byte{0x03}}}},
 		{name: "quit", input: []byte{0x1D, 'q'}, want: []Action{{Kind: ActionEscapePending}, {Kind: ActionQuit}}},
 		{name: "help", input: []byte{0x1D, '?'}, want: []Action{{Kind: ActionEscapePending}, {Kind: ActionHelp}}},
+		{name: "toggle prompt timestamps", input: []byte{0x1D, 't'}, want: []Action{{Kind: ActionEscapePending}, {Kind: ActionTogglePromptTimestamp}}},
 		{name: "literal escape", input: []byte{0x1D, ']'}, want: []Action{{Kind: ActionEscapePending}, {Kind: ActionRemote, Data: []byte{0x1D}}}},
 		{name: "escape cancels local mode", input: []byte{0x1D, 0x1B, 'a'}, want: []Action{{Kind: ActionEscapePending}, {Kind: ActionRemote, Data: []byte("a")}}},
 		{name: "unknown escape", input: []byte{0x1D, 'x', 'a'}, want: []Action{{Kind: ActionEscapePending}, {Kind: ActionUnknownEscape, Command: 'x'}, {Kind: ActionRemote, Data: []byte("a")}}},

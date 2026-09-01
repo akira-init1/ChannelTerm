@@ -108,6 +108,21 @@ func TestRendererStylesPromptBeforeNewlineAndPreservesEcho(t *testing.T) {
 	}
 }
 
+func TestRendererStylesTimestampedPromptBeforeNewline(t *testing.T) {
+	var output bytes.Buffer
+	renderer := New(&output)
+	input := "[14:05:01] root@board:~# "
+	if _, err := renderer.Write([]byte(input)); err != nil {
+		t.Fatalf("Write() error = %v", err)
+	}
+	if !bytes.HasPrefix(output.Bytes(), []byte("[14:05:01] ")) {
+		t.Errorf("output = %q, want unchanged timestamp prefix", output.String())
+	}
+	if !bytes.Contains(output.Bytes(), []byte(stylePromptUser+"root"+styleReset)) {
+		t.Errorf("output = %q, want styled prompt user", output.String())
+	}
+}
+
 func TestRendererUsesBrightPaletteStyles(t *testing.T) {
 	var output bytes.Buffer
 	renderer := New(&output)

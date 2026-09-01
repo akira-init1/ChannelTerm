@@ -540,6 +540,7 @@ func runSerialWithTarget(ctx context.Context, args []string, input io.Reader, ou
 		fmt.Fprintln(output)
 		fmt.Fprintln(output, "By default, connecting does not send any characters to the serial device.")
 		fmt.Fprintln(output, "Use --wake when an already-open shell has no output prompt.")
+		fmt.Fprintln(output, "During a connection, Ctrl+] t toggles local shell-prompt timestamps.")
 		fmt.Fprintln(output)
 		flags.PrintDefaults()
 	}
@@ -566,15 +567,25 @@ func runSerialWithTarget(ctx context.Context, args []string, input io.Reader, ou
 		defer outputMu.Unlock()
 		return writeAll(output, data)
 	}
+	promptTimestamps := newPromptTimestampRenderer(terminalOutputWriter(output, renderer), terminalOutputFlusher(renderer), time.Now)
 	writeTerminalOutput := func(data []byte) error {
 		outputMu.Lock()
 		defer outputMu.Unlock()
-		return terminalOutputWriter(output, renderer)(data)
+		return promptTimestamps.Write(data)
 	}
 	flushTerminalOutput := func() error {
 		outputMu.Lock()
 		defer outputMu.Unlock()
-		return terminalOutputFlusher(renderer)()
+		return promptTimestamps.Flush()
+	}
+	togglePromptTimestamps := func() error {
+		outputMu.Lock()
+		defer outputMu.Unlock()
+		enabled, err := promptTimestamps.Toggle()
+		if err != nil {
+			return err
+		}
+		return writeAll(output, promptTimestampStatusText(enabled))
 	}
 	if flagWasProvided(flags, "save") {
 		if strings.TrimSpace(*saveName) == "" {
@@ -626,7 +637,7 @@ func runSerialWithTarget(ctx context.Context, args []string, input io.Reader, ou
 	// leaves control bytes available to the shared interactive controller, which
 	// forwards Ctrl+C to the remote Session and reserves only the escape prefix
 	// for ChannelTerm-local commands.
-	go forwardInput(input, terminal, writeLocalOutput, cancel)
+	go forwardInputWithPromptTimestamp(input, terminal, writeLocalOutput, togglePromptTimestamps, cancel)
 
 	cursor := session.OutputCursor(0)
 	lastOutputEndedLine := true
@@ -817,7 +828,7 @@ func writeConnectionStatus(output io.Writer, port string, baudRate int) error {
 	// Raw mode disables the local terminal's automatic LF-to-CRLF conversion.
 	// This status is local CLI output, unlike serial RX data, so it must include
 	// explicit CRLF delimiters to keep subsequent local lines at column zero.
-	return writeAll(output, []byte(fmt.Sprintf("Connected: %s @ %d\r\nNo wake character sent by default; use --wake for an idle shell without a prompt.\r\nEscape: Ctrl+]  |  Help: Ctrl+] ?\r\n", port, baudRate)))
+	return writeAll(output, []byte(fmt.Sprintf("Connected: %s @ %d\r\nNo wake character sent by default; use --wake for an idle shell without a prompt.\r\nEscape: Ctrl+]  |  Help: Ctrl+] ?  |  Prompt time: Ctrl+] t\r\n", port, baudRate)))
 }
 
 // writeTargetReferenceStatus prints the short stable reference used for this
@@ -941,6 +952,15 @@ func rootCause(err error) error {
 func forwardInput(input io.Reader, terminal interface {
 	Write(session.WriteRequest) (int, error)
 }, writeLocal func([]byte) error, cancel context.CancelFunc) {
+	forwardInputWithPromptTimestamp(input, terminal, writeLocal, nil, cancel)
+}
+
+// forwardInputWithPromptTimestamp adds local prompt-timestamp control to the
+// normal input bridge. togglePromptTimestamp changes only the caller-owned
+// presentation state and is never sent through Session.Write.
+func forwardInputWithPromptTimestamp(input io.Reader, terminal interface {
+	Write(session.WriteRequest) (int, error)
+}, writeLocal func([]byte) error, togglePromptTimestamp func() error, cancel context.CancelFunc) {
 	controller := interactive.NewController(interactive.DefaultEscapeByte)
 	buffer := make([]byte, 4*1024)
 	for {
@@ -963,6 +983,11 @@ func forwardInput(input io.Reader, terminal interface {
 					return
 				case interactive.ActionHelp:
 					if writeLocal == nil || writeLocal(escapeHelpText) != nil {
+						cancel()
+						return
+					}
+				case interactive.ActionTogglePromptTimestamp:
+					if togglePromptTimestamp == nil || togglePromptTimestamp() != nil {
 						cancel()
 						return
 					}
@@ -989,10 +1014,20 @@ func forwardInput(input io.Reader, terminal interface {
 // escapePendingText confirms locally that Ctrl+] entered escape mode. Its
 // leading and trailing line breaks keep it readable beside unstructured remote
 // terminal output; it is never sent to the remote Session.
-var escapePendingText = []byte("\r\n[ChannelTerm] Escape: q quit | ? help | ] send Ctrl+] | Esc cancel\r\n")
+var escapePendingText = []byte("\r\n[ChannelTerm] Escape: q quit | ? help | ] send Ctrl+] | t prompt time | Esc cancel\r\n")
 
 // escapeHelpText is local CLI output and is never sent to the remote Session.
-var escapeHelpText = []byte("\r\nChannelTerm escape commands:\r\n\r\n  q    Quit session\r\n  ?    Show this help\r\n  ]    Send Ctrl+] to remote\r\n  Esc  Cancel escape mode\r\n")
+var escapeHelpText = []byte("\r\nChannelTerm escape commands:\r\n\r\n  q    Quit session\r\n  ?    Show this help\r\n  ]    Send Ctrl+] to remote\r\n  t    Toggle prompt timestamps\r\n  Esc  Cancel escape mode\r\n")
+
+// promptTimestampStatusText reports a CLI-local presentation setting. It is
+// written only to the current terminal output and never enters Session data.
+func promptTimestampStatusText(enabled bool) []byte {
+	state := "OFF"
+	if enabled {
+		state = "ON"
+	}
+	return []byte(fmt.Sprintf("\r\n[ChannelTerm] Prompt timestamps: %s\r\n", state))
+}
 
 // unknownEscapeText explains a discarded local command without sending its
 // byte to the remote endpoint, then leaves the controller in normal mode.

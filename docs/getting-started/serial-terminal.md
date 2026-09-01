@@ -39,6 +39,7 @@ On Windows Console hosts, navigation keys are sent as standard VT sequences: for
 - `Ctrl+] q` exits the local terminal client.
 - `Ctrl+] ?` displays local escape help.
 - `Ctrl+] ]` sends a literal `Ctrl+]` byte (`0x1d`) to the remote terminal.
+- `Ctrl+] t` toggles local-only `[HH:MM:SS]` timestamps before recognized shell prompts. It is off by default and does not timestamp ordinary output or change Session data.
 - `Ctrl+] Esc` cancels local escape mode without sending a byte to the remote terminal.
 
 Use `--wake` only when a known, already-running shell is idle without a prompt. It sends exactly one carriage return after a new connection succeeds. It is not enabled by default.

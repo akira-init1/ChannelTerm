@@ -268,7 +268,7 @@ func TestRunSerialForwardsOutputAndClosesOnCancellation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("runWithIO() error = %v", err)
 	}
-	if got := output.String(); got != "Connected: COM3 @ 115200\r\nNo wake character sent by default; use --wake for an idle shell without a prompt.\r\nEscape: Ctrl+]  |  Help: Ctrl+] ?\r\nready\nDisconnected.\r\n" {
+	if got := output.String(); got != "Connected: COM3 @ 115200\r\nNo wake character sent by default; use --wake for an idle shell without a prompt.\r\nEscape: Ctrl+]  |  Help: Ctrl+] ?  |  Prompt time: Ctrl+] t\r\nready\nDisconnected.\r\n" {
 		t.Errorf("output = %q, want CRLF status, unchanged serial data, and disconnect status", got)
 	}
 	wantConfig := serialtransport.Config{Port: "COM3", BaudRate: 115200, DataBits: 7, Parity: serialtransport.ParityEven, StopBits: serialtransport.StopBitsTwo, FlowControl: serialtransport.FlowControlNone}
@@ -291,7 +291,7 @@ func TestRunSerialSeparatesDisconnectStatusFromUnterminatedRemoteOutput(t *testi
 	if err != nil {
 		t.Fatalf("runWithIO() error = %v", err)
 	}
-	if got := output.String(); got != "Connected: COM8 @ 115200\r\nNo wake character sent by default; use --wake for an idle shell without a prompt.\r\nEscape: Ctrl+]  |  Help: Ctrl+] ?\r\nroot@board:~# \r\nDisconnected.\r\n" {
+	if got := output.String(); got != "Connected: COM8 @ 115200\r\nNo wake character sent by default; use --wake for an idle shell without a prompt.\r\nEscape: Ctrl+]  |  Help: Ctrl+] ?  |  Prompt time: Ctrl+] t\r\nroot@board:~# \r\nDisconnected.\r\n" {
 		t.Errorf("output = %q, want disconnect status on a new line", got)
 	}
 }
@@ -372,7 +372,7 @@ func TestRunSerialDoesNotWakeRemoteByDefault(t *testing.T) {
 			if got := terminal.writtenData(); len(got) != 0 {
 				t.Errorf("default connection wrote %q, want no remote input", got)
 			}
-			if !strings.HasPrefix(output.String(), "Connected: COM8 @ 115200\r\nNo wake character sent by default; use --wake for an idle shell without a prompt.\r\nEscape: Ctrl+]  |  Help: Ctrl+] ?\r\n") {
+			if !strings.HasPrefix(output.String(), "Connected: COM8 @ 115200\r\nNo wake character sent by default; use --wake for an idle shell without a prompt.\r\nEscape: Ctrl+]  |  Help: Ctrl+] ?  |  Prompt time: Ctrl+] t\r\n") {
 				t.Errorf("output = %q, want connection status", output.String())
 			}
 		})
@@ -620,7 +620,7 @@ func TestForwardInputDisplaysEscapePendingLocally(t *testing.T) {
 	if got := terminal.writtenData(); len(got) != 0 {
 		t.Errorf("written input = %q, want no remote input", got)
 	}
-	const want = "\r\n[ChannelTerm] Escape: q quit | ? help | ] send Ctrl+] | Esc cancel\r\n"
+	const want = "\r\n[ChannelTerm] Escape: q quit | ? help | ] send Ctrl+] | t prompt time | Esc cancel\r\n"
 	if got := local.String(); got != want {
 		t.Errorf("local output = %q, want %q", got, want)
 	}
@@ -645,6 +645,31 @@ func TestForwardInputHandlesEscapeCommands(t *testing.T) {
 	}
 	if got := local.String(); strings.Count(got, string(escapePendingText)) != 4 || !strings.Contains(got, "ChannelTerm escape commands:") || !strings.Contains(got, "Esc  Cancel escape mode") || !strings.Contains(got, "Unknown escape command 'x'") {
 		t.Errorf("local escape output = %q, want pending prompts plus help and unknown command messages", got)
+	}
+}
+
+// TestForwardInputTogglesPromptTimestampsLocally verifies that the new escape
+// action never becomes a Session write and leaves ordinary input untouched.
+func TestForwardInputTogglesPromptTimestampsLocally(t *testing.T) {
+	terminal := &fakeCLISession{}
+	var local bytes.Buffer
+	toggles := 0
+	forwardInputWithPromptTimestamp(strings.NewReader("a\x1dtb\x1dtc"), terminal, func(data []byte) error {
+		_, err := local.Write(data)
+		return err
+	}, func() error {
+		toggles++
+		_, err := local.Write(promptTimestampStatusText(toggles%2 == 1))
+		return err
+	}, func() {})
+	if got, want := string(terminal.writtenData()), "abc"; got != want {
+		t.Errorf("remote input = %q, want %q", got, want)
+	}
+	if toggles != 2 {
+		t.Errorf("toggle count = %d, want 2", toggles)
+	}
+	if got := local.String(); !strings.Contains(got, "Prompt timestamps: ON") || !strings.Contains(got, "Prompt timestamps: OFF") {
+		t.Errorf("local output = %q, want ON and OFF status", got)
 	}
 }
 
@@ -680,7 +705,7 @@ func TestWriteConnectionStatusUsesCRLF(t *testing.T) {
 	if err := writeConnectionStatus(&output, "/dev/ttyUSB0", 115200); err != nil {
 		t.Fatalf("writeConnectionStatus() error = %v", err)
 	}
-	if got := output.String(); got != "Connected: /dev/ttyUSB0 @ 115200\r\nNo wake character sent by default; use --wake for an idle shell without a prompt.\r\nEscape: Ctrl+]  |  Help: Ctrl+] ?\r\n" {
+	if got := output.String(); got != "Connected: /dev/ttyUSB0 @ 115200\r\nNo wake character sent by default; use --wake for an idle shell without a prompt.\r\nEscape: Ctrl+]  |  Help: Ctrl+] ?  |  Prompt time: Ctrl+] t\r\n" {
 		t.Errorf("status = %q, want explicit CRLF delimiters", got)
 	}
 }
