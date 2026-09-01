@@ -168,13 +168,7 @@ func (s *SerialService) OpenSerial(ctx context.Context, request OpenSerialReques
 		return OpenSerialResult{}, err
 	}
 	if strings.TrimSpace(request.Save) != "" {
-		if file.Serial.Profiles == nil {
-			file.Serial.Profiles = make(map[string]config.SerialProfile)
-		}
-		file.Serial.Profiles[request.Save] = profile
-		if strings.TrimSpace(file.Serial.Default) == "" {
-			file.Serial.Default = request.Save
-		}
+		file.SaveSerialProfile(request.Save, profile)
 		if err := s.saveConfig(path, file); err != nil {
 			return OpenSerialResult{}, err
 		}

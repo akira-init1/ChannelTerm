@@ -124,6 +124,73 @@ wake = true
 	}
 }
 
+// TestLoadInitializesDefaultPreferencesWithoutChangingProfiles protects legacy
+// config.toml files that have serial profiles but no preferences section.
+func TestLoadInitializesDefaultPreferencesWithoutChangingProfiles(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.toml")
+	content := `[serial]
+default = "board"
+
+[serial.profiles.board]
+port = "COM11"
+baud = 57600
+`
+	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	file, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if file.Preferences != DefaultPreferences() {
+		t.Errorf("Preferences = %#v, want default %#v", file.Preferences, DefaultPreferences())
+	}
+	profile, err := file.ResolveSerial("")
+	if err != nil {
+		t.Fatalf("ResolveSerial() error = %v", err)
+	}
+	if profile.Port != "COM11" || profile.BaudRate != 57600 {
+		t.Errorf("resolved profile = %+v, want saved serial profile", profile)
+	}
+}
+
+// TestResolveSerialDoesNotDependOnPreferences protects the connection-profile
+// boundary from future user-preference fields.
+func TestResolveSerialDoesNotDependOnPreferences(t *testing.T) {
+	serial := Serial{
+		Default: "board",
+		Profiles: map[string]SerialProfile{
+			"board": {Port: "COM12", BaudRate: 38400},
+		},
+	}
+	withoutPreferences, err := (File{Serial: serial}).ResolveSerial("")
+	if err != nil {
+		t.Fatalf("ResolveSerial() without preferences error = %v", err)
+	}
+	withPreferences, err := (File{Serial: serial, Preferences: DefaultPreferences()}).ResolveSerial("")
+	if err != nil {
+		t.Fatalf("ResolveSerial() with preferences error = %v", err)
+	}
+	if withPreferences != withoutPreferences {
+		t.Errorf("ResolveSerial() with preferences = %+v, want %+v", withPreferences, withoutPreferences)
+	}
+}
+
+// TestSaveSerialProfileDoesNotChangePreferences keeps profile persistence
+// ownership independent from the user-preferences model.
+func TestSaveSerialProfileDoesNotChangePreferences(t *testing.T) {
+	file := File{Preferences: DefaultPreferences()}
+	profile := SerialProfile{Port: "COM14", BaudRate: 115200}
+	file.SaveSerialProfile("board", profile)
+	if file.Serial.Default != "board" || file.Serial.Profiles["board"] != profile {
+		t.Errorf("SaveSerialProfile() file = %+v, want board profile and default", file)
+	}
+	if file.Preferences != DefaultPreferences() {
+		t.Errorf("SaveSerialProfile() preferences = %#v, want default %#v", file.Preferences, DefaultPreferences())
+	}
+}
+
 func TestResolveSerialRejectsUnknownProfileAndMissingPort(t *testing.T) {
 	file := File{Serial: Serial{Profiles: map[string]SerialProfile{"empty": {}}}}
 	if _, err := file.ResolveSerial("missing"); !errors.Is(err, ErrProfileNotFound) {
@@ -164,6 +231,13 @@ func TestSaveRoundTripsProfiles(t *testing.T) {
 	}}
 	if err := Save(path, want); err != nil {
 		t.Fatalf("Save() error = %v", err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("ReadFile() error = %v", err)
+	}
+	if strings.Contains(string(data), "[preferences]") {
+		t.Errorf("saved configuration = %q, must not add an empty preferences section", data)
 	}
 	got, err := Load(path)
 	if err != nil {

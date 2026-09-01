@@ -32,7 +32,7 @@ The core service boundary contains:
 - `device`: current discovery state, device identity state, and a bounded device-event stream.
 - `connectionpolicy`: a pure discovery-response decision; it never connects.
 - `tool`: a protocol-neutral callable contract and registry.
-- `config`: TOML configuration and managed state paths.
+- `config`: connection profiles, discovery policy, user preferences, TOML persistence, and managed state paths. Preferences are adapter-local and never enter Session or Transport configuration.
 - `transport`: the live byte-stream contract.
 - `transport/serial`: the current concrete Transport and serial enumeration.
 

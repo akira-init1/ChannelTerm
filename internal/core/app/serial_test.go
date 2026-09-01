@@ -65,6 +65,50 @@ func TestOpenSerialCreatesRegistersAndReusesSession(t *testing.T) {
 	}
 }
 
+// TestOpenSerialIgnoresPreferences verifies that the application uses only a
+// resolved connection profile to construct the Serial Transport. This prevents
+// future display preferences from becoming an implicit serial-open input.
+func TestOpenSerialIgnoresPreferences(t *testing.T) {
+	manager := session.NewManager()
+	var got serialtransport.Config
+	service, err := NewSerialServiceWithDependencies(manager, SerialDependencies{
+		ConfigPath: func() (string, error) { return "test.toml", nil },
+		LoadConfig: func(string) (config.File, error) {
+			return config.File{
+				Serial: config.Serial{Profiles: map[string]config.SerialProfile{
+					"board": {Port: "COM13", BaudRate: 57600},
+				}},
+				Preferences: config.DefaultPreferences(),
+			}, nil
+		},
+		NewSessionID: func() (string, error) { return "session-preferences", nil },
+		NewSession: func(id string, value serialtransport.Config) (ConnectedSession, error) {
+			got = value
+			return newFakeConnectedSession(id), nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("NewSerialServiceWithDependencies() error = %v", err)
+	}
+	result, err := service.OpenSerial(context.Background(), OpenSerialRequest{Profile: "board"})
+	if err != nil {
+		t.Fatalf("OpenSerial() error = %v", err)
+	}
+	if result.Profile.Port != "COM13" || got != (serialtransport.Config{
+		Port:        "COM13",
+		BaudRate:    57600,
+		DataBits:    8,
+		Parity:      serialtransport.ParityNone,
+		StopBits:    serialtransport.StopBitsOne,
+		FlowControl: serialtransport.FlowControlNone,
+	}) {
+		t.Errorf("OpenSerial() profile/config = %+v/%+v, want COM13 serial profile defaults", result.Profile, got)
+	}
+	if _, err := service.CloseSession(result.Info.ID); err != nil {
+		t.Fatalf("CloseSession() error = %v", err)
+	}
+}
+
 // TestApplicationRoutesCoreUseCases verifies that adapters can use one
 // UI-independent facade for Session, port, device, and connection-policy work
 // without taking ownership of the Manager or Registry internals.
