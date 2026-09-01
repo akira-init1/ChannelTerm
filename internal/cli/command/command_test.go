@@ -608,6 +608,29 @@ func TestForwardInputForwardsControlCWithoutCancelling(t *testing.T) {
 	}
 }
 
+// TestForwardInputControlCCancelsEscapePending verifies that Ctrl+C both exits
+// local escape mode and reaches the remote Session without unknown-command
+// feedback.
+func TestForwardInputControlCCancelsEscapePending(t *testing.T) {
+	terminal := &fakeCLISession{}
+	var local bytes.Buffer
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	forwardInput(strings.NewReader("\x1d\x03next"), terminal, func(data []byte) error {
+		_, err := local.Write(data)
+		return err
+	}, cancel)
+	if ctx.Err() != nil {
+		t.Fatal("forwardInput() cancelled on Ctrl+C during escape mode")
+	}
+	if got := string(terminal.writtenData()); got != "\x03next" {
+		t.Errorf("written input = %q, want remote Ctrl+C followed by normal input", got)
+	}
+	if got := local.String(); got != string(escapePendingText) {
+		t.Errorf("local output = %q, want only escape-pending feedback", got)
+	}
+}
+
 // TestForwardInputDisplaysEscapePendingLocally verifies that an escape prefix
 // produces presentation-only feedback and no Session write.
 func TestForwardInputDisplaysEscapePendingLocally(t *testing.T) {
