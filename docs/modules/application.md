@@ -16,7 +16,7 @@
 
 ## Serial open invariants
 
-`SerialService` uses the Manager's `GetOrCreate` operation to share one active Session per exact `transport + endpoint` within that Manager. Opening a Transport can block, so Manager coordination occurs without holding its registration lock. Concurrent callers receive the first successful Session or the same opening error.
+`SerialService` uses the Manager's `GetOrCreate` operation to share one active Session per exact `transport + endpoint` within that Manager. A Transport connection opens and transfers one Channel to Session. Opening can block, so Manager coordination occurs without holding its registration lock. Concurrent callers receive the first successful Session or the same opening error.
 
 A Session candidate is connected before Manager registration. On construction, connection, cancellation, or wake failure, the service closes the unregistered candidate. A reused Session keeps the original profile, label, and Transport configuration.
 

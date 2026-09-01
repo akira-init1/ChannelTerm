@@ -313,7 +313,7 @@ func (m *Manager) sessionIDLocked(identifier string) (string, registeredSession,
 }
 
 // activeSessionForEndpointLocked returns one Session that still owns an
-// endpoint. It intentionally excludes terminal failures so callers can retry
+// endpoint. It intentionally excludes failed lifecycle states so callers can retry
 // after an unplugged device or failed protocol connection.
 func (m *Manager) activeSessionForEndpointLocked(transport, endpoint string) (SessionInfo, bool) {
 	var selected SessionInfo

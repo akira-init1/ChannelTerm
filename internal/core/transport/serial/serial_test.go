@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/akira-init1/ChannelTerm/internal/core/channel"
 	goserial "go.bug.st/serial"
 )
 
@@ -139,7 +140,7 @@ func TestTransportConnectPreservesOpenError(t *testing.T) {
 		return nil, source
 	}
 
-	err = transport.Connect(context.Background())
+	_, err = transport.Connect(context.Background())
 	if !errors.Is(err, source) {
 		t.Errorf("Connect() error = %v, does not retain source error %v", err, source)
 	}
@@ -198,7 +199,8 @@ func TestTransportConnectReadWriteAndClose(t *testing.T) {
 		return port, nil
 	}
 
-	if err := transport.Connect(context.Background()); err != nil {
+	stream, err := transport.Connect(context.Background())
+	if err != nil {
 		t.Fatalf("Connect() error = %v", err)
 	}
 	if gotName != "COM3" {
@@ -210,33 +212,33 @@ func TestTransportConnectReadWriteAndClose(t *testing.T) {
 
 	port.enqueueRead([]byte("ready"))
 	data := make([]byte, 16)
-	n, err := transport.Read(data)
+	n, err := stream.Read(data)
 	if err != nil {
 		t.Fatalf("Read() error = %v", err)
 	}
 	if got := string(data[:n]); got != "ready" {
 		t.Errorf("Read() = %q, want ready", got)
 	}
-	if n, err := transport.Write([]byte("status\n")); err != nil || n != len("status\n") {
+	if n, err := stream.Write([]byte("status\n")); err != nil || n != len("status\n") {
 		t.Errorf("Write() = (%d, %v), want (%d, nil)", n, err, len("status\n"))
 	}
 	if got := string(port.writtenData()); got != "status\n" {
 		t.Errorf("port writes = %q, want status\\n", got)
 	}
-	if err := transport.Resize(80, 24); !errors.Is(err, ErrResizeUnsupported) {
-		t.Errorf("Resize() error = %v, want ErrResizeUnsupported", err)
+	if _, ok := stream.(channel.Resizer); ok {
+		t.Error("serial Channel unexpectedly implements terminal resize")
 	}
-	if err := transport.Close(); err != nil {
+	if err := stream.Close(); err != nil {
 		t.Fatalf("Close() error = %v", err)
 	}
-	if err := transport.Close(); err != nil {
+	if err := stream.Close(); err != nil {
 		t.Fatalf("second Close() error = %v", err)
 	}
 	if got := port.closeCount(); got != 1 {
 		t.Errorf("underlying Close() calls = %d, want 1", got)
 	}
-	if _, err := transport.Read(data); !errors.Is(err, ErrNotOpen) {
-		t.Errorf("Read() after Close error = %v, want ErrNotOpen", err)
+	if _, err := stream.Read(data); !errors.Is(err, channel.ErrNotOpen) {
+		t.Errorf("Read() after Close error = %v, want channel.ErrNotOpen", err)
 	}
 }
 
@@ -247,13 +249,14 @@ func TestTransportCloseUnblocksRead(t *testing.T) {
 	}
 	port := newFakePort()
 	transport.open = func(string, *goserial.Mode) (goserial.Port, error) { return port, nil }
-	if err := transport.Connect(context.Background()); err != nil {
+	stream, err := transport.Connect(context.Background())
+	if err != nil {
 		t.Fatalf("Connect() error = %v", err)
 	}
 
 	readDone := make(chan error, 1)
 	go func() {
-		_, err := transport.Read(make([]byte, 1))
+		_, err := stream.Read(make([]byte, 1))
 		readDone <- err
 	}()
 	select {
@@ -261,7 +264,7 @@ func TestTransportCloseUnblocksRead(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("Read() did not begin")
 	}
-	if err := transport.Close(); err != nil {
+	if err := stream.Close(); err != nil {
 		t.Fatalf("Close() error = %v", err)
 	}
 	select {
@@ -285,7 +288,7 @@ func TestTransportConnectClosesPortWhenContextCancelsDuringOpen(t *testing.T) {
 		cancel()
 		return port, nil
 	}
-	if err := transport.Connect(ctx); !errors.Is(err, context.Canceled) {
+	if _, err := transport.Connect(ctx); !errors.Is(err, context.Canceled) {
 		t.Errorf("Connect() error = %v, want context.Canceled", err)
 	}
 	if got := port.closeCount(); got != 1 {
@@ -308,22 +311,24 @@ func TestTransportCanOpenAgainAfterClose(t *testing.T) {
 		return port, nil
 	}
 
-	if err := transport.Connect(context.Background()); err != nil {
+	firstStream, err := transport.Connect(context.Background())
+	if err != nil {
 		t.Fatalf("first Connect() error = %v", err)
 	}
-	if err := transport.Close(); err != nil {
+	if err := firstStream.Close(); err != nil {
 		t.Fatalf("first Close() error = %v", err)
 	}
-	if err := transport.Connect(context.Background()); err != nil {
+	secondStream, err := transport.Connect(context.Background())
+	if err != nil {
 		t.Fatalf("second Connect() error = %v", err)
 	}
-	if _, err := transport.Write([]byte("reopened")); err != nil {
+	if _, err := secondStream.Write([]byte("reopened")); err != nil {
 		t.Fatalf("Write() after reopen error = %v", err)
 	}
 	if got := string(second.writtenData()); got != "reopened" {
 		t.Errorf("second port writes = %q, want reopened", got)
 	}
-	if err := transport.Close(); err != nil {
+	if err := secondStream.Close(); err != nil {
 		t.Fatalf("second Close() error = %v", err)
 	}
 	if first.closeCount() != 1 || second.closeCount() != 1 {

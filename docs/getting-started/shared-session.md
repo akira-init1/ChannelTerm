@@ -3,7 +3,7 @@
 An HTTP MCP process can act as a local Session Host. It owns the physical serial connection while CLI windows and MCP Clients use independent cursors over the same Session.
 
 ```text
-Physical serial endpoint -> Serial Transport -> Session -> Client / Attachment
+Physical serial endpoint -> Serial Transport -> Channel -> Session -> Client / Attachment
 ```
 
 ## Create or join by target

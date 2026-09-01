@@ -1,4 +1,4 @@
-// Package session manages protocol-neutral terminal sessions.
+// Package session manages protocol-neutral shared stream sessions.
 package session
 
 import (
@@ -10,11 +10,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/akira-init1/ChannelTerm/internal/core/channel"
 	"github.com/akira-init1/ChannelTerm/internal/core/transport"
 )
 
 const (
-	// DefaultReceiveBufferSize is the retained terminal output capacity for a
+	// DefaultReceiveBufferSize is the retained stream-output capacity for a
 	// newly created Session. The buffer overwrites its oldest bytes when full.
 	DefaultReceiveBufferSize = 16 * 1024 * 1024
 	// DefaultAIReadLimit is the initial recent-output limit for AI consumers.
@@ -23,30 +24,33 @@ const (
 	// DefaultActivityBufferCapacity is the fixed number of recent operations a
 	// Session retains for independent CLI and Agent activity consumers.
 	DefaultActivityBufferCapacity = 1024
-	// readerBufferSize amortizes Transport.Read calls without retaining another
-	// copy of terminal history outside the bounded receive buffer.
+	// readerBufferSize amortizes Channel.Read calls without retaining another
+	// copy of stream history outside the bounded receive buffer.
 	readerBufferSize = 32 * 1024
-	// readerIdleDelay prevents a broken Transport returning (0, nil) from
+	// readerIdleDelay prevents a broken Channel returning (0, nil) from
 	// spinning the dedicated reader goroutine at full CPU usage.
 	readerIdleDelay = time.Millisecond
 )
 
 var (
-	// ErrNotOpen is returned when terminal I/O is requested before a session opens
+	// ErrNotOpen is returned when stream I/O is requested before a session opens
 	// or after it has closed.
 	ErrNotOpen = errors.New("session is not open")
 	// ErrInvalidID is returned when creating a session without an ID.
 	ErrInvalidID = errors.New("session ID must not be empty")
 	// ErrNilTransport is returned when creating a session without a transport.
 	ErrNilTransport = errors.New("session transport must not be nil")
+	// ErrNilChannel is returned when a Transport reports a successful connection
+	// without transferring an established Channel.
+	ErrNilChannel = errors.New("session transport returned a nil channel")
 	// ErrInvalidActor is returned when a write request has no recognized source.
 	ErrInvalidActor = errors.New("session write actor is invalid")
 )
 
-// Actor identifies the ChannelTerm component that initiated a terminal write.
+// Actor identifies the ChannelTerm component that initiated a Channel write.
 //
-// Actor is internal metadata only. Core never forwards it to Transport, so a
-// connected device receives exactly the bytes supplied in WriteRequest.Data.
+// Actor is internal metadata only. Core never forwards it to Channel, so the
+// connected endpoint receives exactly the bytes supplied in WriteRequest.Data.
 type Actor string
 
 const (
@@ -68,11 +72,11 @@ func (actor Actor) Valid() bool {
 	}
 }
 
-// WriteRequest contains one terminal payload together with its operation source.
+// WriteRequest contains one stream payload together with its operation source.
 //
 // Data remains owned by the caller and is not retained after Write returns. Actor
 // describes the operation source recorded by Session activity; it does not alter
-// the bytes passed to the underlying Transport.
+// the bytes passed to the underlying Channel.
 type WriteRequest struct {
 	Actor Actor
 	Data  []byte
@@ -82,17 +86,17 @@ type WriteRequest struct {
 type SessionState uint8
 
 const (
-	// StateNew indicates that the Session has a Transport but has not connected.
+	// StateNew indicates that the Session has a Transport but no Channel yet.
 	StateNew SessionState = iota
-	// StateConnecting indicates that Connect is currently establishing Transport.
+	// StateConnecting indicates that Connect is establishing a Channel.
 	StateConnecting
-	// StateOpen indicates that terminal I/O can be forwarded to Transport.
+	// StateOpen indicates that stream I/O can be forwarded to Channel.
 	StateOpen
 	// StateClosing indicates that Close has started and I/O is no longer allowed.
 	StateClosing
 	// StateClosed indicates that Close has finished and cannot run again.
 	StateClosed
-	// StateFailed indicates that Connect or the Transport reader has failed.
+	// StateFailed indicates that Connect or the Channel reader has failed.
 	StateFailed
 )
 
@@ -116,11 +120,11 @@ func (s SessionState) String() string {
 	}
 }
 
-// Session represents a protocol-neutral terminal connection.
+// Session represents shared access to a protocol-neutral stream Channel.
 //
-// Session owns the continuous Transport reader and keeps only the newest output
+// Session owns the continuous Channel reader and keeps only the newest output
 // in a fixed-capacity Ring Buffer. UI and AI consumers use cursor-based chunk
-// reads; they never access Transport.Read or the buffer implementation directly.
+// reads; they never access Channel.Read or the buffer implementation directly.
 type Session interface {
 	// ID returns the stable caller-provided identifier for this Session.
 	ID() string
@@ -149,7 +153,7 @@ type Session interface {
 	// Write sends request.Data when State is StateOpen.
 	//
 	// request.Actor must be a recognized Actor. It is internal metadata only and
-	// is never encoded into the terminal byte stream.
+	// is never encoded into the Channel byte stream.
 	Write(request WriteRequest) (int, error)
 	// Resize requests a terminal size change when State is StateOpen.
 	//
@@ -172,7 +176,7 @@ type config struct {
 // a Session.
 //
 // bytes must be positive. When the buffer becomes full, incoming output
-// overwrites the oldest bytes rather than blocking the Transport reader.
+// overwrites the oldest bytes rather than blocking the Channel reader.
 func WithReceiveBufferCapacity(bytes int) Option {
 	return func(cfg *config) error {
 		if bytes <= 0 {
@@ -200,11 +204,12 @@ func WithActivityBufferCapacity(events int) Option {
 // Core is the default Session implementation.
 //
 // Core serializes lifecycle transitions with mu. Its dedicated reader goroutine
-// appends output to receive, allowing slow UI and AI consumers to wait without
-// blocking Transport.Read.
+// appends output to receive, allowing slow clients to wait without blocking
+// Channel.Read.
 type Core struct {
 	id        string
 	transport transport.Transport
+	channel   channel.Channel
 	receive   *receiveBuffer
 	activity  *activityBuffer
 
@@ -218,14 +223,14 @@ type Core struct {
 
 // New creates a Core in StateNew with a fixed-capacity receive buffer.
 //
-// id becomes the stable Session identifier and Manager registration key. terminal
-// is owned by Core after New succeeds and remains owned until Close completes.
+// id becomes the stable Session identifier and Manager registration key. source
+// is used once by Connect to establish the Channel that Core owns until Close.
 // options may change the default receive-output or activity-event capacity.
-func New(id string, terminal transport.Transport, options ...Option) (*Core, error) {
+func New(id string, source transport.Transport, options ...Option) (*Core, error) {
 	if id == "" {
 		return nil, ErrInvalidID
 	}
-	if isNilTransport(terminal) {
+	if isNilTransport(source) {
 		return nil, ErrNilTransport
 	}
 
@@ -248,7 +253,7 @@ func New(id string, terminal transport.Transport, options ...Option) (*Core, err
 	}
 	return &Core{
 		id:         id,
-		transport:  terminal,
+		transport:  source,
 		receive:    receive,
 		activity:   activity,
 		state:      StateNew,
@@ -259,12 +264,12 @@ func New(id string, terminal transport.Transport, options ...Option) (*Core, err
 // isNilTransport detects both a nil interface and an interface containing a
 // typed nil pointer. The latter would otherwise pass a direct interface-nil
 // comparison and panic later when Core invokes a Transport method.
-func isNilTransport(terminal transport.Transport) bool {
-	if terminal == nil {
+func isNilTransport(source transport.Transport) bool {
+	if source == nil {
 		return true
 	}
 
-	value := reflect.ValueOf(terminal)
+	value := reflect.ValueOf(source)
 	switch value.Kind() {
 	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
 		return value.IsNil()
@@ -283,7 +288,7 @@ func (s *Core) State() SessionState {
 	return s.state
 }
 
-// Connect establishes the underlying Transport and starts its output reader.
+// Connect asks the Transport to establish a Channel and starts its output reader.
 //
 // ctx controls the connection attempt. Core checks ctx before calling
 // Transport.Connect and passes it to Transport so cancellation and deadlines
@@ -311,7 +316,7 @@ func (s *Core) Connect(ctx context.Context) error {
 	s.state = StateConnecting
 	s.mu.Unlock()
 
-	err := s.transport.Connect(ctx)
+	stream, err := s.transport.Connect(ctx)
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -321,13 +326,34 @@ func (s *Core) Connect(ctx context.Context) error {
 		s.activity.close(err)
 		return err
 	}
+	if isNilChannel(stream) {
+		s.state = StateFailed
+		s.receive.close(ErrNilChannel)
+		s.activity.close(ErrNilChannel)
+		return ErrNilChannel
+	}
+	s.channel = stream
 	s.state = StateOpen
 	s.readerDone = make(chan struct{})
 	go s.readLoop(s.readerDone)
 	return nil
 }
 
-// ReadOutput waits for terminal output at next and returns at most maxBytes.
+// isNilChannel detects a typed nil returned through the Channel interface.
+func isNilChannel(stream channel.Channel) bool {
+	if stream == nil {
+		return true
+	}
+	value := reflect.ValueOf(stream)
+	switch value.Kind() {
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
+		return value.IsNil()
+	default:
+		return false
+	}
+}
+
+// ReadOutput waits for stream output at next and returns at most maxBytes.
 //
 // next is the cursor returned by the preceding OutputChunk. ctx stops the wait
 // if no output is available. A slow consumer receives Dropped=true and resumes
@@ -340,7 +366,7 @@ func (s *Core) ReadOutput(ctx context.Context, next OutputCursor, maxBytes int) 
 	return s.receive.readOutput(ctx, next, maxBytes)
 }
 
-// ReadRecent returns at most maxBytes from the newest retained terminal output.
+// ReadRecent returns at most maxBytes from the newest retained stream output.
 //
 // maxBytes bounds allocation and prevents consumers from accidentally copying
 // the complete receive buffer. AI callers should use DefaultAIReadLimit unless
@@ -354,8 +380,8 @@ func (s *Core) ReadRecent(maxBytes int) (OutputChunk, error) {
 
 // ReadActivity waits for activity events at next and returns at most maxEvents.
 //
-// The Activity Event Buffer is separate from terminal output, so reading it
-// cannot consume device bytes or affect any OutputCursor consumer.
+// The Activity Event Buffer is separate from stream output, so reading it
+// cannot consume Channel bytes or affect any OutputCursor consumer.
 func (s *Core) ReadActivity(ctx context.Context, next ActivityCursor, maxEvents int) (ActivityChunk, error) {
 	if !s.isOpen() {
 		return ActivityChunk{}, ErrNotOpen
@@ -374,16 +400,16 @@ func (s *Core) ReadRecentActivity(maxEvents int) (ActivityChunk, error) {
 	return s.activity.readRecent(maxEvents)
 }
 
-// Write sends all terminal input in request as one contiguous transport write
+// Write sends request data as one contiguous Channel write
 // sequence when Core is open.
 //
 // request.Data is caller-owned input and is never retained by Core.
 // request.Actor is validated and recorded in the independent Activity Event
-// Buffer, but Core deliberately passes only request.Data to Transport. Write
+// Buffer, but Core deliberately passes only request.Data to Channel. Write
 // serializes the complete short-write retry loop so concurrent callers cannot
 // interleave their payload bytes. Close does not acquire writeMu: closing the
-// Transport instead releases an in-flight write, avoiding a lifecycle lock
-// cycle. Write returns ErrNotOpen rather than invoking Transport before Connect
+// Channel instead releases an in-flight write, avoiding a lifecycle lock
+// cycle. Write returns ErrNotOpen rather than invoking Channel before Connect
 // or after Close.
 func (s *Core) Write(request WriteRequest) (int, error) {
 	if !request.Actor.Valid() {
@@ -400,7 +426,7 @@ func (s *Core) Write(request WriteRequest) (int, error) {
 
 	written := 0
 	for len(p) > 0 {
-		n, err := s.transport.Write(p)
+		n, err := s.channel.Write(p)
 		if n > len(p) {
 			n = len(p)
 		}
@@ -419,7 +445,7 @@ func (s *Core) Write(request WriteRequest) (int, error) {
 	return written, nil
 }
 
-// recordWriteActivity records only bytes confirmed written by Transport. It is
+// recordWriteActivity records only bytes confirmed written by Channel. It is
 // called while writeMu is held, preserving the order of events with respect to
 // Session.Write atomicity without waiting for any activity consumer.
 func (s *Core) recordWriteActivity(timestamp time.Time, request WriteRequest, written int) {
@@ -434,20 +460,24 @@ func (s *Core) recordWriteActivity(timestamp time.Time, request WriteRequest, wr
 	})
 }
 
-// Resize forwards a terminal dimension change when Core is open.
+// Resize forwards a terminal dimension change when the Channel supports it.
 //
 // cols is the terminal width in character columns and rows is the terminal
 // height in character rows. Resize returns ErrNotOpen before Connect or after
-// Close so an unavailable Transport never receives a stale terminal-size request.
+// Close so an unavailable Channel never receives a stale terminal-size request.
 func (s *Core) Resize(cols, rows uint16) error {
 	if !s.isOpen() {
 		return ErrNotOpen
 	}
-	return s.transport.Resize(cols, rows)
+	resizer, ok := s.channel.(channel.Resizer)
+	if !ok {
+		return channel.ErrResizeUnsupported
+	}
+	return resizer.Resize(cols, rows)
 }
 
 // isOpen reads the lifecycle state without holding Core's lock during a
-// potentially blocking Transport operation. The state may change immediately
+// potentially blocking Channel operation. The state may change immediately
 // after this method returns, so callers must not use it as a concurrency guard.
 func (s *Core) isOpen() bool {
 	s.mu.Lock()
@@ -455,7 +485,7 @@ func (s *Core) isOpen() bool {
 	return s.state == StateOpen
 }
 
-// readLoop is the only goroutine that calls Transport.Read for a Core. It
+// readLoop is the only goroutine that calls Channel.Read for a Core. It
 // publishes received bytes before handling an accompanying error because an
 // io.Reader may validly return both data and an error in the same call.
 func (s *Core) readLoop(done chan<- struct{}) {
@@ -463,7 +493,7 @@ func (s *Core) readLoop(done chan<- struct{}) {
 
 	buffer := make([]byte, readerBufferSize)
 	for {
-		n, err := s.transport.Read(buffer)
+		n, err := s.channel.Read(buffer)
 		if n > 0 {
 			s.receive.append(buffer[:n])
 		}
@@ -504,9 +534,9 @@ func (s *Core) handleReadError(err error) {
 	s.activity.close(err)
 }
 
-// Close releases the underlying Transport, output reader, and receive buffer.
+// Close releases the underlying Channel, output reader, and receive buffer.
 //
-// Close first wakes output consumers, then closes Transport to unblock its
+// Close first wakes output consumers, then closes Channel to unblock its
 // reader, waits for that goroutine to exit, and finally releases the retained
 // buffer memory. Sequential calls after StateClosed return the original close
 // result so cleanup errors remain observable.
@@ -529,7 +559,10 @@ func (s *Core) Close() error {
 	s.receive.close(io.EOF)
 	s.activity.close(io.EOF)
 	close(stop)
-	err := s.transport.Close()
+	var err error
+	if s.channel != nil {
+		err = s.channel.Close()
+	}
 	if done != nil {
 		<-done
 	}

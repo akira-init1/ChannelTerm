@@ -1,22 +1,33 @@
-# Transport and Serial Modules
+# Channel, Transport, and Serial Modules
 
-## Transport contract
+## Channel contract
 
-`internal/core/transport.Transport` is a protocol-neutral bidirectional terminal byte stream:
+`internal/core/channel.Channel` is an established protocol-neutral bidirectional byte stream:
 
 ```go
-type Transport interface {
-    Connect(ctx context.Context) error
+type Channel interface {
     Read(p []byte) (int, error)
     Write(p []byte) (int, error)
-    Resize(cols, rows uint16) error
     Close() error
+    State() State
 }
 ```
 
-A Transport establishes and owns live protocol resources. It does not own terminal history. Session supplies one continuous reader, serializes complete write payloads at the byte boundary, and retains output. Implementations must not retain caller buffers and must make `Close` safe to call repeatedly.
+A Channel owns its live stream resource, not retained history. `Read` and `Write` follow Go reader/writer contracts, caller buffers are not retained, and `Close` is repeatable. State reports `open`, `closing`, `closed`, or `failed` as a point-in-time lifecycle snapshot.
 
-`Connect` receives cancellation/deadline context and must release partially acquired resources. `Read` and `Write` follow Go reader/writer contracts. `Resize` reports a protocol error when a transport has no terminal-size capability.
+`channel.Stream` adapts an already-open `io.ReadWriteCloser` to this contract. Optional capabilities are separate interfaces; currently `channel.Resizer` expresses terminal dimensions without forcing file, debug, JTAG, or remote raw streams to implement terminal behavior.
+
+## Transport contract
+
+`internal/core/transport.Transport` establishes a protocol-specific Channel:
+
+```go
+type Transport interface {
+    Connect(ctx context.Context) (channel.Channel, error)
+}
+```
+
+A Transport owns partially acquired resources during connection. `Connect` receives cancellation/deadline context, releases partial resources on error, and transfers a successful live resource to the returned Channel. Session then supplies one continuous Channel reader, serializes complete write payloads at the byte boundary, and retains output.
 
 ## Serial implementation
 
@@ -26,9 +37,9 @@ Validated configuration includes port, positive baud rate, 5-8 data bits, suppor
 
 Serial `Connect` checks context before and immediately after the operating-system open. The library's blocking open itself cannot be interrupted after it starts; if cancellation is detected after success, ChannelTerm closes the acquired port before returning.
 
-`Read` and `Write` snapshot the current port and delegate to the driver. `Close` clears the shared port reference before closing the driver resource, causing later operations to fail immediately and unblocking an active read through the driver. A successfully closed Transport object can be connected again, although normal ChannelTerm Session workflows create a new object for a new lifecycle.
+Each successful Serial `Connect` wraps the opened port in `channel.Stream` and transfers ownership. Channel `Read` and `Write` delegate to the driver. Channel `Close` closes the driver resource exactly once, causes later operations to fail immediately, and unblocks an active read through the driver. A Serial Transport can open another independent Channel after the first closes, although normal ChannelTerm Session workflows create a new Transport for a new lifecycle.
 
-Serial has no terminal dimensions, so `Resize` always returns an unsupported error. Transport connection itself never sends wake or line-ending bytes; Application sends an explicitly enabled wake byte through Session after connection.
+Serial Channels do not implement `channel.Resizer` because physical serial ports have no terminal dimensions. Transport connection itself never sends wake or line-ending bytes; Application sends an explicitly enabled wake byte through Session after connection.
 
 ## Enumeration and metadata
 
@@ -38,8 +49,8 @@ Open failures retain the driver error while adding a diagnostic category for mis
 
 ## Current implementation boundary
 
-Serial is the only concrete Transport in the current repository. There is no PTY, Android, or iOS Transport implementation.
+Serial is the only concrete Transport and serial-backed Channel in the current repository. There is no file-transfer, debug/JTAG, remote-network, PTY, Android, or iOS implementation.
 
 ## Future direction
 
-The protocol-neutral interface leaves room for future SSH or Telnet Transports. Neither is currently implemented or committed to a release.
+The base Channel interface can carry future file, debug/JTAG, and remote-network streams while Session continues to provide the same lifecycle, buffering, sharing, and write serialization. Those stream types, SSH/Telnet Transports, OpenOCD integration, and file transfer are not currently implemented or committed to a release.

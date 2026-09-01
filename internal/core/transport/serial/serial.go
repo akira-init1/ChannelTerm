@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"io/fs"
 	"strings"
-	"sync"
 
+	"github.com/akira-init1/ChannelTerm/internal/core/channel"
 	goserial "go.bug.st/serial"
 )
 
@@ -28,12 +28,6 @@ var (
 	// ErrFlowControlUnsupported is returned when the selected flow control mode
 	// cannot be configured by the cross-platform serial backend.
 	ErrFlowControlUnsupported = errors.New("serial flow control is unsupported by the serial backend")
-	// ErrAlreadyOpen is returned when Connect is called after the port has opened.
-	ErrAlreadyOpen = errors.New("serial transport is already open")
-	// ErrNotOpen is returned when Read or Write is called before Connect or after Close.
-	ErrNotOpen = errors.New("serial transport is not open")
-	// ErrResizeUnsupported is returned because physical serial ports have no terminal dimensions.
-	ErrResizeUnsupported = errors.New("serial transport does not support terminal resizing")
 )
 
 // Parity configures serial parity checking.
@@ -138,16 +132,14 @@ func ListPorts() ([]Port, error) {
 	return enrichPorts(ports), nil
 }
 
-// Transport is a serial-backed implementation of transport.Transport.
+// Transport opens serial-backed Channels.
 //
-// Transport owns the opened port from Connect until Close. Its Read and Write
-// methods delegate directly to the port, while Session owns all receive-history
-// buffering and continuously calls Read from exactly one goroutine.
+// Transport retains only validated connection configuration. A successful
+// Connect transfers the opened port to the returned Channel, while Session owns
+// receive-history buffering above that Channel.
 type Transport struct {
 	config Config
 
-	mu   sync.Mutex
-	port goserial.Port
 	open func(name string, mode *goserial.Mode) (goserial.Port, error)
 }
 
@@ -159,90 +151,33 @@ func New(config Config) (*Transport, error) {
 	return &Transport{config: config, open: goserial.Open}, nil
 }
 
-// Connect opens the configured serial port.
+// Connect opens the configured serial port and transfers it to a Channel.
 //
 // ctx is checked before and immediately after the operating-system open call.
 // A cancelled context after the port opens closes the port before Connect
 // returns. Physical port opening itself is delegated to the serial library and
 // therefore cannot be interrupted once the operating system call has begun.
-func (t *Transport) Connect(ctx context.Context) error {
+func (t *Transport) Connect(ctx context.Context) (channel.Channel, error) {
 	if err := ctx.Err(); err != nil {
-		return err
-	}
-
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	if t.port != nil {
-		return ErrAlreadyOpen
+		return nil, err
 	}
 
 	port, err := t.open(t.config.Port, toMode(t.config))
 	if err != nil {
-		return diagnoseOpenError(currentPlatform(), t.config.Port, err)
+		return nil, diagnoseOpenError(currentPlatform(), t.config.Port, err)
 	}
 	if err := ctx.Err(); err != nil {
 		closeErr := port.Close()
 		if closeErr != nil {
-			return errors.Join(err, fmt.Errorf("close serial port after cancellation: %w", closeErr))
+			return nil, errors.Join(err, fmt.Errorf("close serial port after cancellation: %w", closeErr))
 		}
-		return err
+		return nil, err
 	}
-	t.port = port
-	return nil
-}
-
-// Read copies bytes received from the serial port into p.
-//
-// Read returns ErrNotOpen before Connect or after Close. Close can run while
-// Read blocks; closing the underlying port unblocks the pending read.
-func (t *Transport) Read(p []byte) (int, error) {
-	port := t.currentPort()
-	if port == nil {
-		return 0, ErrNotOpen
+	stream, err := channel.NewStream(port)
+	if err != nil {
+		return nil, errors.Join(err, port.Close())
 	}
-	return port.Read(p)
-}
-
-// Write transmits p to the serial port.
-//
-// Write returns ErrNotOpen before Connect or after Close. It leaves natural
-// backpressure to the operating system and serial driver.
-func (t *Transport) Write(p []byte) (int, error) {
-	port := t.currentPort()
-	if port == nil {
-		return 0, ErrNotOpen
-	}
-	return port.Write(p)
-}
-
-// Resize always returns ErrResizeUnsupported because serial connections do not
-// define terminal dimensions.
-func (t *Transport) Resize(uint16, uint16) error {
-	return ErrResizeUnsupported
-}
-
-// Close closes the serial port and is safe to call repeatedly.
-//
-// Close clears the shared port reference before invoking the underlying close,
-// so concurrent new Read or Write calls fail immediately instead of retaining a
-// stale port reference. Calls already in progress are released by the driver.
-func (t *Transport) Close() error {
-	t.mu.Lock()
-	port := t.port
-	t.port = nil
-	t.mu.Unlock()
-	if port == nil {
-		return nil
-	}
-	return port.Close()
-}
-
-// currentPort snapshots the port reference before a potentially blocking I/O
-// call so Close can detach the transport without holding its lifecycle lock.
-func (t *Transport) currentPort() goserial.Port {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	return t.port
+	return stream, nil
 }
 
 // openFailure is the internal remediation category selected without discarding

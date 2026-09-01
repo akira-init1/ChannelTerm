@@ -20,7 +20,7 @@ var (
 // into the current Ring Buffer because old bytes can be overwritten.
 type OutputCursor uint64
 
-// OutputChunk is a bounded copy of terminal output retained by a Session.
+// OutputChunk is a bounded copy of stream output retained by a Session.
 type OutputChunk struct {
 	// Data contains no more bytes than the read limit requested by the caller.
 	Data []byte
@@ -30,11 +30,11 @@ type OutputChunk struct {
 	Dropped bool
 }
 
-// receiveBuffer retains the newest fixed-capacity terminal output.
+// receiveBuffer retains the newest fixed-capacity stream output.
 //
 // It replaces notify whenever data arrives or the buffer closes. Readers capture
 // that channel while holding mu and wait without the lock, so a slow consumer
-// never prevents the Transport reader from appending new output.
+// never prevents the Channel reader from appending new output.
 type receiveBuffer struct {
 	mu sync.Mutex
 
@@ -186,9 +186,9 @@ func (b *receiveBuffer) copyLocked(start OutputCursor, count int, dropped bool) 
 	}
 }
 
-// close records the terminal end condition once and wakes all pending readers.
+// close records the stream end condition once and wakes all pending readers.
 // The first error is retained because later cleanup must not hide the original
-// transport failure.
+// Channel failure.
 func (b *receiveBuffer) close(err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()

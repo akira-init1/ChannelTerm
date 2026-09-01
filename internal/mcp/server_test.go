@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/akira-init1/ChannelTerm/internal/core/channel"
 	"github.com/akira-init1/ChannelTerm/internal/core/connectionpolicy"
 	"github.com/akira-init1/ChannelTerm/internal/core/device"
 	"github.com/akira-init1/ChannelTerm/internal/core/session"
@@ -590,7 +591,7 @@ func newFakeTransport() *fakeTransport {
 	return &fakeTransport{output: make(chan []byte, 8), closed: make(chan struct{})}
 }
 
-func (*fakeTransport) Connect(context.Context) error { return nil }
+func (t *fakeTransport) Connect(context.Context) (channel.Channel, error) { return t, nil }
 
 func (t *fakeTransport) Read(buffer []byte) (int, error) {
 	select {
@@ -609,6 +610,7 @@ func (t *fakeTransport) Write(data []byte) (int, error) {
 }
 
 func (*fakeTransport) Resize(uint16, uint16) error { return nil }
+func (*fakeTransport) State() channel.State        { return channel.StateOpen }
 
 func (t *fakeTransport) Close() error {
 	t.once.Do(func() { close(t.closed) })

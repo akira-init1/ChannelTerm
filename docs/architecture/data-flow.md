@@ -6,7 +6,7 @@
 OS serial driver
       |
       v
-Serial Transport.Read
+Serial Channel.Read
       |
       v
 Session reader goroutine
@@ -22,7 +22,7 @@ Application.ReadSession
       `--> MCP cursor --> utf8 / hex / base64 result
 ```
 
-One Session goroutine is the only continuous reader of a Transport. Consumers copy bounded chunks by independent absolute cursor. Slow consumers cannot block the Transport reader; they receive `dropped: true` if overwritten output passes their cursor.
+One Session goroutine is the only continuous reader of a Channel. Consumers copy bounded chunks by independent absolute cursor. Slow consumers cannot block the Channel reader; they receive `dropped: true` if overwritten output passes their cursor.
 
 ## Terminal input
 
@@ -42,7 +42,7 @@ Ctrl+] local controller       decode complete payload
           +--------+---------+
           |                  |
           v                  v
-  Activity Buffer     Transport.Write
+  Activity Buffer      Channel.Write
                              |
                              v
                        serial device
@@ -66,8 +66,8 @@ Session Manager.GetOrCreate(transport, endpoint)
           |
           +--> active Session exists --> return it with reused=true
           |
-          `--> create Serial Transport --> Session.Connect --> optional wake
-                                      --> Manager registration
+          `--> create Serial Transport --> open Serial Channel --> Session reader
+                                      --> optional wake --> Manager registration
 ```
 
 Concurrent opens for the same exact endpoint wait on one in-progress open. Failed and closed Sessions do not permanently reserve the endpoint.
@@ -102,10 +102,13 @@ Physical serial endpoint
    Serial Transport
           |
           v
+    Serial Channel
+          |
+          v
  host-owned Session
           |
           +--> CLI Attachment through MCP
           `--> MCP Client
 ```
 
-The host Manager shares one active Session for an exact `transport + endpoint` pair within that host process. Each Client or Attachment maintains independent output and activity cursors. Closing one MCP connection releases only that Client; `terminal_close` or Session Host shutdown releases the shared Transport.
+The host Manager shares one active Session for an exact `transport + endpoint` pair within that host process. Each Client or Attachment maintains independent output and activity cursors. Closing one MCP connection releases only that Client; `terminal_close` or Session Host shutdown closes the shared Channel and its underlying serial resource.

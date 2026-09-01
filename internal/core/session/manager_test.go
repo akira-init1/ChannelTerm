@@ -130,6 +130,9 @@ func TestManagerCloseClosesRegisteredSessions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
 	}
+	if err := s.Connect(context.Background()); err != nil {
+		t.Fatalf("Connect() error = %v", err)
+	}
 	if err := manager.Register(s); err != nil {
 		t.Fatalf("Register() error = %v", err)
 	}

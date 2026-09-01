@@ -28,7 +28,7 @@ This navigation index links every public document. Technical facts are owned by 
 
 - [Application](modules/application.md)
 - [Session](modules/session.md)
-- [Transport and Serial](modules/transport.md)
+- [Channel, Transport, and Serial](modules/transport.md)
 - [Buffers and cursors](modules/buffer.md)
 - [Device Registry](modules/device-registry.md)
 - [Connection Policy](modules/connection-policy.md)
