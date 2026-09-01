@@ -547,7 +547,7 @@ If the current branch already matches the task, continue on it. Keep one feature
 
 Never push directly to `main` or `master`. Changes to the default branch go through a pull request. Force-pushing or rewriting history requires an explicit maintainer request.
 
-For each completed, independent repository task (feature, bug fix, refactor, docs, test, build, CI, or chore), prepare only that task's verified changes for handoff. Do not automatically run `git commit` or `git push`; the user decides whether and when to commit or publish. Do not commit unfinished work or work with required checks that failed.
+For every completed repository modification task (feature, bug fix, refactor, docs, test, build, CI, or chore), staging the verified task changes is the mandatory default handoff. Stage only that task's files after its required checks pass. Do not automatically run `git commit` or `git push`; the user decides whether and when to commit or publish. Do not stage or commit unfinished work or work with required checks that failed.
 
 Use Conventional Commits:
 
@@ -595,6 +595,8 @@ git diff --cached --stat
 ```
 
 Run `git diff --cached` when needed to confirm that the staged diff contains only current-task work. If unrelated changes were already staged before the task, preserve them without alteration, verify the current task's files separately, and report that pre-existing index state; do not claim that the entire index belongs to the current task. The staged changes added by Codex represent the current task's prepared deliverable; unrelated work remains unstaged and untouched.
+
+After staging and verification, always provide one recommended Conventional Commit message that describes exactly the staged task changes. Show it as `git commit -m "<message>"` for the user to review, but do not execute it without explicit approval.
 
 Without explicit maintainer/user approval, do not:
 
