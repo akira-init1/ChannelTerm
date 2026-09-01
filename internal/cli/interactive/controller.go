@@ -25,6 +25,9 @@ const (
 	// ActionEscapePending reports that the controller has entered local escape
 	// mode and is waiting for its command byte.
 	ActionEscapePending
+	// ActionCancelEscape reports that Esc returned the controller from local
+	// escape mode to normal remote-input mode without forwarding Esc.
+	ActionCancelEscape
 	// ActionUnknownEscape reports an unsupported byte following the escape byte.
 	ActionUnknownEscape
 )
@@ -33,8 +36,8 @@ const (
 //
 // Data is populated for ActionRemote and contains caller-owned bytes copied by
 // Controller. Command is populated for ActionUnknownEscape. ActionQuit,
-// ActionHelp, ActionTogglePromptTimestamp, and ActionEscapePending do not
-// carry payload data.
+// ActionHelp, ActionTogglePromptTimestamp, ActionEscapePending, and
+// ActionCancelEscape do not carry payload data.
 type Action struct {
 	Kind    ActionKind
 	Data    []byte
@@ -73,9 +76,9 @@ func (c *Controller) EscapeByte() byte {
 //
 // In normal mode, Ctrl+C is byte 0x03 and is emitted as ActionRemote. In local
 // escape mode, Ctrl+C cancels that mode and is still emitted as ActionRemote.
-// Esc cancels local escape mode without an action. An unsupported command after
-// the escape prefix is reported locally and always returns the controller to
-// normal input mode.
+// Esc emits ActionCancelEscape without reaching the remote input. An
+// unsupported command after the escape prefix is reported locally and always
+// returns the controller to normal input mode.
 func (c *Controller) Process(data []byte) []Action {
 	var actions []Action
 	remoteStart := 0
@@ -102,7 +105,7 @@ func (c *Controller) Process(data []byte) []Action {
 			case 0x03:
 				actions = append(actions, Action{Kind: ActionRemote, Data: []byte{value}})
 			case 0x1B:
-				// Esc cancels the local escape mode without reaching the remote Session.
+				actions = append(actions, Action{Kind: ActionCancelEscape})
 			default:
 				actions = append(actions, Action{Kind: ActionUnknownEscape, Command: value})
 			}

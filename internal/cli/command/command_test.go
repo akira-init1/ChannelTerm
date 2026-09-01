@@ -649,6 +649,47 @@ func TestForwardInputDisplaysEscapePendingLocally(t *testing.T) {
 	}
 }
 
+// TestForwardInputCancelsEscapeLocally verifies that Ctrl+] followed by Esc
+// produces only local feedback, writes neither control byte remotely, and
+// leaves subsequent input in normal remote-input mode.
+func TestForwardInputCancelsEscapeLocally(t *testing.T) {
+	terminal := &fakeCLISession{}
+	var local bytes.Buffer
+	forwardInput(strings.NewReader("\x1d\x1bnext"), terminal, func(data []byte) error {
+		_, err := local.Write(data)
+		return err
+	}, func() {})
+	if got, want := string(terminal.writtenData()), "next"; got != want {
+		t.Errorf("remote input = %q, want %q", got, want)
+	}
+	if got, want := local.String(), string(escapePendingText)+string(escapeCancelledText); got != want {
+		t.Errorf("local output = %q, want %q", got, want)
+	}
+}
+
+// TestForwardInputCancelsWhenEscapeCancelledOutputFails verifies a failed
+// cancellation notice stops the local input bridge without leaking Esc to the
+// remote Session.
+func TestForwardInputCancelsWhenEscapeCancelledOutputFails(t *testing.T) {
+	terminal := &fakeCLISession{}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	writes := 0
+	forwardInput(strings.NewReader("\x1d\x1b"), terminal, func([]byte) error {
+		writes++
+		if writes == 2 {
+			return errors.New("cancel feedback failed")
+		}
+		return nil
+	}, cancel)
+	if !errors.Is(ctx.Err(), context.Canceled) {
+		t.Fatal("forwardInput() did not cancel after cancellation feedback failed")
+	}
+	if got := terminal.writtenData(); len(got) != 0 {
+		t.Errorf("remote input = %x, want no escape bytes", got)
+	}
+}
+
 // TestForwardInputHandlesEscapeCommands verifies that the CLI bridge writes
 // only remote payload bytes and reserves escape actions for local handling.
 func TestForwardInputHandlesEscapeCommands(t *testing.T) {
