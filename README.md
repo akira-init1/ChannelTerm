@@ -1,31 +1,161 @@
 # ChannelTerm
 
-A shared terminal-session core for human and AI access.
+ChannelTerm lets humans and AI share the same hardware terminal session.
 
-ChannelTerm is a cross-platform terminal tool for hardware debugging. It provides serial terminal access, reusable shared sessions, and MCP tools that allow humans and AI agents to observe and operate the same terminal session.
+AI does not replace your terminal. It joins it: the AI can read and operate the device while you remain attached, see what it writes, interact directly, and intervene when needed.
 
-The current implementation focuses on **serial communication**.
+```text
+              Physical serial device
+                        |
+                 Serial Transport
+                  (one connection)
+                        |
+                        v
+              ChannelTerm Session SER-1
+                 /                 \
+                /                   \
+       Human terminal             AI / MCP client
+    channelterm attach        read and write tools
+                \                   /
+                 `--- same Session -'
+```
 
-## Features
+ChannelTerm currently implements serial communication on Windows, Linux, and macOS. It is not a built-in AI; it exposes real terminal Sessions to human CLI clients and external AI clients through MCP.
 
-* Cross-platform serial terminal for Windows, Linux, and macOS
-* Shared terminal sessions for multiple clients
-* MCP server over stdio and Streamable HTTP
-* Human and AI access to the same Session
-* Independent read cursors for concurrent clients
-* Agent write activity visible from an attached CLI
-* Serial device discovery and deterministic target references
-* TOML serial profiles
-* Raw terminal input with local escape commands
-* In-memory retained terminal output
-* JSON output for script-oriented session and device listing
-* Static cross-compilation for `amd64` and `arm64`
+## A Shared Terminal in Practice
+
+An attached CLI renders each new, non-empty Agent write as a local `AI` activity block. The lines after the block are still the device's raw terminal output, and the human can type at the same prompt:
+
+```text
+root@board:~#
+
+──────── AI ────────
+[18:52:31] >> echo agent-check
+────────────────────
+agent-check
+root@board:~# echo human-still-here
+human-still-here
+root@board:~#
+```
+
+The exact command output and input echo depend on the connected device. The `AI` block is local presentation derived from Session activity; it is not inserted into the device byte stream or stored terminal output.
+
+## Why ChannelTerm?
+
+A traditional serial terminal gives the human the physical connection:
+
+```text
+Human ---- terminal ---- Serial device
+```
+
+An AI-only serial tool gives the AI the connection, but leaves the human outside the live terminal:
+
+```text
+AI ---- MCP / serial ---- Serial device
+
+Human         (not attached)
+```
+
+ChannelTerm keeps one physical connection in a shared Session:
+
+```text
+                         +---- Human terminal
+                         |
+Serial device ---- Session
+                         |
+                         +---- AI / MCP client
+```
+
+The result is a hardware-debugging workflow where AI actions stay observable and the human remains present. Sharing is more than reopening the same port: every client sees retained raw output through an independent cursor, and all writes pass through the same Session.
 
 ## Quick Start
 
-ChannelTerm currently requires Go 1.25 or later.
+Build or install `channelterm`, then list the serial targets detected on the machine:
 
-Clone the canonical repository and run:
+```bash
+channelterm list --kind device --transport serial --no-mcp
+```
+
+Create or join a shared Session and attach the human terminal. Use the target printed by `list`:
+
+```bash
+# Linux example
+channelterm attach SER-/DEV/TTYUSB0 --baud 115200
+
+# Windows example
+channelterm attach SER-COM8 --baud 115200
+```
+
+For the default local endpoint, `attach` starts the loopback Session Host when needed, asks it to open or reuse the target, and then joins the returned Session. From another shell, inspect its short reference:
+
+```bash
+channelterm list --kind session
+```
+
+To put an AI in that same Session, configure its MCP client to use the same Streamable HTTP endpoint:
+
+```text
+http://127.0.0.1:37099/mcp
+```
+
+The AI can use the MCP Session tools to list Sessions and read or write `SER-1`; see the [MCP workflow](docs/getting-started/mcp-server.md) and [tool reference](docs/reference/mcp-tools.md). The separate `channelterm init --mcp` convenience command installs a stdio MCP configuration; use the shared HTTP endpoint when a CLI and an AI must join the same host-owned Session.
+
+While attached:
+
+```text
+Ctrl+C      Send 0x03 to the remote terminal
+Ctrl+] q    Detach this CLI without closing the shared Session
+Ctrl+] ?    Show local escape help
+Ctrl+] ]    Send a literal Ctrl+] byte
+```
+
+The HTTP server has no ChannelTerm authentication or authorization layer. Its default listener is loopback-only; do not expose it to an untrusted network.
+
+## What It Enables
+
+- One host-owned serial connection shared by human CLI and MCP clients.
+- Independent output and activity cursors, so one reader does not consume another reader's data.
+- Visible Agent writes in attached terminals without modifying raw Session output.
+- Direct human input, including a remote `Ctrl+C`, while the AI remains connected.
+- Client detach without closing the Session used by other clients.
+- Serial discovery, deterministic target references, TOML profiles, and private direct connections when sharing is not wanted.
+- MCP over stdio or Streamable HTTP, with the shared CLI workflow using the HTTP Session Host.
+
+## Example Workflows
+
+### Embedded Linux debugging
+
+Attach to a board once. An AI reads the retained boot log and runs a focused diagnostic while the engineer watches the same device output and responds at the live shell.
+
+### AI operates, human observes
+
+The AI sends a command with `terminal_write`. The attached CLI displays the new Agent write as an `AI` activity block, followed by the real bytes returned by the device.
+
+### Human intervenes
+
+The human can type into the shared Session or send `Ctrl+C` to the remote terminal, then continue observing or detach with `Ctrl+] q`. ChannelTerm serializes complete write payloads so their bytes do not interleave, but it does not provide writer ownership, command transactions, priority, or shell-state arbitration; clients must avoid conflicting command sequences.
+
+## How It Works
+
+```text
+Human CLI ---------+
+                   |
+                   v
+            Session Host / Manager
+                   |
+AI via MCP --------+--> Session --> Serial Transport <--> Device
+                        |    |
+                        |    `-- serialized writes
+                        `------- retained raw output
+```
+
+The Session Host owns the physical port and the Session lifetime. A Session owns the single Transport reader, bounded in-memory output and activity retention, and write serialization. CLI and MCP adapters use the same Core behavior; presentation such as highlighting and the `AI` activity block stays outside stored terminal data.
+
+Shared Session references such as `SER-1` are valid only within the owning host process. Stopping that host closes its Sessions; detaching one client does not.
+
+## Installation
+
+ChannelTerm currently requires the Go version declared in [`go.mod`](go.mod) (Go 1.25.0 at the time of writing). Build the native executable from the repository root:
 
 ```bash
 git clone https://github.com/akira-init1/ChannelTerm.git
@@ -33,238 +163,26 @@ cd ChannelTerm
 go build ./cmd/channelterm
 ```
 
-Check the CLI:
-
-```bash
-./channelterm --help
-```
-
-On Windows PowerShell:
-
-```powershell
-.\channelterm.exe --help
-```
-
-Subsequent examples assume `channelterm` is on `PATH`; otherwise use `./channelterm` on Linux/macOS or `.\channelterm.exe` in Windows PowerShell.
-
-## Serial Terminal
-
-List detected serial devices:
-
-```bash
-channelterm list --kind device --transport serial --no-mcp
-```
-
-Open a serial terminal:
-
-```bash
-channelterm serial --port /dev/ttyUSB0 --baud 115200
-```
-
-Windows example:
-
-```powershell
-channelterm serial --port COM8 --baud 115200
-```
-
-A normal serial connection does not send startup input.
-
-Use `--wake` when you explicitly want ChannelTerm to send one carriage return after connecting:
-
-```bash
-channelterm serial --port /dev/ttyUSB0 --baud 115200 --wake
-```
-
-### Interactive controls
-
-While attached to a terminal:
-
-```text
-Ctrl+C      Send 0x03 to the remote terminal
-Ctrl+] q    Exit or detach the local CLI
-Ctrl+] ?    Show local escape help
-Ctrl+] ]    Send a literal Ctrl+] byte
-```
-
-`Ctrl+C` is treated as remote terminal input rather than a local ChannelTerm exit command.
-
-## Serial Profiles
-
-Save commonly used serial settings:
-
-```bash
-channelterm serial --port /dev/ttyUSB0 --baud 115200 --save board
-```
-
-Reuse them later:
-
-```bash
-channelterm serial --profile board
-```
-
-Profiles are stored in TOML configuration.
-
-## Shared Sessions
-
-ChannelTerm can keep the physical serial connection inside a local Session Host so that multiple clients can observe the same Session without reopening the port.
-
-Start or attach to a shared serial Session:
-
-```bash
-channelterm attach SER-/DEV/TTYUSB0 --baud 115200
-```
-
-Windows example:
-
-```powershell
-channelterm attach SER-COM8 --baud 115200
-```
-
-List active Sessions:
-
-```bash
-channelterm list --kind session
-```
-
-Attach another terminal to an existing Session:
-
-```bash
-channelterm attach SER-1
-```
-
-Each reader has its own cursor, so reading terminal output from one client does not consume it for another.
-
-```text
-Serial Device
-     │
-     ▼
-  Transport
-     │
-     ▼
-   Session
-   ├── CLI
-   ├── CLI
-   └── MCP / AI Agent
-```
-
-Leaving an attached CLI with `Ctrl+] q` detaches that client without closing the shared Session.
-
-## MCP
-
-ChannelTerm can expose terminal operations to MCP clients and AI agents.
-
-Start the default stdio MCP server:
-
-```bash
-channelterm mcp
-```
-
-Start a local Streamable HTTP server:
-
-```bash
-channelterm mcp --transport http
-```
-
-Default endpoint:
-
-```text
-http://127.0.0.1:37099/mcp
-```
-
-The MCP server exposes terminal capabilities including:
-
-```text
-device discovery
-connection decisions
-open serial Session
-list Sessions
-read output
-wait for output
-read activity
-write terminal data
-close Session
-```
-
-Terminal writes can be attributed to `user`, `agent`, or `system`. Attached CLI clients can display new Agent write activity without modifying the actual terminal byte stream.
-
-> [!WARNING]
-> The current HTTP MCP mode does not provide authentication. Keep it bound to loopback unless you understand and control the surrounding network environment.
-
-## Private Sessions
-
-If you do not want to use the MCP Session Host, open a private connection:
-
-```bash
-channelterm attach SER-/DEV/TTYUSB0 --private
-```
-
-or use the direct serial command:
-
-```bash
-channelterm serial --port /dev/ttyUSB0
-```
-
-Private Sessions belong to the current ChannelTerm process and cannot be joined by other clients.
-
-## Build
-
-Run the standard checks:
-
-```bash
-go test ./...
-go vet ./...
-```
-
-Build the current platform:
-
-```bash
-go build ./cmd/channelterm
-```
-
-The repository also includes build scripts for Windows, Linux, and macOS on `amd64` and `arm64`.
-
-PowerShell:
-
-```powershell
-.\scripts\build.ps1
-```
-
-Linux / WSL:
-
-```bash
-./scripts/build.sh
-```
-
-Generated release artifacts are written to:
-
-```text
-dist/
-```
-
-Cross-compilation verifies that the source builds for a target platform. It does not replace testing against native terminals or physical serial hardware.
+See [Build from source](docs/getting-started/build.md) for the supported platforms and [Building and testing](docs/development/building-and-testing.md) for repository checks and cross-build scripts.
 
 ## Documentation
 
-Detailed documentation is available in [`docs/`](docs/README.md).
+- [Documentation index](docs/README.md)
+- [Serial terminal workflow](docs/getting-started/serial-terminal.md)
+- [Shared Session workflow](docs/getting-started/shared-session.md)
+- [MCP server workflow](docs/getting-started/mcp-server.md)
+- [CLI reference](docs/reference/cli.md)
+- [MCP tool reference](docs/reference/mcp-tools.md)
+- [Identifiers and references](docs/reference/identifiers.md)
+- [Architecture overview](docs/architecture/overview.md)
 
-Useful starting points:
+For exact command flags and defaults, the running program's `--help` output is authoritative.
 
-* [Build from source](docs/getting-started/build.md)
-* [Serial terminal](docs/getting-started/serial-terminal.md)
-* [Serial profiles](docs/getting-started/serial-profiles.md)
-* [Shared Sessions](docs/getting-started/shared-session.md)
-* [MCP server](docs/getting-started/mcp-server.md)
-* [CLI reference](docs/reference/cli.md)
-* [MCP tools](docs/reference/mcp-tools.md)
-* [Architecture](docs/architecture/overview.md)
+## Roadmap
 
-For exact command-line flags and defaults, the running program's `--help` output is authoritative.
+Serial is the only concrete Transport implemented today. The transport-neutral Core leaves room for future SSH or Telnet Transports and stronger multi-writer coordination, but these are directions rather than implemented features or release commitments.
 
-## Current Scope
-
-ChannelTerm currently implements serial communication.
-
-Other terminal transports are not part of the current implementation and should not be assumed to be supported.
+ChannelTerm does not currently implement GDB, JTAG/OpenOCD, virtual serial devices, file transfer, a built-in AI, or multi-agent orchestration.
 
 ## License
 
