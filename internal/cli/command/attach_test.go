@@ -254,8 +254,8 @@ func TestRunAttachEscapeQuitDetachesWithoutClosingSession(t *testing.T) {
 	if client.closeCount() != 1 {
 		t.Errorf("attach Close calls = %d, want 1", client.closeCount())
 	}
-	if got := output.String(); got != "Detached.\r\n" {
-		t.Errorf("CLI output = %q, want detach status", got)
+	if got := output.String(); got != string(escapePendingText)+"Detached.\r\n" {
+		t.Errorf("CLI output = %q, want escape feedback followed by detach status", got)
 	}
 }
 

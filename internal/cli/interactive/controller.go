@@ -19,6 +19,9 @@ const (
 	ActionQuit
 	// ActionHelp asks the local interactive client to display escape help.
 	ActionHelp
+	// ActionEscapePending reports that the controller has entered local escape
+	// mode and is waiting for its command byte.
+	ActionEscapePending
 	// ActionUnknownEscape reports an unsupported byte following the escape byte.
 	ActionUnknownEscape
 )
@@ -26,8 +29,8 @@ const (
 // Action describes one ordered effect requested by a Controller.
 //
 // Data is populated for ActionRemote and contains caller-owned bytes copied by
-// Controller. Command is populated for ActionUnknownEscape. ActionQuit and
-// ActionHelp do not carry payload data.
+// Controller. Command is populated for ActionUnknownEscape. ActionQuit,
+// ActionHelp, and ActionEscapePending do not carry payload data.
 type Action struct {
 	Kind    ActionKind
 	Data    []byte
@@ -98,6 +101,7 @@ func (c *Controller) Process(data []byte) []Action {
 		if value == c.EscapeByte() {
 			flushRemote(index)
 			c.pending = true
+			actions = append(actions, Action{Kind: ActionEscapePending})
 			remoteStart = index + 1
 		}
 	}
