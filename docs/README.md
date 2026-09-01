@@ -8,6 +8,7 @@ This navigation index links every public document. Technical facts are owned by 
 - [Use the serial terminal](getting-started/serial-terminal.md)
 - [Create and use serial profiles](getting-started/serial-profiles.md)
 - [Share a Session](getting-started/shared-session.md)
+- [Transfer files over a serial Session](getting-started/file-transfer.md)
 - [Run the MCP server](getting-started/mcp-server.md)
 - [Troubleshoot common failures](getting-started/troubleshooting.md)
 

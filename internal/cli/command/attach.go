@@ -583,13 +583,20 @@ func (s *mcpAttachSession) ReadActivity(ctx context.Context, next session.Activi
 // bytes remain lossless. The remote Session's write lock provides atomicity
 // with MCP Agent terminal_write calls.
 func (s *mcpAttachSession) Write(request session.WriteRequest) (int, error) {
+	return s.WriteContext(context.Background(), request)
+}
+
+// WriteContext forwards one complete caller payload while allowing non-
+// interactive CLI use cases such as file transfer to cancel an in-flight MCP
+// request. The host-owned Session still provides the actual write serialization.
+func (s *mcpAttachSession) WriteContext(ctx context.Context, request session.WriteRequest) (int, error) {
 	if !request.Actor.Valid() {
 		return 0, fmt.Errorf("%w: %q", session.ErrInvalidActor, request.Actor)
 	}
 	var result struct {
 		BytesWritten int `json:"bytes_written"`
 	}
-	if err := s.call(context.Background(), "terminal_write", map[string]any{
+	if err := s.call(ctx, "terminal_write", map[string]any{
 		"session_id": s.id,
 		"data":       base64.StdEncoding.EncodeToString(request.Data),
 		"encoding":   "base64",

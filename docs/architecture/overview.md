@@ -53,4 +53,4 @@ Serial is the only concrete Transport. Stream Channel categories such as file, d
 
 ## Future direction
 
-The Channel boundary permits future file, debug/JTAG, or remote-network streams without adding protocol assumptions to Session. SSH, Telnet, OpenOCD, and file transfer remain architectural directions, not current features or commitments.
+The Channel boundary permits future debug/JTAG or remote-network streams without adding protocol assumptions to Session. SSH, Telnet, OpenOCD, and a dedicated file Transport/Channel remain architectural directions, not current features or commitments. The current CLI file transfer is an application-layer Linux shell protocol carried over an existing serial Session; it is not another Transport.

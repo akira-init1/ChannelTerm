@@ -112,3 +112,26 @@ Physical serial endpoint
 ```
 
 The host Manager shares one active Session for an exact `transport + endpoint` pair within that host process. Each Client or Attachment maintains independent output and activity cursors. Closing one MCP connection releases only that Client; `terminal_close` or Session Host shutdown closes the shared Channel and its underlying serial resource.
+
+## CLI file transfer
+
+```text
+local file <--> bounded CLI chunks
+                     |
+                     v
+          existing Session read/write
+                     |
+                     v
+                  Channel
+                     |
+                     v
+               Serial Transport
+                     |
+                     v
+        Linux shell: stty + dd
+                     |
+                     v
+             wc -c + sha256sum
+```
+
+The file-transfer use case is layered above Session and does not access Serial Transport directly. A CLI attachment uses the existing terminal tools only as a byte-oriented client of the host-owned Session; no file-specific MCP schema exists. Payloads are bounded, raw chunks. Other readers retain independent cursors, while other writers must avoid the shell during a transfer because Session has no transfer-wide lease.

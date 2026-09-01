@@ -8,6 +8,7 @@
 
 - `OpenSerial`: load or create configuration, resolve a profile, apply explicit overrides, optionally save, connect or reuse a Session, optionally write one wake carriage return, and return Manager-owned metadata.
 - `ListSessions`, `ReadSession`, `ReadSessionActivity`, `WriteSession`, `CloseSession`: operate by opaque Session ID or short Session reference.
+- `SendFile`, `ReceiveFile`: stream bounded chunks through a cursor-based Session view, coordinate the minimal Linux shell protocol, report acknowledged progress, and verify byte count and SHA-256 without owning local files or presentation.
 - `ListSerialPorts`: enumerate ports without opening them or changing Registry state.
 - `ListSerialProfiles`: read and resolve named profiles; a missing file is an empty list and is not created.
 - `ResolveSerialTarget`: resolve a currently present `SER-*` target to the operating-system endpoint.
@@ -27,6 +28,8 @@ Generated Session IDs use 16 random bytes encoded as hex. ID generation is retri
 A nil read cursor returns recent retained data. A supplied cursor waits through the Session. Application does not encode terminal bytes, add presentation, or merge output with activity.
 
 `WriteSession` validates the actor and retries short writes while honoring context cancellation between retries. Session still provides lower-level byte-boundary write serialization and activity recording; it does not coordinate the semantic intent of multiple writers. See [Session](session.md).
+
+File transfer uses the same Session write and output-cursor semantics. It reads or writes at most 32 KiB of payload per chunk, saves and restores the remote TTY mode around each raw `dd` operation, and performs end-to-end SHA-256 verification. It does not add a Session lease or hide payload output from independent readers, so callers must keep other writers off the selected shell until the transfer finishes.
 
 `CloseSession` first resolves and snapshots Session metadata, removes the Session from Manager ownership through `SerialService`, closes it, and returns the pre-close information for adapter results.
 
