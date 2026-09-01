@@ -70,7 +70,7 @@ Side effects and lifecycle:
 - The command loads or creates configuration, may save a profile, opens the physical port, configures local raw mode when stdin is a terminal, and closes the Session on exit. On Windows Console hosts, raw input enables virtual-terminal input, so navigation keys are passed through as standard VT sequences; the original console mode is restored when the command exits.
 - It sends no startup input unless `--wake` resolves to true.
 - `Ctrl+C` is remote input. Use `Ctrl+] q` for a local exit.
-- Pressing `Ctrl+]` enters local escape mode and displays the available escape commands locally; this feedback is not Session output.
+- Pressing `Ctrl+]` enters local escape mode and displays the available escape commands locally; press `Esc` to cancel that local mode without sending a byte. This feedback is not Session output.
 - Received Session bytes remain raw; optional highlighting is applied only while writing this CLI's output.
 
 Examples:
@@ -128,7 +128,7 @@ For compatibility, flags may precede an existing Session reference, but the docu
 
 When opening a target against the default local endpoint, `attach` may start `channelterm mcp --transport http` in the background and wait up to five seconds for readiness. It will not auto-start a custom or remote endpoint. Opening a target through MCP requires a local loopback endpoint. A reused Session retains its original metadata and connection settings; new attach flags do not reconfigure it. Supplying `--save` still runs the open/save workflow rather than bypassing it for an already listed Session.
 
-The initial attach read returns recent retained output, then uses private cursors to wait for later output and activity. New non-empty Agent writes are shown as local `AI` activity blocks; prior activity and CR/LF-only writes are not rendered. On Windows Console hosts, raw input enables virtual-terminal input, so navigation keys are forwarded as standard VT sequences and the original console mode is restored on exit. Pressing `Ctrl+]` enters local escape mode and displays the available escape commands locally; this feedback is not Session output. `Ctrl+] q` closes only the MCP client connection. It does not call `terminal_close`.
+The initial attach read returns recent retained output, then uses private cursors to wait for later output and activity. New non-empty Agent writes are shown as local `AI` activity blocks; prior activity and CR/LF-only writes are not rendered. On Windows Console hosts, raw input enables virtual-terminal input, so navigation keys are forwarded as standard VT sequences and the original console mode is restored on exit. Pressing `Ctrl+]` enters local escape mode and displays the available escape commands locally; press `Esc` to cancel that local mode without sending a byte. This feedback is not Session output. `Ctrl+] q` closes only the MCP client connection. It does not call `terminal_close`.
 
 Examples:
 
