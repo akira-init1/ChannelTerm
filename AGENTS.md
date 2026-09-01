@@ -537,7 +537,7 @@ If the current branch already matches the task, continue on it. Keep one feature
 
 Never push directly to `main` or `master`. Changes to the default branch go through a pull request. Force-pushing or rewriting history requires an explicit maintainer request.
 
-For each completed, independent repository task (feature, bug fix, refactor, docs, test, build, CI, or chore), create one local Conventional Commit by default after the required implementation, tests, documentation, and verification have succeeded. Do not commit unfinished work or work with required checks that failed. A user instruction such as `do not commit` or `不要提交` disables this default for that task.
+For each completed, independent repository task (feature, bug fix, refactor, docs, test, build, CI, or chore), prepare only that task's verified changes for handoff. Do not automatically run `git commit` or `git push`; the user decides whether and when to commit or publish. Do not commit unfinished work or work with required checks that failed.
 
 Use Conventional Commits:
 
@@ -552,9 +552,9 @@ ci: update ...
 chore: maintain ...
 ```
 
-One independently acceptable feature, bug fix, or refactor normally forms one final commit, including its required tests and documentation. Do not mechanically split commits just because several files changed, and do not require every external contributor to have only one historical commit.
+One independently acceptable feature, bug fix, or refactor should normally be suitable for one final commit, including its required tests and documentation. Do not mechanically split commits just because several files changed, and do not require every external contributor to have only one historical commit.
 
-Before staging/committing:
+Before staging:
 
 ```bash
 git status
@@ -562,14 +562,37 @@ git diff
 git diff --check
 ```
 
-Explicitly stage only files related to the current task. Preserve unrelated working-tree changes: do not reset, clean, overwrite, stage, or commit them. Do not blindly use `git add .` or `git add -A` when unrelated changes may exist.
+After completing implementation, test, or documentation changes, inspect the final working tree:
 
-After the default local commit, stop the Git publishing workflow. Without explicit maintainer/user approval, do not:
+```bash
+git status --short
+```
 
+Identify the files actually added, modified, or deleted by the current task. Explicitly stage only those files, for example:
+
+```bash
+git add path/to/file1 path/to/file2
+```
+
+Do not use `git add .` or `git add -A` unless the user explicitly requests it. Never stage working-tree changes that existed before the task and are unrelated to it.
+
+When a file contains both current-task changes and pre-existing user changes, preserve the user's boundary. Do not stage the whole file if that would include unrelated content. Use a safe way to isolate the task's changes when practical; otherwise, leave the file unstaged and explain the limitation in the final report.
+
+After staging, verify that the index contains the intended handoff:
+
+```bash
+git diff --cached --stat
+```
+
+Run `git diff --cached` when needed to confirm that the staged diff contains only current-task work. If unrelated changes were already staged before the task, preserve them without alteration, verify the current task's files separately, and report that pre-existing index state; do not claim that the entire index belongs to the current task. The staged changes added by Codex represent the current task's prepared deliverable; unrelated work remains unstaged and untouched.
+
+Without explicit maintainer/user approval, do not:
+
+- run `git commit`;
 - run `git push` to any other branch;
 - force-push;
 - rewrite Git history;
-- run destructive `reset --hard` or `git clean`;
+- run `git reset --hard`, `git clean`, `git checkout -- <file>`, or `git restore <file>`;
 - rebase a shared branch;
 - delete local/remote branches;
 - delete or modify tags;
@@ -655,5 +678,10 @@ Report at minimum:
 6. **README Impact** - `Updated - <what changed>` or `None - <concrete reason>`.
 7. **Compatibility/security** - public contract, platform, network, config, or migration effects.
 8. **Unverified boundaries** - real hardware, another OS, external authentication, external service, or other validation not performed.
+9. **Modified files** - files actually changed for the current task.
+10. **Staged changes** - files added to the index for the current task, including confirmation that unrelated pre-existing changes were not touched.
+11. **Validation** - exact formatting, test, lint, vet, build, and diff-check commands actually run, each with a PASS or FAIL result.
+12. **Git status** - the final `git status --short` summary.
+13. **Suggested commit** - one appropriate `git commit -m "<Conventional Commit message>"` command, shown but not executed.
 
 If any required item is stale or unverified, report the task as incomplete or partially verified rather than presenting it as fully complete.
