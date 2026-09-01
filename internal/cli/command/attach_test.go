@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/akira-init1/ChannelTerm/internal/cli/interactive"
 	"github.com/akira-init1/ChannelTerm/internal/core/session"
 	mcpadapter "github.com/akira-init1/ChannelTerm/internal/mcp"
 	protocol "github.com/modelcontextprotocol/go-sdk/mcp"
@@ -273,6 +274,103 @@ func TestRunAttachContextCancellationDetaches(t *testing.T) {
 	}
 }
 
+// TestRunAttachKeepsEscapePendingWhileSessionOutputArrives verifies that
+// output forwarding cannot alter input-controller state: a literal Ctrl+]
+// command remains available after the Session displays remote output.
+func TestRunAttachKeepsEscapePendingWhileSessionOutputArrives(t *testing.T) {
+	inputReader, inputWriter := io.Pipe()
+	defer inputReader.Close()
+	defer inputWriter.Close()
+	output := newSignalBuffer()
+	outputDelivered := make(chan struct{})
+	client := &fakeAttachSession{
+		nextOutput: []byte("device output\r\n"),
+		onReadOutput: func() {
+			select {
+			case <-output.firstWrite:
+			case <-time.After(time.Second):
+			}
+		},
+		onOutputDelivered: func() {
+			close(outputDelivered)
+		},
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := make(chan error, 1)
+	go func() {
+		done <- runAttach(ctx, []string{"board"}, inputReader, output, func(context.Context, string, string) (attachSession, error) {
+			return client, nil
+		})
+	}()
+	if _, err := inputWriter.Write([]byte{interactive.DefaultEscapeByte}); err != nil {
+		t.Fatalf("write escape prefix: %v", err)
+	}
+	waitForSignal(t, output.firstWrite, "local escape feedback")
+	waitForSignal(t, outputDelivered, "remote Session output")
+	if _, err := inputWriter.Write([]byte{']'}); err != nil {
+		t.Fatalf("write literal escape command: %v", err)
+	}
+	if err := inputWriter.Close(); err != nil {
+		t.Fatalf("close input: %v", err)
+	}
+	if got := waitForAttachWrite(t, client); !bytes.Equal(got, []byte{interactive.DefaultEscapeByte}) {
+		t.Errorf("remote input after output = %x, want literal Ctrl+]", got)
+	}
+	cancel()
+	if err := <-done; err != nil {
+		t.Fatalf("runAttach() error = %v", err)
+	}
+	if got := output.String(); !strings.Contains(got, string(escapePendingText)) || !strings.Contains(got, "device output\r\n") {
+		t.Errorf("CLI output = %q, want local escape feedback and unchanged remote output", got)
+	}
+}
+
+// TestRunAttachCleansUpAfterSessionErrorDuringEscapePending verifies that an
+// attachment error still follows the normal defer cleanup path after local
+// escape mode is entered.
+func TestRunAttachCleansUpAfterSessionErrorDuringEscapePending(t *testing.T) {
+	inputReader, inputWriter := io.Pipe()
+	defer inputReader.Close()
+	defer inputWriter.Close()
+	output := newSignalBuffer()
+	sessionErr := errors.New("session disconnected")
+	client := &fakeAttachSession{
+		readOutputErr: sessionErr,
+		onReadOutput: func() {
+			select {
+			case <-output.firstWrite:
+			case <-time.After(time.Second):
+			}
+		},
+	}
+	done := make(chan error, 1)
+	go func() {
+		done <- runAttach(context.Background(), []string{"board"}, inputReader, output, func(context.Context, string, string) (attachSession, error) {
+			return client, nil
+		})
+	}()
+	if _, err := inputWriter.Write([]byte{interactive.DefaultEscapeByte}); err != nil {
+		t.Fatalf("write escape prefix: %v", err)
+	}
+	if err := inputWriter.Close(); err != nil {
+		t.Fatalf("close input: %v", err)
+	}
+	err := <-done
+	if !errors.Is(err, sessionErr) {
+		t.Fatalf("runAttach() error = %v, want session error", err)
+	}
+	if client.closeCount() != 1 {
+		t.Errorf("attach Close calls = %d, want 1", client.closeCount())
+	}
+	if got := client.writtenData(); len(got) != 0 {
+		t.Errorf("remote input = %x, want no escape-prefix bytes", got)
+	}
+	if got := output.String(); !strings.Contains(got, string(escapePendingText)) {
+		t.Errorf("CLI output = %q, want local escape feedback before cleanup", got)
+	}
+}
+
 func TestRunAttachHighlightAlwaysStylesManagedSessionOutput(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	client := &fakeAttachSession{recentData: []byte("driver is not open\n"), onReadOutput: cancel}
@@ -466,12 +564,15 @@ func (t *attachTestTransport) waitWrittenLength(tb testing.TB, length int) []byt
 // fakeAttachSession lets runAttach tests exercise local escape handling and
 // context cancellation without an HTTP server or a real Session lifecycle.
 type fakeAttachSession struct {
-	mu           sync.Mutex
-	written      []byte
-	actors       []session.Actor
-	closes       int
-	recentData   []byte
-	onReadOutput func()
+	mu                sync.Mutex
+	written           []byte
+	actors            []session.Actor
+	closes            int
+	recentData        []byte
+	nextOutput        []byte
+	readOutputErr     error
+	onReadOutput      func()
+	onOutputDelivered func()
 }
 
 // ReadRecent starts the CLI cursor with optional already-retained terminal data.
@@ -491,10 +592,27 @@ func (*fakeAttachSession) ReadActivity(ctx context.Context, _ session.ActivityCu
 	return session.ActivityChunk{}, ctx.Err()
 }
 
-// ReadOutput invokes the cancellation hook before waiting for caller context.
-func (s *fakeAttachSession) ReadOutput(ctx context.Context, _ session.OutputCursor, _ int) (session.OutputChunk, error) {
-	if s.onReadOutput != nil {
-		s.onReadOutput()
+// ReadOutput returns configured output once, then invokes the optional hook
+// before returning a configured error or waiting for caller cancellation.
+func (s *fakeAttachSession) ReadOutput(ctx context.Context, cursor session.OutputCursor, _ int) (session.OutputChunk, error) {
+	s.mu.Lock()
+	data := append([]byte(nil), s.nextOutput...)
+	s.nextOutput = nil
+	onReadOutput := s.onReadOutput
+	onOutputDelivered := s.onOutputDelivered
+	readOutputErr := s.readOutputErr
+	s.mu.Unlock()
+	if onReadOutput != nil {
+		onReadOutput()
+	}
+	if len(data) > 0 {
+		if onOutputDelivered != nil {
+			onOutputDelivered()
+		}
+		return session.OutputChunk{Data: data, Next: cursor + session.OutputCursor(len(data))}, nil
+	}
+	if readOutputErr != nil {
+		return session.OutputChunk{}, readOutputErr
 	}
 	<-ctx.Done()
 	return session.OutputChunk{}, ctx.Err()
@@ -536,6 +654,59 @@ func (s *fakeAttachSession) closeCount() int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.closes
+}
+
+// signalBuffer records concurrent CLI output and signals when its first write
+// confirms that local escape feedback is visible.
+type signalBuffer struct {
+	mu         sync.Mutex
+	data       bytes.Buffer
+	firstWrite chan struct{}
+	once       sync.Once
+}
+
+func newSignalBuffer() *signalBuffer {
+	return &signalBuffer{firstWrite: make(chan struct{})}
+}
+
+func (b *signalBuffer) Write(data []byte) (int, error) {
+	b.mu.Lock()
+	n, err := b.data.Write(data)
+	b.mu.Unlock()
+	b.once.Do(func() { close(b.firstWrite) })
+	return n, err
+}
+
+func (b *signalBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.data.String()
+}
+
+// waitForAttachWrite waits for the input bridge to forward a complete local
+// command without relying on a fixed scheduling delay.
+func waitForAttachWrite(tb testing.TB, client *fakeAttachSession) []byte {
+	tb.Helper()
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		if data := client.writtenData(); len(data) > 0 {
+			return data
+		}
+		time.Sleep(time.Millisecond)
+	}
+	tb.Fatal("input bridge did not forward a Session write")
+	return nil
+}
+
+// waitForSignal bounds synchronization with asynchronous input and output
+// loops, so a failing test reports the missing event instead of hanging.
+func waitForSignal(tb testing.TB, signal <-chan struct{}, description string) {
+	tb.Helper()
+	select {
+	case <-signal:
+	case <-time.After(time.Second):
+		tb.Fatalf("did not receive %s", description)
+	}
 }
 
 // decodeStructured is retained to ensure tests fail clearly if an MCP result

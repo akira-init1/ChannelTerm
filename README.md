@@ -107,6 +107,7 @@ Ctrl+C      Send 0x03 to the remote terminal
 Ctrl+] q    Detach this CLI without closing the shared Session
 Ctrl+] ?    Show local escape help
 Ctrl+] ]    Send a literal Ctrl+] byte
+Ctrl+] Esc  Cancel local escape mode
 ```
 
 Press `Ctrl+]` to enter local escape mode. ChannelTerm displays the available escape commands locally.

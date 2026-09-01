@@ -20,6 +20,7 @@ func TestControllerProcessesTerminalInput(t *testing.T) {
 		{name: "quit", input: []byte{0x1D, 'q'}, want: []Action{{Kind: ActionEscapePending}, {Kind: ActionQuit}}},
 		{name: "help", input: []byte{0x1D, '?'}, want: []Action{{Kind: ActionEscapePending}, {Kind: ActionHelp}}},
 		{name: "literal escape", input: []byte{0x1D, ']'}, want: []Action{{Kind: ActionEscapePending}, {Kind: ActionRemote, Data: []byte{0x1D}}}},
+		{name: "escape cancels local mode", input: []byte{0x1D, 0x1B, 'a'}, want: []Action{{Kind: ActionEscapePending}, {Kind: ActionRemote, Data: []byte("a")}}},
 		{name: "unknown escape", input: []byte{0x1D, 'x', 'a'}, want: []Action{{Kind: ActionEscapePending}, {Kind: ActionUnknownEscape, Command: 'x'}, {Kind: ActionRemote, Data: []byte("a")}}},
 		{name: "custom escape byte", escapeByte: '~', input: []byte{'~', ']'}, want: []Action{{Kind: ActionEscapePending}, {Kind: ActionRemote, Data: []byte{'~'}}}},
 		{name: "mixed input keeps order", input: []byte{'a', 0x03, 0x1D, '?', 'b', 0x1D, ']', 'c'}, want: []Action{{Kind: ActionRemote, Data: []byte{'a', 0x03}}, {Kind: ActionEscapePending}, {Kind: ActionHelp}, {Kind: ActionRemote, Data: []byte{'b'}}, {Kind: ActionEscapePending}, {Kind: ActionRemote, Data: []byte{0x1D}}, {Kind: ActionRemote, Data: []byte{'c'}}}},
@@ -38,6 +39,22 @@ func TestControllerProcessesTerminalInput(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// TestControllerEscCancelsEscapeMode verifies that Esc consumes only local
+// escape state and leaves the next byte in normal remote-input mode.
+func TestControllerEscCancelsEscapeMode(t *testing.T) {
+	controller := NewController(DefaultEscapeByte)
+	if got := controller.Process([]byte{DefaultEscapeByte}); len(got) != 1 || got[0].Kind != ActionEscapePending {
+		t.Fatalf("Process(prefix) = %#v, want ActionEscapePending", got)
+	}
+	if got := controller.Process([]byte{0x1B}); len(got) != 0 {
+		t.Fatalf("Process(Esc) = %#v, want no local or remote action", got)
+	}
+	got := controller.Process([]byte("next"))
+	if len(got) != 1 || got[0].Kind != ActionRemote || !bytes.Equal(got[0].Data, []byte("next")) {
+		t.Errorf("Process(normal after Esc) = %#v, want normal remote input", got)
 	}
 }
 

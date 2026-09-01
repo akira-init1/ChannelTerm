@@ -620,8 +620,9 @@ func TestForwardInputDisplaysEscapePendingLocally(t *testing.T) {
 	if got := terminal.writtenData(); len(got) != 0 {
 		t.Errorf("written input = %q, want no remote input", got)
 	}
-	if got := local.String(); got != string(escapePendingText) {
-		t.Errorf("local output = %q, want %q", got, escapePendingText)
+	const want = "\r\n[ChannelTerm] Escape: q quit | ? help | ] send Ctrl+] | Esc cancel\r\n"
+	if got := local.String(); got != want {
+		t.Errorf("local output = %q, want %q", got, want)
 	}
 }
 
@@ -642,7 +643,7 @@ func TestForwardInputHandlesEscapeCommands(t *testing.T) {
 	if got := string(terminal.writtenData()); got != "ab\x1dcd" {
 		t.Errorf("written input = %q, want ab\\x1dcd", got)
 	}
-	if got := local.String(); strings.Count(got, string(escapePendingText)) != 4 || !strings.Contains(got, "ChannelTerm escape commands:") || !strings.Contains(got, "Unknown escape command 'x'") {
+	if got := local.String(); strings.Count(got, string(escapePendingText)) != 4 || !strings.Contains(got, "ChannelTerm escape commands:") || !strings.Contains(got, "Esc  Cancel escape mode") || !strings.Contains(got, "Unknown escape command 'x'") {
 		t.Errorf("local escape output = %q, want pending prompts plus help and unknown command messages", got)
 	}
 }

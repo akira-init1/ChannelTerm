@@ -14,7 +14,7 @@ channelterm attach SER-COM8 --baud 115200
 
 For the default endpoint, `attach` starts a background local HTTP host if one is not already reachable. It then asks the host to open the serial target. Within that host's Manager, one active Session is shared for an exact `transport + endpoint` pair, so another open for `serial + COM8` returns the existing Session instead of opening the port twice.
 
-The command reports whether the shared Session was created or reused, then attaches the current terminal. Press `Ctrl+]` to enter local escape mode; ChannelTerm displays the available escape commands locally. `Ctrl+] q` detaches this CLI without closing the host-owned Session.
+The command reports whether the shared Session was created or reused, then attaches the current terminal. Press `Ctrl+]` to enter local escape mode; ChannelTerm displays the available escape commands locally. `Ctrl+] Esc` cancels local escape mode without sending a byte to the shared Session, while `Ctrl+] q` detaches this CLI without closing the host-owned Session.
 
 ## Join an existing Session
 
