@@ -35,6 +35,7 @@ The CLI puts an interactive terminal into raw mode and restores it when the comm
 On Windows Console hosts, navigation keys are sent as standard VT sequences: for example, Up is `ESC [ A`, Down is `ESC [ B`, Right is `ESC [ C`, Left is `ESC [ D`, Home is `ESC [ H`, and End is `ESC [ F`.
 
 - `Ctrl+C` is sent to the remote terminal as byte `0x03`; it does not stop ChannelTerm.
+- Press `Ctrl+]` to enter local escape mode; ChannelTerm displays the available escape commands locally.
 - `Ctrl+] q` exits the local terminal client.
 - `Ctrl+] ?` displays local escape help.
 - `Ctrl+] ]` sends a literal `Ctrl+]` byte (`0x1d`) to the remote terminal.

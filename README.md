@@ -109,6 +109,8 @@ Ctrl+] ?    Show local escape help
 Ctrl+] ]    Send a literal Ctrl+] byte
 ```
 
+Press `Ctrl+]` to enter local escape mode. ChannelTerm displays the available escape commands locally.
+
 The HTTP server has no ChannelTerm authentication or authorization layer. Its default listener is loopback-only; do not expose it to an untrusted network.
 
 ## What It Enables

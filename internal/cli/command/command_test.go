@@ -590,14 +590,38 @@ func TestForwardInputWritesAllBytes(t *testing.T) {
 
 func TestForwardInputForwardsControlCWithoutCancelling(t *testing.T) {
 	terminal := &fakeCLISession{}
+	var local bytes.Buffer
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	forwardInput(strings.NewReader("ls\r\x03ignored"), terminal, func([]byte) error { return nil }, cancel)
+	forwardInput(strings.NewReader("ls\r\x03ignored"), terminal, func(data []byte) error {
+		_, err := local.Write(data)
+		return err
+	}, cancel)
 	if ctx.Err() != nil {
 		t.Fatal("forwardInput() cancelled on Ctrl+C")
 	}
 	if got := string(terminal.writtenData()); got != "ls\r\x03ignored" {
 		t.Errorf("written input = %q, want ls\\r\\x03ignored", got)
+	}
+	if got := local.String(); got != "" {
+		t.Errorf("local output = %q, want no escape feedback for Ctrl+C", got)
+	}
+}
+
+// TestForwardInputDisplaysEscapePendingLocally verifies that an escape prefix
+// produces presentation-only feedback and no Session write.
+func TestForwardInputDisplaysEscapePendingLocally(t *testing.T) {
+	terminal := &fakeCLISession{}
+	var local bytes.Buffer
+	forwardInput(strings.NewReader("\x1d"), terminal, func(data []byte) error {
+		_, err := local.Write(data)
+		return err
+	}, func() {})
+	if got := terminal.writtenData(); len(got) != 0 {
+		t.Errorf("written input = %q, want no remote input", got)
+	}
+	if got := local.String(); got != string(escapePendingText) {
+		t.Errorf("local output = %q, want %q", got, escapePendingText)
 	}
 }
 
@@ -618,8 +642,8 @@ func TestForwardInputHandlesEscapeCommands(t *testing.T) {
 	if got := string(terminal.writtenData()); got != "ab\x1dcd" {
 		t.Errorf("written input = %q, want ab\\x1dcd", got)
 	}
-	if got := local.String(); !strings.Contains(got, "ChannelTerm escape commands:") || !strings.Contains(got, "Unknown escape command 'x'") {
-		t.Errorf("local escape output = %q, want help and unknown command messages", got)
+	if got := local.String(); strings.Count(got, string(escapePendingText)) != 4 || !strings.Contains(got, "ChannelTerm escape commands:") || !strings.Contains(got, "Unknown escape command 'x'") {
+		t.Errorf("local escape output = %q, want pending prompts plus help and unknown command messages", got)
 	}
 }
 
