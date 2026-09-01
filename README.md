@@ -92,6 +92,15 @@ For the default local endpoint, `attach` starts the loopback Session Host when n
 channelterm list --kind session
 ```
 
+That shared serial Session can also transfer a file without an AI client or a separately installed board-side transfer agent:
+
+```bash
+channelterm file send firmware.bin /tmp/firmware.bin --session SER-1
+channelterm file receive /tmp/log.txt ./log.txt --session SER-1
+```
+
+The Linux shell uses native `stty`, `dd`, `wc`, and `sha256sum`; ChannelTerm streams bounded chunks, reports progress, and verifies the final SHA-256. Keep other writers off the shell while a transfer is active. See the [file-transfer workflow](docs/getting-started/file-transfer.md) for prerequisites and limits.
+
 To put an AI in that same Session, configure its MCP client to use the same Streamable HTTP endpoint:
 
 ```text
@@ -124,6 +133,7 @@ The HTTP server has no ChannelTerm authentication or authorization layer. Its de
 - Client detach without closing the Session used by other clients.
 - Serial discovery, deterministic target references, TOML profiles, and private direct connections when sharing is not wanted.
 - MCP over stdio or Streamable HTTP, with the shared CLI workflow using the HTTP Session Host.
+- Bounded CLI file send/receive over an existing serial Session with size and SHA-256 verification.
 
 ## Example Workflows
 
@@ -174,6 +184,7 @@ See [Build from source](docs/getting-started/build.md) for the supported platfor
 - [Documentation index](docs/README.md)
 - [Serial terminal workflow](docs/getting-started/serial-terminal.md)
 - [Shared Session workflow](docs/getting-started/shared-session.md)
+- [File-transfer workflow](docs/getting-started/file-transfer.md)
 - [MCP server workflow](docs/getting-started/mcp-server.md)
 - [CLI reference](docs/reference/cli.md)
 - [MCP tool reference](docs/reference/mcp-tools.md)
@@ -186,7 +197,7 @@ For exact command flags and defaults, the running program's `--help` output is a
 
 Serial is the only concrete Transport implemented today. The transport-neutral Core leaves room for future SSH or Telnet Transports and stronger multi-writer coordination, but these are directions rather than implemented features or release commitments.
 
-ChannelTerm does not currently implement GDB, JTAG/OpenOCD, virtual serial devices, file transfer, a built-in AI, or multi-agent orchestration.
+ChannelTerm does not currently implement GDB, JTAG/OpenOCD, virtual serial devices, a built-in AI, or multi-agent orchestration. File transfer is intentionally a small Linux-shell protocol rather than a general transfer agent.
 
 ## License
 

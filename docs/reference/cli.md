@@ -5,6 +5,7 @@ This reference explains behavior and constraints rather than duplicating the com
 ```powershell
 channelterm --help
 channelterm attach --help
+channelterm file --help
 channelterm init --help
 channelterm list --help
 channelterm mcp --help
@@ -23,7 +24,7 @@ channelterm [options] [command]
 
 With no arguments, ChannelTerm prints top-level usage and exits successfully. `help`, `--help`, and `-h` do the same. `version` and `--version` print `channelterm 0.1.0`. An unknown command returns an error and the process exits with status 1.
 
-The top-level help currently lists `attach`, `init`, `list`, `mcp`, `serial`, `help`, and `version`.
+The top-level help currently lists `attach`, `file`, `init`, `list`, `mcp`, `serial`, `help`, and `version`.
 
 ## `init`
 
@@ -140,6 +141,35 @@ channelterm attach SER-1 --endpoint http://127.0.0.1:12345/terminal
 ```
 
 Important errors include a missing Session reference, an offline custom host, a Session not found or already closed, an invalid target, forbidden target/Session option combinations, host startup timeout, MCP tool failure, serial configuration failure, and terminal I/O failure.
+
+## `file`
+
+Purpose: stream one regular file through an existing shared Session and verify the completed content with SHA-256.
+
+```text
+channelterm file send LOCAL_PATH REMOTE_PATH [--session SESSION] [--endpoint URL]
+channelterm file receive REMOTE_PATH LOCAL_PATH [--session SESSION] [--endpoint URL]
+```
+
+`--session` accepts a short reference such as `SER-1` or an opaque Session ID. It may be omitted only when the selected Host has exactly one open Session. No open Session is an error; multiple open Sessions require an explicit selection. `--endpoint` defaults to `http://127.0.0.1:37099/mcp`.
+
+The command is CLI-only from the user's perspective: it requires no AI client and does not require manually starting MCP when `attach` has already created the default local Host. Internally, the separate CLI process attaches to that host-owned Session through the existing terminal read/write tools. It neither adds a file-specific MCP tool nor changes the existing MCP schemas, and it never opens Serial Transport directly.
+
+Both directions use bounded 32 KiB chunks and display acknowledged byte progress. Send requires a regular local source. Receive writes a temporary file beside the destination and installs it only after verification; an existing destination is replaced after the temporary file passes SHA-256 verification. The remote shell must provide `stty`, `dd` with `iflag=fullblock`, `wc`, and `sha256sum`.
+
+Send truncates the requested remote destination after its initial board-side checks. Receive replaces the requested local destination only after the temporary file verifies. These are deliberate write-capable operations; confirm the paths and use only a trusted Session Host. The file command does not change the Host's loopback listener default or add authentication.
+
+The shell must remain idle, and other Clients must not write during transfer. Independent Session readers continue to work. A receive exposes raw file bytes to those readers because Session output remains unmodified.
+
+Examples:
+
+```powershell
+channelterm file send firmware.bin /tmp/firmware.bin
+channelterm file send firmware.bin /tmp/firmware.bin --session SER-1
+channelterm file receive /tmp/log.txt ./log.txt --session SER-1
+```
+
+Important errors include an offline Host, no or ambiguous open Session, missing/non-regular local source, invalid remote path, missing or incompatible board commands, remote open/read/write failure, Session cursor overwrite, local I/O failure, size mismatch, SHA-256 mismatch, and cancellation. See the focused [file-transfer workflow](../getting-started/file-transfer.md) for protocol and recovery constraints.
 
 ## `list`
 

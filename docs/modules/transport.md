@@ -49,8 +49,8 @@ Open failures retain the driver error while adding a diagnostic category for mis
 
 ## Current implementation boundary
 
-Serial is the only concrete Transport and serial-backed Channel in the current repository. There is no file-transfer, debug/JTAG, remote-network, PTY, Android, or iOS implementation.
+Serial is the only concrete Transport and serial-backed Channel in the current repository. There is no dedicated file-transfer Transport, debug/JTAG Transport, remote-network Transport, PTY Transport, Android implementation, or iOS implementation.
 
 ## Future direction
 
-The base Channel interface can carry future file, debug/JTAG, and remote-network streams while Session continues to provide the same lifecycle, buffering, sharing, and write serialization. Those stream types, SSH/Telnet Transports, OpenOCD integration, and file transfer are not currently implemented or committed to a release.
+The base Channel interface can carry future debug/JTAG and remote-network streams while Session continues to provide the same lifecycle, buffering, sharing, and write serialization. Those stream types, SSH/Telnet Transports, OpenOCD integration, and a dedicated file Transport/Channel are not currently implemented or committed to a release. The current CLI file transfer stays above Session and drives native Linux shell commands over the existing serial byte stream; it does not change Channel or Transport.
