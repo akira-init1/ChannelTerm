@@ -19,7 +19,7 @@ ChannelTerm/
 |   |   `-- mcp/                    MCP client discovery, rendering, and safe config installation
 |   |-- core/
 |   |   |-- app/                    Adapter-neutral application use cases
-|   |   |-- config/                 TOML config, state paths, precedence, persistence
+|   |   |-- config/                 Connection profiles and policy, user preferences, TOML/state persistence
 |   |   |-- connectionpolicy/       Discovery-response policy decisions
 |   |   |-- device/                 Discovery registry, events, identity state
 |   |   |-- session/                Session, Manager, output and activity buffers
@@ -50,7 +50,7 @@ The main ownership distinctions are deliberate:
 
 - **Adapter:** `cmd/channelterm`, `internal/cli`, and `internal/mcp` own process composition and external protocol or presentation concerns. `internal/init/mcp` owns local MCP-client configuration discovery and installation. These packages may depend inward; Core may not depend on them.
 - **Application:** `internal/core/app` orchestrates adapter-neutral use cases without owning process lifetime or presentation.
-- **Core services:** `internal/core/session`, `config`, `connectionpolicy`, `device`, and `tool` own their protocol-neutral responsibilities. Session owns retained bytes and lifecycle.
+- **Core services:** `internal/core/session`, `config`, `connectionpolicy`, `device`, and `tool` own their protocol-neutral responsibilities. `config` keeps connection profiles, discovery policy, and user preferences separate despite sharing one TOML file; Session owns retained bytes and lifecycle.
 - **Transport:** `internal/core/transport` defines the live byte-stream contract. `internal/core/transport/serial` owns only the physical serial stream and discovery implementation.
 
 Update this map when a top-level directory or `internal` package is added, removed, moved, or assigned a materially different stable responsibility.

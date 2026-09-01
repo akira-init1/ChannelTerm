@@ -1,6 +1,8 @@
 # Configuration Reference
 
-ChannelTerm separates user connection configuration from automatically managed device identity state.
+ChannelTerm keeps three independent user-configuration responsibilities in one
+`config.toml`: connection configuration, connection policy, and user
+preferences. It separately stores automatically managed device identity state.
 
 ## Paths
 
@@ -31,6 +33,13 @@ wake = false
 [connection]
 default_policy = "ask"
 ```
+
+`[serial]` and `[connection]` are the current persisted sections. The config
+model also includes an empty `Preferences` boundary for future terminal display
+and UI/TUI/GUI preferences. It has no fields or TOML section yet, and therefore
+does not change existing files or serial behavior. When preference fields are
+introduced, they will be added under `[preferences]` in this same file; no
+separate `preferences.toml` is planned.
 
 | Field | Meaning | Resolution default |
 | --- | --- | --- |
@@ -63,6 +72,10 @@ built-in serial defaults
 Only explicitly present flags or JSON properties override profile values. The port in a target-first `connect` or `attach SER-*` operation is always selected by that target.
 
 `--save NAME` or MCP `save` writes the final resolved profile before opening the transport. It creates or replaces `serial.profiles.NAME`. If `serial.default` is empty, the saved name becomes the default. Existing configuration is otherwise read-only.
+
+Saving a serial profile does not create an empty `[preferences]` table. User
+preferences never supply serial values and do not participate in profile
+resolution or Transport opening.
 
 ## Connection policy
 
