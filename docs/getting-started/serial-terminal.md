@@ -30,7 +30,9 @@ channelterm connect SER-COM8 --baud 115200
 
 ## Interactive input
 
-The CLI puts an interactive terminal into raw mode and restores it when the command exits normally.
+The CLI puts an interactive terminal into raw mode and restores it when the command exits.
+
+On Windows Console hosts, navigation keys are sent as standard VT sequences: for example, Up is `ESC [ A`, Down is `ESC [ B`, Right is `ESC [ C`, Left is `ESC [ D`, Home is `ESC [ H`, and End is `ESC [ F`.
 
 - `Ctrl+C` is sent to the remote terminal as byte `0x03`; it does not stop ChannelTerm.
 - `Ctrl+] q` exits the local terminal client.
