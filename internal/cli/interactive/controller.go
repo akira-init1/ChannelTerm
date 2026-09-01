@@ -19,6 +19,9 @@ const (
 	ActionQuit
 	// ActionHelp asks the local interactive client to display escape help.
 	ActionHelp
+	// ActionTogglePromptTimestamp asks the local interactive client to toggle
+	// its presentation-only shell prompt timestamps.
+	ActionTogglePromptTimestamp
 	// ActionEscapePending reports that the controller has entered local escape
 	// mode and is waiting for its command byte.
 	ActionEscapePending
@@ -30,7 +33,8 @@ const (
 //
 // Data is populated for ActionRemote and contains caller-owned bytes copied by
 // Controller. Command is populated for ActionUnknownEscape. ActionQuit,
-// ActionHelp, and ActionEscapePending do not carry payload data.
+// ActionHelp, ActionTogglePromptTimestamp, and ActionEscapePending do not
+// carry payload data.
 type Action struct {
 	Kind    ActionKind
 	Data    []byte
@@ -90,6 +94,8 @@ func (c *Controller) Process(data []byte) []Action {
 				actions = append(actions, Action{Kind: ActionQuit})
 			case '?':
 				actions = append(actions, Action{Kind: ActionHelp})
+			case 't':
+				actions = append(actions, Action{Kind: ActionTogglePromptTimestamp})
 			case ']':
 				actions = append(actions, Action{Kind: ActionRemote, Data: []byte{c.EscapeByte()}})
 			case 0x1B:
