@@ -17,6 +17,7 @@ func TestControllerProcessesTerminalInput(t *testing.T) {
 		{name: "ordinary input", input: []byte("echo ok\r"), want: []Action{{Kind: ActionRemote, Data: []byte("echo ok\r")}}},
 		{name: "VT navigation input remains remote", input: []byte("\x1b[A\x1b[B\x1b[C\x1b[D\x1b[H\x1b[F"), want: []Action{{Kind: ActionRemote, Data: []byte("\x1b[A\x1b[B\x1b[C\x1b[D\x1b[H\x1b[F")}}},
 		{name: "control C remains remote", input: []byte{0x03}, want: []Action{{Kind: ActionRemote, Data: []byte{0x03}}}},
+		{name: "control C cancels escape and remains remote", input: []byte{0x1D, 0x03}, want: []Action{{Kind: ActionEscapePending}, {Kind: ActionRemote, Data: []byte{0x03}}}},
 		{name: "quit", input: []byte{0x1D, 'q'}, want: []Action{{Kind: ActionEscapePending}, {Kind: ActionQuit}}},
 		{name: "help", input: []byte{0x1D, '?'}, want: []Action{{Kind: ActionEscapePending}, {Kind: ActionHelp}}},
 		{name: "toggle prompt timestamps", input: []byte{0x1D, 't'}, want: []Action{{Kind: ActionEscapePending}, {Kind: ActionTogglePromptTimestamp}}},
@@ -40,6 +41,24 @@ func TestControllerProcessesTerminalInput(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// TestControllerControlCCancelsEscapeMode verifies that Ctrl+C reaches the
+// remote Session and leaves subsequent bytes in normal input mode even when
+// the escape prefix and Ctrl+C arrive in separate reads.
+func TestControllerControlCCancelsEscapeMode(t *testing.T) {
+	controller := NewController(DefaultEscapeByte)
+	if got := controller.Process([]byte{DefaultEscapeByte}); len(got) != 1 || got[0].Kind != ActionEscapePending {
+		t.Fatalf("Process(prefix) = %#v, want ActionEscapePending", got)
+	}
+	got := controller.Process([]byte{0x03})
+	if len(got) != 1 || got[0].Kind != ActionRemote || !bytes.Equal(got[0].Data, []byte{0x03}) {
+		t.Fatalf("Process(Ctrl+C) = %#v, want remote Ctrl+C", got)
+	}
+	got = controller.Process([]byte("next"))
+	if len(got) != 1 || got[0].Kind != ActionRemote || !bytes.Equal(got[0].Data, []byte("next")) {
+		t.Errorf("Process(normal after Ctrl+C) = %#v, want normal remote input", got)
 	}
 }
 
