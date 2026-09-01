@@ -22,7 +22,7 @@ func TestControllerProcessesTerminalInput(t *testing.T) {
 		{name: "help", input: []byte{0x1D, '?'}, want: []Action{{Kind: ActionEscapePending}, {Kind: ActionHelp}}},
 		{name: "toggle prompt timestamps", input: []byte{0x1D, 't'}, want: []Action{{Kind: ActionEscapePending}, {Kind: ActionTogglePromptTimestamp}}},
 		{name: "literal escape", input: []byte{0x1D, ']'}, want: []Action{{Kind: ActionEscapePending}, {Kind: ActionRemote, Data: []byte{0x1D}}}},
-		{name: "escape cancels local mode", input: []byte{0x1D, 0x1B, 'a'}, want: []Action{{Kind: ActionEscapePending}, {Kind: ActionRemote, Data: []byte("a")}}},
+		{name: "escape cancels local mode", input: []byte{0x1D, 0x1B, 'a'}, want: []Action{{Kind: ActionEscapePending}, {Kind: ActionCancelEscape}, {Kind: ActionRemote, Data: []byte("a")}}},
 		{name: "unknown escape", input: []byte{0x1D, 'x', 'a'}, want: []Action{{Kind: ActionEscapePending}, {Kind: ActionUnknownEscape, Command: 'x'}, {Kind: ActionRemote, Data: []byte("a")}}},
 		{name: "custom escape byte", escapeByte: '~', input: []byte{'~', ']'}, want: []Action{{Kind: ActionEscapePending}, {Kind: ActionRemote, Data: []byte{'~'}}}},
 		{name: "mixed input keeps order", input: []byte{'a', 0x03, 0x1D, '?', 'b', 0x1D, ']', 'c'}, want: []Action{{Kind: ActionRemote, Data: []byte{'a', 0x03}}, {Kind: ActionEscapePending}, {Kind: ActionHelp}, {Kind: ActionRemote, Data: []byte{'b'}}, {Kind: ActionEscapePending}, {Kind: ActionRemote, Data: []byte{0x1D}}, {Kind: ActionRemote, Data: []byte{'c'}}}},
@@ -69,8 +69,8 @@ func TestControllerEscCancelsEscapeMode(t *testing.T) {
 	if got := controller.Process([]byte{DefaultEscapeByte}); len(got) != 1 || got[0].Kind != ActionEscapePending {
 		t.Fatalf("Process(prefix) = %#v, want ActionEscapePending", got)
 	}
-	if got := controller.Process([]byte{0x1B}); len(got) != 0 {
-		t.Fatalf("Process(Esc) = %#v, want no local or remote action", got)
+	if got := controller.Process([]byte{0x1B}); len(got) != 1 || got[0].Kind != ActionCancelEscape {
+		t.Fatalf("Process(Esc) = %#v, want ActionCancelEscape", got)
 	}
 	got := controller.Process([]byte("next"))
 	if len(got) != 1 || got[0].Kind != ActionRemote || !bytes.Equal(got[0].Data, []byte("next")) {

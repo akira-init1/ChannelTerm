@@ -147,10 +147,11 @@ func runAttachSession(ctx context.Context, args []string, input io.Reader, outpu
 			err = fmt.Errorf("detach session %q: %w", flags.Arg(0), closeErr)
 		}
 	}()
-	stopInputEcho, err := terminalinput.MakeRaw(input)
+	rawInput, stopInputEcho, err := terminalinput.MakeRaw(input)
 	if err != nil {
 		return fmt.Errorf("configure console input: %w", err)
 	}
+	input = rawInput
 	defer func() {
 		if restoreErr := stopInputEcho(); restoreErr != nil && err == nil {
 			err = fmt.Errorf("restore console input: %w", restoreErr)

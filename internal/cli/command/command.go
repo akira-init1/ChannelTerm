@@ -614,10 +614,11 @@ func runSerialWithTarget(ctx context.Context, args []string, input io.Reader, ou
 			err = fmt.Errorf("close serial port %q: %w", opened.Profile.Port, closeErr)
 		}
 	}()
-	stopInputEcho, err := terminalinput.MakeRaw(input)
+	rawInput, stopInputEcho, err := terminalinput.MakeRaw(input)
 	if err != nil {
 		return fmt.Errorf("configure console input: %w", err)
 	}
+	input = rawInput
 	defer func() {
 		if restoreErr := stopInputEcho(); restoreErr != nil && err == nil {
 			err = fmt.Errorf("restore console input: %w", restoreErr)
@@ -978,6 +979,11 @@ func forwardInputWithPromptTimestamp(input io.Reader, terminal interface {
 						cancel()
 						return
 					}
+				case interactive.ActionCancelEscape:
+					if writeLocal == nil || writeLocal(escapeCancelledText) != nil {
+						cancel()
+						return
+					}
 				case interactive.ActionQuit:
 					cancel()
 					return
@@ -1015,6 +1021,10 @@ func forwardInputWithPromptTimestamp(input io.Reader, terminal interface {
 // leading and trailing line breaks keep it readable beside unstructured remote
 // terminal output; it is never sent to the remote Session.
 var escapePendingText = []byte("\r\n[ChannelTerm] Escape: q quit | ? help | ] send Ctrl+] | t prompt time | Esc cancel\r\n")
+
+// escapeCancelledText confirms that Esc returned this CLI to normal input
+// mode. It is local presentation and never enters Session data.
+var escapeCancelledText = []byte("\r\n[ChannelTerm] Escape cancelled\r\n")
 
 // escapeHelpText is local CLI output and is never sent to the remote Session.
 var escapeHelpText = []byte("\r\nChannelTerm escape commands:\r\n\r\n  q    Quit session\r\n  ?    Show this help\r\n  ]    Send Ctrl+] to remote\r\n  t    Toggle prompt timestamps\r\n  Esc  Cancel escape mode\r\n")
