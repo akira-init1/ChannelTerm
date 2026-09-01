@@ -238,9 +238,11 @@ A refactor must have a clear technical objective and preserve observable behavio
 
 Canonical technical documentation is written in English. Explicitly requested README translations may use another language but remain non-canonical. Code identifiers, commands, paths, protocol names, and literal examples remain in their native technical form.
 
-`README.md` is the canonical English public landing page and quick start, not the full manual. Detailed technical facts remain owned by the existing canonical documents under `docs/`; README must not become a second reference.
+`README.md` is the canonical English public landing page and quick start, not the full manual. It owns product positioning, the primary first-use path, major user workflows, representative realistic examples, and links to canonical documentation. Prefer workflows over feature lists. Detailed technical facts remain owned by the existing canonical documents under `docs/`; README must not become a second reference.
 
-`docs/` stores durable, current technical knowledge. `docs/README.md` is navigation-only: it indexes every public document but does not become a second owner of technical facts.
+`docs/` stores durable, current technical knowledge, including exhaustive CLI and MCP behavior, architecture, build instructions, module contracts, and edge cases. `docs/README.md` is navigation-only: it indexes every public document but does not become a second owner of technical facts.
+
+README examples must reflect real implemented behavior. Confirm them against source, tests, actual CLI help or schemas, and the relevant canonical docs. Never describe roadmap or proposed functionality as implemented functionality.
 
 Do not create empty placeholders. Add a document only when current implementation provides enough durable content and no existing canonical owner fits.
 
@@ -251,7 +253,7 @@ Do not create empty placeholders. Add a document only when current implementatio
 - `docs/getting-started/`: task-oriented workflows a user follows to achieve something.
 - `docs/reference/`: precise user-visible factual contracts such as CLI, MCP, config, identifiers, defaults, and formats.
 - `docs/development/`: build/test/platform/contribution procedures.
-- README: product identity, installation/quick start, common examples, and links into docs.
+- README: product identity, installation/quick start, major workflows, representative examples, and links into docs.
 
 ### Canonical documentation owners
 
@@ -300,6 +302,7 @@ Every code change must perform a documentation-impact review. Updating docs is m
 | User workflow | the focused file under `docs/getting-started/` and affected reference |
 | Build, test, toolchain, or supported-platform behavior | `docs/development/building-and-testing.md`, `docs/development/setup.md`, and/or `docs/development/code-style.md` |
 | Network exposure, listener default, authentication, authorization, or security behavior | affected MCP/CLI/config reference and workflow, with security impact stated |
+| Public positioning, installation/first-run experience, primary workflow, major user capability, or a representative README demo | review `README.md` and update it when the change materially affects the landing-page story |
 | Public document added, removed, renamed, or given a materially different responsibility | `docs/README.md` plus every inbound link |
 | Internal implementation only, with no contract, responsibility, workflow, or procedure change | usually no public docs update; explain why in the completion report |
 | Bug fix restoring already-documented intended behavior | usually no docs update unless documentation was wrong or a durable limitation was discovered |
@@ -327,10 +330,14 @@ If any answer is yes, update the corresponding docs in the same contribution.
 
 If all answers are no, the final report must state: `Documentation: no update required because ...` and provide the concrete reason.
 
+Every user-visible change must also record a separate `README Impact: Yes` or `README Impact: No` decision with a concrete reason. A reference or workflow documentation update does not automatically require a README update; apply the boundary in Section 13.
+
 ## 12. Documentation Quality Rules
 
 - Document current implemented behavior, not assumptions.
+- README examples and terminal transcripts must be realistic and traceable to current implementation, tests, help output, schemas, or canonical docs. Clearly identify any abbreviated or device-dependent output.
 - Future-facing material must be clearly labeled as planned/proposed and should be rare in reference/module docs.
+- Never document roadmap functionality as implemented functionality.
 - Prefer updating an existing document over creating a new Markdown file for a minor change.
 - One document should have one clear ownership purpose. Avoid duplicate sources of truth.
 - Do not copy complete CLI `--help` text into multiple places.
@@ -349,18 +356,21 @@ README is intentionally separate from detailed docs.
 
 Create a translated README such as `README.zh-CN.md` or `README.ja.md` only when the maintainer explicitly requests it. `README.md` remains the source of truth. When the canonical README changes, review any existing translations for impact. A translation must not claim behavior or capabilities absent from the English README or current implementation.
 
-Review README when a change affects:
+Every user-visible change must explicitly determine its README Impact. Update README when a change:
 
-- project positioning/capability summary;
-- installation or minimum setup;
-- the primary quick-start flow;
-- a flagship user workflow;
-- supported platform summary;
-- links to public documentation.
+- introduces a major user-facing capability;
+- changes installation, minimum setup, or the first-run experience;
+- changes the primary quick-start flow or a flagship user workflow;
+- changes the public positioning or capability summary of ChannelTerm;
+- adds a workflow important enough that a new user should understand it from the landing page;
+- materially changes an existing README demo or representative example;
+- changes the supported-platform summary or landing-page documentation links.
 
-Do not update README for every internal feature or bug. Detailed behavior belongs in `docs/`.
+Do not update README merely because a small CLI option, niche command, internal implementation change, minor bug fix, or exhaustive reference entry changed. Those details belong in the relevant canonical document under `docs/`.
 
-Do not make README a second CLI reference, MCP schema reference, or architecture manual. Do not create a translated README speculatively.
+When a major capability does require a README update, prefer one short realistic workflow, terminal example, or small ASCII diagram over another long feature-list paragraph. Prefer workflows over feature lists.
+
+README examples must remain grounded in implemented behavior. Do not make README a second CLI reference, MCP schema reference, build manual, or architecture specification. Do not present roadmap work as current functionality, and do not create a translated README speculatively.
 
 ## 14. Go Style and Naming
 
@@ -675,7 +685,7 @@ Report at minimum:
 3. **Files/modules** - important areas changed.
 4. **Tests** - exact commands and results.
 5. **Documentation** - exact docs updated, or a specific reason none were needed.
-6. **README Impact** - `Updated - <what changed>` or `None - <concrete reason>`.
+6. **README Impact** - report `README Impact: Yes` or `README Impact: No`, followed by `Reason: <concrete reason>`.
 7. **Compatibility/security** - public contract, platform, network, config, or migration effects.
 8. **Unverified boundaries** - real hardware, another OS, external authentication, external service, or other validation not performed.
 9. **Modified files** - files actually changed for the current task.
