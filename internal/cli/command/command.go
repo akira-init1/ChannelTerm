@@ -953,6 +953,11 @@ func forwardInput(input io.Reader, terminal interface {
 						cancel()
 						return
 					}
+				case interactive.ActionEscapePending:
+					if writeLocal == nil || writeLocal(escapePendingText) != nil {
+						cancel()
+						return
+					}
 				case interactive.ActionQuit:
 					cancel()
 					return
@@ -980,6 +985,11 @@ func forwardInput(input io.Reader, terminal interface {
 		}
 	}
 }
+
+// escapePendingText confirms locally that Ctrl+] entered escape mode. Its
+// leading and trailing line breaks keep it readable beside unstructured remote
+// terminal output; it is never sent to the remote Session.
+var escapePendingText = []byte("\r\n[ChannelTerm] Escape: q quit | ? help | ] send Ctrl+]\r\n")
 
 // escapeHelpText is local CLI output and is never sent to the remote Session.
 var escapeHelpText = []byte("\r\nChannelTerm escape commands:\r\n\r\n  q    Quit session\r\n  ?    Show this help\r\n  ]    Send Ctrl+] to remote\r\n")
