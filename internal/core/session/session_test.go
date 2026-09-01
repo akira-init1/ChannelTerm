@@ -8,6 +8,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/akira-init1/ChannelTerm/internal/core/channel"
 )
 
 func TestCoreConnectAndOutput(t *testing.T) {
@@ -288,6 +290,40 @@ func TestCoreConnectHonorsCancelledContext(t *testing.T) {
 	}
 	if got := s.State(); got != StateFailed {
 		t.Errorf("State() = %s, want %s", got, StateFailed)
+	}
+	if err := s.Close(); err != nil {
+		t.Fatalf("Close() error = %v", err)
+	}
+}
+
+func TestCoreConnectRejectsNilChannel(t *testing.T) {
+	s, err := New("board-1", nilChannelTransport{})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	if err := s.Connect(context.Background()); !errors.Is(err, ErrNilChannel) {
+		t.Errorf("Connect() error = %v, want ErrNilChannel", err)
+	}
+	if got := s.State(); got != StateFailed {
+		t.Errorf("State() = %s, want %s", got, StateFailed)
+	}
+}
+
+func TestCoreTreatsResizeAsOptionalChannelCapability(t *testing.T) {
+	underlying := newFakeTransport()
+	stream, err := channel.NewStream(underlying)
+	if err != nil {
+		t.Fatalf("channel.NewStream() error = %v", err)
+	}
+	s, err := New("board-1", fixedChannelTransport{stream: stream})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	if err := s.Connect(context.Background()); err != nil {
+		t.Fatalf("Connect() error = %v", err)
+	}
+	if err := s.Resize(80, 24); !errors.Is(err, channel.ErrResizeUnsupported) {
+		t.Errorf("Resize() error = %v, want channel.ErrResizeUnsupported", err)
 	}
 	if err := s.Close(); err != nil {
 		t.Fatalf("Close() error = %v", err)
@@ -591,6 +627,18 @@ func TestNewRejectsInvalidArguments(t *testing.T) {
 	}
 }
 
+type nilChannelTransport struct{}
+
+func (nilChannelTransport) Connect(context.Context) (channel.Channel, error) { return nil, nil }
+
+type fixedChannelTransport struct {
+	stream channel.Channel
+}
+
+func (t fixedChannelTransport) Connect(context.Context) (channel.Channel, error) {
+	return t.stream, nil
+}
+
 // fakeTransport provides controllable blocking reads and recorded writes so
 // Session lifecycle tests exercise concurrency without a physical endpoint.
 type fakeTransport struct {
@@ -650,7 +698,7 @@ func newBlockedWriteTransport() *blockedWriteTransport {
 	return &blockedWriteTransport{writeStarted: make(chan struct{}), closed: make(chan struct{})}
 }
 
-func (t *blockedWriteTransport) Connect(context.Context) error { return nil }
+func (t *blockedWriteTransport) Connect(context.Context) (channel.Channel, error) { return t, nil }
 func (t *blockedWriteTransport) Read([]byte) (int, error) {
 	<-t.closed
 	return 0, io.EOF
@@ -669,6 +717,7 @@ func (t *blockedWriteTransport) Close() error {
 	t.closeOnce.Do(func() { close(t.closed) })
 	return nil
 }
+func (*blockedWriteTransport) State() channel.State { return channel.StateOpen }
 
 // newFakeTransport creates independent channels for each test so Close can
 // deterministically release a blocked Read.
@@ -679,7 +728,7 @@ func newFakeTransport() *fakeTransport {
 	}
 }
 
-func (f *fakeTransport) Connect(context.Context) error { return nil }
+func (f *fakeTransport) Connect(context.Context) (channel.Channel, error) { return f, nil }
 
 func (f *fakeTransport) Read(p []byte) (int, error) {
 	select {
@@ -712,6 +761,8 @@ func (f *fakeTransport) Close() error {
 	return nil
 }
 
+func (*fakeTransport) State() channel.State { return channel.StateOpen }
+
 func (f *fakeTransport) emit(data []byte) {
 	f.output <- append([]byte(nil), data...)
 }
@@ -740,7 +791,7 @@ type zeroProgressTransport struct {
 	reads atomic.Int64
 }
 
-func (t *zeroProgressTransport) Connect(context.Context) error { return nil }
+func (t *zeroProgressTransport) Connect(context.Context) (channel.Channel, error) { return t, nil }
 func (t *zeroProgressTransport) Read([]byte) (int, error) {
 	t.reads.Add(1)
 	return 0, nil
@@ -748,6 +799,7 @@ func (t *zeroProgressTransport) Read([]byte) (int, error) {
 func (t *zeroProgressTransport) Write(p []byte) (int, error) { return len(p), nil }
 func (t *zeroProgressTransport) Resize(uint16, uint16) error { return nil }
 func (t *zeroProgressTransport) Close() error                { return nil }
+func (*zeroProgressTransport) State() channel.State          { return channel.StateOpen }
 
 // failingTransport returns a prescribed reader failure to test Core's failed
 // state and error propagation independently of transport implementation.
@@ -756,15 +808,16 @@ type failingTransport struct {
 	closes  atomic.Int64
 }
 
-func (t *failingTransport) Connect(context.Context) error { return nil }
-func (t *failingTransport) Read([]byte) (int, error)      { return 0, t.readErr }
-func (t *failingTransport) Write(p []byte) (int, error)   { return len(p), nil }
-func (t *failingTransport) Resize(uint16, uint16) error   { return nil }
+func (t *failingTransport) Connect(context.Context) (channel.Channel, error) { return t, nil }
+func (t *failingTransport) Read([]byte) (int, error)                         { return 0, t.readErr }
+func (t *failingTransport) Write(p []byte) (int, error)                      { return len(p), nil }
+func (t *failingTransport) Resize(uint16, uint16) error                      { return nil }
 func (t *failingTransport) Close() error {
 	t.closes.Add(1)
 	return nil
 }
-func (t *failingTransport) closeCount() int { return int(t.closes.Load()) }
+func (t *failingTransport) closeCount() int    { return int(t.closes.Load()) }
+func (*failingTransport) State() channel.State { return channel.StateOpen }
 
 // burstTransport emits a finite stream without blocking so tests can exercise
 // high-volume reader behavior and buffer retention deterministically.
@@ -773,7 +826,7 @@ type burstTransport struct {
 	reads     atomic.Int64
 }
 
-func (t *burstTransport) Connect(context.Context) error { return nil }
+func (t *burstTransport) Connect(context.Context) (channel.Channel, error) { return t, nil }
 func (t *burstTransport) Read(p []byte) (int, error) {
 	if t.remaining == 0 {
 		return 0, io.EOF
@@ -789,3 +842,12 @@ func (t *burstTransport) Read(p []byte) (int, error) {
 func (t *burstTransport) Write(p []byte) (int, error) { return len(p), nil }
 func (t *burstTransport) Resize(uint16, uint16) error { return nil }
 func (t *burstTransport) Close() error                { return nil }
+func (*burstTransport) State() channel.State          { return channel.StateOpen }
+
+func (t *shortWriteTransport) Connect(context.Context) (channel.Channel, error) {
+	return t, nil
+}
+
+func (t *partialWriteTransport) Connect(context.Context) (channel.Channel, error) {
+	return t, nil
+}

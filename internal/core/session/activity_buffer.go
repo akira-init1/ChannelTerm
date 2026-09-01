@@ -18,7 +18,7 @@ var (
 // ActivityCursor identifies the next activity event a consumer expects.
 //
 // Cursors are monotonically increasing for one Session. They are independent
-// from OutputCursor because activity metadata and terminal output have separate
+// from OutputCursor because activity metadata and stream output have separate
 // retention, overflow, and consumer lifecycles.
 type ActivityCursor uint64
 
@@ -26,15 +26,15 @@ type ActivityCursor uint64
 type Operation string
 
 const (
-	// OperationWrite records bytes successfully passed to a Session Transport.
+	// OperationWrite records bytes successfully passed to a Session Channel.
 	OperationWrite Operation = "write"
 )
 
-// SessionEvent records a completed terminal operation and its internal source.
+// SessionEvent records a completed stream operation and its internal source.
 //
 // Timestamp is the local time at which Core began executing the operation. Data
 // is a copied snapshot of the bytes actually written; it may be a prefix of the
-// original request when a Transport reports a partial write followed by an error.
+// original request when a Channel reports a partial write followed by an error.
 type SessionEvent struct {
 	Timestamp time.Time
 	Actor     Actor
@@ -169,7 +169,7 @@ func (b *activityBuffer) copyLocked(start ActivityCursor, count int, dropped boo
 	return ActivityChunk{Events: events, Next: start + ActivityCursor(count), Dropped: dropped}
 }
 
-// close wakes all readers with the terminal end condition while retaining
+// close wakes all readers with the final stream condition while retaining
 // already-recorded events for readers whose cursor has not reached the tail.
 func (b *activityBuffer) close(err error) {
 	b.mu.Lock()

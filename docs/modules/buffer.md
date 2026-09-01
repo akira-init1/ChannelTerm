@@ -1,6 +1,6 @@
 # Buffers and Cursors
 
-Session maintains two bounded, independent buffers: raw terminal output and write activity. Device Registry maintains a third bounded stream for discovery events.
+Session maintains two bounded, independent buffers: raw Channel output and write activity. Device Registry maintains a third bounded stream for discovery events.
 
 ## Output receive buffer
 
@@ -27,6 +27,6 @@ Device Registry retains 1024 appearance/disappearance events. It uses its own `d
 
 ## Concurrency and close
 
-Each buffer replaces a notification channel whenever data or lifecycle state changes. Readers inspect state under a short mutex and wait without holding it. Slow or blocked consumers therefore do not apply backpressure to terminal reads, writes, or device scans.
+Each buffer replaces a notification channel whenever data or lifecycle state changes. Readers inspect state under a short mutex and wait without holding it. Slow or blocked consumers therefore do not apply backpressure to Channel reads, Session writes, or device scans.
 
 Closing wakes current waiters after retained data has been consumed. Session close then releases its output and activity backing storage. These buffers are retention windows, not persistent logs; cursor overflow is permanent data loss for that consumer.

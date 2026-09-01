@@ -153,7 +153,7 @@ AI via MCP --------+--> Session --> Serial Transport <--> Device
                         `------- retained raw output
 ```
 
-The Session Host owns the physical port and the Session lifetime. A Session owns the single Transport reader, bounded in-memory output and activity retention, and write serialization. CLI and MCP adapters use the same Core behavior; presentation such as highlighting and the `AI` activity block stays outside stored terminal data.
+The Session Host owns the physical port and the Session lifetime. A Serial Transport opens a protocol-neutral Channel; Session owns the single Channel reader, bounded in-memory output and activity retention, and write serialization. CLI and MCP adapters use the same Core behavior; presentation such as highlighting and the `AI` activity block stays outside stored terminal data.
 
 Shared Session references such as `SER-1` are valid only within the owning host process. Stopping that host closes its Sessions; detaching one client does not.
 

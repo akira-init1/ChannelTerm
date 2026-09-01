@@ -32,6 +32,7 @@ This file records stable ownership boundaries, not a duplicate source tree. The 
 | `internal/cli/` | CLI commands, local presentation, interactive input, and OS terminal adaptation |
 | `internal/init/mcp/` | Supported MCP-client discovery plus client-configuration rendering and safe installation |
 | `internal/core/app/` | Adapter-neutral application use cases |
+| `internal/core/channel/` | Established protocol-neutral stream contract and lifecycle |
 | `internal/core/session/` | Session lifecycle, shared I/O, buffering, activity, and Session management |
 | `internal/core/config/` | Configuration models, loading, saving, and overrides |
 | `internal/core/device/` | Device discovery and state registry abstractions |
@@ -74,6 +75,7 @@ Place code according to architectural responsibility, not according to the featu
 | Interactive local escape/input state      | `internal/cli/interactive/`       | Session ownership, OS raw-mode implementation        |
 | OS terminal/raw console behavior          | `internal/cli/terminalinput/`     | remote terminal protocol semantics                   |
 | Cross-adapter use-case orchestration      | `internal/core/app/`              | CLI formatting, MCP schemas                          |
+| Established stream lifecycle/read/write  | `internal/core/channel/`          | protocol connection setup, buffering, presentation  |
 | Config parsing/persistence/overrides      | `internal/core/config/`           | terminal lifecycle, UI decisions                     |
 | Connection/reuse policy                   | `internal/core/connectionpolicy/` | physical Transport operations                        |
 | Device discovery/state models             | `internal/core/device/`           | presentation formatting                              |
@@ -110,9 +112,10 @@ CLI / MCP adapters
         v
 internal/core/app
         v
-core services (Session, device, policy, tool, config)
-        v
-Transport
+Session and core services
+        |\
+        v v
+Transport -> Channel
 ```
 
 Mandatory rules:
@@ -120,10 +123,11 @@ Mandatory rules:
 - `internal/core/**` must not depend on `internal/cli/**` or `internal/mcp/**`.
 - Core must not depend on a GUI/TUI, LLM SDK, cloud service, product edition, or presentation framework.
 - CLI and MCP adapters must reuse `internal/core/app` / Core behavior rather than implementing competing lifecycle logic.
-- Protocol-specific behavior belongs in its Transport implementation or the use case that configures it; it must not leak into the protocol-neutral Session contract.
-- A Transport owns the live bidirectional byte stream and protocol resources. It must not own terminal history.
-- A Session owns receive buffering, activity retention, write serialization, and Session lifecycle semantics.
-- The shared access model is `Physical endpoint -> Transport -> Session -> Client/Attachment`. Use `Transport`, `Session`, and `Client` or `Attachment` consistently; do not invent another Session-consumer concept.
+- Protocol-specific connection behavior belongs in its Transport implementation or the use case that configures it; it must not leak into the protocol-neutral Channel or Session contracts.
+- A Transport establishes a protocol-specific connection and transfers its live byte stream to a Channel. It must not own stream history.
+- A Channel owns the established bidirectional byte stream, read/write/close operations, and stream lifecycle state. Optional capabilities such as terminal resizing must not be required of every Channel.
+- A Session owns receive buffering, activity retention, write serialization, and shared Session lifecycle semantics above one Channel.
+- The shared access model is `Physical endpoint -> Transport -> Channel -> Session -> Client/Attachment`. Use `Transport`, `Channel`, `Session`, and `Client` or `Attachment` consistently; do not invent another Session-consumer concept.
 - Multiple Clients may share one Session. Each reader can maintain an independent output cursor and activity cursor.
 - Writes pass through Session. The current guarantee is serialization at the Session boundary so complete write payloads do not interleave at the byte level.
 - Write serialization is not semantic multi-writer coordination. It provides no writer ownership, exclusive lease, transaction, priority, arbitration, or shell-state coordination. Stronger multi-writer coordination is a future direction, not current behavior.

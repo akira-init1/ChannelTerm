@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/akira-init1/ChannelTerm/internal/cli/interactive"
+	"github.com/akira-init1/ChannelTerm/internal/core/channel"
 	"github.com/akira-init1/ChannelTerm/internal/core/session"
 	mcpadapter "github.com/akira-init1/ChannelTerm/internal/mcp"
 	protocol "github.com/modelcontextprotocol/go-sdk/mcp"
@@ -499,7 +500,7 @@ func newAttachTestTransport() *attachTestTransport {
 }
 
 // Connect satisfies transport.Transport without contacting a physical device.
-func (*attachTestTransport) Connect(context.Context) error { return nil }
+func (t *attachTestTransport) Connect(context.Context) (channel.Channel, error) { return t, nil }
 
 // Read blocks until injected output arrives or Close releases Core's reader.
 func (t *attachTestTransport) Read(p []byte) (int, error) {
@@ -525,6 +526,9 @@ func (t *attachTestTransport) Write(data []byte) (int, error) {
 
 // Resize is unsupported by the fake serial-style transport.
 func (*attachTestTransport) Resize(uint16, uint16) error { return errors.New("resize unsupported") }
+
+// State reports the established test Channel lifecycle.
+func (*attachTestTransport) State() channel.State { return channel.StateOpen }
 
 // Close unblocks the only Core reader and is safe when Manager cleanup repeats it.
 func (t *attachTestTransport) Close() error {
