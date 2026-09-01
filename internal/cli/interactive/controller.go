@@ -68,8 +68,9 @@ func (c *Controller) EscapeByte() byte {
 // actions it represents.
 //
 // Ctrl+C is not special here: in raw terminal mode it is byte 0x03 and is
-// emitted as ActionRemote. An unsupported command after the escape prefix is
-// reported locally and always returns the controller to normal input mode.
+// emitted as ActionRemote. Esc cancels local escape mode without an action.
+// An unsupported command after the escape prefix is reported locally and always
+// returns the controller to normal input mode.
 func (c *Controller) Process(data []byte) []Action {
 	var actions []Action
 	remoteStart := 0
@@ -91,6 +92,8 @@ func (c *Controller) Process(data []byte) []Action {
 				actions = append(actions, Action{Kind: ActionHelp})
 			case ']':
 				actions = append(actions, Action{Kind: ActionRemote, Data: []byte{c.EscapeByte()}})
+			case 0x1B:
+				// Esc cancels the local escape mode without reaching the remote Session.
 			default:
 				actions = append(actions, Action{Kind: ActionUnknownEscape, Command: value})
 			}
