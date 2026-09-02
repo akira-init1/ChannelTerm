@@ -99,7 +99,7 @@ channelterm file send firmware.bin /tmp/firmware.bin --session SER-1
 channelterm file receive /tmp/log.txt ./log.txt --session SER-1
 ```
 
-The Linux shell uses native `stty`, `dd`, `wc`, and `sha256sum`; ChannelTerm streams bounded chunks, reports progress, and verifies the final SHA-256. Keep other writers off the shell while a transfer is active. See the [file-transfer workflow](docs/getting-started/file-transfer.md) for prerequisites and limits.
+The Linux shell uses native `stty`, `dd`, `wc`, and `sha256sum`; ChannelTerm streams bounded chunks, reports progress, and verifies the final SHA-256. A temporary file-transfer lease blocks other ChannelTerm writers until the command finishes and attach displays a clear local lock error. See the [file-transfer workflow](docs/getting-started/file-transfer.md) for prerequisites and limits.
 
 To put an AI in that same Session, configure its MCP client to use the same Streamable HTTP endpoint:
 

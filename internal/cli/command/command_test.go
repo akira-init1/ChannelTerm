@@ -588,6 +588,54 @@ func TestForwardInputWritesAllBytes(t *testing.T) {
 	}
 }
 
+func TestForwardInputReportsLeaseWriteFailureAndKeepsInputActive(t *testing.T) {
+	terminal := &firstWriteFailure{err: errors.New("Session SER-1 is locked by file-transfer")}
+	var local bytes.Buffer
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	forwardInput(&oneByteInputReader{data: []byte("ab")}, terminal, func(data []byte) error {
+		_, err := local.Write(data)
+		return err
+	}, cancel)
+	if ctx.Err() != nil {
+		t.Fatal("forwardInput() cancelled after a recoverable lease write failure")
+	}
+	if got := string(terminal.written); got != "b" {
+		t.Errorf("successful remote input = %q, want b", got)
+	}
+	if got := local.String(); !strings.Contains(got, "[ChannelTerm] write failed: Session SER-1 is locked by file-transfer") {
+		t.Errorf("local output = %q, want friendly lease failure", got)
+	}
+}
+
+type firstWriteFailure struct {
+	err     error
+	written []byte
+}
+
+type oneByteInputReader struct {
+	data []byte
+}
+
+func (r *oneByteInputReader) Read(buffer []byte) (int, error) {
+	if len(r.data) == 0 {
+		return 0, io.EOF
+	}
+	buffer[0] = r.data[0]
+	r.data = r.data[1:]
+	return 1, nil
+}
+
+func (s *firstWriteFailure) Write(request session.WriteRequest) (int, error) {
+	if s.err != nil {
+		err := s.err
+		s.err = nil
+		return 0, err
+	}
+	s.written = append(s.written, request.Data...)
+	return len(request.Data), nil
+}
+
 func TestForwardInputForwardsControlCWithoutCancelling(t *testing.T) {
 	terminal := &fakeCLISession{}
 	var local bytes.Buffer

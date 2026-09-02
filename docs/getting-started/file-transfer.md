@@ -7,7 +7,7 @@ ChannelTerm can stream a file through an existing shared Session without an AI c
 - The remote shell is idle and accepts POSIX-style shell commands.
 - The board provides `stty`, `dd` with `iflag=fullblock`, `wc`, and `sha256sum`. BusyBox or GNU userland may provide these commands.
 - The serial settings already match the board. File transfer does not change baud rate, data bits, parity, stop bits, or flow control.
-- No other Client writes to the same shell during transfer. Other Clients may keep reading with their independent Session cursors.
+- Other Clients may keep reading with their independent Session cursors. ChannelTerm acquires a Host-side `file-transfer` lease that blocks its other writers during transfer; it cannot prevent unsolicited output or writers that bypass ChannelTerm.
 
 First create or join a shared serial Session in one terminal:
 
@@ -75,8 +75,8 @@ For receive, the board announces size and digest before streaming. ChannelTerm w
 
 The protocol is deliberately shell-oriented rather than a new board agent. Control markers are ASCII lines containing a random token; file payload bytes are raw and are never encoded or loaded as one complete in-memory value.
 
-Session still guarantees only byte serialization for each individual write. It does not provide a transfer-wide exclusive lease. Another writer, shell prompt hook, or unsolicited device output can corrupt an active raw chunk. Keep the shell quiescent and do not use CLI input or `terminal_write` on that Session until the command completes. Independent `attach`, `terminal_read`, and `terminal_wait` readers remain valid, although a receive transfer's raw file bytes are visible in their raw Session output and may not be suitable for terminal rendering.
+Session still guarantees byte serialization for each individual write. Above it, the Host holds one exclusive `file-transfer` lease for the complete CLI command. Other ChannelTerm writers fail immediately with a clear locked-session error, while the leased command uses its opaque owner capability for every write. The lease is released after success, failure, or cancellation. It cannot stop shell prompt hooks, unsolicited device output, or writers that bypass ChannelTerm, so keep the endpoint itself quiescent. Independent `attach`, `terminal_read`, and `terminal_wait` readers remain valid, although a receive transfer's raw file bytes are visible in their raw Session output and may not be suitable for terminal rendering.
 
 If the command is interrupted while a send chunk is waiting for bytes, ChannelTerm makes a bounded best-effort attempt to pad that chunk so the shell can restore its saved TTY mode. If the Session or device disappears, reconnect locally and run `stty sane` on the board console if its terminal mode was not restored.
 
-The first version does not provide resume, compression, directory recursion, sparse-file preservation, permissions/ownership preservation, symlink handling, per-chunk checksums, transfer-wide writer locking, or non-Linux shell support.
+The first version does not provide resume, compression, directory recursion, sparse-file preservation, permissions/ownership preservation, symlink handling, per-chunk checksums, coordination with writers that bypass the Host, or non-Linux shell support.

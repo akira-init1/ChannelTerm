@@ -153,13 +153,15 @@ channelterm file receive REMOTE_PATH LOCAL_PATH [--session SESSION] [--endpoint 
 
 `--session` accepts a short reference such as `SER-1` or an opaque Session ID. It may be omitted only when the selected Host has exactly one open Session. No open Session is an error; multiple open Sessions require an explicit selection. `--endpoint` defaults to `http://127.0.0.1:37099/mcp`.
 
-The command is CLI-only from the user's perspective: it requires no AI client and does not require manually starting MCP when `attach` has already created the default local Host. Internally, the separate CLI process attaches to that host-owned Session through the existing terminal read/write tools. It neither adds a file-specific MCP tool nor changes the existing MCP schemas, and it never opens Serial Transport directly.
+The command is CLI-only from the user's perspective: it requires no AI client and does not require manually starting MCP when `attach` has already created the default local Host. Internally, the separate CLI process attaches to that host-owned Session, acquires a temporary `file-transfer` lease, and uses its owner capability for every protocol write. Existing `terminal_write` input remains unchanged; the lease-specific MCP tools are an internal CLI transport boundary. The command never opens Serial Transport directly.
 
 Both directions use bounded 32 KiB chunks and display acknowledged byte progress. Send requires a regular local source. Receive writes a temporary file beside the destination and installs it only after verification; an existing destination is replaced after the temporary file passes SHA-256 verification. The remote shell must provide `stty`, `dd` with `iflag=fullblock`, `wc`, and `sha256sum`.
 
 Send truncates the requested remote destination after its initial board-side checks. Receive replaces the requested local destination only after the temporary file verifies. These are deliberate write-capable operations; confirm the paths and use only a trusted Session Host. The file command does not change the Host's loopback listener default or add authentication.
 
-The shell must remain idle, and other Clients must not write during transfer. Independent Session readers continue to work. A receive exposes raw file bytes to those readers because Session output remains unmodified.
+The shell must remain idle with respect to non-ChannelTerm output, but other ChannelTerm writers are blocked by the Host lease during transfer and receive `Session SER-1 is locked by file-transfer`-style errors. Independent Session readers continue to work. A receive exposes raw file bytes to those readers because Session output remains unmodified.
+
+An attached CLI remains connected for reads when its input is blocked and renders the failed write locally as `[ChannelTerm] write failed: Session SER-1 is locked by file-transfer`. Input can resume after the transfer releases its lease.
 
 Examples:
 
@@ -169,7 +171,7 @@ channelterm file send firmware.bin /tmp/firmware.bin --session SER-1
 channelterm file receive /tmp/log.txt ./log.txt --session SER-1
 ```
 
-Important errors include an offline Host, no or ambiguous open Session, missing/non-regular local source, invalid remote path, missing or incompatible board commands, remote open/read/write failure, Session cursor overwrite, local I/O failure, size mismatch, SHA-256 mismatch, and cancellation. See the focused [file-transfer workflow](../getting-started/file-transfer.md) for protocol and recovery constraints.
+Important errors include an offline Host, no or ambiguous open Session, an existing lease, missing/non-regular local source, invalid remote path, missing or incompatible board commands, remote open/read/write failure, Session cursor overwrite, local I/O failure, size mismatch, SHA-256 mismatch, and cancellation. See the focused [file-transfer workflow](../getting-started/file-transfer.md) for protocol and recovery constraints.
 
 ## `list`
 
@@ -190,7 +192,7 @@ channelterm list [--transport NAME] [--kind KIND] [options]
 | `--no-mcp` | false | Skip the MCP query and report MCP state as `disabled`. |
 | `--help`, `-h` | false | Print command help. |
 
-If MCP is unreachable, the command reports it as `offline` but still returns local devices and profiles. Local target/profile rows and a Session from a local loopback host are merged when they describe the same endpoint. A remote host's Session is not merged with a similarly named local port.
+If MCP is unreachable, the command reports it as `offline` but still returns local devices and profiles. An active Host lease is displayed in the Session row's occupancy as `locked by file-transfer` (or its lease type). Local target/profile rows and a Session from a local loopback host are merged when they describe the same endpoint. A remote host's Session is not merged with a similarly named local port.
 
 The JSON object has `mcp` and `items` fields. Each item reports `kind`, `transport`, `target`, `state`, `occupancy`, `source`, and optional reference, Session, and label fields. Treat the JSON fields as the script-oriented output; the compact table is presentation-oriented.
 

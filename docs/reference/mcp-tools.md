@@ -1,6 +1,6 @@
 # MCP Tool Reference
 
-The current MCP adapter exposes 13 tool names. Ten protocol-neutral tools are registered from `internal/mcp/terminal`; the MCP adapter adds the three cursor-required wait names `terminal_wait`, `terminal_wait_activity`, and `terminal_wait_device_event` over the corresponding read implementations.
+The current MCP adapter exposes 16 tool names. Thirteen protocol-neutral tools are registered from `internal/mcp/terminal`; the MCP adapter adds the three cursor-required wait names `terminal_wait`, `terminal_wait_activity`, and `terminal_wait_device_event` over the corresponding read implementations.
 
 Successful calls return both structured content and an equivalent JSON text content item. Recoverable tool failures return an MCP tool result with `isError: true` and text beginning `<tool-name> failed:`. Structured inputs decoded by the terminal adapter reject unknown fields.
 
@@ -132,7 +132,7 @@ Purpose: list the host Manager's current Session snapshot.
 
 - Required input: none; use `{}`.
 - Optional input: none.
-- Result: `sessions`, sorted by short reference. Each object contains `session_id`, `session_ref`, `transport`, `endpoint`, `label`, and `state`.
+- Result: `sessions`, sorted by short reference. Each object contains `session_id`, `session_ref`, `transport`, `endpoint`, `label`, and `state`. An actively leased Session also has `lease` with `type`, `created_at`, and `state`; owner capabilities are never returned.
 
 ```json
 {}
@@ -231,6 +231,42 @@ Purpose: write an explicitly encoded payload to an active Session without adding
 Hex input may contain whitespace. Base64 uses the standard encoding. The entire encoded payload is validated before Session write, so malformed hex or Base64 writes nothing. The actor is retained only in the activity buffer and is never inserted into the device byte stream.
 
 Important errors: missing/unknown Session, Session not open, invalid encoding or encoded data, invalid actor, cancellation before or during application retries, short write, and transport write failure. Safety: this tool controls the remote terminal. Include `\r` or `\n` only when the target protocol requires it; ChannelTerm adds neither automatically.
+
+When another operation owns an exclusive lease, this unchanged tool returns a busy error such as `Session SER-1 is locked by file-transfer`. It never waits for the lease or accepts an owner capability.
+
+## `terminal_acquire_lease`
+
+Purpose: acquire one exclusive application-level writer lease for an active Session.
+
+- Required input: `session_id`, caller-generated opaque `owner`, and `type` (`terminal`, `file-transfer`, or reserved `debug`).
+- Optional input: none.
+- Result: canonical `session_id`, `type`, UTC `created_at`, and `state` (`active`). The owner capability is not echoed.
+
+```json
+{"session_id":"SER-1","owner":"file-transfer-opaque-capability","type":"file-transfer"}
+```
+
+Only one lease may be active for a Session. Readers and their cursors continue normally. Other ordinary writers fail immediately; a separate Session is unaffected. Important errors: missing Session, invalid owner/type, or an already active lease. Safety: an owner is a bearer capability and should be generated randomly, retained only for the operation, and never logged.
+
+## `terminal_write_leased`
+
+Purpose: write through an active lease without changing the stable `terminal_write` schema.
+
+- Required input: `session_id`, `owner`, and `data`.
+- Optional input: `encoding` and `actor`, with the same semantics as `terminal_write`.
+- Result: `bytes_written`.
+
+The owner must exactly match the active lease for this Session. This tool exists for multi-step operations such as the CLI file transfer; normal terminal clients should continue to use `terminal_write`.
+
+## `terminal_release_lease`
+
+Purpose: release an exclusive Session lease after its operation completes or fails.
+
+- Required input: `session_id`, `owner`.
+- Optional input: none.
+- Result: `released: true`.
+
+Release is idempotent when no lease remains, but a different owner receives an ownership error. Closing a Session also discards its lease state.
 
 ## `terminal_close`
 
