@@ -52,6 +52,7 @@ type Dependencies struct {
 // lifetime; the Composition Root owns the supplied Manager and Registry.
 type Application struct {
 	serial          *SerialService
+	leases          *leaseCoordinator
 	devices         *device.Registry
 	policy          connectionpolicy.Policy
 	listSerialPorts func() ([]serialtransport.Port, error)
@@ -83,6 +84,7 @@ func New(dependencies Dependencies) (*Application, error) {
 	}
 	return &Application{
 		serial:          serial,
+		leases:          newLeaseCoordinator(),
 		devices:         dependencies.Devices,
 		policy:          policy,
 		listSerialPorts: listPorts,
@@ -144,12 +146,24 @@ func (a *Application) ReadSessionActivity(ctx context.Context, identifier string
 	return terminal.ReadActivity(ctx, *cursor, maxEvents)
 }
 
-// WriteSession writes one complete payload to a managed Session.
+// WriteSession writes one complete payload to a managed Session. It rejects
+// writes while another operation owns an exclusive lease.
 //
 // ctx is checked before the operation and between short-write retries. The
 // Session retains responsibility for serializing concurrent writers and for
 // recording the supplied Actor; Application never changes request.Data.
 func (a *Application) WriteSession(ctx context.Context, identifier string, request session.WriteRequest) (int, error) {
+	return a.writeSession(ctx, identifier, "", request)
+}
+
+// WriteSessionWithLease writes one complete payload using owner as the
+// capability for an active lease on identifier. owner must match the active
+// lease exactly; ordinary writes must continue to use WriteSession.
+func (a *Application) WriteSessionWithLease(ctx context.Context, identifier, owner string, request session.WriteRequest) (int, error) {
+	return a.writeSession(ctx, identifier, owner, request)
+}
+
+func (a *Application) writeSession(ctx context.Context, identifier, owner string, request session.WriteRequest) (int, error) {
 	if err := ctx.Err(); err != nil {
 		return 0, err
 	}
@@ -160,23 +174,55 @@ func (a *Application) WriteSession(ctx context.Context, identifier string, reque
 	if !request.Actor.Valid() {
 		return 0, session.ErrInvalidActor
 	}
-	remaining := request.Data
-	written := 0
-	for len(remaining) > 0 {
-		if err := ctx.Err(); err != nil {
-			return written, err
+	return a.leases.write(terminal.ID(), owner, strings.TrimSpace(identifier), func() (int, error) {
+		remaining := request.Data
+		written := 0
+		for len(remaining) > 0 {
+			if err := ctx.Err(); err != nil {
+				return written, err
+			}
+			n, err := terminal.Write(session.WriteRequest{Actor: request.Actor, Data: remaining})
+			written += n
+			if err != nil {
+				return written, err
+			}
+			if n <= 0 {
+				return written, io.ErrShortWrite
+			}
+			remaining = remaining[n:]
 		}
-		n, err := terminal.Write(session.WriteRequest{Actor: request.Actor, Data: remaining})
-		written += n
-		if err != nil {
-			return written, err
-		}
-		if n <= 0 {
-			return written, io.ErrShortWrite
-		}
-		remaining = remaining[n:]
+		return written, nil
+	})
+}
+
+// AcquireLease creates one exclusive application-level lease for an active
+// Session. It does not affect readers, raw output, or Session lifecycle.
+func (a *Application) AcquireLease(identifier, owner string, typ LeaseType) (SessionLease, error) {
+	terminal, err := a.session(identifier)
+	if err != nil {
+		return SessionLease{}, err
 	}
-	return written, nil
+	return a.leases.acquire(terminal.ID(), owner, typ)
+}
+
+// ReleaseLease releases identifier's lease only when owner matches its owner
+// capability. Releasing an already absent lease is successful and idempotent.
+func (a *Application) ReleaseLease(identifier, owner string) error {
+	terminal, err := a.session(identifier)
+	if err != nil {
+		return err
+	}
+	return a.leases.release(terminal.ID(), owner)
+}
+
+// LeaseStatus reports identifier's current exclusive lease, if any.
+func (a *Application) LeaseStatus(identifier string) (SessionLease, bool, error) {
+	terminal, err := a.session(identifier)
+	if err != nil {
+		return SessionLease{}, false, err
+	}
+	lease, ok := a.leases.status(terminal.ID())
+	return lease, ok, nil
 }
 
 // CloseSession removes and closes a managed Session identified by its opaque
@@ -191,12 +237,13 @@ func (a *Application) CloseSession(identifier string) (session.SessionInfo, erro
 		if info.ID != identifier && info.Metadata.Reference != identifier {
 			continue
 		}
-		closed, err := a.serial.CloseSession(identifier)
-		if err != nil {
-			return session.SessionInfo{}, err
-		}
+		closed, closeErr := a.serial.CloseSession(identifier)
 		if !closed {
 			return session.SessionInfo{}, ErrSessionNotFound
+		}
+		a.leases.remove(info.ID)
+		if closeErr != nil {
+			return session.SessionInfo{}, closeErr
 		}
 		return info, nil
 	}

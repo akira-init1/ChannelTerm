@@ -119,6 +119,9 @@ The host Manager shares one active Session for an exact `transport + endpoint` p
 local file <--> bounded CLI chunks
                      |
                      v
+        file-transfer Application lease
+                     |
+                     v
           existing Session read/write
                      |
                      v
@@ -134,4 +137,4 @@ local file <--> bounded CLI chunks
              wc -c + sha256sum
 ```
 
-The file-transfer use case is layered above Session and does not access Serial Transport directly. A CLI attachment uses the existing terminal tools only as a byte-oriented client of the host-owned Session; no file-specific MCP schema exists. Payloads are bounded, raw chunks. Other readers retain independent cursors, while other writers must avoid the shell during a transfer because Session has no transfer-wide lease.
+The file-transfer use case is layered above Session and does not access Serial Transport directly. A CLI attachment uses the host's lease tools plus a lease-authorized write tool as byte-oriented clients of the host-owned Session; existing `terminal_write` input is unchanged. Payloads are bounded, raw chunks. Other readers retain independent cursors; while the `file-transfer` lease is active, other writers receive an immediate busy error rather than waiting or interleaving bytes.

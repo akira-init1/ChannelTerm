@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/akira-init1/ChannelTerm/internal/core/app"
 )
@@ -25,6 +26,13 @@ var (
 type fileCommandDependencies struct {
 	newAttach    attachSessionFactory
 	listSessions func(context.Context, string) ([]mcpListedSession, error)
+}
+
+// fileLeaseSession is implemented by attachments that can request Host-side
+// writer coordination for an entire file transfer.
+type fileLeaseSession interface {
+	AcquireFileTransferLease(context.Context) error
+	ReleaseFileTransferLease(context.Context) error
 }
 
 // runFile parses CLI file transfers and uses the same Session attachment
@@ -92,16 +100,18 @@ func runFileSend(ctx context.Context, args []string, output io.Writer, dependenc
 	if !info.Mode().IsRegular() {
 		return fmt.Errorf("local source %q must be a regular file", localPath)
 	}
-	progress := newFileProgress(output)
-	result, err := app.SendFile(ctx, attached, file, info.Size(), remotePath, progress)
-	if err != nil {
-		return err
-	}
-	if err := finishFileProgress(output); err != nil {
-		return err
-	}
-	_, err = fmt.Fprintf(output, "Sent %d bytes to %s via %s\nSHA-256: %s\n", result.Size, remotePath, identifier, result.SHA256)
-	return err
+	return withFileTransferLease(ctx, attached, identifier, func() error {
+		progress := newFileProgress(output)
+		result, transferErr := app.SendFile(ctx, attached, file, info.Size(), remotePath, progress)
+		if transferErr != nil {
+			return transferErr
+		}
+		if finishErr := finishFileProgress(output); finishErr != nil {
+			return finishErr
+		}
+		_, writeErr := fmt.Fprintf(output, "Sent %d bytes to %s via %s\nSHA-256: %s\n", result.Size, remotePath, identifier, result.SHA256)
+		return writeErr
+	})
 }
 
 func runFileReceive(ctx context.Context, args []string, output io.Writer, dependencies fileCommandDependencies) (err error) {
@@ -140,27 +150,50 @@ func runFileReceive(ctx context.Context, args []string, output io.Writer, depend
 	}
 	temporaryPath := temporary.Name()
 	defer func() { _ = os.Remove(temporaryPath) }()
-	progress := newFileProgress(output)
-	result, transferErr := app.ReceiveFile(ctx, attached, temporary, remotePath, progress)
-	if transferErr != nil {
-		_ = temporary.Close()
-		return transferErr
+	return withFileTransferLease(ctx, attached, identifier, func() error {
+		progress := newFileProgress(output)
+		result, transferErr := app.ReceiveFile(ctx, attached, temporary, remotePath, progress)
+		if transferErr != nil {
+			_ = temporary.Close()
+			return transferErr
+		}
+		if syncErr := temporary.Sync(); syncErr != nil {
+			_ = temporary.Close()
+			return fmt.Errorf("sync temporary destination for %q: %w", localPath, syncErr)
+		}
+		if closeErr := temporary.Close(); closeErr != nil {
+			return fmt.Errorf("close temporary destination for %q: %w", localPath, closeErr)
+		}
+		if replaceErr := replaceReceivedFile(temporaryPath, localPath); replaceErr != nil {
+			return fmt.Errorf("install received file %q: %w", localPath, replaceErr)
+		}
+		if finishErr := finishFileProgress(output); finishErr != nil {
+			return finishErr
+		}
+		_, writeErr := fmt.Fprintf(output, "Received %d bytes from %s via %s\nSHA-256: %s\n", result.Size, remotePath, identifier, result.SHA256)
+		return writeErr
+	})
+}
+
+// withFileTransferLease holds a Host-side file-transfer lease for one complete
+// command, including all protocol cleanup. It releases with a fresh bounded
+// context so cancellation of the transfer cannot leave the Session locked.
+func withFileTransferLease(ctx context.Context, attached attachSession, identifier string, operation func() error) (err error) {
+	lease, ok := attached.(fileLeaseSession)
+	if !ok {
+		return errors.New("attached Session does not support file transfer leases")
 	}
-	if syncErr := temporary.Sync(); syncErr != nil {
-		_ = temporary.Close()
-		return fmt.Errorf("sync temporary destination for %q: %w", localPath, syncErr)
+	if err := lease.AcquireFileTransferLease(ctx); err != nil {
+		return fmt.Errorf("acquire file transfer lease for Session %q: %w", identifier, err)
 	}
-	if closeErr := temporary.Close(); closeErr != nil {
-		return fmt.Errorf("close temporary destination for %q: %w", localPath, closeErr)
-	}
-	if err := replaceReceivedFile(temporaryPath, localPath); err != nil {
-		return fmt.Errorf("install received file %q: %w", localPath, err)
-	}
-	if err := finishFileProgress(output); err != nil {
-		return err
-	}
-	_, err = fmt.Fprintf(output, "Received %d bytes from %s via %s\nSHA-256: %s\n", result.Size, remotePath, identifier, result.SHA256)
-	return err
+	defer func() {
+		releaseCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if releaseErr := lease.ReleaseFileTransferLease(releaseCtx); releaseErr != nil && err == nil {
+			err = fmt.Errorf("release file transfer lease for Session %q: %w", identifier, releaseErr)
+		}
+	}()
+	return operation()
 }
 
 type fileOptions struct {

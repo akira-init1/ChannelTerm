@@ -35,11 +35,20 @@ type listSources struct {
 // CLI. The opaque ID remains available for scripts while Reference is the
 // shorter human-facing value such as SER-1.
 type mcpListedSession struct {
-	ID        string `json:"session_id"`
-	Reference string `json:"session_ref"`
-	Transport string `json:"transport"`
-	Endpoint  string `json:"endpoint"`
-	Label     string `json:"label"`
+	ID        string           `json:"session_id"`
+	Reference string           `json:"session_ref"`
+	Transport string           `json:"transport"`
+	Endpoint  string           `json:"endpoint"`
+	Label     string           `json:"label"`
+	State     string           `json:"state"`
+	Lease     *mcpSessionLease `json:"lease,omitempty"`
+}
+
+// mcpSessionLease is the non-secret lease status included in a Host Session
+// snapshot. Owner capabilities deliberately never cross into list output.
+type mcpSessionLease struct {
+	Type      string `json:"type"`
+	CreatedAt string `json:"created_at"`
 	State     string `json:"state"`
 }
 
@@ -245,6 +254,10 @@ func collectList(ctx context.Context, endpoint, configuredPath string, noMCP boo
 				if !allowsListTransport(transports, listed.Transport) {
 					continue
 				}
+				occupancy := "owned by ChannelTerm"
+				if listed.Lease != nil {
+					occupancy = "locked by " + listed.Lease.Type
+				}
 				report.Items = append(report.Items, listItem{
 					Reference: listed.Reference,
 					SessionID: listed.ID,
@@ -252,7 +265,7 @@ func collectList(ctx context.Context, endpoint, configuredPath string, noMCP boo
 					Transport: listed.Transport,
 					Target:    listed.Endpoint,
 					State:     listed.State,
-					Occupancy: "owned by ChannelTerm",
+					Occupancy: occupancy,
 					Source:    "mcp",
 					Label:     listed.Label,
 				})

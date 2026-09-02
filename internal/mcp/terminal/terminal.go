@@ -165,6 +165,9 @@ func serialToolsForApplication(application *app.Application) []tool.Tool {
 		&readTool{serialTools: dependencies},
 		&readActivityTool{serialTools: dependencies},
 		&writeTool{serialTools: dependencies},
+		&writeLeasedTool{serialTools: dependencies},
+		&acquireLeaseTool{serialTools: dependencies},
+		&releaseLeaseTool{serialTools: dependencies},
 		&closeTool{serialTools: dependencies},
 	}
 }
@@ -508,14 +511,18 @@ func (t *listSessionsTool) Call(ctx context.Context, _ json.RawMessage) (tool.Re
 	sessions := t.application.ListSessions()
 	result := make([]sessionSummary, 0, len(sessions))
 	for _, info := range sessions {
-		result = append(result, sessionSummary{
+		summary := sessionSummary{
 			ID:        info.ID,
 			Reference: info.Metadata.Reference,
 			Transport: info.Metadata.Transport,
 			Endpoint:  info.Metadata.Endpoint,
 			Label:     info.Metadata.Label,
 			State:     info.State.String(),
-		})
+		}
+		if lease, active, err := t.application.LeaseStatus(info.ID); err == nil && active {
+			summary.Lease = &leaseSummary{Type: string(lease.Type), CreatedAt: lease.CreatedAt.Format(time.RFC3339Nano), State: lease.State}
+		}
+		result = append(result, summary)
 	}
 	sort.Slice(result, func(i, j int) bool { return result[i].Reference < result[j].Reference })
 	return tool.Result{"sessions": result}, nil
@@ -722,6 +729,122 @@ func (t *writeTool) Call(ctx context.Context, input json.RawMessage) (tool.Resul
 	return tool.Result{"bytes_written": len(payload)}, nil
 }
 
+// writeLeasedTool writes through a caller-owned lease without extending the
+// stable terminal_write input schema used by existing MCP clients.
+type writeLeasedTool struct{ *serialTools }
+
+// Name returns the lease-aware terminal write Tool identifier.
+func (*writeLeasedTool) Name() string { return "terminal_write_leased" }
+
+// Description explains that the Tool is only for an active exclusive lease.
+func (*writeLeasedTool) Description() string {
+	return "Write bytes through an active Session lease owned by this operation."
+}
+
+// InputSchema describes the normal write payload plus its lease owner capability.
+func (*writeLeasedTool) InputSchema() tool.InputSchema {
+	schema := (&writeTool{}).InputSchema()
+	schema.Properties["owner"] = tool.InputProperty{Type: "string", Description: "Opaque owner capability returned to the lease caller."}
+	schema.Required = append(schema.Required, "owner")
+	return schema
+}
+
+// Call writes only when owner matches the Session's active lease.
+func (t *writeLeasedTool) Call(ctx context.Context, input json.RawMessage) (tool.Result, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	var args leasedWriteInput
+	if err := decodeInput(input, &args); err != nil {
+		return nil, err
+	}
+	payload, err := decodePayload(args.Encoding, args.Data)
+	if err != nil {
+		return nil, fmt.Errorf("decode write payload: %w", err)
+	}
+	actor := args.Actor
+	if actor == "" {
+		actor = session.ActorAgent
+	}
+	if !actor.Valid() {
+		return nil, fmt.Errorf("%w: %q", session.ErrInvalidActor, actor)
+	}
+	if _, err := t.application.WriteSessionWithLease(ctx, args.SessionID, args.Owner, session.WriteRequest{Actor: actor, Data: payload}); err != nil {
+		return nil, fmt.Errorf("write leased session %q: %w", args.SessionID, err)
+	}
+	return tool.Result{"bytes_written": len(payload)}, nil
+}
+
+// acquireLeaseTool creates an exclusive application-level Session lease.
+type acquireLeaseTool struct{ *serialTools }
+
+// Name returns the stable lease-acquisition Tool identifier.
+func (*acquireLeaseTool) Name() string { return "terminal_acquire_lease" }
+
+// Description explains that readers remain available while other writers fail immediately.
+func (*acquireLeaseTool) Description() string {
+	return "Acquire one exclusive Session lease. Readers continue normally; other writers fail until release."
+}
+
+// InputSchema describes the target, opaque owner capability, and lease type.
+func (*acquireLeaseTool) InputSchema() tool.InputSchema {
+	return tool.InputSchema{Type: "object", Properties: map[string]tool.InputProperty{
+		"session_id": {Type: "string", Description: "Session ID or short reference."},
+		"owner":      {Type: "string", Description: "Opaque caller-generated lease owner capability."},
+		"type":       {Type: "string", Description: "Exclusive operation type.", Enum: []string{string(app.LeaseTypeTerminal), string(app.LeaseTypeFileTransfer), string(app.LeaseTypeDebug)}},
+	}, Required: []string{"session_id", "owner", "type"}}
+}
+
+// Call acquires and returns non-secret lease state. The owner capability is not echoed.
+func (t *acquireLeaseTool) Call(ctx context.Context, input json.RawMessage) (tool.Result, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	var args leaseInput
+	if err := decodeInput(input, &args); err != nil {
+		return nil, err
+	}
+	lease, err := t.application.AcquireLease(args.SessionID, args.Owner, app.LeaseType(args.Type))
+	if err != nil {
+		return nil, err
+	}
+	return leaseResult(lease), nil
+}
+
+// releaseLeaseTool releases a caller-owned exclusive Session lease.
+type releaseLeaseTool struct{ *serialTools }
+
+// Name returns the stable lease-release Tool identifier.
+func (*releaseLeaseTool) Name() string { return "terminal_release_lease" }
+
+// Description explains that release is idempotent for an already absent lease.
+func (*releaseLeaseTool) Description() string {
+	return "Release an exclusive Session lease owned by this operation."
+}
+
+// InputSchema describes the target and opaque owner capability.
+func (*releaseLeaseTool) InputSchema() tool.InputSchema {
+	return tool.InputSchema{Type: "object", Properties: map[string]tool.InputProperty{
+		"session_id": {Type: "string", Description: "Session ID or short reference."},
+		"owner":      {Type: "string", Description: "Opaque caller-generated lease owner capability."},
+	}, Required: []string{"session_id", "owner"}}
+}
+
+// Call releases the lease after verifying the owner capability.
+func (t *releaseLeaseTool) Call(ctx context.Context, input json.RawMessage) (tool.Result, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	var args leaseInput
+	if err := decodeInput(input, &args); err != nil {
+		return nil, err
+	}
+	if err := t.application.ReleaseLease(args.SessionID, args.Owner); err != nil {
+		return nil, err
+	}
+	return tool.Result{"released": true}, nil
+}
+
 type closeTool struct{ *serialTools }
 
 // Name returns the stable terminal_close Tool identifier.
@@ -845,17 +968,42 @@ type writeInput struct {
 	Actor     session.Actor `json:"actor"`
 }
 
+type leasedWriteInput struct {
+	SessionID string        `json:"session_id"`
+	Owner     string        `json:"owner"`
+	Data      string        `json:"data"`
+	Encoding  string        `json:"encoding"`
+	Actor     session.Actor `json:"actor"`
+}
+
+type leaseInput struct {
+	SessionID string `json:"session_id"`
+	Owner     string `json:"owner"`
+	Type      string `json:"type"`
+}
+
 type closeInput struct {
 	SessionID string `json:"session_id"`
 }
 
 type sessionSummary struct {
-	ID        string `json:"session_id"`
-	Reference string `json:"session_ref"`
-	Transport string `json:"transport"`
-	Endpoint  string `json:"endpoint"`
-	Label     string `json:"label"`
+	ID        string        `json:"session_id"`
+	Reference string        `json:"session_ref"`
+	Transport string        `json:"transport"`
+	Endpoint  string        `json:"endpoint"`
+	Label     string        `json:"label"`
+	State     string        `json:"state"`
+	Lease     *leaseSummary `json:"lease,omitempty"`
+}
+
+type leaseSummary struct {
+	Type      string `json:"type"`
+	CreatedAt string `json:"created_at"`
 	State     string `json:"state"`
+}
+
+func leaseResult(lease app.SessionLease) tool.Result {
+	return tool.Result{"session_id": lease.SessionID, "type": string(lease.Type), "created_at": lease.CreatedAt.Format(time.RFC3339Nano), "state": lease.State}
 }
 
 // validateSessionLabel keeps display-oriented metadata safe for future CLI and

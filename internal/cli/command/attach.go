@@ -2,7 +2,9 @@ package command
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -52,8 +54,9 @@ type attachSessionFactory func(context.Context, string, string) (attachSession, 
 // existing MCP terminal tools. The remote Manager continues to own the actual
 // Session and its single Transport reader.
 type mcpAttachSession struct {
-	id     string
-	client *protocol.ClientSession
+	id         string
+	client     *protocol.ClientSession
+	leaseOwner string
 }
 
 // newMCPAttachSession connects to an MCP HTTP host and verifies that id is
@@ -580,8 +583,8 @@ func (s *mcpAttachSession) ReadActivity(ctx context.Context, next session.Activi
 }
 
 // Write forwards the complete caller payload in Base64 so raw local terminal
-// bytes remain lossless. The remote Session's write lock provides atomicity
-// with MCP Agent terminal_write calls.
+// bytes remain lossless. The Host retains Session write serialization and
+// applies any active Application lease before the write reaches Session.
 func (s *mcpAttachSession) Write(request session.WriteRequest) (int, error) {
 	return s.WriteContext(context.Background(), request)
 }
@@ -596,15 +599,61 @@ func (s *mcpAttachSession) WriteContext(ctx context.Context, request session.Wri
 	var result struct {
 		BytesWritten int `json:"bytes_written"`
 	}
-	if err := s.call(ctx, "terminal_write", map[string]any{
+	toolName := "terminal_write"
+	arguments := map[string]any{
 		"session_id": s.id,
 		"data":       base64.StdEncoding.EncodeToString(request.Data),
 		"encoding":   "base64",
 		"actor":      request.Actor,
-	}, &result); err != nil {
+	}
+	if s.leaseOwner != "" {
+		toolName = "terminal_write_leased"
+		arguments["owner"] = s.leaseOwner
+	}
+	if err := s.call(ctx, toolName, arguments, &result); err != nil {
 		return 0, err
 	}
 	return result.BytesWritten, nil
+}
+
+// AcquireFileTransferLease reserves the remote Session for this attachment's
+// file-transfer operation. The generated owner is an opaque capability used
+// only by terminal_write_leased and terminal_release_lease.
+func (s *mcpAttachSession) AcquireFileTransferLease(ctx context.Context) error {
+	if s.leaseOwner != "" {
+		return errors.New("file transfer lease is already acquired")
+	}
+	var token [16]byte
+	if _, err := rand.Read(token[:]); err != nil {
+		return fmt.Errorf("generate file transfer lease owner: %w", err)
+	}
+	owner := "file-transfer-" + hex.EncodeToString(token[:])
+	if err := s.call(ctx, "terminal_acquire_lease", map[string]any{
+		"session_id": s.id,
+		"owner":      owner,
+		"type":       "file-transfer",
+	}, nil); err != nil {
+		return err
+	}
+	s.leaseOwner = owner
+	return nil
+}
+
+// ReleaseFileTransferLease releases this attachment's file-transfer lease.
+// A failed release retains the owner locally so callers do not accidentally
+// resume ordinary writes while the Host still reports the Session as locked.
+func (s *mcpAttachSession) ReleaseFileTransferLease(ctx context.Context) error {
+	if s.leaseOwner == "" {
+		return nil
+	}
+	if err := s.call(ctx, "terminal_release_lease", map[string]any{
+		"session_id": s.id,
+		"owner":      s.leaseOwner,
+	}, nil); err != nil {
+		return err
+	}
+	s.leaseOwner = ""
+	return nil
 }
 
 // Close releases only the MCP client connection and deliberately omits
@@ -754,6 +803,9 @@ func callMCPTool(ctx context.Context, client *protocol.ClientSession, name strin
 	}
 	if result.IsError {
 		return fmt.Errorf("MCP tool %q: %s", name, resultMessage(result))
+	}
+	if destination == nil {
+		return nil
 	}
 	encoded, err := json.Marshal(result.StructuredContent)
 	if err != nil {

@@ -8,6 +8,34 @@ import (
 	"testing"
 )
 
+func TestWithFileTransferLeaseReleasesAfterFailure(t *testing.T) {
+	attached := &leaseTrackingAttachSession{}
+	want := errors.New("transfer failed")
+	err := withFileTransferLease(context.Background(), attached, "SER-1", func() error { return want })
+	if !errors.Is(err, want) {
+		t.Fatalf("withFileTransferLease() error = %v, want transfer failure", err)
+	}
+	if attached.acquires != 1 || attached.releases != 1 {
+		t.Errorf("lease acquire/release = %d/%d, want 1/1", attached.acquires, attached.releases)
+	}
+}
+
+type leaseTrackingAttachSession struct {
+	fakeAttachSession
+	acquires int
+	releases int
+}
+
+func (s *leaseTrackingAttachSession) AcquireFileTransferLease(context.Context) error {
+	s.acquires++
+	return nil
+}
+
+func (s *leaseTrackingAttachSession) ReleaseFileTransferLease(context.Context) error {
+	s.releases++
+	return nil
+}
+
 // TestAttachFileSessionSelectsOnlyOpenSession verifies the example command can
 // omit --session without selecting a closed Session.
 func TestAttachFileSessionSelectsOnlyOpenSession(t *testing.T) {

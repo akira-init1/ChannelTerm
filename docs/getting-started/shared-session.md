@@ -28,7 +28,7 @@ channelterm attach 0123456789abcdef0123456789abcdef
 
 Each reader owns its own output and activity cursors. One Client reading output does not consume it for another Client. Session writes are serialized as complete payloads, including retries after short Transport writes, so concurrent payload bytes do not interleave.
 
-An existing shared Session can also carry a CLI-only [file transfer](file-transfer.md). A second terminal can run `channelterm file send` or `channelterm file receive` while an attachment continues observing with its own cursor. Do not type or issue `terminal_write` calls during the transfer because the shell protocol requires a quiescent writer path.
+An existing shared Session can also carry a CLI-only [file transfer](file-transfer.md). A second terminal can run `channelterm file send` or `channelterm file receive` while an attachment continues observing with its own cursor. During that transfer, the Host holds a `file-transfer` lease: attach input and ordinary `terminal_write` calls fail immediately rather than interleaving with the shell protocol.
 
 That guarantee does not coordinate the meaning of concurrent commands. Session has no writer ownership, exclusive lease, transaction, priority, arbitration, or shell-state coordination. Clients must currently avoid conflicting command sequences themselves.
 

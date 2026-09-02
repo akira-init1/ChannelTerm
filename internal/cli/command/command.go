@@ -974,9 +974,12 @@ func forwardInputWithPromptTimestamp(input io.Reader, terminal interface {
 			for _, action := range controller.Process(buffer[:n]) {
 				switch action.Kind {
 				case interactive.ActionRemote:
-					if writeSession(terminal, session.ActorUser, action.Data) != nil {
-						cancel()
-						return
+					if writeErr := writeSession(terminal, session.ActorUser, action.Data); writeErr != nil {
+						if writeLocal == nil || writeLocal(writeFailureText(writeErr)) != nil {
+							cancel()
+							return
+						}
+						continue
 					}
 				case interactive.ActionEscapePending:
 					if writeLocal == nil || writeLocal(escapePendingText) != nil {
@@ -1025,6 +1028,13 @@ func forwardInputWithPromptTimestamp(input io.Reader, terminal interface {
 // leading and trailing line breaks keep it readable beside unstructured remote
 // terminal output; it is never sent to the remote Session.
 var escapePendingText = []byte("\r\n[ChannelTerm] Escape: q quit | ? help | ] send Ctrl+] | t prompt time | Esc cancel\r\n")
+
+// writeFailureText renders a remote-write failure locally. In particular, a
+// file-transfer lease remains visible to an attached human without detaching
+// the reader, so input can resume when the owner releases its lease.
+func writeFailureText(err error) []byte {
+	return []byte("\r\n[ChannelTerm] write failed: " + err.Error() + "\r\n")
+}
 
 // escapeCancelledText confirms that Esc returned this CLI to normal input
 // mode. It is local presentation and never enters Session data.

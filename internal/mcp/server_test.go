@@ -34,6 +34,7 @@ func TestServerListsAndUsesTerminalTools(t *testing.T) {
 		"terminal_close": true, "terminal_list_serial_ports": true, "terminal_list_sessions": true,
 		"terminal_open_serial": true, "terminal_read": true, "terminal_read_activity": true,
 		"terminal_wait": true, "terminal_wait_activity": true, "terminal_write": true,
+		"terminal_write_leased": true, "terminal_acquire_lease": true, "terminal_release_lease": true,
 		"terminal_list_devices": true, "terminal_read_device_events": true, "terminal_wait_device_event": true, "terminal_get_connection_decision": true,
 	}
 	if len(listed.Tools) != len(want) {
@@ -84,6 +85,7 @@ func TestStreamableHTTPServerListsAndUsesTerminalTools(t *testing.T) {
 			"terminal_close": true, "terminal_list_serial_ports": true, "terminal_list_sessions": true,
 			"terminal_open_serial": true, "terminal_read": true, "terminal_read_activity": true,
 			"terminal_wait": true, "terminal_wait_activity": true, "terminal_write": true,
+			"terminal_write_leased": true, "terminal_acquire_lease": true, "terminal_release_lease": true,
 			"terminal_list_devices": true, "terminal_read_device_events": true, "terminal_wait_device_event": true, "terminal_get_connection_decision": true,
 		}
 		if len(listed.Tools) != len(want) {
@@ -166,8 +168,8 @@ func TestStreamableHTTPWaitCancelsAndAllowsReconnect(t *testing.T) {
 	reconnected, closeReconnected := connectHTTPTestClient(t, registry)
 	defer closeReconnected()
 	listed, err := reconnected.ListTools(context.Background(), nil)
-	if err != nil || len(listed.Tools) != 13 {
-		t.Errorf("ListTools() after reconnect = %#v, %v; want thirteen tools", listed, err)
+	if err != nil || len(listed.Tools) != 16 {
+		t.Errorf("ListTools() after reconnect = %#v, %v; want sixteen tools", listed, err)
 	}
 	if terminal, ok := manager.Get("board"); !ok || terminal.State() != session.StateOpen {
 		t.Errorf("session after HTTP disconnect = %v, registered = %t; want open managed session", terminal, ok)

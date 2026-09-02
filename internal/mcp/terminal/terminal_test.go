@@ -681,6 +681,51 @@ func TestTerminalListSessionsAllowsEmptyAndDuplicateLabels(t *testing.T) {
 	}
 }
 
+func TestLeaseToolsBlockOrdinaryWritesAndExposeSessionState(t *testing.T) {
+	manager := session.NewManager()
+	terminal := newFakeSession("session-1")
+	if err := terminal.Connect(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if err := manager.RegisterWithMetadata(terminal, session.SessionMetadata{Transport: "serial", Endpoint: "COM8"}); err != nil {
+		t.Fatal(err)
+	}
+	application, err := app.New(app.Dependencies{Manager: manager})
+	if err != nil {
+		t.Fatal(err)
+	}
+	tools, err := NewTools(application)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := callTool(tools, "terminal_acquire_lease", context.Background(), `{"session_id":"SER-1","owner":"transfer-owner","type":"file-transfer"}`); err != nil {
+		t.Fatalf("terminal_acquire_lease error = %v", err)
+	}
+	if _, err := callTool(tools, "terminal_write", context.Background(), `{"session_id":"SER-1","data":"blocked"}`); !errors.Is(err, app.ErrSessionBusy) || !strings.Contains(err.Error(), "Session SER-1 is locked by file-transfer") {
+		t.Errorf("terminal_write while leased error = %v, want friendly busy error", err)
+	}
+	if _, err := callTool(tools, "terminal_write_leased", context.Background(), `{"session_id":"SER-1","owner":"transfer-owner","data":"allowed"}`); err != nil {
+		t.Fatalf("terminal_write_leased error = %v", err)
+	}
+	result, err := callTool(tools, "terminal_list_sessions", context.Background(), `{}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sessions := result["sessions"].([]sessionSummary)
+	if len(sessions) != 1 || sessions[0].Lease == nil || sessions[0].Lease.Type != "file-transfer" || sessions[0].Lease.State != "active" {
+		t.Errorf("terminal_list_sessions lease = %#v, want active file-transfer", sessions)
+	}
+	if _, err := callTool(tools, "terminal_release_lease", context.Background(), `{"session_id":"SER-1","owner":"transfer-owner"}`); err != nil {
+		t.Fatalf("terminal_release_lease error = %v", err)
+	}
+	if _, err := callTool(tools, "terminal_write", context.Background(), `{"session_id":"SER-1","data":"restored"}`); err != nil {
+		t.Fatalf("terminal_write after release error = %v", err)
+	}
+	if got := string(terminal.writtenData()); got != "allowedrestored" {
+		t.Errorf("written data = %q, want allowedrestored", got)
+	}
+}
+
 func TestTerminalToolsAcceptShortSessionReference(t *testing.T) {
 	manager := session.NewManager()
 	terminal := newFakeSession("opaque-session-id")

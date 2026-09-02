@@ -133,6 +133,18 @@ func newAdapter(registry *tool.Registry) (*adapter, error) {
 	if err != nil {
 		return nil, err
 	}
+	writeLeased, err := lookup("terminal_write_leased")
+	if err != nil {
+		return nil, err
+	}
+	acquireLease, err := lookup("terminal_acquire_lease")
+	if err != nil {
+		return nil, err
+	}
+	releaseLease, err := lookup("terminal_release_lease")
+	if err != nil {
+		return nil, err
+	}
 	open, err := lookup("terminal_open_serial")
 	if err != nil {
 		return nil, err
@@ -162,6 +174,9 @@ func newAdapter(registry *tool.Registry) (*adapter, error) {
 		{name: "terminal_read", target: read.Name(), description: read.Description(), schema: read.InputSchema()},
 		{name: "terminal_read_activity", target: readActivity.Name(), description: readActivity.Description(), schema: readActivity.InputSchema()},
 		{name: "terminal_write", target: write.Name(), description: write.Description(), schema: write.InputSchema()},
+		{name: "terminal_write_leased", target: writeLeased.Name(), description: writeLeased.Description(), schema: writeLeased.InputSchema()},
+		{name: "terminal_acquire_lease", target: acquireLease.Name(), description: acquireLease.Description(), schema: acquireLease.InputSchema()},
+		{name: "terminal_release_lease", target: releaseLease.Name(), description: releaseLease.Description(), schema: releaseLease.InputSchema()},
 		{name: "terminal_wait", target: read.Name(), description: "Wait for terminal output after cursor and return the next output chunk.", schema: waitSchema(read.InputSchema()), requireCursor: true},
 		{name: "terminal_wait_activity", target: readActivity.Name(), description: "Wait for Session activity events after cursor and return the next event chunk.", schema: waitSchema(readActivity.InputSchema()), requireCursor: true},
 		{name: "terminal_open_serial", target: open.Name(), description: open.Description(), schema: open.InputSchema()},
