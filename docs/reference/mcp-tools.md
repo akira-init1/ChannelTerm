@@ -1,12 +1,12 @@
 # MCP Tool Reference
 
-The current MCP adapter exposes 16 tool names. Thirteen protocol-neutral tools are registered from `internal/mcp/terminal`; the MCP adapter adds the three cursor-required wait names `terminal_wait`, `terminal_wait_activity`, and `terminal_wait_device_event` over the corresponding read implementations.
+The MCP adapter exposes terminal, discovery, lease, activity, and structured Session-event tools. The MCP adapter also adds cursor-required wait names over the corresponding read implementations.
 
 Successful calls return both structured content and an equivalent JSON text content item. Recoverable tool failures return an MCP tool result with `isError: true` and text beginning `<tool-name> failed:`. Structured inputs decoded by the terminal adapter reject unknown fields.
 
 ## Common cursor rules
 
-- Output, activity, and device-event cursors are independent monotonically increasing positions.
+- Output, activity, Session-event, and device-event cursors are independent monotonically increasing positions.
 - A read without `cursor` returns a recent snapshot immediately.
 - A read with `cursor` waits until data is available, the request is cancelled, the source closes, or `timeout_ms` expires.
 - `timeout_ms` requires `cursor`, must be positive, and cannot exceed `86400000` (24 hours).
@@ -211,6 +211,30 @@ Purpose: wait for Session activity after a known activity cursor. It invokes `te
 ```
 
 Important errors: missing/null cursor and every `terminal_read_activity` error. Safety: cancellation ends only this wait and does not affect the Session or another consumer.
+
+## `terminal_session_events`
+
+Purpose: read retained structured Session state, or wait after an event cursor. It is read-only: events do not include or consume terminal output.
+
+- Required input: `session_id`.
+- Optional input: `cursor`, `max_events` (0 means 1024), `timeout_ms`.
+- Result: `events`, `next`, and `dropped`. Each event has `id`, `timestamp`, `session_id`, `type`, `actor`, and optional JSON `metadata`.
+
+```json
+{"session_id":"SER-1","cursor":3,"max_events":32,"timeout_ms":30000}
+```
+
+```json
+{"events":[{"id":3,"timestamp":"2026-09-02T09:02:00Z","session_id":"0123456789abcdef0123456789abcdef","type":"FILE_TRANSFER_PROGRESS","actor":"user","metadata":{"sent":622592,"total":1048576,"percent":59.4,"speed":850000}}],"next":4,"dropped":false}
+```
+
+Current event types are `SESSION_CREATED`, `SESSION_ATTACHED`, `SESSION_DETACHED`, `LEASE_ACQUIRED`, `LEASE_RELEASED`, `FILE_TRANSFER_STARTED`, `FILE_TRANSFER_PROGRESS`, `FILE_TRANSFER_COMPLETED`, and `FILE_TRANSFER_FAILED`. A slow observer receives `dropped: true` if its cursor predates bounded retention; it cannot block the Session reader or writer. Important errors: missing/unknown Session, Session not open, invalid limit or timeout, timeout without cursor, cancellation, deadline, EOF, or event-buffer failure.
+
+## Attachment and file-transfer reporting tools
+
+`terminal_session_attach` and `terminal_session_detach` record a CLI attachment lifecycle event. They require `session_id` and accept an optional `actor`; they neither acquire a lease nor write or close a Session. The bundled CLI calls them while opening and closing an MCP attachment.
+
+`terminal_report_file_transfer` is the bundled CLI's status bridge to the host-owned event stream. It requires `session_id` and `type` (`FILE_TRANSFER_STARTED`, `FILE_TRANSFER_PROGRESS`, `FILE_TRANSFER_COMPLETED`, or `FILE_TRANSFER_FAILED`) and accepts optional `actor` and JSON-compatible `metadata`. It never writes terminal bytes. The public observer surface for AI clients is `terminal_session_events`; clients should not treat report calls as a substitute for the existing file protocol or lease tools.
 
 ## `terminal_write`
 

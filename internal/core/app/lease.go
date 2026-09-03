@@ -101,7 +101,7 @@ func (c *leaseCoordinator) acquire(sessionID, owner string, typ LeaseType) (Sess
 	return lease, nil
 }
 
-func (c *leaseCoordinator) release(sessionID, owner string) error {
+func (c *leaseCoordinator) release(sessionID, owner string) (SessionLease, bool, error) {
 	gate := c.gate(sessionID)
 	gate.Lock()
 	defer gate.Unlock()
@@ -109,13 +109,13 @@ func (c *leaseCoordinator) release(sessionID, owner string) error {
 	defer c.mu.Unlock()
 	active, exists := c.leases[sessionID]
 	if !exists {
-		return nil
+		return SessionLease{}, false, nil
 	}
 	if active.Owner != owner {
-		return ErrLeaseNotOwned
+		return SessionLease{}, false, ErrLeaseNotOwned
 	}
 	delete(c.leases, sessionID)
-	return nil
+	return active, true, nil
 }
 
 func (c *leaseCoordinator) status(sessionID string) (SessionLease, bool) {

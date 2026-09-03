@@ -726,6 +726,52 @@ func TestLeaseToolsBlockOrdinaryWritesAndExposeSessionState(t *testing.T) {
 	}
 }
 
+func TestSessionEventsToolReturnsLifecycleLeaseAndFileProgressWithoutTerminalData(t *testing.T) {
+	manager := session.NewManager()
+	terminal := newFakeSession("session-1")
+	if err := terminal.Connect(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if err := manager.RegisterWithMetadata(terminal, session.SessionMetadata{Transport: "serial", Endpoint: "COM8"}); err != nil {
+		t.Fatal(err)
+	}
+	application, err := app.New(app.Dependencies{Manager: manager})
+	if err != nil {
+		t.Fatal(err)
+	}
+	tools, err := NewTools(application)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, input := range []struct {
+		name  string
+		input string
+	}{
+		{"terminal_session_attach", `{"session_id":"SER-1","actor":"user"}`},
+		{"terminal_acquire_lease", `{"session_id":"SER-1","owner":"transfer-owner","type":"file-transfer"}`},
+		{"terminal_report_file_transfer", `{"session_id":"SER-1","type":"FILE_TRANSFER_PROGRESS","actor":"user","metadata":{"sent":622592,"total":1048576,"percent":59.4,"speed":850000}}`},
+	} {
+		if _, err := callTool(tools, input.name, context.Background(), input.input); err != nil {
+			t.Fatalf("%s error = %v", input.name, err)
+		}
+	}
+	result, err := callTool(tools, "terminal_session_events", context.Background(), `{"session_id":"SER-1","max_events":8}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	events := result["events"].([]sessionEventResult)
+	if len(events) < 4 || events[len(events)-3].Type != string(session.EventSessionAttached) || events[len(events)-2].Type != string(session.EventLeaseAcquired) || events[len(events)-1].Type != string(session.EventFileTransferProgress) {
+		t.Errorf("session events = %#v, want attached, lease acquired, and progress", events)
+	}
+	progress := events[len(events)-1]
+	if progress.Metadata["sent"] != float64(622592) || progress.Metadata["total"] != float64(1048576) || progress.Metadata["percent"] != 59.4 || progress.Metadata["speed"] != float64(850000) {
+		t.Errorf("progress metadata = %#v, want structured JSON fields", progress.Metadata)
+	}
+	if got := terminal.writtenData(); len(got) != 0 {
+		t.Errorf("terminal bytes = %q, want events not to write terminal output", got)
+	}
+}
+
 func TestTerminalToolsAcceptShortSessionReference(t *testing.T) {
 	manager := session.NewManager()
 	terminal := newFakeSession("opaque-session-id")
@@ -930,6 +976,7 @@ type fakeSession struct {
 	connected bool
 	recent    []byte
 	activity  []session.SessionEvent
+	events    []session.Event
 	written   []byte
 	actors    []session.Actor
 	writeErr  error
@@ -1019,6 +1066,40 @@ func (s *fakeSession) ReadRecentActivity(maxEvents int) (session.ActivityChunk, 
 	start := max(0, len(s.activity)-maxEvents)
 	events := append([]session.SessionEvent(nil), s.activity[start:]...)
 	return session.ActivityChunk{Events: events, Next: session.ActivityCursor(len(s.activity))}, nil
+}
+
+func (s *fakeSession) ReadEvents(ctx context.Context, next session.EventCursor, maxEvents int) (session.EventChunk, error) {
+	if err := ctx.Err(); err != nil {
+		return session.EventChunk{}, err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if maxEvents <= 0 {
+		return session.EventChunk{}, session.ErrInvalidEventReadLimit
+	}
+	if int(next) >= len(s.events) {
+		return session.EventChunk{Next: session.EventCursor(len(s.events))}, nil
+	}
+	end := min(len(s.events), int(next)+maxEvents)
+	return session.EventChunk{Events: append([]session.Event(nil), s.events[next:end]...), Next: session.EventCursor(end)}, nil
+}
+
+func (s *fakeSession) ReadRecentEvents(maxEvents int) (session.EventChunk, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if maxEvents <= 0 {
+		return session.EventChunk{}, session.ErrInvalidEventReadLimit
+	}
+	start := max(0, len(s.events)-maxEvents)
+	return session.EventChunk{Events: append([]session.Event(nil), s.events[start:]...), Next: session.EventCursor(len(s.events))}, nil
+}
+
+func (s *fakeSession) PublishEvent(event session.Event) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	event.ID = uint64(len(s.events))
+	event.SessionID = s.id
+	s.events = append(s.events, event)
 }
 
 func (s *fakeSession) Write(request session.WriteRequest) (int, error) {

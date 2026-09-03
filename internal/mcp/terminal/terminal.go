@@ -164,6 +164,10 @@ func serialToolsForApplication(application *app.Application) []tool.Tool {
 		&listSessionsTool{serialTools: dependencies},
 		&readTool{serialTools: dependencies},
 		&readActivityTool{serialTools: dependencies},
+		&readSessionEventsTool{serialTools: dependencies},
+		&attachSessionTool{serialTools: dependencies},
+		&detachSessionTool{serialTools: dependencies},
+		&reportFileTransferTool{serialTools: dependencies},
 		&writeTool{serialTools: dependencies},
 		&writeLeasedTool{serialTools: dependencies},
 		&acquireLeaseTool{serialTools: dependencies},
@@ -677,6 +681,164 @@ func encodeActivityEvents(events []session.SessionEvent) []activityEventResult {
 	return encoded
 }
 
+// readSessionEventsTool exposes structured Session lifecycle and operation
+// events without reading terminal output or changing a write/activity cursor.
+type readSessionEventsTool struct{ *serialTools }
+
+// Name returns the stable terminal_session_events Tool identifier.
+func (*readSessionEventsTool) Name() string { return "terminal_session_events" }
+
+// Description explains independent cursor-based Session event observation.
+func (*readSessionEventsTool) Description() string {
+	return "Read retained structured Session events, or wait for events after an event cursor. Events never include terminal output bytes."
+}
+
+// InputSchema describes bounded Session-event reads and optional cursor waiting.
+func (*readSessionEventsTool) InputSchema() tool.InputSchema {
+	return tool.InputSchema{Type: "object", Properties: map[string]tool.InputProperty{
+		"session_id": {Type: "string", Description: "Session ID or short reference returned by terminal_open_serial."},
+		"cursor":     {Type: "integer", Description: "Optional next event cursor; when set, wait for newer events."},
+		"max_events": {Type: "integer", Description: "Maximum number of Session events to return."},
+		"timeout_ms": {Type: "integer", Description: "Optional wait timeout in milliseconds when cursor is supplied; maximum 86400000."},
+	}, Required: []string{"session_id"}}
+}
+
+// Call returns a copied structured event chunk from the requested Session.
+func (t *readSessionEventsTool) Call(ctx context.Context, input json.RawMessage) (tool.Result, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	var args eventInput
+	if err := decodeInput(input, &args); err != nil {
+		return nil, err
+	}
+	limit := args.MaxEvents
+	if limit == 0 {
+		limit = session.DefaultEventBufferCapacity
+	}
+	var chunk session.EventChunk
+	var err error
+	if args.Cursor == nil {
+		if args.TimeoutMS != nil {
+			return nil, ErrTimeoutRequiresCursor
+		}
+		chunk, err = t.application.ReadSessionEvents(ctx, args.SessionID, nil, limit)
+	} else {
+		waitCtx, cancel, timeoutErr := waitContext(ctx, args.TimeoutMS)
+		if timeoutErr != nil {
+			return nil, timeoutErr
+		}
+		defer cancel()
+		chunk, err = t.application.ReadSessionEvents(waitCtx, args.SessionID, args.Cursor, limit)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("read events for session %q: %w", args.SessionID, err)
+	}
+	return tool.Result{"events": encodeSessionEvents(chunk.Events), "next": uint64(chunk.Next), "dropped": chunk.Dropped}, nil
+}
+
+// attachSessionTool records one CLI attachment without changing the shared
+// Session lifecycle or terminal byte stream.
+type attachSessionTool struct{ *serialTools }
+
+// Name returns the stable terminal_session_attach Tool identifier.
+func (*attachSessionTool) Name() string { return "terminal_session_attach" }
+
+// Description explains that this marks an adapter attachment only.
+func (*attachSessionTool) Description() string {
+	return "Record one client attachment on the Session event stream without acquiring a lease or writing terminal bytes."
+}
+
+// InputSchema describes the attached Session and optional display actor.
+func (*attachSessionTool) InputSchema() tool.InputSchema {
+	return tool.InputSchema{Type: "object", Properties: map[string]tool.InputProperty{
+		"session_id": {Type: "string", Description: "Session ID or short reference."},
+		"actor":      {Type: "string", Description: "Optional adapter actor label; defaults to system."},
+	}, Required: []string{"session_id"}}
+}
+
+// Call records an attachment event.
+func (t *attachSessionTool) Call(ctx context.Context, input json.RawMessage) (tool.Result, error) {
+	var args attachmentInput
+	if err := decodeInput(input, &args); err != nil {
+		return nil, err
+	}
+	if err := t.application.AttachSession(args.SessionID, args.Actor); err != nil {
+		return nil, err
+	}
+	return tool.Result{"attached": true}, nil
+}
+
+// detachSessionTool records one CLI detachment without closing the Session.
+type detachSessionTool struct{ *serialTools }
+
+// Name returns the stable terminal_session_detach Tool identifier.
+func (*detachSessionTool) Name() string { return "terminal_session_detach" }
+
+// Description explains that this marks an adapter detachment only.
+func (*detachSessionTool) Description() string {
+	return "Record one client detachment on the Session event stream without closing the shared Session."
+}
+
+// InputSchema describes the detached Session and optional display actor.
+func (*detachSessionTool) InputSchema() tool.InputSchema { return (&attachSessionTool{}).InputSchema() }
+
+// Call records a detachment event.
+func (t *detachSessionTool) Call(ctx context.Context, input json.RawMessage) (tool.Result, error) {
+	var args attachmentInput
+	if err := decodeInput(input, &args); err != nil {
+		return nil, err
+	}
+	if err := t.application.DetachSession(args.SessionID, args.Actor); err != nil {
+		return nil, err
+	}
+	return tool.Result{"detached": true}, nil
+}
+
+// reportFileTransferTool is the CLI-to-host bridge for file-transfer events.
+// File payload I/O stays on the existing terminal tools; this tool only emits
+// structured status that observers can read through terminal_session_events.
+type reportFileTransferTool struct{ *serialTools }
+
+// Name returns the stable terminal_report_file_transfer Tool identifier.
+func (*reportFileTransferTool) Name() string { return "terminal_report_file_transfer" }
+
+// Description explains that the tool publishes no terminal bytes.
+func (*reportFileTransferTool) Description() string {
+	return "Publish a file-transfer status event for a Session without writing terminal output."
+}
+
+// InputSchema describes a file-transfer status event and JSON metadata.
+func (*reportFileTransferTool) InputSchema() tool.InputSchema {
+	return tool.InputSchema{Type: "object", Properties: map[string]tool.InputProperty{
+		"session_id": {Type: "string", Description: "Session ID or short reference."},
+		"type":       {Type: "string", Description: "File-transfer event type.", Enum: []string{string(session.EventFileTransferStarted), string(session.EventFileTransferProgress), string(session.EventFileTransferCompleted), string(session.EventFileTransferFailed)}},
+		"actor":      {Type: "string", Description: "Optional adapter actor label; defaults to system."},
+		"metadata":   {Type: "object", Description: "Optional JSON-compatible transfer status metadata."},
+	}, Required: []string{"session_id", "type"}}
+}
+
+// Call publishes one validated file-transfer event.
+func (t *reportFileTransferTool) Call(ctx context.Context, input json.RawMessage) (tool.Result, error) {
+	var args fileTransferEventInput
+	if err := decodeInput(input, &args); err != nil {
+		return nil, err
+	}
+	if err := t.application.ReportFileTransferEvent(args.SessionID, session.EventType(args.Type), args.Actor, args.Metadata); err != nil {
+		return nil, err
+	}
+	return tool.Result{"published": true}, nil
+}
+
+// encodeSessionEvents returns JSON-ready event snapshots without terminal data.
+func encodeSessionEvents(events []session.Event) []sessionEventResult {
+	encoded := make([]sessionEventResult, 0, len(events))
+	for _, event := range events {
+		encoded = append(encoded, sessionEventResult{ID: event.ID, Timestamp: event.Timestamp.Format(time.RFC3339Nano), SessionID: event.SessionID, Type: string(event.Type), Actor: event.Actor, Metadata: event.Metadata})
+	}
+	return encoded
+}
+
 type writeTool struct{ *serialTools }
 
 // Name returns the stable terminal_write Tool identifier.
@@ -918,6 +1080,25 @@ type activityInput struct {
 	TimeoutMS *int64                  `json:"timeout_ms"`
 }
 
+type eventInput struct {
+	SessionID string               `json:"session_id"`
+	Cursor    *session.EventCursor `json:"cursor"`
+	MaxEvents int                  `json:"max_events"`
+	TimeoutMS *int64               `json:"timeout_ms"`
+}
+
+type attachmentInput struct {
+	SessionID string `json:"session_id"`
+	Actor     string `json:"actor"`
+}
+
+type fileTransferEventInput struct {
+	SessionID string         `json:"session_id"`
+	Type      string         `json:"type"`
+	Actor     string         `json:"actor"`
+	Metadata  map[string]any `json:"metadata"`
+}
+
 type deviceEventsInput struct {
 	Cursor    *device.Cursor `json:"cursor"`
 	MaxEvents int            `json:"max_events"`
@@ -959,6 +1140,15 @@ type activityEventResult struct {
 	Operation string `json:"operation"`
 	Data      string `json:"data"`
 	Encoding  string `json:"encoding"`
+}
+
+type sessionEventResult struct {
+	ID        uint64         `json:"id"`
+	Timestamp string         `json:"timestamp"`
+	SessionID string         `json:"session_id"`
+	Type      string         `json:"type"`
+	Actor     string         `json:"actor"`
+	Metadata  map[string]any `json:"metadata,omitempty"`
 }
 
 type writeInput struct {

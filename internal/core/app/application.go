@@ -8,6 +8,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/akira-init1/ChannelTerm/internal/core/config"
 	"github.com/akira-init1/ChannelTerm/internal/core/connectionpolicy"
@@ -146,6 +147,69 @@ func (a *Application) ReadSessionActivity(ctx context.Context, identifier string
 	return terminal.ReadActivity(ctx, *cursor, maxEvents)
 }
 
+// ReadSessionEvents returns retained structured Session events or waits after
+// the supplied cursor. A nil cursor reads the newest retained events. Events
+// are separate from raw output and activity, so each observer has an
+// independent cursor and cannot consume terminal data for another client.
+func (a *Application) ReadSessionEvents(ctx context.Context, identifier string, cursor *session.EventCursor, maxEvents int) (session.EventChunk, error) {
+	terminal, err := a.session(identifier)
+	if err != nil {
+		return session.EventChunk{}, err
+	}
+	if cursor == nil {
+		return terminal.ReadRecentEvents(maxEvents)
+	}
+	return terminal.ReadEvents(ctx, *cursor, maxEvents)
+}
+
+// AttachSession records one adapter attachment to an active Session. It does
+// not acquire writer ownership or alter Session lifecycle; it only publishes
+// observer-visible metadata on the separate Session event stream.
+func (a *Application) AttachSession(identifier, actor string) error {
+	terminal, err := a.session(identifier)
+	if err != nil {
+		return err
+	}
+	terminal.PublishEvent(session.Event{Type: session.EventSessionAttached, Actor: eventActor(actor)})
+	return nil
+}
+
+// DetachSession records one adapter detachment from an active Session. It does
+// not close the shared Session or affect any other attachment.
+func (a *Application) DetachSession(identifier, actor string) error {
+	terminal, err := a.session(identifier)
+	if err != nil {
+		return err
+	}
+	terminal.PublishEvent(session.Event{Type: session.EventSessionDetached, Actor: eventActor(actor)})
+	return nil
+}
+
+// ReportFileTransferEvent publishes one validated file-transfer transition on
+// the Session event stream. Metadata is presentation data only and must not
+// include transfer payload bytes or lease owner capabilities.
+func (a *Application) ReportFileTransferEvent(identifier string, typ session.EventType, actor string, metadata map[string]any) error {
+	switch typ {
+	case session.EventFileTransferStarted, session.EventFileTransferProgress, session.EventFileTransferCompleted, session.EventFileTransferFailed:
+	default:
+		return fmt.Errorf("unsupported file transfer event type %q", typ)
+	}
+	terminal, err := a.session(identifier)
+	if err != nil {
+		return err
+	}
+	terminal.PublishEvent(session.Event{Type: typ, Actor: eventActor(actor), Metadata: metadata})
+	return nil
+}
+
+func eventActor(actor string) string {
+	actor = strings.TrimSpace(actor)
+	if actor == "" {
+		return string(session.ActorSystem)
+	}
+	return actor
+}
+
 // WriteSession writes one complete payload to a managed Session. It rejects
 // writes while another operation owns an exclusive lease.
 //
@@ -202,7 +266,20 @@ func (a *Application) AcquireLease(identifier, owner string, typ LeaseType) (Ses
 	if err != nil {
 		return SessionLease{}, err
 	}
-	return a.leases.acquire(terminal.ID(), owner, typ)
+	lease, err := a.leases.acquire(terminal.ID(), owner, typ)
+	if err != nil {
+		return SessionLease{}, err
+	}
+	terminal.PublishEvent(session.Event{
+		Type:  session.EventLeaseAcquired,
+		Actor: string(session.ActorSystem),
+		Metadata: map[string]any{
+			"type":       string(lease.Type),
+			"created_at": lease.CreatedAt.Format(time.RFC3339Nano),
+			"state":      lease.State,
+		},
+	})
+	return lease, nil
 }
 
 // ReleaseLease releases identifier's lease only when owner matches its owner
@@ -212,7 +289,22 @@ func (a *Application) ReleaseLease(identifier, owner string) error {
 	if err != nil {
 		return err
 	}
-	return a.leases.release(terminal.ID(), owner)
+	lease, released, err := a.leases.release(terminal.ID(), owner)
+	if err != nil {
+		return err
+	}
+	if released {
+		terminal.PublishEvent(session.Event{
+			Type:  session.EventLeaseReleased,
+			Actor: string(session.ActorSystem),
+			Metadata: map[string]any{
+				"type":       string(lease.Type),
+				"created_at": lease.CreatedAt.Format(time.RFC3339Nano),
+				"state":      "released",
+			},
+		})
+	}
+	return nil
 }
 
 // LeaseStatus reports identifier's current exclusive lease, if any.

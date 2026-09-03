@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/akira-init1/ChannelTerm/internal/core/app"
+	"github.com/akira-init1/ChannelTerm/internal/core/session"
 )
 
 var (
@@ -33,6 +34,13 @@ type fileCommandDependencies struct {
 type fileLeaseSession interface {
 	AcquireFileTransferLease(context.Context) error
 	ReleaseFileTransferLease(context.Context) error
+}
+
+// fileTransferEventReporter forwards client-side file-transfer status to the
+// host-owned Session event stream. The file payload continues to use the
+// existing attach Session byte path.
+type fileTransferEventReporter interface {
+	ReportFileTransferEvent(context.Context, session.EventType, map[string]any) error
 }
 
 // runFile parses CLI file transfers and uses the same Session attachment
@@ -100,11 +108,35 @@ func runFileSend(ctx context.Context, args []string, output io.Writer, dependenc
 	if !info.Mode().IsRegular() {
 		return fmt.Errorf("local source %q must be a regular file", localPath)
 	}
-	return withFileTransferLease(ctx, attached, identifier, func() error {
-		progress := newFileProgress(output)
+	return withFileTransferLease(ctx, attached, identifier, func() (operationErr error) {
+		started := false
+		metadata := map[string]any{"direction": "send", "local_path": localPath, "remote_path": remotePath, "total": info.Size()}
+		if eventErr := reportFileTransferEvent(ctx, attached, session.EventFileTransferStarted, metadata); eventErr != nil {
+			return eventErr
+		}
+		started = true
+		defer func() {
+			if operationErr == nil || !started {
+				return
+			}
+			failureCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			failureMetadata := copyFileTransferMetadata(metadata)
+			failureMetadata["error"] = operationErr.Error()
+			_ = reportFileTransferEvent(failureCtx, attached, session.EventFileTransferFailed, failureMetadata)
+		}()
+		progress := fileTransferProgress(ctx, output, attached, metadata)
 		result, transferErr := app.SendFile(ctx, attached, file, info.Size(), remotePath, progress)
 		if transferErr != nil {
 			return transferErr
+		}
+		completedMetadata := copyFileTransferMetadata(metadata)
+		completedMetadata["sent"] = result.Size
+		completedMetadata["total"] = result.Size
+		completedMetadata["percent"] = float64(100)
+		completedMetadata["sha256"] = result.SHA256
+		if eventErr := reportFileTransferEvent(ctx, attached, session.EventFileTransferCompleted, completedMetadata); eventErr != nil {
+			return eventErr
 		}
 		if finishErr := finishFileProgress(output); finishErr != nil {
 			return finishErr
@@ -150,8 +182,24 @@ func runFileReceive(ctx context.Context, args []string, output io.Writer, depend
 	}
 	temporaryPath := temporary.Name()
 	defer func() { _ = os.Remove(temporaryPath) }()
-	return withFileTransferLease(ctx, attached, identifier, func() error {
-		progress := newFileProgress(output)
+	return withFileTransferLease(ctx, attached, identifier, func() (operationErr error) {
+		started := false
+		metadata := map[string]any{"direction": "receive", "local_path": localPath, "remote_path": remotePath}
+		if eventErr := reportFileTransferEvent(ctx, attached, session.EventFileTransferStarted, metadata); eventErr != nil {
+			return eventErr
+		}
+		started = true
+		defer func() {
+			if operationErr == nil || !started {
+				return
+			}
+			failureCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			failureMetadata := copyFileTransferMetadata(metadata)
+			failureMetadata["error"] = operationErr.Error()
+			_ = reportFileTransferEvent(failureCtx, attached, session.EventFileTransferFailed, failureMetadata)
+		}()
+		progress := fileTransferProgress(ctx, output, attached, metadata)
 		result, transferErr := app.ReceiveFile(ctx, attached, temporary, remotePath, progress)
 		if transferErr != nil {
 			_ = temporary.Close()
@@ -166,6 +214,14 @@ func runFileReceive(ctx context.Context, args []string, output io.Writer, depend
 		}
 		if replaceErr := replaceReceivedFile(temporaryPath, localPath); replaceErr != nil {
 			return fmt.Errorf("install received file %q: %w", localPath, replaceErr)
+		}
+		completedMetadata := copyFileTransferMetadata(metadata)
+		completedMetadata["received"] = result.Size
+		completedMetadata["total"] = result.Size
+		completedMetadata["percent"] = float64(100)
+		completedMetadata["sha256"] = result.SHA256
+		if eventErr := reportFileTransferEvent(ctx, attached, session.EventFileTransferCompleted, completedMetadata); eventErr != nil {
+			return eventErr
 		}
 		if finishErr := finishFileProgress(output); finishErr != nil {
 			return finishErr
@@ -270,6 +326,56 @@ func newFileProgress(output io.Writer) app.FileTransferProgress {
 		_, err := fmt.Fprintf(output, "\rTransferred %d/%d bytes (%5.1f%%)", transferred, total, percentage)
 		return err
 	}
+}
+
+// fileTransferProgress updates the local CLI display and independently reports
+// confirmed protocol progress to the shared Session event stream.
+func fileTransferProgress(ctx context.Context, output io.Writer, attached attachSession, base map[string]any) app.FileTransferProgress {
+	localProgress := newFileProgress(output)
+	started := time.Now()
+	return func(transferred, total int64) error {
+		if err := localProgress(transferred, total); err != nil {
+			return err
+		}
+		metadata := copyFileTransferMetadata(base)
+		metadata["total"] = total
+		if base["direction"] == "receive" {
+			metadata["received"] = transferred
+		} else {
+			metadata["sent"] = transferred
+		}
+		percentage := float64(100)
+		if total > 0 {
+			percentage = float64(transferred) * 100 / float64(total)
+		}
+		metadata["percent"] = percentage
+		elapsed := time.Since(started).Seconds()
+		if elapsed > 0 {
+			metadata["speed"] = float64(transferred) / elapsed
+		} else {
+			metadata["speed"] = float64(0)
+		}
+		return reportFileTransferEvent(ctx, attached, session.EventFileTransferProgress, metadata)
+	}
+}
+
+// reportFileTransferEvent is intentionally a no-op for legacy or test attach
+// implementations. Production MCP attachments implement the reporter and
+// therefore make status visible to every Session event observer.
+func reportFileTransferEvent(ctx context.Context, attached attachSession, typ session.EventType, metadata map[string]any) error {
+	reporter, ok := attached.(fileTransferEventReporter)
+	if !ok {
+		return nil
+	}
+	return reporter.ReportFileTransferEvent(ctx, typ, metadata)
+}
+
+func copyFileTransferMetadata(metadata map[string]any) map[string]any {
+	copy := make(map[string]any, len(metadata))
+	for key, value := range metadata {
+		copy[key] = value
+	}
+	return copy
 }
 
 func finishFileProgress(output io.Writer) error {

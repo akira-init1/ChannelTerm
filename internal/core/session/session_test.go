@@ -236,6 +236,92 @@ func TestCoreSlowActivityConsumerDoesNotBlockWriteAndCloseReleasesWaiter(t *test
 	}
 }
 
+func TestCorePublishesStructuredEventsWithoutTerminalOutput(t *testing.T) {
+	terminal := newFakeTransport()
+	s, err := New("board-1", terminal)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Connect(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+
+	s.PublishEvent(Event{Type: EventSessionAttached, Actor: "user", Metadata: map[string]any{"client": "cli"}})
+	chunk, err := s.ReadEvents(context.Background(), 0, 1)
+	if err != nil {
+		t.Fatalf("ReadEvents() error = %v", err)
+	}
+	if len(chunk.Events) != 1 || chunk.Events[0].ID != 0 || chunk.Events[0].SessionID != "board-1" || chunk.Events[0].Type != EventSessionAttached || chunk.Events[0].Metadata["client"] != "cli" {
+		t.Errorf("event = %+v, want attached event for board-1", chunk.Events)
+	}
+	output, err := s.ReadRecent(64)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(output.Data) != 0 {
+		t.Errorf("terminal output = %q, want no event data", output.Data)
+	}
+}
+
+func TestCoreEventCursorsAreIndependentForMultipleObservers(t *testing.T) {
+	terminal := newFakeTransport()
+	s, err := New("board-1", terminal)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Connect(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	s.PublishEvent(Event{Type: EventSessionAttached, Actor: "user"})
+	s.PublishEvent(Event{Type: EventLeaseAcquired, Actor: "system"})
+
+	first, err := s.ReadEvents(context.Background(), 0, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := s.ReadEvents(context.Background(), 0, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(first.Events) != 2 || len(second.Events) != 2 || first.Events[0].Type != second.Events[0].Type || first.Next != second.Next {
+		t.Errorf("independent event reads = %+v / %+v, want identical two-event snapshots", first, second)
+	}
+}
+
+func TestCoreSlowEventObserverDoesNotBlockPublish(t *testing.T) {
+	terminal := newFakeTransport()
+	s, err := New("board-1", terminal, WithEventBufferCapacity(2))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Connect(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+
+	published := make(chan struct{})
+	go func() {
+		for range 3 {
+			s.PublishEvent(Event{Type: EventFileTransferProgress, Actor: "user"})
+		}
+		close(published)
+	}()
+	select {
+	case <-published:
+	case <-time.After(time.Second):
+		t.Fatal("slow event observer blocked Session event publication")
+	}
+	chunk, err := s.ReadEvents(context.Background(), 0, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !chunk.Dropped || len(chunk.Events) != 2 || chunk.Next != 3 {
+		t.Errorf("slow observer chunk = %+v, want dropped tail through cursor 3", chunk)
+	}
+}
+
 func TestCoreCloseIsIdempotentAndStopsReader(t *testing.T) {
 	terminal := newFakeTransport()
 	s, err := New("board-1", terminal)

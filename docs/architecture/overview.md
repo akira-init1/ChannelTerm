@@ -28,7 +28,7 @@ MCP Adapter -> Tool Registry --+--> internal/core/app.Application
 
 The core service boundary contains:
 
-- `session`: lifecycle, Session Manager ownership, raw output retention, activity retention, and write serialization.
+- `session`: lifecycle, Session Manager ownership, raw output retention, activity retention, structured event retention, and write serialization.
 - `channel`: established protocol-neutral byte-stream I/O and lifecycle state.
 - `device`: current discovery state, device identity state, and a bounded device-event stream.
 - `connectionpolicy`: a pure discovery-response decision; it never connects.
@@ -45,11 +45,11 @@ The shared access boundary is:
 Physical endpoint -> Transport -> Channel -> Session -> Client / Attachment
 ```
 
-Multiple Clients can share a Session within one owning Manager. Readers keep independent output and activity cursors. Writes pass through Session and are serialized as complete payloads so bytes from concurrent calls do not interleave. This is an I/O boundary guarantee, not semantic coordination between writers: there is no ownership lease, transaction, priority, arbitration, or shell-state coordination.
+Multiple Clients can share a Session within one owning Manager. Readers keep independent output, activity, and structured-event cursors. Writes pass through Session and are serialized as complete payloads so bytes from concurrent calls do not interleave. This is an I/O boundary guarantee, not semantic coordination between writers: there is no ownership lease, transaction, priority, arbitration, or shell-state coordination.
 
 ## Current implementation boundaries
 
-Serial is the only concrete Transport. Stream Channel categories such as file, debug/JTAG, and remote network are representable through the same Channel contract but are not implemented. The repository has no public Go SDK, GUI/TUI adapter, persistent terminal log, or Session lifecycle EventBus.
+Serial is the only concrete Transport. Stream Channel categories such as file, debug/JTAG, and remote network are representable through the same Channel contract but are not implemented. The repository has no public Go SDK, GUI/TUI adapter, or persistent terminal log. Session lifecycle and file-transfer state are available through the bounded Session Event Stream; it is not a Channel multiplexer or a persistent event log.
 
 ## Future direction
 

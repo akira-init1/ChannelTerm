@@ -177,6 +177,7 @@ type fakeConnectedSession struct {
 	connected bool
 	closed    bool
 	writes    []byte
+	events    []session.Event
 }
 
 func newFakeConnectedSession(id string) *fakeConnectedSession {
@@ -213,6 +214,37 @@ func (*fakeConnectedSession) ReadActivity(context.Context, session.ActivityCurso
 
 func (*fakeConnectedSession) ReadRecentActivity(int) (session.ActivityChunk, error) {
 	return session.ActivityChunk{}, nil
+}
+
+func (s *fakeConnectedSession) ReadEvents(_ context.Context, next session.EventCursor, limit int) (session.EventChunk, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if limit <= 0 {
+		return session.EventChunk{}, session.ErrInvalidEventReadLimit
+	}
+	if int(next) >= len(s.events) {
+		return session.EventChunk{Next: session.EventCursor(len(s.events))}, nil
+	}
+	end := min(len(s.events), int(next)+limit)
+	return session.EventChunk{Events: append([]session.Event(nil), s.events[next:end]...), Next: session.EventCursor(end)}, nil
+}
+
+func (s *fakeConnectedSession) ReadRecentEvents(limit int) (session.EventChunk, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if limit <= 0 {
+		return session.EventChunk{}, session.ErrInvalidEventReadLimit
+	}
+	start := max(0, len(s.events)-limit)
+	return session.EventChunk{Events: append([]session.Event(nil), s.events[start:]...), Next: session.EventCursor(len(s.events))}, nil
+}
+
+func (s *fakeConnectedSession) PublishEvent(event session.Event) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	event.ID = uint64(len(s.events))
+	event.SessionID = s.id
+	s.events = append(s.events, event)
 }
 
 func (s *fakeConnectedSession) Write(request session.WriteRequest) (int, error) {

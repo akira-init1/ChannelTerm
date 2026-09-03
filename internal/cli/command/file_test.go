@@ -3,9 +3,12 @@ package command
 import (
 	"context"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/akira-init1/ChannelTerm/internal/core/session"
 )
 
 func TestWithFileTransferLeaseReleasesAfterFailure(t *testing.T) {
@@ -24,6 +27,39 @@ type leaseTrackingAttachSession struct {
 	fakeAttachSession
 	acquires int
 	releases int
+}
+
+func TestFileTransferProgressPublishesStructuredProgress(t *testing.T) {
+	attached := &eventReportingAttachSession{}
+	progress := fileTransferProgress(context.Background(), io.Discard, attached, map[string]any{"direction": "send", "remote_path": "/tmp/firmware.bin"})
+	if err := progress(622592, 1048576); err != nil {
+		t.Fatalf("progress() error = %v", err)
+	}
+	if len(attached.events) != 1 {
+		t.Fatalf("events = %d, want 1", len(attached.events))
+	}
+	event := attached.events[0]
+	if event.typ != session.EventFileTransferProgress || event.metadata["sent"] != int64(622592) || event.metadata["total"] != int64(1048576) || event.metadata["percent"] != float64(59.375) {
+		t.Errorf("progress event = %+v, want structured confirmed transfer progress", event)
+	}
+	if _, ok := event.metadata["speed"].(float64); !ok {
+		t.Errorf("progress speed = %#v, want float64", event.metadata["speed"])
+	}
+}
+
+type reportedFileTransferEvent struct {
+	typ      session.EventType
+	metadata map[string]any
+}
+
+type eventReportingAttachSession struct {
+	fakeAttachSession
+	events []reportedFileTransferEvent
+}
+
+func (s *eventReportingAttachSession) ReportFileTransferEvent(_ context.Context, typ session.EventType, metadata map[string]any) error {
+	s.events = append(s.events, reportedFileTransferEvent{typ: typ, metadata: metadata})
+	return nil
 }
 
 func (s *leaseTrackingAttachSession) AcquireFileTransferLease(context.Context) error {

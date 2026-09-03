@@ -91,6 +91,9 @@ func runWithDependencies(ctx context.Context, args []string, input io.Reader, ou
 	if len(args) > 0 && args[0] == "file" {
 		return runFile(ctx, args[1:], output, newAttach)
 	}
+	if len(args) > 0 && args[0] == "events" {
+		return runEvents(ctx, args[1:], output)
+	}
 	if len(args) > 0 && args[0] == "list" {
 		return runList(ctx, args[1:], output)
 	}
@@ -110,6 +113,7 @@ func runWithDependencies(ctx context.Context, args []string, input io.Reader, ou
 		fmt.Fprintln(output)
 		fmt.Fprintln(output, "Commands:")
 		fmt.Fprintln(output, "  attach  Attach to a Session hosted by local MCP HTTP")
+		fmt.Fprintln(output, "  events  Stream structured events from a shared Session")
 		fmt.Fprintln(output, "  file    Send or receive a file through a shared Session")
 		fmt.Fprintln(output, "  help    Show this help message")
 		fmt.Fprintln(output, "  init    Configure supported MCP clients")

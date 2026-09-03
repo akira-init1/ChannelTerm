@@ -24,6 +24,9 @@ const (
 	// DefaultActivityBufferCapacity is the fixed number of recent operations a
 	// Session retains for independent CLI and Agent activity consumers.
 	DefaultActivityBufferCapacity = 1024
+	// DefaultEventBufferCapacity is the fixed number of structured lifecycle and
+	// operation events a Session retains for independent observers.
+	DefaultEventBufferCapacity = 1024
 	// readerBufferSize amortizes Channel.Read calls without retaining another
 	// copy of stream history outside the bounded receive buffer.
 	readerBufferSize = 32 * 1024
@@ -150,6 +153,16 @@ type Session interface {
 	// Its Next cursor always represents the current activity tail, so consumers
 	// can use it to begin waiting without replaying older events.
 	ReadRecentActivity(maxEvents int) (ActivityChunk, error)
+	// ReadEvents waits for structured Session events at next and returns at most
+	// maxEvents. Event cursors are independent from output and activity cursors.
+	ReadEvents(ctx context.Context, next EventCursor, maxEvents int) (EventChunk, error)
+	// ReadRecentEvents returns at most maxEvents from the newest retained events.
+	// Its Next cursor always represents the current event tail.
+	ReadRecentEvents(maxEvents int) (EventChunk, error)
+	// PublishEvent appends structured metadata without changing terminal output
+	// or waiting for observers. Session assigns ID, SessionID, and a timestamp
+	// when the caller leaves Timestamp empty.
+	PublishEvent(Event)
 	// Write sends request.Data when State is StateOpen.
 	//
 	// request.Actor must be a recognized Actor. It is internal metadata only and
@@ -170,6 +183,7 @@ type Option func(*config) error
 type config struct {
 	receiveBufferCapacity  int
 	activityBufferCapacity int
+	eventBufferCapacity    int
 }
 
 // WithReceiveBufferCapacity sets the fixed number of output bytes retained by
@@ -201,6 +215,19 @@ func WithActivityBufferCapacity(events int) Option {
 	}
 }
 
+// WithEventBufferCapacity sets the fixed number of structured events retained
+// by a Session. When full, the oldest events are overwritten rather than
+// blocking the Session reader, writer, or event publisher.
+func WithEventBufferCapacity(events int) Option {
+	return func(cfg *config) error {
+		if events <= 0 {
+			return ErrInvalidEventBufferCapacity
+		}
+		cfg.eventBufferCapacity = events
+		return nil
+	}
+}
+
 // Core is the default Session implementation.
 //
 // Core serializes lifecycle transitions with mu. Its dedicated reader goroutine
@@ -212,6 +239,7 @@ type Core struct {
 	channel   channel.Channel
 	receive   *receiveBuffer
 	activity  *activityBuffer
+	events    *eventBuffer
 
 	mu         sync.Mutex
 	writeMu    sync.Mutex
@@ -225,7 +253,8 @@ type Core struct {
 //
 // id becomes the stable Session identifier and Manager registration key. source
 // is used once by Connect to establish the Channel that Core owns until Close.
-// options may change the default receive-output or activity-event capacity.
+// options may change the default receive-output, activity-event, or structured
+// event capacity.
 func New(id string, source transport.Transport, options ...Option) (*Core, error) {
 	if id == "" {
 		return nil, ErrInvalidID
@@ -234,7 +263,7 @@ func New(id string, source transport.Transport, options ...Option) (*Core, error
 		return nil, ErrNilTransport
 	}
 
-	cfg := config{receiveBufferCapacity: DefaultReceiveBufferSize, activityBufferCapacity: DefaultActivityBufferCapacity}
+	cfg := config{receiveBufferCapacity: DefaultReceiveBufferSize, activityBufferCapacity: DefaultActivityBufferCapacity, eventBufferCapacity: DefaultEventBufferCapacity}
 	for _, option := range options {
 		if option == nil {
 			continue
@@ -251,11 +280,16 @@ func New(id string, source transport.Transport, options ...Option) (*Core, error
 	if err != nil {
 		return nil, err
 	}
+	events, err := newEventBuffer(cfg.eventBufferCapacity)
+	if err != nil {
+		return nil, err
+	}
 	return &Core{
 		id:         id,
 		transport:  source,
 		receive:    receive,
 		activity:   activity,
+		events:     events,
 		state:      StateNew,
 		readerStop: make(chan struct{}),
 	}, nil
@@ -310,6 +344,7 @@ func (s *Core) Connect(ctx context.Context) error {
 		s.state = StateFailed
 		s.receive.close(err)
 		s.activity.close(err)
+		s.events.close(err)
 		s.mu.Unlock()
 		return err
 	}
@@ -324,12 +359,14 @@ func (s *Core) Connect(ctx context.Context) error {
 		s.state = StateFailed
 		s.receive.close(err)
 		s.activity.close(err)
+		s.events.close(err)
 		return err
 	}
 	if isNilChannel(stream) {
 		s.state = StateFailed
 		s.receive.close(ErrNilChannel)
 		s.activity.close(ErrNilChannel)
+		s.events.close(ErrNilChannel)
 		return ErrNilChannel
 	}
 	s.channel = stream
@@ -398,6 +435,36 @@ func (s *Core) ReadRecentActivity(maxEvents int) (ActivityChunk, error) {
 		return ActivityChunk{}, ErrNotOpen
 	}
 	return s.activity.readRecent(maxEvents)
+}
+
+// ReadEvents waits for structured Session events without reading terminal
+// output or affecting any other observer's event cursor.
+func (s *Core) ReadEvents(ctx context.Context, next EventCursor, maxEvents int) (EventChunk, error) {
+	if !s.isOpen() {
+		return EventChunk{}, ErrNotOpen
+	}
+	return s.events.readEvents(ctx, next, maxEvents)
+}
+
+// ReadRecentEvents returns a bounded snapshot of the newest Session events.
+func (s *Core) ReadRecentEvents(maxEvents int) (EventChunk, error) {
+	if !s.isOpen() {
+		return EventChunk{}, ErrNotOpen
+	}
+	return s.events.readRecent(maxEvents)
+}
+
+// PublishEvent records structured Session metadata independently from raw
+// terminal output and activity. It never waits for an observer.
+func (s *Core) PublishEvent(event Event) {
+	if event.Type == "" || !s.isOpen() {
+		return
+	}
+	if event.Timestamp.IsZero() {
+		event.Timestamp = time.Now()
+	}
+	event.SessionID = s.id
+	s.events.append(event)
 }
 
 // Write sends request data as one contiguous Channel write
@@ -528,10 +595,12 @@ func (s *Core) handleReadError(err error) {
 	if closing || errors.Is(err, io.EOF) {
 		s.receive.close(io.EOF)
 		s.activity.close(io.EOF)
+		s.events.close(io.EOF)
 		return
 	}
 	s.receive.close(err)
 	s.activity.close(err)
+	s.events.close(err)
 }
 
 // Close releases the underlying Channel, output reader, and receive buffer.
@@ -558,6 +627,7 @@ func (s *Core) Close() error {
 
 	s.receive.close(io.EOF)
 	s.activity.close(io.EOF)
+	s.events.close(io.EOF)
 	close(stop)
 	var err error
 	if s.channel != nil {
@@ -568,6 +638,7 @@ func (s *Core) Close() error {
 	}
 	s.receive.release()
 	s.activity.release()
+	s.events.release()
 
 	s.mu.Lock()
 	s.closeErr = err

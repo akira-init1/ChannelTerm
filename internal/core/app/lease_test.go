@@ -58,6 +58,16 @@ func TestApplicationLeaseBlocksOtherWritersAndPreservesOtherSessions(t *testing.
 	if err := application.ReleaseLease("SER-1", "file-transfer-owner"); err != nil {
 		t.Fatalf("ReleaseLease() error = %v", err)
 	}
+	events, err := application.ReadSessionEvents(context.Background(), "SER-1", nil, 8)
+	if err != nil {
+		t.Fatalf("ReadSessionEvents() error = %v", err)
+	}
+	if len(events.Events) < 3 || events.Events[len(events.Events)-2].Type != session.EventLeaseAcquired || events.Events[len(events.Events)-1].Type != session.EventLeaseReleased {
+		t.Errorf("lease events = %+v, want acquired then released", events.Events)
+	}
+	if events.Events[len(events.Events)-2].Metadata["type"] != string(LeaseTypeFileTransfer) || events.Events[len(events.Events)-1].Metadata["state"] != "released" {
+		t.Errorf("lease event metadata = %+v", events.Events[len(events.Events)-2:])
+	}
 	if _, active, err := application.LeaseStatus("SER-1"); err != nil || active {
 		t.Errorf("LeaseStatus() = active:%t err:%v, want inactive nil", active, err)
 	}

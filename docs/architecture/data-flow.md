@@ -50,6 +50,21 @@ Ctrl+] local controller       decode complete payload
 
 `Ctrl+C` is ordinary remote data in the CLI raw-input path. `Ctrl+]` commands remain local. Prompt timestamps are per-CLI presentation state and are inserted only before recognized shell prompts after Session reads, so they never enter the Ring Buffer or MCP cursor path. Session serializes each complete write, including short-write retries, so concurrent payload bytes do not interleave. This does not coordinate writer intent: Session provides no writer ownership, exclusive lease, transaction, priority, arbitration, or shell-state coordination. Activity records actor and confirmed bytes but actor metadata is not sent to the device.
 
+## Session events
+
+```text
+Manager / CLI attachment / Application lease / CLI file transfer
+                              |
+                              v
+                    Session Event Buffer
+                              |
+                 +------------+------------+
+                 v                         v
+        CLI events JSON Lines       MCP terminal_session_events
+```
+
+Events are structured state, not terminal bytes. Each observer advances its own event cursor; a slow observer can lose only old retained events (`dropped: true`) and never blocks the serial reader, Session writer, or another observer. File-transfer reporting traverses the existing MCP attachment only to publish status on the host-owned Session; payload I/O remains on the existing raw read/write path.
+
 ## Serial open and reuse
 
 ```text
