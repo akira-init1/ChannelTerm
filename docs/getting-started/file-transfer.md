@@ -23,6 +23,12 @@ In another terminal, send a file to the board:
 channelterm file send firmware.bin /tmp/firmware.bin
 ```
 
+In a third terminal, observe the shared transfer state without rendering raw file bytes:
+
+```powershell
+channelterm events SER-1
+```
+
 Receive a file from the board:
 
 ```powershell
@@ -65,7 +71,7 @@ Shared Session -> Channel -> Serial Transport -> Linux TTY
                                        verified remote file
 ```
 
-For each chunk, the shell saves its current TTY mode, enters raw/no-echo mode, transfers exactly one bounded block with `dd`, restores the saved mode, and emits an acknowledgement containing a random per-transfer token. The raw interval is limited to one chunk rather than the whole file. ChannelTerm reports progress only after a chunk is acknowledged.
+For each chunk, the shell saves its current TTY mode, enters raw/no-echo mode, transfers exactly one bounded block with `dd`, restores the saved mode, and emits an acknowledgement containing a random per-transfer token. The raw interval is limited to one chunk rather than the whole file. ChannelTerm reports progress only after a chunk is acknowledged and publishes it as `FILE_TRANSFER_PROGRESS` with structured confirmed byte counts, percent, and best-effort speed. It also publishes start, completion, and failure events without mixing them into raw Session output.
 
 For send, ChannelTerm hashes bytes as it reads the local file. After the final chunk, the board computes the stored size with `wc -c` and digest with `sha256sum`; both must match.
 

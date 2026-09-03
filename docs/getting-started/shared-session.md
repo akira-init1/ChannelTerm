@@ -34,6 +34,16 @@ That guarantee does not coordinate the meaning of concurrent commands. Session h
 
 After attachment, the CLI watches new activity from the current tail and renders non-empty Agent writes as local `AI` activity blocks. It does not replay older activity, and writes containing only carriage-return or line-feed bytes are not rendered as blocks. This local view does not add bytes to Session output or change another client's cursor.
 
+## Observe shared state
+
+Use a separate terminal to observe attachment, lease, and file-transfer state without consuming device output:
+
+```powershell
+channelterm events SER-1
+```
+
+The command emits JSON Lines from the same bounded Session Event Stream used by MCP `terminal_session_events`. Each observer owns its cursor. If an observer is slower than the retained window, it receives `dropped: true` and continues at the returned cursor; it never slows the serial reader or Session writers.
+
 ## Use a private connection
 
 ```powershell

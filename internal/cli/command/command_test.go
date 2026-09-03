@@ -949,6 +949,17 @@ func (*fakeCLISession) ReadRecentActivity(int) (session.ActivityChunk, error) {
 	return session.ActivityChunk{}, nil
 }
 
+func (s *fakeCLISession) ReadEvents(ctx context.Context, _ session.EventCursor, _ int) (session.EventChunk, error) {
+	<-ctx.Done()
+	return session.EventChunk{}, ctx.Err()
+}
+
+func (*fakeCLISession) ReadRecentEvents(int) (session.EventChunk, error) {
+	return session.EventChunk{}, nil
+}
+
+func (*fakeCLISession) PublishEvent(session.Event) {}
+
 func (s *fakeCLISession) Write(request session.WriteRequest) (int, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

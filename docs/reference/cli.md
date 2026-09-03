@@ -142,6 +142,22 @@ channelterm attach SER-1 --endpoint http://127.0.0.1:12345/terminal
 
 Important errors include a missing Session reference, an offline custom host, a Session not found or already closed, an invalid target, forbidden target/Session option combinations, host startup timeout, MCP tool failure, serial configuration failure, and terminal I/O failure.
 
+## `events`
+
+Purpose: stream structured state events from an existing shared Session without attaching a terminal or reading terminal output.
+
+```text
+channelterm events SESSION [--endpoint URL] [--max-events N]
+```
+
+The command writes one JSON event per line to standard output. It first returns retained events, then waits for later events with a private event cursor until interrupted. `--endpoint` defaults to `http://127.0.0.1:37099/mcp`; `--max-events` defaults to 128 and must be positive. An overflow marker line with `dropped: true` means the observer fell behind the bounded event retention window; continue from its `next` cursor.
+
+```powershell
+channelterm events SER-1
+```
+
+Events carry Session and file-transfer state only. They never include terminal bytes and do not change `attach`, `terminal_read`, or another observer's cursor.
+
 ## `file`
 
 Purpose: stream one regular file through an existing shared Session and verify the completed content with SHA-256.
@@ -155,7 +171,7 @@ channelterm file receive REMOTE_PATH LOCAL_PATH [--session SESSION] [--endpoint 
 
 The command is CLI-only from the user's perspective: it requires no AI client and does not require manually starting MCP when `attach` has already created the default local Host. Internally, the separate CLI process attaches to that host-owned Session, acquires a temporary `file-transfer` lease, and uses its owner capability for every protocol write. Existing `terminal_write` input remains unchanged; the lease-specific MCP tools are an internal CLI transport boundary. The command never opens Serial Transport directly.
 
-Both directions use bounded 32 KiB chunks and display acknowledged byte progress. Send requires a regular local source. Receive writes a temporary file beside the destination and installs it only after verification; an existing destination is replaced after the temporary file passes SHA-256 verification. The remote shell must provide `stty`, `dd` with `iflag=fullblock`, `wc`, and `sha256sum`.
+Both directions use bounded 32 KiB chunks and display acknowledged byte progress. The CLI also publishes `FILE_TRANSFER_STARTED`, `FILE_TRANSFER_PROGRESS`, `FILE_TRANSFER_COMPLETED`, or `FILE_TRANSFER_FAILED` events to the host-owned Session. Send requires a regular local source. Receive writes a temporary file beside the destination and installs it only after verification; an existing destination is replaced after the temporary file passes SHA-256 verification. The remote shell must provide `stty`, `dd` with `iflag=fullblock`, `wc`, and `sha256sum`.
 
 Send truncates the requested remote destination after its initial board-side checks. Receive replaces the requested local destination only after the temporary file verifies. These are deliberate write-capable operations; confirm the paths and use only a trusted Session Host. The file command does not change the Host's loopback listener default or add authentication.
 

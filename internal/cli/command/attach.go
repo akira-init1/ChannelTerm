@@ -57,6 +57,7 @@ type mcpAttachSession struct {
 	id         string
 	client     *protocol.ClientSession
 	leaseOwner string
+	attached   bool
 }
 
 // newMCPAttachSession connects to an MCP HTTP host and verifies that id is
@@ -85,6 +86,10 @@ func newMCPAttachSession(ctx context.Context, endpoint, id string) (_ attachSess
 	if err := attached.verify(ctx); err != nil {
 		return nil, err
 	}
+	if err := attached.call(ctx, "terminal_session_attach", map[string]any{"session_id": id, "actor": "user"}, nil); err != nil {
+		return nil, err
+	}
+	attached.attached = true
 	return attached, nil
 }
 
@@ -656,9 +661,32 @@ func (s *mcpAttachSession) ReleaseFileTransferLease(ctx context.Context) error {
 	return nil
 }
 
-// Close releases only the MCP client connection and deliberately omits
-// terminal_close, preserving the shared Session after local detach.
-func (s *mcpAttachSession) Close() error { return s.client.Close() }
+// ReportFileTransferEvent forwards structured file-transfer state to the host
+// Session event stream. It never writes terminal bytes.
+func (s *mcpAttachSession) ReportFileTransferEvent(ctx context.Context, typ session.EventType, metadata map[string]any) error {
+	return s.call(ctx, "terminal_report_file_transfer", map[string]any{
+		"session_id": s.id,
+		"type":       string(typ),
+		"actor":      "user",
+		"metadata":   metadata,
+	}, nil)
+}
+
+// Close records the client detachment, then releases only the MCP client
+// connection. It deliberately omits terminal_close, preserving the shared
+// Session after local detach.
+func (s *mcpAttachSession) Close() error {
+	var detachErr error
+	if s.attached {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		detachErr = s.call(ctx, "terminal_session_detach", map[string]any{"session_id": s.id, "actor": "user"}, nil)
+		cancel()
+		if detachErr == nil {
+			s.attached = false
+		}
+	}
+	return errors.Join(detachErr, s.client.Close())
+}
 
 // read decodes the lossless Base64 result emitted by the existing terminal
 // tools into the core cursor representation used by the local output loop.

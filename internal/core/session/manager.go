@@ -92,12 +92,14 @@ func (m *Manager) Register(s Session) error {
 // permitted, while duplicate Session IDs return ErrDuplicateSession.
 func (m *Manager) RegisterWithMetadata(s Session, metadata SessionMetadata) error {
 	m.mu.Lock()
-	defer m.mu.Unlock()
 	if _, exists := m.sessions[s.ID()]; exists {
+		m.mu.Unlock()
 		return ErrDuplicateSession
 	}
 	metadata.Reference = m.nextReferenceLocked(metadata.Transport)
 	m.sessions[s.ID()] = registeredSession{session: s, metadata: metadata}
+	m.mu.Unlock()
+	publishSessionCreated(s, metadata)
 	return nil
 }
 
@@ -154,6 +156,9 @@ func (m *Manager) GetOrCreate(ctx context.Context, metadata SessionMetadata, cre
 				info = SessionInfo{ID: candidate.ID(), Metadata: metadata, State: candidate.State()}
 			}
 			m.mu.Unlock()
+			if err == nil {
+				publishSessionCreated(candidate, metadata)
+			}
 		}
 		if err != nil && candidate != nil {
 			if closeErr := candidate.Close(); closeErr != nil {
@@ -172,6 +177,22 @@ func (m *Manager) GetOrCreate(ctx context.Context, metadata SessionMetadata, cre
 		}
 		return info, true, nil
 	}
+}
+
+// publishSessionCreated records Manager registration after the Session becomes
+// visible to lookups. Event publication is independent from registration and
+// cannot block Manager callers or Session I/O.
+func publishSessionCreated(terminal Session, metadata SessionMetadata) {
+	terminal.PublishEvent(Event{
+		Type:  EventSessionCreated,
+		Actor: string(ActorSystem),
+		Metadata: map[string]any{
+			"transport": metadata.Transport,
+			"endpoint":  metadata.Endpoint,
+			"reference": metadata.Reference,
+			"label":     metadata.Label,
+		},
+	})
 }
 
 // Get returns the Session registered under identifier and whether it exists.

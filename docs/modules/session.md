@@ -1,6 +1,6 @@
 # Session Module
 
-`internal/core/session` owns shared Session lifecycle above a protocol-neutral Channel, the single Channel reader, retained output, retained write activity, and Manager registration.
+`internal/core/session` owns shared Session lifecycle above a protocol-neutral Channel, the single Channel reader, retained output, retained write activity, retained structured events, and Manager registration.
 
 ## Lifecycle
 
@@ -12,7 +12,7 @@ new --> connecting --> open --> closing --> closed
 
 `Connect` may run only from `new`. It checks and passes the context to Transport connection, then accepts ownership of the returned Channel. A cancelled or failed connection, or a successful Transport result with no Channel, enters `failed` and closes both reader-facing buffers.
 
-Only `open` permits read, write, activity read, and resize operations. `Close` wakes waiting readers, closes the Channel to unblock active I/O, waits for the reader goroutine, releases buffer memory, and enters `closed`. Sequential repeated closes return the first close result. The caller must not run `Connect` concurrently with `Close`.
+Only `open` permits read, write, activity read, event read, and resize operations. `Close` wakes waiting readers, closes the Channel to unblock active I/O, waits for the reader goroutine, releases buffer memory, and enters `closed`. Sequential repeated closes return the first close result. The caller must not run `Connect` concurrently with `Close`.
 
 An unexpected reader error enters `failed`. EOF is treated as an output end condition. Received bytes returned with an error are appended before the error is handled.
 
@@ -30,6 +30,14 @@ Every confirmed write records a `SessionEvent` with timestamp, actor (`user`, `a
 
 Activity and remote output are independent cursor streams. Reading one cannot consume or modify the other.
 
+## Structured event stream
+
+The Event Stream is a third, independent bounded cursor stream. It retains `Event` values with a per-Session monotonic `id`, timestamp, Session ID, type, actor, and JSON-compatible metadata. It does not contain terminal bytes or activity write payloads.
+
+The current event types are `SESSION_CREATED`, `SESSION_ATTACHED`, `SESSION_DETACHED`, `LEASE_ACQUIRED`, `LEASE_RELEASED`, `FILE_TRANSFER_STARTED`, `FILE_TRANSFER_PROGRESS`, `FILE_TRANSFER_COMPLETED`, and `FILE_TRANSFER_FAILED`. Event metadata for file progress includes confirmed byte counts, total size, percent, and best-effort speed; it never exposes a lease owner capability.
+
+`ReadEvents` and `ReadRecentEvents` give every observer an independent event cursor. The fixed 1024-event retention overwrites its oldest event for a slow observer and reports `Dropped`; publishing does not send on observer channels, so it cannot block Channel reads, Session writes, or another observer.
+
 ## Optional stream capabilities
 
 Read, write, close, and lifecycle state form the complete base Channel contract. `Resize` remains on Session for current terminal compatibility, but Session invokes it only when the established Channel implements the optional `channel.Resizer` capability. File, debug/JTAG, and other non-terminal Channels therefore do not need a meaningless resize method.
@@ -41,3 +49,5 @@ Read, write, close, and lifecycle state form the complete base Channel contract.
 Lookup and removal accept the opaque Session ID or short reference. `Remove` transfers ownership without closing; its caller must close the returned Session. `Close` removes and attempts to close every current registration, joining cleanup errors after all Sessions have been processed.
 
 `GetOrCreate` reserves an endpoint while one connection attempt is in progress. Within one Manager, it returns the existing active Session for the same exact `transport + endpoint` pair. `new`, `connecting`, `open`, and `closing` Sessions still own an endpoint. `failed` and `closed` registrations do not prevent a later attempt.
+
+After a successful registration, Manager publishes `SESSION_CREATED` with display metadata. Registration remains complete even if an observer is slow.
