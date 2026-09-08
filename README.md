@@ -92,14 +92,16 @@ For the default local endpoint, `attach` starts the loopback Session Host when n
 channelterm list --kind session
 ```
 
-That shared serial Session can also transfer a file without an AI client or a separately installed board-side transfer agent:
+That shared serial Session can also transfer regular files and directories without an AI client or a separately installed board-side transfer agent. Directories are streamed through standard tar, without writing a complete temporary archive:
 
 ```bash
 channelterm file send firmware.bin /tmp/firmware.bin --session SER-1
 channelterm file receive /tmp/log.txt ./log.txt --session SER-1
+channelterm file send ./build/release /tmp/release --session SER-1
+channelterm file receive /var/log/myapp ./myapp --session SER-1
 ```
 
-The Linux shell uses native `stty`, `dd`, `wc`, and `sha256sum`; ChannelTerm streams bounded chunks, reports progress, and verifies the final SHA-256. A temporary file-transfer lease blocks other ChannelTerm writers until the command finishes and attach displays a clear local lock error. See the [file-transfer workflow](docs/getting-started/file-transfer.md) for prerequisites and limits.
+The Linux shell uses native `stty`, `dd`, `wc`, and `sha256sum` for files, plus `tar` for directories; ChannelTerm streams bounded chunks, reports progress, and verifies file SHA-256 values. A temporary file-transfer lease blocks other ChannelTerm writers until the command finishes and attach displays a clear local lock error. See the [file-transfer workflow](docs/getting-started/file-transfer.md) for prerequisites and limits.
 
 To put an AI in that same Session, configure its MCP client to use the same Streamable HTTP endpoint:
 
@@ -121,7 +123,7 @@ Ctrl+] f    Open the local file send/receive menu
 Ctrl+] Esc  Cancel local escape mode
 ```
 
-Press `Ctrl+]` to enter local escape mode. ChannelTerm displays the available escape commands locally. `Ctrl+] f` starts a guided file send/receive flow on the current attachment, with `/tmp/<basename>` and `./<basename>` defaults and non-overwriting `_1`, `_2` filename selection. `Ctrl+] t` is off by default and prepends local `[HH:MM:SS]` timestamps only to conservatively recognized shell prompts; it does not change shared Session or MCP output.
+Press `Ctrl+]` to enter local escape mode. ChannelTerm displays the available escape commands locally. `Ctrl+] f` starts a guided file/directory send/receive flow on the current attachment, with `/tmp/<basename>` and `./<basename>` defaults and non-overwriting `_1`, `_2` selection. `Ctrl+] t` is off by default and prepends local `[HH:MM:SS]` timestamps only to conservatively recognized shell prompts; it does not change shared Session or MCP output.
 
 The HTTP server has no ChannelTerm authentication or authorization layer. Its default listener is loopback-only; do not expose it to an untrusted network.
 
@@ -134,7 +136,7 @@ The HTTP server has no ChannelTerm authentication or authorization layer. Its de
 - Client detach without closing the Session used by other clients.
 - Serial discovery, deterministic target references, TOML profiles, and private direct connections when sharing is not wanted.
 - MCP over stdio or Streamable HTTP, with the shared CLI workflow using the HTTP Session Host.
-- Bounded CLI file send/receive over an existing serial Session with size and SHA-256 verification.
+- Bounded CLI file/directory send/receive over an existing serial Session: files use SHA-256 verification and directories use safe staged tar streams.
 
 ## Example Workflows
 

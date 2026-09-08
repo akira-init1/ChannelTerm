@@ -1,11 +1,11 @@
 # File Transfer over a Serial Session
 
-ChannelTerm can stream a file through an existing shared Session without an AI client or a separately installed board-side transfer program. The board side remains an ordinary interactive Linux shell.
+ChannelTerm can stream a regular file or a directory through an existing shared Session without an AI client or a separately installed board-side transfer program. The board side remains an ordinary interactive Linux shell.
 
 ## Preconditions
 
 - The remote shell is idle and accepts POSIX-style shell commands.
-- The board provides `stty`, `dd` with `iflag=fullblock`, `wc`, and `sha256sum`. BusyBox or GNU userland may provide these commands.
+- The board provides `stty`, `dd` with `iflag=fullblock`, `wc`, and `sha256sum`. BusyBox or GNU userland may provide these commands. Directory transfer also requires `tar`; ChannelTerm checks `command -v tar` and does not install it.
 - The serial settings already match the board. File transfer does not change baud rate, data bits, parity, stop bits, or flow control.
 - Other Clients may keep reading with their independent Session cursors. ChannelTerm acquires a Host-side `file-transfer` lease that blocks its other writers during transfer; it cannot prevent unsolicited output or writers that bypass ChannelTerm.
 
@@ -35,6 +35,13 @@ Receive a file from the board:
 channelterm file receive /tmp/log.txt ./log.txt
 ```
 
+The same commands automatically recognize directories. No separate directory command is needed:
+
+```powershell
+channelterm file send .\build\release /tmp/release
+channelterm file receive /var/log/myapp ./myapp
+```
+
 When more than one shared Session is open, select one explicitly:
 
 ```powershell
@@ -57,7 +64,7 @@ Ctrl+] f
   Esc  Cancel
 ```
 
-For send, enter a required local file and accept or edit the remote default `/tmp/<local-basename>`. Board paths are always POSIX paths. For receive, enter a required board path and accept or edit the local default `./<remote-basename>`, relative to the directory in which `attach` was started. Local paths use the current platform's path rules. `Esc` exits only the file menu; during an active transfer, `Ctrl+C` cancels the transfer, releases its lease, and returns to the attachment instead of detaching it.
+For send, enter a required local path and accept or edit the remote default `/tmp/<local-basename>`. Board paths are always POSIX paths. For receive, enter a required board path and accept or edit the local default `./<remote-basename>`, relative to the directory in which `attach` was started. A regular file keeps the file protocol; a directory uses tar automatically. Local paths use the current platform's path rules. `Esc` exits only the file menu; during an active transfer, `Ctrl+C` cancels the transfer, releases its lease, cleans up directory staging best-effort, and returns to the attachment instead of detaching it.
 
 ## Transfer flow
 
@@ -102,4 +109,6 @@ Session still guarantees byte serialization for each individual write. Above it,
 
 If the command is interrupted while a send chunk is waiting for bytes, ChannelTerm makes a bounded best-effort attempt to pad that chunk so the shell can restore its saved TTY mode. If the Session or device disappears, reconnect locally and run `stty sane` on the board console if its terminal mode was not restored.
 
-The first version does not provide resume, compression, directory recursion, sparse-file preservation, permissions/ownership preservation, symlink handling, per-chunk checksums, coordination with writers that bypass the Host, or non-Linux shell support.
+Directory tar streams are never written as complete temporary archives. PC-to-board uses Go `archive/tar` directly into Serial and target-side `tar` directly into a hidden same-parent staging directory; board-to-PC reverses those roles. A staged directory is renamed only after the full stream and extraction succeed. Local extraction rejects absolute or parent-traversal paths and rejects symlinks, hard links, devices, FIFOs, sockets, and other special entries. Directory progress counts tar-stream bytes, not a synthetic directory hash; successful completion guarantees tar completed, extraction succeeded, and staging was committed, but does not claim a directory-level SHA-256.
+
+The first version does not provide resume, compression, zip, incremental synchronization, sparse-file preservation, permissions/ownership preservation, symlink or hard-link handling, per-chunk checksums, coordination with writers that bypass the Host, or non-Linux shell support.

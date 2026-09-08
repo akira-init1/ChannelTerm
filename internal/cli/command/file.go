@@ -84,6 +84,16 @@ func runFileSend(ctx context.Context, args []string, output io.Writer, dependenc
 	if err != nil || options.help {
 		return err
 	}
+	info, err := os.Lstat(localPath)
+	if err != nil {
+		return fmt.Errorf("stat local source %q: %w", localPath, err)
+	}
+	if info.IsDir() {
+		return runFileSendDirectory(ctx, localPath, remotePath, options, output, dependencies)
+	}
+	if !info.Mode().IsRegular() {
+		return fmt.Errorf("local source %q must be a regular file or directory", localPath)
+	}
 	attached, identifier, err := attachFileSession(ctx, options, dependencies)
 	if err != nil {
 		return err
@@ -103,12 +113,9 @@ func runFileSend(ctx context.Context, args []string, output io.Writer, dependenc
 			err = fmt.Errorf("close local source %q: %w", localPath, closeErr)
 		}
 	}()
-	info, err := file.Stat()
+	info, err = file.Stat()
 	if err != nil {
 		return fmt.Errorf("stat local source %q: %w", localPath, err)
-	}
-	if !info.Mode().IsRegular() {
-		return fmt.Errorf("local source %q must be a regular file", localPath)
 	}
 	return withFileTransferLease(ctx, attached, identifier, func() (operationErr error) {
 		started := false
@@ -155,6 +162,51 @@ func runFileSend(ctx context.Context, args []string, output io.Writer, dependenc
 	})
 }
 
+func runFileSendDirectory(ctx context.Context, localPath, remotePath string, options fileOptions, output io.Writer, dependencies fileCommandDependencies) (err error) {
+	archiveSize, err := app.PlanDirectory(localPath)
+	if err != nil {
+		return err
+	}
+	attached, identifier, err := attachFileSession(ctx, options, dependencies)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if closeErr := attached.Close(); closeErr != nil && err == nil {
+			err = fmt.Errorf("detach file transfer Session %q: %w", identifier, closeErr)
+		}
+	}()
+	return withFileTransferLease(ctx, attached, identifier, func() (operationErr error) {
+		metadata := map[string]any{"direction": "send", "kind": "directory", "local_path": localPath, "remote_path": remotePath, "total": archiveSize}
+		if eventErr := reportFileTransferEvent(ctx, attached, session.EventFileTransferStarted, metadata); eventErr != nil {
+			return eventErr
+		}
+		defer reportFailedFileTransfer(ctx, attached, metadata, &operationErr)
+		progress := newFileTransferProgress(ctx, output, attached, metadata)
+		defer func() { operationErr = finishFileTransferPresentation(output, progress, operationErr) }()
+		result, transferErr := app.SendDirectory(ctx, attached, localPath, remotePath, progress.Report)
+		if transferErr != nil {
+			return transferErr
+		}
+		completed := copyFileTransferMetadata(metadata)
+		completed["remote_path"] = result.RemotePath
+		completed["sent"] = result.Size
+		completed["total"] = result.Size
+		completed["percent"] = float64(100)
+		if eventErr := reportFileTransferEvent(ctx, attached, session.EventFileTransferCompleted, completed); eventErr != nil {
+			return eventErr
+		}
+		if completeErr := progress.Complete(result.Size); completeErr != nil {
+			return completeErr
+		}
+		if finishErr := progress.finish(); finishErr != nil {
+			return finishErr
+		}
+		_, writeErr := fmt.Fprintf(output, "Tar stream: complete\nSaved: %s\n", result.RemotePath)
+		return writeErr
+	})
+}
+
 func runFileReceive(ctx context.Context, args []string, output io.Writer, dependencies fileCommandDependencies) (err error) {
 	if len(args) == 1 && (args[0] == "--help" || args[0] == "-h") {
 		_, err := parseFileOptions("file receive", args, output, writeFileReceiveUsage)
@@ -169,10 +221,6 @@ func runFileReceive(ctx context.Context, args []string, output io.Writer, depend
 	if err != nil || options.help {
 		return err
 	}
-	localPath, err = nextAvailableLocalPath(localPath)
-	if err != nil {
-		return err
-	}
 	attached, identifier, err := attachFileSession(ctx, options, dependencies)
 	if err != nil {
 		return err
@@ -183,14 +231,33 @@ func runFileReceive(ctx context.Context, args []string, output io.Writer, depend
 		}
 	}()
 
-	directory := filepath.Dir(localPath)
-	temporary, err := os.CreateTemp(directory, ".channelterm-receive-*")
-	if err != nil {
-		return fmt.Errorf("create temporary destination beside %q: %w", localPath, err)
-	}
-	temporaryPath := temporary.Name()
-	defer func() { _ = os.Remove(temporaryPath) }()
 	return withFileTransferLease(ctx, attached, identifier, func() (operationErr error) {
+		kind, kindErr := app.DetectRemotePath(ctx, attached, remotePath)
+		if kindErr != nil {
+			return fmt.Errorf("inspect remote source %q: %w", remotePath, kindErr)
+		}
+		switch kind {
+		case app.RemotePathDirectory:
+			return runFileReceiveDirectory(ctx, attached, remotePath, localPath, output)
+		case app.RemotePathMissing:
+			return fmt.Errorf("remote source %q does not exist", remotePath)
+		case app.RemotePathUnsupported:
+			return fmt.Errorf("remote source %q must be a regular file or directory", remotePath)
+		case app.RemotePathFile:
+		default:
+			return fmt.Errorf("remote source %q has unsupported type %q", remotePath, kind)
+		}
+		localPath, err = nextAvailableLocalPath(localPath)
+		if err != nil {
+			return err
+		}
+		directory := filepath.Dir(localPath)
+		temporary, err := os.CreateTemp(directory, ".channelterm-receive-*")
+		if err != nil {
+			return fmt.Errorf("create temporary destination beside %q: %w", localPath, err)
+		}
+		temporaryPath := temporary.Name()
+		defer func() { _ = os.Remove(temporaryPath) }()
 		started := false
 		metadata := map[string]any{"direction": "receive", "local_path": localPath, "remote_path": remotePath}
 		if eventErr := reportFileTransferEvent(ctx, attached, session.EventFileTransferStarted, metadata); eventErr != nil {
@@ -245,6 +312,49 @@ func runFileReceive(ctx context.Context, args []string, output io.Writer, depend
 	})
 }
 
+// runFileReceiveDirectory runs while the caller holds the one file-transfer
+// lease, including remote tar probing, extraction, and final local rename.
+func runFileReceiveDirectory(ctx context.Context, attached attachSession, remotePath, localPath string, output io.Writer) (operationErr error) {
+	localPath, err := nextAvailableLocalDirectory(localPath)
+	if err != nil {
+		return err
+	}
+	staging, err := createLocalDirectoryStaging(localPath)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = os.RemoveAll(staging) }()
+	metadata := map[string]any{"direction": "receive", "kind": "directory", "local_path": localPath, "remote_path": remotePath}
+	if eventErr := reportFileTransferEvent(ctx, attached, session.EventFileTransferStarted, metadata); eventErr != nil {
+		return eventErr
+	}
+	defer reportFailedFileTransfer(ctx, attached, metadata, &operationErr)
+	progress := newFileTransferProgress(ctx, output, attached, metadata)
+	defer func() { operationErr = finishFileTransferPresentation(output, progress, operationErr) }()
+	result, transferErr := app.ReceiveDirectory(ctx, attached, remotePath, staging, progress.Report)
+	if transferErr != nil {
+		return transferErr
+	}
+	if err := replaceReceivedDirectory(staging, localPath); err != nil {
+		return fmt.Errorf("install received directory %q: %w", localPath, err)
+	}
+	completed := copyFileTransferMetadata(metadata)
+	completed["received"] = result.Size
+	completed["total"] = result.Size
+	completed["percent"] = float64(100)
+	if eventErr := reportFileTransferEvent(ctx, attached, session.EventFileTransferCompleted, completed); eventErr != nil {
+		return eventErr
+	}
+	if completeErr := progress.Complete(result.Size); completeErr != nil {
+		return completeErr
+	}
+	if finishErr := progress.finish(); finishErr != nil {
+		return finishErr
+	}
+	_, err = fmt.Fprintf(output, "Tar stream: complete\nSaved: %s\n", localPath)
+	return err
+}
+
 // withFileTransferLease holds a Host-side file-transfer lease for one complete
 // command, including all protocol cleanup. It releases with a fresh bounded
 // context so cancellation of the transfer cannot leave the Session locked.
@@ -264,6 +374,20 @@ func withFileTransferLease(ctx context.Context, attached attachSession, identifi
 		}
 	}()
 	return operation()
+}
+
+// reportFailedFileTransfer preserves the existing failure-event contract for
+// both file and directory transfers while keeping the lease owner active until
+// cleanup has completed.
+func reportFailedFileTransfer(ctx context.Context, attached attachSession, metadata map[string]any, operationErr *error) {
+	if operationErr == nil || *operationErr == nil {
+		return
+	}
+	failureCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	failureMetadata := copyFileTransferMetadata(metadata)
+	failureMetadata["error"] = (*operationErr).Error()
+	_ = reportFileTransferEvent(failureCtx, attached, session.EventFileTransferFailed, failureMetadata)
 }
 
 type fileOptions struct {
@@ -549,6 +673,21 @@ func replaceReceivedFile(temporaryPath, destinationPath string) error {
 	return fmt.Errorf("destination %q appeared during transfer; refusing to overwrite", destinationPath)
 }
 
+// replaceReceivedDirectory refuses a destination that appears after selection.
+// Directory rename is same-parent and atomic when the destination remains
+// absent; the explicit check avoids replacing an empty directory on platforms
+// where rename otherwise permits that operation.
+func replaceReceivedDirectory(stagingPath, destinationPath string) error {
+	_, err := os.Lstat(destinationPath)
+	if errors.Is(err, os.ErrNotExist) {
+		return os.Rename(stagingPath, destinationPath)
+	}
+	if err != nil {
+		return fmt.Errorf("inspect destination: %w", err)
+	}
+	return fmt.Errorf("destination %q appeared during transfer; refusing to overwrite", destinationPath)
+}
+
 // nextAvailableLocalPath chooses the requested local path when absent, or its
 // first _N sibling when a file already exists. filepath is used only for PC
 // paths, keeping this logic correct on Windows, Linux, and macOS.
@@ -571,6 +710,38 @@ func nextAvailableLocalPath(wanted string) (string, error) {
 			return "", fmt.Errorf("local destination %q is a directory", candidate)
 		}
 	}
+}
+
+// nextAvailableLocalDirectory applies the established _N collision policy to
+// directory destinations. Unlike single-file receive, an existing directory
+// is an expected collision rather than an argument-type error.
+func nextAvailableLocalDirectory(wanted string) (string, error) {
+	directory, filename := filepath.Split(filepath.Clean(wanted))
+	if filename == "." || filename == "" {
+		return "", fmt.Errorf("local directory destination %q must name a directory", wanted)
+	}
+	for sequence := 0; ; sequence++ {
+		candidate := directory + filename
+		if sequence > 0 {
+			candidate = directory + filename + "_" + strconv.Itoa(sequence)
+		}
+		_, err := os.Lstat(candidate)
+		if errors.Is(err, os.ErrNotExist) {
+			return candidate, nil
+		}
+		if err != nil {
+			return "", fmt.Errorf("inspect local directory destination %q: %w", candidate, err)
+		}
+	}
+}
+
+func createLocalDirectoryStaging(destination string) (string, error) {
+	directory, name := filepath.Split(destination)
+	staging, err := os.MkdirTemp(directory, "."+name+".cterm-part-*")
+	if err != nil {
+		return "", fmt.Errorf("create directory staging beside %q: %w", destination, err)
+	}
+	return staging, nil
 }
 
 func splitLocalFilenameExtension(filename string) (string, string) {
