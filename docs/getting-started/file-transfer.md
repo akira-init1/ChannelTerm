@@ -88,6 +88,8 @@ For each chunk, the shell saves its current TTY mode, enters raw/no-echo mode, t
 
 The local `file send` and `file receive` displays share one 20-cell ASCII progress formatter. It refreshes in place and shows the confirmed percentage, human-readable transferred/total sizes, speed, and ETA when the speed is usable. A completed transfer first renders a 100% bar and then starts the SHA-256 summary on a new line. Cancellation and failure likewise finish the progress line before their status text, so an error never runs into a partially refreshed bar.
 
+During a transfer, shared `attach` clients use the structured file-transfer events to gate their local raw-terminal presentation. The attachment that started the transfer retains its detailed progress display; other attachments receive concise status updates. All attachments continue advancing their own output cursors while suppressing the protocol shell commands, markers, and payload bytes, so the suppressed data cannot appear after the transfer finishes. Session raw output and independent MCP readers are unchanged.
+
 For send, ChannelTerm hashes bytes as it reads the local file. After the final chunk, the board computes the stored size with `wc -c` and digest with `sha256sum`; both must match.
 
 For receive, the board announces size and digest before streaming. ChannelTerm writes to a temporary file beside the requested destination, hashes the stream, and replaces the destination only after the digest matches. A failed receive removes the temporary file and retains an existing destination until verification has succeeded.

@@ -173,6 +173,35 @@ func TestMCPAttachMultipleConsumersReceiveSameOutput(t *testing.T) {
 	}
 }
 
+func TestMCPAttachReadsIndependentFileTransferEvents(t *testing.T) {
+	host := newAttachTestHost(t)
+	defer host.close()
+	first := newAttachedForTest(t, host.server.URL)
+	defer func() { _ = first.Close() }()
+	second := newAttachedForTest(t, host.server.URL)
+	defer func() { _ = second.Close() }()
+	managed, ok := host.manager.Get("board")
+	if !ok {
+		t.Fatal("managed board Session not found")
+	}
+	managed.PublishEvent(session.Event{Type: session.EventFileTransferStarted, Metadata: map[string]any{
+		"direction": "send", "local_path": "system.dts", "remote_path": "/tmp/system.dts",
+	}})
+	for index, attached := range []attachSession{first, second} {
+		reader, ok := attached.(attachEventSession)
+		if !ok {
+			t.Fatalf("attachment %d does not implement attachEventSession", index)
+		}
+		chunk, err := reader.ReadRecentEvents(session.DefaultEventBufferCapacity)
+		if err != nil {
+			t.Fatalf("attachment %d ReadRecentEvents() error = %v", index, err)
+		}
+		if len(chunk.Events) == 0 || chunk.Events[len(chunk.Events)-1].Type != session.EventFileTransferStarted {
+			t.Errorf("attachment %d events = %#v, want retained file-transfer start", index, chunk.Events)
+		}
+	}
+}
+
 func TestMCPAttachWriteAndAgentWriteAreAtomic(t *testing.T) {
 	host := newAttachTestHost(t)
 	defer host.close()
