@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -394,6 +395,26 @@ func TestFinishFileTransferPresentation(t *testing.T) {
 				t.Errorf("unsuccessful output = %q, must not show 100%%", got)
 			}
 		})
+	}
+}
+
+func TestFileTransferSuccessSummaryStartsAfterCompletedProgressLine(t *testing.T) {
+	var output bytes.Buffer
+	progress := newFileTransferProgress(context.Background(), &output, nil, map[string]any{"direction": "send"})
+	if err := progress.Report(100, 100); err != nil {
+		t.Fatalf("progress.Report() error = %v", err)
+	}
+	if err := progress.Complete(100); err != nil {
+		t.Fatalf("progress.Complete() error = %v", err)
+	}
+	if err := progress.finish(); err != nil {
+		t.Fatalf("progress.finish() error = %v", err)
+	}
+	if _, err := fmt.Fprint(&output, "SHA-256: OK\nSaved: /tmp/system.dts\n"); err != nil {
+		t.Fatalf("write summary error = %v", err)
+	}
+	if got := output.String(); !strings.Contains(got, "[####################] 100.0%") || !strings.Contains(got, "\nSHA-256: OK\nSaved: /tmp/system.dts\n") {
+		t.Errorf("success output = %q, want completed line followed by a separate summary", got)
 	}
 }
 

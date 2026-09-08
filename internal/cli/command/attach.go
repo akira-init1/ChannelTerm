@@ -47,6 +47,23 @@ type attachSession interface {
 	Close() error
 }
 
+// attachEventSession is the optional structured Session-event view used by a
+// shared attachment to gate local presentation during file transfers. It does
+// not alter the attachment's independent raw-output cursor.
+type attachEventSession interface {
+	ReadRecentEvents(int) (session.EventChunk, error)
+	ReadEvents(context.Context, session.EventCursor, int) (session.EventChunk, error)
+}
+
+// localFileTransferPresentation identifies the attachment that reported a
+// transfer. That attachment already renders its detailed local formatter, so
+// it suppresses duplicate summaries from the shared event observer.
+type localFileTransferPresentation interface {
+	fileTransferPresentationIsLocal() bool
+	fileTransferPresentationEnded()
+	setFileTransferPresentation(*fileTransferPresentation)
+}
+
 // attachSessionFactory creates a detached client view for an existing Session.
 type attachSessionFactory func(context.Context, string, string) (attachSession, error)
 
@@ -58,6 +75,11 @@ type mcpAttachSession struct {
 	client     *protocol.ClientSession
 	leaseOwner string
 	attached   bool
+	// fileTransferPresentationMu protects the transfer goroutine's local-owner
+	// state from the concurrent structured-event observer.
+	fileTransferPresentationMu    sync.RWMutex
+	localFileTransferPresentation bool
+	presentation                  *fileTransferPresentation
 }
 
 // newMCPAttachSession connects to an MCP HTTP host and verifies that id is
@@ -168,9 +190,11 @@ func runAttachSession(ctx context.Context, args []string, input io.Reader, outpu
 
 	attachCtx, cancel := context.WithCancel(ctx)
 	var activityWait sync.WaitGroup
+	var eventWait sync.WaitGroup
 	defer func() {
 		cancel()
 		activityWait.Wait()
+		eventWait.Wait()
 	}()
 	var outputMu sync.Mutex
 	writeLocalOutput := func(data []byte) error {
@@ -198,7 +222,29 @@ func runAttachSession(ctx context.Context, args []string, input io.Reader, outpu
 		}
 		return writeAll(output, promptTimestampStatusText(enabled))
 	}
+	presentation := newFileTransferPresentation()
+	if owner, ok := attached.(localFileTransferPresentation); ok {
+		owner.setFileTransferPresentation(presentation)
+	}
 	go forwardAttachInput(attachCtx, input, attached, writeLocalOutput, togglePromptTimestamps, cancel)
+	if events, ok := attached.(attachEventSession); ok {
+		eventChunk, eventErr := events.ReadRecentEvents(session.DefaultEventBufferCapacity)
+		if eventErr != nil && !errors.Is(eventErr, context.Canceled) {
+			return fmt.Errorf("read attached session events: %w", eventErr)
+		}
+		for _, event := range eventChunk.Events {
+			// Retained events establish the presentation state before the initial
+			// raw-output snapshot. They are historical context, not new local
+			// notifications for an attachment that has just joined.
+			_ = presentation.handle(event, true, nil)
+		}
+		eventCursor := eventChunk.Next
+		eventWait.Add(1)
+		go func() {
+			defer eventWait.Done()
+			forwardFileTransferEvents(attachCtx, events, eventCursor, attached, presentation, writeLocalOutput)
+		}()
+	}
 
 	activity, err := attached.ReadRecentActivity(attachCtx, 1)
 	if err != nil && !errors.Is(err, context.Canceled) {
@@ -218,10 +264,13 @@ func runAttachSession(ctx context.Context, args []string, input io.Reader, outpu
 	cursor := chunk.Next
 	lastOutputEndedLine := true
 	if len(chunk.Data) > 0 {
-		if err := writeTerminalOutput(chunk.Data); err != nil {
+		rendered, err := writeAttachedTerminalOutput(presentation, writeTerminalOutput, chunk.Data)
+		if err != nil {
 			return fmt.Errorf("write attached session output: %w", err)
 		}
-		lastOutputEndedLine = chunk.Data[len(chunk.Data)-1] == '\n'
+		if rendered {
+			lastOutputEndedLine = chunk.Data[len(chunk.Data)-1] == '\n'
+		}
 	}
 	for {
 		chunk, err := attached.ReadOutput(attachCtx, cursor, 32*1024)
@@ -231,6 +280,7 @@ func runAttachSession(ctx context.Context, args []string, input io.Reader, outpu
 				// cancellation before emitting the detach status so local-only blocks
 				// cannot interleave with this final terminal status line.
 				activityWait.Wait()
+				eventWait.Wait()
 				if flushErr := flushTerminalOutput(); flushErr != nil {
 					return fmt.Errorf("flush attached session output: %w", flushErr)
 				}
@@ -245,10 +295,13 @@ func runAttachSession(ctx context.Context, args []string, input io.Reader, outpu
 		if len(chunk.Data) == 0 {
 			continue
 		}
-		if err := writeTerminalOutput(chunk.Data); err != nil {
+		rendered, err := writeAttachedTerminalOutput(presentation, writeTerminalOutput, chunk.Data)
+		if err != nil {
 			return fmt.Errorf("write attached session output: %w", err)
 		}
-		lastOutputEndedLine = chunk.Data[len(chunk.Data)-1] == '\n'
+		if rendered {
+			lastOutputEndedLine = chunk.Data[len(chunk.Data)-1] == '\n'
+		}
 	}
 }
 
@@ -587,6 +640,18 @@ func (s *mcpAttachSession) ReadActivity(ctx context.Context, next session.Activi
 	return s.readActivity(ctx, "terminal_wait_activity", &next, maxEvents)
 }
 
+// ReadRecentEvents establishes this attachment's private structured-event
+// cursor without replaying the Session's complete event history.
+func (s *mcpAttachSession) ReadRecentEvents(maxEvents int) (session.EventChunk, error) {
+	return s.readEvents(context.Background(), nil, maxEvents)
+}
+
+// ReadEvents waits for structured Session events without changing an output,
+// activity, or any other client's event cursor.
+func (s *mcpAttachSession) ReadEvents(ctx context.Context, next session.EventCursor, maxEvents int) (session.EventChunk, error) {
+	return s.readEvents(ctx, &next, maxEvents)
+}
+
 // Write forwards the complete caller payload in Base64 so raw local terminal
 // bytes remain lossless. The Host retains Session write serialization and
 // applies any active Application lease before the write reaches Session.
@@ -664,12 +729,43 @@ func (s *mcpAttachSession) ReleaseFileTransferLease(ctx context.Context) error {
 // ReportFileTransferEvent forwards structured file-transfer state to the host
 // Session event stream. It never writes terminal bytes.
 func (s *mcpAttachSession) ReportFileTransferEvent(ctx context.Context, typ session.EventType, metadata map[string]any) error {
-	return s.call(ctx, "terminal_report_file_transfer", map[string]any{
+	if typ == session.EventFileTransferStarted {
+		s.fileTransferPresentationMu.Lock()
+		s.localFileTransferPresentation = true
+		presentation := s.presentation
+		s.fileTransferPresentationMu.Unlock()
+		if presentation != nil {
+			presentation.handle(session.Event{Type: typ}, true, nil)
+		}
+	}
+	err := s.call(ctx, "terminal_report_file_transfer", map[string]any{
 		"session_id": s.id,
 		"type":       string(typ),
 		"actor":      "user",
 		"metadata":   metadata,
 	}, nil)
+	if err != nil && typ == session.EventFileTransferStarted {
+		s.fileTransferPresentationEnded()
+	}
+	return err
+}
+
+func (s *mcpAttachSession) setFileTransferPresentation(presentation *fileTransferPresentation) {
+	s.fileTransferPresentationMu.Lock()
+	s.presentation = presentation
+	s.fileTransferPresentationMu.Unlock()
+}
+
+func (s *mcpAttachSession) fileTransferPresentationIsLocal() bool {
+	s.fileTransferPresentationMu.RLock()
+	defer s.fileTransferPresentationMu.RUnlock()
+	return s.localFileTransferPresentation
+}
+
+func (s *mcpAttachSession) fileTransferPresentationEnded() {
+	s.fileTransferPresentationMu.Lock()
+	s.localFileTransferPresentation = false
+	s.fileTransferPresentationMu.Unlock()
 }
 
 // Close records the client detachment, then releases only the MCP client
@@ -748,6 +844,22 @@ func (s *mcpAttachSession) readActivity(ctx context.Context, toolName string, cu
 		events = append(events, session.SessionEvent{Timestamp: timestamp, Actor: session.Actor(encoded.Actor), Operation: session.Operation(encoded.Operation), Data: data})
 	}
 	return session.ActivityChunk{Events: events, Next: session.ActivityCursor(result.Next), Dropped: result.Dropped}, nil
+}
+
+func (s *mcpAttachSession) readEvents(ctx context.Context, cursor *session.EventCursor, maxEvents int) (session.EventChunk, error) {
+	arguments := map[string]any{"session_id": s.id, "max_events": maxEvents}
+	if cursor != nil {
+		arguments["cursor"] = uint64(*cursor)
+	}
+	var result struct {
+		Events  []session.Event `json:"events"`
+		Next    uint64          `json:"next"`
+		Dropped bool            `json:"dropped"`
+	}
+	if err := s.call(ctx, "terminal_session_events", arguments, &result); err != nil {
+		return session.EventChunk{}, err
+	}
+	return session.EventChunk{Events: result.Events, Next: session.EventCursor(result.Next), Dropped: result.Dropped}, nil
 }
 
 // forwardAgentActivity waits independently from raw output and renders only

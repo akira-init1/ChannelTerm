@@ -147,6 +147,9 @@ func runFileSend(ctx context.Context, args []string, output io.Writer, dependenc
 		if completeErr := progress.Complete(result.Size); completeErr != nil {
 			return completeErr
 		}
+		if finishErr := progress.finish(); finishErr != nil {
+			return finishErr
+		}
 		_, writeErr := fmt.Fprintf(output, "SHA-256: OK\nSaved: %s\n", result.RemotePath)
 		return writeErr
 	})
@@ -233,6 +236,9 @@ func runFileReceive(ctx context.Context, args []string, output io.Writer, depend
 		}
 		if completeErr := progress.Complete(result.Size); completeErr != nil {
 			return completeErr
+		}
+		if finishErr := progress.finish(); finishErr != nil {
+			return finishErr
 		}
 		_, writeErr := fmt.Fprintf(output, "SHA-256: OK\nSaved: %s\n", localPath)
 		return writeErr
