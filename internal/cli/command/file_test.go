@@ -196,9 +196,9 @@ type leaseTrackingAttachSession struct {
 
 func TestFileTransferProgressPublishesStructuredProgress(t *testing.T) {
 	attached := &eventReportingAttachSession{}
-	progress := fileTransferProgress(context.Background(), io.Discard, attached, map[string]any{"direction": "send", "remote_path": "/tmp/firmware.bin"})
-	if err := progress(622592, 1048576); err != nil {
-		t.Fatalf("progress() error = %v", err)
+	progress := newFileTransferProgress(context.Background(), io.Discard, attached, map[string]any{"direction": "send", "remote_path": "/tmp/firmware.bin"})
+	if err := progress.Report(622592, 1048576); err != nil {
+		t.Fatalf("progress.Report() error = %v", err)
 	}
 	if len(attached.events) != 1 {
 		t.Fatalf("events = %d, want 1", len(attached.events))
@@ -209,6 +209,191 @@ func TestFileTransferProgressPublishesStructuredProgress(t *testing.T) {
 	}
 	if _, ok := event.metadata["speed"].(float64); !ok {
 		t.Errorf("progress speed = %#v, want float64", event.metadata["speed"])
+	}
+}
+
+func TestFormatFileTransferProgressBars(t *testing.T) {
+	tests := []struct {
+		name        string
+		snapshot    fileTransferSnapshot
+		wantBar     string
+		wantPercent string
+	}{
+		{name: "zero", snapshot: fileTransferSnapshot{total: 100, speed: 1}, wantBar: "--------------------", wantPercent: "0.0%"},
+		{name: "half", snapshot: fileTransferSnapshot{transferred: 50, total: 100, percent: 50, speed: 1}, wantBar: "##########----------", wantPercent: "50.0%"},
+		{name: "complete", snapshot: fileTransferSnapshot{transferred: 100, total: 100, percent: 100, speed: 1}, wantBar: "####################", wantPercent: "100.0%"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := formatFileTransferProgress(tt.snapshot)
+			if !strings.Contains(got, "["+tt.wantBar+"]") {
+				t.Errorf("progress = %q, want bar %q", got, tt.wantBar)
+			}
+			if !strings.Contains(got, tt.wantPercent) {
+				t.Errorf("progress = %q, want percent %q", got, tt.wantPercent)
+			}
+			start := strings.IndexByte(got, '[')
+			end := strings.IndexByte(got, ']')
+			if start < 0 || end-start-1 != fileTransferProgressBarWidth {
+				t.Errorf("progress bar width = %d, want %d: %q", end-start-1, fileTransferProgressBarWidth, got)
+			}
+		})
+	}
+}
+
+func TestFormatFileTransferBytes(t *testing.T) {
+	tests := []struct {
+		value int64
+		want  string
+	}{
+		{value: 0, want: "0 B"},
+		{value: 1023, want: "1023 B"},
+		{value: 608 * 1024, want: "608 KiB"},
+		{value: 1024 * 1024, want: "1.00 MiB"},
+		{value: 32 * 1024 * 1024, want: "32.0 MiB"},
+		{value: 1024 * 1024 * 1024, want: "1.00 GiB"},
+	}
+	for _, tt := range tests {
+		if got := formatFileTransferBytes(tt.value); got != tt.want {
+			t.Errorf("formatFileTransferBytes(%d) = %q, want %q", tt.value, got, tt.want)
+		}
+	}
+}
+
+func TestFormatFileTransferSpeed(t *testing.T) {
+	tests := []struct {
+		value float64
+		want  string
+	}{
+		{value: 850 * 1024, want: "850 KiB/s"},
+		{value: 1.25 * 1024 * 1024, want: "1.25 MiB/s"},
+	}
+	for _, tt := range tests {
+		if got := formatFileTransferSpeed(tt.value); got != tt.want {
+			t.Errorf("formatFileTransferSpeed(%v) = %q, want %q", tt.value, got, tt.want)
+		}
+	}
+}
+
+func TestFormatFileTransferETA(t *testing.T) {
+	tests := []struct {
+		name               string
+		transferred, total int64
+		speed              float64
+		want               string
+	}{
+		{name: "seconds", transferred: 85, total: 100, speed: 1, want: "ETA 15s"},
+		{name: "minutes", transferred: 17, total: 100, speed: 1, want: "ETA 1m23s"},
+		{name: "zero speed", transferred: 50, total: 100, speed: 0, want: "ETA --"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := formatFileTransferETA(tt.transferred, tt.total, tt.speed); got != tt.want {
+				t.Errorf("formatFileTransferETA() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestFormatFileTransferProgressZeroByteFile(t *testing.T) {
+	got := formatFileTransferProgress(fileTransferSnapshot{total: 0, percent: 100})
+	want := "[####################] 100.0%  0 B / 0 B"
+	if got != want {
+		t.Errorf("zero-byte progress = %q, want %q", got, want)
+	}
+}
+
+func TestFileTransferProgressRendersSendAndReceive(t *testing.T) {
+	for _, direction := range []string{"send", "receive"} {
+		t.Run(direction, func(t *testing.T) {
+			attached := &eventReportingAttachSession{}
+			var output bytes.Buffer
+			progress := newFileTransferProgress(context.Background(), &output, attached, map[string]any{"direction": direction})
+			if err := progress.Report(512, 1024); err != nil {
+				t.Fatalf("progress.Report() error = %v", err)
+			}
+			if got := output.String(); !strings.HasPrefix(got, "\r[##########----------]  50.0%") {
+				t.Errorf("progress output = %q, want one-line 50%% update beginning with carriage return", got)
+			}
+			if len(attached.events) != 1 {
+				t.Fatalf("events = %d, want 1", len(attached.events))
+			}
+			if direction == "send" && attached.events[0].metadata["sent"] != int64(512) {
+				t.Errorf("send metadata = %#v, want sent=512", attached.events[0].metadata)
+			}
+			if direction == "receive" && attached.events[0].metadata["received"] != int64(512) {
+				t.Errorf("receive metadata = %#v, want received=512", attached.events[0].metadata)
+			}
+		})
+	}
+}
+
+func TestFileTransferProgressCompleteReusesFinalEventSnapshot(t *testing.T) {
+	attached := &eventReportingAttachSession{}
+	var output bytes.Buffer
+	progress := newFileTransferProgress(context.Background(), &output, attached, map[string]any{"direction": "send"})
+	if err := progress.Report(100, 100); err != nil {
+		t.Fatalf("progress.Report() error = %v", err)
+	}
+	if got := output.String(); got != "" {
+		t.Errorf("final protocol update rendered early: %q", got)
+	}
+	if err := progress.Complete(100); err != nil {
+		t.Fatalf("progress.Complete() error = %v", err)
+	}
+	speed, ok := attached.events[0].metadata["speed"].(float64)
+	if !ok {
+		t.Fatalf("event speed = %#v, want float64", attached.events[0].metadata["speed"])
+	}
+	want := "\r" + formatFileTransferProgress(fileTransferSnapshot{transferred: 100, total: 100, percent: 100, speed: speed})
+	if got := output.String(); got != want {
+		t.Errorf("completed output = %q, want final event snapshot %q", got, want)
+	}
+}
+
+func TestFinishFileTransferPresentation(t *testing.T) {
+	tests := []struct {
+		name       string
+		operation  error
+		wantStatus string
+		want100    bool
+		holdFinal  bool
+	}{
+		{name: "success", want100: true},
+		{name: "cancelled", operation: context.Canceled, wantStatus: "Transfer cancelled.\n"},
+		{name: "failure after final protocol progress", operation: errors.New("remote checksum failed"), wantStatus: "Transfer failed: remote checksum failed\n", holdFinal: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var output bytes.Buffer
+			progress := newFileTransferProgress(context.Background(), &output, nil, map[string]any{"direction": "send"})
+			if err := progress.Report(40, 100); err != nil {
+				t.Fatalf("progress.Report() error = %v", err)
+			}
+			if tt.holdFinal {
+				if err := progress.Report(100, 100); err != nil {
+					t.Fatalf("final progress.Report() error = %v", err)
+				}
+			}
+			if tt.want100 {
+				if err := progress.Complete(100); err != nil {
+					t.Fatalf("progress.Complete() error = %v", err)
+				}
+			}
+			if got := finishFileTransferPresentation(&output, progress, tt.operation); !errors.Is(got, tt.operation) {
+				t.Errorf("finishFileTransferPresentation() = %v, want %v", got, tt.operation)
+			}
+			got := output.String()
+			if !strings.Contains(got, "\n"+tt.wantStatus) {
+				t.Errorf("output = %q, want progress line terminated before %q", got, tt.wantStatus)
+			}
+			if tt.want100 && !strings.Contains(got, "[####################] 100.0%") {
+				t.Errorf("successful output = %q, want final 100%% progress", got)
+			}
+			if !tt.want100 && strings.Contains(got, "100.0%") {
+				t.Errorf("unsuccessful output = %q, must not show 100%%", got)
+			}
+		})
 	}
 }
 
