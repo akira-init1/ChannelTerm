@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -126,8 +127,11 @@ func runFileSend(ctx context.Context, args []string, output io.Writer, dependenc
 			failureMetadata["error"] = operationErr.Error()
 			_ = reportFileTransferEvent(failureCtx, attached, session.EventFileTransferFailed, failureMetadata)
 		}()
-		progress := fileTransferProgress(ctx, output, attached, metadata)
-		result, transferErr := app.SendFile(ctx, attached, file, info.Size(), remotePath, progress)
+		progress := newFileTransferProgress(ctx, output, attached, metadata)
+		defer func() {
+			operationErr = finishFileTransferPresentation(output, progress, operationErr)
+		}()
+		result, transferErr := app.SendFile(ctx, attached, file, info.Size(), remotePath, progress.Report)
 		if transferErr != nil {
 			return transferErr
 		}
@@ -140,8 +144,8 @@ func runFileSend(ctx context.Context, args []string, output io.Writer, dependenc
 		if eventErr := reportFileTransferEvent(ctx, attached, session.EventFileTransferCompleted, completedMetadata); eventErr != nil {
 			return eventErr
 		}
-		if finishErr := finishFileProgress(output); finishErr != nil {
-			return finishErr
+		if completeErr := progress.Complete(result.Size); completeErr != nil {
+			return completeErr
 		}
 		_, writeErr := fmt.Fprintf(output, "SHA-256: OK\nSaved: %s\n", result.RemotePath)
 		return writeErr
@@ -200,8 +204,11 @@ func runFileReceive(ctx context.Context, args []string, output io.Writer, depend
 			failureMetadata["error"] = operationErr.Error()
 			_ = reportFileTransferEvent(failureCtx, attached, session.EventFileTransferFailed, failureMetadata)
 		}()
-		progress := fileTransferProgress(ctx, output, attached, metadata)
-		result, transferErr := app.ReceiveFile(ctx, attached, temporary, remotePath, progress)
+		progress := newFileTransferProgress(ctx, output, attached, metadata)
+		defer func() {
+			operationErr = finishFileTransferPresentation(output, progress, operationErr)
+		}()
+		result, transferErr := app.ReceiveFile(ctx, attached, temporary, remotePath, progress.Report)
 		if transferErr != nil {
 			_ = temporary.Close()
 			return transferErr
@@ -224,8 +231,8 @@ func runFileReceive(ctx context.Context, args []string, output io.Writer, depend
 		if eventErr := reportFileTransferEvent(ctx, attached, session.EventFileTransferCompleted, completedMetadata); eventErr != nil {
 			return eventErr
 		}
-		if finishErr := finishFileProgress(output); finishErr != nil {
-			return finishErr
+		if completeErr := progress.Complete(result.Size); completeErr != nil {
+			return completeErr
 		}
 		_, writeErr := fmt.Fprintf(output, "SHA-256: OK\nSaved: %s\n", localPath)
 		return writeErr
@@ -318,72 +325,171 @@ func attachFileSession(ctx context.Context, options fileOptions, dependencies fi
 	return attached, identifier, nil
 }
 
-func newFileProgress(output io.Writer) app.FileTransferProgress {
-	started := time.Now()
-	return func(transferred, total int64) error {
-		percentage := float64(100)
-		if total > 0 {
-			percentage = float64(transferred) * 100 / float64(total)
+const fileTransferProgressBarWidth = 20
+
+// fileTransferSnapshot is the one local measurement used by both the CLI and
+// FILE_TRANSFER_PROGRESS metadata, keeping their reported speeds consistent.
+type fileTransferSnapshot struct {
+	transferred int64
+	total       int64
+	percent     float64
+	speed       float64
+}
+
+// fileTransferReporter renders confirmed protocol progress locally and reports
+// the same snapshot to the Session event stream.
+type fileTransferReporter struct {
+	ctx      context.Context
+	output   io.Writer
+	attached attachSession
+	base     map[string]any
+	started  time.Time
+	rendered bool
+	finished bool
+	final    fileTransferSnapshot
+	hasFinal bool
+}
+
+func newFileTransferProgress(ctx context.Context, output io.Writer, attached attachSession, base map[string]any) *fileTransferReporter {
+	return &fileTransferReporter{
+		ctx:      ctx,
+		output:   output,
+		attached: attached,
+		base:     base,
+		started:  time.Now(),
+	}
+}
+
+// Report renders and publishes one confirmed transfer progress update.
+func (p *fileTransferReporter) Report(transferred, total int64) error {
+	snapshot := p.snapshot(transferred, total)
+	if snapshot.percent < 100 {
+		if err := p.render(snapshot); err != nil {
+			return err
 		}
-		filled := int(percentage / 5)
-		if filled > 20 {
-			filled = 20
-		}
-		bar := strings.Repeat("#", filled) + strings.Repeat("-", 20-filled)
-		elapsed := time.Since(started).Seconds()
-		speed := float64(0)
-		if elapsed > 0 {
-			speed = float64(transferred) / elapsed
-		}
-		_, err := fmt.Fprintf(output, "\r[%s] %3.0f%%\r\n%s / %s\r\n%s/s", bar, percentage, formatFileTransferBytes(transferred), formatFileTransferBytes(total), formatFileTransferBytes(int64(speed)))
+	} else {
+		p.final = snapshot
+		p.hasFinal = true
+	}
+	metadata := copyFileTransferMetadata(p.base)
+	metadata["total"] = total
+	if p.base["direction"] == "receive" {
+		metadata["received"] = transferred
+	} else {
+		metadata["sent"] = transferred
+	}
+	metadata["percent"] = snapshot.percent
+	metadata["speed"] = snapshot.speed
+	return reportFileTransferEvent(p.ctx, p.attached, session.EventFileTransferProgress, metadata)
+}
+
+// Complete ensures every successful transfer has rendered its final 100%
+// state, including a zero-byte transfer.
+func (p *fileTransferReporter) Complete(total int64) error {
+	if p.hasFinal && p.final.transferred == total && p.final.total == total {
+		return p.render(p.final)
+	}
+	return p.render(p.snapshot(total, total))
+}
+
+func (p *fileTransferReporter) snapshot(transferred, total int64) fileTransferSnapshot {
+	if transferred < 0 {
+		transferred = 0
+	}
+	if total < 0 {
+		total = 0
+	}
+	percent := float64(100)
+	if total > 0 {
+		percent = float64(transferred) * 100 / float64(total)
+	}
+	percent = min(100, max(0, percent))
+	speed := float64(0)
+	if elapsed := time.Since(p.started).Seconds(); elapsed > 0 {
+		speed = float64(transferred) / elapsed
+	}
+	return fileTransferSnapshot{transferred: transferred, total: total, percent: percent, speed: speed}
+}
+
+func (p *fileTransferReporter) render(snapshot fileTransferSnapshot) error {
+	if _, err := fmt.Fprintf(p.output, "\r%s", formatFileTransferProgress(snapshot)); err != nil {
 		return err
 	}
+	p.rendered = true
+	return nil
+}
+
+func (p *fileTransferReporter) finish() error {
+	if !p.rendered || p.finished {
+		return nil
+	}
+	p.finished = true
+	_, err := fmt.Fprintln(p.output)
+	return err
+}
+
+func formatFileTransferProgress(snapshot fileTransferSnapshot) string {
+	filled := int(snapshot.percent * fileTransferProgressBarWidth / 100)
+	filled = min(fileTransferProgressBarWidth, max(0, filled))
+	bar := strings.Repeat("#", filled) + strings.Repeat("-", fileTransferProgressBarWidth-filled)
+	text := fmt.Sprintf("[%s] %5.1f%%  %s / %s", bar, snapshot.percent, formatFileTransferBytes(snapshot.transferred), formatFileTransferBytes(snapshot.total))
+	if snapshot.speed > 0 && !math.IsNaN(snapshot.speed) && !math.IsInf(snapshot.speed, 0) {
+		text += "  " + formatFileTransferSpeed(snapshot.speed)
+	} else if snapshot.percent < 100 {
+		text += "  0 B/s"
+	}
+	if snapshot.percent < 100 {
+		text += "  " + formatFileTransferETA(snapshot.transferred, snapshot.total, snapshot.speed)
+	}
+	return text
 }
 
 func formatFileTransferBytes(value int64) string {
+	return formatFileTransferQuantity(float64(value))
+}
+
+func formatFileTransferSpeed(value float64) string {
+	return formatFileTransferQuantity(value) + "/s"
+}
+
+func formatFileTransferQuantity(value float64) string {
+	if value <= 0 || math.IsNaN(value) || math.IsInf(value, 0) {
+		return "0 B"
+	}
 	if value < 1024 {
-		return fmt.Sprintf("%d B", value)
+		return fmt.Sprintf("%.0f B", value)
 	}
 	units := []string{"KiB", "MiB", "GiB"}
-	amount := float64(value)
+	amount := value
 	for _, unit := range units {
 		amount /= 1024
 		if amount < 1024 || unit == units[len(units)-1] {
-			return fmt.Sprintf("%.1f %s", amount, unit)
+			switch {
+			case amount < 10:
+				return fmt.Sprintf("%.2f %s", amount, unit)
+			case amount < 100:
+				return fmt.Sprintf("%.1f %s", amount, unit)
+			default:
+				return fmt.Sprintf("%.0f %s", amount, unit)
+			}
 		}
 	}
-	return fmt.Sprintf("%d B", value)
+	return "0 B"
 }
 
-// fileTransferProgress updates the local CLI display and independently reports
-// confirmed protocol progress to the shared Session event stream.
-func fileTransferProgress(ctx context.Context, output io.Writer, attached attachSession, base map[string]any) app.FileTransferProgress {
-	localProgress := newFileProgress(output)
-	started := time.Now()
-	return func(transferred, total int64) error {
-		if err := localProgress(transferred, total); err != nil {
-			return err
-		}
-		metadata := copyFileTransferMetadata(base)
-		metadata["total"] = total
-		if base["direction"] == "receive" {
-			metadata["received"] = transferred
-		} else {
-			metadata["sent"] = transferred
-		}
-		percentage := float64(100)
-		if total > 0 {
-			percentage = float64(transferred) * 100 / float64(total)
-		}
-		metadata["percent"] = percentage
-		elapsed := time.Since(started).Seconds()
-		if elapsed > 0 {
-			metadata["speed"] = float64(transferred) / elapsed
-		} else {
-			metadata["speed"] = float64(0)
-		}
-		return reportFileTransferEvent(ctx, attached, session.EventFileTransferProgress, metadata)
+func formatFileTransferETA(transferred, total int64, speed float64) string {
+	if total <= transferred || speed <= 0 || math.IsNaN(speed) || math.IsInf(speed, 0) {
+		return "ETA --"
 	}
+	seconds := float64(total-transferred) / speed
+	if seconds < 0 || math.IsNaN(seconds) || math.IsInf(seconds, 0) || seconds > float64(math.MaxInt64) {
+		return "ETA --"
+	}
+	wholeSeconds := int64(seconds)
+	if wholeSeconds < 60 {
+		return fmt.Sprintf("ETA %ds", wholeSeconds)
+	}
+	return fmt.Sprintf("ETA %dm%02ds", wholeSeconds/60, wholeSeconds%60)
 }
 
 // reportFileTransferEvent is intentionally a no-op for legacy or test attach
@@ -405,9 +511,19 @@ func copyFileTransferMetadata(metadata map[string]any) map[string]any {
 	return copy
 }
 
-func finishFileProgress(output io.Writer) error {
-	_, err := fmt.Fprintln(output)
-	return err
+func finishFileTransferPresentation(output io.Writer, progress *fileTransferReporter, operationErr error) error {
+	if finishErr := progress.finish(); finishErr != nil && operationErr == nil {
+		operationErr = finishErr
+	}
+	if operationErr == nil {
+		return nil
+	}
+	if errors.Is(operationErr, context.Canceled) {
+		_, _ = fmt.Fprintln(output, "Transfer cancelled.")
+	} else {
+		_, _ = fmt.Fprintf(output, "Transfer failed: %v\n", operationErr)
+	}
+	return operationErr
 }
 
 // replaceReceivedFile keeps an existing destination recoverable while

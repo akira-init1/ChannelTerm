@@ -86,6 +86,8 @@ Shared Session -> Channel -> Serial Transport -> Linux TTY
 
 For each chunk, the shell saves its current TTY mode, enters raw/no-echo mode, transfers exactly one bounded block with `dd`, restores the saved mode, and emits an acknowledgement containing a random per-transfer token. The raw interval is limited to one chunk rather than the whole file. ChannelTerm reports progress only after a chunk is acknowledged and publishes it as `FILE_TRANSFER_PROGRESS` with structured confirmed byte counts, percent, and best-effort speed. It also publishes start, completion, and failure events without mixing them into raw Session output.
 
+The local `file send` and `file receive` displays share one 20-cell ASCII progress formatter. It refreshes in place and shows the confirmed percentage, human-readable transferred/total sizes, speed, and ETA when the speed is usable. A completed transfer first renders a 100% bar and then starts the SHA-256 summary on a new line. Cancellation and failure likewise finish the progress line before their status text, so an error never runs into a partially refreshed bar.
+
 For send, ChannelTerm hashes bytes as it reads the local file. After the final chunk, the board computes the stored size with `wc -c` and digest with `sha256sum`; both must match.
 
 For receive, the board announces size and digest before streaming. ChannelTerm writes to a temporary file beside the requested destination, hashes the stream, and replaces the destination only after the digest matches. A failed receive removes the temporary file and retains an existing destination until verification has succeeded.
