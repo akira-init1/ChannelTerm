@@ -40,6 +40,7 @@ On Windows Console hosts, navigation keys are sent as standard VT sequences: for
 - `Ctrl+] ?` displays local escape help.
 - `Ctrl+] ]` sends a literal `Ctrl+]` byte (`0x1d`) to the remote terminal.
 - `Ctrl+] t` toggles local-only `[HH:MM:SS]` timestamps before recognized shell prompts. It is off by default and does not timestamp ordinary output or change Session data.
+- `Ctrl+] f` opens the local file-transfer menu. Send defaults to `/tmp/<local-basename>` on the board; receive defaults to `./<remote-basename>` on the PC. See [file transfer](file-transfer.md) for overwrite and cancellation behavior.
 - `Ctrl+] Esc` cancels local escape mode without sending a byte to the remote terminal, reports `[ChannelTerm] Escape cancelled` locally, and returns subsequent input to normal remote forwarding.
 
 Use `--wake` only when a known, already-running shell is idle without a prompt. It sends exactly one carriage return after a new connection succeeds. It is not enabled by default.

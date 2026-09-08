@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	posixpath "path"
 	"strconv"
 	"strings"
 	"time"
@@ -52,8 +53,11 @@ type FileTransferProgress func(transferred, total int64) error
 
 // FileTransferResult reports the verified file metadata after transfer.
 type FileTransferResult struct {
-	Size   int64
+	Size int64
+	// SHA256 is the verified lowercase hexadecimal digest.
 	SHA256 string
+	// RemotePath is the actual POSIX destination selected for a send transfer.
+	RemotePath string
 }
 
 // SendFile streams size bytes from source through terminal into remotePath.
@@ -72,11 +76,14 @@ func SendFile(ctx context.Context, terminal FileTransferSession, source io.Reade
 	if size < 0 {
 		return FileTransferResult{}, errors.New("file transfer size must not be negative")
 	}
-	quotedPath, err := quoteRemotePath(remotePath)
-	if err != nil {
+	if _, err := quoteRemotePath(remotePath); err != nil {
 		return FileTransferResult{}, err
 	}
 	protocol, err := newFileProtocol(ctx, terminal)
+	if err != nil {
+		return FileTransferResult{}, err
+	}
+	remotePath, quotedPath, err := protocol.selectAvailableRemotePath(ctx, remotePath)
 	if err != nil {
 		return FileTransferResult{}, err
 	}
@@ -157,7 +164,54 @@ func SendFile(ctx context.Context, terminal FileTransferSession, source io.Reade
 			return FileTransferResult{}, err
 		}
 	}
-	return FileTransferResult{Size: size, SHA256: localDigest}, nil
+	return FileTransferResult{Size: size, SHA256: localDigest, RemotePath: remotePath}, nil
+}
+
+// selectAvailableRemotePath preserves an existing remote file by choosing the
+// first unused _N sibling. Paths are POSIX paths because they name the board,
+// never the local host filesystem.
+func (p *fileProtocol) selectAvailableRemotePath(ctx context.Context, wanted string) (string, string, error) {
+	candidate := wanted
+	for sequence := 0; ; sequence++ {
+		quoted, err := quoteRemotePath(candidate)
+		if err != nil {
+			return "", "", err
+		}
+		if err := p.command(ctx, remotePathStatusCommand(p.token, quoted)); err != nil {
+			return "", "", err
+		}
+		event, err := p.expectPhase(ctx, "PICK")
+		if err != nil {
+			return "", "", err
+		}
+		if len(event) != 1 {
+			return "", "", fmt.Errorf("%w: PICK has %d arguments, want 1", ErrFileTransferProtocol, len(event))
+		}
+		switch event[0] {
+		case "FREE":
+			return candidate, quoted, nil
+		case "EXISTS":
+			candidate = incrementPOSIXFilename(wanted, sequence+1)
+		default:
+			return "", "", fmt.Errorf("%w: PICK result %q", ErrFileTransferProtocol, event[0])
+		}
+	}
+}
+
+func incrementPOSIXFilename(value string, sequence int) string {
+	directory, filename := posixpath.Split(value)
+	stem, extension := splitFilenameExtension(filename)
+	return directory + stem + "_" + strconv.Itoa(sequence) + extension
+}
+
+func splitFilenameExtension(filename string) (string, string) {
+	if filename == "" || (strings.HasPrefix(filename, ".") && !strings.Contains(filename[1:], ".")) {
+		return filename, ""
+	}
+	if index := strings.IndexByte(filename, '.'); index > 0 {
+		return filename[:index], filename[index:]
+	}
+	return filename, ""
 }
 
 // ReceiveFile streams remotePath from an idle Linux shell into destination.
@@ -493,7 +547,11 @@ func parseVerifiedFile(fields []string) (int64, string, error) {
 }
 
 func sendInitCommand(token, path string) string {
-	return fmt.Sprintf("t='%s'; if command -v stty >/dev/null 2>&1 && command -v dd >/dev/null 2>&1 && command -v wc >/dev/null 2>&1 && command -v sha256sum >/dev/null 2>&1 && printf x | dd of=/dev/null bs=1 count=1 iflag=fullblock 2>/dev/null; then if : > %s; then printf '\\n@CTERM:%%s:INIT:OK\\n' \"$t\"; else printf '\\n@CTERM:%%s:ERROR:open\\n' \"$t\"; fi; else printf '\\n@CTERM:%%s:ERROR:tools\\n' \"$t\"; fi", token, path)
+	return fmt.Sprintf("t='%s'; if command -v stty >/dev/null 2>&1 && command -v dd >/dev/null 2>&1 && command -v wc >/dev/null 2>&1 && command -v sha256sum >/dev/null 2>&1 && printf x | dd of=/dev/null bs=1 count=1 iflag=fullblock 2>/dev/null; then if (set -C; : > %s) 2>/dev/null; then printf '\\n@CTERM:%%s:INIT:OK\\n' \"$t\"; else printf '\\n@CTERM:%%s:ERROR:exists\\n' \"$t\"; fi; else printf '\\n@CTERM:%%s:ERROR:tools\\n' \"$t\"; fi", token, path)
+}
+
+func remotePathStatusCommand(token, path string) string {
+	return fmt.Sprintf("t='%s'; if [ -e %s ] || [ -L %s ]; then printf '\\n@CTERM:%%s:PICK:EXISTS\\n' \"$t\"; else printf '\\n@CTERM:%%s:PICK:FREE\\n' \"$t\"; fi", token, path, path)
 }
 
 func sendChunkCommand(token, path string, size int64) string {

@@ -691,7 +691,7 @@ func TestForwardInputDisplaysEscapePendingLocally(t *testing.T) {
 	if got := terminal.writtenData(); len(got) != 0 {
 		t.Errorf("written input = %q, want no remote input", got)
 	}
-	const want = "\r\n[ChannelTerm] Escape: q quit | ? help | ] send Ctrl+] | t prompt time | Esc cancel\r\n"
+	const want = "\r\n[ChannelTerm] Escape: q quit | ? help | ] send Ctrl+] | f file transfer | t prompt time | Esc cancel\r\n"
 	if got := local.String(); got != want {
 		t.Errorf("local output = %q, want %q", got, want)
 	}

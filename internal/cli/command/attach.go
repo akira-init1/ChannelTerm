@@ -198,7 +198,7 @@ func runAttachSession(ctx context.Context, args []string, input io.Reader, outpu
 		}
 		return writeAll(output, promptTimestampStatusText(enabled))
 	}
-	go forwardInputWithPromptTimestamp(input, attached, writeLocalOutput, togglePromptTimestamps, cancel)
+	go forwardAttachInput(attachCtx, input, attached, writeLocalOutput, togglePromptTimestamps, cancel)
 
 	activity, err := attached.ReadRecentActivity(attachCtx, 1)
 	if err != nil && !errors.Is(err, context.Canceled) {
@@ -334,7 +334,7 @@ func writeAttachTargetUsage(output io.Writer) {
 	fmt.Fprintln(output, "attach SER-COM8 creates or joins a shared local Session Host connection.")
 	fmt.Fprintln(output, "attach SER-1 or a full session_id joins an existing shared Session.")
 	fmt.Fprintln(output, "--private (or --no-mcp) opens a local connection that MCP and other users cannot join.")
-	fmt.Fprintln(output, "Ctrl+C is sent to the remote session. Use Ctrl+] q to leave this CLI window; Ctrl+] t toggles local prompt timestamps.")
+	fmt.Fprintln(output, "Ctrl+C is sent to the remote session. Use Ctrl+] q to leave this CLI window; Ctrl+] f opens file transfer; Ctrl+] t toggles local prompt timestamps.")
 }
 
 // hasAttachSerialOption detects settings that cannot apply when target names a

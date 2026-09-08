@@ -125,6 +125,21 @@ func TestSendFilePadsInterruptedChunk(t *testing.T) {
 	}
 }
 
+func TestIncrementPOSIXFilenamePreservesNamesAndExtensions(t *testing.T) {
+	tests := map[string]string{
+		"/tmp/firmware.bin":  "/tmp/firmware_1.bin",
+		"/tmp/app.log":       "/tmp/app_1.log",
+		"/tmp/README":        "/tmp/README_1",
+		"/tmp/.env":          "/tmp/.env_1",
+		"/tmp/backup.tar.gz": "/tmp/backup_1.tar.gz",
+	}
+	for input, want := range tests {
+		if got := incrementPOSIXFilename(input, 1); got != want {
+			t.Errorf("incrementPOSIXFilename(%q, 1) = %q, want %q", input, got, want)
+		}
+	}
+}
+
 type generatedFileReader struct {
 	remaining int64
 	offset    int64
@@ -247,6 +262,8 @@ func (s *fileTransferTestSession) Write(request session.WriteRequest) (int, erro
 	}
 	s.token = tokenMatch[1]
 	switch {
+	case strings.Contains(command, ":PICK:"):
+		s.emitLocked(fmt.Sprintf("\n@CTERM:%s:PICK:FREE\n", s.token))
 	case strings.Contains(command, ":INIT:OK"):
 		s.received = nil
 		if s.failInitialization {

@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -131,6 +132,7 @@ func runFileSend(ctx context.Context, args []string, output io.Writer, dependenc
 			return transferErr
 		}
 		completedMetadata := copyFileTransferMetadata(metadata)
+		completedMetadata["remote_path"] = result.RemotePath
 		completedMetadata["sent"] = result.Size
 		completedMetadata["total"] = result.Size
 		completedMetadata["percent"] = float64(100)
@@ -141,7 +143,7 @@ func runFileSend(ctx context.Context, args []string, output io.Writer, dependenc
 		if finishErr := finishFileProgress(output); finishErr != nil {
 			return finishErr
 		}
-		_, writeErr := fmt.Fprintf(output, "Sent %d bytes to %s via %s\nSHA-256: %s\n", result.Size, remotePath, identifier, result.SHA256)
+		_, writeErr := fmt.Fprintf(output, "SHA-256: OK\nSaved: %s\n", result.RemotePath)
 		return writeErr
 	})
 }
@@ -160,10 +162,9 @@ func runFileReceive(ctx context.Context, args []string, output io.Writer, depend
 	if err != nil || options.help {
 		return err
 	}
-	if existing, statErr := os.Lstat(localPath); statErr == nil && existing.IsDir() {
-		return fmt.Errorf("local destination %q is a directory", localPath)
-	} else if statErr != nil && !errors.Is(statErr, os.ErrNotExist) {
-		return fmt.Errorf("inspect local destination %q: %w", localPath, statErr)
+	localPath, err = nextAvailableLocalPath(localPath)
+	if err != nil {
+		return err
 	}
 	attached, identifier, err := attachFileSession(ctx, options, dependencies)
 	if err != nil {
@@ -226,7 +227,7 @@ func runFileReceive(ctx context.Context, args []string, output io.Writer, depend
 		if finishErr := finishFileProgress(output); finishErr != nil {
 			return finishErr
 		}
-		_, writeErr := fmt.Fprintf(output, "Received %d bytes from %s via %s\nSHA-256: %s\n", result.Size, remotePath, identifier, result.SHA256)
+		_, writeErr := fmt.Fprintf(output, "SHA-256: OK\nSaved: %s\n", localPath)
 		return writeErr
 	})
 }
@@ -318,14 +319,40 @@ func attachFileSession(ctx context.Context, options fileOptions, dependencies fi
 }
 
 func newFileProgress(output io.Writer) app.FileTransferProgress {
+	started := time.Now()
 	return func(transferred, total int64) error {
 		percentage := float64(100)
 		if total > 0 {
 			percentage = float64(transferred) * 100 / float64(total)
 		}
-		_, err := fmt.Fprintf(output, "\rTransferred %d/%d bytes (%5.1f%%)", transferred, total, percentage)
+		filled := int(percentage / 5)
+		if filled > 20 {
+			filled = 20
+		}
+		bar := strings.Repeat("#", filled) + strings.Repeat("-", 20-filled)
+		elapsed := time.Since(started).Seconds()
+		speed := float64(0)
+		if elapsed > 0 {
+			speed = float64(transferred) / elapsed
+		}
+		_, err := fmt.Fprintf(output, "\r[%s] %3.0f%%\r\n%s / %s\r\n%s/s", bar, percentage, formatFileTransferBytes(transferred), formatFileTransferBytes(total), formatFileTransferBytes(int64(speed)))
 		return err
 	}
+}
+
+func formatFileTransferBytes(value int64) string {
+	if value < 1024 {
+		return fmt.Sprintf("%d B", value)
+	}
+	units := []string{"KiB", "MiB", "GiB"}
+	amount := float64(value)
+	for _, unit := range units {
+		amount /= 1024
+		if amount < 1024 || unit == units[len(units)-1] {
+			return fmt.Sprintf("%.1f %s", amount, unit)
+		}
+	}
+	return fmt.Sprintf("%d B", value)
 }
 
 // fileTransferProgress updates the local CLI display and independently reports
@@ -397,20 +424,41 @@ func replaceReceivedFile(temporaryPath, destinationPath string) error {
 	if existing.IsDir() {
 		return errors.New("destination is a directory")
 	}
-	backupPath := temporaryPath + ".previous"
-	if err := os.Rename(destinationPath, backupPath); err != nil {
-		return fmt.Errorf("preserve existing destination: %w", err)
-	}
-	if err := os.Rename(temporaryPath, destinationPath); err != nil {
-		if restoreErr := os.Rename(backupPath, destinationPath); restoreErr != nil {
-			return errors.Join(fmt.Errorf("move verified temporary file: %w", err), fmt.Errorf("restore existing destination: %w", restoreErr))
+	return fmt.Errorf("destination %q appeared during transfer; refusing to overwrite", destinationPath)
+}
+
+// nextAvailableLocalPath chooses the requested local path when absent, or its
+// first _N sibling when a file already exists. filepath is used only for PC
+// paths, keeping this logic correct on Windows, Linux, and macOS.
+func nextAvailableLocalPath(wanted string) (string, error) {
+	directory, filename := filepath.Split(wanted)
+	stem, extension := splitLocalFilenameExtension(filename)
+	for sequence := 0; ; sequence++ {
+		candidate := wanted
+		if sequence > 0 {
+			candidate = directory + stem + "_" + strconv.Itoa(sequence) + extension
 		}
-		return fmt.Errorf("move verified temporary file: %w", err)
+		info, err := os.Lstat(candidate)
+		if errors.Is(err, os.ErrNotExist) {
+			return candidate, nil
+		}
+		if err != nil {
+			return "", fmt.Errorf("inspect local destination %q: %w", candidate, err)
+		}
+		if info.IsDir() && sequence == 0 {
+			return "", fmt.Errorf("local destination %q is a directory", candidate)
+		}
 	}
-	if err := os.Remove(backupPath); err != nil {
-		return fmt.Errorf("remove replaced destination backup %q: %w", backupPath, err)
+}
+
+func splitLocalFilenameExtension(filename string) (string, string) {
+	if filename == "" || (strings.HasPrefix(filename, ".") && !strings.Contains(filename[1:], ".")) {
+		return filename, ""
 	}
-	return nil
+	if index := strings.IndexByte(filename, '.'); index > 0 {
+		return filename[:index], filename[index:]
+	}
+	return filename, ""
 }
 
 func writeFileUsage(output io.Writer) {

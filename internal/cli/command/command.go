@@ -1008,6 +1008,11 @@ func forwardInputWithPromptTimestamp(input io.Reader, terminal interface {
 						cancel()
 						return
 					}
+				case interactive.ActionFileTransfer:
+					if writeLocal == nil || writeLocal(fileTransferUnavailableText) != nil {
+						cancel()
+						return
+					}
 				case interactive.ActionUnknownEscape:
 					if writeLocal == nil || writeLocal(unknownEscapeText(action.Command)) != nil {
 						cancel()
@@ -1031,7 +1036,7 @@ func forwardInputWithPromptTimestamp(input io.Reader, terminal interface {
 // escapePendingText confirms locally that Ctrl+] entered escape mode. Its
 // leading and trailing line breaks keep it readable beside unstructured remote
 // terminal output; it is never sent to the remote Session.
-var escapePendingText = []byte("\r\n[ChannelTerm] Escape: q quit | ? help | ] send Ctrl+] | t prompt time | Esc cancel\r\n")
+var escapePendingText = []byte("\r\n[ChannelTerm] Escape: q quit | ? help | ] send Ctrl+] | f file transfer | t prompt time | Esc cancel\r\n")
 
 // writeFailureText renders a remote-write failure locally. In particular, a
 // file-transfer lease remains visible to an attached human without detaching
@@ -1045,7 +1050,9 @@ func writeFailureText(err error) []byte {
 var escapeCancelledText = []byte("\r\n[ChannelTerm] Escape cancelled\r\n")
 
 // escapeHelpText is local CLI output and is never sent to the remote Session.
-var escapeHelpText = []byte("\r\nChannelTerm escape commands:\r\n\r\n  q    Quit session\r\n  ?    Show this help\r\n  ]    Send Ctrl+] to remote\r\n  t    Toggle prompt timestamps\r\n  Esc  Cancel escape mode\r\n")
+var escapeHelpText = []byte("\r\nChannelTerm escape commands:\r\n\r\n  q    Quit session\r\n  ?    Show this help\r\n  ]    Send Ctrl+] to remote\r\n  f    Open file transfer (attach)\r\n  t    Toggle prompt timestamps\r\n  Esc  Cancel escape mode\r\n")
+
+var fileTransferUnavailableText = []byte("\r\n[ChannelTerm] File transfer is available from shared attach only.\r\n")
 
 // promptTimestampStatusText reports a CLI-local presentation setting. It is
 // written only to the current terminal output and never enters Session data.
