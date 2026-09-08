@@ -44,7 +44,20 @@ channelterm file receive /tmp/log.txt ./log.txt --session SER-1
 
 `--endpoint` selects a non-default Session Host endpoint. The file command never starts a host or opens a Serial Transport itself; it attaches to an already-open Session and leaves that Session open afterward.
 
-`send` truncates the selected remote destination after the board-side capability check succeeds. `receive` writes and verifies a temporary local file first, then replaces an existing local destination. Confirm both paths before running the command. A non-default Host endpoint is a terminal-control boundary and must be trusted; the current HTTP Host has no ChannelTerm authentication layer. The feature does not change the loopback-only default listener.
+`send` and `receive` never silently overwrite their target. If the requested remote or local name exists, ChannelTerm chooses the first free sibling using `_1`, `_2`, and so on, preserving extensions including `backup.tar.gz` and `.env`. `receive` writes and verifies a temporary local file first, then installs it only when the chosen destination remains absent. Confirm both paths before running the command. A non-default Host endpoint is a terminal-control boundary and must be trusted; the current HTTP Host has no ChannelTerm authentication layer. The feature does not change the loopback-only default listener.
+
+## Attach shortcut
+
+While attached, press `Ctrl+] f` to open a local file-transfer menu. It uses the same shared Session, Application transfer implementation, 32 KiB streaming, SHA-256 verification, and Host-side `file-transfer` lease as the `channelterm file` command.
+
+```text
+Ctrl+] f
+  s  Send PC -> Board
+  r  Receive Board -> PC
+  Esc  Cancel
+```
+
+For send, enter a required local file and accept or edit the remote default `/tmp/<local-basename>`. Board paths are always POSIX paths. For receive, enter a required board path and accept or edit the local default `./<remote-basename>`, relative to the directory in which `attach` was started. Local paths use the current platform's path rules. `Esc` exits only the file menu; during an active transfer, `Ctrl+C` cancels the transfer, releases its lease, and returns to the attachment instead of detaching it.
 
 ## Transfer flow
 

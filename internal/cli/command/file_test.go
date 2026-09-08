@@ -1,15 +1,180 @@
 package command
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
+	"sync"
 	"testing"
+	"time"
 
+	"github.com/akira-init1/ChannelTerm/internal/cli/interactive"
 	"github.com/akira-init1/ChannelTerm/internal/core/session"
 )
+
+func TestNextAvailableLocalPathPreservesExtensionsAndAvoidsOverwrite(t *testing.T) {
+	directory := t.TempDir()
+	tests := []struct {
+		name string
+		want string
+	}{
+		{name: "binary", want: "firmware_3.bin"},
+		{name: "log", want: "app_3.log"},
+		{name: "no extension", want: "README_3"},
+		{name: "dotfile", want: ".env_3"},
+		{name: "compound extension", want: "backup_3.tar.gz"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			base := strings.Replace(tt.want, "_3", "", 1)
+			for _, name := range []string{base, strings.Replace(tt.want, "_3", "_1", 1), strings.Replace(tt.want, "_3", "_2", 1)} {
+				if err := os.WriteFile(filepath.Join(directory, name), []byte(name), 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			got, err := nextAvailableLocalPath(filepath.Join(directory, base))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got != filepath.Join(directory, tt.want) {
+				t.Errorf("nextAvailableLocalPath() = %q, want %q", got, filepath.Join(directory, tt.want))
+			}
+		})
+	}
+}
+
+func TestAttachFileShortcutMenuEscStaysLocal(t *testing.T) {
+	pump := newAttachInputPump(bytes.NewReader([]byte{0x1b}))
+	var output bytes.Buffer
+	if ok := runAttachFileShortcut(context.Background(), &pump, &fakeAttachSession{}, func(data []byte) error {
+		_, err := output.Write(data)
+		return err
+	}); !ok {
+		t.Fatal("runAttachFileShortcut() returned false")
+	}
+	if got := output.String(); !strings.Contains(got, "File transfer:") || !strings.Contains(got, "File transfer cancelled") {
+		t.Errorf("shortcut output = %q, want menu and local cancellation", got)
+	}
+}
+
+func TestAttachFileShortcutSelectsSendAndReceive(t *testing.T) {
+	tests := []struct {
+		name       string
+		input      string
+		wantPrompt string
+	}{
+		{name: "send", input: "s\n\n", wantPrompt: "Local file:"},
+		{name: "receive", input: "r\n\n", wantPrompt: "Remote file:"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pump := newAttachInputPump(strings.NewReader(tt.input))
+			var output bytes.Buffer
+			if ok := runAttachFileShortcut(context.Background(), &pump, &fakeAttachSession{}, func(data []byte) error {
+				_, err := output.Write(data)
+				return err
+			}); !ok {
+				t.Fatal("runAttachFileShortcut() returned false")
+			}
+			if got := output.String(); !strings.Contains(got, tt.wantPrompt) || !strings.Contains(got, "File transfer cancelled") {
+				t.Errorf("shortcut output = %q, want %q and cancellation", got, tt.wantPrompt)
+			}
+		})
+	}
+}
+
+func TestAttachFileShortcutDefaultPathsAndCustomPaths(t *testing.T) {
+	if got := defaultRemoteTransferPath(filepath.Join("build", "firmware.bin")); got != "/tmp/firmware.bin" {
+		t.Errorf("default remote path = %q, want /tmp/firmware.bin", got)
+	}
+	if got := defaultLocalTransferPath("/tmp/crash.log"); got != "."+string(filepath.Separator)+"crash.log" {
+		t.Errorf("default local path = %q", got)
+	}
+	if got := "/opt/app/firmware.bin"; got == defaultRemoteTransferPath(filepath.Join("build", "firmware.bin")) {
+		t.Fatal("custom remote path unexpectedly changed")
+	}
+}
+
+func TestAttachShortcutControlCCancelsTransferAndRestoresInput(t *testing.T) {
+	localPath := filepath.Join(t.TempDir(), "firmware.bin")
+	if err := os.WriteFile(localPath, []byte("payload"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	inputReader, inputWriter := io.Pipe()
+	defer inputReader.Close()
+	defer inputWriter.Close()
+	pump := newAttachInputPump(inputReader)
+	attached := &cancellableShortcutSession{writeStarted: make(chan struct{})}
+	var output bytes.Buffer
+	done := make(chan bool, 1)
+	go func() {
+		done <- runAttachShortcutTransfer(context.Background(), &pump, attached, func(data []byte) error {
+			_, err := output.Write(data)
+			return err
+		}, "send", localPath, "/tmp/firmware.bin")
+	}()
+	select {
+	case <-attached.writeStarted:
+	case <-time.After(time.Second):
+		t.Fatal("transfer did not start")
+	}
+	if _, err := inputWriter.Write([]byte{0x03}); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case ok := <-done:
+		if !ok {
+			t.Fatal("shortcut did not return to attach input")
+		}
+	case <-time.After(time.Second):
+		t.Fatal("Ctrl+C did not cancel transfer")
+	}
+	if attached.acquires != 1 || attached.releases != 1 {
+		t.Errorf("lease acquire/release = %d/%d, want 1/1", attached.acquires, attached.releases)
+	}
+	if !strings.Contains(output.String(), "File transfer cancelled") {
+		t.Errorf("output = %q, want transfer cancellation", output.String())
+	}
+	controller := interactive.NewController(interactive.DefaultEscapeByte)
+	if ok := processAttachInput(context.Background(), controller, []byte("echo ok\r"), &pump, attached, func([]byte) error { return nil }, func() error { return nil }, func() {}); !ok {
+		t.Fatal("normal attach input did not resume")
+	}
+	if !strings.HasSuffix(string(attached.writtenData()), "echo ok\r") {
+		t.Errorf("normal input after cancellation = %q", attached.writtenData())
+	}
+}
+
+type cancellableShortcutSession struct {
+	fakeAttachSession
+	mu           sync.Mutex
+	acquires     int
+	releases     int
+	writeStarted chan struct{}
+	once         sync.Once
+}
+
+func (s *cancellableShortcutSession) Write(request session.WriteRequest) (int, error) {
+	s.once.Do(func() { close(s.writeStarted) })
+	return s.fakeAttachSession.Write(request)
+}
+
+func (s *cancellableShortcutSession) AcquireFileTransferLease(context.Context) error {
+	s.mu.Lock()
+	s.acquires++
+	s.mu.Unlock()
+	return nil
+}
+
+func (s *cancellableShortcutSession) ReleaseFileTransferLease(context.Context) error {
+	s.mu.Lock()
+	s.releases++
+	s.mu.Unlock()
+	return nil
+}
 
 func TestWithFileTransferLeaseReleasesAfterFailure(t *testing.T) {
 	attached := &leaseTrackingAttachSession{}
@@ -115,9 +280,9 @@ func TestAttachFileSessionRequiresExplicitSelectionWhenAmbiguous(t *testing.T) {
 	}
 }
 
-// TestReplaceReceivedFileReplacesExistingContent verifies the cross-platform
-// backup-and-move path installs verified content and cleans its backup.
-func TestReplaceReceivedFileReplacesExistingContent(t *testing.T) {
+// TestReplaceReceivedFileRefusesExistingContent verifies a late competing file
+// is never silently replaced after the destination name was selected.
+func TestReplaceReceivedFileRefusesExistingContent(t *testing.T) {
 	directory := t.TempDir()
 	destination := filepath.Join(directory, "log.txt")
 	temporary := filepath.Join(directory, ".channelterm-receive-test")
@@ -127,17 +292,17 @@ func TestReplaceReceivedFileReplacesExistingContent(t *testing.T) {
 	if err := os.WriteFile(temporary, []byte("verified new"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := replaceReceivedFile(temporary, destination); err != nil {
-		t.Fatalf("replaceReceivedFile() error = %v", err)
+	if err := replaceReceivedFile(temporary, destination); err == nil {
+		t.Fatal("replaceReceivedFile() error = nil, want overwrite refusal")
 	}
 	content, err := os.ReadFile(destination)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := string(content); got != "verified new" {
-		t.Errorf("destination content = %q, want verified new", got)
+	if got := string(content); got != "old" {
+		t.Errorf("destination content = %q, want old", got)
 	}
-	if _, err := os.Stat(temporary + ".previous"); !errors.Is(err, os.ErrNotExist) {
-		t.Errorf("backup still exists or stat failed: %v", err)
+	if content, err := os.ReadFile(temporary); err != nil || string(content) != "verified new" {
+		t.Errorf("temporary content = %q, %v; want retained verified data", content, err)
 	}
 }
