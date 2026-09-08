@@ -48,6 +48,52 @@ func TestNextAvailableLocalPathPreservesExtensionsAndAvoidsOverwrite(t *testing.
 	}
 }
 
+func TestNextAvailableLocalDirectoryUsesFirstFreeSibling(t *testing.T) {
+	directory := t.TempDir()
+	for _, name := range []string{"release", "release_1"} {
+		if err := os.Mkdir(filepath.Join(directory, name), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got, err := nextAvailableLocalDirectory(filepath.Join(directory, "release"))
+	if err != nil {
+		t.Fatalf("nextAvailableLocalDirectory() error = %v", err)
+	}
+	if want := filepath.Join(directory, "release_2"); got != want {
+		t.Errorf("nextAvailableLocalDirectory() = %q, want %q", got, want)
+	}
+}
+
+func TestCreateLocalDirectoryStagingIsSibling(t *testing.T) {
+	destination := filepath.Join(t.TempDir(), "release")
+	staging, err := createLocalDirectoryStaging(destination)
+	if err != nil {
+		t.Fatalf("createLocalDirectoryStaging() error = %v", err)
+	}
+	defer os.RemoveAll(staging)
+	if filepath.Dir(staging) != filepath.Dir(destination) || !strings.HasPrefix(filepath.Base(staging), ".release.cterm-part-") {
+		t.Errorf("staging = %q, want same-directory .release.cterm-part-*", staging)
+	}
+}
+
+func TestReplaceReceivedDirectoryRefusesAppearingDestination(t *testing.T) {
+	directory := t.TempDir()
+	staging := filepath.Join(directory, ".release.cterm-part-test")
+	destination := filepath.Join(directory, "release")
+	if err := os.Mkdir(staging, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(destination, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := replaceReceivedDirectory(staging, destination); err == nil || !strings.Contains(err.Error(), "appeared during transfer") {
+		t.Fatalf("replaceReceivedDirectory() error = %v, want collision refusal", err)
+	}
+	if _, err := os.Stat(staging); err != nil {
+		t.Errorf("staging directory was changed after refusal: %v", err)
+	}
+}
+
 func TestAttachFileShortcutMenuEscStaysLocal(t *testing.T) {
 	pump := newAttachInputPump(bytes.NewReader([]byte{0x1b}))
 	var output bytes.Buffer
@@ -68,8 +114,8 @@ func TestAttachFileShortcutSelectsSendAndReceive(t *testing.T) {
 		input      string
 		wantPrompt string
 	}{
-		{name: "send", input: "s\n\n", wantPrompt: "Local file:"},
-		{name: "receive", input: "r\n\n", wantPrompt: "Remote file:"},
+		{name: "send", input: "s\n\n", wantPrompt: "Local path:"},
+		{name: "receive", input: "r\n\n", wantPrompt: "Remote path:"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

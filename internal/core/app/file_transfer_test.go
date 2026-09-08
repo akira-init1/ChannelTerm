@@ -166,9 +166,11 @@ func (r *generatedFileReader) Read(buffer []byte) (int, error) {
 }
 
 var (
-	fileTestTokenPattern = regexp.MustCompile(`t='([0-9a-f]+)'`)
-	fileTestSizePattern  = regexp.MustCompile(`; n=([0-9]+);`)
-	fileTestIndexPattern = regexp.MustCompile(`; i=([0-9]+);`)
+	fileTestTokenPattern     = regexp.MustCompile(`t='([0-9a-f]+)'`)
+	fileTestSizePattern      = regexp.MustCompile(`; n=([0-9]+);`)
+	fileTestTarSizePattern   = regexp.MustCompile(`n=([0-9]+);`)
+	fileTestReadySizePattern = regexp.MustCompile(`READY:([0-9]+)`)
+	fileTestIndexPattern     = regexp.MustCompile(`; i=([0-9]+);`)
 )
 
 type fileTransferTestSession struct {
@@ -185,8 +187,10 @@ type fileTransferTestSession struct {
 	maxPayload         int
 	badMetadataHash    bool
 	failInitialization bool
+	failTar            bool
 	failPayloadOnce    bool
 	receiving          bool
+	directorySending   bool
 }
 
 func newFileTransferTestSession(remote []byte) *fileTransferTestSession {
@@ -248,7 +252,11 @@ func (s *fileTransferTestSession) Write(request session.WriteRequest) (int, erro
 		}
 		s.pendingSend -= count
 		if s.pendingSend == 0 {
-			s.emitLocked(fmt.Sprintf("\n@CTERM:%s:ACK:%d\n", s.token, s.pendingSendTotal))
+			if s.directorySending {
+				s.emitLocked(fmt.Sprintf("\n@CTERM:%s:FINAL:OK\n", s.token))
+			} else {
+				s.emitLocked(fmt.Sprintf("\n@CTERM:%s:ACK:%d\n", s.token, s.pendingSendTotal))
+			}
 		}
 		if injectedFailure {
 			return count, errors.New("injected payload failure")
@@ -262,8 +270,24 @@ func (s *fileTransferTestSession) Write(request session.WriteRequest) (int, erro
 	}
 	s.token = tokenMatch[1]
 	switch {
+	case s.failTar && strings.Contains(command, "command -v tar"):
+		s.emitLocked(fmt.Sprintf("\n@CTERM:%s:ERROR:tar\n", s.token))
 	case strings.Contains(command, ":PICK:"):
 		s.emitLocked(fmt.Sprintf("\n@CTERM:%s:PICK:FREE\n", s.token))
+	case strings.Contains(command, ":READY:") && strings.Contains(command, "tar -x -f -"):
+		s.directorySending = true
+		s.received = nil
+		size := mustFileTestNumber(command, fileTestReadySizePattern)
+		s.pendingSend = size
+		s.pendingSendTotal = size
+		s.emitLocked(fmt.Sprintf("\n@CTERM:%s:READY:%d\n", s.token, size))
+	case strings.Contains(command, ":SIZE:"):
+		s.emitLocked(fmt.Sprintf("\n@CTERM:%s:SIZE:%d\n", s.token, len(s.remote)))
+	case strings.Contains(command, ":DATA:") && strings.Contains(command, "tar -c -f -"):
+		size := mustFileTestNumber(command, fileTestTarSizePattern)
+		s.emitLocked(fmt.Sprintf("\n@CTERM:%s:DATA:%d\n", s.token, size))
+		s.emitLocked(string(s.remote))
+		s.emitLocked(fmt.Sprintf("\n@CTERM:%s:ACK:%d\n", s.token, size))
 	case strings.Contains(command, ":INIT:OK"):
 		s.received = nil
 		if s.failInitialization {

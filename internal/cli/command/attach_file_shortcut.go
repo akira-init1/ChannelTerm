@@ -181,7 +181,7 @@ func runAttachFileShortcut(ctx context.Context, pump *attachInputPump, attached 
 }
 
 func runAttachSendShortcut(ctx context.Context, pump *attachInputPump, attached attachSession, writeLocal func([]byte) error) bool {
-	if writeLocal([]byte("\r\nLocal file: ")) != nil {
+	if writeLocal([]byte("\r\nLocal path: ")) != nil {
 		return false
 	}
 	localPath, cancelled, ok := readShortcutLine(pump, writeLocal)
@@ -211,7 +211,7 @@ func runAttachSendShortcut(ctx context.Context, pump *attachInputPump, attached 
 }
 
 func runAttachReceiveShortcut(ctx context.Context, pump *attachInputPump, attached attachSession, writeLocal func([]byte) error) bool {
-	if writeLocal([]byte("\r\nRemote file: ")) != nil {
+	if writeLocal([]byte("\r\nRemote path: ")) != nil {
 		return false
 	}
 	remotePath, cancelled, ok := readShortcutLine(pump, writeLocal)

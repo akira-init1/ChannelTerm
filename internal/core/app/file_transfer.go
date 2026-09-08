@@ -470,6 +470,27 @@ func (p *fileProtocol) finishPendingMarker(phase, argument string) error {
 	return err
 }
 
+// finishDirectorySend completes a raw tar input after cancellation. Padding
+// makes the target-side dd finish so it can restore the TTY and remove its
+// staging directory; the original transfer error remains the caller's result.
+func (p *fileProtocol) finishDirectorySend(total int64) error {
+	cleanupCtx, cancel := context.WithTimeout(context.Background(), fileCleanupTimeout)
+	defer cancel()
+	padding := make([]byte, FileTransferChunkSize)
+	for total > 0 {
+		count := int64(len(padding))
+		if total < count {
+			count = total
+		}
+		if _, err := writeFilePayload(cleanupCtx, p.terminal, padding[:int(count)]); err != nil {
+			return fmt.Errorf("restore remote TTY after interrupted directory send: %w", err)
+		}
+		total -= count
+	}
+	_, err := p.expectPhase(cleanupCtx, "FINAL")
+	return err
+}
+
 func writeFilePayload(ctx context.Context, terminal FileTransferSession, data []byte) (int, error) {
 	written := 0
 	for len(data) > 0 {
@@ -568,4 +589,26 @@ func receiveInitCommand(token, path string) string {
 
 func receiveChunkCommand(token, path string, blockIndex, size int64) string {
 	return fmt.Sprintf("t='%s'; i=%d; n=%d; if exec 3< %s; then saved=$(stty -g 2>/dev/null); if [ -n \"$saved\" ] && stty raw -echo; then printf '\\n@CTERM:%%s:DATA:%%s\\n' \"$t\" \"$n\"; if dd bs=%d skip=\"$i\" count=1 2>/dev/null <&3; then exec 3<&-; stty \"$saved\"; printf '\\n@CTERM:%%s:ACK:%%s\\n' \"$t\" \"$n\"; else exec 3<&-; stty \"$saved\"; printf '\\n@CTERM:%%s:ERROR:read\\n' \"$t\"; fi; else exec 3<&-; printf '\\n@CTERM:%%s:ERROR:tty\\n' \"$t\"; fi; else printf '\\n@CTERM:%%s:ERROR:open\\n' \"$t\"; fi", token, blockIndex, size, path, FileTransferChunkSize)
+}
+
+func remotePathKindCommand(token, path string) string {
+	return fmt.Sprintf("t='%s'; if [ -L %s ]; then k=unsupported; elif [ -f %s ]; then k=file; elif [ -d %s ]; then k=directory; elif [ -e %s ]; then k=unsupported; else k=missing; fi; printf '\\n@CTERM:%%s:KIND:%%s\\n' \"$t\" \"$k\"", token, path, path, path, path)
+}
+
+func directorySendInitCommand(token, destination, staging string, size int64) string {
+	fullBlocks := size / FileTransferChunkSize
+	remainder := size % FileTransferChunkSize
+	readCommand := fmt.Sprintf("dd bs=%d count=%d iflag=fullblock 2>/dev/null", FileTransferChunkSize, fullBlocks)
+	if remainder > 0 {
+		readCommand += fmt.Sprintf("; dd bs=%d count=1 iflag=fullblock 2>/dev/null", remainder)
+	}
+	return fmt.Sprintf("t='%s'; d=%s; s=%s; if ! command -v tar >/dev/null 2>&1; then printf '\\n@CTERM:%%s:ERROR:tar\\n' \"$t\"; elif mkdir \"$s\" 2>/dev/null; then saved=$(stty -g 2>/dev/null); if [ -n \"$saved\" ] && stty raw -echo; then printf '\\n@CTERM:%%s:READY:%d\\n' \"$t\"; if { %s; } | tar -x -f - -C \"$s\"; then stty \"$saved\"; if [ ! -e \"$d\" ] && [ ! -L \"$d\" ] && mv \"$s\" \"$d\"; then printf '\\n@CTERM:%%s:FINAL:OK\\n' \"$t\"; else rm -rf \"$s\"; printf '\\n@CTERM:%%s:ERROR:commit\\n' \"$t\"; fi; else stty \"$saved\"; rm -rf \"$s\"; printf '\\n@CTERM:%%s:ERROR:extract\\n' \"$t\"; fi; else rm -rf \"$s\"; printf '\\n@CTERM:%%s:ERROR:tty\\n' \"$t\"; fi; else printf '\\n@CTERM:%%s:ERROR:stage\\n' \"$t\"; fi", token, destination, staging, size, readCommand)
+}
+
+func directoryReceiveSizeCommand(token, path string) string {
+	return fmt.Sprintf("t='%s'; if ! command -v tar >/dev/null 2>&1; then printf '\\n@CTERM:%%s:ERROR:tar\\n' \"$t\"; elif n=$(tar -c -f - -C %s . 2>/dev/null | wc -c); then printf '\\n@CTERM:%%s:SIZE:%%s\\n' \"$t\" \"$n\"; else printf '\\n@CTERM:%%s:ERROR:read\\n' \"$t\"; fi", token, path)
+}
+
+func directoryReceiveStartCommand(token, path string, size int64) string {
+	return fmt.Sprintf("t='%s'; n=%d; if ! command -v tar >/dev/null 2>&1; then printf '\\n@CTERM:%%s:ERROR:tar\\n' \"$t\"; else saved=$(stty -g 2>/dev/null); if [ -n \"$saved\" ] && stty raw -echo; then printf '\\n@CTERM:%%s:DATA:%%s\\n' \"$t\" \"$n\"; if tar -c -f - -C %s .; then stty \"$saved\"; printf '\\n@CTERM:%%s:ACK:%%s\\n' \"$t\" \"$n\"; else stty \"$saved\"; printf '\\n@CTERM:%%s:ERROR:read\\n' \"$t\"; fi; else printf '\\n@CTERM:%%s:ERROR:tty\\n' \"$t\"; fi; fi", token, size, path)
 }
