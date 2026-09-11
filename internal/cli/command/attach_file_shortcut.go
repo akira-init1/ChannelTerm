@@ -161,22 +161,52 @@ func runAttachFileShortcut(ctx context.Context, pump *attachInputPump, attached 
 	if writeLocal == nil || writeLocal(fileTransferMenuText) != nil {
 		return false
 	}
-	choice, cancelled, ok := readShortcutLine(pump, writeLocal)
+	choice, cancelled, ok := readFileTransferChoice(pump, writeLocal)
 	if !ok {
 		return false
 	}
-	if cancelled || strings.TrimSpace(choice) == "" {
+	if cancelled {
 		_ = writeLocal(fileTransferCancelledText)
 		return true
 	}
-	switch strings.ToLower(strings.TrimSpace(choice)) {
+	switch choice {
 	case "s":
 		return runAttachSendShortcut(ctx, pump, attached, writeLocal)
 	case "r":
 		return runAttachReceiveShortcut(ctx, pump, attached, writeLocal)
-	default:
-		_ = writeLocal([]byte("\r\n[ChannelTerm] Unknown file transfer option.\r\n"))
-		return true
+	}
+	return true
+}
+
+// readFileTransferChoice reads the attach shortcut's local single-key menu.
+// It intentionally consumes invalid keys without echoing or forwarding them to
+// the Session, while retaining bytes after a completed selection for its path
+// prompts.
+func readFileTransferChoice(pump *attachInputPump, writeLocal func([]byte) error) (string, bool, bool) {
+	for {
+		result, ok := pump.next(context.Background())
+		if !ok || result.err != nil {
+			return "", false, false
+		}
+		for index, value := range result.data {
+			switch value {
+			case 0x1b:
+				pump.prepend(result.data[index+1:])
+				return "", true, true
+			case 's', 'S':
+				if writeLocal([]byte{value}) != nil {
+					return "", false, false
+				}
+				pump.prepend(result.data[index+1:])
+				return "s", false, true
+			case 'r', 'R':
+				if writeLocal([]byte{value}) != nil {
+					return "", false, false
+				}
+				pump.prepend(result.data[index+1:])
+				return "r", false, true
+			}
+		}
 	}
 }
 
@@ -390,5 +420,5 @@ func (s nonClosingAttachSession) ReportFileTransferEvent(ctx context.Context, ty
 	return reporter.ReportFileTransferEvent(ctx, typ, metadata)
 }
 
-var fileTransferMenuText = []byte("\r\nFile transfer:\r\n  s  Send PC -> Board\r\n  r  Receive Board -> PC\r\n  Esc  Cancel\r\n")
+var fileTransferMenuText = []byte("\r\nFile transfer:\r\n  s  Send PC -> Board\r\n  r  Receive Board -> PC\r\n  Esc  Cancel\r\nSelect: ")
 var fileTransferCancelledText = []byte("\r\n[ChannelTerm] File transfer cancelled\r\n")

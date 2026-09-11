@@ -59,12 +59,14 @@ While attached, press `Ctrl+] f` to open a local file-transfer menu. It uses the
 
 ```text
 Ctrl+] f
+File transfer:
   s  Send PC -> Board
   r  Receive Board -> PC
   Esc  Cancel
+Select:
 ```
 
-For send, enter a required local path and accept or edit the remote default `/tmp/<local-basename>`. Board paths are always POSIX paths. For receive, enter a required board path and accept or edit the local default `./<remote-basename>`, relative to the directory in which `attach` was started. A regular file keeps the file protocol; a directory uses tar automatically. Local paths use the current platform's path rules. `Esc` exits only the file menu; during an active transfer, `Ctrl+C` cancels the transfer, releases its lease, cleans up directory staging best-effort, and returns to the attachment instead of detaching it.
+Press `s` or `r` once to choose immediately; the selected key is echoed after `Select:` and ChannelTerm then shows the path prompts. No Enter is required for the menu choice. Invalid menu keys are ignored locally. For send, enter a required local path and accept or edit the remote default `/tmp/<local-basename>`. Board paths are always POSIX paths. For receive, enter a required board path and accept or edit the local default `./<remote-basename>`, relative to the directory in which `attach` was started. A regular file keeps the file protocol; a directory uses tar automatically. Local paths use the current platform's path rules. `Esc` exits only the file menu; during an active transfer, `Ctrl+C` cancels the transfer, releases its lease, cleans up directory staging best-effort, and returns to the attachment instead of detaching it.
 
 ## Transfer flow
 
@@ -93,7 +95,7 @@ Shared Session -> Channel -> Serial Transport -> Linux TTY
 
 For each chunk, the shell saves its current TTY mode, enters raw/no-echo mode, transfers exactly one bounded block with `dd`, restores the saved mode, and emits an acknowledgement containing a random per-transfer token. The raw interval is limited to one chunk rather than the whole file. ChannelTerm reports progress only after a chunk is acknowledged and publishes it as `FILE_TRANSFER_PROGRESS` with structured confirmed byte counts, percent, and best-effort speed. It also publishes start, completion, and failure events without mixing them into raw Session output.
 
-The local `file send` and `file receive` displays share one 20-cell ASCII progress formatter. It refreshes in place and shows the confirmed percentage, human-readable transferred/total sizes, speed, and ETA when the speed is usable. A completed transfer first renders a 100% bar and then starts the SHA-256 summary on a new line. Cancellation and failure likewise finish the progress line before their status text, so an error never runs into a partially refreshed bar.
+The local `file send` and `file receive` displays share one 20-cell ASCII progress formatter. For a non-empty regular file, it immediately renders a 0% frame before the first payload (for receive, after the board has announced its size), then refreshes in place with confirmed percentage, human-readable transferred/total sizes, speed, and ETA when the speed is usable. The 0% frame has no synthetic speed or ETA. A completed transfer first renders a 100% bar and then starts the SHA-256 summary on a new line. Cancellation and failure likewise finish the progress line before their status text, so an error never runs into a partially refreshed bar.
 
 During a transfer, shared `attach` clients use the structured file-transfer events to gate their local raw-terminal presentation. The attachment that started the transfer retains its detailed progress display; other attachments receive concise status updates. All attachments continue advancing their own output cursors while suppressing the protocol shell commands, markers, and payload bytes, so the suppressed data cannot appear after the transfer finishes. Session raw output and independent MCP readers are unchanged.
 

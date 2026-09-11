@@ -73,7 +73,14 @@ func TestReceiveFileVerifiesSHA256(t *testing.T) {
 	content := bytes.Repeat([]byte("hash-me-\x00\xff"), FileTransferChunkSize/4)
 	terminal := newFileTransferTestSession(content)
 	var destination bytes.Buffer
-	result, err := ReceiveFile(context.Background(), terminal, &destination, "/tmp/log.txt", nil)
+	var progress []int64
+	result, err := ReceiveFile(context.Background(), terminal, &destination, "/tmp/log.txt", func(transferred, total int64) error {
+		if total != int64(len(content)) {
+			t.Errorf("progress total = %d, want %d", total, len(content))
+		}
+		progress = append(progress, transferred)
+		return nil
+	})
 	if err != nil {
 		t.Fatalf("ReceiveFile() error = %v", err)
 	}
@@ -83,6 +90,9 @@ func TestReceiveFileVerifiesSHA256(t *testing.T) {
 	wantDigest := sha256.Sum256(content)
 	if result.SHA256 != hex.EncodeToString(wantDigest[:]) {
 		t.Errorf("ReceiveFile() SHA-256 = %s, want %x", result.SHA256, wantDigest)
+	}
+	if len(progress) < 2 || progress[0] != 0 || progress[len(progress)-1] != int64(len(content)) {
+		t.Errorf("progress = %v, want initial zero and final size", progress)
 	}
 }
 

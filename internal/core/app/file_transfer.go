@@ -46,7 +46,9 @@ type FileTransferSession interface {
 	Write(session.WriteRequest) (int, error)
 }
 
-// FileTransferProgress receives a confirmed byte count and the total size.
+// FileTransferProgress receives transfer byte counts and the total size. A
+// receive operation first invokes it with zero bytes after remote metadata is
+// known and before payload transfer starts; later calls report confirmed bytes.
 // Returning an error stops the transfer and propagates the presentation or I/O
 // failure to the caller.
 type FileTransferProgress func(transferred, total int64) error
@@ -244,6 +246,11 @@ func ReceiveFile(ctx context.Context, terminal FileTransferSession, destination 
 	size, remoteDigest, err := parseVerifiedFile(metadata)
 	if err != nil {
 		return FileTransferResult{}, err
+	}
+	if progress != nil && size > 0 {
+		if err := progress(0, size); err != nil {
+			return FileTransferResult{}, err
+		}
 	}
 
 	hasher := sha256.New()

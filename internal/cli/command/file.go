@@ -138,6 +138,9 @@ func runFileSend(ctx context.Context, args []string, output io.Writer, dependenc
 		defer func() {
 			operationErr = finishFileTransferPresentation(output, progress, operationErr)
 		}()
+		if startErr := progress.Start(info.Size()); startErr != nil {
+			return startErr
+		}
 		result, transferErr := app.SendFile(ctx, attached, file, info.Size(), remotePath, progress.Report)
 		if transferErr != nil {
 			return transferErr
@@ -492,6 +495,11 @@ func newFileTransferProgress(ctx context.Context, output io.Writer, attached att
 
 // Report renders and publishes one confirmed transfer progress update.
 func (p *fileTransferReporter) Report(transferred, total int64) error {
+	if transferred == 0 && total > 0 {
+		// The initial local frame is not confirmed transfer progress, so it must
+		// not add a FILE_TRANSFER_PROGRESS event for other Session observers.
+		return p.render(fileTransferSnapshot{total: total})
+	}
 	snapshot := p.snapshot(transferred, total)
 	if snapshot.percent < 100 {
 		if err := p.render(snapshot); err != nil {
@@ -511,6 +519,15 @@ func (p *fileTransferReporter) Report(transferred, total int64) error {
 	metadata["percent"] = snapshot.percent
 	metadata["speed"] = snapshot.speed
 	return reportFileTransferEvent(p.ctx, p.attached, session.EventFileTransferProgress, metadata)
+}
+
+// Start renders a non-empty transfer's local zero-progress frame before its
+// first payload. It is presentation-only and does not publish an event.
+func (p *fileTransferReporter) Start(total int64) error {
+	if total <= 0 {
+		return nil
+	}
+	return p.Report(0, total)
 }
 
 // Complete ensures every successful transfer has rendered its final 100%
@@ -542,7 +559,10 @@ func (p *fileTransferReporter) snapshot(transferred, total int64) fileTransferSn
 }
 
 func (p *fileTransferReporter) render(snapshot fileTransferSnapshot) error {
-	if _, err := fmt.Fprintf(p.output, "\r%s", formatFileTransferProgress(snapshot)); err != nil {
+	// Clear to the end of the line after every in-place update. ETA and speed
+	// text can shrink between reports; a carriage return alone would leave the
+	// tail of the previous frame visible (for example, "ETA 25ss").
+	if _, err := fmt.Fprintf(p.output, "\r%s\x1b[K", formatFileTransferProgress(snapshot)); err != nil {
 		return err
 	}
 	p.rendered = true
@@ -563,12 +583,12 @@ func formatFileTransferProgress(snapshot fileTransferSnapshot) string {
 	filled = min(fileTransferProgressBarWidth, max(0, filled))
 	bar := strings.Repeat("#", filled) + strings.Repeat("-", fileTransferProgressBarWidth-filled)
 	text := fmt.Sprintf("[%s] %5.1f%%  %s / %s", bar, snapshot.percent, formatFileTransferBytes(snapshot.transferred), formatFileTransferBytes(snapshot.total))
-	if snapshot.speed > 0 && !math.IsNaN(snapshot.speed) && !math.IsInf(snapshot.speed, 0) {
+	if snapshot.transferred > 0 && snapshot.speed > 0 && !math.IsNaN(snapshot.speed) && !math.IsInf(snapshot.speed, 0) {
 		text += "  " + formatFileTransferSpeed(snapshot.speed)
-	} else if snapshot.percent < 100 {
+	} else if snapshot.transferred > 0 && snapshot.percent < 100 {
 		text += "  0 B/s"
 	}
-	if snapshot.percent < 100 {
+	if snapshot.transferred > 0 && snapshot.percent < 100 {
 		text += "  " + formatFileTransferETA(snapshot.transferred, snapshot.total, snapshot.speed)
 	}
 	return text
@@ -619,7 +639,7 @@ func formatFileTransferETA(transferred, total int64, speed float64) string {
 	if wholeSeconds < 60 {
 		return fmt.Sprintf("ETA %ds", wholeSeconds)
 	}
-	return fmt.Sprintf("ETA %dm%02ds", wholeSeconds/60, wholeSeconds%60)
+	return fmt.Sprintf("ETA %dm %02ds", wholeSeconds/60, wholeSeconds%60)
 }
 
 // reportFileTransferEvent is intentionally a no-op for legacy or test attach
