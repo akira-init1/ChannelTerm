@@ -1,6 +1,6 @@
 # Shared Sessions
 
-An HTTP MCP process can act as a local Session Host. It owns the physical serial connection while CLI windows and MCP Clients use independent cursors over the same Session.
+An HTTP MCP process can act as a local Session Host. It owns the physical serial connection while CLI windows and MCP Clients use independent cursors over the same Session. When `attach` starts the default local Host automatically, that Host is stopped when the initiating `attach` process exits. A manually started Host remains available until it is stopped explicitly.
 
 ```text
 Physical serial endpoint -> Serial Transport -> Channel -> Session -> Client / Attachment

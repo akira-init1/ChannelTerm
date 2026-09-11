@@ -356,9 +356,12 @@ func runAttachTargetFirstWithInterrupts(ctx context.Context, target string, args
 			serialArgs = append(serialArgs, "--highlight", *highlightMode)
 			return runApplicationConnect(ctx, append([]string{target}, serialArgs...), input, output, nil)
 		}
-		opened, reused, err := openSharedSerialTarget(ctx, strings.TrimSpace(*endpoint), target, serialArgs)
+		opened, reused, startedHost, err := openSharedSerialTarget(ctx, strings.TrimSpace(*endpoint), target, serialArgs)
 		if err != nil {
 			return err
+		}
+		if startedHost != nil {
+			defer startedHost.stop()
 		}
 		state := "created"
 		if reused {
@@ -457,52 +460,60 @@ func isSerialTargetReference(value string) bool {
 // openSharedSerialTarget ensures the local Session Host exists, then uses its
 // normal MCP tools to atomically create or reuse a serial Session. The Host is
 // the sole physical-port owner; this CLI only attaches afterwards.
-func openSharedSerialTarget(ctx context.Context, endpoint, target string, serialArgs []string) (mcpListedSession, bool, error) {
+func openSharedSerialTarget(ctx context.Context, endpoint, target string, serialArgs []string) (opened mcpListedSession, reused bool, startedHost *autoStartedMCPHost, err error) {
 	if !isLocalMCPEndpoint(endpoint) {
-		return mcpListedSession{}, false, errors.New("opening a target reference requires a local Session Host endpoint")
+		return mcpListedSession{}, false, nil, errors.New("opening a target reference requires a local Session Host endpoint")
 	}
 	application, err := app.New(app.Dependencies{Manager: session.NewManager()})
 	if err != nil {
-		return mcpListedSession{}, false, err
+		return mcpListedSession{}, false, nil, err
 	}
 	port, err := application.ResolveSerialTarget(ctx, target)
 	if err != nil {
-		return mcpListedSession{}, false, err
+		return mcpListedSession{}, false, nil, err
 	}
-	if err := ensureMCPHost(ctx, endpoint); err != nil {
-		return mcpListedSession{}, false, err
+	startedHost, err = ensureMCPHost(ctx, endpoint)
+	if err != nil {
+		return mcpListedSession{}, false, nil, err
 	}
+	// Do not leave an automatically started Host behind if opening the target
+	// fails before ownership is returned to the attach command.
+	defer func() {
+		if err != nil && startedHost != nil {
+			startedHost.stop()
+		}
+	}()
 	client, err := connectMCPClient(ctx, endpoint)
 	if err != nil {
-		return mcpListedSession{}, false, fmt.Errorf("connect Session Host %q: %w", endpoint, err)
+		return mcpListedSession{}, false, nil, fmt.Errorf("connect Session Host %q: %w", endpoint, err)
 	}
 	defer func() { _ = client.Close() }()
 	var listed struct {
 		Sessions []mcpListedSession `json:"sessions"`
 	}
 	if err := callMCPTool(ctx, client, "terminal_list_sessions", map[string]any{}, &listed); err != nil {
-		return mcpListedSession{}, false, err
+		return mcpListedSession{}, false, nil, err
 	}
 	if !attachOptionIsProvided(serialArgs, "save") {
 		for _, candidate := range listed.Sessions {
 			if candidate.Transport == "serial" && strings.EqualFold(candidate.Endpoint, port) && candidate.State == "open" {
-				return candidate, true, nil
+				return candidate, true, startedHost, nil
 			}
 		}
 	}
 	arguments, err := attachSerialOpenArguments(serialArgs, port)
 	if err != nil {
-		return mcpListedSession{}, false, err
+		return mcpListedSession{}, false, nil, err
 	}
-	var opened struct {
+	var openedResponse struct {
 		ID        string `json:"session_id"`
 		Reference string `json:"session_ref"`
 		Reused    bool   `json:"reused"`
 	}
-	if err := callMCPTool(ctx, client, "terminal_open_serial", arguments, &opened); err != nil {
-		return mcpListedSession{}, false, err
+	if err := callMCPTool(ctx, client, "terminal_open_serial", arguments, &openedResponse); err != nil {
+		return mcpListedSession{}, false, nil, err
 	}
-	return mcpListedSession{ID: opened.ID, Reference: opened.Reference, Transport: "serial", Endpoint: port, State: "open"}, opened.Reused, nil
+	return mcpListedSession{ID: openedResponse.ID, Reference: openedResponse.Reference, Transport: "serial", Endpoint: port, State: "open"}, openedResponse.Reused, startedHost, nil
 }
 
 // attachSerialOpenArguments translates explicitly supplied attach options to
@@ -572,23 +583,81 @@ func attachOptionIsProvided(args []string, option string) bool {
 	return false
 }
 
-// ensureMCPHost starts the default loopback Host when it is absent. The child
-// owns Sessions independently from the attaching CLI, so Ctrl+C in this window
-// cannot terminate a shared connection that other users or Agents still use.
-func ensureMCPHost(ctx context.Context, endpoint string) error {
+// autoStartedMCPHost is a default Host process started by one attach command.
+// It is deliberately distinct from a pre-existing or manually started Host:
+// only the command that created it stops it when that attachment ends.
+type autoStartedMCPHost struct {
+	done     <-chan struct{}
+	signal   func() error
+	kill     func() error
+	stopOnce sync.Once
+}
+
+// stop requests graceful process shutdown before forcibly ending a Host that
+// did not respond. It is safe to call more than once.
+func (h *autoStartedMCPHost) stop() {
+	if h == nil {
+		return
+	}
+	h.stopOnce.Do(func() {
+		select {
+		case <-h.done:
+			return
+		default:
+		}
+		if h.signal() != nil {
+			_ = h.kill()
+		}
+		timer := time.NewTimer(5 * time.Second)
+		defer timer.Stop()
+		select {
+		case <-h.done:
+		case <-timer.C:
+			_ = h.kill()
+			// Do not keep the attaching process alive forever if the operating
+			// system rejects a final kill request. The normal path above still
+			// waits for the child so it can be reaped.
+			select {
+			case <-h.done:
+			case <-time.After(time.Second):
+			}
+		}
+	})
+}
+
+// newAutoStartedMCPHost starts command's waiter immediately so the child is
+// reaped even when the parent exits after a failed readiness check.
+func newAutoStartedMCPHost(command *exec.Cmd) *autoStartedMCPHost {
+	done := make(chan struct{})
+	go func() {
+		_ = command.Wait()
+		close(done)
+	}()
+	return &autoStartedMCPHost{
+		done:   done,
+		signal: func() error { return command.Process.Signal(os.Interrupt) },
+		kill:   func() error { return command.Process.Kill() },
+	}
+}
+
+// ensureMCPHost starts the default loopback Host when it is absent. A returned
+// Host is owned by the caller and must be stopped when that attach command
+// exits; an already-running Host returns nil and is never stopped here.
+func ensureMCPHost(ctx context.Context, endpoint string) (*autoStartedMCPHost, error) {
 	if _, err := listMCPSessions(ctx, endpoint); err == nil {
-		return nil
+		return nil, nil
 	}
 	if endpoint != defaultMCPEndpoint {
-		return fmt.Errorf("Session Host %q is offline; start it explicitly before attach", endpoint)
+		return nil, fmt.Errorf("Session Host %q is offline; start it explicitly before attach", endpoint)
 	}
 	command := exec.Command(os.Args[0], "mcp", "--transport", "http")
 	command.Stdin = nil
 	command.Stdout = io.Discard
 	command.Stderr = io.Discard
 	if err := command.Start(); err != nil {
-		return fmt.Errorf("start Session Host: %w", err)
+		return nil, fmt.Errorf("start Session Host: %w", err)
 	}
+	host := newAutoStartedMCPHost(command)
 	deadline := time.NewTimer(5 * time.Second)
 	defer deadline.Stop()
 	tick := time.NewTicker(100 * time.Millisecond)
@@ -596,12 +665,14 @@ func ensureMCPHost(ctx context.Context, endpoint string) error {
 	for {
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
+			host.stop()
+			return nil, ctx.Err()
 		case <-deadline.C:
-			return errors.New("Session Host did not become ready within 5 seconds")
+			host.stop()
+			return nil, errors.New("Session Host did not become ready within 5 seconds")
 		case <-tick.C:
 			if _, err := listMCPSessions(ctx, endpoint); err == nil {
-				return nil
+				return host, nil
 			}
 		}
 	}

@@ -63,6 +63,54 @@ func TestMCPAttachRejectsMissingSession(t *testing.T) {
 	}
 }
 
+func TestAutoStartedMCPHostStopsOnlyOnce(t *testing.T) {
+	done := make(chan struct{})
+	signals := 0
+	kills := 0
+	host := &autoStartedMCPHost{
+		done: done,
+		signal: func() error {
+			signals++
+			close(done)
+			return nil
+		},
+		kill: func() error {
+			kills++
+			return nil
+		},
+	}
+
+	host.stop()
+	host.stop()
+
+	if signals != 1 {
+		t.Errorf("shutdown signals = %d, want 1", signals)
+	}
+	if kills != 0 {
+		t.Errorf("forced kills = %d, want 0", kills)
+	}
+}
+
+func TestAutoStartedMCPHostKillsWhenGracefulShutdownCannotStart(t *testing.T) {
+	done := make(chan struct{})
+	kills := 0
+	host := &autoStartedMCPHost{
+		done:   done,
+		signal: func() error { return errors.New("interrupt unavailable") },
+		kill: func() error {
+			kills++
+			close(done)
+			return nil
+		},
+	}
+
+	host.stop()
+
+	if kills != 1 {
+		t.Errorf("forced kills = %d, want 1", kills)
+	}
+}
+
 func TestMCPAttachConsumersKeepIndependentCursors(t *testing.T) {
 	host := newAttachTestHost(t)
 	defer host.close()
