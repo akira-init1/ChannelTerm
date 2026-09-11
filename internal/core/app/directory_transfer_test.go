@@ -72,6 +72,49 @@ func TestSendDirectoryStreamsTarInBoundedPayloads(t *testing.T) {
 	}
 }
 
+func TestSendDirectoryCancellationPadsRemainingRawStream(t *testing.T) {
+	source := t.TempDir()
+	mustWriteDirectoryTestFile(t, filepath.Join(source, "large.bin"), bytes.Repeat([]byte("x"), FileTransferChunkSize*3))
+	plan, err := makeDirectoryPlan(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	terminal := newFileTransferTestSession(nil)
+	progressCalls := 0
+	_, err = SendDirectory(context.Background(), terminal, source, "/tmp/release", func(int64, int64) error {
+		progressCalls++
+		return context.Canceled
+	})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("SendDirectory() error = %v, want context.Canceled", err)
+	}
+	if progressCalls != 1 {
+		t.Errorf("progress calls = %d, want 1 before cancellation cleanup", progressCalls)
+	}
+	if got := int64(len(terminal.received)); got != plan.size {
+		t.Errorf("bytes sent including cleanup padding = %d, want raw stream size %d", got, plan.size)
+	}
+	if tail := terminal.received[FileTransferChunkSize:]; !bytes.Equal(tail, make([]byte, len(tail))) {
+		t.Error("directory cancellation cleanup sent source payload after the cancellation boundary")
+	}
+}
+
+func TestSendDirectoryObservesSessionCancellationAtChunkBoundary(t *testing.T) {
+	source := t.TempDir()
+	mustWriteDirectoryTestFile(t, filepath.Join(source, "large.bin"), bytes.Repeat([]byte("x"), FileTransferChunkSize*3))
+	terminal := &cancelAfterFirstDirectorySendChunk{fileTransferTestSession: newFileTransferTestSession(nil)}
+	_, err := SendDirectory(context.Background(), terminal, source, "/tmp/release", nil)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("SendDirectory() error = %v, want context.Canceled", err)
+	}
+	if payload := terminal.received[:FileTransferChunkSize]; bytes.Count(payload, []byte("x")) == 0 {
+		t.Error("first source block was not sent before boundary cancellation")
+	}
+	if tail := terminal.received[FileTransferChunkSize:]; !bytes.Equal(tail, make([]byte, len(tail))) {
+		t.Error("source payload continued after Session cancellation was observed")
+	}
+}
+
 func TestReceiveDirectoryExtractsTarStream(t *testing.T) {
 	source := t.TempDir()
 	mustWriteDirectoryTestFile(t, filepath.Join(source, "logs", "app log"), []byte("entry"))
@@ -95,6 +138,57 @@ func TestReceiveDirectoryExtractsTarStream(t *testing.T) {
 	data, err := os.ReadFile(filepath.Join(destination, "logs", "app log"))
 	if err != nil || string(data) != "entry" {
 		t.Fatalf("received directory file = %q, %v", data, err)
+	}
+}
+
+func TestReceiveDirectoryCancellationDrainsRawStream(t *testing.T) {
+	source := t.TempDir()
+	mustWriteDirectoryTestFile(t, filepath.Join(source, "large.bin"), bytes.Repeat([]byte("x"), FileTransferChunkSize*3))
+	plan, err := makeDirectoryPlan(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	archive, err := io.ReadAll(plan.stream())
+	if err != nil {
+		t.Fatal(err)
+	}
+	terminal := newFileTransferTestSession(archive)
+	progressCalls := 0
+	_, err = ReceiveDirectory(context.Background(), terminal, "/var/log/release", t.TempDir(), func(int64, int64) error {
+		progressCalls++
+		return context.Canceled
+	})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("ReceiveDirectory() error = %v, want context.Canceled", err)
+	}
+	if progressCalls <= 1 {
+		t.Errorf("progress calls = %d, want the raw stream drained after cancellation", progressCalls)
+	}
+}
+
+func TestReceiveDirectoryObservesSessionCancellationWhileDraining(t *testing.T) {
+	source := t.TempDir()
+	mustWriteDirectoryTestFile(t, filepath.Join(source, "large.bin"), bytes.Repeat([]byte("x"), FileTransferChunkSize*3))
+	plan, err := makeDirectoryPlan(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	archive, err := io.ReadAll(plan.stream())
+	if err != nil {
+		t.Fatal(err)
+	}
+	cancellation := &fileTransferTestCancellation{}
+	terminal := &cancelableFileTransferSession{fileTransferTestSession: newFileTransferTestSession(archive), cancellation: cancellation}
+	progressCalls := 0
+	_, err = ReceiveDirectory(context.Background(), terminal, "/var/log/release", t.TempDir(), func(int64, int64) error {
+		progressCalls++
+		if progressCalls == 1 {
+			cancellation.Request()
+		}
+		return nil
+	})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("ReceiveDirectory() error = %v, want context.Canceled", err)
 	}
 }
 

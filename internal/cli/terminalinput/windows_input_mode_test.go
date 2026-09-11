@@ -77,3 +77,46 @@ func TestWindowsEscapePlanPassesControlBracketEscape(t *testing.T) {
 		t.Errorf("windowsEscapePlan(Ctrl+[) = %#v, want one Esc byte", got)
 	}
 }
+
+func TestWindowsEscapePlanPassesControlC(t *testing.T) {
+	tests := []struct {
+		name string
+		key  windowsKeyEventRecord
+	}{
+		{
+			name: "ETX character",
+			key:  windowsKeyEventRecord{keyDown: 1, virtualKeyCode: windowsVirtualKeyC, unicodeChar: 0x03},
+		},
+		{
+			name: "control modifier",
+			key: windowsKeyEventRecord{
+				keyDown:         1,
+				virtualKeyCode:  windowsVirtualKeyC,
+				controlKeyState: windowsLeftControlPressed,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := windowsEscapePlan([]windowsInputRecord{{eventType: windowsKeyEvent, key: tt.key}})
+			if got.discardRecords != 1 || got.controlCRepeats != 1 || got.escapeRepeats != 0 || got.readSingleUTF16 {
+				t.Errorf("windowsEscapePlan(Ctrl+C) = %#v, want one Ctrl+C byte", got)
+			}
+		})
+	}
+}
+
+func TestWindowsEscapePlanPreservesInputBeforeControlC(t *testing.T) {
+	records := []windowsInputRecord{
+		{eventType: windowsKeyEvent, key: windowsKeyEventRecord{keyDown: 1, unicodeChar: 'x'}},
+		{eventType: windowsKeyEvent, key: windowsKeyEventRecord{keyDown: 1, virtualKeyCode: windowsVirtualKeyC, unicodeChar: 0x03}},
+	}
+	if got := windowsEscapePlan(records); !got.readSingleUTF16 {
+		t.Fatalf("windowsEscapePlan(prefix, Ctrl+C) = %#v, want prefix read first", got)
+	}
+	got := windowsEscapePlan(records[1:])
+	if got.discardRecords != 1 || got.controlCRepeats != 1 {
+		t.Errorf("windowsEscapePlan(Ctrl+C suffix) = %#v, want queued Ctrl+C", got)
+	}
+}

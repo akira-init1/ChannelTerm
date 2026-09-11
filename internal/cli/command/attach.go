@@ -119,19 +119,29 @@ func newMCPAttachSession(ctx context.Context, endpoint, id string) (_ attachSess
 // Session reference attaches to an existing host session, while a serial target
 // reference such as SER-COM8 creates or reuses one shared host session first.
 func runAttach(ctx context.Context, args []string, input io.Reader, output io.Writer, newAttach attachSessionFactory) error {
+	return runAttachWithInterrupts(ctx, args, input, output, newAttach, nil)
+}
+
+// runAttachWithInterrupts uses optional process-level Console interruptions as
+// another input source for the one attach input dispatcher.
+func runAttachWithInterrupts(ctx context.Context, args []string, input io.Reader, output io.Writer, newAttach attachSessionFactory, interrupts <-chan os.Signal) error {
 	if len(args) == 1 && (args[0] == "--help" || args[0] == "-h") {
-		return runAttachTargetFirst(ctx, "SER-COM8", args, input, output, newAttach)
+		return runAttachTargetFirstWithInterrupts(ctx, "SER-COM8", args, input, output, newAttach, interrupts)
 	}
 	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
-		return runAttachTargetFirst(ctx, args[0], args[1:], input, output, newAttach)
+		return runAttachTargetFirstWithInterrupts(ctx, args[0], args[1:], input, output, newAttach, interrupts)
 	}
-	return runAttachSession(ctx, args, input, output, newAttach)
+	return runAttachSessionWithInterrupts(ctx, args, input, output, newAttach, interrupts)
 }
 
 // runAttachSession creates a client-specific cursor and bridges local terminal
 // I/O to an already-open Session. Cancellation detaches only this CLI client;
 // it does not call terminal_close or otherwise change the Manager-owned lifecycle.
 func runAttachSession(ctx context.Context, args []string, input io.Reader, output io.Writer, newAttach attachSessionFactory) (err error) {
+	return runAttachSessionWithInterrupts(ctx, args, input, output, newAttach, nil)
+}
+
+func runAttachSessionWithInterrupts(ctx context.Context, args []string, input io.Reader, output io.Writer, newAttach attachSessionFactory, interrupts <-chan os.Signal) (err error) {
 	flags := flag.NewFlagSet("attach", flag.ContinueOnError)
 	flags.SetOutput(output)
 	endpoint := flags.String("endpoint", defaultMCPEndpoint, "MCP Streamable HTTP endpoint")
@@ -226,7 +236,7 @@ func runAttachSession(ctx context.Context, args []string, input io.Reader, outpu
 	if owner, ok := attached.(localFileTransferPresentation); ok {
 		owner.setFileTransferPresentation(presentation)
 	}
-	go forwardAttachInput(attachCtx, input, attached, writeLocalOutput, togglePromptTimestamps, cancel)
+	go forwardAttachInputWithInterrupts(attachCtx, input, attached, writeLocalOutput, togglePromptTimestamps, cancel, interrupts)
 	if events, ok := attached.(attachEventSession); ok {
 		eventChunk, eventErr := events.ReadRecentEvents(session.DefaultEventBufferCapacity)
 		if eventErr != nil && !errors.Is(eventErr, context.Canceled) {
@@ -309,6 +319,10 @@ func runAttachSession(ctx context.Context, args []string, input io.Reader, outpu
 // first and options afterwards. It keeps the older flag-first Session form
 // available through runAttachSession for scripts that already use it.
 func runAttachTargetFirst(ctx context.Context, target string, args []string, input io.Reader, output io.Writer, newAttach attachSessionFactory) error {
+	return runAttachTargetFirstWithInterrupts(ctx, target, args, input, output, newAttach, nil)
+}
+
+func runAttachTargetFirstWithInterrupts(ctx context.Context, target string, args []string, input io.Reader, output io.Writer, newAttach attachSessionFactory, interrupts <-chan os.Signal) error {
 	flags := flag.NewFlagSet("attach", flag.ContinueOnError)
 	flags.SetOutput(output)
 	endpoint := flags.String("endpoint", defaultMCPEndpoint, "Session Host endpoint")
@@ -353,7 +367,7 @@ func runAttachTargetFirst(ctx context.Context, target string, args []string, inp
 		if _, err := fmt.Fprintf(output, "Shared Session %s: %s (%s)\r\n", state, opened.Reference, opened.ID); err != nil {
 			return err
 		}
-		return runAttachSession(ctx, []string{"--endpoint", *endpoint, "--highlight", *highlightMode, opened.ID}, input, output, newAttach)
+		return runAttachSessionWithInterrupts(ctx, []string{"--endpoint", *endpoint, "--highlight", *highlightMode, opened.ID}, input, output, newAttach, interrupts)
 	}
 	if *private {
 		return errors.New("--private requires a serial target reference such as SER-COM8")
@@ -361,7 +375,7 @@ func runAttachTargetFirst(ctx context.Context, target string, args []string, inp
 	if hasAttachSerialOption(flags) {
 		return errors.New("serial options require a serial target reference such as SER-COM8")
 	}
-	return runAttachSession(ctx, []string{"--endpoint", *endpoint, "--highlight", *highlightMode, target}, input, output, newAttach)
+	return runAttachSessionWithInterrupts(ctx, []string{"--endpoint", *endpoint, "--highlight", *highlightMode, target}, input, output, newAttach, interrupts)
 }
 
 // defineAttachSerialFlags accepts the same connection settings as serial and

@@ -66,13 +66,19 @@ func (r *windowsConsoleReader) Read(data []byte) (int, error) {
 			return 0, err
 		}
 		plan := windowsEscapePlan(records)
-		if plan.escapeRepeats > 0 {
+		if plan.escapeRepeats > 0 || plan.controlCRepeats > 0 {
 			if err := r.events.Consume(plan.discardRecords); err != nil {
 				return 0, err
 			}
-			r.pendingBytes = make([]byte, plan.escapeRepeats)
+			repeats := plan.escapeRepeats
+			value := byte(0x1B)
+			if plan.controlCRepeats > 0 {
+				repeats = plan.controlCRepeats
+				value = 0x03
+			}
+			r.pendingBytes = make([]byte, repeats)
 			for index := range r.pendingBytes {
-				r.pendingBytes[index] = 0x1B
+				r.pendingBytes[index] = value
 			}
 			continue
 		}

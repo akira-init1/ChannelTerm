@@ -35,7 +35,15 @@ import (
 // and stderr remain adapter concerns; Core packages never receive them.
 func Run(ctx context.Context, args []string, input io.Reader, stdout, stderr io.Writer) error {
 	_ = stderr
-	return runWithIO(ctx, args, input, stdout, nil)
+	return runWithIOWithInterrupts(ctx, args, input, stdout, nil, nil)
+}
+
+// RunWithInterrupts routes one CLI invocation while treating process-level
+// Console interruptions as local interactive input when attach is active.
+// Other commands retain normal process-cancellation semantics for interrupts.
+func RunWithInterrupts(ctx context.Context, args []string, input io.Reader, stdout, stderr io.Writer, interrupts <-chan os.Signal) error {
+	_ = stderr
+	return runWithIOWithInterrupts(ctx, args, input, stdout, nil, interrupts)
 }
 
 // run parses a CLI invocation and writes usage text to output.
@@ -71,7 +79,11 @@ const (
 // dependencies. This keeps parsing testable without changing process-wide
 // standard streams or opening a physical serial device.
 func runWithIO(ctx context.Context, args []string, input io.Reader, output io.Writer, newSession serialSessionFactory) error {
-	return runWithDependencies(ctx, args, input, output, newSession, newMCPAttachSession)
+	return runWithIOWithInterrupts(ctx, args, input, output, newSession, nil)
+}
+
+func runWithIOWithInterrupts(ctx context.Context, args []string, input io.Reader, output io.Writer, newSession serialSessionFactory, interrupts <-chan os.Signal) error {
+	return runWithDependenciesWithInterrupts(ctx, args, input, output, newSession, newMCPAttachSession, interrupts)
 }
 
 // runWithDependencies routes CLI commands with injectable connection factories.
@@ -79,6 +91,22 @@ func runWithIO(ctx context.Context, args []string, input io.Reader, output io.Wr
 // The separate attach factory keeps tests independent from a running MCP HTTP
 // server while production attach clients still use the shared MCP host.
 func runWithDependencies(ctx context.Context, args []string, input io.Reader, output io.Writer, newSession serialSessionFactory, newAttach attachSessionFactory) error {
+	return runWithDependenciesWithInterrupts(ctx, args, input, output, newSession, newAttach, nil)
+}
+
+func runWithDependenciesWithInterrupts(ctx context.Context, args []string, input io.Reader, output io.Writer, newSession serialSessionFactory, newAttach attachSessionFactory, interrupts <-chan os.Signal) error {
+	if interrupts != nil && (len(args) == 0 || args[0] != "attach") {
+		var stop context.CancelFunc
+		ctx, stop = context.WithCancel(ctx)
+		defer stop()
+		go func() {
+			select {
+			case <-ctx.Done():
+			case <-interrupts:
+				stop()
+			}
+		}()
+	}
 	if len(args) > 0 && args[0] == "serial" {
 		return runSerial(ctx, args[1:], input, output, newSession)
 	}
@@ -86,7 +114,7 @@ func runWithDependencies(ctx context.Context, args []string, input io.Reader, ou
 		return runApplicationConnect(ctx, args[1:], input, output, newSession)
 	}
 	if len(args) > 0 && args[0] == "attach" {
-		return runAttach(ctx, args[1:], input, output, newAttach)
+		return runAttachWithInterrupts(ctx, args[1:], input, output, newAttach, interrupts)
 	}
 	if len(args) > 0 && args[0] == "file" {
 		return runFile(ctx, args[1:], output, newAttach)

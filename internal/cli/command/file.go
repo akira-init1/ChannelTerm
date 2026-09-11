@@ -27,8 +27,9 @@ var (
 )
 
 type fileCommandDependencies struct {
-	newAttach    attachSessionFactory
-	listSessions func(context.Context, string) ([]mcpListedSession, error)
+	newAttach               attachSessionFactory
+	listSessions            func(context.Context, string) ([]mcpListedSession, error)
+	transferCancelRequested func() bool
 }
 
 // fileLeaseSession is implemented by attachments that can request Host-side
@@ -43,6 +44,24 @@ type fileLeaseSession interface {
 // existing attach Session byte path.
 type fileTransferEventReporter interface {
 	ReportFileTransferEvent(context.Context, session.EventType, map[string]any) error
+}
+
+// fileTransferProgressWithCancellation preserves the existing acknowledged
+// progress callback while adding the attach dispatcher's explicit cancellation
+// latch at the safe boundary immediately after a chunk is acknowledged.
+func fileTransferProgressWithCancellation(progress app.FileTransferProgress, cancelRequested func() bool) app.FileTransferProgress {
+	if cancelRequested == nil {
+		return progress
+	}
+	return func(transferred, total int64) error {
+		if cancelRequested() {
+			return context.Canceled
+		}
+		if progress == nil {
+			return nil
+		}
+		return progress(transferred, total)
+	}
 }
 
 // runFile parses CLI file transfers and uses the same Session attachment
@@ -139,7 +158,7 @@ func runFileSend(ctx context.Context, args []string, output io.Writer, dependenc
 		if startErr := progress.Start(info.Size()); startErr != nil {
 			return startErr
 		}
-		result, transferErr := app.SendFile(ctx, attached, file, info.Size(), remotePath, progress.Report)
+		result, transferErr := app.SendFileWithCancellation(ctx, attached, file, info.Size(), remotePath, dependencies.transferCancelRequested, fileTransferProgressWithCancellation(progress.Report, dependencies.transferCancelRequested))
 		if transferErr != nil {
 			return transferErr
 		}
@@ -189,7 +208,7 @@ func runFileSendDirectory(ctx context.Context, localPath, remotePath string, opt
 		defer reportFailedFileTransfer(ctx, attached, metadata, &operationErr)
 		progress := newFileTransferProgress(ctx, output, attached, metadata)
 		defer func() { operationErr = finishFileTransferPresentation(output, progress, operationErr) }()
-		result, transferErr := app.SendDirectory(ctx, attached, localPath, remotePath, progress.Report)
+		result, transferErr := app.SendDirectory(ctx, attached, localPath, remotePath, fileTransferProgressWithCancellation(progress.Report, dependencies.transferCancelRequested))
 		if transferErr != nil {
 			return transferErr
 		}
@@ -244,7 +263,7 @@ func runFileReceive(ctx context.Context, args []string, output io.Writer, depend
 		}
 		switch kind {
 		case app.RemotePathDirectory:
-			return runFileReceiveDirectory(ctx, attached, remotePath, localPath, output)
+			return runFileReceiveDirectory(ctx, attached, remotePath, localPath, output, dependencies.transferCancelRequested)
 		case app.RemotePathMissing:
 			return fmt.Errorf("remote source %q does not exist", remotePath)
 		case app.RemotePathUnsupported:
@@ -281,7 +300,7 @@ func runFileReceive(ctx context.Context, args []string, output io.Writer, depend
 			_ = reportFileTransferEvent(failureCtx, attached, session.EventFileTransferFailed, failureMetadata)
 		}()
 		progress = newFileTransferProgress(ctx, output, attached, metadata)
-		result, transferErr := app.ReceiveFile(ctx, attached, temporary, remotePath, progress.Report)
+		result, transferErr := app.ReceiveFileWithCancellation(ctx, attached, temporary, remotePath, dependencies.transferCancelRequested, fileTransferProgressWithCancellation(progress.Report, dependencies.transferCancelRequested))
 		if transferErr != nil {
 			_ = temporary.Close()
 			return transferErr
@@ -321,7 +340,7 @@ func runFileReceive(ctx context.Context, args []string, output io.Writer, depend
 
 // runFileReceiveDirectory runs while the caller holds the one file-transfer
 // lease, including remote tar probing, extraction, and final local rename.
-func runFileReceiveDirectory(ctx context.Context, attached attachSession, remotePath, localPath string, output io.Writer) (operationErr error) {
+func runFileReceiveDirectory(ctx context.Context, attached attachSession, remotePath, localPath string, output io.Writer, cancelRequested func() bool) (operationErr error) {
 	localPath, err := nextAvailableLocalDirectory(localPath)
 	if err != nil {
 		return err
@@ -338,7 +357,7 @@ func runFileReceiveDirectory(ctx context.Context, attached attachSession, remote
 	defer reportFailedFileTransfer(ctx, attached, metadata, &operationErr)
 	progress := newFileTransferProgress(ctx, output, attached, metadata)
 	defer func() { operationErr = finishFileTransferPresentation(output, progress, operationErr) }()
-	result, transferErr := app.ReceiveDirectory(ctx, attached, remotePath, staging, progress.Report)
+	result, transferErr := app.ReceiveDirectory(ctx, attached, remotePath, staging, fileTransferProgressWithCancellation(progress.Report, cancelRequested))
 	if transferErr != nil {
 		return transferErr
 	}

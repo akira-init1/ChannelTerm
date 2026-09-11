@@ -651,6 +651,30 @@ func TestFileTransferSuccessSummaryStartsAfterCompletedProgressLine(t *testing.T
 	}
 }
 
+func TestLocalOutputWriterUsesCRLFForFileTransferSummary(t *testing.T) {
+	var output bytes.Buffer
+	writer := localOutputWriter{write: func(data []byte) error {
+		_, err := output.Write(data)
+		return err
+	}}
+	if _, err := fmt.Fprint(writer, "\r[####################] 100.0%  0 B / 0 B\x1b[K"); err != nil {
+		t.Fatalf("write progress: %v", err)
+	}
+	if _, err := fmt.Fprintln(writer); err != nil {
+		t.Fatalf("finish progress line: %v", err)
+	}
+	if _, err := fmt.Fprintln(writer, "SHA-256: OK"); err != nil {
+		t.Fatalf("write checksum summary: %v", err)
+	}
+	if _, err := fmt.Fprintln(writer, "Saved: /tmp/test123"); err != nil {
+		t.Fatalf("write saved summary: %v", err)
+	}
+	want := "\r[####################] 100.0%  0 B / 0 B\x1b[K\r\nSHA-256: OK\r\nSaved: /tmp/test123\r\n"
+	if got := output.String(); got != want {
+		t.Errorf("local output = %q, want %q", got, want)
+	}
+}
+
 type reportedFileTransferEvent struct {
 	typ      session.EventType
 	metadata map[string]any
