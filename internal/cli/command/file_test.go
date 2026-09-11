@@ -134,6 +134,49 @@ func TestAttachFileShortcutSelectsSendAndReceive(t *testing.T) {
 	}
 }
 
+func TestAttachFileShortcutPathPromptsNeverWriteSession(t *testing.T) {
+	tests := []struct {
+		name       string
+		input      []byte
+		wantOutput []string
+	}{
+		{
+			name:       "send accepts pasted remote path before local Esc cancellation",
+			input:      []byte("s\nbuild/firmware.bin\n/home/root/firmware.bin\x1b"),
+			wantOutput: []string{"Local path: build/firmware.bin", "Remote path [/tmp/firmware.bin]: /home/root/firmware.bin"},
+		},
+		{
+			name:       "receive accepts pasted remote path before local path cancellation",
+			input:      []byte("r\n/var/log/app.log\n\x1b"),
+			wantOutput: []string{"Remote path: /var/log/app.log", "Local path [" + defaultLocalTransferPath("/var/log/app.log") + "]:"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			attached := &fakeAttachSession{}
+			pump := newAttachInputPump(bytes.NewReader(tt.input))
+			var output bytes.Buffer
+			if ok := runAttachFileShortcut(context.Background(), &pump, attached, func(data []byte) error {
+				_, err := output.Write(data)
+				return err
+			}); !ok {
+				t.Fatal("runAttachFileShortcut() returned false")
+			}
+			for _, want := range tt.wantOutput {
+				if !strings.Contains(output.String(), want) {
+					t.Errorf("output = %q, want %q", output.String(), want)
+				}
+			}
+			if written := attached.writtenData(); len(written) != 0 {
+				t.Errorf("path prompts wrote Session data %q, want none", written)
+			}
+			if strings.Contains(output.String(), "Session") || strings.Contains(output.String(), "write failed") {
+				t.Errorf("path prompt output contains a Session write failure: %q", output.String())
+			}
+		})
+	}
+}
+
 func TestAttachFileShortcutDefaultPathsAndCustomPaths(t *testing.T) {
 	if got := defaultRemoteTransferPath(filepath.Join("build", "firmware.bin")); got != "/tmp/firmware.bin" {
 		t.Errorf("default remote path = %q, want /tmp/firmware.bin", got)
