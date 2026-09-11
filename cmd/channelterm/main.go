@@ -14,9 +14,10 @@ import (
 // main assembles process-level cancellation and standard streams before
 // delegating all command behavior to the CLI adapter.
 func main() {
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
-	if err := command.Run(ctx, os.Args[1:], os.Stdin, os.Stdout, os.Stderr); err != nil {
+	interrupts := make(chan os.Signal, 1)
+	signal.Notify(interrupts, os.Interrupt, syscall.SIGTERM)
+	defer signal.Stop(interrupts)
+	if err := command.RunWithInterrupts(context.Background(), os.Args[1:], os.Stdin, os.Stdout, os.Stderr, interrupts); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}

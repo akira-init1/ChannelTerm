@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"os"
 	posixpath "path"
 	"path/filepath"
 	"strings"
@@ -85,17 +86,14 @@ func (p *attachInputPump) prepend(data []byte) {
 // attach-only file shortcut. It batches ordinary remote bytes from each input
 // read, while stopping at local actions so their following bytes stay local.
 func forwardAttachInput(ctx context.Context, input io.Reader, terminal attachSession, writeLocal func([]byte) error, togglePromptTimestamp func() error, cancel context.CancelFunc) {
+	forwardAttachInputWithInterrupts(ctx, input, terminal, writeLocal, togglePromptTimestamp, cancel, nil)
+}
+
+// forwardAttachInputWithInterrupts routes both raw console bytes and optional
+// process-level Console interruptions through one attach input dispatcher.
+func forwardAttachInputWithInterrupts(ctx context.Context, input io.Reader, terminal attachSession, writeLocal func([]byte) error, togglePromptTimestamp func() error, cancel context.CancelFunc, interrupts <-chan os.Signal) {
 	pump := newAttachInputPump(input)
-	controller := interactive.NewController(interactive.DefaultEscapeByte)
-	for {
-		result, ok := pump.next(ctx)
-		if !ok || result.err != nil {
-			return
-		}
-		if !processAttachInput(ctx, controller, result.data, &pump, terminal, writeLocal, togglePromptTimestamp, cancel) {
-			return
-		}
-	}
+	newAttachInputDispatcherWithPumpAndInterrupts(ctx, &pump, terminal, writeLocal, togglePromptTimestamp, cancel, runAttachShortcutFileTransfer, interrupts).run()
 }
 
 func processAttachInput(ctx context.Context, controller *interactive.Controller, data []byte, pump *attachInputPump, terminal attachSession, writeLocal func([]byte) error, togglePromptTimestamp func() error, cancel context.CancelFunc) bool {
@@ -273,7 +271,11 @@ func runAttachReceiveShortcut(ctx context.Context, pump *attachInputPump, attach
 
 func runAttachShortcutTransfer(ctx context.Context, pump *attachInputPump, attached attachSession, writeLocal func([]byte) error, direction, firstPath, secondPath string) bool {
 	return runAttachShortcutTransferWithRunner(ctx, pump, attached, writeLocal, direction, firstPath, secondPath, func(workerCtx context.Context, transfer attachSession, output io.Writer) error {
-		return runAttachShortcutFileTransfer(workerCtx, transfer, output, direction, firstPath, secondPath)
+		cancelRequested := func() bool { return false }
+		if requester, ok := transfer.(interface{ FileTransferCancelRequested() bool }); ok {
+			cancelRequested = requester.FileTransferCancelRequested
+		}
+		return runAttachShortcutFileTransfer(workerCtx, transfer, output, cancelRequested, direction, firstPath, secondPath)
 	})
 }
 
@@ -330,21 +332,6 @@ func runAttachShortcutTransferWithRunner(ctx context.Context, pump *attachInputP
 	}
 }
 
-func runAttachShortcutFileTransfer(ctx context.Context, attached attachSession, output io.Writer, direction, firstPath, secondPath string) error {
-	dependencies := fileCommandDependencies{
-		newAttach: func(context.Context, string, string) (attachSession, error) {
-			return attached, nil
-		},
-		listSessions: func(context.Context, string) ([]mcpListedSession, error) {
-			return nil, errors.New("unexpected Session listing")
-		},
-	}
-	if direction == "send" {
-		return runFileSend(ctx, []string{firstPath, secondPath, "--session", "attached"}, output, dependencies)
-	}
-	return runFileReceive(ctx, []string{firstPath, secondPath, "--session", "attached"}, output, dependencies)
-}
-
 func readShortcutLine(pump *attachInputPump, writeLocal func([]byte) error) (string, bool, bool) {
 	var line []byte
 	for {
@@ -388,7 +375,18 @@ func defaultLocalTransferPath(remotePath string) string {
 type localOutputWriter struct{ write func([]byte) error }
 
 func (w localOutputWriter) Write(data []byte) (int, error) {
-	if err := w.write(data); err != nil {
+	// The attached terminal can be in a mode where LF advances a row without
+	// returning to column zero. File-transfer output follows an in-place
+	// progress frame, so make its ordinary line endings explicit before writing
+	// them locally. Preserve existing CRLF sequences from callers.
+	local := make([]byte, 0, len(data)+2)
+	for index, value := range data {
+		if value == '\n' && (index == 0 || data[index-1] != '\r') {
+			local = append(local, '\r')
+		}
+		local = append(local, value)
+	}
+	if err := w.write(local); err != nil {
 		return 0, err
 	}
 	return len(data), nil

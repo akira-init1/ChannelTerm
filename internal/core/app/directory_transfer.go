@@ -219,9 +219,15 @@ func SendDirectory(ctx context.Context, terminal FileTransferSession, source, re
 	if err != nil {
 		return DirectoryTransferResult{}, err
 	}
+	if fileTransferCancelRequested(terminal, nil) {
+		return DirectoryTransferResult{}, context.Canceled
+	}
 	remotePath, quotedPath, err := protocol.selectAvailableRemotePath(ctx, remotePath)
 	if err != nil {
 		return DirectoryTransferResult{}, err
+	}
+	if fileTransferCancelRequested(terminal, nil) {
+		return DirectoryTransferResult{}, context.Canceled
 	}
 	stagePath := posixDirectoryStagePath(remotePath, protocol.token)
 	quotedStage, err := quoteRemotePath(stagePath)
@@ -233,6 +239,10 @@ func SendDirectory(ctx context.Context, terminal FileTransferSession, source, re
 	}
 	if _, err := protocol.expect(ctx, "READY", fmt.Sprintf("%d", plan.size)); err != nil {
 		return DirectoryTransferResult{}, directoryTarError(err)
+	}
+	if fileTransferCancelRequested(terminal, nil) {
+		cleanupErr := protocol.finishDirectorySend(plan.size)
+		return DirectoryTransferResult{}, errors.Join(context.Canceled, cleanupErr)
 	}
 	if sent, err := copyDirectoryStream(ctx, terminal, plan.stream(), plan.size, progress); err != nil {
 		cleanupErr := protocol.finishDirectorySend(plan.size - sent)
@@ -298,6 +308,9 @@ func ReceiveDirectory(ctx context.Context, terminal FileTransferSession, remoteP
 	if err != nil {
 		return DirectoryTransferResult{}, err
 	}
+	if fileTransferCancelRequested(terminal, nil) {
+		return DirectoryTransferResult{}, context.Canceled
+	}
 	if err := protocol.command(ctx, directoryReceiveSizeCommand(protocol.token, quotedPath)); err != nil {
 		return DirectoryTransferResult{}, err
 	}
@@ -311,6 +324,9 @@ func ReceiveDirectory(ctx context.Context, terminal FileTransferSession, remoteP
 	size, err := parseNonNegativeSize(event[0])
 	if err != nil {
 		return DirectoryTransferResult{}, err
+	}
+	if fileTransferCancelRequested(terminal, nil) {
+		return DirectoryTransferResult{}, context.Canceled
 	}
 	reader, writer := io.Pipe()
 	extractDone := make(chan error, 1)
@@ -348,6 +364,9 @@ func copyDirectoryStream(ctx context.Context, terminal FileTransferSession, sour
 	buffer := make([]byte, FileTransferChunkSize)
 	var transferred int64
 	for transferred < size {
+		if fileTransferCancelRequested(terminal, nil) {
+			return transferred, context.Canceled
+		}
 		chunkSize := int64(len(buffer))
 		if remaining := size - transferred; remaining < chunkSize {
 			chunkSize = remaining
@@ -385,6 +404,9 @@ func receiveDirectoryStream(ctx context.Context, protocol *fileProtocol, destina
 	var transferred int64
 	var writeErr error
 	for transferred < size {
+		if writeErr == nil && fileTransferCancelRequested(protocol.terminal, nil) {
+			writeErr = context.Canceled
+		}
 		chunkSize := int64(len(buffer))
 		if remaining := size - transferred; remaining < chunkSize {
 			chunkSize = remaining

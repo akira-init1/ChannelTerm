@@ -40,6 +40,29 @@ func TestWindowsConsoleReaderPassesEscapeByte(t *testing.T) {
 	}
 }
 
+func TestWindowsConsoleReaderPassesControlCByte(t *testing.T) {
+	events := &fakeWindowsConsoleEvents{records: []windowsInputRecord{
+		{eventType: windowsKeyEvent, key: windowsKeyEventRecord{virtualKeyCode: windowsVirtualKeyControl}},
+		{eventType: windowsKeyEvent, key: windowsKeyEventRecord{
+			keyDown:         1,
+			virtualKeyCode:  windowsVirtualKeyC,
+			controlKeyState: windowsLeftControlPressed,
+		}},
+	}}
+	reader := &windowsConsoleReader{events: events}
+	buffer := make([]byte, 1)
+	n, err := reader.Read(buffer)
+	if err != nil {
+		t.Fatalf("Read() error = %v", err)
+	}
+	if n != 1 || buffer[0] != 0x03 {
+		t.Errorf("Read() = %d, %x, want one Ctrl+C byte", n, buffer[:n])
+	}
+	if events.consumed != 2 {
+		t.Errorf("consumed records = %d, want 2", events.consumed)
+	}
+}
+
 type fakeWindowsConsoleEvents struct {
 	records    []windowsInputRecord
 	consumed   int

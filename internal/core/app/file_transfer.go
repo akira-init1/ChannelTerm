@@ -60,6 +60,12 @@ type fileTransferCancelRequester interface {
 // failure to the caller.
 type FileTransferProgress func(transferred, total int64) error
 
+// FileTransferCancelRequested reports whether a local caller has requested a
+// safe stop. SendFileWithCancellation and ReceiveFileWithCancellation observe
+// it only at protocol chunk boundaries, never by interrupting an active raw
+// terminal block.
+type FileTransferCancelRequested func() bool
+
 // FileTransferResult reports the verified file metadata after transfer.
 type FileTransferResult struct {
 	Size int64
@@ -76,6 +82,13 @@ type FileTransferResult struct {
 // through Session.Write and acknowledged only after dd appends it. The final
 // byte count and SHA-256 digest are independently computed by the remote shell.
 func SendFile(ctx context.Context, terminal FileTransferSession, source io.Reader, size int64, remotePath string, progress FileTransferProgress) (FileTransferResult, error) {
+	return SendFileWithCancellation(ctx, terminal, source, size, remotePath, nil, progress)
+}
+
+// SendFileWithCancellation streams a file while observing cancelRequested at
+// safe protocol boundaries. A non-nil request never truncates a raw block that
+// has already started on the remote terminal.
+func SendFileWithCancellation(ctx context.Context, terminal FileTransferSession, source io.Reader, size int64, remotePath string, cancelRequested FileTransferCancelRequested, progress FileTransferProgress) (FileTransferResult, error) {
 	if terminal == nil {
 		return FileTransferResult{}, errors.New("file transfer session must not be nil")
 	}
@@ -92,14 +105,14 @@ func SendFile(ctx context.Context, terminal FileTransferSession, source io.Reade
 	if err != nil {
 		return FileTransferResult{}, err
 	}
-	if fileTransferCancelRequested(terminal) {
+	if fileTransferCancelRequested(terminal, cancelRequested) {
 		return FileTransferResult{}, context.Canceled
 	}
 	remotePath, quotedPath, err := protocol.selectAvailableRemotePath(ctx, remotePath)
 	if err != nil {
 		return FileTransferResult{}, err
 	}
-	if fileTransferCancelRequested(terminal) {
+	if fileTransferCancelRequested(terminal, cancelRequested) {
 		return FileTransferResult{}, context.Canceled
 	}
 	if err := protocol.command(ctx, sendInitCommand(protocol.token, quotedPath)); err != nil {
@@ -108,7 +121,7 @@ func SendFile(ctx context.Context, terminal FileTransferSession, source io.Reade
 	if _, err := protocol.expect(ctx, "INIT", "OK"); err != nil {
 		return FileTransferResult{}, fmt.Errorf("initialize remote file %q: %w", remotePath, err)
 	}
-	if fileTransferCancelRequested(terminal) {
+	if fileTransferCancelRequested(terminal, cancelRequested) {
 		return FileTransferResult{}, context.Canceled
 	}
 
@@ -116,7 +129,7 @@ func SendFile(ctx context.Context, terminal FileTransferSession, source io.Reade
 	buffer := make([]byte, FileTransferChunkSize)
 	var transferred int64
 	for transferred < size {
-		if fileTransferCancelRequested(terminal) {
+		if fileTransferCancelRequested(terminal, cancelRequested) {
 			return FileTransferResult{}, context.Canceled
 		}
 		chunkSize := int64(len(buffer))
@@ -154,7 +167,7 @@ func SendFile(ctx context.Context, terminal FileTransferSession, source io.Reade
 			}
 		}
 	}
-	if fileTransferCancelRequested(terminal) {
+	if fileTransferCancelRequested(terminal, cancelRequested) {
 		return FileTransferResult{}, context.Canceled
 	}
 	var trailing [1]byte
@@ -244,6 +257,13 @@ func splitFilenameExtension(filename string) (string, string) {
 // fixed-size block while the remote TTY is raw, after which its saved settings
 // are restored. destination is caller-owned and is not closed by ReceiveFile.
 func ReceiveFile(ctx context.Context, terminal FileTransferSession, destination io.Writer, remotePath string, progress FileTransferProgress) (FileTransferResult, error) {
+	return ReceiveFileWithCancellation(ctx, terminal, destination, remotePath, nil, progress)
+}
+
+// ReceiveFileWithCancellation receives a file while observing cancelRequested
+// at safe protocol boundaries. A non-nil request never truncates an active raw
+// block emitted by the remote terminal.
+func ReceiveFileWithCancellation(ctx context.Context, terminal FileTransferSession, destination io.Writer, remotePath string, cancelRequested FileTransferCancelRequested, progress FileTransferProgress) (FileTransferResult, error) {
 	if terminal == nil {
 		return FileTransferResult{}, errors.New("file transfer session must not be nil")
 	}
@@ -274,7 +294,7 @@ func ReceiveFile(ctx context.Context, terminal FileTransferSession, destination 
 			return FileTransferResult{}, err
 		}
 	}
-	if fileTransferCancelRequested(terminal) {
+	if fileTransferCancelRequested(terminal, cancelRequested) {
 		return FileTransferResult{}, context.Canceled
 	}
 
@@ -283,7 +303,7 @@ func ReceiveFile(ctx context.Context, terminal FileTransferSession, destination 
 	var transferred int64
 	var blockIndex int64
 	for transferred < size {
-		if fileTransferCancelRequested(terminal) {
+		if fileTransferCancelRequested(terminal, cancelRequested) {
 			return FileTransferResult{}, context.Canceled
 		}
 		chunkSize := int64(len(buffer))
@@ -321,7 +341,7 @@ func ReceiveFile(ctx context.Context, terminal FileTransferSession, destination 
 			}
 		}
 	}
-	if fileTransferCancelRequested(terminal) {
+	if fileTransferCancelRequested(terminal, cancelRequested) {
 		return FileTransferResult{}, context.Canceled
 	}
 	if err := protocol.command(ctx, verifyCommand(protocol.token, quotedPath)); err != nil {
@@ -353,7 +373,10 @@ func ReceiveFile(ctx context.Context, terminal FileTransferSession, destination 
 	return FileTransferResult{Size: size, SHA256: localDigest}, nil
 }
 
-func fileTransferCancelRequested(terminal FileTransferSession) bool {
+func fileTransferCancelRequested(terminal FileTransferSession, cancelRequested FileTransferCancelRequested) bool {
+	if cancelRequested != nil && cancelRequested() {
+		return true
+	}
 	cancellation, ok := terminal.(fileTransferCancelRequester)
 	return ok && cancellation.FileTransferCancelRequested()
 }

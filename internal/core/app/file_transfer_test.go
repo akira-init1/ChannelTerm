@@ -150,6 +150,22 @@ func TestSendFileStopsAfterCurrentChunkWhenCancellationIsRequested(t *testing.T)
 	}
 }
 
+func TestSendFileWithCancellationStopsAfterCurrentChunk(t *testing.T) {
+	content := bytes.Repeat([]byte("s"), 2*FileTransferChunkSize)
+	terminal := newFileTransferTestSession(nil)
+	_, err := SendFileWithCancellation(context.Background(), terminal, bytes.NewReader(content), int64(len(content)), "/tmp/cancel.bin", func() bool {
+		terminal.mu.Lock()
+		defer terminal.mu.Unlock()
+		return len(terminal.received) >= FileTransferChunkSize && terminal.pendingSend == 0
+	}, nil)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("SendFileWithCancellation() error = %v, want context.Canceled", err)
+	}
+	if got := len(terminal.received); got != FileTransferChunkSize {
+		t.Errorf("received bytes = %d, want one completed chunk", got)
+	}
+}
+
 func TestReceiveFileStopsAfterCurrentChunkWhenCancellationIsRequested(t *testing.T) {
 	content := bytes.Repeat([]byte("r"), 2*FileTransferChunkSize)
 	cancellation := &fileTransferTestCancellation{}
@@ -166,6 +182,25 @@ func TestReceiveFileStopsAfterCurrentChunkWhenCancellationIsRequested(t *testing
 	}
 	if got := destination.Len(); got != FileTransferChunkSize {
 		t.Errorf("received bytes = %d, want one completed chunk", got)
+	}
+}
+
+func TestReceiveFileWithCancellationStopsAfterCurrentChunk(t *testing.T) {
+	content := bytes.Repeat([]byte("r"), 2*FileTransferChunkSize)
+	terminal := newFileTransferTestSession(content)
+	cancelled := false
+	var destination bytes.Buffer
+	_, err := ReceiveFileWithCancellation(context.Background(), terminal, &destination, "/tmp/cancel.bin", func() bool { return cancelled }, func(transferred, _ int64) error {
+		if transferred == FileTransferChunkSize {
+			cancelled = true
+		}
+		return nil
+	})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("ReceiveFileWithCancellation() error = %v, want context.Canceled", err)
+	}
+	if got := destination.Len(); got != FileTransferChunkSize {
+		t.Errorf("destination bytes = %d, want one completed chunk", got)
 	}
 }
 
@@ -243,6 +278,14 @@ func (s *cancelAfterFirstSendChunk) FileTransferCancelRequested() bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return len(s.received) >= FileTransferChunkSize && s.pendingSend == 0
+}
+
+type cancelAfterFirstDirectorySendChunk struct{ *fileTransferTestSession }
+
+func (s *cancelAfterFirstDirectorySendChunk) FileTransferCancelRequested() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return len(s.received) >= FileTransferChunkSize
 }
 
 type fileTransferTestCancellation struct {
