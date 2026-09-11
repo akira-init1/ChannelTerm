@@ -103,8 +103,8 @@ func TestAttachFileShortcutMenuEscStaysLocal(t *testing.T) {
 	}); !ok {
 		t.Fatal("runAttachFileShortcut() returned false")
 	}
-	if got := output.String(); !strings.Contains(got, "File transfer:") || !strings.Contains(got, "File transfer cancelled") {
-		t.Errorf("shortcut output = %q, want menu and local cancellation", got)
+	if got := output.String(); !strings.Contains(got, "File transfer:") || !strings.Contains(got, "Select: ") || !strings.Contains(got, "File transfer cancelled") {
+		t.Errorf("shortcut output = %q, want menu Select prompt and local cancellation", got)
 	}
 }
 
@@ -114,8 +114,8 @@ func TestAttachFileShortcutSelectsSendAndReceive(t *testing.T) {
 		input      string
 		wantPrompt string
 	}{
-		{name: "send", input: "s\n\n", wantPrompt: "Local path:"},
-		{name: "receive", input: "r\n\n", wantPrompt: "Remote path:"},
+		{name: "send", input: "s\x1b", wantPrompt: "Local path:"},
+		{name: "receive", input: "r\x1b", wantPrompt: "Remote path:"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -127,8 +127,8 @@ func TestAttachFileShortcutSelectsSendAndReceive(t *testing.T) {
 			}); !ok {
 				t.Fatal("runAttachFileShortcut() returned false")
 			}
-			if got := output.String(); !strings.Contains(got, tt.wantPrompt) || !strings.Contains(got, "File transfer cancelled") {
-				t.Errorf("shortcut output = %q, want %q and cancellation", got, tt.wantPrompt)
+			if got := output.String(); !strings.Contains(got, "Select: "+tt.input[:1]+"\r\n"+tt.wantPrompt) || strings.Contains(got, "\r\n"+tt.input[:1]+"\r\n") || !strings.Contains(got, "File transfer cancelled") {
+				t.Errorf("shortcut output = %q, want immediate selected %q, prompt %q, and cancellation", got, tt.input[:1], tt.wantPrompt)
 			}
 		})
 	}
@@ -142,12 +142,12 @@ func TestAttachFileShortcutPathPromptsNeverWriteSession(t *testing.T) {
 	}{
 		{
 			name:       "send accepts pasted remote path before local Esc cancellation",
-			input:      []byte("s\nbuild/firmware.bin\n/home/root/firmware.bin\x1b"),
+			input:      []byte("sbuild/firmware.bin\n/home/root/firmware.bin\x1b"),
 			wantOutput: []string{"Local path: build/firmware.bin", "Remote path [/tmp/firmware.bin]: /home/root/firmware.bin"},
 		},
 		{
 			name:       "receive accepts pasted remote path before local path cancellation",
-			input:      []byte("r\n/var/log/app.log\n\x1b"),
+			input:      []byte("r/var/log/app.log\n\x1b"),
 			wantOutput: []string{"Remote path: /var/log/app.log", "Local path [" + defaultLocalTransferPath("/var/log/app.log") + "]:"},
 		},
 	}
@@ -174,6 +174,47 @@ func TestAttachFileShortcutPathPromptsNeverWriteSession(t *testing.T) {
 				t.Errorf("path prompt output contains a Session write failure: %q", output.String())
 			}
 		})
+	}
+}
+
+func TestAttachFileShortcutIgnoresInvalidMenuKeys(t *testing.T) {
+	attached := &fakeAttachSession{}
+	pump := newAttachInputPump(strings.NewReader("x\x1b"))
+	var output bytes.Buffer
+	if ok := runAttachFileShortcut(context.Background(), &pump, attached, func(data []byte) error {
+		_, err := output.Write(data)
+		return err
+	}); !ok {
+		t.Fatal("runAttachFileShortcut() returned false")
+	}
+	if got := output.String(); strings.Contains(got, "Local path:") || strings.Contains(got, "Remote path:") || strings.Contains(got, "\r\nx") || !strings.Contains(got, "Select: ") || !strings.Contains(got, "File transfer cancelled") {
+		t.Errorf("shortcut output = %q, want ignored local invalid key and cancellation", got)
+	}
+	if written := attached.writtenData(); len(written) != 0 {
+		t.Errorf("invalid menu key wrote Session data %q, want none", written)
+	}
+}
+
+func TestAttachFileShortcutReturnsToNormalInput(t *testing.T) {
+	pump := newAttachInputPump(strings.NewReader(""))
+	attached := &fakeAttachSession{}
+	var output bytes.Buffer
+	controller := interactive.NewController(interactive.DefaultEscapeByte)
+	writeLocal := func(data []byte) error {
+		_, err := output.Write(data)
+		return err
+	}
+	if ok := processAttachInput(context.Background(), controller, []byte{interactive.DefaultEscapeByte, 'f', 0x1b}, &pump, attached, writeLocal, func() error { return nil }, func() {}); !ok {
+		t.Fatal("Ctrl+] f menu did not return to attach")
+	}
+	if !strings.Contains(output.String(), "Select: ") || !strings.Contains(output.String(), "File transfer cancelled") {
+		t.Errorf("shortcut output = %q, want Ctrl+] f menu and local cancellation", output.String())
+	}
+	if ok := processAttachInput(context.Background(), controller, []byte("echo ok\r"), &pump, attached, writeLocal, func() error { return nil }, func() {}); !ok {
+		t.Fatal("normal attach input did not resume")
+	}
+	if got := string(attached.writtenData()); got != "echo ok\r" {
+		t.Errorf("Session data after menu = %q, want normal attach input", got)
 	}
 }
 
@@ -373,7 +414,7 @@ func TestFormatFileTransferETA(t *testing.T) {
 		want               string
 	}{
 		{name: "seconds", transferred: 85, total: 100, speed: 1, want: "ETA 15s"},
-		{name: "minutes", transferred: 17, total: 100, speed: 1, want: "ETA 1m23s"},
+		{name: "minutes", transferred: 15, total: 100, speed: 1, want: "ETA 1m 25s"},
 		{name: "zero speed", transferred: 50, total: 100, speed: 0, want: "ETA --"},
 	}
 	for _, tt := range tests {
@@ -382,6 +423,20 @@ func TestFormatFileTransferETA(t *testing.T) {
 				t.Errorf("formatFileTransferETA() = %q, want %q", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestFileTransferProgressClearsStaleETAText(t *testing.T) {
+	var output bytes.Buffer
+	reporter := newFileTransferProgress(context.Background(), &output, &fakeAttachSession{}, nil)
+	if err := reporter.render(fileTransferSnapshot{transferred: 0, total: 125, percent: 0, speed: 1}); err != nil {
+		t.Fatalf("render(long ETA) error = %v", err)
+	}
+	if err := reporter.render(fileTransferSnapshot{transferred: 100, total: 125, percent: 80, speed: 1}); err != nil {
+		t.Fatalf("render(short ETA) error = %v", err)
+	}
+	if got := output.String(); !strings.Contains(got, "ETA 25s\x1b[K") || strings.Contains(got, "ETA 25ss") {
+		t.Errorf("progress rendering = %q, want cleared single-unit ETA", got)
 	}
 }
 
@@ -418,6 +473,43 @@ func TestFileTransferProgressRendersSendAndReceive(t *testing.T) {
 	}
 }
 
+func TestFileTransferProgressStartsNonEmptySendAndReceiveWithoutSpeedOrETA(t *testing.T) {
+	const total = 537 * 1024
+	for _, direction := range []string{"send", "receive"} {
+		t.Run(direction, func(t *testing.T) {
+			attached := &eventReportingAttachSession{}
+			var output bytes.Buffer
+			progress := newFileTransferProgress(context.Background(), &output, attached, map[string]any{"direction": direction})
+			var err error
+			if direction == "send" {
+				err = progress.Start(total)
+			} else {
+				err = progress.Report(0, total)
+			}
+			if err != nil {
+				t.Fatalf("initial progress error = %v", err)
+			}
+			if got := output.String(); got != "\r[--------------------]   0.0%  0 B / 537 KiB\x1b[K" {
+				t.Errorf("initial progress = %q, want immediate zero-progress frame", got)
+			}
+			if got := output.String(); strings.Contains(got, "/s") || strings.Contains(got, "ETA") {
+				t.Errorf("initial progress = %q, must not show speed or ETA", got)
+			}
+			if len(attached.events) != 0 {
+				t.Errorf("initial progress events = %#v, want none", attached.events)
+			}
+
+			progress.started = time.Now().Add(-time.Second)
+			if err := progress.Report(32*1024, total); err != nil {
+				t.Fatalf("progress.Report() error = %v", err)
+			}
+			if got := output.String(); !strings.Contains(got, "KiB/s") || !strings.Contains(got, "ETA ") {
+				t.Errorf("first acknowledged progress = %q, want speed and ETA", got)
+			}
+		})
+	}
+}
+
 func TestFileTransferProgressCompleteReusesFinalEventSnapshot(t *testing.T) {
 	attached := &eventReportingAttachSession{}
 	var output bytes.Buffer
@@ -435,7 +527,7 @@ func TestFileTransferProgressCompleteReusesFinalEventSnapshot(t *testing.T) {
 	if !ok {
 		t.Fatalf("event speed = %#v, want float64", attached.events[0].metadata["speed"])
 	}
-	want := "\r" + formatFileTransferProgress(fileTransferSnapshot{transferred: 100, total: 100, percent: 100, speed: speed})
+	want := "\r" + formatFileTransferProgress(fileTransferSnapshot{transferred: 100, total: 100, percent: 100, speed: speed}) + "\x1b[K"
 	if got := output.String(); got != want {
 		t.Errorf("completed output = %q, want final event snapshot %q", got, want)
 	}
@@ -451,14 +543,20 @@ func TestFinishFileTransferPresentation(t *testing.T) {
 	}{
 		{name: "success", want100: true},
 		{name: "cancelled", operation: context.Canceled, wantStatus: "Transfer cancelled.\n"},
+		{name: "failure before payload", operation: errors.New("remote setup failed"), wantStatus: "Transfer failed: remote setup failed\n"},
 		{name: "failure after final protocol progress", operation: errors.New("remote checksum failed"), wantStatus: "Transfer failed: remote checksum failed\n", holdFinal: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var output bytes.Buffer
 			progress := newFileTransferProgress(context.Background(), &output, nil, map[string]any{"direction": "send"})
-			if err := progress.Report(40, 100); err != nil {
-				t.Fatalf("progress.Report() error = %v", err)
+			if err := progress.Start(100); err != nil {
+				t.Fatalf("progress.Start() error = %v", err)
+			}
+			if tt.operation == nil {
+				if err := progress.Report(40, 100); err != nil {
+					t.Fatalf("progress.Report() error = %v", err)
+				}
 			}
 			if tt.holdFinal {
 				if err := progress.Report(100, 100); err != nil {
@@ -483,6 +581,9 @@ func TestFinishFileTransferPresentation(t *testing.T) {
 			if !tt.want100 && strings.Contains(got, "100.0%") {
 				t.Errorf("unsuccessful output = %q, must not show 100%%", got)
 			}
+			if tt.operation != nil && !strings.Contains(got, "[--------------------]   0.0%") {
+				t.Errorf("unsuccessful output = %q, want initial zero-progress line", got)
+			}
 		})
 	}
 }
@@ -490,6 +591,9 @@ func TestFinishFileTransferPresentation(t *testing.T) {
 func TestFileTransferSuccessSummaryStartsAfterCompletedProgressLine(t *testing.T) {
 	var output bytes.Buffer
 	progress := newFileTransferProgress(context.Background(), &output, nil, map[string]any{"direction": "send"})
+	if err := progress.Start(100); err != nil {
+		t.Fatalf("progress.Start() error = %v", err)
+	}
 	if err := progress.Report(100, 100); err != nil {
 		t.Fatalf("progress.Report() error = %v", err)
 	}
@@ -502,7 +606,7 @@ func TestFileTransferSuccessSummaryStartsAfterCompletedProgressLine(t *testing.T
 	if _, err := fmt.Fprint(&output, "SHA-256: OK\nSaved: /tmp/system.dts\n"); err != nil {
 		t.Fatalf("write summary error = %v", err)
 	}
-	if got := output.String(); !strings.Contains(got, "[####################] 100.0%") || !strings.Contains(got, "\nSHA-256: OK\nSaved: /tmp/system.dts\n") {
+	if got := output.String(); !strings.Contains(got, "[--------------------]   0.0%") || !strings.Contains(got, "[####################] 100.0%") || !strings.Contains(got, "\nSHA-256: OK\nSaved: /tmp/system.dts\n") {
 		t.Errorf("success output = %q, want completed line followed by a separate summary", got)
 	}
 }
