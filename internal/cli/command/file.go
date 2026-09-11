@@ -117,7 +117,8 @@ func runFileSend(ctx context.Context, args []string, output io.Writer, dependenc
 	if err != nil {
 		return fmt.Errorf("stat local source %q: %w", localPath, err)
 	}
-	return withFileTransferLease(ctx, attached, identifier, func() (operationErr error) {
+	var progress *fileTransferReporter
+	operationErr := withFileTransferLease(ctx, attached, identifier, func() (operationErr error) {
 		started := false
 		metadata := map[string]any{"direction": "send", "local_path": localPath, "remote_path": remotePath, "total": info.Size()}
 		if eventErr := reportFileTransferEvent(ctx, attached, session.EventFileTransferStarted, metadata); eventErr != nil {
@@ -134,10 +135,7 @@ func runFileSend(ctx context.Context, args []string, output io.Writer, dependenc
 			failureMetadata["error"] = operationErr.Error()
 			_ = reportFileTransferEvent(failureCtx, attached, session.EventFileTransferFailed, failureMetadata)
 		}()
-		progress := newFileTransferProgress(ctx, output, attached, metadata)
-		defer func() {
-			operationErr = finishFileTransferPresentation(output, progress, operationErr)
-		}()
+		progress = newFileTransferProgress(ctx, output, attached, metadata)
 		if startErr := progress.Start(info.Size()); startErr != nil {
 			return startErr
 		}
@@ -163,6 +161,10 @@ func runFileSend(ctx context.Context, args []string, output io.Writer, dependenc
 		_, writeErr := fmt.Fprintf(output, "SHA-256: OK\nSaved: %s\n", result.RemotePath)
 		return writeErr
 	})
+	if progress != nil && operationErr != nil {
+		return finishFileTransferPresentation(output, progress, operationErr)
+	}
+	return operationErr
 }
 
 func runFileSendDirectory(ctx context.Context, localPath, remotePath string, options fileOptions, output io.Writer, dependencies fileCommandDependencies) (err error) {
@@ -234,7 +236,8 @@ func runFileReceive(ctx context.Context, args []string, output io.Writer, depend
 		}
 	}()
 
-	return withFileTransferLease(ctx, attached, identifier, func() (operationErr error) {
+	var progress *fileTransferReporter
+	operationErr := withFileTransferLease(ctx, attached, identifier, func() (operationErr error) {
 		kind, kindErr := app.DetectRemotePath(ctx, attached, remotePath)
 		if kindErr != nil {
 			return fmt.Errorf("inspect remote source %q: %w", remotePath, kindErr)
@@ -277,10 +280,7 @@ func runFileReceive(ctx context.Context, args []string, output io.Writer, depend
 			failureMetadata["error"] = operationErr.Error()
 			_ = reportFileTransferEvent(failureCtx, attached, session.EventFileTransferFailed, failureMetadata)
 		}()
-		progress := newFileTransferProgress(ctx, output, attached, metadata)
-		defer func() {
-			operationErr = finishFileTransferPresentation(output, progress, operationErr)
-		}()
+		progress = newFileTransferProgress(ctx, output, attached, metadata)
 		result, transferErr := app.ReceiveFile(ctx, attached, temporary, remotePath, progress.Report)
 		if transferErr != nil {
 			_ = temporary.Close()
@@ -313,6 +313,10 @@ func runFileReceive(ctx context.Context, args []string, output io.Writer, depend
 		_, writeErr := fmt.Fprintf(output, "SHA-256: OK\nSaved: %s\n", localPath)
 		return writeErr
 	})
+	if progress != nil && operationErr != nil {
+		return finishFileTransferPresentation(output, progress, operationErr)
+	}
+	return operationErr
 }
 
 // runFileReceiveDirectory runs while the caller holds the one file-transfer

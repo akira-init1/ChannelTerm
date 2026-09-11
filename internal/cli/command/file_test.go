@@ -231,22 +231,41 @@ func TestAttachFileShortcutDefaultPathsAndCustomPaths(t *testing.T) {
 }
 
 func TestAttachShortcutControlCCancelsTransferAndRestoresInput(t *testing.T) {
-	localPath := filepath.Join(t.TempDir(), "firmware.bin")
-	if err := os.WriteFile(localPath, []byte("payload"), 0o600); err != nil {
-		t.Fatal(err)
-	}
 	inputReader, inputWriter := io.Pipe()
 	defer inputReader.Close()
 	defer inputWriter.Close()
 	pump := newAttachInputPump(inputReader)
 	attached := &cancellableShortcutSession{writeStarted: make(chan struct{})}
+	attachCtx, cancelAttach := context.WithCancel(context.Background())
+	defer cancelAttach()
 	var output bytes.Buffer
 	done := make(chan bool, 1)
 	go func() {
-		done <- runAttachShortcutTransfer(context.Background(), &pump, attached, func(data []byte) error {
+		done <- runAttachShortcutTransferWithRunner(attachCtx, &pump, attached, func(data []byte) error {
 			_, err := output.Write(data)
 			return err
-		}, "send", localPath, "/tmp/firmware.bin")
+		}, "send", "firmware.bin", "/tmp/firmware.bin", func(workerCtx context.Context, transfer attachSession, workerOutput io.Writer) error {
+			lease := transfer.(fileLeaseSession)
+			if err := lease.AcquireFileTransferLease(workerCtx); err != nil {
+				return err
+			}
+			defer func() { _ = lease.ReleaseFileTransferLease(context.Background()) }()
+			if _, err := transfer.Write(session.WriteRequest{Actor: session.ActorUser, Data: []byte("current chunk")}); err != nil {
+				return err
+			}
+			wrapped := transfer.(nonClosingAttachSession)
+			<-wrapped.cancellation.ch
+			if err := workerCtx.Err(); err != nil {
+				return fmt.Errorf("Ctrl+C cancelled attach context: %w", err)
+			}
+			if _, err := transfer.Write(session.WriteRequest{Actor: session.ActorUser, Data: []byte("chunk ACK cleanup")}); err != nil {
+				return err
+			}
+			if _, err := fmt.Fprintln(workerOutput, "Transfer cancelled."); err != nil {
+				return err
+			}
+			return context.Canceled
+		})
 	}()
 	select {
 	case <-attached.writeStarted:
@@ -264,11 +283,20 @@ func TestAttachShortcutControlCCancelsTransferAndRestoresInput(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("Ctrl+C did not cancel transfer")
 	}
+	if err := attachCtx.Err(); err != nil {
+		t.Errorf("attach context after Ctrl+C = %v, want active", err)
+	}
 	if attached.acquires != 1 || attached.releases != 1 {
 		t.Errorf("lease acquire/release = %d/%d, want 1/1", attached.acquires, attached.releases)
 	}
-	if !strings.Contains(output.String(), "File transfer cancelled") {
-		t.Errorf("output = %q, want transfer cancellation", output.String())
+	if got := output.String(); strings.Count(got, "Transfer cancelled.") != 1 || strings.Contains(got, "File transfer cancelled") {
+		t.Errorf("output = %q, want one final cancellation message after worker exit", got)
+	}
+	if got := attached.lifecycle(); len(got) != 4 || got[0] != "acquire" || got[1] != "write" || got[2] != "write" || got[3] != "release" {
+		t.Errorf("transfer lifecycle = %v, want current chunk completion before lease release", got)
+	}
+	if attached.closeCount() != 0 {
+		t.Errorf("shared attach close count = %d, want 0", attached.closeCount())
 	}
 	controller := interactive.NewController(interactive.DefaultEscapeByte)
 	if ok := processAttachInput(context.Background(), controller, []byte("echo ok\r"), &pump, attached, func([]byte) error { return nil }, func() error { return nil }, func() {}); !ok {
@@ -286,16 +314,21 @@ type cancellableShortcutSession struct {
 	releases     int
 	writeStarted chan struct{}
 	once         sync.Once
+	lifecycleLog []string
 }
 
 func (s *cancellableShortcutSession) Write(request session.WriteRequest) (int, error) {
 	s.once.Do(func() { close(s.writeStarted) })
+	s.mu.Lock()
+	s.lifecycleLog = append(s.lifecycleLog, "write")
+	s.mu.Unlock()
 	return s.fakeAttachSession.Write(request)
 }
 
 func (s *cancellableShortcutSession) AcquireFileTransferLease(context.Context) error {
 	s.mu.Lock()
 	s.acquires++
+	s.lifecycleLog = append(s.lifecycleLog, "acquire")
 	s.mu.Unlock()
 	return nil
 }
@@ -303,8 +336,15 @@ func (s *cancellableShortcutSession) AcquireFileTransferLease(context.Context) e
 func (s *cancellableShortcutSession) ReleaseFileTransferLease(context.Context) error {
 	s.mu.Lock()
 	s.releases++
+	s.lifecycleLog = append(s.lifecycleLog, "release")
 	s.mu.Unlock()
 	return nil
+}
+
+func (s *cancellableShortcutSession) lifecycle() []string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return append([]string(nil), s.lifecycleLog...)
 }
 
 func TestWithFileTransferLeaseReleasesAfterFailure(t *testing.T) {
