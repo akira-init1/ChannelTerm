@@ -195,6 +195,36 @@ func TestMCPAttachSessionCloseReleasesWait(t *testing.T) {
 	}
 }
 
+// TestMCPAttachCancelledWaitKeepsConnectionUsable verifies cancellation of one
+// long-poll request cannot poison the shared attachment client or its active
+// file-transfer lease used by later terminal writes.
+func TestMCPAttachCancelledWaitKeepsConnectionUsable(t *testing.T) {
+	host := newAttachTestHost(t)
+	defer host.close()
+	attached := newAttachedForTest(t, host.server.URL)
+	defer func() { _ = attached.Close() }()
+	lease := attached.(fileLeaseSession)
+	if err := lease.AcquireFileTransferLease(context.Background()); err != nil {
+		t.Fatalf("AcquireFileTransferLease() error = %v", err)
+	}
+	defer func() { _ = lease.ReleaseFileTransferLease(context.Background()) }()
+
+	waitCtx, cancelWait := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancelWait()
+	if _, err := attached.ReadOutput(waitCtx, 0, 128); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("cancelled ReadOutput() error = %v, want context deadline exceeded", err)
+	}
+	if _, err := attached.Write(session.WriteRequest{Actor: session.ActorUser, Data: []byte("still connected\n")}); err != nil {
+		t.Fatalf("Write() after cancelled wait error = %v", err)
+	}
+	if got := string(host.device.waitWritten(t)); got != "still connected\n" {
+		t.Errorf("device input = %q, want connection to remain usable", got)
+	}
+	if err := lease.ReleaseFileTransferLease(context.Background()); err != nil {
+		t.Fatalf("ReleaseFileTransferLease() error = %v", err)
+	}
+}
+
 func TestMCPAttachMultipleConsumersReceiveSameOutput(t *testing.T) {
 	host := newAttachTestHost(t)
 	defer host.close()

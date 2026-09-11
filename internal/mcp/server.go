@@ -5,6 +5,7 @@
 package mcp
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -59,12 +60,93 @@ func NewStreamableHTTPHandler(registry *tool.Registry) (http.Handler, error) {
 	if err != nil {
 		return nil, err
 	}
-	return protocol.NewStreamableHTTPHandler(func(*http.Request) *protocol.Server {
+	handler := protocol.NewStreamableHTTPHandler(func(*http.Request) *protocol.Server {
 		return server
 	}, &protocol.StreamableHTTPOptions{
 		Stateless:                    true,
 		PropagateRequestCancellation: true,
-	}), nil
+	})
+	return repairCancellationNotificationMetadata(handler), nil
+}
+
+const maxCancellationNotificationBytes = 64 * 1024
+
+// repairCancellationNotificationMetadata supplies metadata omitted by the MCP
+// Go SDK v1.7 client when it cancels a >= 2026-07-28 Streamable HTTP request.
+// Without this narrow compatibility repair, the SDK server rejects its own
+// notifications/cancelled message with HTTP 400 and the client permanently
+// marks an otherwise healthy attachment connection as failed.
+func repairCancellationNotificationMetadata(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		if request.Method != http.MethodPost ||
+			request.Header.Get("Mcp-Method") != "notifications/cancelled" ||
+			request.Header.Get("Mcp-Protocol-Version") < "2026-07-28" ||
+			request.ContentLength < 0 || request.ContentLength > maxCancellationNotificationBytes {
+			next.ServeHTTP(response, request)
+			return
+		}
+
+		body, err := io.ReadAll(request.Body)
+		if err != nil {
+			http.Error(response, "failed to read cancellation notification", http.StatusBadRequest)
+			return
+		}
+		request.Body = io.NopCloser(bytes.NewReader(body))
+		var envelope map[string]json.RawMessage
+		if json.Unmarshal(body, &envelope) != nil {
+			next.ServeHTTP(response, request)
+			return
+		}
+		var method string
+		if json.Unmarshal(envelope["method"], &method) != nil || method != "notifications/cancelled" {
+			next.ServeHTTP(response, request)
+			return
+		}
+		var params map[string]json.RawMessage
+		if json.Unmarshal(envelope["params"], &params) != nil {
+			next.ServeHTTP(response, request)
+			return
+		}
+		var metadata map[string]json.RawMessage
+		if rawMetadata, ok := params["_meta"]; ok {
+			if json.Unmarshal(rawMetadata, &metadata) != nil {
+				next.ServeHTTP(response, request)
+				return
+			}
+		} else {
+			metadata = make(map[string]json.RawMessage)
+		}
+		if _, ok := metadata[protocol.MetaKeyProtocolVersion]; ok {
+			next.ServeHTTP(response, request)
+			return
+		}
+		version, err := json.Marshal(request.Header.Get("Mcp-Protocol-Version"))
+		if err != nil {
+			next.ServeHTTP(response, request)
+			return
+		}
+		metadata[protocol.MetaKeyProtocolVersion] = version
+		encodedMetadata, err := json.Marshal(metadata)
+		if err != nil {
+			next.ServeHTTP(response, request)
+			return
+		}
+		params["_meta"] = encodedMetadata
+		encodedParams, err := json.Marshal(params)
+		if err != nil {
+			next.ServeHTTP(response, request)
+			return
+		}
+		envelope["params"] = encodedParams
+		repaired, err := json.Marshal(envelope)
+		if err != nil {
+			next.ServeHTTP(response, request)
+			return
+		}
+		request.Body = io.NopCloser(bytes.NewReader(repaired))
+		request.ContentLength = int64(len(repaired))
+		next.ServeHTTP(response, request)
+	})
 }
 
 // Run serves one MCP client over transport until it disconnects or ctx ends.

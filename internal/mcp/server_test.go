@@ -114,7 +114,9 @@ func TestStreamableHTTPServerListsAndUsesTerminalTools(t *testing.T) {
 	}
 }
 
-func TestStreamableHTTPWaitCancelsAndAllowsReconnect(t *testing.T) {
+// TestStreamableHTTPWaitCancellationKeepsClientUsable verifies an HTTP
+// cancellation notification does not poison later calls on the same client.
+func TestStreamableHTTPWaitCancellationKeepsClientUsable(t *testing.T) {
 	manager, registry, device := newTestRegistry(t)
 	defer func() { _ = manager.Close() }()
 	client, closeClient := connectHTTPTestClient(t, registry)
@@ -164,17 +166,15 @@ func TestStreamableHTTPWaitCancelsAndAllowsReconnect(t *testing.T) {
 		t.Fatal("terminal_wait remained blocked after HTTP client cancellation")
 	}
 
-	if err := client.Close(); err != nil {
-		t.Fatalf("HTTP client Close() error = %v", err)
+	write, err := client.CallTool(context.Background(), &protocol.CallToolParams{Name: "terminal_write", Arguments: map[string]any{"session_id": "board", "data": "still connected\n"}})
+	if err != nil || write.IsError {
+		t.Fatalf("terminal_write after cancelled wait = %#v, %v; want success on the same client", write, err)
 	}
-	reconnected, closeReconnected := connectHTTPTestClient(t, registry)
-	defer closeReconnected()
-	listed, err := reconnected.ListTools(context.Background(), nil)
-	if err != nil || len(listed.Tools) != 20 {
-		t.Errorf("ListTools() after reconnect = %#v, %v; want twenty tools", listed, err)
+	if got := string(device.writtenData()); got != "still connected\n" {
+		t.Errorf("device input = %q, want connection to remain usable", got)
 	}
 	if terminal, ok := manager.Get("board"); !ok || terminal.State() != session.StateOpen {
-		t.Errorf("session after HTTP disconnect = %v, registered = %t; want open managed session", terminal, ok)
+		t.Errorf("session after HTTP cancellation = %v, registered = %t; want open managed session", terminal, ok)
 	}
 }
 

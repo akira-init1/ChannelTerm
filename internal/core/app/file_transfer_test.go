@@ -135,6 +135,21 @@ func TestSendFilePadsInterruptedChunk(t *testing.T) {
 	}
 }
 
+func TestSendFileInterruptedChunkRecoveryHasNoUnsafeDeadline(t *testing.T) {
+	terminal := &rejectCleanupDeadlineSession{fileTransferTestSession: newFileTransferTestSession(nil)}
+	terminal.failPayloadOnce = true
+	_, err := SendFile(context.Background(), terminal, strings.NewReader("payload"), 7, "/tmp/partial.bin", nil)
+	if err == nil || !strings.Contains(err.Error(), "injected payload failure") {
+		t.Fatalf("SendFile() error = %v, want injected payload failure", err)
+	}
+	if terminal.deadlineRejected {
+		t.Fatal("file cancellation recovery used a deadline while the remote TTY was raw")
+	}
+	if terminal.pendingSend != 0 {
+		t.Errorf("remote file input still waits for %d bytes after recovery", terminal.pendingSend)
+	}
+}
+
 func TestSendFileStopsAfterCurrentChunkWhenCancellationIsRequested(t *testing.T) {
 	content := bytes.Repeat([]byte("s"), 2*FileTransferChunkSize)
 	terminal := cancelAfterFirstSendChunk{fileTransferTestSession: newFileTransferTestSession(nil)}
@@ -308,6 +323,24 @@ func (c *fileTransferTestCancellation) Requested() bool {
 type cancelableFileTransferSession struct {
 	*fileTransferTestSession
 	cancellation *fileTransferTestCancellation
+}
+
+type rejectCleanupDeadlineSession struct {
+	*fileTransferTestSession
+	deadlineRejected bool
+}
+
+func (s *rejectCleanupDeadlineSession) WriteContext(ctx context.Context, request session.WriteRequest) (int, error) {
+	s.mu.Lock()
+	cleanupPayload := s.pendingSend > 0 && len(s.received) > 0
+	s.mu.Unlock()
+	if cleanupPayload {
+		if _, hasDeadline := ctx.Deadline(); hasDeadline {
+			s.deadlineRejected = true
+			return 0, context.DeadlineExceeded
+		}
+	}
+	return s.Write(request)
 }
 
 func (s *cancelableFileTransferSession) FileTransferCancelRequested() bool {

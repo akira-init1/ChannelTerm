@@ -12,7 +12,6 @@ import (
 	posixpath "path"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/akira-init1/ChannelTerm/internal/core/session"
 )
@@ -22,7 +21,6 @@ const (
 	// interval used by the simple Linux shell transfer protocol.
 	FileTransferChunkSize = 32 * 1024
 	fileProtocolReadSize  = 32 * 1024
-	fileCleanupTimeout    = 5 * time.Second
 )
 
 var (
@@ -507,8 +505,7 @@ func (p *fileProtocol) readExact(ctx context.Context, destination []byte) (int, 
 // or a short write. Completing that bounded block lets the shell restore its
 // saved TTY mode; the caller still receives the original transfer failure.
 func (p *fileProtocol) finishSendChunk(remaining, acknowledgedSize int64) error {
-	cleanupCtx, cancel := context.WithTimeout(context.Background(), fileCleanupTimeout)
-	defer cancel()
+	cleanupCtx := context.Background()
 	if remaining > 0 {
 		padding := make([]byte, remaining)
 		if _, err := writeFilePayload(cleanupCtx, p.terminal, padding); err != nil {
@@ -521,8 +518,7 @@ func (p *fileProtocol) finishSendChunk(remaining, acknowledgedSize int64) error 
 // finishReceiveChunk drains an already-started bounded dd output so the remote
 // shell can finish the command and restore its saved TTY mode.
 func (p *fileProtocol) finishReceiveChunk(remaining []byte) error {
-	cleanupCtx, cancel := context.WithTimeout(context.Background(), fileCleanupTimeout)
-	defer cancel()
+	cleanupCtx := context.Background()
 	if _, err := p.readExact(cleanupCtx, remaining); err != nil {
 		return fmt.Errorf("drain interrupted receive chunk: %w", err)
 	}
@@ -530,19 +526,22 @@ func (p *fileProtocol) finishReceiveChunk(remaining []byte) error {
 }
 
 func (p *fileProtocol) finishPendingMarker(phase, argument string) error {
-	cleanupCtx, cancel := context.WithTimeout(context.Background(), fileCleanupTimeout)
-	defer cancel()
-	_, err := p.expect(cleanupCtx, phase, argument)
+	_, err := p.expect(context.Background(), phase, argument)
 	return err
 }
 
-// finishDirectorySend completes a raw tar input after cancellation. Padding
-// makes the target-side dd finish so it can restore the TTY and remove its
-// staging directory; the original transfer error remains the caller's result.
+// finishDirectorySend completes a raw tar input after cancellation. Invalid
+// padding makes extraction fail instead of committing a partial directory;
+// the target-side drain still consumes the announced byte count before it
+// restores the TTY and removes staging. The original transfer error remains
+// the caller's result.
 func (p *fileProtocol) finishDirectorySend(total int64) error {
-	cleanupCtx, cancel := context.WithTimeout(context.Background(), fileCleanupTimeout)
-	defer cancel()
-	padding := make([]byte, FileTransferChunkSize)
+	// Once the remote shell has entered raw mode, an elapsed local timeout
+	// cannot make it safe to return: the target still expects the announced
+	// byte count. Keep driving the Session until it fails or the target drains
+	// the stream and reports that its saved TTY mode has been restored.
+	cleanupCtx := context.Background()
+	padding := bytes.Repeat([]byte{0xff}, FileTransferChunkSize)
 	for total > 0 {
 		count := int64(len(padding))
 		if total < count {
@@ -668,7 +667,7 @@ func directorySendInitCommand(token, destination, staging string, size int64) st
 	if remainder > 0 {
 		readCommand += fmt.Sprintf("; dd bs=%d count=1 iflag=fullblock 2>/dev/null", remainder)
 	}
-	return fmt.Sprintf("t='%s'; d=%s; s=%s; if ! command -v tar >/dev/null 2>&1; then printf '\\n@CTERM:%%s:ERROR:tar\\n' \"$t\"; elif mkdir \"$s\" 2>/dev/null; then saved=$(stty -g 2>/dev/null); if [ -n \"$saved\" ] && stty raw -echo; then printf '\\n@CTERM:%%s:READY:%d\\n' \"$t\"; if { %s; } | tar -x -f - -C \"$s\"; then stty \"$saved\"; if [ ! -e \"$d\" ] && [ ! -L \"$d\" ] && mv \"$s\" \"$d\"; then printf '\\n@CTERM:%%s:FINAL:OK\\n' \"$t\"; else rm -rf \"$s\"; printf '\\n@CTERM:%%s:ERROR:commit\\n' \"$t\"; fi; else stty \"$saved\"; rm -rf \"$s\"; printf '\\n@CTERM:%%s:ERROR:extract\\n' \"$t\"; fi; else rm -rf \"$s\"; printf '\\n@CTERM:%%s:ERROR:tty\\n' \"$t\"; fi; else printf '\\n@CTERM:%%s:ERROR:stage\\n' \"$t\"; fi", token, destination, staging, size, readCommand)
+	return fmt.Sprintf("t='%s'; d=%s; s=%s; if ! command -v tar >/dev/null 2>&1; then printf '\\n@CTERM:%%s:ERROR:tar\\n' \"$t\"; elif mkdir \"$s\" 2>/dev/null; then saved=$(stty -g 2>/dev/null); if [ -n \"$saved\" ] && stty raw -echo; then printf '\\n@CTERM:%%s:READY:%d\\n' \"$t\"; if { %s; } | { tar -x -f - -C \"$s\"; r=$?; dd of=/dev/null bs=%d 2>/dev/null; [ \"$r\" -eq 0 ]; }; then stty \"$saved\"; if [ ! -e \"$d\" ] && [ ! -L \"$d\" ] && mv \"$s\" \"$d\"; then printf '\\n@CTERM:%%s:FINAL:OK\\n' \"$t\"; else rm -rf \"$s\"; printf '\\n@CTERM:%%s:ERROR:commit\\n' \"$t\"; fi; else stty \"$saved\"; rm -rf \"$s\"; printf '\\n@CTERM:%%s:ERROR:extract\\n' \"$t\"; fi; else rm -rf \"$s\"; printf '\\n@CTERM:%%s:ERROR:tty\\n' \"$t\"; fi; else printf '\\n@CTERM:%%s:ERROR:stage\\n' \"$t\"; fi", token, destination, staging, size, readCommand, FileTransferChunkSize)
 }
 
 func directoryReceiveSizeCommand(token, path string) string {

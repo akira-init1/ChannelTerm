@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -94,8 +95,33 @@ func TestSendDirectoryCancellationPadsRemainingRawStream(t *testing.T) {
 	if got := int64(len(terminal.received)); got != plan.size {
 		t.Errorf("bytes sent including cleanup padding = %d, want raw stream size %d", got, plan.size)
 	}
-	if tail := terminal.received[FileTransferChunkSize:]; !bytes.Equal(tail, make([]byte, len(tail))) {
-		t.Error("directory cancellation cleanup sent source payload after the cancellation boundary")
+	if tail := terminal.received[FileTransferChunkSize:]; !bytes.Equal(tail, bytes.Repeat([]byte{0xff}, len(tail))) {
+		t.Error("directory cancellation cleanup did not replace the remaining source with invalid padding")
+	}
+}
+
+func TestSendDirectoryCancellationRecoveryHasNoUnsafeDeadline(t *testing.T) {
+	source := t.TempDir()
+	mustWriteDirectoryTestFile(t, filepath.Join(source, "large.bin"), bytes.Repeat([]byte("x"), FileTransferChunkSize*3))
+	terminal := &rejectCleanupDeadlineSession{fileTransferTestSession: newFileTransferTestSession(nil)}
+	_, err := SendDirectory(context.Background(), terminal, source, "/tmp/release", func(int64, int64) error {
+		return context.Canceled
+	})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("SendDirectory() error = %v, want context.Canceled", err)
+	}
+	if terminal.deadlineRejected {
+		t.Fatal("directory cancellation recovery used a deadline while the remote TTY was raw")
+	}
+	if terminal.pendingSend != 0 {
+		t.Errorf("remote directory input still waits for %d bytes after cancellation", terminal.pendingSend)
+	}
+}
+
+func TestDirectorySendCommandDrainsInputAfterTarStops(t *testing.T) {
+	command := directorySendInitCommand("abc123", "'/tmp/release'", "'/tmp/.release.part'", 2*FileTransferChunkSize)
+	if !strings.Contains(command, `tar -x -f - -C "$s"; r=$?; dd of=/dev/null bs=32768 2>/dev/null; [ "$r" -eq 0 ]`) {
+		t.Fatalf("directory send command does not drain its announced raw input after tar exits: %s", command)
 	}
 }
 
@@ -110,8 +136,8 @@ func TestSendDirectoryObservesSessionCancellationAtChunkBoundary(t *testing.T) {
 	if payload := terminal.received[:FileTransferChunkSize]; bytes.Count(payload, []byte("x")) == 0 {
 		t.Error("first source block was not sent before boundary cancellation")
 	}
-	if tail := terminal.received[FileTransferChunkSize:]; !bytes.Equal(tail, make([]byte, len(tail))) {
-		t.Error("source payload continued after Session cancellation was observed")
+	if tail := terminal.received[FileTransferChunkSize:]; !bytes.Equal(tail, bytes.Repeat([]byte{0xff}, len(tail))) {
+		t.Error("directory cleanup did not replace source payload after Session cancellation was observed")
 	}
 }
 

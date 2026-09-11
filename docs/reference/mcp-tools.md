@@ -9,6 +9,7 @@ Successful calls return both structured content and an equivalent JSON text cont
 - Output, activity, Session-event, and device-event cursors are independent monotonically increasing positions.
 - A read without `cursor` returns a recent snapshot immediately.
 - A read with `cursor` waits until data is available, the request is cancelled, the source closes, or `timeout_ms` expires.
+- Cancelling a Streamable HTTP wait leaves that same MCP client connection usable for later calls; resume with the saved cursor.
 - `timeout_ms` requires `cursor`, must be positive, and cannot exceed `86400000` (24 hours).
 - A `terminal_wait*` tool additionally requires `cursor` in its public MCP schema.
 - `dropped: true` means the requested cursor predates the bounded retention window. Continue with the returned `next`, but treat older data as lost.
@@ -176,7 +177,7 @@ Purpose: wait for output after a known cursor. It invokes `terminal_read` but pr
 {"session_id":"SER-1","cursor":42,"timeout_ms":5000}
 ```
 
-Important errors: missing/null cursor and every `terminal_read` error. Safety: cancellation releases the wait and does not close the Session; an interrupted HTTP request can reconnect and continue with its saved cursor.
+Important errors: missing/null cursor and every `terminal_read` error. Safety: cancellation releases the wait and does not close the Session; the same HTTP client can continue with its saved cursor.
 
 ## `terminal_read_activity`
 

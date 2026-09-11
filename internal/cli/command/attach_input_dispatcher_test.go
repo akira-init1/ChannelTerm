@@ -230,6 +230,66 @@ func TestAttachInputDispatcherDropsDelayedDuplicateControlCAfterTransfer(t *test
 	waitForSignal(t, done, "dispatcher exit")
 }
 
+// TestAttachInputDispatcherDropsControlCAfterSlowTransferCleanup verifies the
+// recovery window starts after the worker has safely completed. Windows can
+// deliver the plain-C half of Ctrl+C only after a slow active transfer block
+// has finished, well after the original key event.
+func TestAttachInputDispatcherDropsControlCAfterSlowTransferCleanup(t *testing.T) {
+	inputReader, inputWriter := io.Pipe()
+	defer inputReader.Close()
+	defer inputWriter.Close()
+	pump := newAttachInputPump(inputReader)
+	attached := &fakeAttachSession{}
+	var output lockedBuffer
+	started := make(chan struct{})
+	releaseWorker := make(chan struct{})
+	dispatcher := newAttachInputDispatcherWithPump(context.Background(), &pump, attached, func(data []byte) error {
+		_, err := output.Write(data)
+		return err
+	}, func() error { return nil }, func() {}, func(_ context.Context, transfer attachSession, _ io.Writer, _ func() bool, _ string, _, _ string) error {
+		close(started)
+		<-transfer.(nonClosingAttachSession).cancellation.ch
+		<-releaseWorker
+		return errors.New("slow transfer worker stopped")
+	})
+	done := make(chan struct{})
+	go func() {
+		dispatcher.run()
+		close(done)
+	}()
+
+	if _, err := inputWriter.Write([]byte("\x1dfsources.bin\n\n")); err != nil {
+		t.Fatal(err)
+	}
+	waitForSignal(t, started, "file-transfer worker start")
+	if _, err := inputWriter.Write([]byte{0x03}); err != nil {
+		t.Fatal(err)
+	}
+	// Model an active raw block that takes longer than the former recovery
+	// window to complete.
+	time.Sleep(controlCRecoveryWindow + 10*time.Millisecond)
+	close(releaseWorker)
+
+	deadline := time.Now().Add(time.Second)
+	for !strings.Contains(output.String(), "slow transfer worker stopped") && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	if !strings.Contains(output.String(), "slow transfer worker stopped") {
+		t.Fatal("transfer did not complete")
+	}
+	if _, err := inputWriter.Write([]byte{'c'}); err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(10 * time.Millisecond)
+	if got := attached.writtenData(); len(got) != 0 {
+		t.Errorf("board input = %x, want delayed Ctrl+C record discarded", got)
+	}
+	if err := inputWriter.Close(); err != nil {
+		t.Fatal(err)
+	}
+	waitForSignal(t, done, "dispatcher exit")
+}
+
 func TestAttachInputDispatcherUsesSingleReaderForMenuAndPaths(t *testing.T) {
 	input := &countingInputReader{data: []byte{0x1d, 'f', 's', 'a', '.', 'b', 'i', 'n', '\r', '\n', 0x1b}}
 	pump := newAttachInputPump(input)

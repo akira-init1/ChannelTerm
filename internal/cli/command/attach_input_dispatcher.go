@@ -408,10 +408,18 @@ func (d *attachInputDispatcher) requestTransferCancellation() {
 }
 
 func (d *attachInputDispatcher) finishTransfer(err error) {
+	cancelled := d.transferCancellation != nil && d.transferCancellation.Requested()
 	d.transferDone = nil
 	d.transferCancellation = nil
 	d.cancellationAnnounced = false
 	d.mode = attachInputModeAttach
+	// Start the recovery window only after the worker has completed its raw
+	// block and released its lease. On slow links the active 32 KiB block can
+	// outlast the window that started when Ctrl+C was first received, allowing
+	// Windows' delayed plain-C record to reach the Session after cancellation.
+	if cancelled {
+		d.ignoreControlCUntil = time.Now().Add(controlCRecoveryWindow)
+	}
 	if err != nil && !errors.Is(err, context.Canceled) && d.writeLocal != nil {
 		_ = d.writeLocal([]byte("\r\n[ChannelTerm] File transfer failed: " + err.Error() + "\r\n"))
 	}
