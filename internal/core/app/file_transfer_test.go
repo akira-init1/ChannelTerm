@@ -135,6 +135,40 @@ func TestSendFilePadsInterruptedChunk(t *testing.T) {
 	}
 }
 
+func TestSendFileStopsAfterCurrentChunkWhenCancellationIsRequested(t *testing.T) {
+	content := bytes.Repeat([]byte("s"), 2*FileTransferChunkSize)
+	terminal := cancelAfterFirstSendChunk{fileTransferTestSession: newFileTransferTestSession(nil)}
+	_, err := SendFile(context.Background(), &terminal, bytes.NewReader(content), int64(len(content)), "/tmp/cancel.bin", nil)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("SendFile() error = %v, want context.Canceled", err)
+	}
+	if got := len(terminal.received); got != FileTransferChunkSize {
+		t.Errorf("received bytes = %d, want one completed chunk", got)
+	}
+	if terminal.pendingSend != 0 {
+		t.Errorf("pending remote chunk = %d, want 0 after acknowledged current chunk", terminal.pendingSend)
+	}
+}
+
+func TestReceiveFileStopsAfterCurrentChunkWhenCancellationIsRequested(t *testing.T) {
+	content := bytes.Repeat([]byte("r"), 2*FileTransferChunkSize)
+	cancellation := &fileTransferTestCancellation{}
+	terminal := cancelableFileTransferSession{fileTransferTestSession: newFileTransferTestSession(content), cancellation: cancellation}
+	var destination bytes.Buffer
+	_, err := ReceiveFile(context.Background(), &terminal, &destination, "/tmp/cancel.bin", func(transferred, _ int64) error {
+		if transferred == FileTransferChunkSize {
+			cancellation.Request()
+		}
+		return nil
+	})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("ReceiveFile() error = %v, want context.Canceled", err)
+	}
+	if got := destination.Len(); got != FileTransferChunkSize {
+		t.Errorf("received bytes = %d, want one completed chunk", got)
+	}
+}
+
 func TestIncrementPOSIXFilenamePreservesNamesAndExtensions(t *testing.T) {
 	tests := map[string]string{
 		"/tmp/firmware.bin":  "/tmp/firmware_1.bin",
@@ -201,6 +235,40 @@ type fileTransferTestSession struct {
 	failPayloadOnce    bool
 	receiving          bool
 	directorySending   bool
+}
+
+type cancelAfterFirstSendChunk struct{ *fileTransferTestSession }
+
+func (s *cancelAfterFirstSendChunk) FileTransferCancelRequested() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return len(s.received) >= FileTransferChunkSize && s.pendingSend == 0
+}
+
+type fileTransferTestCancellation struct {
+	mu        sync.Mutex
+	requested bool
+}
+
+func (c *fileTransferTestCancellation) Request() {
+	c.mu.Lock()
+	c.requested = true
+	c.mu.Unlock()
+}
+
+func (c *fileTransferTestCancellation) Requested() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.requested
+}
+
+type cancelableFileTransferSession struct {
+	*fileTransferTestSession
+	cancellation *fileTransferTestCancellation
+}
+
+func (s *cancelableFileTransferSession) FileTransferCancelRequested() bool {
+	return s.cancellation.Requested()
 }
 
 func newFileTransferTestSession(remote []byte) *fileTransferTestSession {

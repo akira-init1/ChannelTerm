@@ -1,6 +1,7 @@
 package command
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io"
@@ -271,6 +272,15 @@ func runAttachReceiveShortcut(ctx context.Context, pump *attachInputPump, attach
 }
 
 func runAttachShortcutTransfer(ctx context.Context, pump *attachInputPump, attached attachSession, writeLocal func([]byte) error, direction, firstPath, secondPath string) bool {
+	return runAttachShortcutTransferWithRunner(ctx, pump, attached, writeLocal, direction, firstPath, secondPath, func(workerCtx context.Context, transfer attachSession, output io.Writer) error {
+		return runAttachShortcutFileTransfer(workerCtx, transfer, output, direction, firstPath, secondPath)
+	})
+}
+
+// runAttachShortcutTransferWithRunner owns the local cancellation lifecycle
+// around one file-transfer worker. Ctrl+C requests a safe stop at a chunk
+// boundary; it never cancels the attachment context that owns the MCP client.
+func runAttachShortcutTransferWithRunner(ctx context.Context, pump *attachInputPump, attached attachSession, writeLocal func([]byte) error, direction, firstPath, secondPath string, runner func(context.Context, attachSession, io.Writer) error) bool {
 	if direction == "send" {
 		if writeLocal([]byte("\r\nSending "+filepath.Base(firstPath)+" -> "+secondPath+"\r\nCtrl+C to cancel\r\n")) != nil {
 			return false
@@ -278,30 +288,20 @@ func runAttachShortcutTransfer(ctx context.Context, pump *attachInputPump, attac
 	} else if writeLocal([]byte("\r\nReceiving "+firstPath+" -> "+secondPath+"\r\nCtrl+C to cancel\r\n")) != nil {
 		return false
 	}
-	transferCtx, transferCancel := context.WithCancel(ctx)
-	defer transferCancel()
+	cancellation := newFileTransferCancellation()
 	done := make(chan error, 1)
 	go func() {
-		dependencies := fileCommandDependencies{
-			newAttach: func(context.Context, string, string) (attachSession, error) {
-				return nonClosingAttachSession{attachSession: attached}, nil
-			},
-			listSessions: func(context.Context, string) ([]mcpListedSession, error) {
-				return nil, errors.New("unexpected Session listing")
-			},
-		}
-		if direction == "send" {
-			done <- runFileSend(transferCtx, []string{firstPath, secondPath, "--session", "attached"}, localOutputWriter{write: writeLocal}, dependencies)
-			return
-		}
-		done <- runFileReceive(transferCtx, []string{firstPath, secondPath, "--session", "attached"}, localOutputWriter{write: writeLocal}, dependencies)
+		done <- runner(ctx, nonClosingAttachSession{attachSession: attached, cancellation: cancellation}, localOutputWriter{write: writeLocal})
 	}()
+	requestCancellation := func() {
+		cancellation.Request()
+	}
 	for {
 		if result, ok := pump.takePending(); ok {
-			if strings.ContainsRune(string(result.data), 0x03) {
-				transferCancel()
+			if index := bytes.IndexByte(result.data, 0x03); index >= 0 {
+				pump.prepend(result.data[index+1:])
+				requestCancellation()
 				<-done
-				_ = writeLocal(fileTransferCancelledText)
 				return true
 			}
 			continue
@@ -309,27 +309,40 @@ func runAttachShortcutTransfer(ctx context.Context, pump *attachInputPump, attac
 		select {
 		case err := <-done:
 			if err != nil {
-				if errors.Is(err, context.Canceled) {
-					_ = writeLocal(fileTransferCancelledText)
-				} else {
+				if !cancellation.Requested() && !errors.Is(err, context.Canceled) {
 					_ = writeLocal([]byte("\r\n[ChannelTerm] File transfer failed: " + err.Error() + "\r\n"))
 				}
 			}
 			return true
 		case result, ok := <-pump.results:
 			if !ok || result.err != nil {
-				transferCancel()
+				requestCancellation()
 				<-done
 				return false
 			}
-			if strings.ContainsRune(string(result.data), 0x03) {
-				transferCancel()
+			if index := bytes.IndexByte(result.data, 0x03); index >= 0 {
+				pump.prepend(result.data[index+1:])
+				requestCancellation()
 				<-done
-				_ = writeLocal(fileTransferCancelledText)
 				return true
 			}
 		}
 	}
+}
+
+func runAttachShortcutFileTransfer(ctx context.Context, attached attachSession, output io.Writer, direction, firstPath, secondPath string) error {
+	dependencies := fileCommandDependencies{
+		newAttach: func(context.Context, string, string) (attachSession, error) {
+			return attached, nil
+		},
+		listSessions: func(context.Context, string) ([]mcpListedSession, error) {
+			return nil, errors.New("unexpected Session listing")
+		},
+	}
+	if direction == "send" {
+		return runFileSend(ctx, []string{firstPath, secondPath, "--session", "attached"}, output, dependencies)
+	}
+	return runFileReceive(ctx, []string{firstPath, secondPath, "--session", "attached"}, output, dependencies)
 }
 
 func readShortcutLine(pump *attachInputPump, writeLocal func([]byte) error) (string, bool, bool) {
@@ -381,9 +394,36 @@ func (w localOutputWriter) Write(data []byte) (int, error) {
 	return len(data), nil
 }
 
+// fileTransferCancellation coordinates a local Ctrl+C with the file-transfer
+// worker without cancelling the attachment context or its MCP client.
+type fileTransferCancellation struct {
+	done sync.Once
+	ch   chan struct{}
+}
+
+func newFileTransferCancellation() *fileTransferCancellation {
+	return &fileTransferCancellation{ch: make(chan struct{})}
+}
+
+func (c *fileTransferCancellation) Request() {
+	c.done.Do(func() { close(c.ch) })
+}
+
+func (c *fileTransferCancellation) Requested() bool {
+	select {
+	case <-c.ch:
+		return true
+	default:
+		return false
+	}
+}
+
 // nonClosingAttachSession lets the existing file CLI implementation operate
 // on the current attachment without turning a completed shortcut into a detach.
-type nonClosingAttachSession struct{ attachSession }
+type nonClosingAttachSession struct {
+	attachSession
+	cancellation *fileTransferCancellation
+}
 
 func (nonClosingAttachSession) Close() error { return nil }
 
@@ -418,6 +458,12 @@ func (s nonClosingAttachSession) ReportFileTransferEvent(ctx context.Context, ty
 		return nil
 	}
 	return reporter.ReportFileTransferEvent(ctx, typ, metadata)
+}
+
+// FileTransferCancelRequested lets Core stop before starting a new regular
+// file chunk after the local transfer worker has completed the current one.
+func (s nonClosingAttachSession) FileTransferCancelRequested() bool {
+	return s.cancellation != nil && s.cancellation.Requested()
 }
 
 var fileTransferMenuText = []byte("\r\nFile transfer:\r\n  s  Send PC -> Board\r\n  r  Receive Board -> PC\r\n  Esc  Cancel\r\nSelect: ")
