@@ -54,6 +54,17 @@ func TestDirectoryPlanAllowsEmptyDirectory(t *testing.T) {
 	}
 }
 
+func TestDetectRemotePathReadsKindArgument(t *testing.T) {
+	terminal := newFileTransferTestSession(nil)
+	kind, err := DetectRemotePath(context.Background(), terminal, "/tmp/firmware.bin")
+	if err != nil {
+		t.Fatalf("DetectRemotePath() error = %v", err)
+	}
+	if kind != RemotePathFile {
+		t.Errorf("DetectRemotePath() = %q, want %q", kind, RemotePathFile)
+	}
+}
+
 func TestSendDirectoryStreamsTarInBoundedPayloads(t *testing.T) {
 	source := t.TempDir()
 	mustWriteDirectoryTestFile(t, filepath.Join(source, "nested", "large.bin"), bytes.Repeat([]byte("x"), FileTransferChunkSize*3+19))

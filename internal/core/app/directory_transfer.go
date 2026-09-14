@@ -281,7 +281,9 @@ func DetectRemotePath(ctx context.Context, terminal FileTransferSession, remoteP
 	if err := protocol.command(ctx, remotePathKindCommand(protocol.token, quotedPath)); err != nil {
 		return "", err
 	}
-	event, err := protocol.expect(ctx, "KIND")
+	// KIND carries the discovered path kind, so it has a variable response
+	// argument rather than the fixed arguments validated by expect.
+	event, err := protocol.expectPhase(ctx, "KIND")
 	if err != nil {
 		return "", err
 	}

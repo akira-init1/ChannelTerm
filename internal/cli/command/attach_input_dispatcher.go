@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -55,6 +54,7 @@ type attachInputDispatcher struct {
 	transferDone          <-chan error
 	transferCancellation  *fileTransferCancellation
 	cancellationAnnounced bool
+	inputIgnoredAnnounced bool
 	// ignoreControlCUntil prevents keyboard auto-repeat and the duplicate
 	// Windows CTRL_C_EVENT from escaping transfer mode after a cancellation.
 	// Those events can otherwise reach the board after the worker has restored
@@ -193,7 +193,9 @@ func (d *attachInputDispatcher) dispatch(data []byte) bool {
 				return false
 			}
 		case attachInputModeFileTransfer:
-			// Non-cancellation keys remain local until the worker completes.
+			if !d.ignoreTransferInput() {
+				return false
+			}
 		}
 		data = data[1:]
 	}
@@ -370,17 +372,13 @@ func (d *attachInputDispatcher) startTransfer(direction, firstPath, secondPath s
 	d.mode = attachInputModeFileTransfer
 	d.ignoreControlCUntil = time.Time{}
 	d.cancellationAnnounced = false
+	d.inputIgnoredAnnounced = false
 	d.transferCancellation = newFileTransferCancellation()
 	if d.writeLocal == nil {
 		d.cancelAttach()
 		return
 	}
-	if direction == "send" {
-		if d.writeLocal([]byte("\r\nSending "+filepath.Base(firstPath)+" -> "+secondPath+"\r\nCtrl+C to cancel\r\n")) != nil {
-			d.cancelAttach()
-			return
-		}
-	} else if d.writeLocal([]byte("\r\nReceiving "+firstPath+" -> "+secondPath+"\r\nCtrl+C to cancel\r\n")) != nil {
+	if d.writeLocal(fileTransferStartedText(direction, firstPath, secondPath)) != nil {
 		d.cancelAttach()
 		return
 	}
@@ -394,6 +392,17 @@ func (d *attachInputDispatcher) startTransfer(direction, firstPath, secondPath s
 		workerCtx := context.WithoutCancel(d.ctx)
 		done <- d.transferRunner(workerCtx, nonClosingAttachSession{attachSession: d.terminal, cancellation: cancellation}, localOutputWriter{write: d.writeLocal}, cancellation.Requested, direction, firstPath, secondPath)
 	}()
+}
+
+// ignoreTransferInput keeps ordinary keyboard bytes out of the normal
+// terminal_write path while this attachment owns a file-transfer lease. The
+// one-time local hint confirms the lock without obscuring transfer progress.
+func (d *attachInputDispatcher) ignoreTransferInput() bool {
+	if d.inputIgnoredAnnounced {
+		return true
+	}
+	d.inputIgnoredAnnounced = true
+	return d.writeLocal != nil && d.writeLocal(fileTransferInputIgnoredText) == nil
 }
 
 func (d *attachInputDispatcher) requestTransferCancellation() {
@@ -412,6 +421,7 @@ func (d *attachInputDispatcher) finishTransfer(err error) {
 	d.transferDone = nil
 	d.transferCancellation = nil
 	d.cancellationAnnounced = false
+	d.inputIgnoredAnnounced = false
 	d.mode = attachInputModeAttach
 	// Start the recovery window only after the worker has completed its raw
 	// block and released its lease. On slow links the active 8 KiB block can
@@ -420,7 +430,14 @@ func (d *attachInputDispatcher) finishTransfer(err error) {
 	if cancelled {
 		d.ignoreControlCUntil = time.Now().Add(controlCRecoveryWindow)
 	}
-	if err != nil && !errors.Is(err, context.Canceled) && d.writeLocal != nil {
+	if d.writeLocal == nil {
+		return
+	}
+	if err == nil {
+		_ = d.writeLocal(fileTransferCompletedText)
+		return
+	}
+	if !errors.Is(err, context.Canceled) {
 		_ = d.writeLocal([]byte("\r\n[ChannelTerm] File transfer failed: " + err.Error() + "\r\n"))
 	}
 }

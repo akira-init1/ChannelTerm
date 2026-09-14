@@ -12,18 +12,22 @@ import (
 // It deliberately owns no Session cursor or terminal bytes: the caller keeps
 // advancing its cursor while this gate suppresses only local presentation.
 type fileTransferPresentation struct {
-	mu     sync.Mutex
-	active bool
+	mu sync.Mutex
+
+	// legacyActive covers old Hosts that do not include cursor metadata with
+	// their lease events. Current Hosts use precise raw-output ranges instead.
+	legacyActive bool
+	openStart    *session.OutputCursor
+	ranges       []fileTransferOutputRange
+}
+
+type fileTransferOutputRange struct {
+	start session.OutputCursor
+	end   session.OutputCursor
 }
 
 func newFileTransferPresentation() *fileTransferPresentation {
 	return &fileTransferPresentation{}
-}
-
-func (p *fileTransferPresentation) suppressRaw() bool {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	return p.active
 }
 
 // handle applies a structured file-transfer event before optionally rendering
@@ -33,8 +37,32 @@ func (p *fileTransferPresentation) handle(event session.Event, local bool, write
 	var text string
 	p.mu.Lock()
 	switch event.Type {
+	case session.EventLeaseAcquired:
+		if event.Metadata["type"] == "file-transfer" {
+			if cursor, ok := fileTransferEventCursor(event.Metadata); ok {
+				p.openStart = &cursor
+				p.legacyActive = false
+			} else {
+				p.legacyActive = true
+			}
+		}
+	case session.EventLeaseReleased:
+		if event.Metadata["type"] == "file-transfer" {
+			if p.openStart != nil {
+				if cursor, ok := fileTransferEventCursor(event.Metadata); ok && cursor >= *p.openStart {
+					outputRange := fileTransferOutputRange{start: *p.openStart, end: cursor}
+					if len(p.ranges) == 0 || p.ranges[len(p.ranges)-1] != outputRange {
+						p.ranges = append(p.ranges, outputRange)
+					}
+				}
+				p.openStart = nil
+			}
+			p.legacyActive = false
+		}
 	case session.EventFileTransferStarted:
-		p.active = true
+		if p.openStart == nil {
+			p.legacyActive = true
+		}
 		if !local {
 			text = "[ChannelTerm] File transfer started: " + fileTransferEventPaths(event.Metadata) + "\r\n"
 		}
@@ -42,17 +70,23 @@ func (p *fileTransferPresentation) handle(event session.Event, local bool, write
 		// A retained observer can begin at a progress event when older events
 		// have expired. Treat it as active rather than risking raw payload
 		// presentation until a terminal transfer event arrives.
-		p.active = true
+		if p.openStart == nil {
+			p.legacyActive = true
+		}
 		if !local {
 			text = fmt.Sprintf("[ChannelTerm] File transfer: %.1f%%\r\n", fileTransferEventNumber(event.Metadata, "percent"))
 		}
 	case session.EventFileTransferCompleted:
-		p.active = false
+		if p.openStart == nil {
+			p.legacyActive = false
+		}
 		if !local {
 			text = "[ChannelTerm] File transfer completed\r\n"
 		}
 	case session.EventFileTransferFailed:
-		p.active = false
+		if p.openStart == nil {
+			p.legacyActive = false
+		}
 		if !local {
 			text = "[ChannelTerm] File transfer failed"
 			if message := fileTransferEventString(event.Metadata, "error"); message != "" {
@@ -66,6 +100,26 @@ func (p *fileTransferPresentation) handle(event session.Event, local bool, write
 		return nil
 	}
 	return write([]byte(text))
+}
+
+func fileTransferEventCursor(metadata map[string]any) (session.OutputCursor, bool) {
+	value, ok := metadata["output_cursor"]
+	if !ok {
+		return 0, false
+	}
+	switch cursor := value.(type) {
+	case uint64:
+		return session.OutputCursor(cursor), true
+	case int64:
+		if cursor >= 0 {
+			return session.OutputCursor(cursor), true
+		}
+	case float64:
+		if cursor >= 0 && cursor == float64(uint64(cursor)) {
+			return session.OutputCursor(cursor), true
+		}
+	}
+	return 0, false
 }
 
 func fileTransferEventPaths(metadata map[string]any) string {
@@ -113,13 +167,69 @@ func fileTransferEventNumber(metadata map[string]any, key string) float64 {
 // writeAttachedTerminalOutput preserves normal raw rendering unless a current
 // file-transfer event has gated this attachment's local presentation.
 func writeAttachedTerminalOutput(presentation *fileTransferPresentation, write func([]byte) error, data []byte) (bool, error) {
-	if presentation != nil && presentation.suppressRaw() {
+	return writeAttachedTerminalOutputAt(presentation, write, session.OutputCursor(len(data)), data)
+}
+
+// writeAttachedTerminalOutputAt renders only raw bytes outside semantic
+// file-transfer ranges. It never examines terminal content, so marker-shaped
+// user output and arbitrary binary remain intact whenever their cursor range is
+// not owned by the internal operation.
+func writeAttachedTerminalOutputAt(presentation *fileTransferPresentation, write func([]byte) error, next session.OutputCursor, data []byte) (bool, error) {
+	if len(data) == 0 {
 		return false, nil
 	}
-	if err := write(data); err != nil {
-		return false, err
+	start := next - session.OutputCursor(len(data))
+	parts := [][]byte{data}
+	if presentation != nil {
+		parts = presentation.visibleParts(start, data)
 	}
-	return true, nil
+	rendered := false
+	for _, part := range parts {
+		if len(part) == 0 {
+			continue
+		}
+		if err := write(part); err != nil {
+			return false, err
+		}
+		rendered = true
+	}
+	return rendered, nil
+}
+
+func (p *fileTransferPresentation) visibleParts(start session.OutputCursor, data []byte) [][]byte {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.legacyActive {
+		return nil
+	}
+	parts := make([][]byte, 0, 1)
+	visibleStart := -1
+	for index := range data {
+		cursor := start + session.OutputCursor(index)
+		hidden := p.openStart != nil && cursor >= *p.openStart
+		if !hidden {
+			for _, outputRange := range p.ranges {
+				if cursor >= outputRange.start && cursor < outputRange.end {
+					hidden = true
+					break
+				}
+			}
+		}
+		if hidden {
+			if visibleStart >= 0 {
+				parts = append(parts, data[visibleStart:index])
+				visibleStart = -1
+			}
+			continue
+		}
+		if visibleStart < 0 {
+			visibleStart = index
+		}
+	}
+	if visibleStart >= 0 {
+		parts = append(parts, data[visibleStart:])
+	}
+	return parts
 }
 
 // forwardFileTransferEvents observes the same structured event stream used by
@@ -145,5 +255,23 @@ func forwardFileTransferEvents(ctx context.Context, events attachEventSession, c
 				owner.fileTransferPresentationEnded()
 			}
 		}
+	}
+}
+
+// refreshFileTransferPresentation synchronously applies retained lifecycle
+// state before raw output is rendered. Lease acquisition is published by the
+// Host before the transfer client can submit its first internal write, so this
+// closes the race between the independent event and output cursors without
+// inspecting terminal content.
+func refreshFileTransferPresentation(events attachEventSession, presentation *fileTransferPresentation) {
+	if events == nil || presentation == nil {
+		return
+	}
+	chunk, err := events.ReadRecentEvents(session.DefaultEventBufferCapacity)
+	if err != nil {
+		return
+	}
+	for _, event := range chunk.Events {
+		_ = presentation.handle(event, true, nil)
 	}
 }
