@@ -34,7 +34,7 @@ Activity and remote output are independent cursor streams. Reading one cannot co
 
 The Event Stream is a third, independent bounded cursor stream. It retains `Event` values with a per-Session monotonic `id`, timestamp, Session ID, type, actor, and JSON-compatible metadata. It does not contain terminal bytes or activity write payloads.
 
-The current event types are `SESSION_CREATED`, `SESSION_ATTACHED`, `SESSION_DETACHED`, `LEASE_ACQUIRED`, `LEASE_RELEASED`, `FILE_TRANSFER_STARTED`, `FILE_TRANSFER_PROGRESS`, `FILE_TRANSFER_COMPLETED`, and `FILE_TRANSFER_FAILED`. Event metadata for file progress includes confirmed byte counts, total size, percent, and best-effort speed; it never exposes a lease owner capability.
+The current event types are `SESSION_CREATED`, `SESSION_ATTACHED`, `SESSION_DETACHED`, `LEASE_ACQUIRED`, `LEASE_RELEASED`, `FILE_TRANSFER_STARTED`, `FILE_TRANSFER_PROGRESS`, `FILE_TRANSFER_COMPLETED`, and `FILE_TRANSFER_FAILED`. `file-transfer` lease acquire/release events include an `output_cursor` snapshot used only by attach presentation to suppress the corresponding internal raw-output range. Event metadata for file progress includes confirmed byte counts, total size, percent, and best-effort speed; it never exposes a lease owner capability.
 
 `ReadEvents` and `ReadRecentEvents` give every observer an independent event cursor. The fixed 1024-event retention overwrites its oldest event for a slow observer and reports `Dropped`; publishing does not send on observer channels, so it cannot block Channel reads, Session writes, or another observer.
 

@@ -240,7 +240,8 @@ func runAttachSessionWithInterrupts(ctx context.Context, args []string, input io
 		owner.setFileTransferPresentation(presentation)
 	}
 	go forwardAttachInputWithInterrupts(attachCtx, input, attached, writeLocalOutput, togglePromptTimestamps, cancel, interrupts)
-	if events, ok := attached.(attachEventSession); ok {
+	events, hasEvents := attached.(attachEventSession)
+	if hasEvents {
 		eventChunk, eventErr := events.ReadRecentEvents(session.DefaultEventBufferCapacity)
 		if eventErr != nil && !errors.Is(eventErr, context.Canceled) {
 			return fmt.Errorf("read attached session events: %w", eventErr)
@@ -277,7 +278,8 @@ func runAttachSessionWithInterrupts(ctx context.Context, args []string, input io
 	cursor := chunk.Next
 	lastOutputEndedLine := true
 	if len(chunk.Data) > 0 {
-		rendered, err := writeAttachedTerminalOutput(presentation, writeTerminalOutput, chunk.Data)
+		refreshFileTransferPresentation(events, presentation)
+		rendered, err := writeAttachedTerminalOutputAt(presentation, writeTerminalOutput, chunk.Next, chunk.Data)
 		if err != nil {
 			return fmt.Errorf("write attached session output: %w", err)
 		}
@@ -308,7 +310,8 @@ func runAttachSessionWithInterrupts(ctx context.Context, args []string, input io
 		if len(chunk.Data) == 0 {
 			continue
 		}
-		rendered, err := writeAttachedTerminalOutput(presentation, writeTerminalOutput, chunk.Data)
+		refreshFileTransferPresentation(events, presentation)
+		rendered, err := writeAttachedTerminalOutputAt(presentation, writeTerminalOutput, chunk.Next, chunk.Data)
 		if err != nil {
 			return fmt.Errorf("write attached session output: %w", err)
 		}

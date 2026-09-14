@@ -119,6 +119,95 @@ func TestAttachInputDispatcherRoutesAttachControlCToBoard(t *testing.T) {
 	}
 }
 
+func TestAttachInputDispatcherIgnoresNormalInputDuringFileTransferOnce(t *testing.T) {
+	inputReader, inputWriter := io.Pipe()
+	defer inputReader.Close()
+	defer inputWriter.Close()
+	pump := newAttachInputPump(inputReader)
+	attached := &fakeAttachSession{}
+	var output lockedBuffer
+	started := make(chan struct{})
+	releaseWorker := make(chan struct{})
+	dispatcher := newAttachInputDispatcherWithPump(context.Background(), &pump, attached, func(data []byte) error {
+		_, err := output.Write(data)
+		return err
+	}, func() error { return nil }, func() {}, func(_ context.Context, _ attachSession, _ io.Writer, _ func() bool, _ string, _, _ string) error {
+		close(started)
+		<-releaseWorker
+		return nil
+	})
+	done := make(chan struct{})
+	go func() {
+		dispatcher.run()
+		close(done)
+	}()
+
+	if _, err := inputWriter.Write([]byte("\x1dfssources.bin\n\n")); err != nil {
+		t.Fatal(err)
+	}
+	waitForSignal(t, started, "file-transfer worker start")
+	if _, err := inputWriter.Write([]byte("x\r\ny")); err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(10 * time.Millisecond)
+	if got := attached.writtenData(); len(got) != 0 {
+		t.Errorf("board input during transfer = %q, want none", got)
+	}
+	if got := output.String(); strings.Count(got, "Input ignored during file transfer. Ctrl+C to cancel.") != 1 {
+		t.Errorf("output = %q, want one input-ignored hint", got)
+	}
+	for _, want := range []string{
+		"File transfer started: sources.bin -> /tmp/sources.bin",
+		"Terminal input locked. Ctrl+C to cancel.",
+	} {
+		if got := output.String(); !strings.Contains(got, want) {
+			t.Errorf("output = %q, want %q", got, want)
+		}
+	}
+
+	close(releaseWorker)
+	deadline := time.Now().Add(time.Second)
+	for !strings.Contains(output.String(), "File transfer completed") && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	if _, err := inputWriter.Write([]byte("z\n")); err != nil {
+		t.Fatal(err)
+	}
+	deadline = time.Now().Add(time.Second)
+	for string(attached.writtenData()) != "z\n" && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	if got := string(attached.writtenData()); got != "z\n" {
+		t.Errorf("board input after transfer = %q, want normal input restored", got)
+	}
+	if err := inputWriter.Close(); err != nil {
+		t.Fatal(err)
+	}
+	waitForSignal(t, done, "dispatcher exit")
+}
+
+func TestAttachInputDispatcherResetsInputIgnoredHintForNextTransfer(t *testing.T) {
+	attached := &fakeAttachSession{}
+	var output lockedBuffer
+	pump := newAttachInputPump(bytes.NewReader(nil))
+	dispatcher := newAttachInputDispatcherWithPump(context.Background(), &pump, attached, func(data []byte) error {
+		_, err := output.Write(data)
+		return err
+	}, func() error { return nil }, func() {}, nil)
+	dispatcher.mode = attachInputModeFileTransfer
+	if !dispatcher.ignoreTransferInput() || !dispatcher.ignoreTransferInput() {
+		t.Fatal("ignoreTransferInput() returned false")
+	}
+	dispatcher.finishTransfer(nil)
+	dispatcher.mode = attachInputModeFileTransfer
+	if !dispatcher.ignoreTransferInput() {
+		t.Fatal("ignoreTransferInput() after reset returned false")
+	}
+	if got := output.String(); strings.Count(got, "Input ignored during file transfer. Ctrl+C to cancel.") != 2 {
+		t.Errorf("output = %q, want one hint per transfer", got)
+	}
+}
+
 func TestAttachInputDispatcherDeduplicatesRawAndProcessControlCForTransfer(t *testing.T) {
 	inputReader, inputWriter := io.Pipe()
 	defer inputReader.Close()

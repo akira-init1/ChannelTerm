@@ -2,7 +2,9 @@ package command
 
 import (
 	"bytes"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/akira-init1/ChannelTerm/internal/core/session"
 )
@@ -124,5 +126,91 @@ func TestFileTransferPresentationDoesNotDuplicateOwnerProgress(t *testing.T) {
 	}
 	if got := output.String(); got != "" {
 		t.Errorf("owner event output = %q, want no duplicate local transfer presentation", got)
+	}
+}
+
+func TestFileTransferPresentationSuppressesLeaseRangeWithoutFilteringUserContent(t *testing.T) {
+	presentation := newFileTransferPresentation()
+	var output bytes.Buffer
+	write := func(data []byte) error {
+		_, err := output.Write(data)
+		return err
+	}
+	if err := presentation.handle(session.Event{Type: session.EventLeaseAcquired, Metadata: map[string]any{
+		"type": "file-transfer", "output_cursor": uint64(6),
+	}}, false, write); err != nil {
+		t.Fatal(err)
+	}
+	if err := presentation.handle(session.Event{Type: session.EventFileTransferStarted, Metadata: map[string]any{
+		"local_path": "local.bin", "remote_path": "/tmp/remote.bin",
+	}}, false, write); err != nil {
+		t.Fatal(err)
+	}
+	if rendered, err := writeAttachedTerminalOutputAt(presentation, write, 20, []byte("before@CTERM:payload")); err != nil || !rendered {
+		t.Fatalf("mixed range = rendered=%t, err=%v; want visible bytes before internal range", rendered, err)
+	}
+	if err := presentation.handle(session.Event{Type: session.EventFileTransferCompleted}, false, write); err != nil {
+		t.Fatal(err)
+	}
+	if err := presentation.handle(session.Event{Type: session.EventLeaseReleased, Metadata: map[string]any{
+		"type": "file-transfer", "output_cursor": uint64(20),
+	}}, false, write); err != nil {
+		t.Fatal(err)
+	}
+	// This marker-shaped board output is outside the internal cursor range and
+	// must remain visible; presentation never filters raw content by text.
+	if rendered, err := writeAttachedTerminalOutputAt(presentation, write, 34, []byte("@CTERM:board\r\n")); err != nil || !rendered {
+		t.Fatalf("board output = rendered=%t, err=%v; want rendered", rendered, err)
+	}
+	if got := output.String(); strings.Contains(got, "payload") || !strings.Contains(got, "before") || !strings.Contains(got, "@CTERM:board") {
+		t.Errorf("output = %q, want visible bytes outside the internal range", got)
+	}
+}
+
+func TestFileTransferPresentationRestoresAIActivityAfterEveryTerminalState(t *testing.T) {
+	states := []struct {
+		name  string
+		event session.Event
+	}{
+		{name: "completed", event: session.Event{Type: session.EventFileTransferCompleted}},
+		{name: "failed", event: session.Event{Type: session.EventFileTransferFailed, Metadata: map[string]any{"error": "remote error"}}},
+		{name: "cancelled", event: session.Event{Type: session.EventFileTransferFailed, Metadata: map[string]any{"error": "context canceled"}}},
+	}
+	for _, tt := range states {
+		t.Run(tt.name, func(t *testing.T) {
+			presentation := newFileTransferPresentation()
+			var output bytes.Buffer
+			write := func(data []byte) error {
+				_, err := output.Write(data)
+				return err
+			}
+			before := renderAgentActivity(session.SessionEvent{Timestamp: time.Date(2026, time.August, 23, 15, 46, 0, 0, time.Local), Actor: session.ActorAgent, Operation: session.OperationWrite, Data: []byte("uname -a")})
+			if err := write(before); err != nil {
+				t.Fatal(err)
+			}
+			if err := presentation.handle(session.Event{Type: session.EventLeaseAcquired, Metadata: map[string]any{"type": "file-transfer", "output_cursor": uint64(10)}}, false, write); err != nil {
+				t.Fatal(err)
+			}
+			if rendered, err := writeAttachedTerminalOutputAt(presentation, write, 20, []byte("stty raw\x00\xff")); err != nil || rendered {
+				t.Fatalf("internal raw = rendered=%t, err=%v; want suppressed", rendered, err)
+			}
+			if err := presentation.handle(tt.event, false, write); err != nil {
+				t.Fatal(err)
+			}
+			if err := presentation.handle(session.Event{Type: session.EventLeaseReleased, Metadata: map[string]any{"type": "file-transfer", "output_cursor": uint64(20)}}, false, write); err != nil {
+				t.Fatal(err)
+			}
+			after := renderAgentActivity(session.SessionEvent{Timestamp: time.Date(2026, time.August, 23, 15, 47, 0, 0, time.Local), Actor: session.ActorAgent, Operation: session.OperationWrite, Data: []byte("uname -a")})
+			if err := write(after); err != nil {
+				t.Fatal(err)
+			}
+			if rendered, err := writeAttachedTerminalOutputAt(presentation, write, 33, []byte("Linux board\r\n")); err != nil || !rendered {
+				t.Fatalf("post-transfer board output = rendered=%t, err=%v; want rendered", rendered, err)
+			}
+			got := output.String()
+			if strings.Count(got, "──────── AI ────────") != 2 || strings.Contains(got, "stty raw") || !strings.Contains(got, "Linux board") {
+				t.Errorf("output = %q, want AI blocks before and after with restored board output", got)
+			}
+		})
 	}
 }

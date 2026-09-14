@@ -68,6 +68,11 @@ func TestApplicationLeaseBlocksOtherWritersAndPreservesOtherSessions(t *testing.
 	if events.Events[len(events.Events)-2].Metadata["type"] != string(LeaseTypeFileTransfer) || events.Events[len(events.Events)-1].Metadata["state"] != "released" {
 		t.Errorf("lease event metadata = %+v", events.Events[len(events.Events)-2:])
 	}
+	for _, event := range events.Events[len(events.Events)-2:] {
+		if _, ok := event.Metadata["output_cursor"].(uint64); !ok {
+			t.Errorf("lease event metadata = %+v, want output_cursor uint64", event.Metadata)
+		}
+	}
 	if _, active, err := application.LeaseStatus("SER-1"); err != nil || active {
 		t.Errorf("LeaseStatus() = active:%t err:%v, want inactive nil", active, err)
 	}

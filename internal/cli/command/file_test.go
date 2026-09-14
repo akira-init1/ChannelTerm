@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"sync"
 	"testing"
@@ -356,6 +357,17 @@ func TestWithFileTransferLeaseReleasesAfterFailure(t *testing.T) {
 	}
 	if attached.acquires != 1 || attached.releases != 1 {
 		t.Errorf("lease acquire/release = %d/%d, want 1/1", attached.acquires, attached.releases)
+	}
+}
+
+func TestInternalFileTransferSessionWritesAsSystem(t *testing.T) {
+	attached := &fakeAttachSession{}
+	terminal := internalFileTransferSession{attachSession: attached}
+	if _, err := terminal.Write(session.WriteRequest{Actor: session.ActorUser, Data: []byte("internal command")}); err != nil {
+		t.Fatal(err)
+	}
+	if got := attached.writeActors(); !reflect.DeepEqual(got, []session.Actor{session.ActorSystem}) {
+		t.Errorf("internal write actors = %v, want [system]", got)
 	}
 }
 

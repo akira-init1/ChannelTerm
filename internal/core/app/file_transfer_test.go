@@ -421,6 +421,8 @@ func (s *fileTransferTestSession) Write(request session.WriteRequest) (int, erro
 		s.emitLocked(fmt.Sprintf("\n@CTERM:%s:ERROR:tar\n", s.token))
 	case strings.Contains(command, ":PICK:"):
 		s.emitLocked(fmt.Sprintf("\n@CTERM:%s:PICK:FREE\n", s.token))
+	case strings.Contains(command, ":KIND:"):
+		s.emitLocked(fmt.Sprintf("\n@CTERM:%s:KIND:file\n", s.token))
 	case strings.Contains(command, ":ABORT:OK"):
 		s.emitLocked(fmt.Sprintf("\n@CTERM:%s:ABORT:OK\n", s.token))
 	case strings.Contains(command, ":FINAL:OK") && strings.Contains(command, "tar -x -f"):

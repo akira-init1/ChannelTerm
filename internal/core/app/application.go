@@ -266,6 +266,7 @@ func (a *Application) AcquireLease(identifier, owner string, typ LeaseType) (Ses
 	if err != nil {
 		return SessionLease{}, err
 	}
+	presentationCursor := sessionOutputCursor(terminal)
 	lease, err := a.leases.acquire(terminal.ID(), owner, typ)
 	if err != nil {
 		return SessionLease{}, err
@@ -274,9 +275,10 @@ func (a *Application) AcquireLease(identifier, owner string, typ LeaseType) (Ses
 		Type:  session.EventLeaseAcquired,
 		Actor: string(session.ActorSystem),
 		Metadata: map[string]any{
-			"type":       string(lease.Type),
-			"created_at": lease.CreatedAt.Format(time.RFC3339Nano),
-			"state":      lease.State,
+			"type":          string(lease.Type),
+			"created_at":    lease.CreatedAt.Format(time.RFC3339Nano),
+			"state":         lease.State,
+			"output_cursor": uint64(presentationCursor),
 		},
 	})
 	return lease, nil
@@ -294,17 +296,30 @@ func (a *Application) ReleaseLease(identifier, owner string) error {
 		return err
 	}
 	if released {
+		presentationCursor := sessionOutputCursor(terminal)
 		terminal.PublishEvent(session.Event{
 			Type:  session.EventLeaseReleased,
 			Actor: string(session.ActorSystem),
 			Metadata: map[string]any{
-				"type":       string(lease.Type),
-				"created_at": lease.CreatedAt.Format(time.RFC3339Nano),
-				"state":      "released",
+				"type":          string(lease.Type),
+				"created_at":    lease.CreatedAt.Format(time.RFC3339Nano),
+				"state":         "released",
+				"output_cursor": uint64(presentationCursor),
 			},
 		})
 	}
 	return nil
+}
+
+// sessionOutputCursor snapshots the current raw-output tail for presentation
+// metadata. It does not consume output or alter any reader's independent
+// cursor; an unavailable snapshot merely falls back to the zero cursor.
+func sessionOutputCursor(terminal session.Session) session.OutputCursor {
+	chunk, err := terminal.ReadRecent(1)
+	if err != nil {
+		return 0
+	}
+	return chunk.Next
 }
 
 // LeaseStatus reports identifier's current exclusive lease, if any.
