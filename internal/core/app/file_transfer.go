@@ -17,9 +17,10 @@ import (
 )
 
 const (
-	// FileTransferChunkSize bounds each in-memory payload and each raw-terminal
-	// interval used by the simple Linux shell transfer protocol.
-	FileTransferChunkSize = 32 * 1024
+	// FileTransferChunkSize bounds how long Ctrl+C must wait for an already
+	// active raw-terminal block. At 115200 baud, 8 KiB is normally below one
+	// second while still amortizing the shell acknowledgement round trip.
+	FileTransferChunkSize = 8 * 1024
 	fileProtocolReadSize  = 32 * 1024
 )
 
@@ -530,32 +531,6 @@ func (p *fileProtocol) finishPendingMarker(phase, argument string) error {
 	return err
 }
 
-// finishDirectorySend completes a raw tar input after cancellation. Invalid
-// padding makes extraction fail instead of committing a partial directory;
-// the target-side drain still consumes the announced byte count before it
-// restores the TTY and removes staging. The original transfer error remains
-// the caller's result.
-func (p *fileProtocol) finishDirectorySend(total int64) error {
-	// Once the remote shell has entered raw mode, an elapsed local timeout
-	// cannot make it safe to return: the target still expects the announced
-	// byte count. Keep driving the Session until it fails or the target drains
-	// the stream and reports that its saved TTY mode has been restored.
-	cleanupCtx := context.Background()
-	padding := bytes.Repeat([]byte{0xff}, FileTransferChunkSize)
-	for total > 0 {
-		count := int64(len(padding))
-		if total < count {
-			count = total
-		}
-		if _, err := writeFilePayload(cleanupCtx, p.terminal, padding[:int(count)]); err != nil {
-			return fmt.Errorf("restore remote TTY after interrupted directory send: %w", err)
-		}
-		total -= count
-	}
-	_, err := p.expectPhase(cleanupCtx, "FINAL")
-	return err
-}
-
 func writeFilePayload(ctx context.Context, terminal FileTransferSession, data []byte) (int, error) {
 	written := 0
 	for len(data) > 0 {
@@ -660,20 +635,22 @@ func remotePathKindCommand(token, path string) string {
 	return fmt.Sprintf("t='%s'; if [ -L %s ]; then k=unsupported; elif [ -f %s ]; then k=file; elif [ -d %s ]; then k=directory; elif [ -e %s ]; then k=unsupported; else k=missing; fi; printf '\\n@CTERM:%%s:KIND:%%s\\n' \"$t\" \"$k\"", token, path, path, path, path)
 }
 
-func directorySendInitCommand(token, destination, staging string, size int64) string {
-	fullBlocks := size / FileTransferChunkSize
-	remainder := size % FileTransferChunkSize
-	readCommand := fmt.Sprintf("dd bs=%d count=%d iflag=fullblock 2>/dev/null", FileTransferChunkSize, fullBlocks)
-	if remainder > 0 {
-		readCommand += fmt.Sprintf("; dd bs=%d count=1 iflag=fullblock 2>/dev/null", remainder)
-	}
-	return fmt.Sprintf("t='%s'; d=%s; s=%s; if ! command -v tar >/dev/null 2>&1; then printf '\\n@CTERM:%%s:ERROR:tar\\n' \"$t\"; elif mkdir \"$s\" 2>/dev/null; then saved=$(stty -g 2>/dev/null); if [ -n \"$saved\" ] && stty raw -echo; then printf '\\n@CTERM:%%s:READY:%d\\n' \"$t\"; if { %s; } | { tar -x -f - -C \"$s\"; r=$?; dd of=/dev/null bs=%d 2>/dev/null; [ \"$r\" -eq 0 ]; }; then stty \"$saved\"; if [ ! -e \"$d\" ] && [ ! -L \"$d\" ] && mv \"$s\" \"$d\"; then printf '\\n@CTERM:%%s:FINAL:OK\\n' \"$t\"; else rm -rf \"$s\"; printf '\\n@CTERM:%%s:ERROR:commit\\n' \"$t\"; fi; else stty \"$saved\"; rm -rf \"$s\"; printf '\\n@CTERM:%%s:ERROR:extract\\n' \"$t\"; fi; else rm -rf \"$s\"; printf '\\n@CTERM:%%s:ERROR:tty\\n' \"$t\"; fi; else printf '\\n@CTERM:%%s:ERROR:stage\\n' \"$t\"; fi", token, destination, staging, size, readCommand, FileTransferChunkSize)
+func directorySendInitCommand(token, archive string) string {
+	return fmt.Sprintf("t='%s'; a=%s; if ! command -v tar >/dev/null 2>&1; then printf '\\n@CTERM:%%s:ERROR:tar\\n' \"$t\"; elif command -v stty >/dev/null 2>&1 && command -v dd >/dev/null 2>&1 && command -v wc >/dev/null 2>&1 && printf x | dd of=/dev/null bs=1 count=1 iflag=fullblock 2>/dev/null && (set -C; : > \"$a\") 2>/dev/null; then printf '\\n@CTERM:%%s:INIT:OK\\n' \"$t\"; else printf '\\n@CTERM:%%s:ERROR:stage\\n' \"$t\"; fi", token, archive)
 }
 
-func directoryReceiveSizeCommand(token, path string) string {
-	return fmt.Sprintf("t='%s'; if ! command -v tar >/dev/null 2>&1; then printf '\\n@CTERM:%%s:ERROR:tar\\n' \"$t\"; elif n=$(tar -c -f - -C %s . 2>/dev/null | wc -c); then printf '\\n@CTERM:%%s:SIZE:%%s\\n' \"$t\" \"$n\"; else printf '\\n@CTERM:%%s:ERROR:read\\n' \"$t\"; fi", token, path)
+func directorySendFinishCommand(token, destination, staging, archive string, size int64) string {
+	return fmt.Sprintf("t='%s'; d=%s; s=%s; a=%s; if [ \"$(wc -c < \"$a\" 2>/dev/null)\" = '%d' ] && mkdir \"$s\" 2>/dev/null && tar -x -f \"$a\" -C \"$s\"; then rm -f \"$a\"; if [ ! -e \"$d\" ] && [ ! -L \"$d\" ] && mv \"$s\" \"$d\"; then printf '\\n@CTERM:%%s:FINAL:OK\\n' \"$t\"; else rm -rf \"$s\"; printf '\\n@CTERM:%%s:ERROR:commit\\n' \"$t\"; fi; else rm -f \"$a\"; rm -rf \"$s\"; printf '\\n@CTERM:%%s:ERROR:extract\\n' \"$t\"; fi", token, destination, staging, archive, size)
 }
 
-func directoryReceiveStartCommand(token, path string, size int64) string {
-	return fmt.Sprintf("t='%s'; n=%d; if ! command -v tar >/dev/null 2>&1; then printf '\\n@CTERM:%%s:ERROR:tar\\n' \"$t\"; else saved=$(stty -g 2>/dev/null); if [ -n \"$saved\" ] && stty raw -echo; then printf '\\n@CTERM:%%s:DATA:%%s\\n' \"$t\" \"$n\"; if tar -c -f - -C %s .; then stty \"$saved\"; printf '\\n@CTERM:%%s:ACK:%%s\\n' \"$t\" \"$n\"; else stty \"$saved\"; printf '\\n@CTERM:%%s:ERROR:read\\n' \"$t\"; fi; else printf '\\n@CTERM:%%s:ERROR:tty\\n' \"$t\"; fi; fi", token, size, path)
+func directoryReceiveInitCommand(token, source, archive string) string {
+	return fmt.Sprintf("t='%s'; a=%s; if ! command -v tar >/dev/null 2>&1; then printf '\\n@CTERM:%%s:ERROR:tar\\n' \"$t\"; elif command -v stty >/dev/null 2>&1 && command -v dd >/dev/null 2>&1 && command -v wc >/dev/null 2>&1 && tar -c -f \"$a\" -C %s . 2>/dev/null && n=$(wc -c < \"$a\" 2>/dev/null); then printf '\\n@CTERM:%%s:SIZE:%%s\\n' \"$t\" \"$n\"; else rm -f \"$a\"; printf '\\n@CTERM:%%s:ERROR:read\\n' \"$t\"; fi", token, archive, source)
+}
+
+func directoryCleanupCommand(token, archive, staging string) string {
+	return fmt.Sprintf("t='%s'; a=%s; s=%s; rm -f \"$a\"; if [ -n \"$s\" ]; then rm -rf \"$s\"; fi; printf '\\n@CTERM:%%s:ABORT:OK\\n' \"$t\"", token, archive, staging)
+}
+
+func directoryReceiveFinishCommand(token, archive string) string {
+	return fmt.Sprintf("t='%s'; rm -f %s; printf '\\n@CTERM:%%s:FINAL:OK\\n' \"$t\"", token, archive)
 }

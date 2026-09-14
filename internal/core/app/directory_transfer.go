@@ -197,9 +197,10 @@ func (zeroReader) Read(data []byte) (int, error) {
 	return len(data), nil
 }
 
-// SendDirectory creates a standard tar stream directly from source and asks
-// the remote tar command to extract it into a same-directory staging path.
-// The final rename happens only after tar has consumed the complete stream.
+// SendDirectory creates a standard tar stream directly from source, writes it
+// to a remote temporary archive in bounded blocks, and extracts it into a
+// same-directory staging path. The final rename happens only after the archive
+// is complete and tar exits successfully.
 func SendDirectory(ctx context.Context, terminal FileTransferSession, source, remotePath string, progress FileTransferProgress) (DirectoryTransferResult, error) {
 	if terminal == nil {
 		return DirectoryTransferResult{}, errors.New("file transfer session must not be nil")
@@ -234,18 +235,27 @@ func SendDirectory(ctx context.Context, terminal FileTransferSession, source, re
 	if err != nil {
 		return DirectoryTransferResult{}, err
 	}
-	if err := protocol.command(ctx, directorySendInitCommand(protocol.token, quotedPath, quotedStage, plan.size)); err != nil {
+	archivePath := posixDirectoryArchivePath(remotePath, protocol.token)
+	quotedArchive, err := quoteRemotePath(archivePath)
+	if err != nil {
 		return DirectoryTransferResult{}, err
 	}
-	if _, err := protocol.expect(ctx, "READY", fmt.Sprintf("%d", plan.size)); err != nil {
+	if err := protocol.command(ctx, directorySendInitCommand(protocol.token, quotedArchive)); err != nil {
+		return DirectoryTransferResult{}, err
+	}
+	if _, err := protocol.expect(ctx, "INIT", "OK"); err != nil {
 		return DirectoryTransferResult{}, directoryTarError(err)
 	}
 	if fileTransferCancelRequested(terminal, nil) {
-		cleanupErr := protocol.finishDirectorySend(plan.size)
+		cleanupErr := protocol.cleanupDirectory(quotedArchive, quotedStage)
 		return DirectoryTransferResult{}, errors.Join(context.Canceled, cleanupErr)
 	}
-	if sent, err := copyDirectoryStream(ctx, terminal, plan.stream(), plan.size, progress); err != nil {
-		cleanupErr := protocol.finishDirectorySend(plan.size - sent)
+	if err := copyDirectoryStream(ctx, protocol, plan.stream(), plan.size, quotedArchive, progress); err != nil {
+		cleanupErr := protocol.cleanupDirectory(quotedArchive, quotedStage)
+		return DirectoryTransferResult{}, errors.Join(err, cleanupErr)
+	}
+	if err := protocol.command(ctx, directorySendFinishCommand(protocol.token, quotedPath, quotedStage, quotedArchive, plan.size)); err != nil {
+		cleanupErr := protocol.cleanupDirectory(quotedArchive, quotedStage)
 		return DirectoryTransferResult{}, errors.Join(err, cleanupErr)
 	}
 	if _, err := protocol.expect(ctx, "FINAL", "OK"); err != nil {
@@ -311,7 +321,12 @@ func ReceiveDirectory(ctx context.Context, terminal FileTransferSession, remoteP
 	if fileTransferCancelRequested(terminal, nil) {
 		return DirectoryTransferResult{}, context.Canceled
 	}
-	if err := protocol.command(ctx, directoryReceiveSizeCommand(protocol.token, quotedPath)); err != nil {
+	archivePath := posixDirectoryReceiveArchivePath(protocol.token)
+	quotedArchive, err := quoteRemotePath(archivePath)
+	if err != nil {
+		return DirectoryTransferResult{}, err
+	}
+	if err := protocol.command(ctx, directoryReceiveInitCommand(protocol.token, quotedPath, quotedArchive)); err != nil {
 		return DirectoryTransferResult{}, err
 	}
 	event, err := protocol.expectPhase(ctx, "SIZE")
@@ -326,7 +341,8 @@ func ReceiveDirectory(ctx context.Context, terminal FileTransferSession, remoteP
 		return DirectoryTransferResult{}, err
 	}
 	if fileTransferCancelRequested(terminal, nil) {
-		return DirectoryTransferResult{}, context.Canceled
+		cleanupErr := protocol.cleanupDirectory(quotedArchive, "")
+		return DirectoryTransferResult{}, errors.Join(context.Canceled, cleanupErr)
 	}
 	reader, writer := io.Pipe()
 	extractDone := make(chan error, 1)
@@ -335,24 +351,18 @@ func ReceiveDirectory(ctx context.Context, terminal FileTransferSession, remoteP
 		_ = reader.CloseWithError(err)
 		extractDone <- err
 	}()
-	if err := protocol.command(ctx, directoryReceiveStartCommand(protocol.token, quotedPath, size)); err != nil {
-		_ = writer.CloseWithError(err)
-		<-extractDone
-		return DirectoryTransferResult{}, err
-	}
-	if _, err := protocol.expect(ctx, "DATA", fmt.Sprintf("%d", size)); err != nil {
-		_ = writer.CloseWithError(err)
-		<-extractDone
-		return DirectoryTransferResult{}, directoryTarError(err)
-	}
-	copyErr := receiveDirectoryStream(ctx, protocol, writer, size, progress)
+	copyErr := receiveDirectoryStream(ctx, protocol, writer, quotedArchive, size, progress)
 	_ = writer.CloseWithError(copyErr)
 	extractErr := <-extractDone
 	if copyErr != nil {
-		return DirectoryTransferResult{}, copyErr
+		cleanupErr := protocol.cleanupDirectory(quotedArchive, "")
+		return DirectoryTransferResult{}, errors.Join(copyErr, cleanupErr)
 	}
-	if _, err := protocol.expect(ctx, "ACK", fmt.Sprintf("%d", size)); err != nil {
-		return DirectoryTransferResult{}, directoryTarError(err)
+	if err := protocol.command(ctx, directoryReceiveFinishCommand(protocol.token, quotedArchive)); err != nil {
+		return DirectoryTransferResult{}, err
+	}
+	if _, err := protocol.expect(ctx, "FINAL", "OK"); err != nil {
+		return DirectoryTransferResult{}, err
 	}
 	if extractErr != nil {
 		return DirectoryTransferResult{}, extractErr
@@ -360,12 +370,12 @@ func ReceiveDirectory(ctx context.Context, terminal FileTransferSession, remoteP
 	return DirectoryTransferResult{Size: size}, nil
 }
 
-func copyDirectoryStream(ctx context.Context, terminal FileTransferSession, source io.Reader, size int64, progress FileTransferProgress) (int64, error) {
+func copyDirectoryStream(ctx context.Context, protocol *fileProtocol, source io.Reader, size int64, archive string, progress FileTransferProgress) error {
 	buffer := make([]byte, FileTransferChunkSize)
 	var transferred int64
 	for transferred < size {
-		if fileTransferCancelRequested(terminal, nil) {
-			return transferred, context.Canceled
+		if fileTransferCancelRequested(protocol.terminal, nil) {
+			return context.Canceled
 		}
 		chunkSize := int64(len(buffer))
 		if remaining := size - transferred; remaining < chunkSize {
@@ -373,17 +383,27 @@ func copyDirectoryStream(ctx context.Context, terminal FileTransferSession, sour
 		}
 		chunk := buffer[:int(chunkSize)]
 		if _, err := io.ReadFull(source, chunk); err != nil {
-			return transferred, fmt.Errorf("read local tar stream at byte %d: %w", transferred, err)
+			return fmt.Errorf("read local tar stream at byte %d: %w", transferred, err)
 		}
-		written, err := writeFilePayload(ctx, terminal, chunk)
-		transferred += int64(written)
-		if progress != nil && written > 0 {
-			if progressErr := progress(transferred, size); progressErr != nil {
-				return transferred, progressErr
-			}
+		if err := protocol.command(ctx, sendChunkCommand(protocol.token, archive, chunkSize)); err != nil {
+			return err
 		}
+		if _, err := protocol.expect(ctx, "READY", strconv.FormatInt(chunkSize, 10)); err != nil {
+			return fmt.Errorf("prepare remote tar chunk at byte %d: %w", transferred, err)
+		}
+		written, err := writeFilePayload(ctx, protocol.terminal, chunk)
 		if err != nil {
-			return transferred, fmt.Errorf("send tar stream at byte %d: %w", transferred-int64(written), err)
+			cleanupErr := protocol.finishSendChunk(chunkSize-int64(written), chunkSize)
+			return errors.Join(fmt.Errorf("send tar stream at byte %d: %w", transferred, err), cleanupErr)
+		}
+		if _, err := protocol.expect(ctx, "ACK", strconv.FormatInt(chunkSize, 10)); err != nil {
+			return fmt.Errorf("confirm remote tar chunk at byte %d: %w", transferred, err)
+		}
+		transferred += chunkSize
+		if progress != nil {
+			if progressErr := progress(transferred, size); progressErr != nil {
+				return progressErr
+			}
 		}
 	}
 	var trailing [1]byte
@@ -391,41 +411,55 @@ func copyDirectoryStream(ctx context.Context, terminal FileTransferSession, sour
 		if readErr == nil {
 			readErr = ErrFileTransferSizeMismatch
 		}
-		return transferred, fmt.Errorf("local directory changed while sending: %w", readErr)
+		return fmt.Errorf("local directory changed while sending: %w", readErr)
 	}
 	if progress != nil && size == 0 {
-		return transferred, progress(0, 0)
+		return progress(0, 0)
 	}
-	return transferred, nil
+	return nil
 }
 
-func receiveDirectoryStream(ctx context.Context, protocol *fileProtocol, destination io.Writer, size int64, progress FileTransferProgress) error {
+func receiveDirectoryStream(ctx context.Context, protocol *fileProtocol, destination io.Writer, archive string, size int64, progress FileTransferProgress) error {
 	buffer := make([]byte, FileTransferChunkSize)
 	var transferred int64
-	var writeErr error
+	var blockIndex int64
 	for transferred < size {
-		if writeErr == nil && fileTransferCancelRequested(protocol.terminal, nil) {
-			writeErr = context.Canceled
+		if fileTransferCancelRequested(protocol.terminal, nil) {
+			return context.Canceled
 		}
 		chunkSize := int64(len(buffer))
 		if remaining := size - transferred; remaining < chunkSize {
 			chunkSize = remaining
 		}
 		chunk := buffer[:int(chunkSize)]
-		if _, err := protocol.readExact(ctx, chunk); err != nil {
+		if err := protocol.command(ctx, receiveChunkCommand(protocol.token, archive, blockIndex, chunkSize)); err != nil {
+			return err
+		}
+		if _, err := protocol.expect(ctx, "DATA", strconv.FormatInt(chunkSize, 10)); err != nil {
+			return fmt.Errorf("start remote tar chunk at byte %d: %w", transferred, err)
+		}
+		read, err := protocol.readExact(ctx, chunk)
+		if err != nil {
+			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+				_ = protocol.finishReceiveChunk(chunk[int(read):])
+			}
 			return fmt.Errorf("receive tar stream at byte %d: %w", transferred, err)
 		}
-		if writeErr == nil {
-			writeErr = writeAllTo(destination, chunk)
+		if _, err := protocol.expect(ctx, "ACK", strconv.FormatInt(chunkSize, 10)); err != nil {
+			return fmt.Errorf("confirm remote tar chunk at byte %d: %w", transferred, err)
+		}
+		if err := writeAllTo(destination, chunk); err != nil {
+			return fmt.Errorf("extract tar stream at byte %d: %w", transferred, err)
 		}
 		transferred += chunkSize
+		blockIndex++
 		if progress != nil {
-			if err := progress(transferred, size); err != nil && writeErr == nil {
-				writeErr = err
+			if err := progress(transferred, size); err != nil {
+				return err
 			}
 		}
 	}
-	return writeErr
+	return nil
 }
 
 func extractDirectoryTar(source io.Reader, destination string) error {
@@ -502,6 +536,30 @@ func parseNonNegativeSize(value string) (int64, error) {
 func posixDirectoryStagePath(destination, token string) string {
 	directory, name := path.Split(destination)
 	return path.Join(directory, "."+name+".cterm-part-"+token)
+}
+
+func posixDirectoryArchivePath(destination, token string) string {
+	directory, name := path.Split(destination)
+	return path.Join(directory, "."+name+".cterm-archive-"+token+".tar")
+}
+
+func posixDirectoryReceiveArchivePath(token string) string {
+	return path.Join("/tmp", ".channelterm-"+token+".tar")
+}
+
+// cleanupDirectory runs only after the current bounded raw block has been
+// acknowledged, so the remote TTY is already restored. It removes temporary
+// archive and extraction paths before the Session lease is released.
+func (p *fileProtocol) cleanupDirectory(archive, staging string) error {
+	cleanupCtx := context.Background()
+	if staging == "" {
+		staging = "''"
+	}
+	if err := p.command(cleanupCtx, directoryCleanupCommand(p.token, archive, staging)); err != nil {
+		return err
+	}
+	_, err := p.expect(cleanupCtx, "ABORT", "OK")
+	return err
 }
 
 func directoryTarError(err error) error {
