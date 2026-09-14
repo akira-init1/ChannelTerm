@@ -3,6 +3,7 @@ package command
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/akira-init1/ChannelTerm/internal/core/session"
@@ -64,7 +65,7 @@ func (p *fileTransferPresentation) handle(event session.Event, local bool, write
 			p.legacyActive = true
 		}
 		if !local {
-			text = "[ChannelTerm] File transfer started: " + fileTransferEventPaths(event.Metadata) + "\r\n"
+			text = fileTransferStatusPrefix(event.Timestamp) + "File transfer started: " + fileTransferEventPaths(event.Metadata) + "\r\n"
 		}
 	case session.EventFileTransferProgress:
 		// A retained observer can begin at a progress event when older events
@@ -81,15 +82,20 @@ func (p *fileTransferPresentation) handle(event session.Event, local bool, write
 			p.legacyActive = false
 		}
 		if !local {
-			text = "[ChannelTerm] File transfer completed\r\n"
+			text = fileTransferStatusPrefix(event.Timestamp) + "File transfer completed\r\n"
 		}
 	case session.EventFileTransferFailed:
 		if p.openStart == nil {
 			p.legacyActive = false
 		}
 		if !local {
-			text = "[ChannelTerm] File transfer failed"
-			if message := fileTransferEventString(event.Metadata, "error"); message != "" {
+			text = fileTransferStatusPrefix(event.Timestamp)
+			if fileTransferEventCancelled(event.Metadata) {
+				text += "File transfer cancelled"
+			} else {
+				text += "File transfer failed"
+			}
+			if message := fileTransferEventString(event.Metadata, "error"); message != "" && !fileTransferEventCancelled(event.Metadata) {
 				text += ": " + message
 			}
 			text += "\r\n"
@@ -100,6 +106,10 @@ func (p *fileTransferPresentation) handle(event session.Event, local bool, write
 		return nil
 	}
 	return write([]byte(text))
+}
+
+func fileTransferEventCancelled(metadata map[string]any) bool {
+	return strings.EqualFold(strings.TrimSpace(fileTransferEventString(metadata, "error")), "context canceled")
 }
 
 func fileTransferEventCursor(metadata map[string]any) (session.OutputCursor, bool) {

@@ -77,8 +77,8 @@ func TestFileTransferPresentationFailedTransferRestoresOutputWithoutReplay(t *te
 	if rendered, err := writeAttachedTerminalOutput(presentation, write, []byte("root@board:~# ")); err != nil || !rendered {
 		t.Fatalf("normal output after failure = rendered=%t, err=%v; want rendered", rendered, err)
 	}
-	if got := output.String(); bytes.Contains(output.Bytes(), []byte("@CTERM")) || !bytes.Contains(output.Bytes(), []byte("File transfer failed: context canceled")) || !bytes.Contains(output.Bytes(), []byte("root@board:~# ")) {
-		t.Errorf("output = %q, want failure status and restored prompt without replay", got)
+	if got := output.String(); bytes.Contains(output.Bytes(), []byte("@CTERM")) || !bytes.Contains(output.Bytes(), []byte("File transfer cancelled")) || !bytes.Contains(output.Bytes(), []byte("root@board:~# ")) {
+		t.Errorf("output = %q, want cancelled status and restored prompt without replay", got)
 	}
 }
 

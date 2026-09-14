@@ -299,11 +299,11 @@ func TestAttachInputDispatcherDropsDelayedDuplicateControlCAfterTransfer(t *test
 	}
 
 	deadline := time.Now().Add(time.Second)
-	for !strings.Contains(output.String(), "transfer worker stopped") && time.Now().Before(deadline) {
+	for !strings.Contains(output.String(), "File transfer cancelled") && time.Now().Before(deadline) {
 		time.Sleep(time.Millisecond)
 	}
-	if got := output.String(); !strings.Contains(got, "transfer worker stopped") {
-		t.Fatalf("output = %q, want transfer completion", got)
+	if got := output.String(); !strings.Contains(got, "File transfer cancelled") {
+		t.Fatalf("output = %q, want transfer cancellation status", got)
 	}
 	interrupts <- os.Interrupt
 	if _, err := inputWriter.Write([]byte{'c', 'c', 'c', 'c', 0x03, 0x03, 0x03, 0x03}); err != nil {
@@ -360,10 +360,10 @@ func TestAttachInputDispatcherDropsControlCAfterSlowTransferCleanup(t *testing.T
 	close(releaseWorker)
 
 	deadline := time.Now().Add(time.Second)
-	for !strings.Contains(output.String(), "slow transfer worker stopped") && time.Now().Before(deadline) {
+	for !strings.Contains(output.String(), "File transfer cancelled") && time.Now().Before(deadline) {
 		time.Sleep(time.Millisecond)
 	}
-	if !strings.Contains(output.String(), "slow transfer worker stopped") {
+	if !strings.Contains(output.String(), "File transfer cancelled") {
 		t.Fatal("transfer did not complete")
 	}
 	if _, err := inputWriter.Write([]byte{'c'}); err != nil {
