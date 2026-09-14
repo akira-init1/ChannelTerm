@@ -43,6 +43,7 @@ type attachInputDispatcher struct {
 	interrupts            <-chan os.Signal
 	terminal              attachSession
 	writeLocal            func([]byte) error
+	writeStatus           func([]byte) error
 	togglePromptTimestamp func() error
 	stopAttach            context.CancelFunc
 	controller            *interactive.Controller
@@ -74,6 +75,7 @@ func newAttachInputDispatcherWithPumpAndInterrupts(ctx context.Context, pump *at
 		interrupts:            interrupts,
 		terminal:              terminal,
 		writeLocal:            writeLocal,
+		writeStatus:           writeLocal,
 		togglePromptTimestamp: togglePromptTimestamp,
 		stopAttach:            cancel,
 		controller:            interactive.NewController(interactive.DefaultEscapeByte),
@@ -378,7 +380,7 @@ func (d *attachInputDispatcher) startTransfer(direction, firstPath, secondPath s
 		d.cancelAttach()
 		return
 	}
-	if d.writeLocal(fileTransferStartedText(direction, firstPath, secondPath)) != nil {
+	if d.writeTransferStatus(fileTransferStartedText(time.Now(), direction, firstPath, secondPath)) != nil {
 		d.cancelAttach()
 		return
 	}
@@ -390,7 +392,7 @@ func (d *attachInputDispatcher) startTransfer(direction, firstPath, secondPath s
 		// session capability rather than this Context: started raw chunks must
 		// complete and restore the remote TTY before the lease is released.
 		workerCtx := context.WithoutCancel(d.ctx)
-		done <- d.transferRunner(workerCtx, nonClosingAttachSession{attachSession: d.terminal, cancellation: cancellation}, localOutputWriter{write: d.writeLocal}, cancellation.Requested, direction, firstPath, secondPath)
+		done <- d.transferRunner(workerCtx, nonClosingAttachSession{attachSession: d.terminal, cancellation: cancellation}, localOutputWriter{write: d.writeLocal, suppressFileTransferResultText: true}, cancellation.Requested, direction, firstPath, secondPath)
 	}()
 }
 
@@ -434,20 +436,32 @@ func (d *attachInputDispatcher) finishTransfer(err error) {
 		return
 	}
 	if err == nil {
-		_ = d.writeLocal(fileTransferCompletedText)
+		_ = d.writeTransferStatus(fileTransferCompletedText(time.Now()))
 		return
 	}
-	if !errors.Is(err, context.Canceled) {
-		_ = d.writeLocal([]byte("\r\n[ChannelTerm] File transfer failed: " + err.Error() + "\r\n"))
+	if cancelled || errors.Is(err, context.Canceled) {
+		_ = d.writeTransferStatus(fileTransferCancelledText(time.Now()))
+		return
 	}
+	_ = d.writeTransferStatus(fileTransferFailedText(time.Now(), err))
 }
 
 func (d *attachInputDispatcher) cancelFileShortcut() {
 	d.mode = attachInputModeAttach
 	d.line = d.line[:0]
 	if d.writeLocal != nil {
-		_ = d.writeLocal(fileTransferCancelledText)
+		_ = d.writeTransferStatus(fileTransferCancelledText(time.Now()))
 	}
+}
+
+func (d *attachInputDispatcher) writeTransferStatus(data []byte) error {
+	if d.writeStatus != nil {
+		return d.writeStatus(data)
+	}
+	if d.writeLocal != nil {
+		return d.writeLocal(data)
+	}
+	return nil
 }
 
 func (d *attachInputDispatcher) cancelAttach() {

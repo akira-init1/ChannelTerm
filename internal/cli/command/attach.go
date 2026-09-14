@@ -207,14 +207,51 @@ func runAttachSessionWithInterrupts(ctx context.Context, args []string, input io
 		eventWait.Wait()
 	}()
 	var outputMu sync.Mutex
-	promptTimestamps := newPromptTimestampRenderer(terminalOutputWriter(output, renderer), terminalOutputFlusher(renderer), time.Now)
+	lineState := newPresentationLineState()
+	renderTerminal := terminalOutputWriter(output, renderer)
+	writeRenderedTerminal := func(data []byte) error {
+		if err := renderTerminal(data); err != nil {
+			return err
+		}
+		lineState.observe(data)
+		return nil
+	}
+	promptTimestamps := newPromptTimestampRenderer(writeRenderedTerminal, terminalOutputFlusher(renderer), time.Now)
 	writeLocalOutput := func(data []byte) error {
 		outputMu.Lock()
 		defer outputMu.Unlock()
 		if err := promptTimestamps.Flush(); err != nil {
 			return err
 		}
-		return writeAll(output, data)
+		if err := writeAll(output, data); err != nil {
+			return err
+		}
+		lineState.observe(data)
+		return nil
+	}
+	writeLocalStatus := func(data []byte) error {
+		outputMu.Lock()
+		defer outputMu.Unlock()
+		if err := promptTimestamps.Flush(); err != nil {
+			return err
+		}
+		if prefix := lineState.lineStartPrefix(); len(prefix) > 0 {
+			if err := writeAll(output, prefix); err != nil {
+				return err
+			}
+			lineState.observe(prefix)
+		}
+		if err := writeAll(output, data); err != nil {
+			return err
+		}
+		lineState.observe(data)
+		if !lineState.atLineStart {
+			if err := writeAll(output, []byte("\r\n")); err != nil {
+				return err
+			}
+			lineState.observe([]byte("\r\n"))
+		}
+		return nil
 	}
 	writeTerminalOutput := func(data []byte) error {
 		outputMu.Lock()
@@ -239,7 +276,7 @@ func runAttachSessionWithInterrupts(ctx context.Context, args []string, input io
 	if owner, ok := attached.(localFileTransferPresentation); ok {
 		owner.setFileTransferPresentation(presentation)
 	}
-	go forwardAttachInputWithInterrupts(attachCtx, input, attached, writeLocalOutput, togglePromptTimestamps, cancel, interrupts)
+	go forwardAttachInputWithPresentation(attachCtx, input, attached, writeLocalOutput, writeLocalStatus, togglePromptTimestamps, cancel, interrupts)
 	events, hasEvents := attached.(attachEventSession)
 	if hasEvents {
 		eventChunk, eventErr := events.ReadRecentEvents(session.DefaultEventBufferCapacity)
@@ -256,7 +293,7 @@ func runAttachSessionWithInterrupts(ctx context.Context, args []string, input io
 		eventWait.Add(1)
 		go func() {
 			defer eventWait.Done()
-			forwardFileTransferEvents(attachCtx, events, eventCursor, attached, presentation, writeLocalOutput)
+			forwardFileTransferEvents(attachCtx, events, eventCursor, attached, presentation, writeLocalStatus)
 		}()
 	}
 

@@ -726,6 +726,9 @@ func finishFileTransferPresentation(output io.Writer, progress *fileTransferRepo
 	if operationErr == nil {
 		return nil
 	}
+	if managed, ok := output.(interface{ suppressFileTransferResult() bool }); ok && managed.suppressFileTransferResult() {
+		return operationErr
+	}
 	if errors.Is(operationErr, context.Canceled) {
 		_, _ = fmt.Fprintln(output, "Transfer cancelled.")
 	} else {

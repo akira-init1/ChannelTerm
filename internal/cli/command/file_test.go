@@ -640,6 +640,25 @@ func TestFinishFileTransferPresentation(t *testing.T) {
 	}
 }
 
+func TestFinishFileTransferPresentationDefersAttachResultStatus(t *testing.T) {
+	var output bytes.Buffer
+	writer := localOutputWriter{write: func(data []byte) error {
+		_, err := output.Write(data)
+		return err
+	}, suppressFileTransferResultText: true}
+	progress := newFileTransferProgress(context.Background(), writer, nil, map[string]any{"direction": "send"})
+	if err := progress.Start(100); err != nil {
+		t.Fatal(err)
+	}
+	operationErr := errors.New("remote setup failed")
+	if got := finishFileTransferPresentation(writer, progress, operationErr); !errors.Is(got, operationErr) {
+		t.Errorf("finishFileTransferPresentation() = %v, want %v", got, operationErr)
+	}
+	if got := output.String(); !strings.HasSuffix(got, "\r\n") || strings.Contains(got, "Transfer failed:") {
+		t.Errorf("attach progress output = %q, want a terminated progress line without a duplicate result status", got)
+	}
+}
+
 func TestFileTransferSuccessSummaryStartsAfterCompletedProgressLine(t *testing.T) {
 	var output bytes.Buffer
 	progress := newFileTransferProgress(context.Background(), &output, nil, map[string]any{"direction": "send"})

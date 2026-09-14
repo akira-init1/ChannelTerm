@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/akira-init1/ChannelTerm/internal/cli/interactive"
 	"github.com/akira-init1/ChannelTerm/internal/core/session"
@@ -92,8 +93,16 @@ func forwardAttachInput(ctx context.Context, input io.Reader, terminal attachSes
 // forwardAttachInputWithInterrupts routes both raw console bytes and optional
 // process-level Console interruptions through one attach input dispatcher.
 func forwardAttachInputWithInterrupts(ctx context.Context, input io.Reader, terminal attachSession, writeLocal func([]byte) error, togglePromptTimestamp func() error, cancel context.CancelFunc, interrupts <-chan os.Signal) {
+	forwardAttachInputWithPresentation(ctx, input, terminal, writeLocal, writeLocal, togglePromptTimestamp, cancel, interrupts)
+}
+
+// forwardAttachInputWithPresentation routes input while keeping ordinary local
+// UI text distinct from status blocks that must begin at a line boundary.
+func forwardAttachInputWithPresentation(ctx context.Context, input io.Reader, terminal attachSession, writeLocal func([]byte) error, writeStatus func([]byte) error, togglePromptTimestamp func() error, cancel context.CancelFunc, interrupts <-chan os.Signal) {
 	pump := newAttachInputPump(input)
-	newAttachInputDispatcherWithPumpAndInterrupts(ctx, &pump, terminal, writeLocal, togglePromptTimestamp, cancel, runAttachShortcutFileTransfer, interrupts).run()
+	dispatcher := newAttachInputDispatcherWithPumpAndInterrupts(ctx, &pump, terminal, writeLocal, togglePromptTimestamp, cancel, runAttachShortcutFileTransfer, interrupts)
+	dispatcher.writeStatus = writeStatus
+	dispatcher.run()
 }
 
 func processAttachInput(ctx context.Context, controller *interactive.Controller, data []byte, pump *attachInputPump, terminal attachSession, writeLocal func([]byte) error, togglePromptTimestamp func() error, cancel context.CancelFunc) bool {
@@ -165,7 +174,7 @@ func runAttachFileShortcut(ctx context.Context, pump *attachInputPump, attached 
 		return false
 	}
 	if cancelled {
-		_ = writeLocal(fileTransferCancelledText)
+		_ = writeLocal(fileTransferCancelledText(time.Now()))
 		return true
 	}
 	switch choice {
@@ -218,7 +227,7 @@ func runAttachSendShortcut(ctx context.Context, pump *attachInputPump, attached 
 		return false
 	}
 	if cancelled || strings.TrimSpace(localPath) == "" {
-		_ = writeLocal(fileTransferCancelledText)
+		_ = writeLocal(fileTransferCancelledText(time.Now()))
 		return true
 	}
 	defaultRemote := defaultRemoteTransferPath(localPath)
@@ -230,7 +239,7 @@ func runAttachSendShortcut(ctx context.Context, pump *attachInputPump, attached 
 		return false
 	}
 	if cancelled {
-		_ = writeLocal(fileTransferCancelledText)
+		_ = writeLocal(fileTransferCancelledText(time.Now()))
 		return true
 	}
 	if strings.TrimSpace(remotePath) == "" {
@@ -248,7 +257,7 @@ func runAttachReceiveShortcut(ctx context.Context, pump *attachInputPump, attach
 		return false
 	}
 	if cancelled || strings.TrimSpace(remotePath) == "" {
-		_ = writeLocal(fileTransferCancelledText)
+		_ = writeLocal(fileTransferCancelledText(time.Now()))
 		return true
 	}
 	defaultLocal := defaultLocalTransferPath(remotePath)
@@ -260,7 +269,7 @@ func runAttachReceiveShortcut(ctx context.Context, pump *attachInputPump, attach
 		return false
 	}
 	if cancelled {
-		_ = writeLocal(fileTransferCancelledText)
+		_ = writeLocal(fileTransferCancelledText(time.Now()))
 		return true
 	}
 	if strings.TrimSpace(localPath) == "" {
@@ -372,7 +381,10 @@ func defaultLocalTransferPath(remotePath string) string {
 	return "." + string(filepath.Separator) + posixpath.Base(remotePath)
 }
 
-type localOutputWriter struct{ write func([]byte) error }
+type localOutputWriter struct {
+	write                          func([]byte) error
+	suppressFileTransferResultText bool
+}
 
 func (w localOutputWriter) Write(data []byte) (int, error) {
 	// The attached terminal can be in a mode where LF advances a row without
@@ -390,6 +402,10 @@ func (w localOutputWriter) Write(data []byte) (int, error) {
 		return 0, err
 	}
 	return len(data), nil
+}
+
+func (w localOutputWriter) suppressFileTransferResult() bool {
+	return w.suppressFileTransferResultText
 }
 
 // fileTransferCancellation coordinates a local Ctrl+C with the file-transfer
@@ -465,17 +481,31 @@ func (s nonClosingAttachSession) FileTransferCancelRequested() bool {
 }
 
 var fileTransferMenuText = []byte("\r\nFile transfer:\r\n  s  Send PC -> Board\r\n  r  Receive Board -> PC\r\n  Esc  Cancel\r\nSelect: ")
-var fileTransferCancelledText = []byte("\r\n[ChannelTerm] File transfer cancelled\r\n")
 var fileTransferInputIgnoredText = []byte("\r\n[ChannelTerm] Input ignored during file transfer. Ctrl+C to cancel.\r\n")
-var fileTransferCompletedText = []byte("\r\n[ChannelTerm] File transfer completed\r\n")
+
+func fileTransferStatusPrefix(now time.Time) string {
+	return "[" + now.Format("15:04:05") + "] [ChannelTerm] "
+}
+
+func fileTransferCancelledText(now time.Time) []byte {
+	return []byte(fileTransferStatusPrefix(now) + "File transfer cancelled\r\n")
+}
+
+func fileTransferCompletedText(now time.Time) []byte {
+	return []byte(fileTransferStatusPrefix(now) + "File transfer completed\r\n")
+}
+
+func fileTransferFailedText(now time.Time, err error) []byte {
+	return []byte(fileTransferStatusPrefix(now) + "File transfer failed: " + err.Error() + "\r\n")
+}
 
 // fileTransferStartedText reports the local input-lock boundary before the
 // worker begins protocol I/O. It is CLI presentation only and never enters the
 // Session byte stream.
-func fileTransferStartedText(direction, firstPath, secondPath string) []byte {
+func fileTransferStartedText(now time.Time, direction, firstPath, secondPath string) []byte {
 	localPath, remotePath := firstPath, secondPath
 	if direction == "receive" {
 		localPath, remotePath = secondPath, firstPath
 	}
-	return []byte("\r\n[ChannelTerm] File transfer started: " + localPath + " -> " + remotePath + "\r\n[ChannelTerm] Terminal input locked. Ctrl+C to cancel.\r\n")
+	return []byte(fileTransferStatusPrefix(now) + "File transfer started: " + localPath + " -> " + remotePath + "\r\n[ChannelTerm] Terminal input locked. Ctrl+C to cancel.\r\n")
 }
