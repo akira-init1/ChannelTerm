@@ -207,12 +207,15 @@ func runAttachSessionWithInterrupts(ctx context.Context, args []string, input io
 		eventWait.Wait()
 	}()
 	var outputMu sync.Mutex
+	promptTimestamps := newPromptTimestampRenderer(terminalOutputWriter(output, renderer), terminalOutputFlusher(renderer), time.Now)
 	writeLocalOutput := func(data []byte) error {
 		outputMu.Lock()
 		defer outputMu.Unlock()
+		if err := promptTimestamps.Flush(); err != nil {
+			return err
+		}
 		return writeAll(output, data)
 	}
-	promptTimestamps := newPromptTimestampRenderer(terminalOutputWriter(output, renderer), terminalOutputFlusher(renderer), time.Now)
 	writeTerminalOutput := func(data []byte) error {
 		outputMu.Lock()
 		defer outputMu.Unlock()

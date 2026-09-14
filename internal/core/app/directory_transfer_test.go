@@ -73,16 +73,12 @@ func TestSendDirectoryStreamsTarInBoundedPayloads(t *testing.T) {
 	}
 }
 
-func TestSendDirectoryCancellationPadsRemainingRawStream(t *testing.T) {
+func TestSendDirectoryCancellationStopsAfterOneBoundedBlock(t *testing.T) {
 	source := t.TempDir()
 	mustWriteDirectoryTestFile(t, filepath.Join(source, "large.bin"), bytes.Repeat([]byte("x"), FileTransferChunkSize*3))
-	plan, err := makeDirectoryPlan(source)
-	if err != nil {
-		t.Fatal(err)
-	}
 	terminal := newFileTransferTestSession(nil)
 	progressCalls := 0
-	_, err = SendDirectory(context.Background(), terminal, source, "/tmp/release", func(int64, int64) error {
+	_, err := SendDirectory(context.Background(), terminal, source, "/tmp/release", func(int64, int64) error {
 		progressCalls++
 		return context.Canceled
 	})
@@ -92,11 +88,8 @@ func TestSendDirectoryCancellationPadsRemainingRawStream(t *testing.T) {
 	if progressCalls != 1 {
 		t.Errorf("progress calls = %d, want 1 before cancellation cleanup", progressCalls)
 	}
-	if got := int64(len(terminal.received)); got != plan.size {
-		t.Errorf("bytes sent including cleanup padding = %d, want raw stream size %d", got, plan.size)
-	}
-	if tail := terminal.received[FileTransferChunkSize:]; !bytes.Equal(tail, bytes.Repeat([]byte{0xff}, len(tail))) {
-		t.Error("directory cancellation cleanup did not replace the remaining source with invalid padding")
+	if got := len(terminal.received); got != FileTransferChunkSize {
+		t.Errorf("bytes sent before cancellation = %d, want one %d-byte block", got, FileTransferChunkSize)
 	}
 }
 
@@ -118,10 +111,14 @@ func TestSendDirectoryCancellationRecoveryHasNoUnsafeDeadline(t *testing.T) {
 	}
 }
 
-func TestDirectorySendCommandDrainsInputAfterTarStops(t *testing.T) {
-	command := directorySendInitCommand("abc123", "'/tmp/release'", "'/tmp/.release.part'", 2*FileTransferChunkSize)
-	if !strings.Contains(command, `tar -x -f - -C "$s"; r=$?; dd of=/dev/null bs=32768 2>/dev/null; [ "$r" -eq 0 ]`) {
-		t.Fatalf("directory send command does not drain its announced raw input after tar exits: %s", command)
+func TestDirectorySendUsesStagedArchiveAndBoundedChunks(t *testing.T) {
+	initCommand := directorySendInitCommand("abc123", "'/tmp/.release.archive.tar'")
+	if !strings.Contains(initCommand, ":INIT:OK") || strings.Contains(initCommand, "stty raw") {
+		t.Fatalf("directory initialization unexpectedly starts an unbounded raw stream: %s", initCommand)
+	}
+	finishCommand := directorySendFinishCommand("abc123", "'/tmp/release'", "'/tmp/.release.part'", "'/tmp/.release.archive.tar'", 2*FileTransferChunkSize)
+	if !strings.Contains(finishCommand, `tar -x -f "$a" -C "$s"`) {
+		t.Fatalf("directory finalization does not extract the staged archive: %s", finishCommand)
 	}
 }
 
@@ -136,8 +133,8 @@ func TestSendDirectoryObservesSessionCancellationAtChunkBoundary(t *testing.T) {
 	if payload := terminal.received[:FileTransferChunkSize]; bytes.Count(payload, []byte("x")) == 0 {
 		t.Error("first source block was not sent before boundary cancellation")
 	}
-	if tail := terminal.received[FileTransferChunkSize:]; !bytes.Equal(tail, bytes.Repeat([]byte{0xff}, len(tail))) {
-		t.Error("directory cleanup did not replace source payload after Session cancellation was observed")
+	if got := len(terminal.received); got != FileTransferChunkSize {
+		t.Errorf("bytes sent before Session cancellation = %d, want one block", got)
 	}
 }
 
@@ -167,7 +164,7 @@ func TestReceiveDirectoryExtractsTarStream(t *testing.T) {
 	}
 }
 
-func TestReceiveDirectoryCancellationDrainsRawStream(t *testing.T) {
+func TestReceiveDirectoryCancellationStopsAfterOneBoundedBlock(t *testing.T) {
 	source := t.TempDir()
 	mustWriteDirectoryTestFile(t, filepath.Join(source, "large.bin"), bytes.Repeat([]byte("x"), FileTransferChunkSize*3))
 	plan, err := makeDirectoryPlan(source)
@@ -187,8 +184,8 @@ func TestReceiveDirectoryCancellationDrainsRawStream(t *testing.T) {
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("ReceiveDirectory() error = %v, want context.Canceled", err)
 	}
-	if progressCalls <= 1 {
-		t.Errorf("progress calls = %d, want the raw stream drained after cancellation", progressCalls)
+	if progressCalls != 1 {
+		t.Errorf("progress calls = %d, want one completed block before cancellation", progressCalls)
 	}
 }
 

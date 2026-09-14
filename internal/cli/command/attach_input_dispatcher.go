@@ -414,7 +414,7 @@ func (d *attachInputDispatcher) finishTransfer(err error) {
 	d.cancellationAnnounced = false
 	d.mode = attachInputModeAttach
 	// Start the recovery window only after the worker has completed its raw
-	// block and released its lease. On slow links the active 32 KiB block can
+	// block and released its lease. On slow links the active 8 KiB block can
 	// outlast the window that started when Ctrl+C was first received, allowing
 	// Windows' delayed plain-C record to reach the Session after cancellation.
 	if cancelled {

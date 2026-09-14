@@ -71,17 +71,16 @@ func (r *Renderer) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-// Flush writes any incomplete terminal line. It is intended for orderly
-// disconnect handling; callers should invoke it before printing a local
-// disconnect status so buffered remote output remains ordered.
+// Flush writes any incomplete terminal line and ends prompt-echo state.
+// Callers invoke it before local status output or orderly disconnect so later
+// remote prompts are rendered independently and output remains ordered.
 func (r *Renderer) Flush() error {
-	if len(r.pending) == 0 {
-		return nil
+	if len(r.pending) > 0 {
+		if err := r.writeLine(r.pending, r.rawUntilNewline); err != nil {
+			return err
+		}
+		r.pending = nil
 	}
-	if err := r.writeLine(r.pending, r.rawUntilNewline); err != nil {
-		return err
-	}
-	r.pending = nil
 	r.rawUntilNewline = false
 	return nil
 }
