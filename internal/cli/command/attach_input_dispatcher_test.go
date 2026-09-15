@@ -154,6 +154,98 @@ func TestAttachInputDispatcherConfirmedCancellationInterruptsProtocolWait(t *tes
 	waitForSignal(t, done, "dispatcher exit")
 }
 
+func TestAttachInputDispatcherContextCancellationTerminatesProgressLine(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	inputReader, inputWriter := io.Pipe()
+	defer inputReader.Close()
+	defer inputWriter.Close()
+	pump := newAttachInputPump(inputReader)
+	var output lockedBuffer
+	lineState := newPresentationLineState()
+	writeLocal := func(data []byte) error {
+		_, err := output.Write(data)
+		lineState.observe(data)
+		return err
+	}
+	writeStatus := func(data []byte) error {
+		if prefix := lineState.lineStartPrefix(); len(prefix) > 0 {
+			if err := writeLocal(prefix); err != nil {
+				return err
+			}
+		}
+		return writeLocal(data)
+	}
+	started := make(chan struct{})
+	dispatcher := newAttachInputDispatcherWithPump(ctx, &pump, &fakeAttachSession{}, writeLocal, func() error { return nil }, func() {}, func(_ context.Context, transfer attachSession, workerOutput io.Writer, _ func() bool, _ string, _, _ string) error {
+		progress := newFileTransferProgress(context.Background(), workerOutput, nil, map[string]any{"direction": "send"})
+		if err := progress.Start(64 * 1024); err != nil {
+			return err
+		}
+		close(started)
+		<-transfer.(nonClosingAttachSession).cancellation.ch
+		return finishFileTransferPresentation(workerOutput, progress, context.Canceled)
+	})
+	dispatcher.writeStatus = writeStatus
+	dispatcher.startTransfer("send", "firmware.bin", "/tmp/firmware.bin")
+	done := make(chan struct{})
+	go func() {
+		dispatcher.run()
+		close(done)
+	}()
+	waitForSignal(t, started, "progress start")
+	cancel()
+	waitForSignal(t, done, "dispatcher context cancellation")
+
+	got := output.String()
+	if !strings.Contains(got, "\x1b[K\r\n[") || !strings.Contains(got, "File transfer cancelled") {
+		t.Errorf("context cancellation output = %q, want terminated progress followed by cancellation status", got)
+	}
+	if strings.Contains(got, "\x1b[K\r\n\r\n[") {
+		t.Errorf("context cancellation output = %q, contains a blank line after progress", got)
+	}
+}
+
+func TestAttachInputDispatcherPrintsCompletionBeforeVerificationSummary(t *testing.T) {
+	var output lockedBuffer
+	dispatcher := newAttachInputDispatcherWithPump(context.Background(), &attachInputPump{}, &fakeAttachSession{}, func(data []byte) error {
+		_, err := output.Write(data)
+		return err
+	}, func() error { return nil }, func() {}, func(_ context.Context, _ attachSession, workerOutput io.Writer, _ func() bool, _ string, _, _ string) error {
+		const total = 28 * 1024
+		progress := newFileTransferProgress(context.Background(), workerOutput, nil, map[string]any{"direction": "send"})
+		if err := progress.Report(total, total); err != nil {
+			return err
+		}
+		if err := progress.Complete(total); err != nil {
+			return err
+		}
+		if err := progress.finish(); err != nil {
+			return err
+		}
+		return writeFileTransferVerificationSummary(workerOutput, "digest", "/tmp/system_1.dtb")
+	})
+	dispatcher.startTransfer("send", "system.dtb", "/tmp/system.dtb")
+	err := <-dispatcher.transferDone
+	if got := output.String(); strings.Contains(got, "Local SHA-256") {
+		t.Fatalf("worker output = %q, verification summary must wait for completion status", got)
+	}
+	dispatcher.finishTransfer(err)
+
+	got := output.String()
+	progressIndex := strings.Index(got, "[####################] 100.0%")
+	completedIndex := strings.Index(got, "[ChannelTerm] File transfer completed")
+	summaryIndex := strings.Index(got, "  Local SHA-256 : digest")
+	if progressIndex < 0 || completedIndex <= progressIndex || summaryIndex <= completedIndex {
+		t.Errorf("manual transfer output order is incorrect: %q", got)
+	}
+	if !strings.Contains(got, "File transfer completed\r\n  Local SHA-256 : digest\r\n") {
+		t.Errorf("manual transfer output = %q, want summary immediately after completion without a blank line", got)
+	}
+	if !strings.Contains(got, "  Remote SHA-256: digest\r\n  Verify        : MATCH\r\n  Saved         : /tmp/system_1.dtb\r\n") {
+		t.Errorf("manual transfer summary = %q, want MCP-compatible verification fields", got)
+	}
+}
+
 func TestAttachInputDispatcherDeclinesCancellationAndResumesAtBoundary(t *testing.T) {
 	for _, tt := range []struct {
 		name   string
@@ -273,7 +365,7 @@ func TestFileTransferProgressWithCancellationStopsAtAcknowledgedBoundary(t *test
 }
 
 func TestFileTransferCancellationPresentationText(t *testing.T) {
-	if got, want := string(fileTransferCancelConfirmationText), "\r\n^C\r\n[ChannelTerm] Cancel file transfer? [y/N]: "; got != want {
+	if got, want := string(fileTransferCancelConfirmationText), "\r\n[ChannelTerm] Cancel file transfer? [y/N]: "; got != want {
 		t.Errorf("confirmation prompt = %q, want %q", got, want)
 	}
 	if got, want := string(fileTransferResumedText), "\r\n[ChannelTerm] File transfer resumed\r\n"; got != want {
@@ -286,6 +378,57 @@ func TestFileTransferCancellationPresentationText(t *testing.T) {
 		"  Reason     : cancelled by user\r\n"
 	if got := string(fileTransferCancelledSummaryText(timestamp, progress)); got != want {
 		t.Errorf("cancelled summary = %q, want %q", got, want)
+	}
+}
+
+func TestFileTransferCancellationAnswerEchoesOnPromptLine(t *testing.T) {
+	for _, tt := range []struct {
+		name          string
+		answer        byte
+		wantAnswer    string
+		wantCancelled bool
+	}{
+		{name: "confirm", answer: 'y', wantAnswer: "y", wantCancelled: true},
+		{name: "decline", answer: 'n', wantAnswer: "n"},
+		{name: "other", answer: 'x', wantAnswer: "x"},
+		{name: "default enter", answer: '\r'},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			var output bytes.Buffer
+			cancellation := newFileTransferCancellation()
+			if !cancellation.BeginConfirmation() {
+				t.Fatal("BeginConfirmation() returned false")
+			}
+			dispatcher := newAttachInputDispatcherWithPump(context.Background(), &attachInputPump{}, &fakeAttachSession{}, func(data []byte) error {
+				_, err := output.Write(data)
+				return err
+			}, func() error { return nil }, func() {}, nil)
+			dispatcher.mode = attachInputModeFileTransferCancelConfirm
+			dispatcher.transferCancellation = cancellation
+			output.Write(fileTransferCancelConfirmationText)
+
+			if ok := dispatcher.dispatch([]byte{tt.answer}); !ok {
+				t.Fatal("dispatch() returned false")
+			}
+			promptAndAnswer := string(fileTransferCancelConfirmationText) + tt.wantAnswer + "\r\n"
+			if got := output.String(); !strings.HasPrefix(got, promptAndAnswer) {
+				t.Errorf("output = %q, want prompt answer prefix %q", got, promptAndAnswer)
+			}
+			if cancellation.Cancelled() != tt.wantCancelled {
+				t.Errorf("cancelled = %t, want %t", cancellation.Cancelled(), tt.wantCancelled)
+			}
+		})
+	}
+}
+
+func TestFileTransferStatusPrefixUsesLocalTimezone(t *testing.T) {
+	previousLocal := time.Local
+	time.Local = time.FixedZone("UTC+8", 8*60*60)
+	defer func() { time.Local = previousLocal }()
+
+	timestamp := time.Date(2026, time.September, 15, 8, 9, 2, 0, time.UTC)
+	if got, want := fileTransferStatusPrefix(timestamp), "[16:09:02] [ChannelTerm] "; got != want {
+		t.Errorf("status prefix = %q, want local time %q", got, want)
 	}
 }
 
@@ -356,6 +499,96 @@ func TestAttachInputDispatcherCancelsExternallyOwnedFileTransfer(t *testing.T) {
 			waitForSignal(t, done, "dispatcher exit")
 		})
 	}
+}
+
+func TestExternalCancellationClosesProgressGateBeforeWritingPrompt(t *testing.T) {
+	presentation := newFileTransferPresentation()
+	if err := presentation.handle(session.Event{Type: session.EventFileTransferProgress, Metadata: map[string]any{
+		"sent": int64(56 * 1024), "total": int64(1024 * 1024), "percent": 5.5, "speed": float64(8 * 1024),
+	}}, false, func([]byte) error { return nil }); err != nil {
+		t.Fatal(err)
+	}
+	attached := &presentationAwareExternalTransferSession{
+		externalTransferAttachSession: externalTransferAttachSession{fakeAttachSession: &fakeAttachSession{}, resolved: make(chan bool, 1)},
+		presentation:                  presentation,
+	}
+	progressRedrawn := false
+	dispatcher := newAttachInputDispatcherWithPump(context.Background(), &attachInputPump{}, attached, func(data []byte) error {
+		if bytes.Equal(data, fileTransferCancelConfirmationText) {
+			return presentation.handle(session.Event{Type: session.EventFileTransferProgress, Metadata: map[string]any{
+				"sent": int64(64 * 1024), "total": int64(1024 * 1024), "percent": 6.25, "speed": float64(8 * 1024),
+			}}, false, func([]byte) error {
+				progressRedrawn = true
+				return nil
+			})
+		}
+		return nil
+	}, func() error { return nil }, func() {}, nil)
+	if active := dispatcher.beginExternalTransferCancellationConfirmation(); !active {
+		t.Fatal("external cancellation was not detected")
+	}
+	if progressRedrawn {
+		t.Fatal("progress redrew after the cancellation prompt became visible")
+	}
+	dispatcher.abandonExternalTransferCancellation()
+}
+
+func TestExternalCancellationCannotBeOvertakenByPreparedProgress(t *testing.T) {
+	presentation := newFileTransferPresentation()
+	attached := &presentationAwareExternalTransferSession{
+		externalTransferAttachSession: externalTransferAttachSession{fakeAttachSession: &fakeAttachSession{}, resolved: make(chan bool, 1)},
+		presentation:                  presentation,
+	}
+	var output lockedBuffer
+	progressWriteStarted := make(chan struct{})
+	releaseProgressWrite := make(chan struct{})
+	progressDone := make(chan error, 1)
+	go func() {
+		progressDone <- presentation.handle(session.Event{Type: session.EventFileTransferProgress, Metadata: map[string]any{
+			"sent": int64(56 * 1024), "total": int64(128 * 1024), "percent": 43.75, "speed": float64(8 * 1024),
+		}}, false, func(data []byte) error {
+			close(progressWriteStarted)
+			<-releaseProgressWrite
+			_, err := output.Write(data)
+			return err
+		})
+	}()
+	waitForSignal(t, progressWriteStarted, "prepared progress write")
+
+	promptWritten := make(chan struct{})
+	confirmationDone := make(chan bool, 1)
+	dispatcher := newAttachInputDispatcherWithPump(context.Background(), &attachInputPump{}, attached, func(data []byte) error {
+		_, err := output.Write(data)
+		if err == nil && bytes.Equal(data, fileTransferCancelConfirmationText) {
+			close(promptWritten)
+		}
+		return err
+	}, func() error { return nil }, func() {}, nil)
+	go func() {
+		confirmationDone <- dispatcher.beginExternalTransferCancellationConfirmation()
+	}()
+
+	select {
+	case <-promptWritten:
+		t.Fatal("cancellation prompt overtook an already prepared progress frame")
+	case <-time.After(20 * time.Millisecond):
+	}
+	close(releaseProgressWrite)
+	if err := <-progressDone; err != nil {
+		t.Fatal(err)
+	}
+	waitForSignal(t, promptWritten, "external cancellation prompt")
+	if active := <-confirmationDone; !active {
+		t.Fatal("external cancellation was not detected")
+	}
+
+	got := output.String()
+	progressIndex := strings.Index(got, "[#########-----------] 43.8%")
+	promptIndex := strings.Index(got, "[ChannelTerm] Cancel file transfer? [y/N]:")
+	if progressIndex < 0 || promptIndex < 0 || progressIndex > promptIndex {
+		t.Fatalf("output = %q, want prepared progress before cancellation prompt", got)
+	}
+	dispatcher.abandonExternalTransferCancellation()
 }
 
 func TestAttachInputDispatcherIgnoresNormalInputDuringFileTransferOnce(t *testing.T) {
@@ -693,6 +926,19 @@ type lockedBuffer struct {
 type externalTransferAttachSession struct {
 	*fakeAttachSession
 	resolved chan bool
+}
+
+type presentationAwareExternalTransferSession struct {
+	externalTransferAttachSession
+	presentation *fileTransferPresentation
+}
+
+func (s *presentationAwareExternalTransferSession) fileTransferCancelPromptStarted() {
+	s.presentation.beginCancelConfirmation()
+}
+
+func (s *presentationAwareExternalTransferSession) fileTransferCancelPromptFinished() {
+	s.presentation.finishCancelConfirmation()
 }
 
 func (*externalTransferAttachSession) BeginFileTransferCancel(context.Context) (string, bool, error) {

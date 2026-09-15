@@ -65,6 +65,7 @@ type attachInputDispatcher struct {
 	remotePath            string
 	transferDone          <-chan error
 	transferCancellation  *fileTransferCancellation
+	transferSummary       *fileTransferSummaryBuffer
 	externalCancelRequest string
 	inputIgnoredAnnounced bool
 	// ignoreControlCUntil prevents keyboard auto-repeat and the duplicate
@@ -109,7 +110,7 @@ func (d *attachInputDispatcher) run() {
 			case result, ok := <-d.pump.results:
 				if !ok || result.err != nil {
 					d.requestTransferCancellation()
-					<-d.transferDone
+					d.finishTransfer(<-d.transferDone)
 					return
 				}
 				if !d.dispatch(result.data) {
@@ -123,7 +124,7 @@ func (d *attachInputDispatcher) run() {
 				// A process-level interruption must not abandon an active raw
 				// chunk. Request the same safe cancellation used for byte 0x03.
 				d.requestTransferCancellation()
-				<-d.transferDone
+				d.finishTransfer(<-d.transferDone)
 				return
 			}
 			continue
@@ -220,7 +221,13 @@ func (d *attachInputDispatcher) dispatch(data []byte) bool {
 				return false
 			}
 		case attachInputModeFileTransferCancelConfirm:
-			d.resolveTransferCancellationConfirmation(data[0] == 'y' || data[0] == 'Y')
+			answer := data[0]
+			if answer >= 0x20 && answer != 0x7f && d.writeLocal != nil {
+				// Raw terminal input is not echoed by the OS. Keep the selected
+				// answer on the prompt line so the decision remains visible.
+				_ = d.writeLocal([]byte{answer})
+			}
+			d.resolveTransferCancellationConfirmation(answer == 'y' || answer == 'Y')
 			// One key answers the prompt. Discard any CR/LF or pasted tail in
 			// this input batch rather than treating it as transfer input.
 			return true
@@ -401,6 +408,7 @@ func (d *attachInputDispatcher) startTransfer(direction, firstPath, secondPath s
 	d.ignoreControlCUntil = time.Time{}
 	d.inputIgnoredAnnounced = false
 	d.transferCancellation = newFileTransferCancellation()
+	d.transferSummary = &fileTransferSummaryBuffer{}
 	if d.writeLocal == nil {
 		d.cancelAttach()
 		return
@@ -427,7 +435,11 @@ func (d *attachInputDispatcher) startTransfer(direction, firstPath, secondPath s
 			case <-cancelWatchDone:
 			}
 		}()
-		err := d.transferRunner(workerCtx, nonClosingAttachSession{attachSession: d.terminal, cancellation: cancellation}, localOutputWriter{write: d.writeLocal, suppressFileTransferResultText: true}, cancellation.Requested, direction, firstPath, secondPath)
+		err := d.transferRunner(workerCtx, nonClosingAttachSession{attachSession: d.terminal, cancellation: cancellation}, localOutputWriter{
+			write:                          d.writeLocal,
+			suppressFileTransferResultText: true,
+			deferredSummary:                d.transferSummary,
+		}, cancellation.Requested, direction, firstPath, secondPath)
 		close(cancelWatchDone)
 		cancelWorker()
 		done <- err
@@ -470,11 +482,16 @@ func (d *attachInputDispatcher) beginExternalTransferCancellationConfirmation() 
 	d.externalCancelRequest = requestID
 	d.mode = attachInputModeFileTransferCancelConfirm
 	d.ignoreControlCUntil = time.Now().Add(controlCRecoveryWindow)
+	presenter, presentsProgress := d.terminal.(fileTransferCancelPromptPresenter)
+	if presentsProgress {
+		// Close the redraw gate before writing the prompt. Progress events are
+		// delivered concurrently, so setting it afterwards leaves a window in
+		// which one acknowledged block can overwrite the [y/N] question.
+		presenter.fileTransferCancelPromptStarted()
+	}
 	if d.writeLocal == nil || d.writeLocal(fileTransferCancelConfirmationText) != nil {
 		d.abandonExternalTransferCancellation()
 		d.cancelAttach()
-	} else if presenter, ok := d.terminal.(fileTransferCancelPromptPresenter); ok {
-		presenter.fileTransferCancelPromptStarted()
 	}
 	return true
 }
@@ -577,8 +594,13 @@ func (d *attachInputDispatcher) finishTransfer(err error) {
 		// opened prompt. Wake any waiter and discard that stale confirmation.
 		d.transferCancellation.ResolveConfirmation(false)
 	}
+	verificationSummary := ""
+	if d.transferSummary != nil {
+		verificationSummary = d.transferSummary.take()
+	}
 	d.transferDone = nil
 	d.transferCancellation = nil
+	d.transferSummary = nil
 	d.inputIgnoredAnnounced = false
 	d.mode = attachInputModeAttach
 	// Start the recovery window only after the worker has completed its raw
@@ -592,7 +614,12 @@ func (d *attachInputDispatcher) finishTransfer(err error) {
 		return
 	}
 	if err == nil {
-		_ = d.writeTransferStatus(fileTransferCompletedText(time.Now()))
+		if d.writeTransferStatus(fileTransferCompletedText(time.Now())) != nil {
+			return
+		}
+		if verificationSummary != "" {
+			_, _ = (localOutputWriter{write: d.writeLocal}).Write([]byte(verificationSummary))
+		}
 		return
 	}
 	if cancelled || errors.Is(err, context.Canceled) {

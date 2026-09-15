@@ -50,7 +50,7 @@ func TestFileTransferPresentationSuppressesRawTransferDataAndRestoresOutput(t *t
 		}
 	}
 	for _, wanted := range []string{
-		"root@board:~# ls", "File transfer started: system.dts -> /tmp/system.dts", "Transferred 16384/32768 bytes (50.0%) [###############>..............]", "File transfer completed", "root@board:~# ",
+		"root@board:~# ls", "File transfer started: system.dts -> /tmp/system.dts", "[##########----------] 50.0%  16 KiB / 32 KiB  0 B/s  ETA --", "File transfer completed", "root@board:~# ",
 	} {
 		if !bytes.Contains(output.Bytes(), []byte(wanted)) {
 			t.Errorf("output = %q, want %q", got, wanted)
@@ -74,17 +74,136 @@ func TestFileTransferPresentationRendersCompletedChecksumSummary(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := presentation.handle(session.Event{Timestamp: completedTime, Type: session.EventFileTransferCompleted, Metadata: map[string]any{
-		"local_sha256": digest, "remote_sha256": digest,
+		"direction": "send", "remote_path": "/tmp/firmware.bin", "local_sha256": digest, "remote_sha256": digest,
 	}}, false, write); err != nil {
 		t.Fatal(err)
 	}
-	want := "\r[09:24:57] [ChannelTerm] Transferred 65536/65536 bytes (100.0%) [##############################]\x1b[K\r" +
-		"\r\n[09:24:58] [ChannelTerm] File transfer completed\r\n" +
+	want := "\r[####################] 100.0%  64 KiB / 64 KiB  0 B/s  ETA 0s\x1b[K\r" +
+		fileTransferProgressStatusBoundary + "[09:24:58] [ChannelTerm] File transfer completed\r\n" +
 		"  Local SHA-256 : " + digest + "\r\n" +
 		"  Remote SHA-256: " + digest + "\r\n" +
-		"  Verify        : MATCH\r\n"
+		"  Verify        : MATCH\r\n" +
+		"  Saved         : /tmp/firmware.bin\r\n"
 	if got := output.String(); got != want {
 		t.Errorf("completed presentation = %q, want %q", got, want)
+	}
+}
+
+func TestFileTransferEventSavedPathUsesTransferDirection(t *testing.T) {
+	for _, tt := range []struct {
+		name     string
+		metadata map[string]any
+		want     string
+	}{
+		{name: "send", metadata: map[string]any{"direction": "send", "local_path": "firmware.bin", "remote_path": "/tmp/firmware.bin"}, want: "/tmp/firmware.bin"},
+		{name: "receive", metadata: map[string]any{"direction": "receive", "local_path": "firmware.bin", "remote_path": "/tmp/firmware.bin"}, want: "firmware.bin"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := fileTransferEventSavedPath(tt.metadata); got != tt.want {
+				t.Errorf("saved path = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestFileTransferPresentationCompletionReplacesStaleFrameBeforeStatus(t *testing.T) {
+	presentation := newFileTransferPresentation()
+	var output bytes.Buffer
+	write := func(data []byte) error {
+		_, err := output.Write(data)
+		return err
+	}
+	if err := presentation.handle(session.Event{Type: session.EventFileTransferProgress, Metadata: map[string]any{
+		"sent": int64(56 * 1024), "total": int64(64 * 1024), "percent": 87.5, "speed": float64(8 * 1024),
+	}}, false, write); err != nil {
+		t.Fatal(err)
+	}
+	// A declined prompt ends the old progress row, but the transfer can finish
+	// before another ordinary progress event redraws it.
+	presentation.beginCancelConfirmation()
+	presentation.finishCancelConfirmation()
+	completedAt := time.Date(2026, time.September, 15, 9, 24, 58, 0, time.Local)
+	if err := presentation.handle(session.Event{Timestamp: completedAt, Type: session.EventFileTransferCompleted, Metadata: map[string]any{
+		"sent": int64(64 * 1024), "total": int64(64 * 1024), "percent": 100.0,
+	}}, false, write); err != nil {
+		t.Fatal(err)
+	}
+	got := output.String()
+	if !strings.Contains(got, "\r[####################] 100.0%  64 KiB / 64 KiB  8 KiB/s  ETA 0s\x1b[K\r\n[09:24:58] [ChannelTerm] File transfer completed\r\n") {
+		t.Errorf("completed presentation = %q, want a complete replacement frame before status", got)
+	}
+	if strings.Contains(got, "File transfer completed8 KiB/s") {
+		t.Errorf("completed presentation = %q, contains stale progress fields after status", got)
+	}
+}
+
+func TestFileTransferPresentationRefreshesOneLineAndResumesAfterDeclinedCancellation(t *testing.T) {
+	presentation := newFileTransferPresentation()
+	var output bytes.Buffer
+	write := func(data []byte) error {
+		_, err := output.Write(data)
+		return err
+	}
+	progress := func(sent int64, percent, speed float64) {
+		t.Helper()
+		if err := presentation.handle(session.Event{Type: session.EventFileTransferProgress, Metadata: map[string]any{
+			"sent": sent, "total": int64(100 * 1024), "percent": percent, "speed": speed,
+		}}, false, write); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	progress(10*1024, 10, 1024)
+	progress(20*1024, 20, 2*1024)
+	if got := output.String(); strings.Contains(got, "\n") || strings.Count(got, "\r") != 4 {
+		t.Fatalf("dynamic updates = %q, want two carriage-return-only frames", got)
+	}
+
+	presentation.beginCancelConfirmation()
+	beforePrompt := output.String()
+	progress(30*1024, 30, 3*1024)
+	if got := output.String(); got != beforePrompt {
+		t.Fatalf("progress during confirmation = %q, want no redraw", got)
+	}
+
+	presentation.finishCancelConfirmation()
+	progress(40*1024, 40, 4*1024)
+	if got := output.String(); strings.Contains(got, "\n") || strings.Count(got, "\r") != 6 || !strings.Contains(got, "[########------------] 40.0%") {
+		t.Errorf("progress after declined cancellation = %q, want resumed one-line refresh", got)
+	}
+}
+
+func TestFileTransferPresentationTerminatesProgressBeforeEveryTerminalStatus(t *testing.T) {
+	for _, tt := range []struct {
+		name  string
+		event session.Event
+		want  string
+	}{
+		{name: "normal completion", event: session.Event{Type: session.EventFileTransferCompleted}, want: "File transfer completed"},
+		{name: "confirmed cancellation", event: session.Event{Type: session.EventFileTransferCancelled, Metadata: map[string]any{"reason": "user_cancelled"}}, want: "File transfer cancelled"},
+		{name: "context cancellation", event: session.Event{Type: session.EventFileTransferFailed, Metadata: map[string]any{"error": "context canceled"}}, want: "File transfer cancelled"},
+		{name: "other failure", event: session.Event{Type: session.EventFileTransferFailed, Metadata: map[string]any{"error": "serial connection lost"}}, want: "File transfer failed"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			presentation := newFileTransferPresentation()
+			var output bytes.Buffer
+			write := func(data []byte) error {
+				_, err := output.Write(data)
+				return err
+			}
+			if err := presentation.handle(session.Event{Type: session.EventFileTransferProgress, Metadata: map[string]any{
+				"sent": int64(32 * 1024), "total": int64(64 * 1024), "percent": 50.0, "speed": float64(8 * 1024),
+			}}, false, write); err != nil {
+				t.Fatal(err)
+			}
+			if err := presentation.handle(tt.event, false, write); err != nil {
+				t.Fatal(err)
+			}
+			got := output.String()
+			if !strings.Contains(got, "\x1b[K\r\r\n") || !strings.Contains(got, tt.want) {
+				t.Errorf("terminal transition = %q, want one completed progress line before %q", got, tt.want)
+			}
+		})
 	}
 }
 

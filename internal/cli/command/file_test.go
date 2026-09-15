@@ -441,6 +441,19 @@ func TestFormatFileTransferProgressBars(t *testing.T) {
 	}
 }
 
+func TestFormatFileTransferProgressFieldOrder(t *testing.T) {
+	got := formatFileTransferProgress(fileTransferSnapshot{
+		transferred: 352 * 1024,
+		total:       512 * 1024,
+		percent:     68.75,
+		speed:       8.7 * 1024,
+	})
+	want := "[##############------] 68.8%  352 KiB / 512 KiB  8.7 KiB/s  ETA 18s"
+	if got != want {
+		t.Errorf("progress = %q, want %q", got, want)
+	}
+}
+
 func TestFormatFileTransferBytes(t *testing.T) {
 	tests := []struct {
 		value int64
@@ -449,9 +462,9 @@ func TestFormatFileTransferBytes(t *testing.T) {
 		{value: 0, want: "0 B"},
 		{value: 1023, want: "1023 B"},
 		{value: 608 * 1024, want: "608 KiB"},
-		{value: 1024 * 1024, want: "1.00 MiB"},
-		{value: 32 * 1024 * 1024, want: "32.0 MiB"},
-		{value: 1024 * 1024 * 1024, want: "1.00 GiB"},
+		{value: 1024 * 1024, want: "1 MiB"},
+		{value: 32 * 1024 * 1024, want: "32 MiB"},
+		{value: 1024 * 1024 * 1024, want: "1 GiB"},
 	}
 	for _, tt := range tests {
 		if got := formatFileTransferBytes(tt.value); got != tt.want {
@@ -466,6 +479,7 @@ func TestFormatFileTransferSpeed(t *testing.T) {
 		want  string
 	}{
 		{value: 850 * 1024, want: "850 KiB/s"},
+		{value: 8.7 * 1024, want: "8.7 KiB/s"},
 		{value: 1.25 * 1024 * 1024, want: "1.25 MiB/s"},
 	}
 	for _, tt := range tests {
@@ -483,7 +497,10 @@ func TestFormatFileTransferETA(t *testing.T) {
 		want               string
 	}{
 		{name: "seconds", transferred: 85, total: 100, speed: 1, want: "ETA 15s"},
-		{name: "minutes", transferred: 15, total: 100, speed: 1, want: "ETA 1m 25s"},
+		{name: "minutes", transferred: 15, total: 100, speed: 1, want: "ETA 1m25s"},
+		{name: "hours", transferred: 0, total: 3661, speed: 1, want: "ETA 1h1m1s"},
+		{name: "non-zero partial second", transferred: 99, total: 100, speed: 2, want: "ETA 1s"},
+		{name: "complete", transferred: 100, total: 100, speed: 1, want: "ETA 0s"},
 		{name: "zero speed", transferred: 50, total: 100, speed: 0, want: "ETA --"},
 	}
 	for _, tt := range tests {
@@ -511,7 +528,7 @@ func TestFileTransferProgressClearsStaleETAText(t *testing.T) {
 
 func TestFormatFileTransferProgressZeroByteFile(t *testing.T) {
 	got := formatFileTransferProgress(fileTransferSnapshot{total: 0, percent: 100})
-	want := "[####################] 100.0%  0 B / 0 B"
+	want := "[####################] 100.0%  0 B / 0 B  0 B/s  ETA --"
 	if got != want {
 		t.Errorf("zero-byte progress = %q, want %q", got, want)
 	}
@@ -526,7 +543,7 @@ func TestFileTransferProgressRendersSendAndReceive(t *testing.T) {
 			if err := progress.Report(512, 1024); err != nil {
 				t.Fatalf("progress.Report() error = %v", err)
 			}
-			if got := output.String(); !strings.HasPrefix(got, "\r[##########----------]  50.0%") {
+			if got := output.String(); !strings.HasPrefix(got, "\r[##########----------] 50.0%") {
 				t.Errorf("progress output = %q, want one-line 50%% update beginning with carriage return", got)
 			}
 			if len(attached.events) != 1 {
@@ -542,7 +559,7 @@ func TestFileTransferProgressRendersSendAndReceive(t *testing.T) {
 	}
 }
 
-func TestFileTransferProgressStartsNonEmptySendAndReceiveWithoutSpeedOrETA(t *testing.T) {
+func TestFileTransferProgressStartsNonEmptySendAndReceiveWithSafePlaceholders(t *testing.T) {
 	const total = 537 * 1024
 	for _, direction := range []string{"send", "receive"} {
 		t.Run(direction, func(t *testing.T) {
@@ -558,11 +575,11 @@ func TestFileTransferProgressStartsNonEmptySendAndReceiveWithoutSpeedOrETA(t *te
 			if err != nil {
 				t.Fatalf("initial progress error = %v", err)
 			}
-			if got := output.String(); got != "\r[--------------------]   0.0%  0 B / 537 KiB\x1b[K" {
+			if got := output.String(); got != "\r[--------------------] 0.0%  0 B / 537 KiB  0 B/s  ETA --\x1b[K" {
 				t.Errorf("initial progress = %q, want immediate zero-progress frame", got)
 			}
-			if got := output.String(); strings.Contains(got, "/s") || strings.Contains(got, "ETA") {
-				t.Errorf("initial progress = %q, must not show speed or ETA", got)
+			if got := output.String(); !strings.Contains(got, "0 B/s  ETA --") {
+				t.Errorf("initial progress = %q, want safe speed and ETA placeholders", got)
 			}
 			if len(attached.events) != 0 {
 				t.Errorf("initial progress events = %#v, want none", attached.events)
@@ -650,8 +667,15 @@ func TestFinishFileTransferPresentation(t *testing.T) {
 			if !tt.want100 && strings.Contains(got, "100.0%") {
 				t.Errorf("unsuccessful output = %q, must not show 100%%", got)
 			}
-			if tt.operation != nil && !strings.Contains(got, "[--------------------]   0.0%") {
+			if tt.operation != nil && !strings.Contains(got, "[--------------------] 0.0%") {
 				t.Errorf("unsuccessful output = %q, want initial zero-progress line", got)
+			}
+			wantNewlines := 1
+			if tt.operation != nil {
+				wantNewlines = 2
+			}
+			if newlines := strings.Count(got, "\n"); newlines != wantNewlines {
+				t.Errorf("output newlines = %d, want %d: %q", newlines, wantNewlines, got)
 			}
 		})
 	}
@@ -671,8 +695,52 @@ func TestFinishFileTransferPresentationDefersAttachResultStatus(t *testing.T) {
 	if got := finishFileTransferPresentation(writer, progress, operationErr); !errors.Is(got, operationErr) {
 		t.Errorf("finishFileTransferPresentation() = %v, want %v", got, operationErr)
 	}
-	if got := output.String(); !strings.HasSuffix(got, "\r\n") || strings.Contains(got, "Transfer failed:") {
-		t.Errorf("attach progress output = %q, want a terminated progress line without a duplicate result status", got)
+	if got := output.String(); strings.Contains(got, "\n") || strings.Contains(got, "Transfer failed:") {
+		t.Errorf("attach progress output = %q, want line termination and result status deferred to the dispatcher", got)
+	}
+}
+
+func TestConfirmedAttachCancellationEndsProgressLineExactlyOnce(t *testing.T) {
+	var output bytes.Buffer
+	lineState := newPresentationLineState()
+	writeLocal := func(data []byte) error {
+		_, err := output.Write(data)
+		lineState.observe(data)
+		return err
+	}
+	writeStatus := func(data []byte) error {
+		if prefix := lineState.lineStartPrefix(); len(prefix) > 0 {
+			if err := writeLocal(prefix); err != nil {
+				return err
+			}
+		}
+		return writeLocal(data)
+	}
+	writer := localOutputWriter{write: writeLocal, suppressFileTransferResultText: true}
+	progress := newFileTransferProgress(context.Background(), writer, nil, map[string]any{"direction": "send"})
+	if err := progress.Start(100); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeLocal(fileTransferCancelConfirmationText); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeLocal([]byte("\r\n")); err != nil {
+		t.Fatal(err)
+	}
+	if err := finishFileTransferPresentation(writer, progress, context.Canceled); !errors.Is(err, context.Canceled) {
+		t.Fatalf("finishFileTransferPresentation() = %v, want context.Canceled", err)
+	}
+	timestamp := time.Date(2026, time.September, 15, 12, 0, 0, 0, time.Local)
+	if err := writeStatus(fileTransferCancelledSummaryText(timestamp, fileTransferCancellationSnapshot{})); err != nil {
+		t.Fatal(err)
+	}
+
+	got := output.String()
+	if !strings.Contains(got, "\x1b[K\r\n[ChannelTerm] Cancel file transfer? [y/N]: \r\n[12:00:00]") {
+		t.Errorf("confirmed cancellation output = %q, want one boundary after progress and one after prompt", got)
+	}
+	if strings.Contains(got, "[y/N]: \r\n\r\n[12:00:00]") {
+		t.Errorf("confirmed cancellation output = %q, contains a blank line before final status", got)
 	}
 }
 
@@ -691,10 +759,15 @@ func TestFileTransferSuccessSummaryStartsAfterCompletedProgressLine(t *testing.T
 	if err := progress.finish(); err != nil {
 		t.Fatalf("progress.finish() error = %v", err)
 	}
-	if _, err := fmt.Fprint(&output, "SHA-256: OK\nSaved: /tmp/system.dts\n"); err != nil {
+	digest := strings.Repeat("ab", 32)
+	if err := writeFileTransferVerificationSummary(&output, digest, "/tmp/system.dts"); err != nil {
 		t.Fatalf("write summary error = %v", err)
 	}
-	if got := output.String(); !strings.Contains(got, "[--------------------]   0.0%") || !strings.Contains(got, "[####################] 100.0%") || !strings.Contains(got, "\nSHA-256: OK\nSaved: /tmp/system.dts\n") {
+	wantSummary := "\n  Local SHA-256 : " + digest + "\n" +
+		"  Remote SHA-256: " + digest + "\n" +
+		"  Verify        : MATCH\n" +
+		"  Saved         : /tmp/system.dts\n"
+	if got := output.String(); !strings.Contains(got, "[--------------------] 0.0%") || !strings.Contains(got, "[####################] 100.0%") || !strings.Contains(got, wantSummary) {
 		t.Errorf("success output = %q, want completed line followed by a separate summary", got)
 	}
 }
@@ -705,19 +778,20 @@ func TestLocalOutputWriterUsesCRLFForFileTransferSummary(t *testing.T) {
 		_, err := output.Write(data)
 		return err
 	}}
-	if _, err := fmt.Fprint(writer, "\r[####################] 100.0%  0 B / 0 B\x1b[K"); err != nil {
+	if _, err := fmt.Fprint(writer, "\r[####################] 100.0%  0 B / 0 B  0 B/s  ETA --\x1b[K"); err != nil {
 		t.Fatalf("write progress: %v", err)
 	}
 	if _, err := fmt.Fprintln(writer); err != nil {
 		t.Fatalf("finish progress line: %v", err)
 	}
-	if _, err := fmt.Fprintln(writer, "SHA-256: OK"); err != nil {
-		t.Fatalf("write checksum summary: %v", err)
+	if err := writeFileTransferVerificationSummary(writer, "digest", "/tmp/test123"); err != nil {
+		t.Fatalf("write verification summary: %v", err)
 	}
-	if _, err := fmt.Fprintln(writer, "Saved: /tmp/test123"); err != nil {
-		t.Fatalf("write saved summary: %v", err)
-	}
-	want := "\r[####################] 100.0%  0 B / 0 B\x1b[K\r\nSHA-256: OK\r\nSaved: /tmp/test123\r\n"
+	want := "\r[####################] 100.0%  0 B / 0 B  0 B/s  ETA --\x1b[K\r\n" +
+		"  Local SHA-256 : digest\r\n" +
+		"  Remote SHA-256: digest\r\n" +
+		"  Verify        : MATCH\r\n" +
+		"  Saved         : /tmp/test123\r\n"
 	if got := output.String(); got != want {
 		t.Errorf("local output = %q, want %q", got, want)
 	}

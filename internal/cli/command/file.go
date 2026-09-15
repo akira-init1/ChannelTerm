@@ -226,8 +226,7 @@ func runFileSend(ctx context.Context, args []string, output io.Writer, dependenc
 		if finishErr := progress.finish(); finishErr != nil {
 			return finishErr
 		}
-		_, writeErr := fmt.Fprintf(output, "SHA-256: OK\nSaved: %s\n", result.RemotePath)
-		return writeErr
+		return writeFileTransferVerificationSummary(output, result.SHA256, result.RemotePath)
 	})
 	if progress != nil && operationErr != nil {
 		return finishFileTransferPresentation(output, progress, operationErr)
@@ -381,8 +380,7 @@ func runFileReceive(ctx context.Context, args []string, output io.Writer, depend
 		if finishErr := progress.finish(); finishErr != nil {
 			return finishErr
 		}
-		_, writeErr := fmt.Fprintf(output, "SHA-256: OK\nSaved: %s\n", localPath)
-		return writeErr
+		return writeFileTransferVerificationSummary(output, result.SHA256, localPath)
 	})
 	if progress != nil && operationErr != nil {
 		return finishFileTransferPresentation(output, progress, operationErr)
@@ -665,19 +663,23 @@ func (p *fileTransferReporter) finish() error {
 }
 
 func formatFileTransferProgress(snapshot fileTransferSnapshot) string {
-	filled := int(snapshot.percent * fileTransferProgressBarWidth / 100)
+	percent := snapshot.percent
+	if math.IsNaN(percent) || math.IsInf(percent, 0) {
+		percent = 0
+	}
+	percent = min(100, max(0, percent))
+	filled := int(math.Round(percent * fileTransferProgressBarWidth / 100))
 	filled = min(fileTransferProgressBarWidth, max(0, filled))
 	bar := strings.Repeat("#", filled) + strings.Repeat("-", fileTransferProgressBarWidth-filled)
-	text := fmt.Sprintf("[%s] %5.1f%%  %s / %s", bar, snapshot.percent, formatFileTransferBytes(snapshot.transferred), formatFileTransferBytes(snapshot.total))
-	if snapshot.transferred > 0 && snapshot.speed > 0 && !math.IsNaN(snapshot.speed) && !math.IsInf(snapshot.speed, 0) {
-		text += "  " + formatFileTransferSpeed(snapshot.speed)
-	} else if snapshot.transferred > 0 && snapshot.percent < 100 {
-		text += "  0 B/s"
-	}
-	if snapshot.transferred > 0 && snapshot.percent < 100 {
-		text += "  " + formatFileTransferETA(snapshot.transferred, snapshot.total, snapshot.speed)
-	}
-	return text
+	return fmt.Sprintf(
+		"[%s] %.1f%%  %s / %s  %s  %s",
+		bar,
+		percent,
+		formatFileTransferBytes(snapshot.transferred),
+		formatFileTransferBytes(snapshot.total),
+		formatFileTransferSpeed(snapshot.speed),
+		formatFileTransferETA(snapshot.transferred, snapshot.total, snapshot.speed),
+	)
 }
 
 func formatFileTransferBytes(value int64) string {
@@ -702,9 +704,11 @@ func formatFileTransferQuantity(value float64) string {
 		if amount < 1024 || unit == units[len(units)-1] {
 			switch {
 			case amount < 10:
-				return fmt.Sprintf("%.2f %s", amount, unit)
+				quantity := strings.TrimRight(strings.TrimRight(fmt.Sprintf("%.2f", amount), "0"), ".")
+				return quantity + " " + unit
 			case amount < 100:
-				return fmt.Sprintf("%.1f %s", amount, unit)
+				quantity := strings.TrimRight(strings.TrimRight(fmt.Sprintf("%.1f", amount), "0"), ".")
+				return quantity + " " + unit
 			default:
 				return fmt.Sprintf("%.0f %s", amount, unit)
 			}
@@ -714,7 +718,10 @@ func formatFileTransferQuantity(value float64) string {
 }
 
 func formatFileTransferETA(transferred, total int64, speed float64) string {
-	if total <= transferred || speed <= 0 || math.IsNaN(speed) || math.IsInf(speed, 0) {
+	if total > 0 && transferred >= total {
+		return "ETA 0s"
+	}
+	if total <= 0 || speed <= 0 || math.IsNaN(speed) || math.IsInf(speed, 0) {
 		return "ETA --"
 	}
 	seconds := float64(total-transferred) / speed
@@ -722,10 +729,40 @@ func formatFileTransferETA(transferred, total int64, speed float64) string {
 		return "ETA --"
 	}
 	wholeSeconds := int64(seconds)
+	if wholeSeconds == 0 {
+		wholeSeconds = 1
+	}
 	if wholeSeconds < 60 {
 		return fmt.Sprintf("ETA %ds", wholeSeconds)
 	}
-	return fmt.Sprintf("ETA %dm %02ds", wholeSeconds/60, wholeSeconds%60)
+	if wholeSeconds < 60*60 {
+		return fmt.Sprintf("ETA %dm%ds", wholeSeconds/60, wholeSeconds%60)
+	}
+	return fmt.Sprintf("ETA %dh%dm%ds", wholeSeconds/(60*60), (wholeSeconds/60)%60, wholeSeconds%60)
+}
+
+// writeFileTransferVerificationSummary gives send and receive the same final
+// digest and destination fields. Core returns the digest only after comparing
+// both endpoints, so the local and remote values are known to be identical.
+func writeFileTransferVerificationSummary(output io.Writer, digest, savedPath string) error {
+	summary := formatFileTransferVerificationSummary(digest, digest, savedPath, "\n")
+	if deferred, ok := output.(interface {
+		deferFileTransferVerificationSummary(string) bool
+	}); ok && deferred.deferFileTransferVerificationSummary(summary) {
+		return nil
+	}
+	_, err := fmt.Fprint(output, summary)
+	return err
+}
+
+func formatFileTransferVerificationSummary(localDigest, remoteDigest, savedPath, newline string) string {
+	text := "  Local SHA-256 : " + localDigest + newline
+	text += "  Remote SHA-256: " + remoteDigest + newline
+	text += "  Verify        : " + fileTransferVerifyResult(localDigest, remoteDigest) + newline
+	if savedPath != "" {
+		text += "  Saved         : " + savedPath + newline
+	}
+	return text
 }
 
 // reportFileTransferEvent is intentionally a no-op for legacy or test attach
@@ -748,14 +785,17 @@ func copyFileTransferMetadata(metadata map[string]any) map[string]any {
 }
 
 func finishFileTransferPresentation(output io.Writer, progress *fileTransferReporter, operationErr error) error {
+	if managed, ok := output.(interface{ suppressFileTransferResult() bool }); ok && managed.suppressFileTransferResult() && operationErr != nil {
+		// The attach dispatcher owns both the terminal error status and its line
+		// boundary. In particular, a confirmed Ctrl+C prompt has already ended
+		// the progress frame; emitting another newline here would add a blank row.
+		return operationErr
+	}
 	if finishErr := progress.finish(); finishErr != nil && operationErr == nil {
 		operationErr = finishErr
 	}
 	if operationErr == nil {
 		return nil
-	}
-	if managed, ok := output.(interface{ suppressFileTransferResult() bool }); ok && managed.suppressFileTransferResult() {
-		return operationErr
 	}
 	if errors.Is(operationErr, context.Canceled) {
 		_, _ = fmt.Fprintln(output, "Transfer cancelled.")

@@ -184,8 +184,9 @@ and cleanup work; it neither edits Session raw bytes nor filters marker-shaped b
 rule applies to retained output from a transfer that finished before the attachment joined.
 Completion, failure, and cancellation release that presentation range, so later Agent writes keep
 their `AI` activity blocks and later ordinary terminal output renders normally. File-transfer
-started, progress, completed, failed, and cancelled status lines use local
-`[HH:MM:SS] [ChannelTerm]` prefixes. Before a local status block, attach adds
+started, completed, failed, and cancelled status lines convert Host event times to the CLI's local
+timezone and use `[HH:MM:SS] [ChannelTerm]` prefixes; the in-place progress frame has no timestamp.
+Before a local status block, attach adds
 one line ending only when the visible terminal is mid-line, so an unterminated board prompt cannot
 join the status text and already-terminated board output does not accumulate blank lines. This
 affects only local presentation, never Session raw output. On Windows Console hosts, raw input
@@ -207,11 +208,14 @@ this attachment, off by default; it does not change the shared Session or MCP ou
 opens a local file-transfer menu with a `Select:` prompt. Press `s` or `r` once to choose send or
 receive immediately; the key is echoed locally after `Select:` and no Enter is needed. Invalid keys
 and menu `Esc` remain local. Send defaults to POSIX `/tmp/<local-basename>` and receive defaults to
-local `./<remote-basename>`. During an active shortcut transfer, `Ctrl+C` prints local `^C` feedback
-and the untimestamped prompt `[ChannelTerm] Cancel file transfer? [y/N]:`. The worker pauses at its next safe 8 KiB
+local `./<remote-basename>`. During an active shortcut transfer, `Ctrl+C` starts a new line and prints
+the untimestamped prompt `[ChannelTerm] Cancel file transfer? [y/N]:`. The worker pauses at its next safe 8 KiB
 block boundary while the prompt is pending, and the `file-transfer` lease remains held so ordinary
-AI/MCP `terminal_write` calls stay blocked. Only `y` or `Y` confirms cancellation. `n`, `N`, Enter,
-and every other character print `[ChannelTerm] File transfer resumed` and let the worker continue.
+AI/MCP `terminal_write` calls stay blocked. The attachment closes its progress redraw gate before
+printing the prompt, so a concurrent acknowledged block cannot overwrite the question. Only `y` or
+`Y` confirms cancellation. Printable answers are echoed after the prompt's colon even though the
+terminal is in raw mode. `n`, `N`, Enter, and every other character print
+`[ChannelTerm] File transfer resumed` and let the worker continue.
 After confirmation, the target restores its TTY, temporary data is removed, the lease is released,
 and attach prints one timestamped cancellation result with the last confirmed byte counts and
 `Reason: cancelled by user`. The published `FILE_TRANSFER_FAILED` metadata reports
@@ -278,10 +282,12 @@ never opens Serial Transport directly.
 
 Both directions use bounded 8 KiB chunks and display progress on one locally refreshed line. A
 non-empty regular file first displays a 0% frame before its first payload (for receive, after the
-board announces its size); this initial frame has no speed or ETA. Later frames show acknowledged
-progress: a 20-cell ASCII bar (`#` complete, `-` remaining), percentage, transferred and total sizes
-using B/KiB/MiB/GiB, measured speed, and an ETA when speed is usable. A successful transfer renders
-100% and terminates the line before its existing verification summary. While any process owns an
+board announces its size). Every frame uses the same field order: a fixed 20-cell ASCII bar (`#`
+complete, `-` remaining), one-decimal percentage, transferred and total sizes using
+B/KiB/MiB/GiB, speed using the corresponding unit per second, and ETA. Until speed or ETA can be
+calculated safely, the frame uses `0 B/s` and `ETA --`; completion uses `ETA 0s` when total size is
+known. A successful transfer renders 100% and terminates the line before a common send/receive
+summary containing `Local SHA-256`, `Remote SHA-256`, `Verify`, and `Saved`. While any process owns an
 active `file-transfer` lease, Ctrl+C in a bundled attachment opens a default-No local confirmation and pauses progress at the next safe block
 boundary. Acknowledgement of an already active block updates the eventual byte summary without
 redrawing the progress line over the prompt. Only `y` or `Y` cancels; every other answer resumes. A confirmed cancellation restores the
@@ -325,13 +331,18 @@ staging was renamed; it is not represented as a SHA-256 of a directory.
 Every shared `attach` client observes those structured file-transfer events. While a transfer is
 active, each attachment continues advancing its private raw-output cursor but suppresses its local
 rendering of the transfer's shell commands, `@CTERM` markers, and payload bytes. The transfer owner
-keeps its detailed local progress formatter. Other attachments refresh one timestamped line in
-place with exact transferred/total byte counts, percentage, and a 30-cell bar using `#`, `>`, and
-`.`. A successful regular-file transfer leaves its 100% line visible, then prints the timestamped
-completion status, full local and remote SHA-256 digests, and `Verify: MATCH`. Cancellation and
+keeps its local progress formatter. Other attachments refresh one line in place with the same
+20-cell bar, percentage, binary sizes, speed, and ETA format used by the
+transfer owner. A successful regular-file transfer leaves its 100% line visible, clears the next
+status row before printing the timestamped completion status, and then prints the same local digest,
+remote digest, verification result, and saved-path fields used by the owner. Cancellation and
 failure terminate the progress line and print the last confirmed byte counts followed by a reason
 or error. Directory completion omits the SHA-256 block because a directory is represented by its
 tar stream rather than a stable directory digest.
+For a successful regular-file transfer started through `Ctrl+] f`, the local dispatcher prints its
+timestamped `File transfer completed` line immediately after the 100% frame, then prints the four
+verification fields on the following lines without an intervening blank line. This matches the
+ordering used by an observing attachment.
 After completion or failure, raw terminal rendering resumes from the current cursor without
 replaying suppressed transfer data. This is presentation-only: the Session's raw output and
 independent MCP readers remain lossless.

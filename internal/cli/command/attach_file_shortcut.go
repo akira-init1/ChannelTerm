@@ -385,6 +385,29 @@ func defaultLocalTransferPath(remotePath string) string {
 type localOutputWriter struct {
 	write                          func([]byte) error
 	suppressFileTransferResultText bool
+	deferredSummary                *fileTransferSummaryBuffer
+}
+
+// fileTransferSummaryBuffer transfers a successful regular-file summary from
+// the worker to the input dispatcher. The worker completion channel provides
+// ordering; the mutex also keeps test and future callers safe if that changes.
+type fileTransferSummaryBuffer struct {
+	mu   sync.Mutex
+	text string
+}
+
+func (b *fileTransferSummaryBuffer) store(text string) {
+	b.mu.Lock()
+	b.text = text
+	b.mu.Unlock()
+}
+
+func (b *fileTransferSummaryBuffer) take() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	text := b.text
+	b.text = ""
+	return text
 }
 
 func (w localOutputWriter) Write(data []byte) (int, error) {
@@ -407,6 +430,14 @@ func (w localOutputWriter) Write(data []byte) (int, error) {
 
 func (w localOutputWriter) suppressFileTransferResult() bool {
 	return w.suppressFileTransferResultText
+}
+
+func (w localOutputWriter) deferFileTransferVerificationSummary(text string) bool {
+	if w.deferredSummary == nil {
+		return false
+	}
+	w.deferredSummary.store(text)
+	return true
 }
 
 // fileTransferCancellation coordinates a local confirmation prompt with the
@@ -600,11 +631,11 @@ func (s nonClosingAttachSession) FileTransferCancellationCheckpoint(ctx context.
 
 var fileTransferMenuText = []byte("\r\nFile transfer:\r\n  s  Send PC -> Board\r\n  r  Receive Board -> PC\r\n  Esc  Cancel\r\nSelect: ")
 var fileTransferInputIgnoredText = []byte("\r\n[ChannelTerm] Input ignored during file transfer. Ctrl+C to cancel.\r\n")
-var fileTransferCancelConfirmationText = []byte("\r\n^C\r\n[ChannelTerm] Cancel file transfer? [y/N]: ")
+var fileTransferCancelConfirmationText = []byte("\r\n[ChannelTerm] Cancel file transfer? [y/N]: ")
 var fileTransferResumedText = []byte("\r\n[ChannelTerm] File transfer resumed\r\n")
 
 func fileTransferStatusPrefix(now time.Time) string {
-	return "[" + now.Format("15:04:05") + "] [ChannelTerm] "
+	return "[" + now.In(time.Local).Format("15:04:05") + "] [ChannelTerm] "
 }
 
 func fileTransferCancelledText(now time.Time) []byte {
