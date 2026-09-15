@@ -314,7 +314,13 @@ staging was renamed; it is not represented as a SHA-256 of a directory.
 Every shared `attach` client observes those structured file-transfer events. While a transfer is
 active, each attachment continues advancing its private raw-output cursor but suppresses its local
 rendering of the transfer's shell commands, `@CTERM` markers, and payload bytes. The transfer owner
-keeps its detailed local progress formatter; other attachments render concise event status instead.
+keeps its detailed local progress formatter. Other attachments refresh one timestamped line in
+place with exact transferred/total byte counts, percentage, and a 30-cell bar using `=`, `>`, and
+`.`. A successful regular-file transfer leaves its 100% line visible, then prints the timestamped
+completion status, full local and remote SHA-256 digests, and `Verify: MATCH`. Cancellation and
+failure terminate the progress line and print the last confirmed byte counts followed by a reason
+or error. Directory completion omits the SHA-256 block because a directory is represented by its
+tar stream rather than a stable directory digest.
 After completion or failure, raw terminal rendering resumes from the current cursor without
 replaying suppressed transfer data. This is presentation-only: the Session's raw output and
 independent MCP readers remain lossless.

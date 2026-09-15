@@ -144,11 +144,14 @@ status text, so an error never runs into a partially refreshed bar.
 During a transfer, shared `attach` clients use the Host's `file-transfer` lease lifecycle and its
 raw-output cursor boundaries to gate local presentation. This includes preflight work such as
 remote-path detection and cleanup, not only payload streaming. The attachment that started the
-transfer retains its detailed progress display; other attachments receive concise status updates.
-Started, completed, failed, and cancelled status lines carry a local `[HH:MM:SS] [ChannelTerm]`
-prefix, while progress remains a single untimestamped refreshed line. Attach ends an unterminated
-visible board line before it renders one of these status blocks, without adding an extra line when
-the board already ended its output; neither operation changes raw Session data. All attachments
+transfer retains its detailed progress display. Other attachments render acknowledged bytes, total
+bytes, percentage, and a 30-cell ASCII bar on one timestamped `[HH:MM:SS] [ChannelTerm] Transferred
+...` line that is refreshed in place. Success leaves the 100% frame visible, starts the timestamped
+completion block on the next line, and prints both full SHA-256 values with `Verify: MATCH` for
+regular files. Cancellation and failure instead report the last confirmed byte count and either the
+cancellation reason or error. Attach ends an unterminated visible board line before it renders one
+of these status blocks, without adding an extra line when the board already ended its output;
+neither operation changes raw Session data. All attachments
 continue advancing their own output cursors while suppressing only the semantic internal-operation
 range: shell commands, markers, and payload bytes cannot appear later from retained history, while
 ordinary board output (including text that happens to contain `@CTERM:` ) remains raw. Normal Agent

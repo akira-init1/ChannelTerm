@@ -200,6 +200,8 @@ func runFileSend(ctx context.Context, args []string, output io.Writer, dependenc
 		completedMetadata["total"] = result.Size
 		completedMetadata["percent"] = float64(100)
 		completedMetadata["sha256"] = result.SHA256
+		completedMetadata["local_sha256"] = result.SHA256
+		completedMetadata["remote_sha256"] = result.SHA256
 		if eventErr := reportFileTransferEvent(ctx, attached, session.EventFileTransferCompleted, completedMetadata); eventErr != nil {
 			return eventErr
 		}
@@ -354,6 +356,8 @@ func runFileReceive(ctx context.Context, args []string, output io.Writer, depend
 		completedMetadata["total"] = result.Size
 		completedMetadata["percent"] = float64(100)
 		completedMetadata["sha256"] = result.SHA256
+		completedMetadata["local_sha256"] = result.SHA256
+		completedMetadata["remote_sha256"] = result.SHA256
 		if eventErr := reportFileTransferEvent(ctx, attached, session.EventFileTransferCompleted, completedMetadata); eventErr != nil {
 			return eventErr
 		}
@@ -553,12 +557,19 @@ func newFileTransferProgress(ctx context.Context, output io.Writer, attached att
 
 // Report renders and publishes one confirmed transfer progress update.
 func (p *fileTransferReporter) Report(transferred, total int64) error {
+	snapshot := p.snapshot(transferred, total)
+	p.base["total"] = total
+	if p.base["direction"] == "receive" {
+		p.base["received"] = transferred
+	} else {
+		p.base["sent"] = transferred
+	}
+	p.base["percent"] = snapshot.percent
 	if transferred == 0 && total > 0 {
 		// The initial local frame is not confirmed transfer progress, so it must
 		// not add a FILE_TRANSFER_PROGRESS event for other Session observers.
-		return p.render(fileTransferSnapshot{total: total})
+		return p.render(snapshot)
 	}
-	snapshot := p.snapshot(transferred, total)
 	if snapshot.percent < 100 {
 		if err := p.render(snapshot); err != nil {
 			return err
@@ -568,13 +579,6 @@ func (p *fileTransferReporter) Report(transferred, total int64) error {
 		p.hasFinal = true
 	}
 	metadata := copyFileTransferMetadata(p.base)
-	metadata["total"] = total
-	if p.base["direction"] == "receive" {
-		metadata["received"] = transferred
-	} else {
-		metadata["sent"] = transferred
-	}
-	metadata["percent"] = snapshot.percent
 	metadata["speed"] = snapshot.speed
 	return reportFileTransferEvent(p.ctx, p.attached, session.EventFileTransferProgress, metadata)
 }
