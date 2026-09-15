@@ -33,7 +33,7 @@ func TestServerListsAndUsesTerminalTools(t *testing.T) {
 	want := map[string]bool{
 		"terminal_close": true, "terminal_list_serial_ports": true, "terminal_list_sessions": true,
 		"terminal_open_serial": true, "terminal_read": true, "terminal_read_activity": true,
-		"terminal_session_events": true, "terminal_session_attach": true, "terminal_session_detach": true, "terminal_report_file_transfer": true,
+		"terminal_session_events": true, "terminal_wait_file_transfer": true, "terminal_session_attach": true, "terminal_session_detach": true, "terminal_report_file_transfer": true,
 		"terminal_wait": true, "terminal_wait_activity": true, "terminal_write": true,
 		"terminal_write_leased": true, "terminal_acquire_lease": true, "terminal_release_lease": true,
 		"terminal_begin_file_transfer_cancel": true, "terminal_resolve_file_transfer_cancel": true, "terminal_file_transfer_checkpoint": true,
@@ -48,6 +48,9 @@ func TestServerListsAndUsesTerminalTools(t *testing.T) {
 		}
 		if registered.Name == "terminal_wait_device_event" && !strings.Contains(registered.Description, "terminal_get_connection_decision") {
 			t.Errorf("terminal_wait_device_event description = %q, want connection-decision guidance", registered.Description)
+		}
+		if registered.Name == "terminal_wait" && !strings.Contains(registered.Description, "terminal_wait_file_transfer") {
+			t.Errorf("terminal_wait description = %q, want file-transfer wait guidance", registered.Description)
 		}
 	}
 	sessions := callTool(t, client, "terminal_list_sessions", map[string]any{})
@@ -86,7 +89,7 @@ func TestStreamableHTTPServerListsAndUsesTerminalTools(t *testing.T) {
 		want := map[string]bool{
 			"terminal_close": true, "terminal_list_serial_ports": true, "terminal_list_sessions": true,
 			"terminal_open_serial": true, "terminal_read": true, "terminal_read_activity": true,
-			"terminal_session_events": true, "terminal_session_attach": true, "terminal_session_detach": true, "terminal_report_file_transfer": true,
+			"terminal_session_events": true, "terminal_wait_file_transfer": true, "terminal_session_attach": true, "terminal_session_detach": true, "terminal_report_file_transfer": true,
 			"terminal_wait": true, "terminal_wait_activity": true, "terminal_write": true,
 			"terminal_write_leased": true, "terminal_acquire_lease": true, "terminal_release_lease": true,
 			"terminal_begin_file_transfer_cancel": true, "terminal_resolve_file_transfer_cancel": true, "terminal_file_transfer_checkpoint": true,
@@ -177,6 +180,57 @@ func TestStreamableHTTPWaitCancellationKeepsClientUsable(t *testing.T) {
 	}
 	if terminal, ok := manager.Get("board"); !ok || terminal.State() != session.StateOpen {
 		t.Errorf("session after HTTP cancellation = %v, registered = %t; want open managed session", terminal, ok)
+	}
+}
+
+func TestStreamableHTTPWaitFileTransferReturnsCancellationResult(t *testing.T) {
+	manager, registry, _ := newTestRegistry(t)
+	defer func() { _ = manager.Close() }()
+	client, closeClient := connectHTTPTestClient(t, registry)
+	defer closeClient()
+
+	events := callTool(t, client, "terminal_session_events", map[string]any{"session_id": "board"})
+	cursor := resultNumber(t, events, "next")
+	type callResult struct {
+		result *protocol.CallToolResult
+		err    error
+	}
+	returned := make(chan callResult, 1)
+	go func() {
+		result, err := client.CallTool(context.Background(), &protocol.CallToolParams{Name: "terminal_wait_file_transfer", Arguments: map[string]any{
+			"session_id": "board", "cursor": cursor, "timeout_ms": 1000,
+		}})
+		returned <- callResult{result: result, err: err}
+	}()
+	terminal, ok := manager.Get("board")
+	if !ok {
+		t.Fatal("managed Session board was not found")
+	}
+	terminal.PublishEvent(session.Event{Type: session.EventFileTransferProgress, Metadata: map[string]any{"sent": 32768, "total": 98304, "percent": 33.3}})
+	select {
+	case result := <-returned:
+		t.Fatalf("file-transfer wait returned for progress: %#v, %v", result.result, result.err)
+	case <-time.After(20 * time.Millisecond):
+	}
+	terminal.PublishEvent(session.Event{Type: session.EventFileTransferCancelled, Metadata: map[string]any{
+		"reason": "user_cancelled", "transferred": 32768, "total": 98304, "percent": 33.3, "lease_released": true,
+	}})
+
+	select {
+	case result := <-returned:
+		if result.err != nil || result.result == nil || result.result.IsError {
+			t.Fatalf("terminal_wait_file_transfer result = %#v, %v", result.result, result.err)
+		}
+		if state := resultString(t, result.result, "state"); state != "cancelled" {
+			t.Fatalf("terminal_wait_file_transfer state = %q, want cancelled", state)
+		}
+		structured := result.result.StructuredContent.(map[string]any)
+		event, ok := structured["event"].(map[string]any)
+		if !ok || event["type"] != string(session.EventFileTransferCancelled) {
+			t.Fatalf("terminal_wait_file_transfer event = %#v, want FILE_TRANSFER_CANCELLED", structured["event"])
+		}
+	case <-time.After(time.Second):
+		t.Fatal("terminal_wait_file_transfer did not return after cancellation")
 	}
 }
 

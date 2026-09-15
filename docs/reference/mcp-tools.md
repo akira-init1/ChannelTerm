@@ -1,6 +1,6 @@
 # MCP Tool Reference
 
-The MCP adapter exposes terminal, discovery, lease, activity, and structured Session-event tools. The MCP adapter also adds cursor-required wait names over the corresponding read implementations.
+The MCP adapter exposes terminal, discovery, lease, activity, file-transfer, and structured Session-event tools. It also provides cursor-required wait tools for raw output, activity, device events, and file-transfer terminal results.
 
 Successful calls return both structured content and an equivalent JSON text content item. Recoverable tool failures return an MCP tool result with `isError: true` and text beginning `<tool-name> failed:`. Structured inputs decoded by the terminal adapter reject unknown fields.
 
@@ -167,7 +167,7 @@ Important errors: missing/unknown Session, Session not open, invalid/non-positiv
 
 ## `terminal_wait`
 
-Purpose: wait for output after a known cursor. It invokes `terminal_read` but prevents an accidental recent snapshot.
+Purpose: wait for raw terminal output after a known cursor. It invokes `terminal_read` but prevents an accidental recent snapshot. It does not return file-transfer state; use `terminal_wait_file_transfer` for completion, cancellation, or failure.
 
 - Required input: `session_id`, `cursor`.
 - Optional input: `max_bytes`, `encoding`, `timeout_ms`.
@@ -231,11 +231,42 @@ Purpose: read retained structured Session state, or wait after an event cursor. 
 
 Current event types are `SESSION_CREATED`, `SESSION_ATTACHED`, `SESSION_DETACHED`, `LEASE_ACQUIRED`, `LEASE_RELEASED`, `FILE_TRANSFER_STARTED`, `FILE_TRANSFER_PROGRESS`, `FILE_TRANSFER_COMPLETED`, `FILE_TRANSFER_CANCELLED`, and `FILE_TRANSFER_FAILED`. A `file-transfer` lease event includes an `output_cursor` metadata snapshot for the bundled attach client's local presentation; it does not change or consume raw Session output. `FILE_TRANSFER_CANCELLED` is emitted only after cleanup releases the lease and includes `reason: user_cancelled`, last confirmed progress, and `lease_released: true`, so an observing AI can distinguish cancellation from transfer failure. A slow observer receives `dropped: true` if its cursor predates bounded retention; it cannot block the Session reader or writer. Important errors: missing/unknown Session, Session not open, invalid limit or timeout, timeout without cursor, cancellation, deadline, EOF, or event-buffer failure.
 
+## `terminal_wait_file_transfer`
+
+Purpose: wait through intermediate Session events and return only when one file transfer completes,
+is cancelled, or fails. Use this tool rather than `terminal_wait` for a transfer outcome;
+`terminal_wait` observes raw terminal bytes and a cancellation does not guarantee another byte or
+shell prompt.
+
+- Required input: `session_id`, `cursor`.
+- Optional input: `max_events` (0 means 1024), `timeout_ms`.
+- Result: `state` (`completed`, `cancelled`, or `failed`), the terminal `event`, `next`, and
+  `dropped`.
+
+Capture the Session event cursor before starting the transfer, or retain the `next` cursor returned
+while observing its progress. The cursor prevents a terminal event from an older transfer from
+satisfying the wait.
+
+```json
+{"session_id":"SER-1","cursor":7,"timeout_ms":30000}
+```
+
+```json
+{"state":"cancelled","event":{"id":11,"timestamp":"2026-09-15T08:51:51Z","session_id":"0123456789abcdef0123456789abcdef","type":"FILE_TRANSFER_CANCELLED","actor":"user","metadata":{"transferred":32768,"total":98304,"percent":33.3,"reason":"user_cancelled","lease_released":true}},"next":12,"dropped":false}
+```
+
+Progress, lease, attachment, and other lifecycle events are consumed internally until a transfer
+terminal event appears. A confirmed cancellation therefore returns only after bounded protocol
+cleanup and lease release. `next` points immediately after the returned event, including when later
+events were already buffered. `dropped` is true if any part of the inspected range was no longer
+retained. Important errors: missing/null cursor, missing/unknown Session, Session not open, invalid
+limit or timeout, cancellation, deadline, EOF, or event-buffer failure.
+
 ## Attachment and file-transfer reporting tools
 
 `terminal_session_attach` and `terminal_session_detach` record a CLI attachment lifecycle event. They require `session_id` and accept an optional `actor`; they neither acquire a lease nor write or close a Session. The bundled CLI calls them while opening and closing an MCP attachment.
 
-`terminal_report_file_transfer` is the bundled CLI's status bridge to the host-owned event stream. It requires `session_id` and `type` (`FILE_TRANSFER_STARTED`, `FILE_TRANSFER_PROGRESS`, `FILE_TRANSFER_COMPLETED`, or `FILE_TRANSFER_FAILED`) and accepts optional `actor` and JSON-compatible `metadata`. It never writes terminal bytes. `FILE_TRANSFER_CANCELLED` is Host-generated after a confirmed cross-process cancellation releases its lease and cannot be forged through this reporting tool. The public observer surface for AI clients is `terminal_session_events`; clients should not treat report calls as a substitute for the existing file protocol or lease tools.
+`terminal_report_file_transfer` is the bundled CLI's status bridge to the host-owned event stream. It requires `session_id` and `type` (`FILE_TRANSFER_STARTED`, `FILE_TRANSFER_PROGRESS`, `FILE_TRANSFER_COMPLETED`, or `FILE_TRANSFER_FAILED`) and accepts optional `actor` and JSON-compatible `metadata`. It never writes terminal bytes. `FILE_TRANSFER_CANCELLED` is Host-generated after a confirmed cross-process cancellation releases its lease and cannot be forged through this reporting tool. AI clients can inspect all state through `terminal_session_events` or wait for one terminal outcome through `terminal_wait_file_transfer`; they should not treat report calls as a substitute for the existing file protocol or lease tools.
 
 Bundled CLI progress metadata carries `sent` or `received`, `total`, `percent`, and best-effort
 `speed`. A failed event retains those last confirmed progress values. User-confirmed cancellation
@@ -285,7 +316,7 @@ Only one lease may be active for a Session. Readers and their cursors continue n
 
 `terminal_resolve_file_transfer_cancel` requires `session_id`, that `request_id`, and boolean `cancel`. `cancel: false` returns `state: "resumed"` immediately. `cancel: true` signals the lease owner and returns `state: "cancelled"` with last confirmed `transferred`, `total`, and `percent` only after lease release. A stale request ID is rejected. Only a direct user `y`/`Y` answer should set `cancel: true`.
 
-`terminal_file_transfer_checkpoint` requires `session_id` and the active lease `owner`. The bundled transfer process calls it only at safe protocol block boundaries. It returns `action: "continue"`, blocks while confirmation is pending, or returns `action: "cancel"`; a non-owner is rejected. These three tools carry control state only, never terminal bytes. The bundled attachment uses them for Ctrl+C; AI clients normally observe the final `FILE_TRANSFER_CANCELLED` through `terminal_session_events` rather than initiating the user interaction themselves.
+`terminal_file_transfer_checkpoint` requires `session_id` and the active lease `owner`. The bundled transfer process calls it only at safe protocol block boundaries. It returns `action: "continue"`, blocks while confirmation is pending, or returns `action: "cancel"`; a non-owner is rejected. These three tools carry control state only, never terminal bytes. The bundled attachment uses them for Ctrl+C; AI clients should wait for the final result with `terminal_wait_file_transfer` rather than initiating the user interaction themselves or waiting for raw terminal output.
 
 ## `terminal_write_leased`
 

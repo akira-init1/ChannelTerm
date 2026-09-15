@@ -48,8 +48,18 @@ At startup, the MCP process loads or creates `config.toml` and `state.json`, per
 
 The discovery decision policy is `ask`, `auto`, or `deny`. `--connection-policy` overrides the configuration value; an omitted value defaults to `ask`. The policy only tells an MCP client what to do after discovery. It does not itself prompt, connect, or block a user-requested open.
 
+## Waiting for a file transfer
+
+An AI client must not use `terminal_wait` as its file-transfer completion signal. That tool waits
+only for raw terminal bytes, and a user cancellation may restore the target TTY without producing
+another prompt. Capture the `next` cursor from `terminal_session_events` before or during the
+transfer, then call `terminal_wait_file_transfer` with that cursor. It skips progress and unrelated
+lifecycle events and returns a structured `completed`, `cancelled`, or `failed` state. A cancelled
+result is returned after cleanup releases the transfer lease and includes the retained byte counts
+and `reason: user_cancelled` in its event metadata.
+
 ## Network security
 
 The default listener is loopback-only. Binding a non-loopback address prints a warning because the current HTTP server provides no ChannelTerm authentication or authorization layer. Any MCP client that can reach the endpoint can invoke write-capable terminal tools. Expose it only on a trusted, separately protected network.
 
-See [MCP tools](../reference/mcp-tools.md) for all 13 currently exposed tool names and schemas.
+See [MCP tools](../reference/mcp-tools.md) for the currently exposed tool names and schemas.

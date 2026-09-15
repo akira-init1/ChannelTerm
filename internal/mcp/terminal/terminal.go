@@ -48,6 +48,10 @@ var (
 	ErrWaitTimeoutTooLarge = errors.New("timeout_ms exceeds the maximum of 24 hours")
 	// ErrTimeoutRequiresCursor is returned when timeout_ms is sent to terminal_read without a cursor wait.
 	ErrTimeoutRequiresCursor = errors.New("timeout_ms requires a cursor")
+	// ErrFileTransferWaitCursorRequired is returned when a file-transfer wait
+	// omits the event cursor that separates an earlier transfer from the one
+	// being observed.
+	ErrFileTransferWaitCursorRequired = errors.New("cursor is required to wait for a file-transfer result")
 	// ErrNilDeviceRegistry is returned when device tools have no discovery state owner.
 	ErrNilDeviceRegistry = errors.New("device registry must not be nil")
 	// ErrInvalidSessionLabel is returned when a display label contains a control character.
@@ -165,6 +169,7 @@ func serialToolsForApplication(application *app.Application) []tool.Tool {
 		&readTool{serialTools: dependencies},
 		&readActivityTool{serialTools: dependencies},
 		&readSessionEventsTool{serialTools: dependencies},
+		&waitFileTransferTool{serialTools: dependencies},
 		&attachSessionTool{serialTools: dependencies},
 		&detachSessionTool{serialTools: dependencies},
 		&reportFileTransferTool{serialTools: dependencies},
@@ -738,6 +743,92 @@ func (t *readSessionEventsTool) Call(ctx context.Context, input json.RawMessage)
 		return nil, fmt.Errorf("read events for session %q: %w", args.SessionID, err)
 	}
 	return tool.Result{"events": encodeSessionEvents(chunk.Events), "next": uint64(chunk.Next), "dropped": chunk.Dropped}, nil
+}
+
+// waitFileTransferTool waits through progress and lifecycle noise until the
+// observed transfer reaches one unambiguous terminal state. It reads only the
+// structured Session event stream and never waits for a shell prompt or raw
+// terminal byte that might not be emitted after cancellation.
+type waitFileTransferTool struct{ *serialTools }
+
+// Name returns the stable terminal_wait_file_transfer Tool identifier.
+func (*waitFileTransferTool) Name() string { return "terminal_wait_file_transfer" }
+
+// Description directs Agents away from terminal_wait for transfer outcomes.
+func (*waitFileTransferTool) Description() string {
+	return "Wait after an event cursor until a file transfer completes, is cancelled, or fails. Use this instead of terminal_wait for file-transfer outcomes."
+}
+
+// InputSchema describes a Session event cursor and an optional bounded wait.
+func (*waitFileTransferTool) InputSchema() tool.InputSchema {
+	return tool.InputSchema{Type: "object", Properties: map[string]tool.InputProperty{
+		"session_id": {Type: "string", Description: "Session ID or short reference returned by terminal_open_serial."},
+		"cursor":     {Type: "integer", Description: "Next Session event cursor captured before or during the transfer."},
+		"max_events": {Type: "integer", Description: "Maximum number of Session events inspected per read."},
+		"timeout_ms": {Type: "integer", Description: "Optional total wait timeout in milliseconds; maximum 86400000."},
+	}, Required: []string{"session_id", "cursor"}}
+}
+
+// Call skips intermediate events and returns the first file-transfer terminal
+// event after cursor. The returned next cursor is immediately after that event,
+// so a caller never loses later events that arrived in the same buffer read.
+func (t *waitFileTransferTool) Call(ctx context.Context, input json.RawMessage) (tool.Result, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	var args eventInput
+	if err := decodeInput(input, &args); err != nil {
+		return nil, err
+	}
+	if args.Cursor == nil {
+		return nil, ErrFileTransferWaitCursorRequired
+	}
+	limit := args.MaxEvents
+	if limit == 0 {
+		limit = session.DefaultEventBufferCapacity
+	}
+	waitCtx, cancel, err := waitContext(ctx, args.TimeoutMS)
+	if err != nil {
+		return nil, err
+	}
+	defer cancel()
+
+	cursor := *args.Cursor
+	dropped := false
+	for {
+		chunk, readErr := t.application.ReadSessionEvents(waitCtx, args.SessionID, &cursor, limit)
+		if readErr != nil {
+			return nil, fmt.Errorf("wait for file transfer on session %q: %w", args.SessionID, readErr)
+		}
+		dropped = dropped || chunk.Dropped
+		for _, event := range chunk.Events {
+			state, terminal := fileTransferTerminalState(event.Type)
+			if !terminal {
+				continue
+			}
+			encoded := encodeSessionEvents([]session.Event{event})[0]
+			return tool.Result{
+				"state":   state,
+				"event":   encoded,
+				"next":    event.ID + 1,
+				"dropped": dropped,
+			}, nil
+		}
+		cursor = chunk.Next
+	}
+}
+
+func fileTransferTerminalState(typ session.EventType) (string, bool) {
+	switch typ {
+	case session.EventFileTransferCompleted:
+		return "completed", true
+	case session.EventFileTransferCancelled:
+		return "cancelled", true
+	case session.EventFileTransferFailed:
+		return "failed", true
+	default:
+		return "", false
+	}
 }
 
 // attachSessionTool records one CLI attachment without changing the shared

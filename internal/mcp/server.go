@@ -215,6 +215,10 @@ func newAdapter(registry *tool.Registry) (*adapter, error) {
 	if err != nil {
 		return nil, err
 	}
+	waitFileTransfer, err := lookup("terminal_wait_file_transfer")
+	if err != nil {
+		return nil, err
+	}
 	attachSession, err := lookup("terminal_session_attach")
 	if err != nil {
 		return nil, err
@@ -284,6 +288,7 @@ func newAdapter(registry *tool.Registry) (*adapter, error) {
 		{name: "terminal_read", target: read.Name(), description: read.Description(), schema: read.InputSchema()},
 		{name: "terminal_read_activity", target: readActivity.Name(), description: readActivity.Description(), schema: readActivity.InputSchema()},
 		{name: "terminal_session_events", target: readEvents.Name(), description: readEvents.Description(), schema: readEvents.InputSchema()},
+		{name: "terminal_wait_file_transfer", target: waitFileTransfer.Name(), description: waitFileTransfer.Description(), schema: waitFileTransfer.InputSchema(), requireCursor: true},
 		{name: "terminal_session_attach", target: attachSession.Name(), description: attachSession.Description(), schema: attachSession.InputSchema()},
 		{name: "terminal_session_detach", target: detachSession.Name(), description: detachSession.Description(), schema: detachSession.InputSchema()},
 		{name: "terminal_report_file_transfer", target: reportFileTransfer.Name(), description: reportFileTransfer.Description(), schema: reportFileTransfer.InputSchema()},
@@ -294,7 +299,7 @@ func newAdapter(registry *tool.Registry) (*adapter, error) {
 		{name: "terminal_resolve_file_transfer_cancel", target: resolveFileTransferCancel.Name(), description: resolveFileTransferCancel.Description(), schema: resolveFileTransferCancel.InputSchema()},
 		{name: "terminal_file_transfer_checkpoint", target: fileTransferCheckpoint.Name(), description: fileTransferCheckpoint.Description(), schema: fileTransferCheckpoint.InputSchema()},
 		{name: "terminal_release_lease", target: releaseLease.Name(), description: releaseLease.Description(), schema: releaseLease.InputSchema()},
-		{name: "terminal_wait", target: read.Name(), description: "Wait for terminal output after cursor and return the next output chunk.", schema: waitSchema(read.InputSchema()), requireCursor: true},
+		{name: "terminal_wait", target: read.Name(), description: "Wait only for terminal output bytes after cursor. This does not return file-transfer status; use terminal_wait_file_transfer for transfer completion or cancellation.", schema: waitSchema(read.InputSchema()), requireCursor: true},
 		{name: "terminal_wait_activity", target: readActivity.Name(), description: "Wait for Session activity events after cursor and return the next event chunk.", schema: waitSchema(readActivity.InputSchema()), requireCursor: true},
 		{name: "terminal_open_serial", target: open.Name(), description: open.Description(), schema: open.InputSchema()},
 		{name: "terminal_list_serial_ports", target: listSerialPorts.Name(), description: listSerialPorts.Description(), schema: listSerialPorts.InputSchema()},
