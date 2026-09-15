@@ -101,7 +101,7 @@ channelterm file send ./build/release /tmp/release --session SER-1
 channelterm file receive /var/log/myapp ./myapp --session SER-1
 ```
 
-The Linux shell uses native `stty`, `dd`, `wc`, and `sha256sum` for files, plus `tar` for directories; ChannelTerm streams bounded chunks, reports progress, and verifies file SHA-256 values. Directory transfers use temporary target-side archives so cancellation stops after the active chunk instead of draining the remaining directory. A temporary file-transfer lease blocks other ChannelTerm writers until the command finishes; the owning attachment keeps terminal input local and uses Ctrl+C for a default-No cancellation confirmation. See the [file-transfer workflow](docs/getting-started/file-transfer.md) for prerequisites and limits.
+The Linux shell uses native `stty`, `dd`, `wc`, and `sha256sum` for files, plus `tar` for directories; ChannelTerm streams bounded chunks, reports progress, and verifies file SHA-256 values. Directory transfers use temporary target-side archives so cancellation stops after the active chunk instead of draining the remaining directory. A temporary file-transfer lease blocks other ChannelTerm writers until the command finishes. While that lease is active, `Ctrl+C` in any bundled attachment opens a default-No local cancellation confirmation; otherwise it keeps its normal remote-terminal meaning. See the [file-transfer workflow](docs/getting-started/file-transfer.md) for prerequisites and limits.
 
 To put an AI in that same Session, configure its MCP client to use the same Streamable HTTP endpoint:
 

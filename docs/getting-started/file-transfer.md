@@ -90,18 +90,22 @@ are ignored locally. For send, enter a required local path and accept or edit th
 `/tmp/<local-basename>`. Board paths are always POSIX paths. For receive, enter a required board
 path and accept or edit the local default `./<remote-basename>`, relative to the directory in which
 `attach` was started. A regular file keeps the file protocol; a directory uses tar automatically.
-Local paths use the current platform's path rules. `Esc` exits only the file menu. The attachment
+Local paths use the current platform's path rules. `Esc` exits only the file menu. Each attachment
 has one local input dispatcher: normal attach `Ctrl+C` goes to the board, while menu/path input
-remains local. At transfer start it reports that terminal input is locked. During the transfer,
+remains local. At transfer start it reports that terminal input is locked. During a shortcut transfer,
 ordinary keys (including Enter) are discarded locally before `terminal_write` and show one
 `Input ignored during file transfer. Ctrl+C to cancel.` hint; they are never sent to the board.
-`Ctrl+C` instead prints `^C` and opens `[ChannelTerm] Cancel file transfer? [y/N]:` locally without detaching or
-sending Ctrl+C to the board. The transfer pauses at its next safe 8 KiB block boundary while the
-answer is pending. Only `y` or `Y` confirms; `n`, `N`, Enter, and every other character print
+While either that shortcut or a separate `channelterm file` process owns the Session's
+`file-transfer` lease, `Ctrl+C` in any bundled attachment instead prints `^C` and opens
+`[ChannelTerm] Cancel file transfer? [y/N]:` locally without detaching or sending Ctrl+C to the
+board. The transfer pauses at its next safe 8 KiB block boundary while the
+answer is pending. An already active block may still finish and update the retained confirmed byte
+count, but its progress event is not redrawn over the confirmation prompt. Only `y` or `Y`
+confirms; `n`, `N`, Enter, and every other character print
 `[ChannelTerm] File transfer resumed` and continue. During the prompt the Host retains its
 `file-transfer` lease, so independent AI/MCP writes cannot enter the shell protocol. After a
 confirmed cancellation, the board restores its TTY, ChannelTerm removes temporary transfer data,
-releases the lease, publishes `user_cancelled`, reports the last confirmed byte count once, and
+releases the lease, publishes `FILE_TRANSFER_CANCELLED` with `reason: user_cancelled`, reports the last confirmed byte count once, and
 returns to the attachment. Directory transfers use the same bounded blocks instead of one full-size
 raw tar interval.
 
@@ -135,7 +139,7 @@ bounded block with `dd`, restores the saved mode, and emits an acknowledgement c
 per-transfer token. The raw interval is limited to one chunk rather than the whole file. ChannelTerm
 reports progress only after a chunk is acknowledged and publishes it as `FILE_TRANSFER_PROGRESS`
 with structured confirmed byte counts, percent, and best-effort speed. It also publishes start,
-completion, and failure events without mixing them into raw Session output.
+completion, cancellation, and failure events without mixing them into raw Session output.
 
 The local `file send` and `file receive` displays share one 20-cell ASCII progress formatter. For a
 non-empty regular file, it immediately renders a 0% frame before the first payload (for receive,

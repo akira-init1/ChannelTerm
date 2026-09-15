@@ -225,6 +225,86 @@ func TestMCPAttachCancelledWaitKeepsConnectionUsable(t *testing.T) {
 	}
 }
 
+func TestMCPAttachControlsExternallyOwnedFileTransferCancellation(t *testing.T) {
+	host := newAttachTestHost(t)
+	defer host.close()
+	owner := newAttachedForTest(t, host.server.URL)
+	defer func() { _ = owner.Close() }()
+	observer := newAttachedForTest(t, host.server.URL)
+	defer func() { _ = observer.Close() }()
+
+	lease := owner.(fileLeaseSession)
+	if err := lease.AcquireFileTransferLease(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	reporter := owner.(fileTransferEventReporter)
+	if err := reporter.ReportFileTransferEvent(context.Background(), session.EventFileTransferProgress, map[string]any{"sent": int64(24576), "total": int64(65536), "percent": 37.5}); err != nil {
+		t.Fatal(err)
+	}
+	controller := observer.(fileTransferCancelController)
+	requester := owner.(interface{ FileTransferCancelRequested() bool })
+
+	requestID, active, err := controller.BeginFileTransferCancel(context.Background())
+	if err != nil || !active || requestID == "" {
+		t.Fatalf("BeginFileTransferCancel() = %q, %t, %v", requestID, active, err)
+	}
+	checkpoint := make(chan bool, 1)
+	go func() { checkpoint <- requester.FileTransferCancelRequested() }()
+	select {
+	case <-checkpoint:
+		t.Fatal("owner checkpoint returned while observer confirmation was pending")
+	case <-time.After(20 * time.Millisecond):
+	}
+	state, err := controller.ResolveFileTransferCancel(context.Background(), requestID, false)
+	if err != nil || state != "resumed" {
+		t.Fatalf("decline = %q, %v", state, err)
+	}
+	if cancelled := <-checkpoint; cancelled {
+		t.Fatal("declined confirmation cancelled the owner")
+	}
+
+	requestID, active, err = controller.BeginFileTransferCancel(context.Background())
+	if err != nil || !active {
+		t.Fatalf("second BeginFileTransferCancel() = %q, %t, %v", requestID, active, err)
+	}
+	type resolvedResult struct {
+		state string
+		err   error
+	}
+	resolved := make(chan resolvedResult, 1)
+	go func() {
+		state, resolveErr := controller.ResolveFileTransferCancel(context.Background(), requestID, true)
+		resolved <- resolvedResult{state: state, err: resolveErr}
+	}()
+	if cancelled := requester.FileTransferCancelRequested(); !cancelled {
+		t.Fatal("confirmed cancellation did not reach transfer owner")
+	}
+	select {
+	case result := <-resolved:
+		t.Fatalf("confirmation returned before lease release: %#v", result)
+	case <-time.After(20 * time.Millisecond):
+	}
+	if err := reporter.ReportFileTransferEvent(context.Background(), session.EventFileTransferFailed, map[string]any{"error": "user_cancelled", "reason": "user_cancelled", "sent": int64(24576), "total": int64(65536), "percent": 37.5}); err != nil {
+		t.Fatal(err)
+	}
+	if err := lease.ReleaseFileTransferLease(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	result := <-resolved
+	if result.err != nil || result.state != "cancelled" {
+		t.Fatalf("confirmed resolution = %#v", result)
+	}
+	events := observer.(attachEventSession)
+	chunk, err := events.ReadRecentEvents(session.DefaultEventBufferCapacity)
+	if err != nil {
+		t.Fatal(err)
+	}
+	last := chunk.Events[len(chunk.Events)-1]
+	if last.Type != session.EventFileTransferCancelled || last.Metadata["reason"] != "user_cancelled" || last.Metadata["lease_released"] != true {
+		t.Fatalf("last event = %#v, want released user cancellation", last)
+	}
+}
+
 func TestMCPAttachMultipleConsumersReceiveSameOutput(t *testing.T) {
 	host := newAttachTestHost(t)
 	defer host.close()

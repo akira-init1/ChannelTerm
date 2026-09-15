@@ -26,9 +26,13 @@ type fileTransferPresentation struct {
 	// can overwrite it. Retain its last confirmed state to terminate that line
 	// cleanly and to summarize legacy failure events that omit byte metadata.
 	progressRendered bool
-	transferred      int64
-	total            int64
-	percent          float64
+	// cancelConfirmationPending keeps an acknowledged in-flight block from
+	// redrawing over the local [y/N] prompt. Progress state still advances so
+	// cancellation reports the last confirmed byte count accurately.
+	cancelConfirmationPending bool
+	transferred               int64
+	total                     int64
+	percent                   float64
 }
 
 type fileTransferOutputRange struct {
@@ -38,6 +42,23 @@ type fileTransferOutputRange struct {
 
 func newFileTransferPresentation() *fileTransferPresentation {
 	return &fileTransferPresentation{}
+}
+
+// beginCancelConfirmation records that the prompt advanced past the in-place
+// progress frame and suppresses later progress rendering until it is answered.
+func (p *fileTransferPresentation) beginCancelConfirmation() {
+	p.mu.Lock()
+	p.progressRendered = false
+	p.cancelConfirmationPending = true
+	p.mu.Unlock()
+}
+
+// finishCancelConfirmation resumes normal progress rendering after a negative
+// answer or a control error. A terminal transfer event also clears this state.
+func (p *fileTransferPresentation) finishCancelConfirmation() {
+	p.mu.Lock()
+	p.cancelConfirmationPending = false
+	p.mu.Unlock()
 }
 
 // handle applies a structured file-transfer event before optionally rendering
@@ -90,7 +111,7 @@ func (p *fileTransferPresentation) handle(event session.Event, local bool, write
 		p.transferred = fileTransferEventTransferred(event.Metadata)
 		p.total = max(0, fileTransferEventInteger(event.Metadata, "total"))
 		p.percent = fileTransferEventPercent(event.Metadata, p.transferred, p.total)
-		if !local {
+		if !local && !p.cancelConfirmationPending {
 			text = "\r" + fileTransferTransferredText(event.Timestamp, p.transferred, p.total, p.percent) + "\x1b[K\r"
 			p.progressRendered = true
 		}
@@ -110,7 +131,8 @@ func (p *fileTransferPresentation) handle(event session.Event, local bool, write
 			}
 		}
 		p.progressRendered = false
-	case session.EventFileTransferFailed:
+		p.cancelConfirmationPending = false
+	case session.EventFileTransferCancelled, session.EventFileTransferFailed:
 		if p.openStart == nil {
 			p.legacyActive = false
 		}
@@ -131,7 +153,7 @@ func (p *fileTransferPresentation) handle(event session.Event, local bool, write
 				percent = p.percent
 			}
 			text += fileTransferStatusPrefix(event.Timestamp)
-			if fileTransferEventCancelled(event.Metadata) {
+			if event.Type == session.EventFileTransferCancelled || fileTransferEventCancelled(event.Metadata) {
 				text += "File transfer cancelled\r\n"
 				text += fmt.Sprintf("  Transferred: %d/%d bytes (%.1f%%)\r\n", transferred, total, percent)
 				text += "  Reason     : cancelled by user\r\n"
@@ -142,6 +164,7 @@ func (p *fileTransferPresentation) handle(event session.Event, local bool, write
 			}
 		}
 		p.progressRendered = false
+		p.cancelConfirmationPending = false
 	}
 	p.mu.Unlock()
 	if text == "" || write == nil {
@@ -374,7 +397,7 @@ func forwardFileTransferEvents(ctx context.Context, events attachEventSession, c
 			if presentation.handle(event, local, write) != nil {
 				return
 			}
-			if ownsTransfer && local && (event.Type == session.EventFileTransferCompleted || event.Type == session.EventFileTransferFailed) {
+			if ownsTransfer && local && (event.Type == session.EventFileTransferCompleted || event.Type == session.EventFileTransferCancelled || event.Type == session.EventFileTransferFailed) {
 				owner.fileTransferPresentationEnded()
 			}
 		}

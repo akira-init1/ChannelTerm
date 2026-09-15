@@ -726,6 +726,89 @@ func TestLeaseToolsBlockOrdinaryWritesAndExposeSessionState(t *testing.T) {
 	}
 }
 
+func TestFileTransferCancelToolsPauseAtCheckpointAndReportCancellation(t *testing.T) {
+	manager := session.NewManager()
+	terminal := newFakeSession("session-1")
+	if err := terminal.Connect(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if err := manager.RegisterWithMetadata(terminal, session.SessionMetadata{Transport: "serial", Endpoint: "COM8"}); err != nil {
+		t.Fatal(err)
+	}
+	application, err := app.New(app.Dependencies{Manager: manager})
+	if err != nil {
+		t.Fatal(err)
+	}
+	tools, err := NewTools(application)
+	if err != nil {
+		t.Fatal(err)
+	}
+	inactive, err := callTool(tools, "terminal_begin_file_transfer_cancel", context.Background(), `{"session_id":"SER-1"}`)
+	if err != nil || inactive["active"] != false {
+		t.Fatalf("inactive begin = %#v, %v", inactive, err)
+	}
+	if _, err := callTool(tools, "terminal_acquire_lease", context.Background(), `{"session_id":"SER-1","owner":"transfer-owner","type":"file-transfer"}`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := callTool(tools, "terminal_report_file_transfer", context.Background(), `{"session_id":"SER-1","type":"FILE_TRANSFER_PROGRESS","metadata":{"sent":24576,"total":65536,"percent":37.5}}`); err != nil {
+		t.Fatal(err)
+	}
+	begin, err := callTool(tools, "terminal_begin_file_transfer_cancel", context.Background(), `{"session_id":"SER-1"}`)
+	if err != nil || begin["active"] != true || begin["request_id"] == "" {
+		t.Fatalf("active begin = %#v, %v", begin, err)
+	}
+	requestID := begin["request_id"].(string)
+	checkpoint := make(chan tool.Result, 1)
+	go func() {
+		result, _ := callTool(tools, "terminal_file_transfer_checkpoint", context.Background(), `{"session_id":"SER-1","owner":"transfer-owner"}`)
+		checkpoint <- result
+	}()
+	select {
+	case <-checkpoint:
+		t.Fatal("checkpoint returned before the confirmation answer")
+	case <-time.After(20 * time.Millisecond):
+	}
+	resolved, err := callTool(tools, "terminal_resolve_file_transfer_cancel", context.Background(), fmt.Sprintf(`{"session_id":"SER-1","request_id":%q,"cancel":false}`, requestID))
+	if err != nil || resolved["state"] != "resumed" {
+		t.Fatalf("decline result = %#v, %v", resolved, err)
+	}
+	if result := <-checkpoint; result["action"] != "continue" {
+		t.Fatalf("checkpoint = %#v, want continue", result)
+	}
+
+	begin, err = callTool(tools, "terminal_begin_file_transfer_cancel", context.Background(), `{"session_id":"SER-1"}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	requestID = begin["request_id"].(string)
+	resolution := make(chan tool.Result, 1)
+	go func() {
+		result, _ := callTool(tools, "terminal_resolve_file_transfer_cancel", context.Background(), fmt.Sprintf(`{"session_id":"SER-1","request_id":%q,"cancel":true}`, requestID))
+		resolution <- result
+	}()
+	checkpointResult, err := callTool(tools, "terminal_file_transfer_checkpoint", context.Background(), `{"session_id":"SER-1","owner":"transfer-owner"}`)
+	if err != nil || checkpointResult["action"] != "cancel" {
+		t.Fatalf("confirmed checkpoint = %#v, %v", checkpointResult, err)
+	}
+	if _, err := callTool(tools, "terminal_report_file_transfer", context.Background(), `{"session_id":"SER-1","type":"FILE_TRANSFER_FAILED","metadata":{"error":"user_cancelled","sent":24576,"total":65536,"percent":37.5}}`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := callTool(tools, "terminal_release_lease", context.Background(), `{"session_id":"SER-1","owner":"transfer-owner"}`); err != nil {
+		t.Fatal(err)
+	}
+	if result := <-resolution; result["state"] != "cancelled" || result["transferred"] != int64(24576) {
+		t.Fatalf("confirmed resolution = %#v", result)
+	}
+	events, err := callTool(tools, "terminal_session_events", context.Background(), `{"session_id":"SER-1","max_events":16}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	encoded := events["events"].([]sessionEventResult)
+	if got := encoded[len(encoded)-1]; got.Type != string(session.EventFileTransferCancelled) || got.Metadata["reason"] != "user_cancelled" {
+		t.Fatalf("last event = %#v, want FILE_TRANSFER_CANCELLED", got)
+	}
+}
+
 func TestSessionEventsToolReturnsLifecycleLeaseAndFileProgressWithoutTerminalData(t *testing.T) {
 	manager := session.NewManager()
 	terminal := newFakeSession("session-1")

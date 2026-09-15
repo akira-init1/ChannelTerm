@@ -39,7 +39,9 @@ const (
 	EventFileTransferProgress EventType = "FILE_TRANSFER_PROGRESS"
 	// EventFileTransferCompleted records a verified successful file transfer.
 	EventFileTransferCompleted EventType = "FILE_TRANSFER_COMPLETED"
-	// EventFileTransferFailed records a failed or cancelled file transfer.
+	// EventFileTransferCancelled records a user-confirmed file transfer cancellation.
+	EventFileTransferCancelled EventType = "FILE_TRANSFER_CANCELLED"
+	// EventFileTransferFailed records a failed file transfer.
 	EventFileTransferFailed EventType = "FILE_TRANSFER_FAILED"
 )
 

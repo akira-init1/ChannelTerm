@@ -52,6 +52,10 @@ type fileTransferCancelRequester interface {
 	FileTransferCancelRequested() bool
 }
 
+type fileTransferCancellationCheckpointer interface {
+	FileTransferCancellationCheckpoint(context.Context) error
+}
+
 // FileTransferProgress receives transfer byte counts and the total size. A
 // receive operation first invokes it with zero bytes after remote metadata is
 // known and before payload transfer starts; later calls report confirmed bytes.
@@ -104,15 +108,15 @@ func SendFileWithCancellation(ctx context.Context, terminal FileTransferSession,
 	if err != nil {
 		return FileTransferResult{}, err
 	}
-	if fileTransferCancelRequested(terminal, cancelRequested) {
-		return FileTransferResult{}, context.Canceled
+	if err := fileTransferCancellationCheckpoint(ctx, terminal, cancelRequested); err != nil {
+		return FileTransferResult{}, err
 	}
 	remotePath, quotedPath, err := protocol.selectAvailableRemotePath(ctx, remotePath)
 	if err != nil {
 		return FileTransferResult{}, err
 	}
-	if fileTransferCancelRequested(terminal, cancelRequested) {
-		return FileTransferResult{}, context.Canceled
+	if err := fileTransferCancellationCheckpoint(ctx, terminal, cancelRequested); err != nil {
+		return FileTransferResult{}, err
 	}
 	if err := protocol.command(ctx, sendInitCommand(protocol.token, quotedPath)); err != nil {
 		return FileTransferResult{}, err
@@ -120,16 +124,16 @@ func SendFileWithCancellation(ctx context.Context, terminal FileTransferSession,
 	if _, err := protocol.expect(ctx, "INIT", "OK"); err != nil {
 		return FileTransferResult{}, fmt.Errorf("initialize remote file %q: %w", remotePath, err)
 	}
-	if fileTransferCancelRequested(terminal, cancelRequested) {
-		return FileTransferResult{}, context.Canceled
+	if err := fileTransferCancellationCheckpoint(ctx, terminal, cancelRequested); err != nil {
+		return FileTransferResult{}, err
 	}
 
 	hasher := sha256.New()
 	buffer := make([]byte, FileTransferChunkSize)
 	var transferred int64
 	for transferred < size {
-		if fileTransferCancelRequested(terminal, cancelRequested) {
-			return FileTransferResult{}, context.Canceled
+		if err := fileTransferCancellationCheckpoint(ctx, terminal, cancelRequested); err != nil {
+			return FileTransferResult{}, err
 		}
 		chunkSize := int64(len(buffer))
 		if remaining := size - transferred; remaining < chunkSize {
@@ -166,8 +170,8 @@ func SendFileWithCancellation(ctx context.Context, terminal FileTransferSession,
 			}
 		}
 	}
-	if fileTransferCancelRequested(terminal, cancelRequested) {
-		return FileTransferResult{}, context.Canceled
+	if err := fileTransferCancellationCheckpoint(ctx, terminal, cancelRequested); err != nil {
+		return FileTransferResult{}, err
 	}
 	var trailing [1]byte
 	if count, readErr := source.Read(trailing[:]); count != 0 || (readErr != nil && !errors.Is(readErr, io.EOF)) {
@@ -293,8 +297,8 @@ func ReceiveFileWithCancellation(ctx context.Context, terminal FileTransferSessi
 			return FileTransferResult{}, err
 		}
 	}
-	if fileTransferCancelRequested(terminal, cancelRequested) {
-		return FileTransferResult{}, context.Canceled
+	if err := fileTransferCancellationCheckpoint(ctx, terminal, cancelRequested); err != nil {
+		return FileTransferResult{}, err
 	}
 
 	hasher := sha256.New()
@@ -302,8 +306,8 @@ func ReceiveFileWithCancellation(ctx context.Context, terminal FileTransferSessi
 	var transferred int64
 	var blockIndex int64
 	for transferred < size {
-		if fileTransferCancelRequested(terminal, cancelRequested) {
-			return FileTransferResult{}, context.Canceled
+		if err := fileTransferCancellationCheckpoint(ctx, terminal, cancelRequested); err != nil {
+			return FileTransferResult{}, err
 		}
 		chunkSize := int64(len(buffer))
 		if remaining := size - transferred; remaining < chunkSize {
@@ -340,8 +344,8 @@ func ReceiveFileWithCancellation(ctx context.Context, terminal FileTransferSessi
 			}
 		}
 	}
-	if fileTransferCancelRequested(terminal, cancelRequested) {
-		return FileTransferResult{}, context.Canceled
+	if err := fileTransferCancellationCheckpoint(ctx, terminal, cancelRequested); err != nil {
+		return FileTransferResult{}, err
 	}
 	if err := protocol.command(ctx, verifyCommand(protocol.token, quotedPath)); err != nil {
 		return FileTransferResult{}, err
@@ -372,12 +376,18 @@ func ReceiveFileWithCancellation(ctx context.Context, terminal FileTransferSessi
 	return FileTransferResult{Size: size, SHA256: localDigest}, nil
 }
 
-func fileTransferCancelRequested(terminal FileTransferSession, cancelRequested FileTransferCancelRequested) bool {
+func fileTransferCancellationCheckpoint(ctx context.Context, terminal FileTransferSession, cancelRequested FileTransferCancelRequested) error {
 	if cancelRequested != nil && cancelRequested() {
-		return true
+		return context.Canceled
+	}
+	if checkpoint, ok := terminal.(fileTransferCancellationCheckpointer); ok {
+		return checkpoint.FileTransferCancellationCheckpoint(ctx)
 	}
 	cancellation, ok := terminal.(fileTransferCancelRequester)
-	return ok && cancellation.FileTransferCancelRequested()
+	if ok && cancellation.FileTransferCancelRequested() {
+		return context.Canceled
+	}
+	return nil
 }
 
 // fileProtocol owns one independent Session output cursor and preserves bytes

@@ -247,6 +247,65 @@ func TestAttachInputDispatcherRoutesAttachControlCToBoard(t *testing.T) {
 	}
 }
 
+func TestAttachInputDispatcherCancelsExternallyOwnedFileTransfer(t *testing.T) {
+	for _, tt := range []struct {
+		name       string
+		answer     byte
+		wantCancel bool
+	}{
+		{name: "confirm", answer: 'Y', wantCancel: true},
+		{name: "default resume", answer: '\r', wantCancel: false},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			inputReader, inputWriter := io.Pipe()
+			defer inputReader.Close()
+			pump := newAttachInputPump(inputReader)
+			attached := &externalTransferAttachSession{
+				fakeAttachSession: &fakeAttachSession{},
+				resolved:          make(chan bool, 1),
+			}
+			var output lockedBuffer
+			dispatcher := newAttachInputDispatcherWithPump(context.Background(), &pump, attached, func(data []byte) error {
+				_, err := output.Write(data)
+				return err
+			}, func() error { return nil }, func() {}, nil)
+			done := make(chan struct{})
+			go func() {
+				dispatcher.run()
+				close(done)
+			}()
+			if _, err := inputWriter.Write([]byte{0x03}); err != nil {
+				t.Fatal(err)
+			}
+			deadline := time.Now().Add(time.Second)
+			for !strings.Contains(output.String(), "Cancel file transfer? [y/N]:") && time.Now().Before(deadline) {
+				time.Sleep(time.Millisecond)
+			}
+			if _, err := inputWriter.Write([]byte{tt.answer}); err != nil {
+				t.Fatal(err)
+			}
+			select {
+			case got := <-attached.resolved:
+				if got != tt.wantCancel {
+					t.Fatalf("resolved cancel = %t, want %t", got, tt.wantCancel)
+				}
+			case <-time.After(time.Second):
+				t.Fatal("external confirmation was not resolved")
+			}
+			if got := attached.writtenData(); len(got) != 0 {
+				t.Fatalf("board input = %x, external transfer Ctrl+C must stay local", got)
+			}
+			if !tt.wantCancel && !strings.Contains(output.String(), "File transfer resumed") {
+				t.Fatalf("output = %q, want resumed status", output.String())
+			}
+			if err := inputWriter.Close(); err != nil {
+				t.Fatal(err)
+			}
+			waitForSignal(t, done, "dispatcher exit")
+		})
+	}
+}
+
 func TestAttachInputDispatcherIgnoresNormalInputDuringFileTransferOnce(t *testing.T) {
 	inputReader, inputWriter := io.Pipe()
 	defer inputReader.Close()
@@ -577,6 +636,26 @@ func TestAttachInputDispatcherFileMenuSingleKeyChoices(t *testing.T) {
 type lockedBuffer struct {
 	mu   sync.Mutex
 	data bytes.Buffer
+}
+
+type externalTransferAttachSession struct {
+	*fakeAttachSession
+	resolved chan bool
+}
+
+func (*externalTransferAttachSession) BeginFileTransferCancel(context.Context) (string, bool, error) {
+	return "request-1", true, nil
+}
+
+func (s *externalTransferAttachSession) ResolveFileTransferCancel(_ context.Context, requestID string, cancel bool) (string, error) {
+	if requestID != "request-1" {
+		return "", fmt.Errorf("unexpected request ID %q", requestID)
+	}
+	s.resolved <- cancel
+	if cancel {
+		return "cancelled", nil
+	}
+	return "resumed", nil
 }
 
 func (b *lockedBuffer) Write(data []byte) (int, error) {

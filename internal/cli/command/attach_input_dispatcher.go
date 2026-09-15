@@ -35,6 +35,16 @@ const controlCRecoveryWindow = 500 * time.Millisecond
 // dispatcher has entered file-transfer mode.
 type attachTransferRunner func(context.Context, attachSession, io.Writer, func() bool, string, string, string) error
 
+type fileTransferCancelController interface {
+	BeginFileTransferCancel(context.Context) (requestID string, active bool, err error)
+	ResolveFileTransferCancel(context.Context, string, bool) (state string, err error)
+}
+
+type fileTransferCancelPromptPresenter interface {
+	fileTransferCancelPromptStarted()
+	fileTransferCancelPromptFinished()
+}
+
 // attachInputDispatcher owns all local interpretation of one attach console.
 // attachInputPump is its sole stdin/Console reader; menu, path, and transfer
 // modes consume only the pump's ordered results and never read stdin directly.
@@ -55,6 +65,7 @@ type attachInputDispatcher struct {
 	remotePath            string
 	transferDone          <-chan error
 	transferCancellation  *fileTransferCancellation
+	externalCancelRequest string
 	inputIgnoredAnnounced bool
 	// ignoreControlCUntil prevents keyboard auto-repeat and the duplicate
 	// Windows CTRL_C_EVENT from escaping transfer mode after a cancellation.
@@ -88,6 +99,7 @@ func newAttachInputDispatcherWithPumpAndInterrupts(ctx context.Context, pump *at
 // is the only consumer of attachInputPump results for the production attach
 // path, and therefore the only place that routes Ctrl+C.
 func (d *attachInputDispatcher) run() {
+	defer d.abandonExternalTransferCancellation()
 	for {
 		if d.transferDone != nil {
 			select {
@@ -160,6 +172,9 @@ func (d *attachInputDispatcher) handleControlC() bool {
 	}
 	switch d.mode {
 	case attachInputModeAttach:
+		if d.beginExternalTransferCancellationConfirmation() {
+			return true
+		}
 		return d.dispatchAttach([]byte{0x03})
 	case attachInputModeFileTransfer:
 		d.beginTransferCancellationConfirmation()
@@ -421,10 +436,44 @@ func (d *attachInputDispatcher) beginTransferCancellationConfirmation() {
 	}
 }
 
+// beginExternalTransferCancellationConfirmation handles a transfer owned by
+// another MCP/CLI process. The Host checks the active lease atomically, so an
+// ordinary terminal Ctrl+C still reaches the remote endpoint as byte 0x03.
+func (d *attachInputDispatcher) beginExternalTransferCancellationConfirmation() bool {
+	controller, ok := d.terminal.(fileTransferCancelController)
+	if !ok {
+		return false
+	}
+	requestID, active, err := controller.BeginFileTransferCancel(d.ctx)
+	if err != nil {
+		if d.writeLocal != nil {
+			_ = d.writeLocal([]byte("\r\n[ChannelTerm] File transfer cancellation check failed: " + err.Error() + "\r\n"))
+		}
+		return true
+	}
+	if !active {
+		return false
+	}
+	d.externalCancelRequest = requestID
+	d.mode = attachInputModeFileTransferCancelConfirm
+	d.ignoreControlCUntil = time.Now().Add(controlCRecoveryWindow)
+	if d.writeLocal == nil || d.writeLocal(fileTransferCancelConfirmationText) != nil {
+		d.abandonExternalTransferCancellation()
+		d.cancelAttach()
+	} else if presenter, ok := d.terminal.(fileTransferCancelPromptPresenter); ok {
+		presenter.fileTransferCancelPromptStarted()
+	}
+	return true
+}
+
 // resolveTransferCancellationConfirmation consumes exactly one local answer.
 // Only y/Y requests cancellation; every other byte resumes the paused worker.
 func (d *attachInputDispatcher) resolveTransferCancellationConfirmation(cancel bool) {
-	if d.transferCancellation == nil || d.mode != attachInputModeFileTransferCancelConfirm {
+	if d.mode != attachInputModeFileTransferCancelConfirm {
+		return
+	}
+	if d.transferCancellation == nil {
+		d.resolveExternalTransferCancellationConfirmation(cancel)
 		return
 	}
 	d.mode = attachInputModeFileTransfer
@@ -438,6 +487,53 @@ func (d *attachInputDispatcher) resolveTransferCancellationConfirmation(cancel b
 		return
 	}
 	_ = d.writeLocal(fileTransferResumedText)
+}
+
+func (d *attachInputDispatcher) resolveExternalTransferCancellationConfirmation(cancel bool) {
+	controller, ok := d.terminal.(fileTransferCancelController)
+	requestID := d.externalCancelRequest
+	if !ok || requestID == "" {
+		d.mode = attachInputModeAttach
+		return
+	}
+	if d.writeLocal != nil && cancel {
+		_ = d.writeLocal([]byte("\r\n"))
+	}
+	state, err := controller.ResolveFileTransferCancel(d.ctx, requestID, cancel)
+	d.externalCancelRequest = ""
+	d.mode = attachInputModeAttach
+	d.ignoreControlCUntil = time.Now().Add(controlCRecoveryWindow)
+	if d.writeLocal == nil {
+		return
+	}
+	if err != nil {
+		if presenter, ok := d.terminal.(fileTransferCancelPromptPresenter); ok {
+			presenter.fileTransferCancelPromptFinished()
+		}
+		_ = d.writeLocal([]byte("\r\n[ChannelTerm] File transfer cancellation failed: " + err.Error() + "\r\n"))
+		return
+	}
+	if !cancel && state == "resumed" {
+		_ = d.writeLocal(fileTransferResumedText)
+		if presenter, ok := d.terminal.(fileTransferCancelPromptPresenter); ok {
+			presenter.fileTransferCancelPromptFinished()
+		}
+	}
+}
+
+func (d *attachInputDispatcher) abandonExternalTransferCancellation() {
+	if d.externalCancelRequest == "" {
+		return
+	}
+	if controller, ok := d.terminal.(fileTransferCancelController); ok {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		_, _ = controller.ResolveFileTransferCancel(ctx, d.externalCancelRequest, false)
+		cancel()
+	}
+	if presenter, ok := d.terminal.(fileTransferCancelPromptPresenter); ok {
+		presenter.fileTransferCancelPromptFinished()
+	}
+	d.externalCancelRequest = ""
 }
 
 // ignoreTransferInput keeps ordinary keyboard bytes out of the normal
@@ -512,6 +608,7 @@ func (d *attachInputDispatcher) writeTransferStatus(data []byte) error {
 }
 
 func (d *attachInputDispatcher) cancelAttach() {
+	d.abandonExternalTransferCancellation()
 	if d.stopAttach != nil {
 		d.stopAttach()
 	}

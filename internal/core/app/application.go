@@ -198,6 +198,13 @@ func (a *Application) ReportFileTransferEvent(identifier string, typ session.Eve
 	if err != nil {
 		return err
 	}
+	a.leases.recordFileTransferProgress(terminal.ID(), metadata)
+	// A Host-confirmed cancellation is emitted after lease release below. Do
+	// not expose the transfer process's context cancellation as a duplicate
+	// failure before cleanup has completed.
+	if typ == session.EventFileTransferFailed && a.leases.fileTransferCancelConfirmed(terminal.ID()) {
+		return nil
+	}
 	terminal.PublishEvent(session.Event{Type: typ, Actor: eventActor(actor), Metadata: metadata})
 	return nil
 }
@@ -291,7 +298,7 @@ func (a *Application) ReleaseLease(identifier, owner string) error {
 	if err != nil {
 		return err
 	}
-	lease, released, err := a.leases.release(terminal.ID(), owner)
+	lease, released, cancelled, err := a.leases.release(terminal.ID(), owner)
 	if err != nil {
 		return err
 	}
@@ -307,8 +314,53 @@ func (a *Application) ReleaseLease(identifier, owner string) error {
 				"output_cursor": uint64(presentationCursor),
 			},
 		})
+		if cancelled != nil {
+			terminal.PublishEvent(session.Event{
+				Type:  session.EventFileTransferCancelled,
+				Actor: string(session.ActorUser),
+				Metadata: map[string]any{
+					"transferred":    cancelled.Transferred,
+					"total":          cancelled.Total,
+					"percent":        cancelled.Percent,
+					"reason":         "user_cancelled",
+					"lease_released": true,
+				},
+			})
+		}
 	}
 	return nil
+}
+
+// BeginFileTransferCancel atomically opens a confirmation request only when
+// identifier currently has an active file-transfer lease. Ordinary terminal
+// input can therefore preserve its existing Ctrl+C byte semantics.
+func (a *Application) BeginFileTransferCancel(identifier string) (FileTransferCancelRequest, error) {
+	terminal, err := a.session(identifier)
+	if err != nil {
+		return FileTransferCancelRequest{}, err
+	}
+	return a.leases.beginFileTransferCancel(terminal.ID())
+}
+
+// ResolveFileTransferCancel answers a Host-owned confirmation. A negative
+// answer resumes immediately. A positive answer waits until the transfer owner
+// restores protocol state and releases its lease.
+func (a *Application) ResolveFileTransferCancel(ctx context.Context, identifier, requestID string, cancel bool) (FileTransferCancelResolution, error) {
+	terminal, err := a.session(identifier)
+	if err != nil {
+		return FileTransferCancelResolution{}, err
+	}
+	return a.leases.resolveFileTransferCancel(ctx, terminal.ID(), requestID, cancel)
+}
+
+// FileTransferCheckpoint blocks a lease owner at a safe protocol boundary
+// while a user confirmation is pending, then returns continue or cancel.
+func (a *Application) FileTransferCheckpoint(ctx context.Context, identifier, owner string) (FileTransferControlAction, error) {
+	terminal, err := a.session(identifier)
+	if err != nil {
+		return "", err
+	}
+	return a.leases.fileTransferCheckpoint(ctx, terminal.ID(), owner)
 }
 
 // sessionOutputCursor snapshots the current raw-output tail for presentation
