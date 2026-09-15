@@ -44,8 +44,8 @@ func TestFileTransferEventStatusTimestampsTerminalEventsOnly(t *testing.T) {
 	}{
 		{name: "started", event: session.Event{Timestamp: timestamp, Type: session.EventFileTransferStarted, Metadata: map[string]any{"local_path": "go.mod", "remote_path": "/tmp/go.mod"}}, want: "[16:08:12] [ChannelTerm] File transfer started: go.mod -> /tmp/go.mod\r\n"},
 		{name: "completed", event: session.Event{Timestamp: timestamp, Type: session.EventFileTransferCompleted}, want: "[16:08:12] [ChannelTerm] File transfer completed\r\n"},
-		{name: "failed", event: session.Event{Timestamp: timestamp, Type: session.EventFileTransferFailed, Metadata: map[string]any{"error": "checksum mismatch"}}, want: "[16:08:12] [ChannelTerm] File transfer failed: checksum mismatch\r\n"},
-		{name: "cancelled", event: session.Event{Timestamp: timestamp, Type: session.EventFileTransferFailed, Metadata: map[string]any{"error": "context canceled"}}, want: "[16:08:12] [ChannelTerm] File transfer cancelled\r\n"},
+		{name: "failed", event: session.Event{Timestamp: timestamp, Type: session.EventFileTransferFailed, Metadata: map[string]any{"error": "checksum mismatch"}}, want: "[16:08:12] [ChannelTerm] File transfer failed\r\n  Transferred: 0/0 bytes (0.0%)\r\n  Error      : checksum mismatch\r\n"},
+		{name: "cancelled", event: session.Event{Timestamp: timestamp, Type: session.EventFileTransferFailed, Metadata: map[string]any{"error": "context canceled"}}, want: "[16:08:12] [ChannelTerm] File transfer cancelled\r\n  Transferred: 0/0 bytes (0.0%)\r\n  Reason     : cancelled by user\r\n"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			var output bytes.Buffer
@@ -62,13 +62,13 @@ func TestFileTransferEventStatusTimestampsTerminalEventsOnly(t *testing.T) {
 	}
 
 	var output bytes.Buffer
-	if err := presentation.handle(session.Event{Timestamp: timestamp, Type: session.EventFileTransferProgress, Metadata: map[string]any{"percent": 50.0}}, false, func(data []byte) error {
+	if err := presentation.handle(session.Event{Timestamp: timestamp, Type: session.EventFileTransferProgress, Metadata: map[string]any{"sent": 16384, "total": 65536, "percent": 25.0}}, false, func(data []byte) error {
 		_, err := output.Write(data)
 		return err
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if got, want := output.String(), "[ChannelTerm] File transfer: 50.0%\r\n"; got != want {
+	if got, want := output.String(), "\r[16:08:12] [ChannelTerm] Transferred 16384/65536 bytes (25.0%) [=======>......................]\x1b[K\r"; got != want {
 		t.Errorf("progress = %q, want %q", got, want)
 	}
 }

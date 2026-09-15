@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/akira-init1/ChannelTerm/internal/core/session"
 )
@@ -20,6 +21,14 @@ type fileTransferPresentation struct {
 	legacyActive bool
 	openStart    *session.OutputCursor
 	ranges       []fileTransferOutputRange
+
+	// The observer progress frame ends with a carriage return so later events
+	// can overwrite it. Retain its last confirmed state to terminate that line
+	// cleanly and to summarize legacy failure events that omit byte metadata.
+	progressRendered bool
+	transferred      int64
+	total            int64
+	percent          float64
 }
 
 type fileTransferOutputRange struct {
@@ -64,6 +73,10 @@ func (p *fileTransferPresentation) handle(event session.Event, local bool, write
 		if p.openStart == nil {
 			p.legacyActive = true
 		}
+		p.progressRendered = false
+		p.transferred = 0
+		p.total = max(0, fileTransferEventInteger(event.Metadata, "total"))
+		p.percent = 0
 		if !local {
 			text = fileTransferStatusPrefix(event.Timestamp) + "File transfer started: " + fileTransferEventPaths(event.Metadata) + "\r\n"
 		}
@@ -74,32 +87,61 @@ func (p *fileTransferPresentation) handle(event session.Event, local bool, write
 		if p.openStart == nil {
 			p.legacyActive = true
 		}
+		p.transferred = fileTransferEventTransferred(event.Metadata)
+		p.total = max(0, fileTransferEventInteger(event.Metadata, "total"))
+		p.percent = fileTransferEventPercent(event.Metadata, p.transferred, p.total)
 		if !local {
-			text = fmt.Sprintf("[ChannelTerm] File transfer: %.1f%%\r\n", fileTransferEventNumber(event.Metadata, "percent"))
+			text = "\r" + fileTransferTransferredText(event.Timestamp, p.transferred, p.total, p.percent) + "\x1b[K\r"
+			p.progressRendered = true
 		}
 	case session.EventFileTransferCompleted:
 		if p.openStart == nil {
 			p.legacyActive = false
 		}
 		if !local {
-			text = fileTransferStatusPrefix(event.Timestamp) + "File transfer completed\r\n"
+			if p.progressRendered {
+				text = "\r\n"
+			}
+			text += fileTransferStatusPrefix(event.Timestamp) + "File transfer completed\r\n"
+			if localDigest, remoteDigest, ok := fileTransferEventDigests(event.Metadata); ok {
+				text += "  Local SHA-256 : " + localDigest + "\r\n"
+				text += "  Remote SHA-256: " + remoteDigest + "\r\n"
+				text += "  Verify        : " + fileTransferVerifyResult(localDigest, remoteDigest) + "\r\n"
+			}
 		}
+		p.progressRendered = false
 	case session.EventFileTransferFailed:
 		if p.openStart == nil {
 			p.legacyActive = false
 		}
 		if !local {
-			text = fileTransferStatusPrefix(event.Timestamp)
+			if p.progressRendered {
+				text = "\r\n"
+			}
+			transferred := fileTransferEventTransferred(event.Metadata)
+			if transferred == 0 && p.transferred > 0 {
+				transferred = p.transferred
+			}
+			total := max(0, fileTransferEventInteger(event.Metadata, "total"))
+			if total == 0 && p.total > 0 {
+				total = p.total
+			}
+			percent := fileTransferEventPercent(event.Metadata, transferred, total)
+			if percent == 0 && transferred == p.transferred && total == p.total {
+				percent = p.percent
+			}
+			text += fileTransferStatusPrefix(event.Timestamp)
 			if fileTransferEventCancelled(event.Metadata) {
-				text += "File transfer cancelled"
+				text += "File transfer cancelled\r\n"
+				text += fmt.Sprintf("  Transferred: %d/%d bytes (%.1f%%)\r\n", transferred, total, percent)
+				text += "  Reason     : cancelled by user\r\n"
 			} else {
-				text += "File transfer failed"
+				text += "File transfer failed\r\n"
+				text += fmt.Sprintf("  Transferred: %d/%d bytes (%.1f%%)\r\n", transferred, total, percent)
+				text += "  Error      : " + fileTransferEventString(event.Metadata, "error") + "\r\n"
 			}
-			if message := fileTransferEventString(event.Metadata, "error"); message != "" && !fileTransferEventCancelled(event.Metadata) {
-				text += ": " + message
-			}
-			text += "\r\n"
 		}
+		p.progressRendered = false
 	}
 	p.mu.Unlock()
 	if text == "" || write == nil {
@@ -172,6 +214,73 @@ func fileTransferEventNumber(metadata map[string]any, key string) float64 {
 		return float64(number)
 	}
 	return 0
+}
+
+func fileTransferEventInteger(metadata map[string]any, key string) int64 {
+	value, ok := metadata[key]
+	if !ok {
+		return 0
+	}
+	switch number := value.(type) {
+	case float64:
+		return int64(number)
+	case float32:
+		return int64(number)
+	case int:
+		return int64(number)
+	case int64:
+		return number
+	case uint64:
+		if number <= uint64(^uint64(0)>>1) {
+			return int64(number)
+		}
+	}
+	return 0
+}
+
+func fileTransferEventTransferred(metadata map[string]any) int64 {
+	for _, key := range []string{"sent", "received", "transferred"} {
+		if _, ok := metadata[key]; ok {
+			return max(0, fileTransferEventInteger(metadata, key))
+		}
+	}
+	return 0
+}
+
+func fileTransferEventPercent(metadata map[string]any, transferred, total int64) float64 {
+	percent := fileTransferEventNumber(metadata, "percent")
+	if _, ok := metadata["percent"]; !ok && total > 0 {
+		percent = float64(transferred) * 100 / float64(total)
+	}
+	return min(100, max(0, percent))
+}
+
+const attachedFileTransferProgressBarWidth = 30
+
+func fileTransferTransferredText(timestamp time.Time, transferred, total int64, percent float64) string {
+	filled := int(percent * attachedFileTransferProgressBarWidth / 100)
+	filled = min(attachedFileTransferProgressBarWidth, max(0, filled))
+	bar := strings.Repeat("=", filled)
+	if filled < attachedFileTransferProgressBarWidth {
+		bar += ">" + strings.Repeat(".", attachedFileTransferProgressBarWidth-filled-1)
+	}
+	return fmt.Sprintf("%sTransferred %d/%d bytes (%.1f%%) [%s]", fileTransferStatusPrefix(timestamp), transferred, total, percent, bar)
+}
+
+func fileTransferEventDigests(metadata map[string]any) (string, string, bool) {
+	localDigest := fileTransferEventString(metadata, "local_sha256")
+	remoteDigest := fileTransferEventString(metadata, "remote_sha256")
+	if localDigest == "" || remoteDigest == "" {
+		return "", "", false
+	}
+	return localDigest, remoteDigest, true
+}
+
+func fileTransferVerifyResult(localDigest, remoteDigest string) string {
+	if strings.EqualFold(localDigest, remoteDigest) {
+		return "MATCH"
+	}
+	return "MISMATCH"
 }
 
 // writeAttachedTerminalOutput preserves normal raw rendering unless a current

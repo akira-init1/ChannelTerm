@@ -379,7 +379,8 @@ type leaseTrackingAttachSession struct {
 
 func TestFileTransferProgressPublishesStructuredProgress(t *testing.T) {
 	attached := &eventReportingAttachSession{}
-	progress := newFileTransferProgress(context.Background(), io.Discard, attached, map[string]any{"direction": "send", "remote_path": "/tmp/firmware.bin"})
+	metadata := map[string]any{"direction": "send", "remote_path": "/tmp/firmware.bin"}
+	progress := newFileTransferProgress(context.Background(), io.Discard, attached, metadata)
 	if err := progress.Report(622592, 1048576); err != nil {
 		t.Fatalf("progress.Report() error = %v", err)
 	}
@@ -392,6 +393,15 @@ func TestFileTransferProgressPublishesStructuredProgress(t *testing.T) {
 	}
 	if _, ok := event.metadata["speed"].(float64); !ok {
 		t.Errorf("progress speed = %#v, want float64", event.metadata["speed"])
+	}
+	operationErr := errors.New("serial connection lost")
+	reportFailedFileTransfer(context.Background(), attached, metadata, &operationErr)
+	if len(attached.events) != 2 {
+		t.Fatalf("events after failure = %d, want 2", len(attached.events))
+	}
+	failure := attached.events[1]
+	if failure.typ != session.EventFileTransferFailed || failure.metadata["sent"] != int64(622592) || failure.metadata["total"] != int64(1048576) || failure.metadata["percent"] != float64(59.375) {
+		t.Errorf("failure event = %+v, want last confirmed transfer progress", failure)
 	}
 }
 

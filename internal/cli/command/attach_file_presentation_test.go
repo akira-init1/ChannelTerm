@@ -35,7 +35,7 @@ func TestFileTransferPresentationSuppressesRawTransferDataAndRestoresOutput(t *t
 	writeRaw([]byte("t='saved'; stty raw -echo; dd of=/tmp/system.dts\r\n"))
 	writeRaw([]byte("@CTERM:token:READY:32768\r\n"))
 	writeRaw([]byte{0x00, 0xff, 0x80, 0x01, 0x02})
-	if err := presentation.handle(session.Event{Type: session.EventFileTransferProgress, Metadata: map[string]any{"percent": 50.0}}, false, write); err != nil {
+	if err := presentation.handle(session.Event{Type: session.EventFileTransferProgress, Metadata: map[string]any{"sent": 16384, "total": 32768, "percent": 50.0}}, false, write); err != nil {
 		t.Fatalf("handle(progress) error = %v", err)
 	}
 	if err := presentation.handle(session.Event{Type: session.EventFileTransferCompleted}, false, write); err != nil {
@@ -50,11 +50,79 @@ func TestFileTransferPresentationSuppressesRawTransferDataAndRestoresOutput(t *t
 		}
 	}
 	for _, wanted := range []string{
-		"root@board:~# ls", "File transfer started: system.dts -> /tmp/system.dts", "File transfer: 50.0%", "File transfer completed", "root@board:~# ",
+		"root@board:~# ls", "File transfer started: system.dts -> /tmp/system.dts", "Transferred 16384/32768 bytes (50.0%) [===============>..............]", "File transfer completed", "root@board:~# ",
 	} {
 		if !bytes.Contains(output.Bytes(), []byte(wanted)) {
 			t.Errorf("output = %q, want %q", got, wanted)
 		}
+	}
+}
+
+func TestFileTransferPresentationRendersCompletedChecksumSummary(t *testing.T) {
+	presentation := newFileTransferPresentation()
+	var output bytes.Buffer
+	write := func(data []byte) error {
+		_, err := output.Write(data)
+		return err
+	}
+	progressTime := time.Date(2026, time.September, 15, 9, 24, 57, 0, time.Local)
+	completedTime := progressTime.Add(time.Second)
+	digest := strings.Repeat("7d", 32)
+	if err := presentation.handle(session.Event{Timestamp: progressTime, Type: session.EventFileTransferProgress, Metadata: map[string]any{
+		"sent": 65536, "total": 65536, "percent": 100.0,
+	}}, false, write); err != nil {
+		t.Fatal(err)
+	}
+	if err := presentation.handle(session.Event{Timestamp: completedTime, Type: session.EventFileTransferCompleted, Metadata: map[string]any{
+		"local_sha256": digest, "remote_sha256": digest,
+	}}, false, write); err != nil {
+		t.Fatal(err)
+	}
+	want := "\r[09:24:57] [ChannelTerm] Transferred 65536/65536 bytes (100.0%) [==============================]\x1b[K\r" +
+		"\r\n[09:24:58] [ChannelTerm] File transfer completed\r\n" +
+		"  Local SHA-256 : " + digest + "\r\n" +
+		"  Remote SHA-256: " + digest + "\r\n" +
+		"  Verify        : MATCH\r\n"
+	if got := output.String(); got != want {
+		t.Errorf("completed presentation = %q, want %q", got, want)
+	}
+}
+
+func TestFileTransferPresentationRendersCancellationAndFailureSummaries(t *testing.T) {
+	timestamp := time.Date(2026, time.September, 15, 9, 24, 58, 0, time.Local)
+	for _, tt := range []struct {
+		name     string
+		metadata map[string]any
+		want     string
+	}{
+		{
+			name:     "cancelled",
+			metadata: map[string]any{"sent": 24576, "total": 65536, "percent": 37.5, "error": "context canceled"},
+			want: "[09:24:58] [ChannelTerm] File transfer cancelled\r\n" +
+				"  Transferred: 24576/65536 bytes (37.5%)\r\n" +
+				"  Reason     : cancelled by user\r\n",
+		},
+		{
+			name:     "failed",
+			metadata: map[string]any{"received": 24576, "total": 65536, "percent": 37.5, "error": "serial connection lost"},
+			want: "[09:24:58] [ChannelTerm] File transfer failed\r\n" +
+				"  Transferred: 24576/65536 bytes (37.5%)\r\n" +
+				"  Error      : serial connection lost\r\n",
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			presentation := newFileTransferPresentation()
+			var output bytes.Buffer
+			if err := presentation.handle(session.Event{Timestamp: timestamp, Type: session.EventFileTransferFailed, Metadata: tt.metadata}, false, func(data []byte) error {
+				_, err := output.Write(data)
+				return err
+			}); err != nil {
+				t.Fatal(err)
+			}
+			if got := output.String(); got != tt.want {
+				t.Errorf("terminal presentation = %q, want %q", got, tt.want)
+			}
+		})
 	}
 }
 
