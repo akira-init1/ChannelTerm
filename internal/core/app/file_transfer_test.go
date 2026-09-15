@@ -121,6 +121,22 @@ func TestSendFileReportsRemoteInitializationFailure(t *testing.T) {
 	}
 }
 
+func TestSendFileReportsRemoteDirectoryCreationFailure(t *testing.T) {
+	terminal := newFileTransferTestSession(nil)
+	terminal.failDirectoryCreation = true
+	_, err := SendFile(context.Background(), terminal, strings.NewReader("data"), 4, "/tmp/cterm/mcp-files/file.bin", nil)
+	if err == nil || !strings.Contains(err.Error(), "remote file transfer failed: directory") {
+		t.Fatalf("SendFile() error = %v, want remote directory failure", err)
+	}
+}
+
+func TestSendFileInitializationCreatesDestinationHierarchy(t *testing.T) {
+	command := sendInitCommand("abc123", "'/tmp/cterm/mcp-files/firmware.bin'", "'/tmp/cterm/mcp-files'")
+	if !strings.Contains(command, `mkdir -p "$d"`) || !strings.Contains(command, "d='/tmp/cterm/mcp-files'") {
+		t.Fatalf("file initialization does not create its destination hierarchy: %s", command)
+	}
+}
+
 // TestSendFilePadsInterruptedChunk verifies a partial Session write does not
 // leave the board-side dd command waiting in raw TTY mode.
 func TestSendFilePadsInterruptedChunk(t *testing.T) {
@@ -221,11 +237,13 @@ func TestReceiveFileWithCancellationStopsAfterCurrentChunk(t *testing.T) {
 
 func TestIncrementPOSIXFilenamePreservesNamesAndExtensions(t *testing.T) {
 	tests := map[string]string{
-		"/tmp/firmware.bin":  "/tmp/firmware_1.bin",
-		"/tmp/app.log":       "/tmp/app_1.log",
-		"/tmp/README":        "/tmp/README_1",
-		"/tmp/.env":          "/tmp/.env_1",
-		"/tmp/backup.tar.gz": "/tmp/backup_1.tar.gz",
+		"/tmp/firmware.bin":                  "/tmp/firmware_1.bin",
+		"/tmp/cterm/mcp-files/firmware.bin":  "/tmp/cterm/mcp-files/firmware_1.bin",
+		"/tmp/cterm/user-files/firmware.bin": "/tmp/cterm/user-files/firmware_1.bin",
+		"/tmp/app.log":                       "/tmp/app_1.log",
+		"/tmp/README":                        "/tmp/README_1",
+		"/tmp/.env":                          "/tmp/.env_1",
+		"/tmp/backup.tar.gz":                 "/tmp/backup_1.tar.gz",
 	}
 	for input, want := range tests {
 		if got := incrementPOSIXFilename(input, 1); got != want {
@@ -271,17 +289,18 @@ type fileTransferTestSession struct {
 	output []byte
 	notify chan struct{}
 
-	token              string
-	received           []byte
-	remote             []byte
-	pendingSend        int
-	pendingSendTotal   int
-	maxPayload         int
-	badMetadataHash    bool
-	failInitialization bool
-	failTar            bool
-	failPayloadOnce    bool
-	receiving          bool
+	token                 string
+	received              []byte
+	remote                []byte
+	pendingSend           int
+	pendingSendTotal      int
+	maxPayload            int
+	badMetadataHash       bool
+	failInitialization    bool
+	failDirectoryCreation bool
+	failTar               bool
+	failPayloadOnce       bool
+	receiving             bool
 }
 
 type cancelAfterFirstSendChunk struct{ *fileTransferTestSession }
@@ -417,6 +436,8 @@ func (s *fileTransferTestSession) Write(request session.WriteRequest) (int, erro
 	}
 	s.token = tokenMatch[1]
 	switch {
+	case s.failDirectoryCreation && strings.Contains(command, "mkdir -p"):
+		s.emitLocked(fmt.Sprintf("\n@CTERM:%s:ERROR:directory\n", s.token))
 	case s.failTar && strings.Contains(command, "command -v tar"):
 		s.emitLocked(fmt.Sprintf("\n@CTERM:%s:ERROR:tar\n", s.token))
 	case strings.Contains(command, ":PICK:"):

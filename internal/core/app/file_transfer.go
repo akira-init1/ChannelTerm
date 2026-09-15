@@ -118,7 +118,11 @@ func SendFileWithCancellation(ctx context.Context, terminal FileTransferSession,
 	if err := fileTransferCancellationCheckpoint(ctx, terminal, cancelRequested); err != nil {
 		return FileTransferResult{}, err
 	}
-	if err := protocol.command(ctx, sendInitCommand(protocol.token, quotedPath)); err != nil {
+	quotedDirectory, err := quoteRemotePath(posixpath.Dir(remotePath))
+	if err != nil {
+		return FileTransferResult{}, err
+	}
+	if err := protocol.command(ctx, sendInitCommand(protocol.token, quotedPath, quotedDirectory)); err != nil {
 		return FileTransferResult{}, err
 	}
 	if _, err := protocol.expect(ctx, "INIT", "OK"); err != nil {
@@ -617,8 +621,8 @@ func parseVerifiedFile(fields []string) (int64, string, error) {
 	return size, digest, nil
 }
 
-func sendInitCommand(token, path string) string {
-	return fmt.Sprintf("t='%s'; if command -v stty >/dev/null 2>&1 && command -v dd >/dev/null 2>&1 && command -v wc >/dev/null 2>&1 && command -v sha256sum >/dev/null 2>&1 && printf x | dd of=/dev/null bs=1 count=1 iflag=fullblock 2>/dev/null; then if (set -C; : > %s) 2>/dev/null; then printf '\\n@CTERM:%%s:INIT:OK\\n' \"$t\"; else printf '\\n@CTERM:%%s:ERROR:exists\\n' \"$t\"; fi; else printf '\\n@CTERM:%%s:ERROR:tools\\n' \"$t\"; fi", token, path)
+func sendInitCommand(token, destination, directory string) string {
+	return fmt.Sprintf("t='%s'; d=%s; if ! mkdir -p \"$d\" 2>/dev/null; then printf '\\n@CTERM:%%s:ERROR:directory\\n' \"$t\"; elif command -v stty >/dev/null 2>&1 && command -v dd >/dev/null 2>&1 && command -v wc >/dev/null 2>&1 && command -v sha256sum >/dev/null 2>&1 && printf x | dd of=/dev/null bs=1 count=1 iflag=fullblock 2>/dev/null; then if (set -C; : > %s) 2>/dev/null; then printf '\\n@CTERM:%%s:INIT:OK\\n' \"$t\"; else printf '\\n@CTERM:%%s:ERROR:exists\\n' \"$t\"; fi; else printf '\\n@CTERM:%%s:ERROR:tools\\n' \"$t\"; fi", token, directory, destination)
 }
 
 func remotePathStatusCommand(token, path string) string {
@@ -645,8 +649,8 @@ func remotePathKindCommand(token, path string) string {
 	return fmt.Sprintf("t='%s'; if [ -L %s ]; then k=unsupported; elif [ -f %s ]; then k=file; elif [ -d %s ]; then k=directory; elif [ -e %s ]; then k=unsupported; else k=missing; fi; printf '\\n@CTERM:%%s:KIND:%%s\\n' \"$t\" \"$k\"", token, path, path, path, path)
 }
 
-func directorySendInitCommand(token, archive string) string {
-	return fmt.Sprintf("t='%s'; a=%s; if ! command -v tar >/dev/null 2>&1; then printf '\\n@CTERM:%%s:ERROR:tar\\n' \"$t\"; elif command -v stty >/dev/null 2>&1 && command -v dd >/dev/null 2>&1 && command -v wc >/dev/null 2>&1 && printf x | dd of=/dev/null bs=1 count=1 iflag=fullblock 2>/dev/null && (set -C; : > \"$a\") 2>/dev/null; then printf '\\n@CTERM:%%s:INIT:OK\\n' \"$t\"; else printf '\\n@CTERM:%%s:ERROR:stage\\n' \"$t\"; fi", token, archive)
+func directorySendInitCommand(token, archive, directory string) string {
+	return fmt.Sprintf("t='%s'; a=%s; d=%s; if ! mkdir -p \"$d\" 2>/dev/null; then printf '\\n@CTERM:%%s:ERROR:directory\\n' \"$t\"; elif ! command -v tar >/dev/null 2>&1; then printf '\\n@CTERM:%%s:ERROR:tar\\n' \"$t\"; elif command -v stty >/dev/null 2>&1 && command -v dd >/dev/null 2>&1 && command -v wc >/dev/null 2>&1 && printf x | dd of=/dev/null bs=1 count=1 iflag=fullblock 2>/dev/null && (set -C; : > \"$a\") 2>/dev/null; then printf '\\n@CTERM:%%s:INIT:OK\\n' \"$t\"; else printf '\\n@CTERM:%%s:ERROR:stage\\n' \"$t\"; fi", token, archive, directory)
 }
 
 func directorySendFinishCommand(token, destination, staging, archive string, size int64) string {

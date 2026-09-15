@@ -141,12 +141,12 @@ func runFileSend(ctx context.Context, args []string, output io.Writer, dependenc
 		_, err := parseFileOptions("file send", args, output, writeFileSendUsage)
 		return err
 	}
-	if len(args) < 2 {
+	if len(args) < 1 {
 		writeFileSendUsage(output)
-		return errors.New("local source and remote destination paths are required")
+		return errors.New("local source path is required")
 	}
-	localPath, remotePath := args[0], args[1]
-	options, err := parseFileOptions("file send", args[2:], output, writeFileSendUsage)
+	localPath, remotePath, optionArgs := resolveFileSendPaths(args)
+	options, err := parseFileOptions("file send", optionArgs, output, writeFileSendUsage)
 	if err != nil || options.help {
 		return err
 	}
@@ -232,6 +232,20 @@ func runFileSend(ctx context.Context, args []string, output io.Writer, dependenc
 		return finishFileTransferPresentation(output, progress, operationErr)
 	}
 	return operationErr
+}
+
+// resolveFileSendPaths gives command-oriented transfers their MCP staging
+// namespace when the caller omits a remote destination. An explicit remote
+// path remains authoritative and continues to support every existing command.
+func resolveFileSendPaths(args []string) (localPath, remotePath string, optionArgs []string) {
+	localPath = args[0]
+	remotePath = defaultMCPRemoteTransferPath(localPath)
+	optionArgs = args[1:]
+	if len(optionArgs) > 0 && !strings.HasPrefix(optionArgs[0], "-") {
+		remotePath = optionArgs[0]
+		optionArgs = optionArgs[1:]
+	}
+	return localPath, remotePath, optionArgs
 }
 
 func runFileSendDirectory(ctx context.Context, localPath, remotePath string, options fileOptions, output io.Writer, dependencies fileCommandDependencies) (err error) {
@@ -904,7 +918,7 @@ func splitLocalFilenameExtension(filename string) (string, string) {
 }
 
 func writeFileUsage(output io.Writer) {
-	fmt.Fprintln(output, "Usage: channelterm file send LOCAL_PATH REMOTE_PATH [options]")
+	fmt.Fprintln(output, "Usage: channelterm file send LOCAL_PATH [REMOTE_PATH] [options]")
 	fmt.Fprintln(output, "       channelterm file receive REMOTE_PATH LOCAL_PATH [options]")
 	fmt.Fprintln(output)
 	fmt.Fprintln(output, "Stream a file through an existing shared Session and verify it with SHA-256.")
@@ -912,7 +926,8 @@ func writeFileUsage(output io.Writer) {
 }
 
 func writeFileSendUsage(output io.Writer) {
-	fmt.Fprintln(output, "Usage: channelterm file send LOCAL_PATH REMOTE_PATH [--session SESSION] [--endpoint URL]")
+	fmt.Fprintln(output, "Usage: channelterm file send LOCAL_PATH [REMOTE_PATH] [--session SESSION] [--endpoint URL]")
+	fmt.Fprintln(output, "When REMOTE_PATH is omitted, files are saved under /tmp/cterm/mcp-files/.")
 }
 
 func writeFileReceiveUsage(output io.Writer) {

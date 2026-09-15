@@ -7,7 +7,7 @@ interactive Linux shell.
 ## Preconditions
 
 - The remote shell is idle and accepts POSIX-style shell commands.
-- The board provides `stty`, `dd` with `iflag=fullblock`, `wc`, and `sha256sum`. BusyBox or GNU
+- The board provides `mkdir`, `stty`, `dd` with `iflag=fullblock`, `wc`, and `sha256sum`. BusyBox or GNU
   userland may provide these commands. Directory transfer also requires `tar`; ChannelTerm checks
   `command -v tar` and does not install it.
 - The serial settings already match the board. File transfer does not change baud rate, data bits,
@@ -28,8 +28,13 @@ There is no need to start `channelterm mcp` manually or configure an AI client.
 In another terminal, send a file to the board:
 
 ```powershell
-channelterm file send firmware.bin /tmp/firmware.bin
+channelterm file send firmware.bin
 ```
+
+With no remote destination, this command-oriented path stores the file as
+`/tmp/cterm/mcp-files/firmware.bin`. ChannelTerm creates `/tmp/cterm/mcp-files/` when it is absent
+and reuses the directory when it already exists. Supply a remote destination explicitly to save
+somewhere else.
 
 In a third terminal, observe the shared transfer state without rendering raw file bytes:
 
@@ -58,7 +63,7 @@ channelterm file receive /var/log/myapp ./myapp
 When more than one shared Session is open, select one explicitly:
 
 ```powershell
-channelterm file send firmware.bin /tmp/firmware.bin --session SER-1
+channelterm file send firmware.bin --session SER-1
 channelterm file receive /tmp/log.txt ./log.txt --session SER-1
 ```
 
@@ -66,7 +71,8 @@ channelterm file receive /tmp/log.txt ./log.txt --session SER-1
 opens a Serial Transport itself; it attaches to an already-open Session and leaves that Session open
 afterward.
 
-`send` and `receive` never silently overwrite their target. If the requested remote or local name
+For every send, ChannelTerm creates a missing remote parent hierarchy with `mkdir -p` before it
+writes the file or directory. An existing hierarchy is reused. `send` and `receive` never silently overwrite their target. If the requested remote or local name
 exists, ChannelTerm chooses the first free sibling using `_1`, `_2`, and so on, preserving
 extensions including `backup.tar.gz` and `.env`. `receive` writes and verifies a temporary local
 file first, then installs it only when the chosen destination remains absent. Confirm both paths
@@ -92,7 +98,8 @@ Select:
 Press `s` or `r` once to choose immediately; the selected key is echoed after `Select:` and
 ChannelTerm then shows the path prompts. No Enter is required for the menu choice. Invalid menu keys
 are ignored locally. For send, enter a required local path and accept or edit the remote default
-`/tmp/<local-basename>`. Board paths are always POSIX paths. For receive, enter a required board
+`/tmp/cterm/user-files/<local-basename>`. The missing hierarchy is created automatically and an
+existing one is reused. Board paths are always POSIX paths. For receive, enter a required board
 path and accept or edit the local default `./<remote-basename>`, relative to the directory in which
 `attach` was started. A regular file keeps the file protocol; a directory uses tar automatically.
 Local paths use the current platform's path rules. `Esc` exits only the file menu. Each attachment

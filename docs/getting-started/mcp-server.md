@@ -50,6 +50,13 @@ The discovery decision policy is `ask`, `auto`, or `deny`. `--connection-policy`
 
 ## Waiting for a file transfer
 
+The MCP tool surface does not accept client-side file payloads. When an automation client also has
+permission to run the local ChannelTerm CLI, it can use `channelterm file send LOCAL_PATH` without
+a remote destination; ChannelTerm classifies that send under
+`/tmp/cterm/mcp-files/<local-basename>`. It creates the hierarchy when absent and reuses it when
+present. Human sends from the `Ctrl+] f` attachment menu instead default to
+`/tmp/cterm/user-files/<local-basename>`.
+
 An AI client must not use `terminal_wait` as its file-transfer completion signal. That tool waits
 only for raw terminal bytes, and a user cancellation may restore the target TTY without producing
 another prompt. Capture the `next` cursor from `terminal_session_events` before or during the

@@ -17,6 +17,11 @@ import (
 	"github.com/akira-init1/ChannelTerm/internal/core/session"
 )
 
+const (
+	mcpRemoteFileDirectory  = "/tmp/cterm/mcp-files"
+	userRemoteFileDirectory = "/tmp/cterm/user-files"
+)
+
 // attachInputPump gives the attach controller exclusive, ordered ownership of
 // raw console input. During a file transfer it continues receiving bytes so a
 // local Ctrl+C can cancel only that transfer without ending the attachment.
@@ -375,7 +380,15 @@ func readShortcutLine(pump *attachInputPump, writeLocal func([]byte) error) (str
 }
 
 func defaultRemoteTransferPath(localPath string) string {
-	return posixpath.Join("/tmp", filepath.Base(localPath))
+	return defaultUserRemoteTransferPath(localPath)
+}
+
+func defaultMCPRemoteTransferPath(localPath string) string {
+	return posixpath.Join(mcpRemoteFileDirectory, filepath.Base(localPath))
+}
+
+func defaultUserRemoteTransferPath(localPath string) string {
+	return posixpath.Join(userRemoteFileDirectory, filepath.Base(localPath))
 }
 
 func defaultLocalTransferPath(remotePath string) string {
