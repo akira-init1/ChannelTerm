@@ -79,6 +79,20 @@ func (s internalFileTransferSession) FileTransferCancelRequested() bool {
 	return ok && cancellable.FileTransferCancelRequested()
 }
 
+// FileTransferCancellationCheckpoint retains non-cancellation MCP errors while
+// adapting the attachment to Core's optional safe-boundary capability.
+func (s internalFileTransferSession) FileTransferCancellationCheckpoint(ctx context.Context) error {
+	if checkpoint, ok := s.attachSession.(interface {
+		FileTransferCancellationCheckpoint(context.Context) error
+	}); ok {
+		return checkpoint.FileTransferCancellationCheckpoint(ctx)
+	}
+	if s.FileTransferCancelRequested() {
+		return context.Canceled
+	}
+	return nil
+}
+
 // fileTransferProgressWithCancellation preserves the existing acknowledged
 // progress callback while adding the attach dispatcher's explicit cancellation
 // latch at the safe boundary immediately after a chunk is acknowledged.

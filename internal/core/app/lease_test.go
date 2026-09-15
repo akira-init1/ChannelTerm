@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/akira-init1/ChannelTerm/internal/core/session"
 )
@@ -81,5 +82,87 @@ func TestApplicationLeaseBlocksOtherWritersAndPreservesOtherSessions(t *testing.
 	}
 	if got := string(first.writtenData()); got != "transferrestored" {
 		t.Errorf("first Session bytes = %q, want transferrestored", got)
+	}
+}
+
+func TestFileTransferCancellationConfirmationPausesResumesAndCancels(t *testing.T) {
+	manager := session.NewManager()
+	terminal := newFakeConnectedSession("first")
+	if err := terminal.Connect(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if err := manager.RegisterWithMetadata(terminal, session.SessionMetadata{Transport: "serial", Endpoint: "COM1"}); err != nil {
+		t.Fatal(err)
+	}
+	application, err := New(Dependencies{Manager: manager})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := application.AcquireLease("SER-1", "transfer-owner", LeaseTypeFileTransfer); err != nil {
+		t.Fatal(err)
+	}
+	if err := application.ReportFileTransferEvent("SER-1", session.EventFileTransferProgress, "user", map[string]any{"sent": int64(24576), "total": int64(65536), "percent": 37.5}); err != nil {
+		t.Fatal(err)
+	}
+
+	request, err := application.BeginFileTransferCancel("SER-1")
+	if err != nil || !request.Active || request.RequestID == "" || request.State != "confirming" {
+		t.Fatalf("BeginFileTransferCancel() = %#v, %v", request, err)
+	}
+	checkpoint := make(chan FileTransferControlAction, 1)
+	go func() {
+		action, checkpointErr := application.FileTransferCheckpoint(context.Background(), "SER-1", "transfer-owner")
+		if checkpointErr != nil {
+			checkpoint <- FileTransferControlAction(checkpointErr.Error())
+			return
+		}
+		checkpoint <- action
+	}()
+	select {
+	case action := <-checkpoint:
+		t.Fatalf("checkpoint returned %q while confirmation was pending", action)
+	case <-time.After(20 * time.Millisecond):
+	}
+	resumed, err := application.ResolveFileTransferCancel(context.Background(), "SER-1", request.RequestID, false)
+	if err != nil || resumed.State != "resumed" {
+		t.Fatalf("ResolveFileTransferCancel(false) = %#v, %v", resumed, err)
+	}
+	if action := <-checkpoint; action != FileTransferContinue {
+		t.Fatalf("checkpoint action = %q, want continue", action)
+	}
+
+	request, err = application.BeginFileTransferCancel("SER-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	type resolutionResult struct {
+		resolution FileTransferCancelResolution
+		err        error
+	}
+	resolved := make(chan resolutionResult, 1)
+	go func() {
+		resolution, resolveErr := application.ResolveFileTransferCancel(context.Background(), "SER-1", request.RequestID, true)
+		resolved <- resolutionResult{resolution: resolution, err: resolveErr}
+	}()
+	action, err := application.FileTransferCheckpoint(context.Background(), "SER-1", "transfer-owner")
+	if err != nil || action != FileTransferCancel {
+		t.Fatalf("FileTransferCheckpoint() = %q, %v, want cancel", action, err)
+	}
+	if err := application.ReportFileTransferEvent("SER-1", session.EventFileTransferFailed, "user", map[string]any{"error": "user_cancelled", "sent": int64(24576), "total": int64(65536), "percent": 37.5}); err != nil {
+		t.Fatal(err)
+	}
+	if err := application.ReleaseLease("SER-1", "transfer-owner"); err != nil {
+		t.Fatal(err)
+	}
+	result := <-resolved
+	if result.err != nil || result.resolution.State != "cancelled" || result.resolution.Transferred != 24576 || result.resolution.Total != 65536 || result.resolution.Percent != 37.5 {
+		t.Fatalf("ResolveFileTransferCancel(true) = %#v, %v", result.resolution, result.err)
+	}
+	events, err := application.ReadSessionEvents(context.Background(), "SER-1", nil, 16)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := events.Events[len(events.Events)-1]; got.Type != session.EventFileTransferCancelled || got.Metadata["reason"] != "user_cancelled" || got.Metadata["lease_released"] != true {
+		t.Fatalf("last event = %#v, want released cancellation status", got)
 	}
 }

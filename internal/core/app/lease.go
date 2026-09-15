@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -17,6 +18,11 @@ var (
 	ErrSessionBusy = errors.New("session is busy")
 	// ErrLeaseNotOwned is returned when a caller attempts to release a lease held by another owner.
 	ErrLeaseNotOwned = errors.New("session lease is not owned by caller")
+	// ErrFileTransferCancelPending is returned when another attachment already
+	// owns the confirmation prompt for the active file transfer.
+	ErrFileTransferCancelPending = errors.New("file transfer cancellation confirmation is already pending")
+	// ErrFileTransferCancelRequest is returned for a stale or unknown request ID.
+	ErrFileTransferCancelRequest = errors.New("file transfer cancellation request is invalid")
 )
 
 // LeaseType identifies the exclusive operation currently using a Session.
@@ -52,6 +58,45 @@ type SessionLease struct {
 	State     string
 }
 
+// FileTransferCancelRequest describes a Host-owned cancellation confirmation.
+// RequestID prevents a delayed answer from affecting a later transfer.
+type FileTransferCancelRequest struct {
+	Active    bool
+	RequestID string
+	State     string
+}
+
+// FileTransferCancelResolution describes the result of answering a pending
+// confirmation. A confirmed cancellation returns only after lease release.
+type FileTransferCancelResolution struct {
+	State       string
+	Transferred int64
+	Total       int64
+	Percent     float64
+}
+
+// FileTransferControlAction tells the lease owner whether its next safe
+// protocol boundary may continue or must stop as a user cancellation.
+type FileTransferControlAction string
+
+const (
+	// FileTransferContinue allows the next file-transfer block to start.
+	FileTransferContinue FileTransferControlAction = "continue"
+	// FileTransferCancel stops the transfer after its current safe boundary.
+	FileTransferCancel FileTransferControlAction = "cancel"
+)
+
+type fileTransferControl struct {
+	requestID   string
+	state       string
+	changed     chan struct{}
+	released    chan struct{}
+	transferred int64
+	total       int64
+	percent     float64
+	resolution  FileTransferCancelResolution
+}
+
 // SessionBusyError identifies the active lease preventing a write. It unwraps
 // ErrSessionBusy so callers can handle all contention errors consistently.
 type SessionBusyError struct {
@@ -71,13 +116,19 @@ func (*SessionBusyError) Unwrap() error { return ErrSessionBusy }
 // has no dependency on Session so raw stream buffering and write serialization
 // remain Session responsibilities.
 type leaseCoordinator struct {
-	mu     sync.Mutex
-	leases map[string]SessionLease
-	gates  map[string]*sync.Mutex
+	mu                sync.Mutex
+	leases            map[string]SessionLease
+	gates             map[string]*sync.Mutex
+	fileTransfers     map[string]*fileTransferControl
+	nextCancelRequest uint64
 }
 
 func newLeaseCoordinator() *leaseCoordinator {
-	return &leaseCoordinator{leases: make(map[string]SessionLease), gates: make(map[string]*sync.Mutex)}
+	return &leaseCoordinator{
+		leases:        make(map[string]SessionLease),
+		gates:         make(map[string]*sync.Mutex),
+		fileTransfers: make(map[string]*fileTransferControl),
+	}
 }
 
 func (c *leaseCoordinator) acquire(sessionID, owner string, typ LeaseType) (SessionLease, error) {
@@ -98,10 +149,13 @@ func (c *leaseCoordinator) acquire(sessionID, owner string, typ LeaseType) (Sess
 	}
 	lease := SessionLease{SessionID: sessionID, Owner: owner, Type: typ, CreatedAt: time.Now().UTC(), State: "active"}
 	c.leases[sessionID] = lease
+	if typ == LeaseTypeFileTransfer {
+		c.fileTransfers[sessionID] = &fileTransferControl{state: "running", changed: make(chan struct{}), released: make(chan struct{})}
+	}
 	return lease, nil
 }
 
-func (c *leaseCoordinator) release(sessionID, owner string) (SessionLease, bool, error) {
+func (c *leaseCoordinator) release(sessionID, owner string) (SessionLease, bool, *FileTransferCancelResolution, error) {
 	gate := c.gate(sessionID)
 	gate.Lock()
 	defer gate.Unlock()
@@ -109,13 +163,166 @@ func (c *leaseCoordinator) release(sessionID, owner string) (SessionLease, bool,
 	defer c.mu.Unlock()
 	active, exists := c.leases[sessionID]
 	if !exists {
-		return SessionLease{}, false, nil
+		return SessionLease{}, false, nil, nil
 	}
 	if active.Owner != owner {
-		return SessionLease{}, false, ErrLeaseNotOwned
+		return SessionLease{}, false, nil, ErrLeaseNotOwned
 	}
 	delete(c.leases, sessionID)
-	return active, true, nil
+	var cancelled *FileTransferCancelResolution
+	if control := c.fileTransfers[sessionID]; control != nil {
+		switch control.state {
+		case "cancelled":
+			control.resolution = FileTransferCancelResolution{
+				State:       "cancelled",
+				Transferred: control.transferred,
+				Total:       control.total,
+				Percent:     control.percent,
+			}
+			result := control.resolution
+			cancelled = &result
+		case "confirming":
+			// The transfer can finish its final verification before reaching
+			// another checkpoint. Preserve this request until the attachment
+			// consumes its prompt answer, but do not turn success into cancel.
+			control.state = "completed"
+			control.resolution = FileTransferCancelResolution{State: "completed", Transferred: control.transferred, Total: control.total, Percent: control.percent}
+		}
+		close(control.released)
+		close(control.changed)
+		if control.state != "completed" {
+			delete(c.fileTransfers, sessionID)
+		}
+	}
+	return active, true, cancelled, nil
+}
+
+func (c *leaseCoordinator) beginFileTransferCancel(sessionID string) (FileTransferCancelRequest, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	lease, exists := c.leases[sessionID]
+	if !exists || lease.Type != LeaseTypeFileTransfer {
+		return FileTransferCancelRequest{Active: false, State: "inactive"}, nil
+	}
+	control := c.fileTransfers[sessionID]
+	if control == nil {
+		return FileTransferCancelRequest{}, errors.New("active file-transfer lease has no control state")
+	}
+	if control.state != "running" {
+		return FileTransferCancelRequest{}, ErrFileTransferCancelPending
+	}
+	c.nextCancelRequest++
+	control.requestID = fmt.Sprintf("file-transfer-cancel-%d", c.nextCancelRequest)
+	control.state = "confirming"
+	return FileTransferCancelRequest{Active: true, RequestID: control.requestID, State: control.state}, nil
+}
+
+func (c *leaseCoordinator) resolveFileTransferCancel(ctx context.Context, sessionID, requestID string, cancel bool) (FileTransferCancelResolution, error) {
+	c.mu.Lock()
+	control := c.fileTransfers[sessionID]
+	if control != nil && control.state == "completed" && control.requestID == requestID {
+		result := control.resolution
+		delete(c.fileTransfers, sessionID)
+		c.mu.Unlock()
+		return result, nil
+	}
+	if control == nil || control.state != "confirming" || control.requestID != requestID {
+		c.mu.Unlock()
+		return FileTransferCancelResolution{}, ErrFileTransferCancelRequest
+	}
+	oldChanged := control.changed
+	control.changed = make(chan struct{})
+	if !cancel {
+		control.state = "running"
+		control.requestID = ""
+		result := FileTransferCancelResolution{State: "resumed", Transferred: control.transferred, Total: control.total, Percent: control.percent}
+		close(oldChanged)
+		c.mu.Unlock()
+		return result, nil
+	}
+	control.state = "cancelled"
+	released := control.released
+	close(oldChanged)
+	c.mu.Unlock()
+
+	select {
+	case <-ctx.Done():
+		return FileTransferCancelResolution{}, ctx.Err()
+	case <-released:
+		return control.resolution, nil
+	}
+}
+
+func (c *leaseCoordinator) fileTransferCheckpoint(ctx context.Context, sessionID, owner string) (FileTransferControlAction, error) {
+	for {
+		c.mu.Lock()
+		lease, exists := c.leases[sessionID]
+		if !exists || lease.Owner != owner || lease.Type != LeaseTypeFileTransfer {
+			c.mu.Unlock()
+			return "", ErrLeaseNotOwned
+		}
+		control := c.fileTransfers[sessionID]
+		if control == nil || control.state == "running" {
+			c.mu.Unlock()
+			return FileTransferContinue, nil
+		}
+		if control.state == "cancelled" {
+			c.mu.Unlock()
+			return FileTransferCancel, nil
+		}
+		changed := control.changed
+		c.mu.Unlock()
+		select {
+		case <-ctx.Done():
+			return "", ctx.Err()
+		case <-changed:
+		}
+	}
+}
+
+func (c *leaseCoordinator) recordFileTransferProgress(sessionID string, metadata map[string]any) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	control := c.fileTransfers[sessionID]
+	if control == nil {
+		return
+	}
+	control.transferred = fileTransferMetadataInt64(metadata, "sent", "received", "transferred")
+	control.total = fileTransferMetadataInt64(metadata, "total")
+	control.percent = fileTransferMetadataFloat64(metadata, "percent")
+}
+
+func (c *leaseCoordinator) fileTransferCancelConfirmed(sessionID string) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	control := c.fileTransfers[sessionID]
+	return control != nil && control.state == "cancelled"
+}
+
+func fileTransferMetadataInt64(metadata map[string]any, keys ...string) int64 {
+	for _, key := range keys {
+		switch value := metadata[key].(type) {
+		case int:
+			return int64(value)
+		case int64:
+			return value
+		case float64:
+			return int64(value)
+		}
+	}
+	return 0
+}
+
+func fileTransferMetadataFloat64(metadata map[string]any, key string) float64 {
+	switch value := metadata[key].(type) {
+	case float64:
+		return value
+	case int:
+		return float64(value)
+	case int64:
+		return float64(value)
+	}
+	return 0
 }
 
 func (c *leaseCoordinator) status(sessionID string) (SessionLease, bool) {
@@ -145,6 +352,11 @@ func (c *leaseCoordinator) remove(sessionID string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	delete(c.leases, sessionID)
+	if control := c.fileTransfers[sessionID]; control != nil {
+		close(control.released)
+		close(control.changed)
+		delete(c.fileTransfers, sessionID)
+	}
 }
 
 // gate returns a stable per-Session operation gate. Holding it over a complete

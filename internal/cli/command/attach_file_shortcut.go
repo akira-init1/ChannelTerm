@@ -574,7 +574,28 @@ func (s nonClosingAttachSession) ReportFileTransferEvent(ctx context.Context, ty
 // FileTransferCancelRequested lets Core stop before starting a new regular
 // file chunk after the local transfer worker has completed the current one.
 func (s nonClosingAttachSession) FileTransferCancelRequested() bool {
-	return s.cancellation != nil && s.cancellation.Requested()
+	if s.cancellation != nil && s.cancellation.Requested() {
+		return true
+	}
+	requester, ok := s.attachSession.(interface{ FileTransferCancelRequested() bool })
+	return ok && requester.FileTransferCancelRequested()
+}
+
+// FileTransferCancellationCheckpoint combines the local shortcut prompt with
+// Host control requests made by other attachments without losing MCP errors.
+func (s nonClosingAttachSession) FileTransferCancellationCheckpoint(ctx context.Context) error {
+	if s.cancellation != nil && s.cancellation.Requested() {
+		return context.Canceled
+	}
+	if checkpoint, ok := s.attachSession.(interface {
+		FileTransferCancellationCheckpoint(context.Context) error
+	}); ok {
+		return checkpoint.FileTransferCancellationCheckpoint(ctx)
+	}
+	if requester, ok := s.attachSession.(interface{ FileTransferCancelRequested() bool }); ok && requester.FileTransferCancelRequested() {
+		return context.Canceled
+	}
+	return nil
 }
 
 var fileTransferMenuText = []byte("\r\nFile transfer:\r\n  s  Send PC -> Board\r\n  r  Receive Board -> PC\r\n  Esc  Cancel\r\nSelect: ")

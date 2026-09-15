@@ -854,6 +854,78 @@ func (s *mcpAttachSession) ReleaseFileTransferLease(ctx context.Context) error {
 	return nil
 }
 
+// BeginFileTransferCancel asks the Host whether another client currently owns
+// a file-transfer lease and, if so, opens one cancellation confirmation.
+func (s *mcpAttachSession) BeginFileTransferCancel(ctx context.Context) (string, bool, error) {
+	var result struct {
+		Active    bool   `json:"active"`
+		RequestID string `json:"request_id"`
+	}
+	if err := s.call(ctx, "terminal_begin_file_transfer_cancel", map[string]any{"session_id": s.id}, &result); err != nil {
+		return "", false, err
+	}
+	return result.RequestID, result.Active, nil
+}
+
+func (s *mcpAttachSession) fileTransferCancelPromptStarted() {
+	s.fileTransferPresentationMu.RLock()
+	presentation := s.presentation
+	s.fileTransferPresentationMu.RUnlock()
+	if presentation != nil {
+		presentation.beginCancelConfirmation()
+	}
+}
+
+func (s *mcpAttachSession) fileTransferCancelPromptFinished() {
+	s.fileTransferPresentationMu.RLock()
+	presentation := s.presentation
+	s.fileTransferPresentationMu.RUnlock()
+	if presentation != nil {
+		presentation.finishCancelConfirmation()
+	}
+}
+
+// ResolveFileTransferCancel forwards the local confirmation answer. A true
+// answer returns only after the transfer owner has released its lease.
+func (s *mcpAttachSession) ResolveFileTransferCancel(ctx context.Context, requestID string, cancelTransfer bool) (string, error) {
+	var result struct {
+		State string `json:"state"`
+	}
+	err := s.call(ctx, "terminal_resolve_file_transfer_cancel", map[string]any{
+		"session_id": s.id,
+		"request_id": requestID,
+		"cancel":     cancelTransfer,
+	}, &result)
+	return result.State, err
+}
+
+// FileTransferCancelRequested checks the Host at a safe protocol boundary.
+// The call blocks while another attachment is showing the confirmation prompt.
+func (s *mcpAttachSession) FileTransferCancelRequested() bool {
+	return s.FileTransferCancellationCheckpoint(context.Background()) != nil
+}
+
+// FileTransferCancellationCheckpoint preserves Host or MCP errors separately
+// from the context.Canceled result of an explicit user confirmation.
+func (s *mcpAttachSession) FileTransferCancellationCheckpoint(ctx context.Context) error {
+	if s.leaseOwner == "" {
+		return nil
+	}
+	var result struct {
+		Action string `json:"action"`
+	}
+	if err := s.call(ctx, "terminal_file_transfer_checkpoint", map[string]any{
+		"session_id": s.id,
+		"owner":      s.leaseOwner,
+	}, &result); err != nil {
+		return err
+	}
+	if result.Action == "cancel" {
+		return context.Canceled
+	}
+	return nil
+}
+
 // ReportFileTransferEvent forwards structured file-transfer state to the host
 // Session event stream. It never writes terminal bytes.
 func (s *mcpAttachSession) ReportFileTransferEvent(ctx context.Context, typ session.EventType, metadata map[string]any) error {

@@ -88,6 +88,43 @@ func TestFileTransferPresentationRendersCompletedChecksumSummary(t *testing.T) {
 	}
 }
 
+func TestFileTransferPresentationDoesNotRedrawOverCancelConfirmation(t *testing.T) {
+	presentation := newFileTransferPresentation()
+	var output bytes.Buffer
+	write := func(data []byte) error {
+		_, err := output.Write(data)
+		return err
+	}
+	first := time.Date(2026, time.September, 15, 7, 17, 45, 0, time.Local)
+	if err := presentation.handle(session.Event{Timestamp: first, Type: session.EventFileTransferProgress, Metadata: map[string]any{
+		"sent": int64(16384), "total": int64(524288), "percent": 3.125,
+	}}, false, write); err != nil {
+		t.Fatal(err)
+	}
+	presentation.beginCancelConfirmation()
+	beforePendingProgress := output.String()
+	if err := presentation.handle(session.Event{Timestamp: first.Add(time.Second), Type: session.EventFileTransferProgress, Metadata: map[string]any{
+		"sent": int64(24576), "total": int64(524288), "percent": 4.6875,
+	}}, false, write); err != nil {
+		t.Fatal(err)
+	}
+	if got := output.String(); got != beforePendingProgress {
+		t.Fatalf("output while confirmation pending = %q, want no progress redraw", got)
+	}
+	if err := presentation.handle(session.Event{Timestamp: first.Add(2 * time.Second), Type: session.EventFileTransferCancelled, Metadata: map[string]any{
+		"transferred": int64(24576), "total": int64(524288), "percent": 4.6875, "reason": "user_cancelled",
+	}}, false, write); err != nil {
+		t.Fatal(err)
+	}
+	got := output.String()
+	if strings.Count(got, "Transferred 24576/524288") != 0 {
+		t.Fatalf("output = %q, pending progress frame must remain hidden", got)
+	}
+	if !strings.Contains(got, "File transfer cancelled\r\n  Transferred: 24576/524288 bytes (4.7%)") {
+		t.Fatalf("output = %q, want cancellation summary with latest confirmed progress", got)
+	}
+}
+
 func TestFileTransferPresentationRendersCancellationAndFailureSummaries(t *testing.T) {
 	timestamp := time.Date(2026, time.September, 15, 9, 24, 58, 0, time.Local)
 	for _, tt := range []struct {

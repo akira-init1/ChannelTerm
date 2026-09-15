@@ -281,14 +281,16 @@ non-empty regular file first displays a 0% frame before its first payload (for r
 board announces its size); this initial frame has no speed or ETA. Later frames show acknowledged
 progress: a 20-cell ASCII bar (`#` complete, `-` remaining), percentage, transferred and total sizes
 using B/KiB/MiB/GiB, measured speed, and an ETA when speed is usable. A successful transfer renders
-100% and terminates the line before its existing verification summary. For an active shortcut
-transfer, Ctrl+C opens a default-No local confirmation and pauses progress at the next safe block
-boundary. Only `y` or `Y` cancels; every other answer resumes. A confirmed cancellation restores the
+100% and terminates the line before its existing verification summary. While any process owns an
+active `file-transfer` lease, Ctrl+C in a bundled attachment opens a default-No local confirmation and pauses progress at the next safe block
+boundary. Acknowledgement of an already active block updates the eventual byte summary without
+redrawing the progress line over the prompt. Only `y` or `Y` cancels; every other answer resumes. A confirmed cancellation restores the
 target TTY, removes temporary transfer data, releases the lease, and prints one timestamped status
 with the last confirmed byte counts. Cancellation and failure terminate a rendered progress line
 before printing their status; no success summary or 100% state is printed for those outcomes. The
-CLI also publishes `FILE_TRANSFER_STARTED`, `FILE_TRANSFER_PROGRESS`,
-`FILE_TRANSFER_COMPLETED`, or `FILE_TRANSFER_FAILED` events to the host-owned Session; the local
+CLI publishes `FILE_TRANSFER_STARTED`, `FILE_TRANSFER_PROGRESS`, `FILE_TRANSFER_COMPLETED`, or
+`FILE_TRANSFER_FAILED`; after a Host-mediated cancellation, the Host publishes
+`FILE_TRANSFER_CANCELLED` only after lease release. The local
 initial 0% frame does not add a progress event. Directory events add `kind: "directory"`; their
 progress counts actual tar-stream bytes, calculated with a first standard-library tar counting pass
 and sent through a temporary target-side archive in acknowledged blocks. The remote shell must

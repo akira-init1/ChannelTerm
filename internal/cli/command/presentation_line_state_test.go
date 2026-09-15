@@ -45,7 +45,7 @@ func TestFileTransferEventStatusTimestampsTerminalEventsOnly(t *testing.T) {
 		{name: "started", event: session.Event{Timestamp: timestamp, Type: session.EventFileTransferStarted, Metadata: map[string]any{"local_path": "go.mod", "remote_path": "/tmp/go.mod"}}, want: "[16:08:12] [ChannelTerm] File transfer started: go.mod -> /tmp/go.mod\r\n"},
 		{name: "completed", event: session.Event{Timestamp: timestamp, Type: session.EventFileTransferCompleted}, want: "[16:08:12] [ChannelTerm] File transfer completed\r\n"},
 		{name: "failed", event: session.Event{Timestamp: timestamp, Type: session.EventFileTransferFailed, Metadata: map[string]any{"error": "checksum mismatch"}}, want: "[16:08:12] [ChannelTerm] File transfer failed\r\n  Transferred: 0/0 bytes (0.0%)\r\n  Error      : checksum mismatch\r\n"},
-		{name: "cancelled", event: session.Event{Timestamp: timestamp, Type: session.EventFileTransferFailed, Metadata: map[string]any{"error": "context canceled"}}, want: "[16:08:12] [ChannelTerm] File transfer cancelled\r\n  Transferred: 0/0 bytes (0.0%)\r\n  Reason     : cancelled by user\r\n"},
+		{name: "cancelled", event: session.Event{Timestamp: timestamp, Type: session.EventFileTransferCancelled, Metadata: map[string]any{"reason": "user_cancelled"}}, want: "[16:08:12] [ChannelTerm] File transfer cancelled\r\n  Transferred: 0/0 bytes (0.0%)\r\n  Reason     : cancelled by user\r\n"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			var output bytes.Buffer

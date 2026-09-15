@@ -171,6 +171,9 @@ func serialToolsForApplication(application *app.Application) []tool.Tool {
 		&writeTool{serialTools: dependencies},
 		&writeLeasedTool{serialTools: dependencies},
 		&acquireLeaseTool{serialTools: dependencies},
+		&beginFileTransferCancelTool{serialTools: dependencies},
+		&resolveFileTransferCancelTool{serialTools: dependencies},
+		&fileTransferCheckpointTool{serialTools: dependencies},
 		&releaseLeaseTool{serialTools: dependencies},
 		&closeTool{serialTools: dependencies},
 	}
@@ -973,6 +976,108 @@ func (t *acquireLeaseTool) Call(ctx context.Context, input json.RawMessage) (too
 	return leaseResult(lease), nil
 }
 
+// beginFileTransferCancelTool opens the user confirmation state for the
+// active file-transfer lease without affecting ordinary terminal Sessions.
+type beginFileTransferCancelTool struct{ *serialTools }
+
+// Name returns the stable cancellation-begin Tool identifier.
+func (*beginFileTransferCancelTool) Name() string { return "terminal_begin_file_transfer_cancel" }
+
+// Description explains the conditional Ctrl+C control operation.
+func (*beginFileTransferCancelTool) Description() string {
+	return "Begin cancellation confirmation only when a file-transfer lease is active on the Session."
+}
+
+// InputSchema describes the observed Session.
+func (*beginFileTransferCancelTool) InputSchema() tool.InputSchema {
+	return tool.InputSchema{Type: "object", Properties: map[string]tool.InputProperty{
+		"session_id": {Type: "string", Description: "Session ID or short reference."},
+	}, Required: []string{"session_id"}}
+}
+
+// Call returns inactive for an ordinary terminal Session or a request ID that
+// must accompany the user's confirmation answer.
+func (t *beginFileTransferCancelTool) Call(ctx context.Context, input json.RawMessage) (tool.Result, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	var args fileTransferControlInput
+	if err := decodeInput(input, &args); err != nil {
+		return nil, err
+	}
+	request, err := t.application.BeginFileTransferCancel(args.SessionID)
+	if err != nil {
+		return nil, err
+	}
+	return tool.Result{"active": request.Active, "request_id": request.RequestID, "state": request.State}, nil
+}
+
+// resolveFileTransferCancelTool applies one confirmation answer.
+type resolveFileTransferCancelTool struct{ *serialTools }
+
+// Name returns the stable cancellation-resolution Tool identifier.
+func (*resolveFileTransferCancelTool) Name() string { return "terminal_resolve_file_transfer_cancel" }
+
+// Description explains that only cancel=true stops a transfer.
+func (*resolveFileTransferCancelTool) Description() string {
+	return "Resolve a file-transfer cancellation confirmation; false resumes and true waits for safe cleanup and lease release."
+}
+
+// InputSchema describes the request ID and explicit confirmation answer.
+func (*resolveFileTransferCancelTool) InputSchema() tool.InputSchema {
+	return tool.InputSchema{Type: "object", Properties: map[string]tool.InputProperty{
+		"session_id": {Type: "string", Description: "Session ID or short reference."},
+		"request_id": {Type: "string", Description: "Request ID returned by terminal_begin_file_transfer_cancel."},
+		"cancel":     {Type: "boolean", Description: "True only for an explicit y/Y answer."},
+	}, Required: []string{"session_id", "request_id", "cancel"}}
+}
+
+// Call resumes immediately or waits for confirmed cancellation cleanup.
+func (t *resolveFileTransferCancelTool) Call(ctx context.Context, input json.RawMessage) (tool.Result, error) {
+	var args fileTransferControlInput
+	if err := decodeInput(input, &args); err != nil {
+		return nil, err
+	}
+	result, err := t.application.ResolveFileTransferCancel(ctx, args.SessionID, args.RequestID, args.Cancel)
+	if err != nil {
+		return nil, err
+	}
+	return tool.Result{"state": result.State, "transferred": result.Transferred, "total": result.Total, "percent": result.Percent}, nil
+}
+
+// fileTransferCheckpointTool blocks the lease owner only while a local user is
+// deciding whether to cancel at a safe protocol boundary.
+type fileTransferCheckpointTool struct{ *serialTools }
+
+// Name returns the stable transfer checkpoint Tool identifier.
+func (*fileTransferCheckpointTool) Name() string { return "terminal_file_transfer_checkpoint" }
+
+// Description explains the lease-owner polling contract.
+func (*fileTransferCheckpointTool) Description() string {
+	return "Check a file-transfer lease at a safe block boundary, waiting while cancellation confirmation is pending."
+}
+
+// InputSchema describes the Session and its opaque lease capability.
+func (*fileTransferCheckpointTool) InputSchema() tool.InputSchema {
+	return tool.InputSchema{Type: "object", Properties: map[string]tool.InputProperty{
+		"session_id": {Type: "string", Description: "Session ID or short reference."},
+		"owner":      {Type: "string", Description: "Opaque owner capability for the active file-transfer lease."},
+	}, Required: []string{"session_id", "owner"}}
+}
+
+// Call returns continue or cancel after any pending confirmation is resolved.
+func (t *fileTransferCheckpointTool) Call(ctx context.Context, input json.RawMessage) (tool.Result, error) {
+	var args fileTransferControlInput
+	if err := decodeInput(input, &args); err != nil {
+		return nil, err
+	}
+	action, err := t.application.FileTransferCheckpoint(ctx, args.SessionID, args.Owner)
+	if err != nil {
+		return nil, err
+	}
+	return tool.Result{"action": string(action)}, nil
+}
+
 // releaseLeaseTool releases a caller-owned exclusive Session lease.
 type releaseLeaseTool struct{ *serialTools }
 
@@ -1097,6 +1202,13 @@ type fileTransferEventInput struct {
 	Type      string         `json:"type"`
 	Actor     string         `json:"actor"`
 	Metadata  map[string]any `json:"metadata"`
+}
+
+type fileTransferControlInput struct {
+	SessionID string `json:"session_id"`
+	Owner     string `json:"owner"`
+	RequestID string `json:"request_id"`
+	Cancel    bool   `json:"cancel"`
 }
 
 type deviceEventsInput struct {
