@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http/httptest"
 	"reflect"
@@ -303,6 +304,101 @@ func TestMCPAttachControlsExternallyOwnedFileTransferCancellation(t *testing.T) 
 	if last.Type != session.EventFileTransferCancelled || last.Metadata["reason"] != "user_cancelled" || last.Metadata["lease_released"] != true {
 		t.Fatalf("last event = %#v, want released user cancellation", last)
 	}
+}
+
+func TestMCPAttachLocalCancellationAfterExternalCancellationInterruptsProtocolWait(t *testing.T) {
+	host := newAttachTestHost(t)
+	defer host.close()
+	externalOwner := newAttachedForTest(t, host.server.URL)
+	defer func() { _ = externalOwner.Close() }()
+	attached := newAttachedForTest(t, host.server.URL)
+	defer func() { _ = attached.Close() }()
+
+	externalLease := externalOwner.(fileLeaseSession)
+	if err := externalLease.AcquireFileTransferLease(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	controller := attached.(fileTransferCancelController)
+	requestID, active, err := controller.BeginFileTransferCancel(context.Background())
+	if err != nil || !active {
+		t.Fatalf("external BeginFileTransferCancel() = %q, %t, %v", requestID, active, err)
+	}
+	externalResolved := make(chan error, 1)
+	go func() {
+		state, resolveErr := controller.ResolveFileTransferCancel(context.Background(), requestID, true)
+		if resolveErr == nil && state != "cancelled" {
+			resolveErr = fmt.Errorf("external cancellation state = %q", state)
+		}
+		externalResolved <- resolveErr
+	}()
+	if cancelled := externalOwner.(interface{ FileTransferCancelRequested() bool }).FileTransferCancelRequested(); !cancelled {
+		t.Fatal("external owner did not observe cancellation")
+	}
+	if err := externalLease.ReleaseFileTransferLease(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if err := <-externalResolved; err != nil {
+		t.Fatal(err)
+	}
+
+	inputReader, inputWriter := io.Pipe()
+	defer inputReader.Close()
+	defer inputWriter.Close()
+	pump := newAttachInputPump(inputReader)
+	var output lockedBuffer
+	localStarted := make(chan struct{})
+	dispatcher := newAttachInputDispatcherWithPump(context.Background(), &pump, attached, func(data []byte) error {
+		_, writeErr := output.Write(data)
+		return writeErr
+	}, func() error { return nil }, func() {}, func(workerCtx context.Context, transfer attachSession, _ io.Writer, _ func() bool, _ string, _, _ string) error {
+		lease := transfer.(fileLeaseSession)
+		if acquireErr := lease.AcquireFileTransferLease(workerCtx); acquireErr != nil {
+			return acquireErr
+		}
+		defer func() { _ = lease.ReleaseFileTransferLease(context.Background()) }()
+		close(localStarted)
+		_, readErr := transfer.ReadOutput(workerCtx, 0, 128)
+		return readErr
+	})
+	dispatchDone := make(chan struct{})
+	go func() {
+		dispatcher.run()
+		close(dispatchDone)
+	}()
+	if _, err := inputWriter.Write([]byte("\x1dfssources.bin\n\n")); err != nil {
+		t.Fatal(err)
+	}
+	waitForSignal(t, localStarted, "local transfer protocol wait")
+	if _, err := inputWriter.Write([]byte{0x03}); err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.Now().Add(time.Second)
+	for !strings.Contains(output.String(), "Cancel file transfer? [y/N]:") && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	if _, err := inputWriter.Write([]byte{'Y'}); err != nil {
+		t.Fatal(err)
+	}
+	deadline = time.Now().Add(time.Second)
+	for !strings.Contains(output.String(), "Reason     : cancelled by user") && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	if got := output.String(); !strings.Contains(got, "File transfer cancelled") || strings.Contains(got, "Input ignored during file transfer") {
+		t.Fatalf("output = %q, want completed local cancellation without a stuck input mode", got)
+	}
+
+	agent, closeAgent := newAttachTestAgent(t, host.server.URL)
+	defer closeAgent()
+	write, err := agent.CallTool(context.Background(), &protocol.CallToolParams{Name: "terminal_write", Arguments: map[string]any{
+		"session_id": "board", "data": "lease released\n",
+	}})
+	if err != nil || write == nil || write.IsError {
+		t.Fatalf("terminal_write after local cancellation = %#v, %v", write, err)
+	}
+	if err := inputWriter.Close(); err != nil {
+		t.Fatal(err)
+	}
+	waitForSignal(t, dispatchDone, "dispatcher exit")
 }
 
 func TestMCPAttachMultipleConsumersReceiveSameOutput(t *testing.T) {

@@ -413,11 +413,24 @@ func (d *attachInputDispatcher) startTransfer(direction, firstPath, secondPath s
 	d.transferDone = done
 	cancellation := d.transferCancellation
 	go func() {
-		// Console cancellation is deliberately communicated through the optional
-		// session capability rather than this Context: started raw chunks must
-		// complete and restore the remote TTY before the lease is released.
-		workerCtx := context.WithoutCancel(d.ctx)
-		done <- d.transferRunner(workerCtx, nonClosingAttachSession{attachSession: d.terminal, cancellation: cancellation}, localOutputWriter{write: d.writeLocal, suppressFileTransferResultText: true}, cancellation.Requested, direction, firstPath, secondPath)
+		// Detaching still requests the same safe cancellation through the latch,
+		// but an explicit confirmed cancellation also closes the worker Context.
+		// This releases protocol-marker waits that would otherwise never reach
+		// their next polling boundary. Raw-block error paths retain independent
+		// cleanup contexts so they can restore the remote TTY before lease release.
+		workerCtx, cancelWorker := context.WithCancel(context.WithoutCancel(d.ctx))
+		cancelWatchDone := make(chan struct{})
+		go func() {
+			select {
+			case <-cancellation.ch:
+				cancelWorker()
+			case <-cancelWatchDone:
+			}
+		}()
+		err := d.transferRunner(workerCtx, nonClosingAttachSession{attachSession: d.terminal, cancellation: cancellation}, localOutputWriter{write: d.writeLocal, suppressFileTransferResultText: true}, cancellation.Requested, direction, firstPath, secondPath)
+		close(cancelWatchDone)
+		cancelWorker()
+		done <- err
 	}()
 }
 
