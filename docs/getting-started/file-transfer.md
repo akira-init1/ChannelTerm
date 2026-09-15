@@ -109,6 +109,12 @@ releases the lease, publishes `FILE_TRANSFER_CANCELLED` with `reason: user_cance
 returns to the attachment. Directory transfers use the same bounded blocks instead of one full-size
 raw tar interval.
 
+After `y` or `Y`, ChannelTerm also cancels an outstanding wait for a protocol marker such as
+`PICK`, `INIT`, `READY`, `ACK`, or `FINAL`. This prevents a missing board response from trapping the
+attachment in file-transfer mode. If raw payload transfer has already started, its bounded cleanup
+continues independently until it completes or drains that bounded block and restores the target
+TTY before the lease is released.
+
 ## Transfer flow
 
 ```text

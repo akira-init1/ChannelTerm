@@ -102,6 +102,58 @@ func TestAttachInputDispatcherRoutesControlCByMode(t *testing.T) {
 	waitForSignal(t, dispatchDone, "dispatcher exit")
 }
 
+func TestAttachInputDispatcherConfirmedCancellationInterruptsProtocolWait(t *testing.T) {
+	inputReader, inputWriter := io.Pipe()
+	defer inputReader.Close()
+	defer inputWriter.Close()
+	pump := newAttachInputPump(inputReader)
+	attached := &fakeAttachSession{}
+	var output lockedBuffer
+	started := make(chan struct{})
+	waitCancelled := make(chan struct{})
+	dispatcher := newAttachInputDispatcherWithPump(context.Background(), &pump, attached, func(data []byte) error {
+		_, err := output.Write(data)
+		return err
+	}, func() error { return nil }, func() {}, func(workerCtx context.Context, _ attachSession, _ io.Writer, _ func() bool, _ string, _, _ string) error {
+		close(started)
+		<-workerCtx.Done()
+		close(waitCancelled)
+		return workerCtx.Err()
+	})
+	done := make(chan struct{})
+	go func() {
+		dispatcher.run()
+		close(done)
+	}()
+
+	if _, err := inputWriter.Write([]byte("\x1dfssources.bin\n\n")); err != nil {
+		t.Fatal(err)
+	}
+	waitForSignal(t, started, "blocked protocol wait")
+	if _, err := inputWriter.Write([]byte{0x03}); err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.Now().Add(time.Second)
+	for !strings.Contains(output.String(), "Cancel file transfer? [y/N]:") && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	if _, err := inputWriter.Write([]byte{'y'}); err != nil {
+		t.Fatal(err)
+	}
+	waitForSignal(t, waitCancelled, "protocol wait cancellation")
+	deadline = time.Now().Add(time.Second)
+	for !strings.Contains(output.String(), "File transfer cancelled") && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	if got := output.String(); !strings.Contains(got, "Reason     : cancelled by user") {
+		t.Fatalf("output = %q, want completed cancellation summary", got)
+	}
+	if err := inputWriter.Close(); err != nil {
+		t.Fatal(err)
+	}
+	waitForSignal(t, done, "dispatcher exit")
+}
+
 func TestAttachInputDispatcherDeclinesCancellationAndResumesAtBoundary(t *testing.T) {
 	for _, tt := range []struct {
 		name   string

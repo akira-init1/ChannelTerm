@@ -288,6 +288,9 @@ redrawing the progress line over the prompt. Only `y` or `Y` cancels; every othe
 target TTY, removes temporary transfer data, releases the lease, and prints one timestamped status
 with the last confirmed byte counts. Cancellation and failure terminate a rendered progress line
 before printing their status; no success summary or 100% state is printed for those outcomes. The
+confirmed cancellation also interrupts an outstanding protocol-marker wait, while an already
+started raw block uses its cleanup path before lease release. This keeps a missing marker from
+leaving attach input permanently locked. The
 CLI publishes `FILE_TRANSFER_STARTED`, `FILE_TRANSFER_PROGRESS`, `FILE_TRANSFER_COMPLETED`, or
 `FILE_TRANSFER_FAILED`; after a Host-mediated cancellation, the Host publishes
 `FILE_TRANSFER_CANCELLED` only after lease release. The local
