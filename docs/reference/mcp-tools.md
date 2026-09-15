@@ -241,7 +241,9 @@ shell prompt.
 - Required input: `session_id`, `cursor`.
 - Optional input: `max_events` (0 means 1024), `timeout_ms`.
 - Result: `state` (`completed`, `cancelled`, or `failed`), the terminal `event`, `next`, and
-  `dropped`.
+  `dropped`. A completed PC-to-board send also returns top-level `requested_path`, `resolved_path`,
+  and `renamed`; regular files additionally return `sha256`. `resolved_path` is the authoritative
+  board path after collision handling.
 
 Capture the Session event cursor before starting the transfer, or retain the `next` cursor returned
 while observing its progress. The cursor prevents a terminal event from an older transfer from
@@ -255,6 +257,21 @@ satisfying the wait.
 {"state":"cancelled","event":{"id":11,"timestamp":"2026-09-15T08:51:51Z","session_id":"0123456789abcdef0123456789abcdef","type":"FILE_TRANSFER_CANCELLED","actor":"user","metadata":{"transferred":32768,"total":98304,"percent":33.3,"reason":"user_cancelled","lease_released":true}},"next":12,"dropped":false}
 ```
 
+A successful send whose requested name already exists returns the resolved name directly:
+
+```json
+{"state":"completed","requested_path":"/tmp/cterm/mcp-files/app.bin","resolved_path":"/tmp/cterm/mcp-files/app_1.bin","renamed":true,"sha256":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef","event":{"type":"FILE_TRANSFER_COMPLETED","metadata":{"requested_path":"/tmp/cterm/mcp-files/app.bin","resolved_path":"/tmp/cterm/mcp-files/app_1.bin","renamed":true,"sha256":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"}},"next":13,"dropped":false}
+```
+
+Send results do not include the former ambiguous `remote_path` field. Clients should use the
+top-level `resolved_path` for subsequent board operations. The path fields
+are absent for cancellation, failure, and board-to-PC receive results because those states do not
+establish a newly resolved board destination.
+
+Migration: clients that previously read `event.metadata.remote_path` for PC-to-board sends must use
+`requested_path` while observing start/progress state and top-level `resolved_path` after
+`terminal_wait_file_transfer` returns `state: "completed"`.
+
 Progress, lease, attachment, and other lifecycle events are consumed internally until a transfer
 terminal event appears. A confirmed cancellation therefore returns only after bounded protocol
 cleanup and lease release. `next` points immediately after the returned event, including when later
@@ -266,7 +283,7 @@ limit or timeout, cancellation, deadline, EOF, or event-buffer failure.
 
 `terminal_session_attach` and `terminal_session_detach` record a CLI attachment lifecycle event. They require `session_id` and accept an optional `actor`; they neither acquire a lease nor write or close a Session. The bundled CLI calls them while opening and closing an MCP attachment.
 
-`terminal_report_file_transfer` is the bundled CLI's status bridge to the host-owned event stream. It requires `session_id` and `type` (`FILE_TRANSFER_STARTED`, `FILE_TRANSFER_PROGRESS`, `FILE_TRANSFER_COMPLETED`, or `FILE_TRANSFER_FAILED`) and accepts optional `actor` and JSON-compatible `metadata`. It never writes terminal bytes. `FILE_TRANSFER_CANCELLED` is Host-generated after a confirmed cross-process cancellation releases its lease and cannot be forged through this reporting tool. AI clients can inspect all state through `terminal_session_events` or wait for one terminal outcome through `terminal_wait_file_transfer`; they should not treat report calls as a substitute for the existing file protocol or lease tools.
+`terminal_report_file_transfer` is the bundled CLI's status bridge to the host-owned event stream. It requires `session_id` and `type` (`FILE_TRANSFER_STARTED`, `FILE_TRANSFER_PROGRESS`, `FILE_TRANSFER_COMPLETED`, or `FILE_TRANSFER_FAILED`) and accepts optional `actor` and JSON-compatible `metadata`. It never writes terminal bytes. A send starts and reports progress with its original `requested_path`; completion adds the authoritative `resolved_path` and boolean `renamed`, while a regular file also records `sha256`. Send events do not use the former ambiguous `remote_path` field. `FILE_TRANSFER_CANCELLED` is Host-generated after a confirmed cross-process cancellation releases its lease and cannot be forged through this reporting tool. AI clients can inspect all state through `terminal_session_events` or wait for one terminal outcome through `terminal_wait_file_transfer`; they should not treat report calls as a substitute for the existing file protocol or lease tools.
 
 Bundled CLI progress metadata carries `sent` or `received`, `total`, `percent`, and best-effort
 `speed`. A failed event retains those last confirmed progress values. User-confirmed cancellation

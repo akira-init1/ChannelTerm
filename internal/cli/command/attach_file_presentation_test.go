@@ -28,7 +28,7 @@ func TestFileTransferPresentationSuppressesRawTransferDataAndRestoresOutput(t *t
 
 	writeRaw([]byte("root@board:~# ls\r\n"))
 	if err := presentation.handle(session.Event{Type: session.EventFileTransferStarted, Metadata: map[string]any{
-		"direction": "send", "local_path": "system.dts", "remote_path": "/tmp/system.dts",
+		"direction": "send", "local_path": "system.dts", "requested_path": "/tmp/system.dts",
 	}}, false, write); err != nil {
 		t.Fatalf("handle(started) error = %v", err)
 	}
@@ -74,7 +74,7 @@ func TestFileTransferPresentationRendersCompletedChecksumSummary(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := presentation.handle(session.Event{Timestamp: completedTime, Type: session.EventFileTransferCompleted, Metadata: map[string]any{
-		"direction": "send", "remote_path": "/tmp/firmware.bin", "local_sha256": digest, "remote_sha256": digest,
+		"direction": "send", "resolved_path": "/tmp/firmware.bin", "local_sha256": digest, "remote_sha256": digest,
 	}}, false, write); err != nil {
 		t.Fatal(err)
 	}
@@ -95,7 +95,7 @@ func TestFileTransferEventSavedPathUsesTransferDirection(t *testing.T) {
 		metadata map[string]any
 		want     string
 	}{
-		{name: "send", metadata: map[string]any{"direction": "send", "local_path": "firmware.bin", "remote_path": "/tmp/firmware.bin"}, want: "/tmp/firmware.bin"},
+		{name: "send", metadata: map[string]any{"direction": "send", "local_path": "firmware.bin", "resolved_path": "/tmp/firmware.bin"}, want: "/tmp/firmware.bin"},
 		{name: "receive", metadata: map[string]any{"direction": "receive", "local_path": "firmware.bin", "remote_path": "/tmp/firmware.bin"}, want: "firmware.bin"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -366,7 +366,7 @@ func TestFileTransferPresentationSuppressesLeaseRangeWithoutFilteringUserContent
 		t.Fatal(err)
 	}
 	if err := presentation.handle(session.Event{Type: session.EventFileTransferStarted, Metadata: map[string]any{
-		"local_path": "local.bin", "remote_path": "/tmp/remote.bin",
+		"local_path": "local.bin", "requested_path": "/tmp/remote.bin",
 	}}, false, write); err != nil {
 		t.Fatal(err)
 	}

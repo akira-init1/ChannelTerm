@@ -439,7 +439,7 @@ func TestMCPAttachReadsIndependentFileTransferEvents(t *testing.T) {
 		t.Fatal("managed board Session not found")
 	}
 	managed.PublishEvent(session.Event{Type: session.EventFileTransferStarted, Metadata: map[string]any{
-		"direction": "send", "local_path": "system.dts", "remote_path": "/tmp/system.dts",
+		"direction": "send", "local_path": "system.dts", "requested_path": "/tmp/system.dts",
 	}})
 	for index, attached := range []attachSession{first, second} {
 		reader, ok := attached.(attachEventSession)

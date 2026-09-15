@@ -234,6 +234,41 @@ func TestStreamableHTTPWaitFileTransferReturnsCancellationResult(t *testing.T) {
 	}
 }
 
+func TestStreamableHTTPWaitFileTransferReturnsResolvedSendPath(t *testing.T) {
+	manager, registry, _ := newTestRegistry(t)
+	defer func() { _ = manager.Close() }()
+	client, closeClient := connectHTTPTestClient(t, registry)
+	defer closeClient()
+
+	events := callTool(t, client, "terminal_session_events", map[string]any{"session_id": "board"})
+	cursor := resultNumber(t, events, "next")
+	terminal, ok := manager.Get("board")
+	if !ok {
+		t.Fatal("managed Session board was not found")
+	}
+	terminal.PublishEvent(session.Event{Type: session.EventFileTransferCompleted, Metadata: map[string]any{
+		"requested_path": "/tmp/cterm/mcp-files/app.bin",
+		"resolved_path":  "/tmp/cterm/mcp-files/app_1.bin",
+		"renamed":        true,
+		"sha256":         "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+	}})
+	result, err := client.CallTool(context.Background(), &protocol.CallToolParams{Name: "terminal_wait_file_transfer", Arguments: map[string]any{
+		"session_id": "board", "cursor": cursor, "timeout_ms": 1000,
+	}})
+	if err != nil || result == nil || result.IsError {
+		t.Fatalf("terminal_wait_file_transfer result = %#v, %v", result, err)
+	}
+	structured := result.StructuredContent.(map[string]any)
+	if structured["state"] != "completed" || structured["requested_path"] != "/tmp/cterm/mcp-files/app.bin" || structured["resolved_path"] != "/tmp/cterm/mcp-files/app_1.bin" || structured["renamed"] != true || structured["sha256"] != "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef" {
+		t.Fatalf("terminal_wait_file_transfer structured result = %#v", structured)
+	}
+	event := structured["event"].(map[string]any)
+	metadata := event["metadata"].(map[string]any)
+	if _, ok := metadata["remote_path"]; ok {
+		t.Fatalf("completed send metadata unexpectedly contains removed remote_path: %#v", metadata)
+	}
+}
+
 func TestStreamableHTTPReportsInvalidAndClosedSessionsWithoutPanic(t *testing.T) {
 	manager, registry, _ := newTestRegistry(t)
 	defer func() { _ = manager.Close() }()

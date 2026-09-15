@@ -411,7 +411,7 @@ type leaseTrackingAttachSession struct {
 
 func TestFileTransferProgressPublishesStructuredProgress(t *testing.T) {
 	attached := &eventReportingAttachSession{}
-	metadata := map[string]any{"direction": "send", "remote_path": "/tmp/firmware.bin"}
+	metadata := map[string]any{"direction": "send", "requested_path": "/tmp/firmware.bin"}
 	progress := newFileTransferProgress(context.Background(), io.Discard, attached, metadata)
 	if err := progress.Report(622592, 1048576); err != nil {
 		t.Fatalf("progress.Report() error = %v", err)
@@ -441,6 +441,31 @@ func TestFileTransferFailureMetadataReportsUserCancellation(t *testing.T) {
 	metadata := fileTransferFailureMetadata(map[string]any{"sent": int64(8192), "total": int64(16384), "percent": 50.0}, fmt.Errorf("stop transfer: %w", context.Canceled))
 	if metadata["error"] != fileTransferUserCancelled || metadata["reason"] != fileTransferUserCancelled {
 		t.Errorf("cancellation metadata = %#v, want stable user_cancelled result", metadata)
+	}
+}
+
+func TestResolvedRemotePathMetadataDistinguishesRequestedAndActualPaths(t *testing.T) {
+	tests := []struct {
+		name      string
+		requested string
+		resolved  string
+		renamed   bool
+	}{
+		{name: "unchanged", requested: "/tmp/cterm/mcp-files/app.bin", resolved: "/tmp/cterm/mcp-files/app.bin"},
+		{name: "collision", requested: "/tmp/cterm/mcp-files/app.bin", resolved: "/tmp/cterm/mcp-files/app_1.bin", renamed: true},
+		{name: "directory trailing slash", requested: "/tmp/cterm/mcp-files/release/", resolved: "/tmp/cterm/mcp-files/release"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			metadata := map[string]any{"requested_path": tt.requested}
+			setResolvedRemotePathMetadata(metadata, tt.requested, tt.resolved)
+			if metadata["requested_path"] != tt.requested || metadata["resolved_path"] != tt.resolved || metadata["renamed"] != tt.renamed {
+				t.Errorf("resolved metadata = %#v, want requested=%q resolved=%q renamed=%t", metadata, tt.requested, tt.resolved, tt.renamed)
+			}
+			if _, ok := metadata["remote_path"]; ok {
+				t.Errorf("resolved metadata unexpectedly contains removed remote_path: %#v", metadata)
+			}
+		})
 	}
 }
 
