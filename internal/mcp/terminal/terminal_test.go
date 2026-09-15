@@ -809,6 +809,162 @@ func TestFileTransferCancelToolsPauseAtCheckpointAndReportCancellation(t *testin
 	}
 }
 
+func TestWaitFileTransferReturnsCancelledAfterLeaseRelease(t *testing.T) {
+	manager := session.NewManager()
+	terminal := newFakeSession("session-1")
+	if err := terminal.Connect(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if err := manager.RegisterWithMetadata(terminal, session.SessionMetadata{Transport: "serial", Endpoint: "COM8"}); err != nil {
+		t.Fatal(err)
+	}
+	application, err := app.New(app.Dependencies{Manager: manager})
+	if err != nil {
+		t.Fatal(err)
+	}
+	tools, err := NewTools(application)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := callTool(tools, "terminal_acquire_lease", context.Background(), `{"session_id":"SER-1","owner":"transfer-owner","type":"file-transfer"}`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := callTool(tools, "terminal_report_file_transfer", context.Background(), `{"session_id":"SER-1","type":"FILE_TRANSFER_STARTED","metadata":{"total":98304}}`); err != nil {
+		t.Fatal(err)
+	}
+	events, err := callTool(tools, "terminal_session_events", context.Background(), `{"session_id":"SER-1"}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cursor := events["next"].(uint64)
+
+	type waitResult struct {
+		result tool.Result
+		err    error
+	}
+	waited := make(chan waitResult, 1)
+	go func() {
+		result, waitErr := callTool(tools, "terminal_wait_file_transfer", context.Background(), fmt.Sprintf(`{"session_id":"SER-1","cursor":%d}`, cursor))
+		waited <- waitResult{result: result, err: waitErr}
+	}()
+	if _, err := callTool(tools, "terminal_report_file_transfer", context.Background(), `{"session_id":"SER-1","type":"FILE_TRANSFER_PROGRESS","metadata":{"sent":32768,"total":98304,"percent":33.3}}`); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case result := <-waited:
+		t.Fatalf("wait returned for progress event: %#v, %v", result.result, result.err)
+	case <-time.After(20 * time.Millisecond):
+	}
+
+	begin, err := callTool(tools, "terminal_begin_file_transfer_cancel", context.Background(), `{"session_id":"SER-1"}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	requestID := begin["request_id"].(string)
+	resolved := make(chan error, 1)
+	go func() {
+		_, resolveErr := callTool(tools, "terminal_resolve_file_transfer_cancel", context.Background(), fmt.Sprintf(`{"session_id":"SER-1","request_id":%q,"cancel":true}`, requestID))
+		resolved <- resolveErr
+	}()
+	checkpoint, err := callTool(tools, "terminal_file_transfer_checkpoint", context.Background(), `{"session_id":"SER-1","owner":"transfer-owner"}`)
+	if err != nil || checkpoint["action"] != "cancel" {
+		t.Fatalf("checkpoint = %#v, %v, want cancel", checkpoint, err)
+	}
+	if _, err := callTool(tools, "terminal_release_lease", context.Background(), `{"session_id":"SER-1","owner":"transfer-owner"}`); err != nil {
+		t.Fatal(err)
+	}
+	if err := <-resolved; err != nil {
+		t.Fatal(err)
+	}
+
+	select {
+	case result := <-waited:
+		if result.err != nil {
+			t.Fatal(result.err)
+		}
+		if result.result["state"] != "cancelled" {
+			t.Fatalf("wait result = %#v, want cancelled", result.result)
+		}
+		event, ok := result.result["event"].(sessionEventResult)
+		if !ok || event.Type != string(session.EventFileTransferCancelled) || event.Metadata["reason"] != "user_cancelled" || event.Metadata["lease_released"] != true {
+			t.Fatalf("terminal event = %#v, want released user cancellation", result.result["event"])
+		}
+	case <-time.After(time.Second):
+		t.Fatal("file-transfer wait did not return after confirmed cancellation")
+	}
+}
+
+func TestWaitFileTransferReturnsOtherTerminalStatesAndValidatesInput(t *testing.T) {
+	for _, tt := range []struct {
+		name  string
+		typ   session.EventType
+		state string
+	}{
+		{name: "completed", typ: session.EventFileTransferCompleted, state: "completed"},
+		{name: "failed", typ: session.EventFileTransferFailed, state: "failed"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			manager := session.NewManager()
+			terminal := newFakeSession("session-1")
+			if err := terminal.Connect(context.Background()); err != nil {
+				t.Fatal(err)
+			}
+			if err := manager.RegisterWithMetadata(terminal, session.SessionMetadata{Transport: "serial", Endpoint: "COM8"}); err != nil {
+				t.Fatal(err)
+			}
+			application, err := app.New(app.Dependencies{Manager: manager})
+			if err != nil {
+				t.Fatal(err)
+			}
+			tools, err := NewTools(application)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := callTool(tools, "terminal_wait_file_transfer", context.Background(), `{"session_id":"SER-1"}`); !errors.Is(err, ErrFileTransferWaitCursorRequired) {
+				t.Fatalf("missing cursor error = %v, want ErrFileTransferWaitCursorRequired", err)
+			}
+			events, err := callTool(tools, "terminal_session_events", context.Background(), `{"session_id":"SER-1"}`)
+			if err != nil {
+				t.Fatal(err)
+			}
+			cursor := events["next"].(uint64)
+			terminal.PublishEvent(session.Event{Type: tt.typ, Metadata: map[string]any{"total": 1}})
+			result, err := callTool(tools, "terminal_wait_file_transfer", context.Background(), fmt.Sprintf(`{"session_id":"SER-1","cursor":%d}`, cursor))
+			if err != nil || result["state"] != tt.state {
+				t.Fatalf("terminal_wait_file_transfer = %#v, %v, want %q", result, err, tt.state)
+			}
+		})
+	}
+}
+
+func TestWaitFileTransferHonorsTimeout(t *testing.T) {
+	manager := session.NewManager()
+	terminal := newFakeSession("session-1")
+	if err := terminal.Connect(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if err := manager.RegisterWithMetadata(terminal, session.SessionMetadata{Transport: "serial", Endpoint: "COM8"}); err != nil {
+		t.Fatal(err)
+	}
+	application, err := app.New(app.Dependencies{Manager: manager})
+	if err != nil {
+		t.Fatal(err)
+	}
+	tools, err := NewTools(application)
+	if err != nil {
+		t.Fatal(err)
+	}
+	events, err := callTool(tools, "terminal_session_events", context.Background(), `{"session_id":"SER-1"}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cursor := events["next"].(uint64)
+	_, err = callTool(tools, "terminal_wait_file_transfer", context.Background(), fmt.Sprintf(`{"session_id":"SER-1","cursor":%d,"timeout_ms":1}`, cursor))
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("terminal_wait_file_transfer timeout error = %v, want context.DeadlineExceeded", err)
+	}
+}
+
 func TestSessionEventsToolReturnsLifecycleLeaseAndFileProgressWithoutTerminalData(t *testing.T) {
 	manager := session.NewManager()
 	terminal := newFakeSession("session-1")

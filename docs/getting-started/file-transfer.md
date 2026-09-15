@@ -37,6 +37,11 @@ In a third terminal, observe the shared transfer state without rendering raw fil
 channelterm events SER-1
 ```
 
+An MCP client should capture the Session event cursor and call
+`terminal_wait_file_transfer` for the final `completed`, `cancelled`, or `failed` result. It must
+not use `terminal_wait` as the transfer completion signal because that tool waits only for raw
+terminal bytes and cancellation may not emit another shell prompt.
+
 Receive a file from the board:
 
 ```powershell
