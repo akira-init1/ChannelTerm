@@ -26,6 +26,8 @@ var (
 	ErrFileSessionAmbiguous = errors.New("multiple open shared Sessions are available")
 )
 
+const fileTransferUserCancelled = "user_cancelled"
+
 type fileCommandDependencies struct {
 	newAttach               attachSessionFactory
 	listSessions            func(context.Context, string) ([]mcpListedSession, error)
@@ -182,8 +184,7 @@ func runFileSend(ctx context.Context, args []string, output io.Writer, dependenc
 			}
 			failureCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
-			failureMetadata := copyFileTransferMetadata(metadata)
-			failureMetadata["error"] = operationErr.Error()
+			failureMetadata := fileTransferFailureMetadata(metadata, operationErr)
 			_ = reportFileTransferEvent(failureCtx, attached, session.EventFileTransferFailed, failureMetadata)
 		}()
 		progress = newFileTransferProgress(ctx, output, attached, metadata)
@@ -331,8 +332,7 @@ func runFileReceive(ctx context.Context, args []string, output io.Writer, depend
 			}
 			failureCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
-			failureMetadata := copyFileTransferMetadata(metadata)
-			failureMetadata["error"] = operationErr.Error()
+			failureMetadata := fileTransferFailureMetadata(metadata, operationErr)
 			_ = reportFileTransferEvent(failureCtx, attached, session.EventFileTransferFailed, failureMetadata)
 		}()
 		progress = newFileTransferProgress(ctx, output, attached, metadata)
@@ -450,9 +450,19 @@ func reportFailedFileTransfer(ctx context.Context, attached attachSession, metad
 	}
 	failureCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	failureMetadata := copyFileTransferMetadata(metadata)
-	failureMetadata["error"] = (*operationErr).Error()
+	failureMetadata := fileTransferFailureMetadata(metadata, *operationErr)
 	_ = reportFileTransferEvent(failureCtx, attached, session.EventFileTransferFailed, failureMetadata)
+}
+
+func fileTransferFailureMetadata(metadata map[string]any, operationErr error) map[string]any {
+	failureMetadata := copyFileTransferMetadata(metadata)
+	if errors.Is(operationErr, context.Canceled) {
+		failureMetadata["error"] = fileTransferUserCancelled
+		failureMetadata["reason"] = fileTransferUserCancelled
+		return failureMetadata
+	}
+	failureMetadata["error"] = operationErr.Error()
+	return failureMetadata
 }
 
 type fileOptions struct {

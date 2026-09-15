@@ -405,6 +405,13 @@ func TestFileTransferProgressPublishesStructuredProgress(t *testing.T) {
 	}
 }
 
+func TestFileTransferFailureMetadataReportsUserCancellation(t *testing.T) {
+	metadata := fileTransferFailureMetadata(map[string]any{"sent": int64(8192), "total": int64(16384), "percent": 50.0}, fmt.Errorf("stop transfer: %w", context.Canceled))
+	if metadata["error"] != fileTransferUserCancelled || metadata["reason"] != fileTransferUserCancelled {
+		t.Errorf("cancellation metadata = %#v, want stable user_cancelled result", metadata)
+	}
+}
+
 func TestFormatFileTransferProgressBars(t *testing.T) {
 	tests := []struct {
 		name        string

@@ -238,7 +238,8 @@ Current event types are `SESSION_CREATED`, `SESSION_ATTACHED`, `SESSION_DETACHED
 `terminal_report_file_transfer` is the bundled CLI's status bridge to the host-owned event stream. It requires `session_id` and `type` (`FILE_TRANSFER_STARTED`, `FILE_TRANSFER_PROGRESS`, `FILE_TRANSFER_COMPLETED`, or `FILE_TRANSFER_FAILED`) and accepts optional `actor` and JSON-compatible `metadata`. It never writes terminal bytes. The public observer surface for AI clients is `terminal_session_events`; clients should not treat report calls as a substitute for the existing file protocol or lease tools.
 
 Bundled CLI progress metadata carries `sent` or `received`, `total`, `percent`, and best-effort
-`speed`. A failed event retains those last confirmed progress values. A successful regular-file
+`speed`. A failed event retains those last confirmed progress values. User-confirmed cancellation
+sets both `error` and `reason` to the stable value `user_cancelled`. A successful regular-file
 completion additionally carries full lowercase `local_sha256` and `remote_sha256` values; because
 completion follows verification, they match. Directory completion has no checksum fields.
 

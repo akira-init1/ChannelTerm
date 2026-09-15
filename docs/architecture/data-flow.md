@@ -48,7 +48,7 @@ Ctrl+] local controller       decode complete payload
                        serial device
 ```
 
-`Ctrl+C` is ordinary remote data in the CLI raw-input path. `Ctrl+]` commands remain local. Prompt timestamps are per-CLI presentation state and are inserted only before recognized shell prompts after Session reads, so they never enter the Ring Buffer or MCP cursor path. Session serializes each complete write, including short-write retries, so concurrent payload bytes do not interleave. This does not coordinate writer intent: Session provides no writer ownership, exclusive lease, transaction, priority, arbitration, or shell-state coordination. Activity records actor and confirmed bytes but actor metadata is not sent to the device.
+`Ctrl+C` is ordinary remote data in the normal CLI raw-input path. During a locally initiated file transfer it instead opens a default-No local cancellation confirmation; the worker pauses at a safe block boundary while its Host lease continues excluding other writers. `Ctrl+]` commands remain local. Prompt timestamps are per-CLI presentation state and are inserted only before recognized shell prompts after Session reads, so they never enter the Ring Buffer or MCP cursor path. Session serializes each complete write, including short-write retries, so concurrent payload bytes do not interleave. This does not coordinate writer intent: Session provides no writer ownership, exclusive lease, transaction, priority, arbitration, or shell-state coordination. Activity records actor and confirmed bytes but actor metadata is not sent to the device.
 
 ## Session events
 

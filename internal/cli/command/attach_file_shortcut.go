@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	posixpath "path"
@@ -408,28 +409,121 @@ func (w localOutputWriter) suppressFileTransferResult() bool {
 	return w.suppressFileTransferResultText
 }
 
-// fileTransferCancellation coordinates a local Ctrl+C with the file-transfer
-// worker without cancelling the attachment context or its MCP client.
+// fileTransferCancellation coordinates a local confirmation prompt with the
+// file-transfer worker. Requested blocks at a safe transfer boundary while a
+// decision is pending, without cancelling the attachment context or MCP client.
 type fileTransferCancellation struct {
-	done sync.Once
-	ch   chan struct{}
+	mu           sync.Mutex
+	state        fileTransferCancellationState
+	stateChanged chan struct{}
+	done         sync.Once
+	ch           chan struct{}
+	progress     fileTransferCancellationSnapshot
 }
+
+type fileTransferCancellationSnapshot struct {
+	transferred int64
+	total       int64
+	percent     float64
+}
+
+type fileTransferCancellationState uint8
+
+const (
+	fileTransferCancellationRunning fileTransferCancellationState = iota
+	fileTransferCancellationConfirming
+	fileTransferCancellationCancelled
+)
 
 func newFileTransferCancellation() *fileTransferCancellation {
-	return &fileTransferCancellation{ch: make(chan struct{})}
+	return &fileTransferCancellation{ch: make(chan struct{}), stateChanged: make(chan struct{})}
 }
 
-func (c *fileTransferCancellation) Request() {
-	c.done.Do(func() { close(c.ch) })
-}
-
-func (c *fileTransferCancellation) Requested() bool {
-	select {
-	case <-c.ch:
-		return true
-	default:
+// BeginConfirmation asks boundary probes to pause until ResolveConfirmation.
+func (c *fileTransferCancellation) BeginConfirmation() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.state != fileTransferCancellationRunning {
 		return false
 	}
+	c.state = fileTransferCancellationConfirming
+	c.signalStateChangeLocked()
+	return true
+}
+
+// ResolveConfirmation either converts a pending confirmation into a durable
+// cancellation or lets boundary probes continue the transfer.
+func (c *fileTransferCancellation) ResolveConfirmation(cancel bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.state != fileTransferCancellationConfirming {
+		return
+	}
+	if cancel {
+		c.state = fileTransferCancellationCancelled
+		c.done.Do(func() { close(c.ch) })
+	} else {
+		c.state = fileTransferCancellationRunning
+	}
+	c.signalStateChangeLocked()
+}
+
+// Request forces cancellation for attachment shutdown and input failure paths
+// where waiting for an interactive confirmation is no longer possible.
+func (c *fileTransferCancellation) Request() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.state == fileTransferCancellationCancelled {
+		return
+	}
+	c.state = fileTransferCancellationCancelled
+	c.done.Do(func() { close(c.ch) })
+	c.signalStateChangeLocked()
+}
+
+// Requested waits out a pending confirmation and reports the chosen result.
+func (c *fileTransferCancellation) Requested() bool {
+	c.mu.Lock()
+	for c.state == fileTransferCancellationConfirming {
+		changed := c.stateChanged
+		c.mu.Unlock()
+		<-changed
+		c.mu.Lock()
+	}
+	cancelled := c.state == fileTransferCancellationCancelled
+	c.mu.Unlock()
+	return cancelled
+}
+
+// Cancelled reports the terminal state without blocking on a pending prompt.
+func (c *fileTransferCancellation) Cancelled() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.state == fileTransferCancellationCancelled
+}
+
+// ObserveProgress retains the most recent confirmed byte counts for the local
+// cancellation result. It does not affect the transfer decision state.
+func (c *fileTransferCancellation) ObserveProgress(metadata map[string]any) {
+	transferred := fileTransferEventTransferred(metadata)
+	total := max(0, fileTransferEventInteger(metadata, "total"))
+	percent := fileTransferEventPercent(metadata, transferred, total)
+	c.mu.Lock()
+	c.progress = fileTransferCancellationSnapshot{transferred: transferred, total: total, percent: percent}
+	c.mu.Unlock()
+}
+
+// Progress returns the latest confirmed transfer snapshot without blocking on
+// a pending confirmation.
+func (c *fileTransferCancellation) Progress() fileTransferCancellationSnapshot {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.progress
+}
+
+func (c *fileTransferCancellation) signalStateChangeLocked() {
+	close(c.stateChanged)
+	c.stateChanged = make(chan struct{})
 }
 
 // nonClosingAttachSession lets the existing file CLI implementation operate
@@ -467,6 +561,9 @@ func (s nonClosingAttachSession) ReleaseFileTransferLease(ctx context.Context) e
 }
 
 func (s nonClosingAttachSession) ReportFileTransferEvent(ctx context.Context, typ session.EventType, metadata map[string]any) error {
+	if s.cancellation != nil {
+		s.cancellation.ObserveProgress(metadata)
+	}
 	reporter, ok := s.attachSession.(fileTransferEventReporter)
 	if !ok {
 		return nil
@@ -482,6 +579,8 @@ func (s nonClosingAttachSession) FileTransferCancelRequested() bool {
 
 var fileTransferMenuText = []byte("\r\nFile transfer:\r\n  s  Send PC -> Board\r\n  r  Receive Board -> PC\r\n  Esc  Cancel\r\nSelect: ")
 var fileTransferInputIgnoredText = []byte("\r\n[ChannelTerm] Input ignored during file transfer. Ctrl+C to cancel.\r\n")
+var fileTransferCancelConfirmationText = []byte("\r\n^C\r\n[ChannelTerm] Cancel file transfer? [y/N]: ")
+var fileTransferResumedText = []byte("\r\n[ChannelTerm] File transfer resumed\r\n")
 
 func fileTransferStatusPrefix(now time.Time) string {
 	return "[" + now.Format("15:04:05") + "] [ChannelTerm] "
@@ -489,6 +588,10 @@ func fileTransferStatusPrefix(now time.Time) string {
 
 func fileTransferCancelledText(now time.Time) []byte {
 	return []byte(fileTransferStatusPrefix(now) + "File transfer cancelled\r\n")
+}
+
+func fileTransferCancelledSummaryText(now time.Time, progress fileTransferCancellationSnapshot) []byte {
+	return []byte(fmt.Sprintf("%sFile transfer cancelled\r\n  Transferred: %d/%d bytes (%.1f%%)\r\n  Reason     : cancelled by user\r\n", fileTransferStatusPrefix(now), progress.transferred, progress.total, progress.percent))
 }
 
 func fileTransferCompletedText(now time.Time) []byte {

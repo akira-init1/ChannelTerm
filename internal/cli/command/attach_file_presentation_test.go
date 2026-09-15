@@ -50,7 +50,7 @@ func TestFileTransferPresentationSuppressesRawTransferDataAndRestoresOutput(t *t
 		}
 	}
 	for _, wanted := range []string{
-		"root@board:~# ls", "File transfer started: system.dts -> /tmp/system.dts", "Transferred 16384/32768 bytes (50.0%) [===============>..............]", "File transfer completed", "root@board:~# ",
+		"root@board:~# ls", "File transfer started: system.dts -> /tmp/system.dts", "Transferred 16384/32768 bytes (50.0%) [###############>..............]", "File transfer completed", "root@board:~# ",
 	} {
 		if !bytes.Contains(output.Bytes(), []byte(wanted)) {
 			t.Errorf("output = %q, want %q", got, wanted)
@@ -78,7 +78,7 @@ func TestFileTransferPresentationRendersCompletedChecksumSummary(t *testing.T) {
 	}}, false, write); err != nil {
 		t.Fatal(err)
 	}
-	want := "\r[09:24:57] [ChannelTerm] Transferred 65536/65536 bytes (100.0%) [==============================]\x1b[K\r" +
+	want := "\r[09:24:57] [ChannelTerm] Transferred 65536/65536 bytes (100.0%) [##############################]\x1b[K\r" +
 		"\r\n[09:24:58] [ChannelTerm] File transfer completed\r\n" +
 		"  Local SHA-256 : " + digest + "\r\n" +
 		"  Remote SHA-256: " + digest + "\r\n" +
@@ -97,7 +97,7 @@ func TestFileTransferPresentationRendersCancellationAndFailureSummaries(t *testi
 	}{
 		{
 			name:     "cancelled",
-			metadata: map[string]any{"sent": 24576, "total": 65536, "percent": 37.5, "error": "context canceled"},
+			metadata: map[string]any{"sent": 24576, "total": 65536, "percent": 37.5, "error": "user_cancelled", "reason": "user_cancelled"},
 			want: "[09:24:58] [ChannelTerm] File transfer cancelled\r\n" +
 				"  Transferred: 24576/65536 bytes (37.5%)\r\n" +
 				"  Reason     : cancelled by user\r\n",
