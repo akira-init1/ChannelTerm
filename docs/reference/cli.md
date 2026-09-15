@@ -207,7 +207,7 @@ remain eligible for timestamps and highlighting. `Ctrl+] t` toggles local-only p
 this attachment, off by default; it does not change the shared Session or MCP output. `Ctrl+] f`
 opens a local file-transfer menu with a `Select:` prompt. Press `s` or `r` once to choose send or
 receive immediately; the key is echoed locally after `Select:` and no Enter is needed. Invalid keys
-and menu `Esc` remain local. Send defaults to POSIX `/tmp/<local-basename>` and receive defaults to
+and menu `Esc` remain local. Send defaults to POSIX `/tmp/cterm/user-files/<local-basename>` and receive defaults to
 local `./<remote-basename>`. During an active shortcut transfer, `Ctrl+C` starts a new line and prints
 the untimestamped prompt `[ChannelTerm] Cancel file transfer? [y/N]:`. The worker pauses at its next safe 8 KiB
 block boundary while the prompt is pending, and the `file-transfer` lease remains held so ordinary
@@ -265,13 +265,15 @@ Purpose: stream one regular file or directory through an existing shared Session
 end-to-end SHA-256 verification; directories use a standard tar stream and staged extraction.
 
 ```text
-channelterm file send LOCAL_PATH REMOTE_PATH [--session SESSION] [--endpoint URL]
+channelterm file send LOCAL_PATH [REMOTE_PATH] [--session SESSION] [--endpoint URL]
 channelterm file receive REMOTE_PATH LOCAL_PATH [--session SESSION] [--endpoint URL]
 ```
 
 `--session` accepts a short reference such as `SER-1` or an opaque Session ID. It may be omitted
 only when the selected Host has exactly one open Session. No open Session is an error; multiple open
 Sessions require an explicit selection. `--endpoint` defaults to `http://127.0.0.1:37099/mcp`.
+When `file send` omits `REMOTE_PATH`, its command-oriented default is
+`/tmp/cterm/mcp-files/<local-basename>`. An explicit remote path remains authoritative.
 
 The command is CLI-only from the user's perspective: it requires no AI client and does not require
 manually starting MCP when `attach` has already created the default local Host. Internally, the
@@ -303,7 +305,7 @@ CLI publishes `FILE_TRANSFER_STARTED`, `FILE_TRANSFER_PROGRESS`, `FILE_TRANSFER_
 initial 0% frame does not add a progress event. Directory events add `kind: "directory"`; their
 progress counts actual tar-stream bytes, calculated with a first standard-library tar counting pass
 and sent through a temporary target-side archive in acknowledged blocks. The remote shell must
-provide `stty`, `dd` with `iflag=fullblock`, `wc`, and `sha256sum` for files, plus `tar` for
+provide `mkdir`, `stty`, `dd` with `iflag=fullblock`, `wc`, and `sha256sum` for files, plus `tar` for
 directories.
 
 `send` identifies its local source with `Lstat`: regular files keep the existing protocol and
@@ -347,7 +349,9 @@ After completion or failure, raw terminal rendering resumes from the current cur
 replaying suppressed transfer data. This is presentation-only: the Session's raw output and
 independent MCP readers remain lossless.
 
-Send and receive do not silently overwrite. If a requested remote or local destination exists, the
+Before a send, ChannelTerm creates a missing remote parent hierarchy with `mkdir -p`; an existing
+hierarchy is reused. Failure to create it stops before payload transmission. Send and receive do
+not silently overwrite. If a requested remote or local destination exists, the
 first free `_1`, `_2`, and later sibling is selected, preserving simple and compound extensions
 and dotfiles. A receive refuses to install if another process creates that selected local path
 during transfer. These are deliberate write-capable operations; confirm the paths and use only a
@@ -369,6 +373,7 @@ Examples:
 
 ```powershell
 channelterm file send firmware.bin /tmp/firmware.bin
+channelterm file send firmware.bin --session SER-1
 channelterm file send firmware.bin /tmp/firmware.bin --session SER-1
 channelterm file receive /tmp/log.txt ./log.txt --session SER-1
 ```

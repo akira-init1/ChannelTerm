@@ -629,7 +629,7 @@ func TestAttachInputDispatcherIgnoresNormalInputDuringFileTransferOnce(t *testin
 		t.Errorf("output = %q, want one input-ignored hint", got)
 	}
 	for _, want := range []string{
-		"File transfer started: sources.bin -> /tmp/sources.bin",
+		"File transfer started: sources.bin -> /tmp/cterm/user-files/sources.bin",
 		"Terminal input locked. Ctrl+C to cancel.",
 	} {
 		if got := output.String(); !strings.Contains(got, want) {
@@ -881,7 +881,7 @@ func TestAttachInputDispatcherUsesSingleReaderForMenuAndPaths(t *testing.T) {
 	if got := input.maxConcurrentReads(); got != 1 {
 		t.Errorf("concurrent stdin reads = %d, want 1", got)
 	}
-	for _, want := range []string{"Select: s\r\nLocal path: a.bin\r\n", "Remote path [/tmp/a.bin]:", "File transfer cancelled"} {
+	for _, want := range []string{"Select: s\r\nLocal path: a.bin\r\n", "Remote path [/tmp/cterm/user-files/a.bin]:", "File transfer cancelled"} {
 		if got := output.String(); !strings.Contains(got, want) {
 			t.Errorf("output = %q, want %q", got, want)
 		}
@@ -894,7 +894,7 @@ func TestAttachInputDispatcherFileMenuSingleKeyChoices(t *testing.T) {
 		input []byte
 		want  string
 	}{
-		{name: "send", input: []byte("\x1dfsa.bin\n\x1b"), want: "Select: s\r\nLocal path: a.bin\r\nRemote path [/tmp/a.bin]:"},
+		{name: "send", input: []byte("\x1dfsa.bin\n\x1b"), want: "Select: s\r\nLocal path: a.bin\r\nRemote path [/tmp/cterm/user-files/a.bin]:"},
 		{name: "receive", input: []byte("\x1dfr/var/log/app.log\n\x1b"), want: "Select: r\r\nRemote path: /var/log/app.log\r\nLocal path [./app.log]:"},
 		{name: "escape", input: []byte{0x1d, 'f', 0x1b}, want: "File transfer cancelled"},
 	}

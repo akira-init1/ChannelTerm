@@ -144,7 +144,7 @@ func TestAttachFileShortcutPathPromptsNeverWriteSession(t *testing.T) {
 		{
 			name:       "send accepts pasted remote path before local Esc cancellation",
 			input:      []byte("sbuild/firmware.bin\n/home/root/firmware.bin\x1b"),
-			wantOutput: []string{"Local path: build/firmware.bin", "Remote path [/tmp/firmware.bin]: /home/root/firmware.bin"},
+			wantOutput: []string{"Local path: build/firmware.bin", "Remote path [/tmp/cterm/user-files/firmware.bin]: /home/root/firmware.bin"},
 		},
 		{
 			name:       "receive accepts pasted remote path before local path cancellation",
@@ -220,14 +220,46 @@ func TestAttachFileShortcutReturnsToNormalInput(t *testing.T) {
 }
 
 func TestAttachFileShortcutDefaultPathsAndCustomPaths(t *testing.T) {
-	if got := defaultRemoteTransferPath(filepath.Join("build", "firmware.bin")); got != "/tmp/firmware.bin" {
-		t.Errorf("default remote path = %q, want /tmp/firmware.bin", got)
+	if got := defaultRemoteTransferPath(filepath.Join("build", "firmware.bin")); got != "/tmp/cterm/user-files/firmware.bin" {
+		t.Errorf("default user remote path = %q, want /tmp/cterm/user-files/firmware.bin", got)
+	}
+	if got := defaultMCPRemoteTransferPath(filepath.Join("build", "firmware.bin")); got != "/tmp/cterm/mcp-files/firmware.bin" {
+		t.Errorf("default MCP remote path = %q, want /tmp/cterm/mcp-files/firmware.bin", got)
 	}
 	if got := defaultLocalTransferPath("/tmp/crash.log"); got != "."+string(filepath.Separator)+"crash.log" {
 		t.Errorf("default local path = %q", got)
 	}
 	if got := "/opt/app/firmware.bin"; got == defaultRemoteTransferPath(filepath.Join("build", "firmware.bin")) {
 		t.Fatal("custom remote path unexpectedly changed")
+	}
+}
+
+func TestResolveFileSendPathsUsesMCPDirectoryOnlyWhenRemotePathIsOmitted(t *testing.T) {
+	tests := []struct {
+		name        string
+		args        []string
+		wantRemote  string
+		wantOptions []string
+	}{
+		{name: "default", args: []string{"build/firmware.bin"}, wantRemote: "/tmp/cterm/mcp-files/firmware.bin"},
+		{name: "default before options", args: []string{"build/firmware.bin", "--session", "SER-1"}, wantRemote: "/tmp/cterm/mcp-files/firmware.bin", wantOptions: []string{"--session", "SER-1"}},
+		{name: "explicit", args: []string{"build/firmware.bin", "/opt/app/firmware.bin", "--session", "SER-1"}, wantRemote: "/opt/app/firmware.bin", wantOptions: []string{"--session", "SER-1"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			local, remote, options := resolveFileSendPaths(tt.args)
+			if local != tt.args[0] || remote != tt.wantRemote || len(options) != len(tt.wantOptions) || (len(options) > 0 && !reflect.DeepEqual(options, tt.wantOptions)) {
+				t.Errorf("resolveFileSendPaths() = (%q, %q, %v), want (%q, %q, %v)", local, remote, options, tt.args[0], tt.wantRemote, tt.wantOptions)
+			}
+		})
+	}
+}
+
+func TestFileSendUsageDocumentsOptionalMCPDestination(t *testing.T) {
+	var output bytes.Buffer
+	writeFileSendUsage(&output)
+	if got := output.String(); !strings.Contains(got, "LOCAL_PATH [REMOTE_PATH]") || !strings.Contains(got, "/tmp/cterm/mcp-files/") {
+		t.Errorf("file send usage = %q, want optional remote path and MCP directory", got)
 	}
 }
 

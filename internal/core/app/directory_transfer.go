@@ -240,7 +240,11 @@ func SendDirectory(ctx context.Context, terminal FileTransferSession, source, re
 	if err != nil {
 		return DirectoryTransferResult{}, err
 	}
-	if err := protocol.command(ctx, directorySendInitCommand(protocol.token, quotedArchive)); err != nil {
+	quotedDirectory, err := quoteRemotePath(path.Dir(remotePath))
+	if err != nil {
+		return DirectoryTransferResult{}, err
+	}
+	if err := protocol.command(ctx, directorySendInitCommand(protocol.token, quotedArchive, quotedDirectory)); err != nil {
 		return DirectoryTransferResult{}, err
 	}
 	if _, err := protocol.expect(ctx, "INIT", "OK"); err != nil {

@@ -123,13 +123,27 @@ func TestSendDirectoryCancellationRecoveryHasNoUnsafeDeadline(t *testing.T) {
 }
 
 func TestDirectorySendUsesStagedArchiveAndBoundedChunks(t *testing.T) {
-	initCommand := directorySendInitCommand("abc123", "'/tmp/.release.archive.tar'")
+	initCommand := directorySendInitCommand("abc123", "'/tmp/cterm/user-files/.release.archive.tar'", "'/tmp/cterm/user-files'")
 	if !strings.Contains(initCommand, ":INIT:OK") || strings.Contains(initCommand, "stty raw") {
 		t.Fatalf("directory initialization unexpectedly starts an unbounded raw stream: %s", initCommand)
+	}
+	if !strings.Contains(initCommand, `mkdir -p "$d"`) || !strings.Contains(initCommand, "d='/tmp/cterm/user-files'") {
+		t.Fatalf("directory initialization does not create its destination hierarchy: %s", initCommand)
 	}
 	finishCommand := directorySendFinishCommand("abc123", "'/tmp/release'", "'/tmp/.release.part'", "'/tmp/.release.archive.tar'", 2*FileTransferChunkSize)
 	if !strings.Contains(finishCommand, `tar -x -f "$a" -C "$s"`) {
 		t.Fatalf("directory finalization does not extract the staged archive: %s", finishCommand)
+	}
+}
+
+func TestSendDirectoryReportsRemoteDirectoryCreationFailure(t *testing.T) {
+	source := t.TempDir()
+	mustWriteDirectoryTestFile(t, filepath.Join(source, "file"), []byte("content"))
+	terminal := newFileTransferTestSession(nil)
+	terminal.failDirectoryCreation = true
+	_, err := SendDirectory(context.Background(), terminal, source, "/tmp/cterm/user-files/release", nil)
+	if err == nil || !strings.Contains(err.Error(), "remote file transfer failed: directory") {
+		t.Fatalf("SendDirectory() error = %v, want remote directory failure", err)
 	}
 }
 
