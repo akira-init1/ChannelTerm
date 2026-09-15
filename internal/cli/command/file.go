@@ -187,7 +187,8 @@ func runFileSend(ctx context.Context, args []string, output io.Writer, dependenc
 	operationErr := withFileTransferLease(ctx, attached, identifier, func() (operationErr error) {
 		terminal := internalFileTransferSession{attachSession: attached}
 		started := false
-		metadata := map[string]any{"direction": "send", "local_path": localPath, "requested_path": remotePath, "total": info.Size()}
+		metadata := fileTransferPathMetadata("send", localPath, remotePath)
+		metadata["total"] = info.Size()
 		if eventErr := reportFileTransferEvent(ctx, attached, session.EventFileTransferStarted, metadata); eventErr != nil {
 			return eventErr
 		}
@@ -210,7 +211,7 @@ func runFileSend(ctx context.Context, args []string, output io.Writer, dependenc
 			return transferErr
 		}
 		completedMetadata := copyFileTransferMetadata(metadata)
-		setResolvedRemotePathMetadata(completedMetadata, remotePath, result.RemotePath)
+		setResolvedTransferPathMetadata(completedMetadata, remotePath, result.RemotePath, strings.TrimSuffix(remotePath, "/") != result.RemotePath)
 		completedMetadata["sent"] = result.Size
 		completedMetadata["total"] = result.Size
 		completedMetadata["percent"] = float64(100)
@@ -264,7 +265,9 @@ func runFileSendDirectory(ctx context.Context, localPath, remotePath string, opt
 	}()
 	return withFileTransferLease(ctx, attached, identifier, func() (operationErr error) {
 		terminal := internalFileTransferSession{attachSession: attached}
-		metadata := map[string]any{"direction": "send", "kind": "directory", "local_path": localPath, "requested_path": remotePath, "total": archiveSize}
+		metadata := fileTransferPathMetadata("send", localPath, remotePath)
+		metadata["kind"] = "directory"
+		metadata["total"] = archiveSize
 		if eventErr := reportFileTransferEvent(ctx, attached, session.EventFileTransferStarted, metadata); eventErr != nil {
 			return eventErr
 		}
@@ -276,7 +279,7 @@ func runFileSendDirectory(ctx context.Context, localPath, remotePath string, opt
 			return transferErr
 		}
 		completed := copyFileTransferMetadata(metadata)
-		setResolvedRemotePathMetadata(completed, remotePath, result.RemotePath)
+		setResolvedTransferPathMetadata(completed, remotePath, result.RemotePath, strings.TrimSuffix(remotePath, "/") != result.RemotePath)
 		completed["sent"] = result.Size
 		completed["total"] = result.Size
 		completed["percent"] = float64(100)
@@ -294,13 +297,21 @@ func runFileSendDirectory(ctx context.Context, localPath, remotePath string, opt
 	})
 }
 
-// setResolvedRemotePathMetadata retains the requested path while making the
-// collision-resolved board path explicit.
-func setResolvedRemotePathMetadata(metadata map[string]any, requestedPath, resolvedPath string) {
-	normalizedRequested := strings.TrimSuffix(requestedPath, "/")
+// fileTransferPathMetadata gives every direction the same path-field meaning.
+func fileTransferPathMetadata(direction, sourcePath, requestedPath string) map[string]any {
+	return map[string]any{
+		"direction":      direction,
+		"source_path":    sourcePath,
+		"requested_path": requestedPath,
+	}
+}
+
+// setResolvedTransferPathMetadata records the requested destination and the
+// actual destination selected by the transfer's collision policy.
+func setResolvedTransferPathMetadata(metadata map[string]any, requestedPath, resolvedPath string, renamed bool) {
 	metadata["requested_path"] = requestedPath
 	metadata["resolved_path"] = resolvedPath
-	metadata["renamed"] = normalizedRequested != resolvedPath
+	metadata["renamed"] = renamed
 }
 
 func runFileReceive(ctx context.Context, args []string, output io.Writer, dependencies fileCommandDependencies) (err error) {
@@ -312,7 +323,7 @@ func runFileReceive(ctx context.Context, args []string, output io.Writer, depend
 		writeFileReceiveUsage(output)
 		return errors.New("remote source and local destination paths are required")
 	}
-	remotePath, localPath := args[0], args[1]
+	remotePath, requestedLocalPath := args[0], args[1]
 	options, err := parseFileOptions("file receive", args[2:], output, writeFileReceiveUsage)
 	if err != nil || options.help {
 		return err
@@ -336,7 +347,7 @@ func runFileReceive(ctx context.Context, args []string, output io.Writer, depend
 		}
 		switch kind {
 		case app.RemotePathDirectory:
-			return runFileReceiveDirectory(ctx, attached, remotePath, localPath, output, dependencies.transferCancelRequested)
+			return runFileReceiveDirectory(ctx, attached, remotePath, requestedLocalPath, output, dependencies.transferCancelRequested)
 		case app.RemotePathMissing:
 			return fmt.Errorf("remote source %q does not exist", remotePath)
 		case app.RemotePathUnsupported:
@@ -345,19 +356,20 @@ func runFileReceive(ctx context.Context, args []string, output io.Writer, depend
 		default:
 			return fmt.Errorf("remote source %q has unsupported type %q", remotePath, kind)
 		}
-		localPath, err = nextAvailableLocalPath(localPath)
-		if err != nil {
-			return err
+		resolvedLocalPath, pathErr := nextAvailableLocalPath(requestedLocalPath)
+		if pathErr != nil {
+			return pathErr
 		}
-		directory := filepath.Dir(localPath)
+		directory := filepath.Dir(resolvedLocalPath)
 		temporary, err := os.CreateTemp(directory, ".channelterm-receive-*")
 		if err != nil {
-			return fmt.Errorf("create temporary destination beside %q: %w", localPath, err)
+			return fmt.Errorf("create temporary destination beside %q: %w", resolvedLocalPath, err)
 		}
 		temporaryPath := temporary.Name()
 		defer func() { _ = os.Remove(temporaryPath) }()
 		started := false
-		metadata := map[string]any{"direction": "receive", "local_path": localPath, "remote_path": remotePath}
+		metadata := fileTransferPathMetadata("receive", remotePath, requestedLocalPath)
+		setResolvedTransferPathMetadata(metadata, requestedLocalPath, resolvedLocalPath, filepath.Clean(requestedLocalPath) != filepath.Clean(resolvedLocalPath))
 		if eventErr := reportFileTransferEvent(ctx, attached, session.EventFileTransferStarted, metadata); eventErr != nil {
 			return eventErr
 		}
@@ -379,13 +391,13 @@ func runFileReceive(ctx context.Context, args []string, output io.Writer, depend
 		}
 		if syncErr := temporary.Sync(); syncErr != nil {
 			_ = temporary.Close()
-			return fmt.Errorf("sync temporary destination for %q: %w", localPath, syncErr)
+			return fmt.Errorf("sync temporary destination for %q: %w", resolvedLocalPath, syncErr)
 		}
 		if closeErr := temporary.Close(); closeErr != nil {
-			return fmt.Errorf("close temporary destination for %q: %w", localPath, closeErr)
+			return fmt.Errorf("close temporary destination for %q: %w", resolvedLocalPath, closeErr)
 		}
-		if replaceErr := replaceReceivedFile(temporaryPath, localPath); replaceErr != nil {
-			return fmt.Errorf("install received file %q: %w", localPath, replaceErr)
+		if replaceErr := replaceReceivedFile(temporaryPath, resolvedLocalPath); replaceErr != nil {
+			return fmt.Errorf("install received file %q: %w", resolvedLocalPath, replaceErr)
 		}
 		completedMetadata := copyFileTransferMetadata(metadata)
 		completedMetadata["received"] = result.Size
@@ -403,7 +415,7 @@ func runFileReceive(ctx context.Context, args []string, output io.Writer, depend
 		if finishErr := progress.finish(); finishErr != nil {
 			return finishErr
 		}
-		return writeFileTransferVerificationSummary(output, result.SHA256, localPath)
+		return writeFileTransferVerificationSummary(output, result.SHA256, resolvedLocalPath)
 	})
 	if progress != nil && operationErr != nil {
 		return finishFileTransferPresentation(output, progress, operationErr)
@@ -415,16 +427,19 @@ func runFileReceive(ctx context.Context, args []string, output io.Writer, depend
 // lease, including remote tar probing, extraction, and final local rename.
 func runFileReceiveDirectory(ctx context.Context, attached attachSession, remotePath, localPath string, output io.Writer, cancelRequested func() bool) (operationErr error) {
 	terminal := internalFileTransferSession{attachSession: attached}
-	localPath, err := nextAvailableLocalDirectory(localPath)
+	requestedLocalPath := localPath
+	resolvedLocalPath, err := nextAvailableLocalDirectory(requestedLocalPath)
 	if err != nil {
 		return err
 	}
-	staging, err := createLocalDirectoryStaging(localPath)
+	staging, err := createLocalDirectoryStaging(resolvedLocalPath)
 	if err != nil {
 		return err
 	}
 	defer func() { _ = os.RemoveAll(staging) }()
-	metadata := map[string]any{"direction": "receive", "kind": "directory", "local_path": localPath, "remote_path": remotePath}
+	metadata := fileTransferPathMetadata("receive", remotePath, requestedLocalPath)
+	metadata["kind"] = "directory"
+	setResolvedTransferPathMetadata(metadata, requestedLocalPath, resolvedLocalPath, filepath.Clean(requestedLocalPath) != filepath.Clean(resolvedLocalPath))
 	if eventErr := reportFileTransferEvent(ctx, attached, session.EventFileTransferStarted, metadata); eventErr != nil {
 		return eventErr
 	}
@@ -435,8 +450,8 @@ func runFileReceiveDirectory(ctx context.Context, attached attachSession, remote
 	if transferErr != nil {
 		return transferErr
 	}
-	if err := replaceReceivedDirectory(staging, localPath); err != nil {
-		return fmt.Errorf("install received directory %q: %w", localPath, err)
+	if err := replaceReceivedDirectory(staging, resolvedLocalPath); err != nil {
+		return fmt.Errorf("install received directory %q: %w", resolvedLocalPath, err)
 	}
 	completed := copyFileTransferMetadata(metadata)
 	completed["received"] = result.Size
@@ -451,7 +466,7 @@ func runFileReceiveDirectory(ctx context.Context, attached attachSession, remote
 	if finishErr := progress.finish(); finishErr != nil {
 		return finishErr
 	}
-	_, err = fmt.Fprintf(output, "Tar stream: complete\nSaved: %s\n", localPath)
+	_, err = fmt.Fprintf(output, "Tar stream: complete\nSaved: %s\n", resolvedLocalPath)
 	return err
 }
 

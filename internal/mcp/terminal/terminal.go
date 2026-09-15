@@ -756,7 +756,7 @@ func (*waitFileTransferTool) Name() string { return "terminal_wait_file_transfer
 
 // Description directs Agents away from terminal_wait for transfer outcomes.
 func (*waitFileTransferTool) Description() string {
-	return "Wait after an event cursor until a file transfer completes, is cancelled, or fails. Completed sends include requested_path, resolved_path, renamed, and optional sha256; use resolved_path as the board path. Use this instead of terminal_wait for file-transfer outcomes."
+	return "Wait after an event cursor until a file transfer completes, is cancelled, or fails. Completed transfers include source_path, requested_path, resolved_path, renamed, and optional sha256; use resolved_path as the saved file path. Use this instead of terminal_wait for file-transfer outcomes."
 }
 
 // InputSchema describes a Session event cursor and an optional bounded wait.
@@ -820,20 +820,22 @@ func (t *waitFileTransferTool) Call(ctx context.Context, input json.RawMessage) 
 	}
 }
 
-// addResolvedFileTransferResult promotes the successful send destination from
-// event metadata so an Agent does not have to infer the board path after the
-// collision policy selects an _N sibling. Non-send terminal states retain the
-// existing state/event response without path fields.
+// addResolvedFileTransferResult promotes the successful transfer paths from
+// event metadata so an Agent does not have to infer the saved path after the
+// collision policy selects an _N sibling. Non-completed terminal states retain
+// the existing state/event response without path fields.
 func addResolvedFileTransferResult(result tool.Result, state string, metadata map[string]any) {
 	if state != "completed" {
 		return
 	}
+	sourcePath, sourceOK := metadata["source_path"].(string)
 	requestedPath, requestedOK := metadata["requested_path"].(string)
 	resolvedPath, resolvedOK := metadata["resolved_path"].(string)
 	renamed, renamedOK := metadata["renamed"].(bool)
-	if !requestedOK || !resolvedOK || !renamedOK {
+	if !sourceOK || !requestedOK || !resolvedOK || !renamedOK {
 		return
 	}
+	result["source_path"] = sourcePath
 	result["requested_path"] = requestedPath
 	result["resolved_path"] = resolvedPath
 	result["renamed"] = renamed

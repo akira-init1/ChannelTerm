@@ -247,6 +247,7 @@ func TestStreamableHTTPWaitFileTransferReturnsResolvedSendPath(t *testing.T) {
 		t.Fatal("managed Session board was not found")
 	}
 	terminal.PublishEvent(session.Event{Type: session.EventFileTransferCompleted, Metadata: map[string]any{
+		"source_path":    "app.bin",
 		"requested_path": "/tmp/cterm/mcp-files/app.bin",
 		"resolved_path":  "/tmp/cterm/mcp-files/app_1.bin",
 		"renamed":        true,
@@ -259,13 +260,16 @@ func TestStreamableHTTPWaitFileTransferReturnsResolvedSendPath(t *testing.T) {
 		t.Fatalf("terminal_wait_file_transfer result = %#v, %v", result, err)
 	}
 	structured := result.StructuredContent.(map[string]any)
-	if structured["state"] != "completed" || structured["requested_path"] != "/tmp/cterm/mcp-files/app.bin" || structured["resolved_path"] != "/tmp/cterm/mcp-files/app_1.bin" || structured["renamed"] != true || structured["sha256"] != "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef" {
+	if structured["state"] != "completed" || structured["source_path"] != "app.bin" || structured["requested_path"] != "/tmp/cterm/mcp-files/app.bin" || structured["resolved_path"] != "/tmp/cterm/mcp-files/app_1.bin" || structured["renamed"] != true || structured["sha256"] != "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef" {
 		t.Fatalf("terminal_wait_file_transfer structured result = %#v", structured)
 	}
 	event := structured["event"].(map[string]any)
 	metadata := event["metadata"].(map[string]any)
-	if _, ok := metadata["remote_path"]; ok {
-		t.Fatalf("completed send metadata unexpectedly contains removed remote_path: %#v", metadata)
+	if _, localOK := metadata["local_path"]; localOK {
+		t.Fatalf("completed transfer metadata unexpectedly contains removed local_path: %#v", metadata)
+	}
+	if _, remoteOK := metadata["remote_path"]; remoteOK {
+		t.Fatalf("completed transfer metadata unexpectedly contains removed remote_path: %#v", metadata)
 	}
 }
 

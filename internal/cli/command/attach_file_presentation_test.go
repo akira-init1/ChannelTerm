@@ -28,7 +28,7 @@ func TestFileTransferPresentationSuppressesRawTransferDataAndRestoresOutput(t *t
 
 	writeRaw([]byte("root@board:~# ls\r\n"))
 	if err := presentation.handle(session.Event{Type: session.EventFileTransferStarted, Metadata: map[string]any{
-		"direction": "send", "local_path": "system.dts", "requested_path": "/tmp/system.dts",
+		"direction": "send", "source_path": "system.dts", "requested_path": "/tmp/system.dts",
 	}}, false, write); err != nil {
 		t.Fatalf("handle(started) error = %v", err)
 	}
@@ -89,14 +89,14 @@ func TestFileTransferPresentationRendersCompletedChecksumSummary(t *testing.T) {
 	}
 }
 
-func TestFileTransferEventSavedPathUsesTransferDirection(t *testing.T) {
+func TestFileTransferEventSavedPathUsesResolvedPath(t *testing.T) {
 	for _, tt := range []struct {
 		name     string
 		metadata map[string]any
 		want     string
 	}{
-		{name: "send", metadata: map[string]any{"direction": "send", "local_path": "firmware.bin", "resolved_path": "/tmp/firmware.bin"}, want: "/tmp/firmware.bin"},
-		{name: "receive", metadata: map[string]any{"direction": "receive", "local_path": "firmware.bin", "remote_path": "/tmp/firmware.bin"}, want: "firmware.bin"},
+		{name: "send", metadata: map[string]any{"direction": "send", "source_path": "firmware.bin", "resolved_path": "/tmp/firmware.bin"}, want: "/tmp/firmware.bin"},
+		{name: "receive", metadata: map[string]any{"direction": "receive", "source_path": "/tmp/firmware.bin", "resolved_path": "firmware.bin"}, want: "firmware.bin"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := fileTransferEventSavedPath(tt.metadata); got != tt.want {
@@ -366,7 +366,7 @@ func TestFileTransferPresentationSuppressesLeaseRangeWithoutFilteringUserContent
 		t.Fatal(err)
 	}
 	if err := presentation.handle(session.Event{Type: session.EventFileTransferStarted, Metadata: map[string]any{
-		"local_path": "local.bin", "requested_path": "/tmp/remote.bin",
+		"source_path": "local.bin", "requested_path": "/tmp/remote.bin",
 	}}, false, write); err != nil {
 		t.Fatal(err)
 	}

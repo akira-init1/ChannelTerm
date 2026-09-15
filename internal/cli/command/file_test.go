@@ -444,7 +444,7 @@ func TestFileTransferFailureMetadataReportsUserCancellation(t *testing.T) {
 	}
 }
 
-func TestResolvedRemotePathMetadataDistinguishesRequestedAndActualPaths(t *testing.T) {
+func TestResolvedTransferPathMetadataDistinguishesRequestedAndActualPaths(t *testing.T) {
 	tests := []struct {
 		name      string
 		requested string
@@ -457,13 +457,42 @@ func TestResolvedRemotePathMetadataDistinguishesRequestedAndActualPaths(t *testi
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			metadata := map[string]any{"requested_path": tt.requested}
-			setResolvedRemotePathMetadata(metadata, tt.requested, tt.resolved)
-			if metadata["requested_path"] != tt.requested || metadata["resolved_path"] != tt.resolved || metadata["renamed"] != tt.renamed {
+			metadata := map[string]any{"source_path": "source.bin", "requested_path": tt.requested}
+			setResolvedTransferPathMetadata(metadata, tt.requested, tt.resolved, tt.renamed)
+			if metadata["source_path"] != "source.bin" || metadata["requested_path"] != tt.requested || metadata["resolved_path"] != tt.resolved || metadata["renamed"] != tt.renamed {
 				t.Errorf("resolved metadata = %#v, want requested=%q resolved=%q renamed=%t", metadata, tt.requested, tt.resolved, tt.renamed)
+			}
+			if _, ok := metadata["local_path"]; ok {
+				t.Errorf("resolved metadata unexpectedly contains removed local_path: %#v", metadata)
 			}
 			if _, ok := metadata["remote_path"]; ok {
 				t.Errorf("resolved metadata unexpectedly contains removed remote_path: %#v", metadata)
+			}
+		})
+	}
+}
+
+func TestFileTransferPathMetadataHasDirectionIndependentSemantics(t *testing.T) {
+	tests := []struct {
+		name      string
+		direction string
+		source    string
+		requested string
+	}{
+		{name: "send", direction: "send", source: "./app.bin", requested: "/tmp/cterm/mcp-files/app.bin"},
+		{name: "receive", direction: "receive", source: "/var/log/app.log", requested: "./app.log"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			metadata := fileTransferPathMetadata(tt.direction, tt.source, tt.requested)
+			if metadata["direction"] != tt.direction || metadata["source_path"] != tt.source || metadata["requested_path"] != tt.requested {
+				t.Errorf("path metadata = %#v", metadata)
+			}
+			if _, localOK := metadata["local_path"]; localOK {
+				t.Errorf("path metadata unexpectedly contains local_path: %#v", metadata)
+			}
+			if _, remoteOK := metadata["remote_path"]; remoteOK {
+				t.Errorf("path metadata unexpectedly contains remote_path: %#v", metadata)
 			}
 		})
 	}
