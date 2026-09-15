@@ -45,9 +45,11 @@ channelterm events SER-1
 An MCP client should capture the Session event cursor and call
 `terminal_wait_file_transfer` for the final `completed`, `cancelled`, or `failed` result. It must
 not use `terminal_wait` as the transfer completion signal because that tool waits only for raw
-terminal bytes and cancellation may not emit another shell prompt. For a completed send, use the
-returned `resolved_path` for later board commands. `requested_path` preserves the original intent,
-while `renamed` reports whether collision handling selected an `_N` sibling.
+terminal bytes and cancellation may not emit another shell prompt. Every completed result uses
+three fixed path meanings: `source_path` is the source location, `requested_path` is the requested
+destination, and `resolved_path` is the final saved destination. For send, use `resolved_path` for
+later board commands; for receive, use it for later local operations. `renamed` reports whether
+collision handling selected an `_N` sibling.
 
 Receive a file from the board:
 

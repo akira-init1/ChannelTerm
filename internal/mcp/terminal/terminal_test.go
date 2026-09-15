@@ -901,11 +901,19 @@ func TestWaitFileTransferReturnsOtherTerminalStatesAndValidatesInput(t *testing.
 		state    string
 		metadata map[string]any
 	}{
-		{name: "completed", typ: session.EventFileTransferCompleted, state: "completed", metadata: map[string]any{
+		{name: "completed send", typ: session.EventFileTransferCompleted, state: "completed", metadata: map[string]any{
+			"source_path":    "app.bin",
 			"requested_path": "/tmp/cterm/mcp-files/app.bin",
 			"resolved_path":  "/tmp/cterm/mcp-files/app_1.bin",
 			"renamed":        true,
 			"sha256":         "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+		}},
+		{name: "completed receive", typ: session.EventFileTransferCompleted, state: "completed", metadata: map[string]any{
+			"source_path":    "/var/log/app.log",
+			"requested_path": "./app.log",
+			"resolved_path":  "./app_1.log",
+			"renamed":        true,
+			"sha256":         "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
 		}},
 		{name: "failed", typ: session.EventFileTransferFailed, state: "failed"},
 	} {
@@ -944,7 +952,7 @@ func TestWaitFileTransferReturnsOtherTerminalStatesAndValidatesInput(t *testing.
 				t.Fatalf("terminal_wait_file_transfer = %#v, %v, want %q", result, err, tt.state)
 			}
 			if tt.state == "completed" {
-				if result["requested_path"] != metadata["requested_path"] || result["resolved_path"] != metadata["resolved_path"] || result["renamed"] != true || result["sha256"] != metadata["sha256"] {
+				if result["source_path"] != metadata["source_path"] || result["requested_path"] != metadata["requested_path"] || result["resolved_path"] != metadata["resolved_path"] || result["renamed"] != true || result["sha256"] != metadata["sha256"] {
 					t.Errorf("completed transfer result = %#v, want promoted resolved path metadata", result)
 				}
 			} else if _, ok := result["resolved_path"]; ok {

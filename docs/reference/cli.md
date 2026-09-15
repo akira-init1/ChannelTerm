@@ -308,11 +308,14 @@ and sent through a temporary target-side archive in acknowledged blocks. The rem
 provide `mkdir`, `stty`, `dd` with `iflag=fullblock`, `wc`, and `sha256sum` for files, plus `tar` for
 directories.
 
-A completed PC-to-board send publishes `requested_path`, `resolved_path`, and boolean `renamed` in
-its event metadata. `requested_path` is the CLI argument or default before collision handling;
-`resolved_path` is the actual board destination and must be used for later operations. Send events
-do not expose the former ambiguous `remote_path` field. Regular-file completion also includes
-`sha256`; directory completion omits a directory digest.
+File-transfer events use the same path fields in both directions: `source_path` is the source
+location, `requested_path` is the user- or Agent-requested destination before collision handling,
+and `resolved_path` is the final destination actually saved. For send, the source is local and the
+destination is on the board; for receive, the source is on the board and the destination is local.
+A completed transfer includes all three fields plus boolean `renamed`; consumers must use
+`resolved_path` for later operations on the saved file. The former `local_path` and `remote_path`
+fields are removed without compatibility aliases. Regular-file completion also includes `sha256`;
+directory completion omits a directory digest.
 
 `send` identifies its local source with `Lstat`: regular files keep the existing protocol and
 directories are packed directly through Go's `archive/tar` into the Serial stream. Symlinks and
