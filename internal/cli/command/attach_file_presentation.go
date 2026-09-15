@@ -251,9 +251,9 @@ func fileTransferEventCursor(metadata map[string]any) (session.OutputCursor, boo
 
 func fileTransferEventPaths(metadata map[string]any) string {
 	localPath := fileTransferEventString(metadata, "local_path")
-	remotePath := fileTransferEventString(metadata, "remote_path")
+	remotePath := fileTransferEventString(metadata, "requested_path")
 	if metadata["direction"] == "receive" {
-		localPath, remotePath = remotePath, localPath
+		localPath, remotePath = fileTransferEventString(metadata, "remote_path"), localPath
 	}
 	if localPath == "" || remotePath == "" {
 		return "in progress"
@@ -343,7 +343,7 @@ func fileTransferEventSavedPath(metadata map[string]any) string {
 	if metadata["direction"] == "receive" {
 		return fileTransferEventString(metadata, "local_path")
 	}
-	return fileTransferEventString(metadata, "remote_path")
+	return fileTransferEventString(metadata, "resolved_path")
 }
 
 func fileTransferVerifyResult(localDigest, remoteDigest string) string {

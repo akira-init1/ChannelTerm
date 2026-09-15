@@ -46,6 +46,18 @@ func TestSendFileStreamsSmallFileAndVerifiesMetadata(t *testing.T) {
 	}
 }
 
+func TestSendFileReturnsCollisionResolvedRemotePath(t *testing.T) {
+	terminal := newFileTransferTestSession(nil)
+	terminal.pathCollisions = 1
+	result, err := SendFile(context.Background(), terminal, strings.NewReader("data"), 4, "/tmp/cterm/mcp-files/app.bin", nil)
+	if err != nil {
+		t.Fatalf("SendFile() error = %v", err)
+	}
+	if result.RemotePath != "/tmp/cterm/mcp-files/app_1.bin" {
+		t.Errorf("SendFile() remote path = %q, want collision-resolved app_1.bin", result.RemotePath)
+	}
+}
+
 // TestSendFileStreamsLargeInputInBoundedChunks proves a 10 MiB source never
 // becomes one source read or Session write.
 func TestSendFileStreamsLargeInputInBoundedChunks(t *testing.T) {
@@ -300,6 +312,8 @@ type fileTransferTestSession struct {
 	failDirectoryCreation bool
 	failTar               bool
 	failPayloadOnce       bool
+	pathCollisions        int
+	pathChecks            int
 	receiving             bool
 }
 
@@ -441,7 +455,12 @@ func (s *fileTransferTestSession) Write(request session.WriteRequest) (int, erro
 	case s.failTar && strings.Contains(command, "command -v tar"):
 		s.emitLocked(fmt.Sprintf("\n@CTERM:%s:ERROR:tar\n", s.token))
 	case strings.Contains(command, ":PICK:"):
-		s.emitLocked(fmt.Sprintf("\n@CTERM:%s:PICK:FREE\n", s.token))
+		if s.pathChecks < s.pathCollisions {
+			s.pathChecks++
+			s.emitLocked(fmt.Sprintf("\n@CTERM:%s:PICK:EXISTS\n", s.token))
+		} else {
+			s.emitLocked(fmt.Sprintf("\n@CTERM:%s:PICK:FREE\n", s.token))
+		}
 	case strings.Contains(command, ":KIND:"):
 		s.emitLocked(fmt.Sprintf("\n@CTERM:%s:KIND:file\n", s.token))
 	case strings.Contains(command, ":ABORT:OK"):

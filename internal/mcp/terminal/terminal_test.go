@@ -896,11 +896,17 @@ func TestWaitFileTransferReturnsCancelledAfterLeaseRelease(t *testing.T) {
 
 func TestWaitFileTransferReturnsOtherTerminalStatesAndValidatesInput(t *testing.T) {
 	for _, tt := range []struct {
-		name  string
-		typ   session.EventType
-		state string
+		name     string
+		typ      session.EventType
+		state    string
+		metadata map[string]any
 	}{
-		{name: "completed", typ: session.EventFileTransferCompleted, state: "completed"},
+		{name: "completed", typ: session.EventFileTransferCompleted, state: "completed", metadata: map[string]any{
+			"requested_path": "/tmp/cterm/mcp-files/app.bin",
+			"resolved_path":  "/tmp/cterm/mcp-files/app_1.bin",
+			"renamed":        true,
+			"sha256":         "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+		}},
 		{name: "failed", typ: session.EventFileTransferFailed, state: "failed"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -928,10 +934,21 @@ func TestWaitFileTransferReturnsOtherTerminalStatesAndValidatesInput(t *testing.
 				t.Fatal(err)
 			}
 			cursor := events["next"].(uint64)
-			terminal.PublishEvent(session.Event{Type: tt.typ, Metadata: map[string]any{"total": 1}})
+			metadata := tt.metadata
+			if metadata == nil {
+				metadata = map[string]any{"total": 1}
+			}
+			terminal.PublishEvent(session.Event{Type: tt.typ, Metadata: metadata})
 			result, err := callTool(tools, "terminal_wait_file_transfer", context.Background(), fmt.Sprintf(`{"session_id":"SER-1","cursor":%d}`, cursor))
 			if err != nil || result["state"] != tt.state {
 				t.Fatalf("terminal_wait_file_transfer = %#v, %v, want %q", result, err, tt.state)
+			}
+			if tt.state == "completed" {
+				if result["requested_path"] != metadata["requested_path"] || result["resolved_path"] != metadata["resolved_path"] || result["renamed"] != true || result["sha256"] != metadata["sha256"] {
+					t.Errorf("completed transfer result = %#v, want promoted resolved path metadata", result)
+				}
+			} else if _, ok := result["resolved_path"]; ok {
+				t.Errorf("failed transfer result unexpectedly contains resolved_path: %#v", result)
 			}
 		})
 	}

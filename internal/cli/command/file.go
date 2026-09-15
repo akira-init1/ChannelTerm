@@ -187,7 +187,7 @@ func runFileSend(ctx context.Context, args []string, output io.Writer, dependenc
 	operationErr := withFileTransferLease(ctx, attached, identifier, func() (operationErr error) {
 		terminal := internalFileTransferSession{attachSession: attached}
 		started := false
-		metadata := map[string]any{"direction": "send", "local_path": localPath, "remote_path": remotePath, "total": info.Size()}
+		metadata := map[string]any{"direction": "send", "local_path": localPath, "requested_path": remotePath, "total": info.Size()}
 		if eventErr := reportFileTransferEvent(ctx, attached, session.EventFileTransferStarted, metadata); eventErr != nil {
 			return eventErr
 		}
@@ -210,7 +210,7 @@ func runFileSend(ctx context.Context, args []string, output io.Writer, dependenc
 			return transferErr
 		}
 		completedMetadata := copyFileTransferMetadata(metadata)
-		completedMetadata["remote_path"] = result.RemotePath
+		setResolvedRemotePathMetadata(completedMetadata, remotePath, result.RemotePath)
 		completedMetadata["sent"] = result.Size
 		completedMetadata["total"] = result.Size
 		completedMetadata["percent"] = float64(100)
@@ -264,7 +264,7 @@ func runFileSendDirectory(ctx context.Context, localPath, remotePath string, opt
 	}()
 	return withFileTransferLease(ctx, attached, identifier, func() (operationErr error) {
 		terminal := internalFileTransferSession{attachSession: attached}
-		metadata := map[string]any{"direction": "send", "kind": "directory", "local_path": localPath, "remote_path": remotePath, "total": archiveSize}
+		metadata := map[string]any{"direction": "send", "kind": "directory", "local_path": localPath, "requested_path": remotePath, "total": archiveSize}
 		if eventErr := reportFileTransferEvent(ctx, attached, session.EventFileTransferStarted, metadata); eventErr != nil {
 			return eventErr
 		}
@@ -276,7 +276,7 @@ func runFileSendDirectory(ctx context.Context, localPath, remotePath string, opt
 			return transferErr
 		}
 		completed := copyFileTransferMetadata(metadata)
-		completed["remote_path"] = result.RemotePath
+		setResolvedRemotePathMetadata(completed, remotePath, result.RemotePath)
 		completed["sent"] = result.Size
 		completed["total"] = result.Size
 		completed["percent"] = float64(100)
@@ -292,6 +292,15 @@ func runFileSendDirectory(ctx context.Context, localPath, remotePath string, opt
 		_, writeErr := fmt.Fprintf(output, "Tar stream: complete\nSaved: %s\n", result.RemotePath)
 		return writeErr
 	})
+}
+
+// setResolvedRemotePathMetadata retains the requested path while making the
+// collision-resolved board path explicit.
+func setResolvedRemotePathMetadata(metadata map[string]any, requestedPath, resolvedPath string) {
+	normalizedRequested := strings.TrimSuffix(requestedPath, "/")
+	metadata["requested_path"] = requestedPath
+	metadata["resolved_path"] = resolvedPath
+	metadata["renamed"] = normalizedRequested != resolvedPath
 }
 
 func runFileReceive(ctx context.Context, args []string, output io.Writer, dependencies fileCommandDependencies) (err error) {
