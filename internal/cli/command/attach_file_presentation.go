@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/akira-init1/ChannelTerm/internal/core/session"
 )
@@ -33,12 +32,18 @@ type fileTransferPresentation struct {
 	transferred               int64
 	total                     int64
 	percent                   float64
+	speed                     float64
 }
 
 type fileTransferOutputRange struct {
 	start session.OutputCursor
 	end   session.OutputCursor
 }
+
+// fileTransferProgressStatusBoundary preserves the completed progress row,
+// moves to the status row, and clears that row before writing text. The full
+// erase prevents a shorter status from retaining a stale speed or ETA suffix.
+const fileTransferProgressStatusBoundary = "\r\n\x1b[2K\r"
 
 func newFileTransferPresentation() *fileTransferPresentation {
 	return &fileTransferPresentation{}
@@ -62,11 +67,18 @@ func (p *fileTransferPresentation) finishCancelConfirmation() {
 }
 
 // handle applies a structured file-transfer event before optionally rendering
-// a concise observer status. The transfer owner renders the richer formatter
-// from its local file command, so local is used only to avoid duplicate text.
+// a concise observer status. The transfer owner renders the same progress
+// format locally, so local is used only to avoid duplicate text.
 func (p *fileTransferPresentation) handle(event session.Event, local bool, write func([]byte) error) error {
 	var text string
 	p.mu.Lock()
+	// Keep event-state transitions and their terminal write in one critical
+	// section. Otherwise a progress event can prepare its frame, release the
+	// lock, and then write after beginCancelConfirmation has displayed [y/N].
+	// Serializing the write makes the prompt gate a true presentation boundary:
+	// an already prepared frame finishes before the prompt, and later frames are
+	// suppressed until the confirmation is resolved.
+	defer p.mu.Unlock()
 	switch event.Type {
 	case session.EventLeaseAcquired:
 		if event.Metadata["type"] == "file-transfer" {
@@ -98,6 +110,7 @@ func (p *fileTransferPresentation) handle(event session.Event, local bool, write
 		p.transferred = 0
 		p.total = max(0, fileTransferEventInteger(event.Metadata, "total"))
 		p.percent = 0
+		p.speed = 0
 		if !local {
 			text = fileTransferStatusPrefix(event.Timestamp) + "File transfer started: " + fileTransferEventPaths(event.Metadata) + "\r\n"
 		}
@@ -111,8 +124,14 @@ func (p *fileTransferPresentation) handle(event session.Event, local bool, write
 		p.transferred = fileTransferEventTransferred(event.Metadata)
 		p.total = max(0, fileTransferEventInteger(event.Metadata, "total"))
 		p.percent = fileTransferEventPercent(event.Metadata, p.transferred, p.total)
+		p.speed = max(0, fileTransferEventNumber(event.Metadata, "speed"))
 		if !local && !p.cancelConfirmationPending {
-			text = "\r" + fileTransferTransferredText(event.Timestamp, p.transferred, p.total, p.percent) + "\x1b[K\r"
+			text = "\r" + formatFileTransferProgress(fileTransferSnapshot{
+				transferred: p.transferred,
+				total:       p.total,
+				percent:     p.percent,
+				speed:       p.speed,
+			}) + "\x1b[K\r"
 			p.progressRendered = true
 		}
 	case session.EventFileTransferCompleted:
@@ -120,14 +139,44 @@ func (p *fileTransferPresentation) handle(event session.Event, local bool, write
 			p.legacyActive = false
 		}
 		if !local {
-			if p.progressRendered {
-				text = "\r\n"
+			transferred := fileTransferEventTransferred(event.Metadata)
+			if transferred == 0 {
+				transferred = p.transferred
+			}
+			total := max(0, fileTransferEventInteger(event.Metadata, "total"))
+			if total == 0 {
+				total = p.total
+			}
+			speed := max(0, fileTransferEventNumber(event.Metadata, "speed"))
+			if speed == 0 {
+				speed = p.speed
+			}
+			_, eventHasTotal := event.Metadata["total"]
+			if p.cancelConfirmationPending {
+				// The prompt owns the current row. Finish it before reporting a
+				// transfer that completed while the user was deciding.
+				text = fileTransferProgressStatusBoundary
+			} else if p.progressRendered {
+				text = fileTransferProgressStatusBoundary
+			} else if p.transferred > 0 || p.total > 0 || eventHasTotal {
+				if total > 0 {
+					transferred = total
+				}
+				text = "\r" + formatFileTransferProgress(fileTransferSnapshot{
+					transferred: transferred,
+					total:       total,
+					percent:     100,
+					speed:       speed,
+				}) + "\x1b[K\r\n"
+			} else {
+				// A completion may arrive without retained progress. Clear the
+				// current row before the status so stale terminal text cannot be
+				// mistaken for fields appended to "completed".
+				text = "\r\x1b[K"
 			}
 			text += fileTransferStatusPrefix(event.Timestamp) + "File transfer completed\r\n"
 			if localDigest, remoteDigest, ok := fileTransferEventDigests(event.Metadata); ok {
-				text += "  Local SHA-256 : " + localDigest + "\r\n"
-				text += "  Remote SHA-256: " + remoteDigest + "\r\n"
-				text += "  Verify        : " + fileTransferVerifyResult(localDigest, remoteDigest) + "\r\n"
+				text += formatFileTransferVerificationSummary(localDigest, remoteDigest, fileTransferEventSavedPath(event.Metadata), "\r\n")
 			}
 		}
 		p.progressRendered = false
@@ -138,7 +187,7 @@ func (p *fileTransferPresentation) handle(event session.Event, local bool, write
 		}
 		if !local {
 			if p.progressRendered {
-				text = "\r\n"
+				text = fileTransferProgressStatusBoundary
 			}
 			transferred := fileTransferEventTransferred(event.Metadata)
 			if transferred == 0 && p.transferred > 0 {
@@ -166,7 +215,6 @@ func (p *fileTransferPresentation) handle(event session.Event, local bool, write
 		p.progressRendered = false
 		p.cancelConfirmationPending = false
 	}
-	p.mu.Unlock()
 	if text == "" || write == nil {
 		return nil
 	}
@@ -282,18 +330,6 @@ func fileTransferEventPercent(metadata map[string]any, transferred, total int64)
 	return min(100, max(0, percent))
 }
 
-const attachedFileTransferProgressBarWidth = 30
-
-func fileTransferTransferredText(timestamp time.Time, transferred, total int64, percent float64) string {
-	filled := int(percent * attachedFileTransferProgressBarWidth / 100)
-	filled = min(attachedFileTransferProgressBarWidth, max(0, filled))
-	bar := strings.Repeat("#", filled)
-	if filled < attachedFileTransferProgressBarWidth {
-		bar += ">" + strings.Repeat(".", attachedFileTransferProgressBarWidth-filled-1)
-	}
-	return fmt.Sprintf("%sTransferred %d/%d bytes (%.1f%%) [%s]", fileTransferStatusPrefix(timestamp), transferred, total, percent, bar)
-}
-
 func fileTransferEventDigests(metadata map[string]any) (string, string, bool) {
 	localDigest := fileTransferEventString(metadata, "local_sha256")
 	remoteDigest := fileTransferEventString(metadata, "remote_sha256")
@@ -301,6 +337,13 @@ func fileTransferEventDigests(metadata map[string]any) (string, string, bool) {
 		return "", "", false
 	}
 	return localDigest, remoteDigest, true
+}
+
+func fileTransferEventSavedPath(metadata map[string]any) string {
+	if metadata["direction"] == "receive" {
+		return fileTransferEventString(metadata, "local_path")
+	}
+	return fileTransferEventString(metadata, "remote_path")
 }
 
 func fileTransferVerifyResult(localDigest, remoteDigest string) string {

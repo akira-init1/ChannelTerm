@@ -96,12 +96,13 @@ remains local. At transfer start it reports that terminal input is locked. Durin
 ordinary keys (including Enter) are discarded locally before `terminal_write` and show one
 `Input ignored during file transfer. Ctrl+C to cancel.` hint; they are never sent to the board.
 While either that shortcut or a separate `channelterm file` process owns the Session's
-`file-transfer` lease, `Ctrl+C` in any bundled attachment instead prints `^C` and opens
-`[ChannelTerm] Cancel file transfer? [y/N]:` locally without detaching or sending Ctrl+C to the
+`file-transfer` lease, `Ctrl+C` in any bundled attachment instead opens
+`[ChannelTerm] Cancel file transfer? [y/N]:` locally without printing `^C`, detaching, or sending Ctrl+C to the
 board. The transfer pauses at its next safe 8 KiB block boundary while the
 answer is pending. An already active block may still finish and update the retained confirmed byte
-count, but its progress event is not redrawn over the confirmation prompt. Only `y` or `Y`
-confirms; `n`, `N`, Enter, and every other character print
+count, but the attachment closes its redraw gate before displaying the prompt, so that progress
+event is not redrawn over the confirmation prompt. Only `y` or `Y` confirms; printable answers are
+echoed after the prompt's colon. `n`, `N`, Enter, and every other character print
 `[ChannelTerm] File transfer resumed` and continue. During the prompt the Host retains its
 `file-transfer` lease, so independent AI/MCP writes cannot enter the shell protocol. After a
 confirmed cancellation, the board restores its TTY, ChannelTerm removes temporary transfer data,
@@ -150,19 +151,23 @@ completion, cancellation, and failure events without mixing them into raw Sessio
 The local `file send` and `file receive` displays share one 20-cell ASCII progress formatter. For a
 non-empty regular file, it immediately renders a 0% frame before the first payload (for receive,
 after the board has announced its size), then refreshes in place with confirmed percentage,
-human-readable transferred/total sizes, speed, and ETA when the speed is usable. The 0% frame has no
-synthetic speed or ETA. A completed transfer first renders a 100% bar and then starts the SHA-256
-summary on a new line. Cancellation and failure likewise finish the progress line before their
+human-readable transferred/total sizes, speed, and ETA. Every frame has the field order
+`[progress bar] percentage transferred / total speed ETA`, uses `#` and `-` for the fixed-width bar,
+and uses binary B/KiB/MiB/GiB units. Before a meaningful rate is available it reports `0 B/s` and
+`ETA --`; a known completed total reports `ETA 0s`. A completed transfer first renders a 100% bar
+and then starts a common send/receive summary containing `Local SHA-256`, `Remote SHA-256`, `Verify`,
+and `Saved` on new lines. Cancellation and failure likewise finish the progress line before their
 status text, so an error never runs into a partially refreshed bar.
 
 During a transfer, shared `attach` clients use the Host's `file-transfer` lease lifecycle and its
 raw-output cursor boundaries to gate local presentation. This includes preflight work such as
 remote-path detection and cleanup, not only payload streaming. The attachment that started the
 transfer retains its detailed progress display. Other attachments render acknowledged bytes, total
-bytes, percentage, and a 30-cell ASCII bar on one timestamped `[HH:MM:SS] [ChannelTerm] Transferred
-...` line that is refreshed in place. Success leaves the 100% frame visible, starts the timestamped
-completion block on the next line, and prints both full SHA-256 values with `Verify: MATCH` for
-regular files. Cancellation and failure instead report the last confirmed byte count and either the
+bytes, percentage, speed, and ETA with the same 20-cell format on one line that is refreshed in
+place. Success leaves the 100% frame visible, clears the next status row, starts the timestamped
+completion block using the attachment's local timezone, and prints both full SHA-256 values with
+`Verify: MATCH` and the saved path for regular files. Cancellation and failure instead report the
+last confirmed byte count and either the
 cancellation reason or error. Attach ends an unterminated visible board line before it renders one
 of these status blocks, without adding an extra line when the board already ended its output;
 neither operation changes raw Session data. All attachments
@@ -171,6 +176,10 @@ range: shell commands, markers, and payload bytes cannot appear later from retai
 ordinary board output (including text that happens to contain `@CTERM:` ) remains raw. Normal Agent
 writes retain their local `AI` activity blocks after completion, failure, or cancellation. Session
 raw output and independent MCP readers are unchanged.
+
+For a successful regular file started from the `Ctrl+] f` menu, the local output uses that same
+order: 100% progress, timestamped `File transfer completed`, and then the four verification fields.
+There is no blank line between the completion status and `Local SHA-256`.
 
 For send, ChannelTerm hashes bytes as it reads the local file. After the final chunk, the board
 computes the stored size with `wc -c` and digest with `sha256sum`; both must match.
