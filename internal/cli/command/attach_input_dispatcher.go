@@ -26,6 +26,7 @@ const (
 	attachInputModeReceiveRemotePath
 	attachInputModeReceiveLocalPath
 	attachInputModeFileTransfer
+	attachInputModeFileTransferCancelConfirm
 )
 
 const controlCRecoveryWindow = 500 * time.Millisecond
@@ -54,7 +55,6 @@ type attachInputDispatcher struct {
 	remotePath            string
 	transferDone          <-chan error
 	transferCancellation  *fileTransferCancellation
-	cancellationAnnounced bool
 	inputIgnoredAnnounced bool
 	// ignoreControlCUntil prevents keyboard auto-repeat and the duplicate
 	// Windows CTRL_C_EVENT from escaping transfer mode after a cancellation.
@@ -162,19 +162,25 @@ func (d *attachInputDispatcher) handleControlC() bool {
 	case attachInputModeAttach:
 		return d.dispatchAttach([]byte{0x03})
 	case attachInputModeFileTransfer:
-		d.ignoreControlCUntil = time.Now().Add(controlCRecoveryWindow)
-		d.requestTransferCancellation()
+		d.beginTransferCancellationConfirmation()
+	case attachInputModeFileTransferCancelConfirm:
+		// A duplicate raw ETX or Windows CTRL_C_EVENT belongs to the gesture
+		// that opened this prompt. Only an explicit y/Y confirms cancellation.
+		return true
 	}
 	return true
 }
 
 func (d *attachInputDispatcher) dispatch(data []byte) bool {
 	// A Windows Ctrl+C can leave both an ETX and a plain C key record queued
-	// behind the CTRL_C_EVENT. Once cancellation has reached a safe transfer
-	// boundary, neither representation is user input for the remote shell.
+	// behind the CTRL_C_EVENT. While confirmation or cancellation is active,
+	// neither representation is user input for the remote shell.
 	// Discard the whole queued result during the short recovery window so a
 	// delayed C cannot be forwarded through a lease that is being released.
 	if d.mode == attachInputModeAttach && time.Now().Before(d.ignoreControlCUntil) {
+		return true
+	}
+	if d.mode == attachInputModeFileTransferCancelConfirm && time.Now().Before(d.ignoreControlCUntil) && len(data) > 0 && (data[0] == 'c' || data[0] == 'C') {
 		return true
 	}
 	for len(data) > 0 {
@@ -198,6 +204,11 @@ func (d *attachInputDispatcher) dispatch(data []byte) bool {
 			if !d.ignoreTransferInput() {
 				return false
 			}
+		case attachInputModeFileTransferCancelConfirm:
+			d.resolveTransferCancellationConfirmation(data[0] == 'y' || data[0] == 'Y')
+			// One key answers the prompt. Discard any CR/LF or pasted tail in
+			// this input batch rather than treating it as transfer input.
+			return true
 		}
 		data = data[1:]
 	}
@@ -373,7 +384,6 @@ func (d *attachInputDispatcher) startTransfer(direction, firstPath, secondPath s
 	// with setup is always a transfer cancellation and is never sent remotely.
 	d.mode = attachInputModeFileTransfer
 	d.ignoreControlCUntil = time.Time{}
-	d.cancellationAnnounced = false
 	d.inputIgnoredAnnounced = false
 	d.transferCancellation = newFileTransferCancellation()
 	if d.writeLocal == nil {
@@ -396,6 +406,40 @@ func (d *attachInputDispatcher) startTransfer(direction, firstPath, secondPath s
 	}()
 }
 
+// beginTransferCancellationConfirmation pauses the worker at its next safe
+// block boundary and asks locally before converting that pause into a cancel.
+// The file-transfer lease remains held while the answer is pending.
+func (d *attachInputDispatcher) beginTransferCancellationConfirmation() {
+	if d.transferCancellation == nil || !d.transferCancellation.BeginConfirmation() {
+		return
+	}
+	d.mode = attachInputModeFileTransferCancelConfirm
+	d.ignoreControlCUntil = time.Now().Add(controlCRecoveryWindow)
+	if d.writeLocal == nil || d.writeLocal(fileTransferCancelConfirmationText) != nil {
+		d.requestTransferCancellation()
+		d.cancelAttach()
+	}
+}
+
+// resolveTransferCancellationConfirmation consumes exactly one local answer.
+// Only y/Y requests cancellation; every other byte resumes the paused worker.
+func (d *attachInputDispatcher) resolveTransferCancellationConfirmation(cancel bool) {
+	if d.transferCancellation == nil || d.mode != attachInputModeFileTransferCancelConfirm {
+		return
+	}
+	d.mode = attachInputModeFileTransfer
+	d.ignoreControlCUntil = time.Time{}
+	d.transferCancellation.ResolveConfirmation(cancel)
+	if d.writeLocal == nil {
+		return
+	}
+	if cancel {
+		_ = d.writeLocal([]byte("\r\n"))
+		return
+	}
+	_ = d.writeLocal(fileTransferResumedText)
+}
+
 // ignoreTransferInput keeps ordinary keyboard bytes out of the normal
 // terminal_write path while this attachment owns a file-transfer lease. The
 // one-time local hint confirms the lock without obscuring transfer progress.
@@ -408,28 +452,31 @@ func (d *attachInputDispatcher) ignoreTransferInput() bool {
 }
 
 func (d *attachInputDispatcher) requestTransferCancellation() {
-	if d.mode != attachInputModeFileTransfer || d.transferCancellation == nil {
+	if (d.mode != attachInputModeFileTransfer && d.mode != attachInputModeFileTransferCancelConfirm) || d.transferCancellation == nil {
 		return
 	}
 	d.transferCancellation.Request()
-	if !d.cancellationAnnounced && d.writeLocal != nil {
-		d.cancellationAnnounced = true
-		_ = d.writeLocal([]byte("\r\nCancelling after the active transfer block...\r\n"))
-	}
 }
 
 func (d *attachInputDispatcher) finishTransfer(err error) {
-	cancelled := d.transferCancellation != nil && d.transferCancellation.Requested()
+	cancelled := d.transferCancellation != nil && d.transferCancellation.Cancelled()
+	confirmationPending := d.mode == attachInputModeFileTransferCancelConfirm
+	progress := fileTransferCancellationSnapshot{}
+	if d.transferCancellation != nil {
+		progress = d.transferCancellation.Progress()
+		// A transfer can finish its final verification before observing a newly
+		// opened prompt. Wake any waiter and discard that stale confirmation.
+		d.transferCancellation.ResolveConfirmation(false)
+	}
 	d.transferDone = nil
 	d.transferCancellation = nil
-	d.cancellationAnnounced = false
 	d.inputIgnoredAnnounced = false
 	d.mode = attachInputModeAttach
 	// Start the recovery window only after the worker has completed its raw
 	// block and released its lease. On slow links the active 8 KiB block can
-	// outlast the window that started when Ctrl+C was first received, allowing
-	// Windows' delayed plain-C record to reach the Session after cancellation.
-	if cancelled {
+	// outlast the window that started when Ctrl+C was first received. The same
+	// guard consumes a pending prompt answer when the transfer ended first.
+	if cancelled || confirmationPending {
 		d.ignoreControlCUntil = time.Now().Add(controlCRecoveryWindow)
 	}
 	if d.writeLocal == nil {
@@ -440,7 +487,7 @@ func (d *attachInputDispatcher) finishTransfer(err error) {
 		return
 	}
 	if cancelled || errors.Is(err, context.Canceled) {
-		_ = d.writeTransferStatus(fileTransferCancelledText(time.Now()))
+		_ = d.writeTransferStatus(fileTransferCancelledSummaryText(time.Now(), progress))
 		return
 	}
 	_ = d.writeTransferStatus(fileTransferFailedText(time.Now(), err))

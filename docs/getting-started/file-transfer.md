@@ -95,11 +95,15 @@ has one local input dispatcher: normal attach `Ctrl+C` goes to the board, while 
 remains local. At transfer start it reports that terminal input is locked. During the transfer,
 ordinary keys (including Enter) are discarded locally before `terminal_write` and show one
 `Input ignored during file transfer. Ctrl+C to cancel.` hint; they are never sent to the board.
-`Ctrl+C` instead shows `Cancelling after the active transfer block...` and requests cancellation
-without detaching or sending Ctrl+C to the board. The already-started 8 KiB block completes and is
-acknowledged so the board restores its TTY; directory transfers use the same bounded blocks instead
-of one full-size raw tar interval. ChannelTerm then removes temporary transfer data, reports
-cancellation once, and returns to the attachment.
+`Ctrl+C` instead prints `^C` and opens `[ChannelTerm] Cancel file transfer? [y/N]:` locally without detaching or
+sending Ctrl+C to the board. The transfer pauses at its next safe 8 KiB block boundary while the
+answer is pending. Only `y` or `Y` confirms; `n`, `N`, Enter, and every other character print
+`[ChannelTerm] File transfer resumed` and continue. During the prompt the Host retains its
+`file-transfer` lease, so independent AI/MCP writes cannot enter the shell protocol. After a
+confirmed cancellation, the board restores its TTY, ChannelTerm removes temporary transfer data,
+releases the lease, publishes `user_cancelled`, reports the last confirmed byte count once, and
+returns to the attachment. Directory transfers use the same bounded blocks instead of one full-size
+raw tar interval.
 
 ## Transfer flow
 

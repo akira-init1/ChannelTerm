@@ -151,7 +151,11 @@ func (p *fileTransferPresentation) handle(event session.Event, local bool, write
 }
 
 func fileTransferEventCancelled(metadata map[string]any) bool {
-	return strings.EqualFold(strings.TrimSpace(fileTransferEventString(metadata, "error")), "context canceled")
+	reason := strings.TrimSpace(fileTransferEventString(metadata, "reason"))
+	message := strings.TrimSpace(fileTransferEventString(metadata, "error"))
+	return strings.EqualFold(reason, fileTransferUserCancelled) ||
+		strings.EqualFold(message, fileTransferUserCancelled) ||
+		strings.EqualFold(message, "context canceled")
 }
 
 func fileTransferEventCursor(metadata map[string]any) (session.OutputCursor, bool) {
@@ -260,7 +264,7 @@ const attachedFileTransferProgressBarWidth = 30
 func fileTransferTransferredText(timestamp time.Time, transferred, total int64, percent float64) string {
 	filled := int(percent * attachedFileTransferProgressBarWidth / 100)
 	filled = min(attachedFileTransferProgressBarWidth, max(0, filled))
-	bar := strings.Repeat("=", filled)
+	bar := strings.Repeat("#", filled)
 	if filled < attachedFileTransferProgressBarWidth {
 		bar += ">" + strings.Repeat(".", attachedFileTransferProgressBarWidth-filled-1)
 	}

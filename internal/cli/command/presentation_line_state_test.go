@@ -68,7 +68,7 @@ func TestFileTransferEventStatusTimestampsTerminalEventsOnly(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if got, want := output.String(), "\r[16:08:12] [ChannelTerm] Transferred 16384/65536 bytes (25.0%) [=======>......................]\x1b[K\r"; got != want {
+	if got, want := output.String(), "\r[16:08:12] [ChannelTerm] Transferred 16384/65536 bytes (25.0%) [#######>......................]\x1b[K\r"; got != want {
 		t.Errorf("progress = %q, want %q", got, want)
 	}
 }

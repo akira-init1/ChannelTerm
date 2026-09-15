@@ -11,6 +11,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/akira-init1/ChannelTerm/internal/core/session"
 )
 
 func TestAttachInputDispatcherRoutesControlCByMode(t *testing.T) {
@@ -30,14 +32,14 @@ func TestAttachInputDispatcherRoutesControlCByMode(t *testing.T) {
 	dispatcher := newAttachInputDispatcherWithPump(context.Background(), &pump, attached, writeLocal, func() error { return nil }, func() {}, func(_ context.Context, transfer attachSession, workerOutput io.Writer, cancelRequested func() bool, _ string, _, _ string) error {
 		close(transferStarted)
 		wrapped := transfer.(nonClosingAttachSession)
+		if err := wrapped.ReportFileTransferEvent(context.Background(), session.EventFileTransferProgress, map[string]any{"sent": int64(909312), "total": int64(1572864), "percent": 57.8}); err != nil {
+			return err
+		}
 		<-wrapped.cancellation.ch
 		if !cancelRequested() {
 			return fmt.Errorf("dispatcher cancellation latch was not propagated")
 		}
 		close(transferCancelled)
-		if _, err := fmt.Fprintln(workerOutput, "Transfer cancelled."); err != nil {
-			return err
-		}
 		close(workerDone)
 		return context.Canceled
 	})
@@ -57,17 +59,27 @@ func TestAttachInputDispatcherRoutesControlCByMode(t *testing.T) {
 	if _, err := inputWriter.Write([]byte{0x03}); err != nil {
 		t.Fatal(err)
 	}
+	deadline := time.Now().Add(time.Second)
+	for !strings.Contains(output.String(), "Cancel file transfer? [y/N]:") && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	if strings.Contains(output.String(), "File transfer cancelled") {
+		t.Fatalf("output = %q, Ctrl+C must wait for confirmation", output.String())
+	}
+	if _, err := inputWriter.Write([]byte{'y'}); err != nil {
+		t.Fatal(err)
+	}
 	waitForSignal(t, transferCancelled, "transfer cancellation request")
 	waitForSignal(t, workerDone, "transfer worker completion")
 
 	// The dispatcher changes back to attach only after the worker has completed
 	// its cleanup. A brief recovery window then consumes any auto-repeated
 	// Ctrl+C from the cancellation gesture before normal remote input resumes.
-	deadline := time.Now().Add(time.Second)
-	for !strings.Contains(output.String(), "Transfer cancelled.") && time.Now().Before(deadline) {
+	deadline = time.Now().Add(time.Second)
+	for !strings.Contains(output.String(), "Reason     : cancelled by user") && time.Now().Before(deadline) {
 		time.Sleep(time.Millisecond)
 	}
-	if !strings.Contains(output.String(), "Transfer cancelled.") {
+	if !strings.Contains(output.String(), "Reason     : cancelled by user") {
 		t.Fatalf("output = %q, want completed cancellation status", output.String())
 	}
 	time.Sleep(controlCRecoveryWindow)
@@ -81,13 +93,112 @@ func TestAttachInputDispatcherRoutesControlCByMode(t *testing.T) {
 	if got := attached.writtenData(); !bytes.Equal(got, []byte{0x03}) {
 		t.Errorf("board input = %x, want only Ctrl+C after transfer completion", got)
 	}
-	if got := output.String(); strings.Count(got, "Cancelling after the active transfer block...") != 1 || strings.Count(got, "Transfer cancelled.") != 1 {
-		t.Errorf("output = %q, want one cancellation request and one final status", got)
+	if got := output.String(); strings.Count(got, "Cancel file transfer? [y/N]:") != 1 || strings.Contains(got, "Cancelling after the active transfer block...") || !strings.Contains(got, "Transferred: 909312/1572864 bytes (57.8%)\r\n  Reason     : cancelled by user") {
+		t.Errorf("output = %q, want one confirmation prompt and the confirmed-progress cancellation summary", got)
 	}
 	if err := inputWriter.Close(); err != nil {
 		t.Fatal(err)
 	}
 	waitForSignal(t, dispatchDone, "dispatcher exit")
+}
+
+func TestAttachInputDispatcherDeclinesCancellationAndResumesAtBoundary(t *testing.T) {
+	for _, tt := range []struct {
+		name   string
+		answer []byte
+	}{
+		{name: "lowercase n", answer: []byte{'n'}},
+		{name: "uppercase N", answer: []byte{'N'}},
+		{name: "enter default", answer: []byte{'\r'}},
+		{name: "other character", answer: []byte{'x'}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			inputReader, inputWriter := io.Pipe()
+			defer inputReader.Close()
+			defer inputWriter.Close()
+			pump := newAttachInputPump(inputReader)
+			var output lockedBuffer
+			started := make(chan struct{})
+			checkBoundary := make(chan struct{})
+			boundaryResult := make(chan bool, 1)
+			finishWorker := make(chan struct{})
+			attached := &cancellableShortcutSession{}
+			dispatcher := newAttachInputDispatcherWithPump(context.Background(), &pump, attached, func(data []byte) error {
+				_, err := output.Write(data)
+				return err
+			}, func() error { return nil }, func() {}, func(workerCtx context.Context, transfer attachSession, _ io.Writer, cancelRequested func() bool, _ string, _, _ string) error {
+				lease := transfer.(fileLeaseSession)
+				if err := lease.AcquireFileTransferLease(workerCtx); err != nil {
+					return err
+				}
+				defer func() { _ = lease.ReleaseFileTransferLease(context.Background()) }()
+				close(started)
+				<-checkBoundary
+				boundaryResult <- cancelRequested()
+				<-finishWorker
+				return nil
+			})
+			done := make(chan struct{})
+			go func() {
+				dispatcher.run()
+				close(done)
+			}()
+
+			if _, err := inputWriter.Write([]byte("\x1dfssources.bin\n\n")); err != nil {
+				t.Fatal(err)
+			}
+			waitForSignal(t, started, "file-transfer worker start")
+			if _, err := inputWriter.Write([]byte{0x03}); err != nil {
+				t.Fatal(err)
+			}
+			deadline := time.Now().Add(time.Second)
+			for !strings.Contains(output.String(), "Cancel file transfer? [y/N]:") && time.Now().Before(deadline) {
+				time.Sleep(time.Millisecond)
+			}
+			close(checkBoundary)
+			select {
+			case result := <-boundaryResult:
+				t.Fatalf("boundary returned %t before confirmation answer", result)
+			case <-time.After(20 * time.Millisecond):
+			}
+			if got := attached.lifecycle(); len(got) != 1 || got[0] != "acquire" {
+				t.Fatalf("lease lifecycle during confirmation = %v, want held lease", got)
+			}
+			if _, err := inputWriter.Write(tt.answer); err != nil {
+				t.Fatal(err)
+			}
+			select {
+			case result := <-boundaryResult:
+				if result {
+					t.Fatal("declined confirmation requested cancellation")
+				}
+			case <-time.After(time.Second):
+				t.Fatal("transfer did not resume after declined confirmation")
+			}
+			if got := attached.lifecycle(); len(got) != 1 || got[0] != "acquire" {
+				t.Fatalf("lease lifecycle after resume = %v, want lease held until transfer completion", got)
+			}
+			deadline = time.Now().Add(time.Second)
+			for !strings.Contains(output.String(), "[ChannelTerm] File transfer resumed") && time.Now().Before(deadline) {
+				time.Sleep(time.Millisecond)
+			}
+			if got := output.String(); strings.Count(got, "Cancel file transfer? [y/N]:") != 1 || strings.Count(got, "[ChannelTerm] File transfer resumed") != 1 {
+				t.Errorf("output = %q, want one prompt and one resumed status", got)
+			}
+			close(finishWorker)
+			deadline = time.Now().Add(time.Second)
+			for !strings.Contains(output.String(), "File transfer completed") && time.Now().Before(deadline) {
+				time.Sleep(time.Millisecond)
+			}
+			if got := attached.lifecycle(); len(got) != 2 || got[0] != "acquire" || got[1] != "release" {
+				t.Errorf("final lease lifecycle = %v, want acquire/release", got)
+			}
+			if err := inputWriter.Close(); err != nil {
+				t.Fatal(err)
+			}
+			waitForSignal(t, done, "dispatcher exit")
+		})
+	}
 }
 
 func TestFileTransferProgressWithCancellationStopsAtAcknowledgedBoundary(t *testing.T) {
@@ -106,6 +217,23 @@ func TestFileTransferProgressWithCancellationStopsAtAcknowledgedBoundary(t *test
 	}
 	if updates != 1 {
 		t.Errorf("progress updates = %d, want one before cancellation", updates)
+	}
+}
+
+func TestFileTransferCancellationPresentationText(t *testing.T) {
+	if got, want := string(fileTransferCancelConfirmationText), "\r\n^C\r\n[ChannelTerm] Cancel file transfer? [y/N]: "; got != want {
+		t.Errorf("confirmation prompt = %q, want %q", got, want)
+	}
+	if got, want := string(fileTransferResumedText), "\r\n[ChannelTerm] File transfer resumed\r\n"; got != want {
+		t.Errorf("resumed text = %q, want %q", got, want)
+	}
+	timestamp := time.Date(2026, time.September, 15, 9, 50, 27, 0, time.Local)
+	progress := fileTransferCancellationSnapshot{transferred: 909312, total: 1572864, percent: 57.8}
+	want := "[09:50:27] [ChannelTerm] File transfer cancelled\r\n" +
+		"  Transferred: 909312/1572864 bytes (57.8%)\r\n" +
+		"  Reason     : cancelled by user\r\n"
+	if got := string(fileTransferCancelledSummaryText(timestamp, progress)); got != want {
+		t.Errorf("cancelled summary = %q, want %q", got, want)
 	}
 }
 
@@ -243,8 +371,15 @@ func TestAttachInputDispatcherDeduplicatesRawAndProcessControlCForTransfer(t *te
 		t.Fatal(err)
 	}
 	interrupts <- os.Interrupt
-	waitForSignal(t, cancelled, "unified transfer cancellation")
 	deadline := time.Now().Add(time.Second)
+	for !strings.Contains(output.String(), "Cancel file transfer? [y/N]:") && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	if _, err := inputWriter.Write([]byte{'y'}); err != nil {
+		t.Fatal(err)
+	}
+	waitForSignal(t, cancelled, "unified transfer cancellation")
+	deadline = time.Now().Add(time.Second)
 	for len(interrupts) != 0 && time.Now().Before(deadline) {
 		time.Sleep(time.Millisecond)
 	}
@@ -254,12 +389,8 @@ func TestAttachInputDispatcherDeduplicatesRawAndProcessControlCForTransfer(t *te
 	if got := attached.writtenData(); bytes.Contains(got, []byte{0x03}) {
 		t.Errorf("board input = %x, transfer Ctrl+C must not be forwarded", got)
 	}
-	deadline = time.Now().Add(time.Second)
-	for strings.Count(output.String(), "Cancelling after the active transfer block...") == 0 && time.Now().Before(deadline) {
-		time.Sleep(time.Millisecond)
-	}
-	if got := output.String(); strings.Count(got, "Cancelling after the active transfer block...") != 1 {
-		t.Errorf("output = %q, want one cancellation request for raw and process Ctrl+C", got)
+	if got := output.String(); strings.Count(got, "Cancel file transfer? [y/N]:") != 1 {
+		t.Errorf("output = %q, want one confirmation prompt for raw and process Ctrl+C", got)
 	}
 	close(releaseWorker)
 	if err := inputWriter.Close(); err != nil {
@@ -297,8 +428,15 @@ func TestAttachInputDispatcherDropsDelayedDuplicateControlCAfterTransfer(t *test
 	if _, err := inputWriter.Write([]byte{0x03}); err != nil {
 		t.Fatal(err)
 	}
-
 	deadline := time.Now().Add(time.Second)
+	for !strings.Contains(output.String(), "Cancel file transfer? [y/N]:") && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	if _, err := inputWriter.Write([]byte{'y'}); err != nil {
+		t.Fatal(err)
+	}
+
+	deadline = time.Now().Add(time.Second)
 	for !strings.Contains(output.String(), "File transfer cancelled") && time.Now().Before(deadline) {
 		time.Sleep(time.Millisecond)
 	}
@@ -354,12 +492,19 @@ func TestAttachInputDispatcherDropsControlCAfterSlowTransferCleanup(t *testing.T
 	if _, err := inputWriter.Write([]byte{0x03}); err != nil {
 		t.Fatal(err)
 	}
+	deadline := time.Now().Add(time.Second)
+	for !strings.Contains(output.String(), "Cancel file transfer? [y/N]:") && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	if _, err := inputWriter.Write([]byte{'Y'}); err != nil {
+		t.Fatal(err)
+	}
 	// Model an active raw block that takes longer than the former recovery
 	// window to complete.
 	time.Sleep(controlCRecoveryWindow + 10*time.Millisecond)
 	close(releaseWorker)
 
-	deadline := time.Now().Add(time.Second)
+	deadline = time.Now().Add(time.Second)
 	for !strings.Contains(output.String(), "File transfer cancelled") && time.Now().Before(deadline) {
 		time.Sleep(time.Millisecond)
 	}
