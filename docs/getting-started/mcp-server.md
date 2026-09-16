@@ -34,6 +34,13 @@ MCP Streamable HTTP listening on http://127.0.0.1:37099/mcp
 
 Silence after that line is normal. Stop the server with the process cancellation signal, normally `Ctrl+C` from a processed console. HTTP shutdown has a five-second graceful timeout; process cleanup then closes Manager-owned Sessions and the Device Registry.
 
+The Host requires `Authorization: Bearer <token>` on every HTTP request. On first use, ChannelTerm
+creates an owner-readable token named `http-auth-token` in its platform user configuration
+directory. Built-in commands such as `attach`, `list`, `events`, and `file` read it automatically.
+For an external MCP client, configure the same header using the client's secret/header mechanism.
+For a remote Host or an explicit secret manager, set `CHANNELTERM_HTTP_AUTH_TOKEN` to the same value
+for both Host and client instead of copying the default local token file.
+
 Customize the listener and endpoint path with:
 
 ```powershell
@@ -69,6 +76,15 @@ in its event metadata.
 
 ## Network security
 
-The default listener is loopback-only. Binding a non-loopback address prints a warning because the current HTTP server provides no ChannelTerm authentication or authorization layer. Any MCP client that can reach the endpoint can invoke write-capable terminal tools. Expose it only on a trusted, separately protected network.
+The default listener is loopback-only, and HTTP requests require a Bearer token. Authentication
+does not provide per-tool authorization, TLS, user identity, revocation, or protection from a
+malicious process running as the same operating-system user and able to read that user's token.
+Binding a non-loopback address still prints a warning. Use TLS termination and separate network
+access controls; do not expose the endpoint directly to an untrusted network.
+
+On cancellation, the HTTP entry point stops accepting new requests, waits up to five seconds for
+active handlers, and waits for that shutdown operation to finish before Manager cleanup begins.
+Manager shutdown rejects new Session registration and waits for any already-started physical open
+attempt to finish, closing its candidate rather than allowing it to register after shutdown.
 
 See [MCP tools](../reference/mcp-tools.md) for the currently exposed tool names and schemas.

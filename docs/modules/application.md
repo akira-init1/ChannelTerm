@@ -10,7 +10,8 @@ discarding an `Application` does not start or close the Registry or close the Ma
 ## Use cases
 
 - `OpenSerial`: load or create configuration, resolve a profile, apply explicit overrides,
-  optionally save, connect or reuse a Session, optionally write one wake carriage return, and
+  optionally save through a locked read-modify-write transaction, connect or reuse a Session,
+  optionally write one wake carriage return, and
   return Manager-owned metadata.
 - `ListSessions`, `ReadSession`, `ReadSessionActivity`, `ReadSessionEvents`, `AttachSession`,
   `DetachSession`, `WriteSession`, `AcquireLease`, `RenewLease`, `ReleaseLease`, `LeaseStatus`,
@@ -95,7 +96,8 @@ Directory transfer checks the same optional Session capability at setup and bloc
 adapters can also return cancellation from its progress callback. Directory tar data is staged in
 a temporary target-side archive and uses the same bounded raw blocks. Cancellation removes the
 partial archive after the active block instead of transmitting or draining the untransferred
-remainder.
+remainder. Both endpoints compute SHA-256 over the exact tar byte stream; extraction or local
+installation is reported successful only when byte count and digest match.
 
 `AttachSession`, `DetachSession`, and authorized `ReportFileTransferEvent` calls publish the
 corresponding state changes on the independent event stream. Readers, cursors, raw output, Channel,
@@ -108,7 +110,8 @@ transmission and reuses an existing hierarchy. Destination collision selection r
 free `_N` sibling.
 
 The protocol reads or writes at most 8 KiB of payload per chunk, saves and restores the remote TTY
-mode around each raw `dd` operation, and performs end-to-end SHA-256 verification for regular files.
+mode around each raw `dd` operation, and performs end-to-end SHA-256 verification for regular files
+and directory tar streams.
 A target-side send block uses a 10-second serial-input idle timeout and verifies the exact file-size
 increase after restoring the saved TTY. A killed transfer process therefore cannot leave `dd`
 waiting indefinitely in raw mode or acknowledge a short block.

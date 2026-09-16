@@ -86,7 +86,10 @@ monotonically increasing counter and are not reused during Manager lifetime.
 
 Lookup and removal accept the opaque Session ID or short reference. `Remove` transfers ownership
 without closing; its caller must close the returned Session. `Close` removes and attempts to close
-every current registration, joining cleanup errors after all Sessions have been processed.
+every current registration, joining cleanup errors after all Sessions have been processed. Shutdown
+is irreversible: it first rejects new registration, waits for every in-progress `GetOrCreate`
+attempt, and closes any candidate that finishes after shutdown began. Repeated or concurrent closes
+cannot acquire ownership of the same Session twice.
 
 `GetOrCreate` reserves an endpoint while one connection attempt is in progress. Within one Manager,
 it returns the existing active Session for the same exact `transport + endpoint` pair. `new`,

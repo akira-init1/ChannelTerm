@@ -4,6 +4,8 @@ import (
 	"archive/tar"
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"io"
 	"os"
@@ -76,6 +78,10 @@ func TestSendDirectoryStreamsTarInBoundedPayloads(t *testing.T) {
 	if result.RemotePath != "/tmp/release" || result.Size != int64(len(terminal.received)) {
 		t.Errorf("SendDirectory() result = %+v, received %d bytes", result, len(terminal.received))
 	}
+	wantDigest := sha256.Sum256(terminal.received)
+	if result.SHA256 != hex.EncodeToString(wantDigest[:]) {
+		t.Errorf("SendDirectory() SHA-256 = %s, want %x", result.SHA256, wantDigest)
+	}
 	if terminal.maxPayload > FileTransferChunkSize {
 		t.Errorf("largest Session payload = %d, want <= %d", terminal.maxPayload, FileTransferChunkSize)
 	}
@@ -141,9 +147,12 @@ func TestDirectorySendUsesStagedArchiveAndBoundedChunks(t *testing.T) {
 	if !strings.Contains(initCommand, `mkdir -p "$d"`) || !strings.Contains(initCommand, "d='/tmp/cterm/user-files'") {
 		t.Fatalf("directory initialization does not create its destination hierarchy: %s", initCommand)
 	}
-	finishCommand := directorySendFinishCommand("abc123", "'/tmp/release'", "'/tmp/.release.part'", "'/tmp/.release.archive.tar'", 2*FileTransferChunkSize)
+	finishCommand := directorySendFinishCommand("abc123", "'/tmp/release'", "'/tmp/.release.part'", "'/tmp/.release.archive.tar'", 2*FileTransferChunkSize, strings.Repeat("a", sha256.Size*2))
 	if !strings.Contains(finishCommand, `tar -x -f "$a" -C "$s"`) {
 		t.Fatalf("directory finalization does not extract the staged archive: %s", finishCommand)
+	}
+	if strings.Index(finishCommand, `"$1" !=`) > strings.Index(finishCommand, `tar -x -f`) {
+		t.Fatalf("directory finalization verifies SHA-256 after extraction: %s", finishCommand)
 	}
 }
 
@@ -194,9 +203,37 @@ func TestReceiveDirectoryExtractsTarStream(t *testing.T) {
 	if result.Size != int64(len(archive)) {
 		t.Errorf("ReceiveDirectory() size = %d, want %d", result.Size, len(archive))
 	}
+	wantDigest := sha256.Sum256(archive)
+	if result.SHA256 != hex.EncodeToString(wantDigest[:]) {
+		t.Errorf("ReceiveDirectory() SHA-256 = %s, want %x", result.SHA256, wantDigest)
+	}
 	data, err := os.ReadFile(filepath.Join(destination, "logs", "app log"))
 	if err != nil || string(data) != "entry" {
 		t.Fatalf("received directory file = %q, %v", data, err)
+	}
+}
+
+func TestDirectoryTransferRejectsChecksumMismatch(t *testing.T) {
+	source := t.TempDir()
+	mustWriteDirectoryTestFile(t, filepath.Join(source, "file"), []byte("content"))
+	sendTerminal := newFileTransferTestSession(nil)
+	sendTerminal.badMetadataHash = true
+	if _, err := SendDirectory(context.Background(), sendTerminal, source, "/tmp/release", nil); err == nil || !strings.Contains(err.Error(), "checksum") {
+		t.Fatalf("SendDirectory() error = %v, want remote checksum rejection", err)
+	}
+
+	plan, err := makeDirectoryPlan(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	archive, err := io.ReadAll(plan.stream())
+	if err != nil {
+		t.Fatal(err)
+	}
+	receiveTerminal := newFileTransferTestSession(archive)
+	receiveTerminal.badMetadataHash = true
+	if _, err := ReceiveDirectory(context.Background(), receiveTerminal, "/tmp/release", t.TempDir(), nil); !errors.Is(err, ErrFileTransferChecksumMismatch) {
+		t.Fatalf("ReceiveDirectory() error = %v, want ErrFileTransferChecksumMismatch", err)
 	}
 }
 

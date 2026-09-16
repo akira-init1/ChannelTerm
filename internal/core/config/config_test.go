@@ -46,6 +46,91 @@ func TestLoadOrCreateCreatesMinimalTemplateOnlyOnce(t *testing.T) {
 	}
 }
 
+func TestSaveAtomicallyReplacesConfigurationWithoutTemporaryFiles(t *testing.T) {
+	directory := t.TempDir()
+	path := filepath.Join(directory, "config.toml")
+	if err := os.WriteFile(path, []byte("invalid = ["), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	want := File{Serial: Serial{Default: "board", Profiles: map[string]SerialProfile{"board": {Port: "COM8", BaudRate: 115200}}}}
+	if err := Save(path, want); err != nil {
+		t.Fatalf("Save() error = %v", err)
+	}
+	got, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load() after Save error = %v", err)
+	}
+	if got.Serial.Default != "board" || got.Serial.Profiles["board"].Port != "COM8" {
+		t.Errorf("saved configuration = %+v, want board profile", got)
+	}
+	entries, err := os.ReadDir(directory)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 1 || entries[0].Name() != "config.toml" {
+		t.Errorf("configuration directory entries = %v, want only config.toml", entries)
+	}
+}
+
+func TestUpdatePreservesConcurrentChanges(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.toml")
+	started := make(chan struct{}, 2)
+	release := make(chan struct{})
+	errs := make(chan error, 2)
+	for _, name := range []string{"left", "right"} {
+		name := name
+		go func() {
+			errs <- Update(path, func(file *File) error {
+				started <- struct{}{}
+				if name == "left" {
+					<-release
+				}
+				file.SaveSerialProfile(name, SerialProfile{Port: name})
+				return nil
+			})
+		}()
+	}
+	<-started
+	close(release)
+	if err := <-errs; err != nil {
+		t.Fatalf("first Update() error = %v", err)
+	}
+	if err := <-errs; err != nil {
+		t.Fatalf("second Update() error = %v", err)
+	}
+	file, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"left", "right"} {
+		if file.Serial.Profiles[name].Port != name {
+			t.Errorf("profile %q = %+v, want preserved", name, file.Serial.Profiles[name])
+		}
+	}
+}
+
+func TestLoadOrCreateHTTPAuthTokenPersistsOwnerOnlyCredential(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "nested", "http-auth-token")
+	first, err := LoadOrCreateHTTPAuthToken(path)
+	if err != nil {
+		t.Fatalf("LoadOrCreateHTTPAuthToken() error = %v", err)
+	}
+	second, err := LoadOrCreateHTTPAuthToken(path)
+	if err != nil {
+		t.Fatalf("second LoadOrCreateHTTPAuthToken() error = %v", err)
+	}
+	if first == "" || second != first {
+		t.Errorf("tokens = %q and %q, want one stable non-empty token", first, second)
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if permissions := info.Mode().Perm(); permissions != 0o600 {
+		t.Errorf("token permissions = %o, want 600", permissions)
+	}
+}
+
 func TestLoadResolvesConnectionPolicyAndRejectsInvalidValue(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.toml")
 	for _, tt := range []struct {

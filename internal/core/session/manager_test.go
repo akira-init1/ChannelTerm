@@ -291,3 +291,53 @@ func TestManagerGetOrCreateSharesOneEndpointSession(t *testing.T) {
 		t.Errorf("created results = %t, %t, want exactly one creator", first.created, second.created)
 	}
 }
+
+func TestManagerCloseWaitsForOpeningAndRejectsRegistration(t *testing.T) {
+	manager := NewManager()
+	createStarted := make(chan struct{})
+	allowCreate := make(chan struct{})
+	created := make(chan Session, 1)
+	result := make(chan error, 1)
+	go func() {
+		_, _, err := manager.GetOrCreate(context.Background(), SessionMetadata{Transport: "serial", Endpoint: "COM8"}, func() (Session, error) {
+			close(createStarted)
+			<-allowCreate
+			terminal, createErr := New("opening", newFakeTransport())
+			created <- terminal
+			return terminal, createErr
+		})
+		result <- err
+	}()
+	<-createStarted
+
+	closed := make(chan error, 1)
+	go func() { closed <- manager.Close() }()
+	select {
+	case err := <-closed:
+		t.Fatalf("Close() returned before opening finished: %v", err)
+	case <-time.After(20 * time.Millisecond):
+	}
+	close(allowCreate)
+	if err := <-result; !errors.Is(err, ErrManagerClosed) {
+		t.Fatalf("GetOrCreate() error = %v, want ErrManagerClosed", err)
+	}
+	if err := <-closed; err != nil {
+		t.Fatalf("Close() error = %v", err)
+	}
+	terminal := <-created
+	if terminal.State() != StateClosed {
+		t.Errorf("opening candidate state = %q, want closed", terminal.State())
+	}
+	if got := manager.List(); len(got) != 0 {
+		t.Errorf("List() after Close = %v, want empty", got)
+	}
+
+	late, err := New("late", newFakeTransport())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = late.Close() }()
+	if err := manager.Register(late); !errors.Is(err, ErrManagerClosed) {
+		t.Errorf("Register() after Close error = %v, want ErrManagerClosed", err)
+	}
+}

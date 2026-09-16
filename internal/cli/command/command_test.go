@@ -5,6 +5,8 @@ import (
 	"context"
 	"errors"
 	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -154,7 +156,7 @@ func TestRunMCPHTTPShutsDownOnContextCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	var stderr bytes.Buffer
-	if err := runMCPHTTP(ctx, registry, "127.0.0.1:0", "/mcp", &stderr); err != nil {
+	if err := runMCPHTTP(ctx, registry, "127.0.0.1:0", "/mcp", "test-token", &stderr); err != nil {
 		t.Fatalf("runMCPHTTP() error = %v", err)
 	}
 	if !strings.Contains(stderr.String(), "MCP Streamable HTTP listening on http://127.0.0.1:") || !strings.Contains(stderr.String(), "/mcp") {
@@ -172,7 +174,7 @@ func TestRunMCPHTTPWarnsWhenNetworkExposed(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	var stderr bytes.Buffer
-	if err := runMCPHTTP(ctx, registry, "0.0.0.0:0", "/mcp", &stderr); err != nil {
+	if err := runMCPHTTP(ctx, registry, "0.0.0.0:0", "/mcp", "test-token", &stderr); err != nil {
 		t.Fatalf("runMCPHTTP() error = %v", err)
 	}
 	for _, warning := range []string{
@@ -183,6 +185,36 @@ func TestRunMCPHTTPWarnsWhenNetworkExposed(t *testing.T) {
 		if !strings.Contains(stderr.String(), warning) {
 			t.Errorf("network startup output = %q, want %q", stderr.String(), warning)
 		}
+	}
+}
+
+func TestMCPHTTPBearerAuthentication(t *testing.T) {
+	called := false
+	handler := requireBearerToken("secret", http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		called = true
+	}))
+	for _, tt := range []struct {
+		name   string
+		header string
+		status int
+	}{
+		{name: "missing", status: http.StatusUnauthorized},
+		{name: "wrong", header: "Bearer wrong", status: http.StatusUnauthorized},
+		{name: "valid", header: "Bearer secret", status: http.StatusOK},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			called = false
+			request := httptest.NewRequest(http.MethodPost, "/mcp", nil)
+			request.Header.Set("Authorization", tt.header)
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, request)
+			if response.Code != tt.status {
+				t.Errorf("status = %d, want %d", response.Code, tt.status)
+			}
+			if called != (tt.status == http.StatusOK) {
+				t.Errorf("handler called = %t for status %d", called, tt.status)
+			}
+		})
 	}
 }
 

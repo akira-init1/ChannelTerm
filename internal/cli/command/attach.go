@@ -10,6 +10,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"strconv"
@@ -406,6 +407,9 @@ func runAttachTargetFirstWithInterrupts(ctx context.Context, target string, args
 		}
 		if startedHost != nil {
 			defer startedHost.stop()
+			if err := writeAutoStartedHostNotice(output); err != nil {
+				return err
+			}
 		}
 		state := "created"
 		if reused {
@@ -423,6 +427,13 @@ func runAttachTargetFirstWithInterrupts(ctx context.Context, target string, args
 		return errors.New("serial options require a serial target reference such as SER-COM8")
 	}
 	return runAttachSessionWithInterrupts(ctx, []string{"--endpoint", *endpoint, "--highlight", *highlightMode, target}, input, output, newAttach, interrupts)
+}
+
+// writeAutoStartedHostNotice makes the temporary Host ownership visible before
+// other clients can join and assume that the process is a persistent service.
+func writeAutoStartedHostNotice(output io.Writer) error {
+	_, err := fmt.Fprintln(output, "[ChannelTerm] Temporary Session Host started; it and all shared Sessions stop when this attachment exits. Run 'channelterm mcp --transport http' separately for a persistent Host.")
+	return err
 }
 
 // defineAttachSerialFlags accepts the same connection settings as serial and
@@ -1166,15 +1177,31 @@ func (s *mcpAttachSession) call(ctx context.Context, name string, arguments map[
 // must identify a Streamable HTTP handler; this function does not open a
 // terminal Session or send terminal bytes.
 func connectMCPClient(ctx context.Context, endpoint string) (*protocol.ClientSession, error) {
+	token, err := loadHTTPAuthToken()
+	if err != nil {
+		return nil, err
+	}
 	client := protocol.NewClient(&protocol.Implementation{Name: "channelterm-cli", Version: version}, nil)
 	remote, err := client.Connect(ctx, &protocol.StreamableClientTransport{
 		Endpoint:             endpoint,
+		HTTPClient:           &http.Client{Transport: bearerTokenTransport{token: token, base: http.DefaultTransport}},
 		DisableStandaloneSSE: true,
 	}, nil)
 	if err != nil {
 		return nil, fmt.Errorf("connect MCP endpoint %q: %w", endpoint, err)
 	}
 	return remote, nil
+}
+
+type bearerTokenTransport struct {
+	token string
+	base  http.RoundTripper
+}
+
+func (t bearerTokenTransport) RoundTrip(request *http.Request) (*http.Response, error) {
+	request = request.Clone(request.Context())
+	request.Header.Set("Authorization", "Bearer "+t.token)
+	return t.base.RoundTrip(request)
 }
 
 // callMCPTool invokes one MCP tool and decodes its structured result. It keeps

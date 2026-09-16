@@ -114,6 +114,18 @@ func TestAutoStartedMCPHostStopsOnlyOnce(t *testing.T) {
 	}
 }
 
+func TestAutoStartedHostNoticeExplainsLifecycle(t *testing.T) {
+	var output bytes.Buffer
+	if err := writeAutoStartedHostNotice(&output); err != nil {
+		t.Fatalf("writeAutoStartedHostNotice() error = %v", err)
+	}
+	for _, text := range []string{"Temporary Session Host", "all shared Sessions stop", "channelterm mcp --transport http"} {
+		if !strings.Contains(output.String(), text) {
+			t.Errorf("notice = %q, want %q", output.String(), text)
+		}
+	}
+}
+
 func TestAutoStartedMCPHostKillsWhenGracefulShutdownCannotStart(t *testing.T) {
 	done := make(chan struct{})
 	kills := 0

@@ -83,8 +83,8 @@ exists, ChannelTerm chooses the first free sibling using `_1`, `_2`, and so on, 
 extensions including `backup.tar.gz` and `.env`. `receive` writes and verifies a temporary local
 file first, then installs it only when the chosen destination remains absent. Confirm both paths
 before running the command. A non-default Host endpoint is a terminal-control boundary and must be
-trusted; the current HTTP Host has no ChannelTerm authentication layer. The feature does not change
-the loopback-only default listener.
+trusted. The HTTP Host requires a Bearer token but does not provide TLS or per-tool authorization.
+The feature does not change the loopback-only default listener.
 
 ## Attach shortcut
 
@@ -253,9 +253,10 @@ into a hidden local staging directory. The target needs enough temporary free sp
 and, during a send extraction, the staged directory. A staged directory is renamed only after the
 full stream and extraction succeed. Local extraction rejects absolute or parent-traversal paths and
 rejects symlinks, hard links, devices, FIFOs, sockets, and other special entries. Directory progress
-counts tar-stream bytes, not a synthetic directory hash; successful completion guarantees tar
-completed, extraction succeeded, and staging was committed, but does not claim a directory-level
-SHA-256.
+counts tar-stream bytes. Both endpoints compute SHA-256 over those exact tar bytes before reporting
+success, so corruption is rejected even when the damaged stream remains a valid tar archive.
+Extraction and staging commit must also succeed. The digest verifies the transferred archive bytes;
+it is not a canonical content hash that remains stable across separate tar creation runs.
 
 The first version does not provide resume, compression, zip, incremental synchronization,
 sparse-file preservation, permissions/ownership preservation, symlink or hard-link handling,

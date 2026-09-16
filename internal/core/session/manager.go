@@ -11,6 +11,10 @@ import (
 // ErrDuplicateSession is returned when registering an ID that Manager owns.
 var ErrDuplicateSession = errors.New("session ID is already registered")
 
+// ErrManagerClosed is returned when a caller tries to add a Session after
+// Manager shutdown has started.
+var ErrManagerClosed = errors.New("session manager is closed")
+
 // Manager owns the set of active sessions.
 //
 // Manager protects registration and lookup with a read-write lock. It does not
@@ -21,6 +25,8 @@ type Manager struct {
 	sessions       map[string]registeredSession
 	nextReferences map[string]uint64
 	openings       map[string]*endpointOpening
+	closed         bool
+	openingDone    *sync.Cond
 }
 
 // SessionMetadata describes fixed, display-oriented information for a Session.
@@ -74,11 +80,13 @@ type endpointOpening struct {
 
 // NewManager creates an empty Manager ready to register Sessions.
 func NewManager() *Manager {
-	return &Manager{
+	manager := &Manager{
 		sessions:       make(map[string]registeredSession),
 		nextReferences: make(map[string]uint64),
 		openings:       make(map[string]*endpointOpening),
 	}
+	manager.openingDone = sync.NewCond(&manager.mu)
+	return manager
 }
 
 // Register adds s under its ID.
@@ -100,6 +108,10 @@ func (m *Manager) Register(s Session) error {
 // permitted, while duplicate Session IDs return ErrDuplicateSession.
 func (m *Manager) RegisterWithMetadata(s Session, metadata SessionMetadata) error {
 	m.mu.Lock()
+	if m.closed {
+		m.mu.Unlock()
+		return ErrManagerClosed
+	}
 	if _, exists := m.sessions[s.ID()]; exists {
 		m.mu.Unlock()
 		return ErrDuplicateSession
@@ -130,6 +142,10 @@ func (m *Manager) GetOrCreate(ctx context.Context, metadata SessionMetadata, cre
 	key := sessionEndpointKey(metadata.Transport, metadata.Endpoint)
 	for {
 		m.mu.Lock()
+		if m.closed {
+			m.mu.Unlock()
+			return SessionInfo{}, false, ErrManagerClosed
+		}
 		if info, ok := m.activeSessionForEndpointLocked(metadata.Transport, metadata.Endpoint); ok {
 			m.mu.Unlock()
 			return info, false, nil
@@ -157,7 +173,9 @@ func (m *Manager) GetOrCreate(ctx context.Context, metadata SessionMetadata, cre
 		var info SessionInfo
 		if err == nil {
 			m.mu.Lock()
-			if _, exists := m.sessions[candidate.ID()]; exists {
+			if m.closed {
+				err = ErrManagerClosed
+			} else if _, exists := m.sessions[candidate.ID()]; exists {
 				err = ErrDuplicateSession
 			} else {
 				metadata.Reference = m.nextReferenceLocked(metadata.Transport)
@@ -181,6 +199,7 @@ func (m *Manager) GetOrCreate(ctx context.Context, metadata SessionMetadata, cre
 		opening.err = err
 		delete(m.openings, key)
 		close(opening.done)
+		m.openingDone.Broadcast()
 		m.mu.Unlock()
 		if err != nil {
 			return SessionInfo{}, false, err
@@ -323,12 +342,16 @@ func (m *Manager) Remove(identifier string) (Session, bool) {
 
 // Close closes every registered Session and removes it from Manager.
 //
-// Close snapshots the current registrations before cleanup so it does not hold
-// Manager's lock while a Session blocks during resource release. It returns all
-// close failures joined together after every Session has been given a chance to
-// close.
+// Close prevents new registrations, waits for in-progress connection attempts,
+// then snapshots the final registrations before cleanup. It does not hold the
+// Manager lock while a Session blocks during resource release. Concurrent and
+// repeated calls are safe; only the first caller can take owned Sessions.
 func (m *Manager) Close() error {
 	m.mu.Lock()
+	m.closed = true
+	for len(m.openings) != 0 {
+		m.openingDone.Wait()
+	}
 	sessions := m.sessions
 	m.sessions = make(map[string]registeredSession)
 	m.mu.Unlock()

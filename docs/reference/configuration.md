@@ -10,10 +10,15 @@ The default directory is the platform directory returned by Go's `os.UserConfigD
 
 - User configuration: `config.toml`
 - Managed device identity state: `state.json`
+- Streamable HTTP bearer credential: `http-auth-token`
 
 CLI and MCP serial opens use `LoadOrCreate`, which creates a minimal `config.toml` with owner-only file permissions where the platform honors them. `channelterm list` treats a missing configuration file as an empty profile list and does not create it.
 
 `--config` and MCP `config_path` select an alternate TOML path for that operation. They do not move `state.json`.
+
+`http-auth-token` is generated from 32 random bytes and stored with owner-only permissions where
+the platform honors them. `CHANNELTERM_HTTP_AUTH_TOKEN` overrides this file for both HTTP Host and
+built-in clients. The token is authentication material and must not be committed or printed in logs.
 
 ## TOML schema
 
@@ -72,6 +77,11 @@ built-in serial defaults
 Only explicitly present flags or JSON properties override profile values. The port in a target-first `connect` or `attach SER-*` operation is always selected by that target.
 
 `--save NAME` or MCP `save` writes the final resolved profile before opening the transport. It creates or replaces `serial.profiles.NAME`. If `serial.default` is empty, the saved name becomes the default. Existing configuration is otherwise read-only.
+
+Writes use a synchronized temporary file in the same directory followed by atomic rename and
+directory synchronization. Profile saving also holds an adjacent `config.toml.lock` file across
+the latest read, profile merge, and write, so concurrent ChannelTerm processes preserve unrelated
+profile updates. The lock file contains no configuration or credential data.
 
 Saving a serial profile does not create an empty `[preferences]` table. User
 preferences never supply serial values and do not participate in profile

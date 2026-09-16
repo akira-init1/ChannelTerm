@@ -2,6 +2,7 @@ package command
 
 import (
 	"context"
+	"crypto/subtle"
 	"errors"
 	"flag"
 	"fmt"
@@ -71,8 +72,9 @@ type serialSessionFactory func(serialtransport.Config) (cliSession, error)
 const version = "0.1.0"
 
 const (
-	defaultMCPListen = "127.0.0.1:37099"
-	defaultMCPPath   = "/mcp"
+	defaultMCPListen    = "127.0.0.1:37099"
+	defaultMCPPath      = "/mcp"
+	httpAuthTokenEnvVar = "CHANNELTERM_HTTP_AUTH_TOKEN"
 )
 
 // runWithIO routes CLI commands while accepting I/O and session construction as
@@ -376,7 +378,28 @@ func runMCP(ctx context.Context, args []string, output io.Writer) (err error) {
 	if selectedTransport == "stdio" {
 		return mcp.Run(ctx, registry, &protocol.StdioTransport{})
 	}
-	return runMCPHTTP(ctx, registry, *listen, endpointPath, os.Stderr)
+	token, err := loadHTTPAuthToken()
+	if err != nil {
+		return err
+	}
+	return runMCPHTTP(ctx, registry, *listen, endpointPath, token, os.Stderr)
+}
+
+// loadHTTPAuthToken resolves one credential for both Host and built-in client
+// use. The environment override supports remote Hosts without copying their
+// token into the caller's default local credential file.
+func loadHTTPAuthToken() (string, error) {
+	if token := strings.TrimSpace(os.Getenv(httpAuthTokenEnvVar)); token != "" {
+		if strings.ContainsAny(token, "\r\n \t") {
+			return "", fmt.Errorf("%s must not contain whitespace", httpAuthTokenEnvVar)
+		}
+		return token, nil
+	}
+	path, err := config.DefaultHTTPAuthTokenPath()
+	if err != nil {
+		return "", err
+	}
+	return config.LoadOrCreateHTTPAuthToken(path)
 }
 
 // normalizeMCPPath validates the endpoint mounted for the HTTP MCP handler.
@@ -395,7 +418,7 @@ func normalizeMCPPath(path string) (string, error) {
 // The HTTP server is stopped with a bounded graceful shutdown. The handler owns
 // only temporary MCP request state; manager-owned terminal Sessions are closed
 // by runMCP after this function returns.
-func runMCPHTTP(ctx context.Context, registry *tool.Registry, listen, path string, stderr io.Writer) error {
+func runMCPHTTP(ctx context.Context, registry *tool.Registry, listen, path, token string, stderr io.Writer) error {
 	listener, err := net.Listen("tcp", listen)
 	if err != nil {
 		return fmt.Errorf("listen for MCP Streamable HTTP on %q: %w", listen, err)
@@ -409,7 +432,7 @@ func runMCPHTTP(ctx context.Context, registry *tool.Registry, listen, path strin
 		return fmt.Errorf("create MCP Streamable HTTP handler: %w", err)
 	}
 	mux := http.NewServeMux()
-	mux.Handle(path, handler)
+	mux.Handle(path, requireBearerToken(token, handler))
 	server := &http.Server{Handler: mux}
 	endpoint := httpEndpoint(listener.Addr().String(), path)
 	if !isLoopbackListen(listener.Addr().String()) {
@@ -418,23 +441,49 @@ func runMCPHTTP(ctx context.Context, registry *tool.Registry, listen, path strin
 		fmt.Fprintln(stderr, "Use only on a trusted network.")
 	}
 	fmt.Fprintf(stderr, "MCP Streamable HTTP listening on %s\n", endpoint)
+	fmt.Fprintln(stderr, "HTTP authentication: Bearer token required.")
 
-	serverStopped := make(chan struct{})
+	stopShutdown := make(chan struct{})
+	shutdownDone := make(chan error, 1)
 	go func() {
 		select {
 		case <-ctx.Done():
 			shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
-			_ = server.Shutdown(shutdownCtx)
-		case <-serverStopped:
+			shutdownErr := server.Shutdown(shutdownCtx)
+			cancel()
+			if shutdownErr != nil {
+				shutdownErr = errors.Join(shutdownErr, server.Close())
+			}
+			shutdownDone <- shutdownErr
+		case <-stopShutdown:
+			shutdownDone <- nil
 		}
 	}()
 	err = server.Serve(listener)
-	close(serverStopped)
+	close(stopShutdown)
+	shutdownErr := <-shutdownDone
+	if shutdownErr != nil {
+		return fmt.Errorf("shutdown MCP Streamable HTTP: %w", shutdownErr)
+	}
 	if errors.Is(err, http.ErrServerClosed) || errors.Is(err, net.ErrClosed) || errors.Is(ctx.Err(), context.Canceled) {
 		return nil
 	}
 	return fmt.Errorf("serve MCP Streamable HTTP: %w", err)
+}
+
+// requireBearerToken rejects requests before the MCP handler allocates any
+// protocol state. Constant-time comparison avoids leaking a valid token prefix.
+func requireBearerToken(token string, next http.Handler) http.Handler {
+	want := "Bearer " + token
+	return http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		got := request.Header.Get("Authorization")
+		if len(got) != len(want) || subtle.ConstantTimeCompare([]byte(got), []byte(want)) != 1 {
+			response.Header().Set("WWW-Authenticate", "Bearer")
+			http.Error(response, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		next.ServeHTTP(response, request)
+	})
 }
 
 // httpEndpoint formats a listener address and path as a client-ready HTTP URL.

@@ -3,6 +3,8 @@ package app
 import (
 	"archive/tar"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -45,6 +47,7 @@ const (
 // not the sum of local file sizes.
 type DirectoryTransferResult struct {
 	Size       int64
+	SHA256     string
 	RemotePath string
 }
 
@@ -254,18 +257,31 @@ func SendDirectory(ctx context.Context, terminal FileTransferSession, source, re
 		cleanupErr := protocol.cleanupDirectory(quotedArchive, quotedStage)
 		return DirectoryTransferResult{}, errors.Join(err, cleanupErr)
 	}
-	if err := copyDirectoryStream(ctx, protocol, plan.stream(), plan.size, quotedArchive, progress); err != nil {
+	hash := sha256.New()
+	if err := copyDirectoryStream(ctx, protocol, io.TeeReader(plan.stream(), hash), plan.size, quotedArchive, progress); err != nil {
 		cleanupErr := protocol.cleanupDirectory(quotedArchive, quotedStage)
 		return DirectoryTransferResult{}, errors.Join(err, cleanupErr)
 	}
-	if err := protocol.command(ctx, directorySendFinishCommand(protocol.token, quotedPath, quotedStage, quotedArchive, plan.size)); err != nil {
+	localDigest := hex.EncodeToString(hash.Sum(nil))
+	if err := protocol.command(ctx, directorySendFinishCommand(protocol.token, quotedPath, quotedStage, quotedArchive, plan.size, localDigest)); err != nil {
 		cleanupErr := protocol.cleanupDirectory(quotedArchive, quotedStage)
 		return DirectoryTransferResult{}, errors.Join(err, cleanupErr)
 	}
-	if _, err := protocol.expect(ctx, "FINAL", "OK"); err != nil {
+	verified, err := protocol.expectPhase(ctx, "FINAL")
+	if err != nil {
 		return DirectoryTransferResult{}, directoryTarError(err)
 	}
-	return DirectoryTransferResult{Size: plan.size, RemotePath: remotePath}, nil
+	remoteSize, remoteDigest, err := parseVerifiedFile(verified)
+	if err != nil {
+		return DirectoryTransferResult{}, err
+	}
+	if remoteSize != plan.size {
+		return DirectoryTransferResult{}, fmt.Errorf("%w: sent %d bytes, remote has %d", ErrFileTransferSizeMismatch, plan.size, remoteSize)
+	}
+	if remoteDigest != localDigest {
+		return DirectoryTransferResult{}, fmt.Errorf("%w: local %s, remote %s", ErrFileTransferChecksumMismatch, localDigest, remoteDigest)
+	}
+	return DirectoryTransferResult{Size: plan.size, SHA256: localDigest, RemotePath: remotePath}, nil
 }
 
 // DetectRemotePath determines whether remotePath is a regular file, a
@@ -335,14 +351,11 @@ func ReceiveDirectory(ctx context.Context, terminal FileTransferSession, remoteP
 	if err := protocol.command(ctx, directoryReceiveInitCommand(protocol.token, quotedPath, quotedArchive)); err != nil {
 		return DirectoryTransferResult{}, err
 	}
-	event, err := protocol.expectPhase(ctx, "SIZE")
+	event, err := protocol.expectPhase(ctx, "META")
 	if err != nil {
 		return DirectoryTransferResult{}, directoryTarError(err)
 	}
-	if len(event) != 1 {
-		return DirectoryTransferResult{}, fmt.Errorf("%w: SIZE has %d arguments, want 1", ErrFileTransferProtocol, len(event))
-	}
-	size, err := parseNonNegativeSize(event[0])
+	size, remoteDigest, err := parseVerifiedFile(event)
 	if err != nil {
 		return DirectoryTransferResult{}, err
 	}
@@ -357,7 +370,8 @@ func ReceiveDirectory(ctx context.Context, terminal FileTransferSession, remoteP
 		_ = reader.CloseWithError(err)
 		extractDone <- err
 	}()
-	copyErr := receiveDirectoryStream(ctx, protocol, writer, quotedArchive, size, progress)
+	hash := sha256.New()
+	copyErr := receiveDirectoryStream(ctx, protocol, io.MultiWriter(writer, hash), quotedArchive, size, progress)
 	_ = writer.CloseWithError(copyErr)
 	extractErr := <-extractDone
 	if copyErr != nil {
@@ -373,7 +387,11 @@ func ReceiveDirectory(ctx context.Context, terminal FileTransferSession, remoteP
 	if extractErr != nil {
 		return DirectoryTransferResult{}, extractErr
 	}
-	return DirectoryTransferResult{Size: size}, nil
+	localDigest := hex.EncodeToString(hash.Sum(nil))
+	if localDigest != remoteDigest {
+		return DirectoryTransferResult{}, fmt.Errorf("%w: local %s, remote %s", ErrFileTransferChecksumMismatch, localDigest, remoteDigest)
+	}
+	return DirectoryTransferResult{Size: size, SHA256: localDigest}, nil
 }
 
 func copyDirectoryStream(ctx context.Context, protocol *fileProtocol, source io.Reader, size int64, archive string, progress FileTransferProgress) error {
