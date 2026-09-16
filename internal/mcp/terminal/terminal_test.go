@@ -1,8 +1,10 @@
 package terminal
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -478,6 +480,61 @@ func TestTerminalWriteToolsRejectOversizedDecodedPayload(t *testing.T) {
 	}
 	if got := len(terminal.writtenData()); got != 0 {
 		t.Errorf("terminal_write_leased wrote %d bytes, want 0", got)
+	}
+}
+
+func TestTerminalWriteLeasedRejectsMissingLease(t *testing.T) {
+	manager := session.NewManager()
+	terminal := newFakeSession("session-1")
+	if err := terminal.Connect(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if err := manager.Register(terminal); err != nil {
+		t.Fatal(err)
+	}
+	application, err := app.New(app.Dependencies{Manager: manager})
+	if err != nil {
+		t.Fatal(err)
+	}
+	tools, err := NewTools(application)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := callTool(tools, "terminal_write_leased", context.Background(), `{"session_id":"session-1","owner":"stale-owner","data":"blocked"}`); !errors.Is(err, app.ErrLeaseNotOwned) {
+		t.Fatalf("terminal_write_leased error = %v, want ErrLeaseNotOwned", err)
+	}
+	if got := len(terminal.writtenData()); got != 0 {
+		t.Fatalf("terminal_write_leased wrote %d bytes without an active lease", got)
+	}
+}
+
+func TestDecodePayloadEnforcesLimitForEveryEncoding(t *testing.T) {
+	oversized := bytes.Repeat([]byte("x"), app.MaxSessionWriteBytes+1)
+	tests := []struct {
+		name     string
+		encoding string
+		data     string
+	}{
+		{name: "utf8", encoding: "utf8", data: string(oversized)},
+		{name: "hex", encoding: "hex", data: hex.EncodeToString(oversized)},
+		{name: "base64", encoding: "base64", data: base64.StdEncoding.EncodeToString(oversized)},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if _, err := decodePayload(test.encoding, test.data); !errors.Is(err, app.ErrWritePayloadTooLarge) {
+				t.Fatalf("decodePayload() error = %v, want ErrWritePayloadTooLarge", err)
+			}
+		})
+	}
+
+	exact := bytes.Repeat([]byte("y"), app.MaxSessionWriteBytes)
+	decoded, err := decodePayload("base64", base64.StdEncoding.EncodeToString(exact))
+	if err != nil {
+		t.Fatalf("decodePayload(exact limit) error = %v", err)
+	}
+	if len(decoded) != app.MaxSessionWriteBytes {
+		t.Fatalf("decoded bytes = %d, want %d", len(decoded), app.MaxSessionWriteBytes)
 	}
 }
 

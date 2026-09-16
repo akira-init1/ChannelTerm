@@ -64,6 +64,28 @@ func TestMCPAttachRejectsMissingSession(t *testing.T) {
 	}
 }
 
+func TestMCPAttachRecoveryAbortClosesHostSession(t *testing.T) {
+	host := newAttachTestHost(t)
+	defer host.close()
+
+	attached, err := newMCPAttachSession(context.Background(), host.server.URL, "board")
+	if err != nil {
+		t.Fatal(err)
+	}
+	mcpSession := attached.(*mcpAttachSession)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	if err := mcpSession.AbortFileTransferRecovery(ctx); err != nil {
+		t.Fatalf("AbortFileTransferRecovery() error = %v", err)
+	}
+	if _, ok := host.manager.Get("board"); ok {
+		t.Fatal("Host Session remains registered after recovery abort")
+	}
+	if err := attached.Close(); err != nil {
+		t.Fatalf("Close() after recovery abort error = %v", err)
+	}
+}
+
 func TestAutoStartedMCPHostStopsOnlyOnce(t *testing.T) {
 	done := make(chan struct{})
 	signals := 0

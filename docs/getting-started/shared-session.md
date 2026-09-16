@@ -62,6 +62,8 @@ Detaching a Client does not close a shared Session. `terminal_close` removes and
 
 If the underlying serial Channel ends or its reader fails, the host automatically removes and closes the affected Session. Its short reference and opaque ID stop resolving, retained buffers are released, and a later open can create a new Session for the reconnected device. Clients waiting on the failed Session receive the original stream error and should list Sessions again before reconnecting.
 
+An expired writer lease normally leaves the Session open for another writer. If expiry occurs while a leased Channel write is still blocked, the host closes and removes that Session instead, because the base Channel contract has no independent write-cancellation operation. Clients should list Sessions and reopen the endpoint before retrying.
+
 See [Identifiers](../reference/identifiers.md) before passing target references, Session references, or `session_id` values between commands.
 
 ## Future direction

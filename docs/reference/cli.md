@@ -298,17 +298,20 @@ with the last confirmed byte counts. Cancellation and failure terminate a render
 before printing their status; no success summary or 100% state is printed for those outcomes. The
 confirmed cancellation also interrupts an outstanding protocol-marker wait, while an already
 started raw block uses an independent cleanup path before lease release. Each recovery write, read,
-acknowledgement wait, and directory cleanup command has a 15-second deadline. A recovery timeout is
-reported alongside the original transfer failure; target TTY and temporary-file state are then
-unconfirmed. This keeps a missing marker or failed recovery from leaving attach input permanently
-locked. The
+acknowledgement wait, and directory cleanup command has a 15-second deadline. A recovery timeout
+closes the Host Session with a separate five-second-bounded request, is reported alongside the
+original transfer failure, and requires the Session to be reopened. Target TTY and temporary-file
+state are then unconfirmed. This keeps a missing marker or failed recovery from leaving attach input
+permanently locked. The
 CLI publishes `FILE_TRANSFER_STARTED`, `FILE_TRANSFER_PROGRESS`, `FILE_TRANSFER_COMPLETED`, or
 `FILE_TRANSFER_FAILED`; after a Host-mediated cancellation, the Host publishes
 `FILE_TRANSFER_CANCELLED` only after lease release. The Host-generated `transfer_id` is shared by
 the transfer's lease acquire/release and every file-transfer event; the lease owner capability is
 not published. The CLI renews its 30-second Host lease every 10 seconds. If the CLI is killed or its
 MCP connection disappears, the Host expires the abandoned lease; a PC-to-board raw input block also
-restores the target TTY after 10 seconds without serial input and reports a short-block failure. The local
+restores the target TTY after 10 seconds without serial input and reports a short-block failure. A stale
+owner cannot resume leased writes after expiry. If expiry finds a Host write still in flight, the Host
+closes and removes that Session to release the blocked write. The local
 initial 0% frame does not add a progress event. Directory events add `kind: "directory"`; their
 progress counts actual tar-stream bytes, calculated with a first standard-library tar counting pass
 and sent through a temporary target-side archive in acknowledged blocks. The remote shell must

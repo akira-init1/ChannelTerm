@@ -229,6 +229,18 @@ func TestFileTransferRecoveryReadsHaveDeadline(t *testing.T) {
 	}
 }
 
+func TestFileTransferRecoveryTimeoutAbortsSharedSession(t *testing.T) {
+	terminal := &recoveryAbortSession{fileTransferTestSession: newFileTransferTestSession(nil)}
+	protocol := &fileProtocol{terminal: terminal, token: "abc123"}
+	err := protocol.finishSendChunk(1, 1)
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("finishSendChunk() error = %v, want context deadline", err)
+	}
+	if terminal.aborts != 1 {
+		t.Fatalf("recovery abort calls = %d, want 1", terminal.aborts)
+	}
+}
+
 func TestSendFileStopsAfterCurrentChunkWhenCancellationIsRequested(t *testing.T) {
 	content := bytes.Repeat([]byte("s"), 2*FileTransferChunkSize)
 	terminal := cancelAfterFirstSendChunk{fileTransferTestSession: newFileTransferTestSession(nil)}
@@ -428,6 +440,20 @@ type recoveryDeadlineProbeSession struct {
 	*fileTransferTestSession
 	readDeadlineObserved  bool
 	writeDeadlineObserved bool
+}
+
+type recoveryAbortSession struct {
+	*fileTransferTestSession
+	aborts int
+}
+
+func (s *recoveryAbortSession) WriteContext(context.Context, session.WriteRequest) (int, error) {
+	return 0, context.DeadlineExceeded
+}
+
+func (s *recoveryAbortSession) AbortFileTransferRecovery(context.Context) error {
+	s.aborts++
+	return nil
 }
 
 func (s *recoveryDeadlineProbeSession) ReadOutput(ctx context.Context, next session.OutputCursor, maxBytes int) (session.OutputChunk, error) {

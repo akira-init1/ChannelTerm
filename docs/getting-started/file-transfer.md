@@ -131,8 +131,10 @@ raw tar interval.
 The Host lease has a 30-second TTL, and the bundled transfer client renews it every 10 seconds. If
 the client is killed or loses its MCP connection long enough to miss renewal, the Host expires the
 lease, publishes a `lease_expired` failure and release event, and allows another writer or transfer
-to acquire the Session. A cancellation confirmation waiting on the missing owner returns as expired
-instead of remaining blocked. During PC-to-board payload input, the target-side raw TTY also has a
+to acquire the Session. A stale owner cannot use leased writes after expiry. If a leased Channel
+write is still in flight at expiry, the Host instead closes and removes the Session so that the
+blocked write cannot prevent cleanup; reopen the device Session before retrying. A cancellation
+confirmation waiting on the missing owner returns as expired instead of remaining blocked. During PC-to-board payload input, the target-side raw TTY also has a
 10-second idle timeout; after that timeout the shell restores the saved TTY mode and rejects the
 short block rather than waiting indefinitely.
 
@@ -142,9 +144,10 @@ attachment in file-transfer mode. If raw payload transfer has already started, i
 continues independently while it tries to pad or drain the bounded block, consume its
 acknowledgement, restore the target TTY, and remove directory-transfer staging data. Each recovery
 write, read, acknowledgement wait, and cleanup command has a 15-second deadline. If the target
-shell or protocol stops responding, recovery returns after the applicable deadline and the lease is
-released; the reported failure includes the recovery timeout. In that case, target TTY restoration
-and temporary-file removal are not confirmed and should be checked manually before another transfer.
+shell or protocol stops responding, the bundled attachment closes the Host Session with a separate
+five-second-bounded request so an in-flight Host write cannot retain the lease. The reported failure
+includes the recovery timeout, and the Session must be reopened before retrying. Target TTY
+restoration and temporary-file removal are not confirmed and should be checked manually.
 
 ## Transfer flow
 
