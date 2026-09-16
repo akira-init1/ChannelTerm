@@ -2,8 +2,11 @@ package session
 
 import (
 	"context"
+	"errors"
+	"io"
 	"sync"
 	"testing"
+	"time"
 )
 
 func TestManagerRegisterGetRemove(t *testing.T) {
@@ -144,6 +147,104 @@ func TestManagerCloseClosesRegisteredSessions(t *testing.T) {
 	}
 	if _, ok := manager.Get("board-1"); ok {
 		t.Error("Get() returned a session after manager Close()")
+	}
+}
+
+func TestManagerReapsSessionAfterReadFailure(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		readErr error
+	}{
+		{name: "device error", readErr: errors.New("device disconnected")},
+		{name: "end of stream", readErr: io.EOF},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			manager := NewManager()
+			terminal := &failingTransport{readErr: test.readErr}
+			core, err := New("board-1", terminal, WithReceiveBufferCapacity(64))
+			if err != nil {
+				t.Fatalf("New() error = %v", err)
+			}
+			if err := core.Connect(context.Background()); err != nil {
+				t.Fatalf("Connect() error = %v", err)
+			}
+			if err := manager.Register(core); err != nil {
+				t.Fatalf("Register() error = %v", err)
+			}
+
+			deadline := time.Now().Add(time.Second)
+			for {
+				_, registered := manager.Get(core.ID())
+				core.receive.mu.Lock()
+				receiveReleased := core.receive.data == nil
+				core.receive.mu.Unlock()
+				if !registered && terminal.closeCount() == 1 && receiveReleased {
+					break
+				}
+				if time.Now().After(deadline) {
+					t.Fatalf("failed Session cleanup: registered=%t close calls=%d receive released=%t", registered, terminal.closeCount(), receiveReleased)
+				}
+				time.Sleep(time.Millisecond)
+			}
+
+			if got := core.State(); got != StateClosed {
+				t.Errorf("State() = %s, want %s", got, StateClosed)
+			}
+			core.activity.mu.Lock()
+			activityReleased := core.activity.events == nil
+			core.activity.mu.Unlock()
+			if !activityReleased {
+				t.Error("activity buffer retained storage after failed Session cleanup")
+			}
+			core.events.mu.Lock()
+			eventsReleased := core.events.events == nil
+			core.events.mu.Unlock()
+			if !eventsReleased {
+				t.Error("event buffer retained storage after failed Session cleanup")
+			}
+		})
+	}
+}
+
+func TestManagerIgnoresRemovedSessionLifecycleAfterIDReuse(t *testing.T) {
+	manager := NewManager()
+	failRead := make(chan struct{})
+	first, err := New("board-1", &failingTransport{readErr: errors.New("device disconnected"), readReady: failRead})
+	if err != nil {
+		t.Fatalf("New() first error = %v", err)
+	}
+	if err := first.Connect(context.Background()); err != nil {
+		t.Fatalf("Connect() first error = %v", err)
+	}
+	if err := manager.Register(first); err != nil {
+		t.Fatalf("Register() first error = %v", err)
+	}
+	if removed, ok := manager.Remove(first.ID()); !ok || removed != first {
+		t.Fatalf("Remove() = %v, %t; want first Session, true", removed, ok)
+	}
+
+	second, err := New("board-1", newFakeTransport())
+	if err != nil {
+		t.Fatalf("New() second error = %v", err)
+	}
+	if err := manager.Register(second); err != nil {
+		t.Fatalf("Register() second error = %v", err)
+	}
+	close(failRead)
+
+	select {
+	case <-first.readerDone:
+	case <-time.After(time.Second):
+		t.Fatal("first Session reader did not report failure")
+	}
+	if got, ok := manager.Get(second.ID()); !ok || got != second {
+		t.Errorf("Get() = %v, %t; want second Session, true", got, ok)
+	}
+	if err := first.Close(); err != nil {
+		t.Fatalf("Close() first error = %v", err)
+	}
+	if err := manager.Close(); err != nil {
+		t.Fatalf("Manager.Close() error = %v", err)
 	}
 }
 

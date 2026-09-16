@@ -14,7 +14,7 @@ new --> connecting --> open --> closing --> closed
 
 Only `open` permits read, write, activity read, event read, and resize operations. `Close` wakes waiting readers, closes the Channel to unblock active I/O, waits for the reader goroutine, releases buffer memory, and enters `closed`. Sequential repeated closes return the first close result. The caller must not run `Connect` concurrently with `Close`.
 
-An unexpected reader error enters `failed`. EOF is treated as an output end condition. Received bytes returned with an error are appended before the error is handled.
+An unexpected reader error enters `failed`. EOF is treated as an output end condition. Received bytes returned with an error are appended before the error is handled. A Manager-owned Session then notifies its Manager, which removes that exact Session instance and closes it to release the Channel and all retained buffers. The terminal state after cleanup is `closed`; waiting readers still receive the original reader error recorded before cleanup.
 
 ## Ownership and concurrency
 
@@ -49,5 +49,7 @@ Read, write, close, and lifecycle state form the complete base Channel contract.
 Lookup and removal accept the opaque Session ID or short reference. `Remove` transfers ownership without closing; its caller must close the returned Session. `Close` removes and attempts to close every current registration, joining cleanup errors after all Sessions have been processed.
 
 `GetOrCreate` reserves an endpoint while one connection attempt is in progress. Within one Manager, it returns the existing active Session for the same exact `transport + endpoint` pair. `new`, `connecting`, `open`, and `closing` Sessions still own an endpoint. `failed` and `closed` registrations do not prevent a later attempt.
+
+Manager observes terminal lifecycle completion from the default Session Core. When a registered Core reaches a terminal state because its Channel reader returns an error or EOF, Manager atomically removes that same instance and calls `Close`. This prevents failed Sessions from retaining the Channel, receive buffer, activity buffer, event buffer, or a stale list entry. An instance check prevents a delayed completion signal from removing a newer Session that reuses the same ID.
 
 After a successful registration, Manager publishes `SESSION_CREATED` with display metadata. Registration remains complete even if an observer is slow.
