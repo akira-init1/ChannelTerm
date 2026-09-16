@@ -186,9 +186,10 @@ func (a *Application) DetachSession(identifier, actor string) error {
 }
 
 // ReportFileTransferEvent publishes one validated file-transfer transition on
-// the Session event stream. Metadata is presentation data only and must not
-// include transfer payload bytes or lease owner capabilities.
-func (a *Application) ReportFileTransferEvent(identifier string, typ session.EventType, actor string, metadata map[string]any) error {
+// the Session event stream. owner and transferID must match the active
+// file-transfer lease. Metadata is presentation data only and must not include
+// transfer payload bytes or lease owner capabilities.
+func (a *Application) ReportFileTransferEvent(identifier, owner, transferID string, typ session.EventType, actor string, metadata map[string]any) error {
 	switch typ {
 	case session.EventFileTransferStarted, session.EventFileTransferProgress, session.EventFileTransferCompleted, session.EventFileTransferFailed:
 	default:
@@ -198,14 +199,46 @@ func (a *Application) ReportFileTransferEvent(identifier string, typ session.Eve
 	if err != nil {
 		return err
 	}
-	a.leases.recordFileTransferProgress(terminal.ID(), metadata)
+	transferID = strings.TrimSpace(transferID)
+	if err := a.leases.validateFileTransferReporter(terminal.ID(), owner, transferID); err != nil {
+		return err
+	}
+	eventMetadata := copyFileTransferEventMetadata(metadata)
+	eventMetadata["transfer_id"] = transferID
+	if typ == session.EventFileTransferCompleted {
+		if err := validateCompletedFileTransferMetadata(eventMetadata); err != nil {
+			return err
+		}
+	}
+	a.leases.recordFileTransferProgress(terminal.ID(), eventMetadata)
 	// A Host-confirmed cancellation is emitted after lease release below. Do
 	// not expose the transfer process's context cancellation as a duplicate
 	// failure before cleanup has completed.
 	if typ == session.EventFileTransferFailed && a.leases.fileTransferCancelConfirmed(terminal.ID()) {
 		return nil
 	}
-	terminal.PublishEvent(session.Event{Type: typ, Actor: eventActor(actor), Metadata: metadata})
+	terminal.PublishEvent(session.Event{Type: typ, Actor: eventActor(actor), Metadata: eventMetadata})
+	return nil
+}
+
+func copyFileTransferEventMetadata(metadata map[string]any) map[string]any {
+	copy := make(map[string]any, len(metadata)+1)
+	for key, value := range metadata {
+		copy[key] = value
+	}
+	return copy
+}
+
+func validateCompletedFileTransferMetadata(metadata map[string]any) error {
+	for _, field := range []string{"source_path", "requested_path", "resolved_path"} {
+		value, ok := metadata[field].(string)
+		if !ok || strings.TrimSpace(value) == "" {
+			return fmt.Errorf("completed file transfer requires non-empty string %s", field)
+		}
+	}
+	if _, ok := metadata["renamed"].(bool); !ok {
+		return errors.New("completed file transfer requires boolean renamed")
+	}
 	return nil
 }
 
@@ -281,12 +314,12 @@ func (a *Application) AcquireLease(identifier, owner string, typ LeaseType) (Ses
 	terminal.PublishEvent(session.Event{
 		Type:  session.EventLeaseAcquired,
 		Actor: string(session.ActorSystem),
-		Metadata: map[string]any{
+		Metadata: fileTransferLeaseEventMetadata(lease, map[string]any{
 			"type":          string(lease.Type),
 			"created_at":    lease.CreatedAt.Format(time.RFC3339Nano),
 			"state":         lease.State,
 			"output_cursor": uint64(presentationCursor),
-		},
+		}),
 	})
 	return lease, nil
 }
@@ -307,18 +340,19 @@ func (a *Application) ReleaseLease(identifier, owner string) error {
 		terminal.PublishEvent(session.Event{
 			Type:  session.EventLeaseReleased,
 			Actor: string(session.ActorSystem),
-			Metadata: map[string]any{
+			Metadata: fileTransferLeaseEventMetadata(lease, map[string]any{
 				"type":          string(lease.Type),
 				"created_at":    lease.CreatedAt.Format(time.RFC3339Nano),
 				"state":         "released",
 				"output_cursor": uint64(presentationCursor),
-			},
+			}),
 		})
 		if cancelled != nil {
 			terminal.PublishEvent(session.Event{
 				Type:  session.EventFileTransferCancelled,
 				Actor: string(session.ActorUser),
 				Metadata: map[string]any{
+					"transfer_id":    lease.TransferID,
 					"transferred":    cancelled.Transferred,
 					"total":          cancelled.Total,
 					"percent":        cancelled.Percent,
@@ -329,6 +363,13 @@ func (a *Application) ReleaseLease(identifier, owner string) error {
 		}
 	}
 	return nil
+}
+
+func fileTransferLeaseEventMetadata(lease SessionLease, metadata map[string]any) map[string]any {
+	if lease.TransferID != "" {
+		metadata["transfer_id"] = lease.TransferID
+	}
+	return metadata
 }
 
 // BeginFileTransferCancel atomically opens a confirmation request only when

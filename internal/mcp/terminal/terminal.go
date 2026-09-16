@@ -52,6 +52,12 @@ var (
 	// omits the event cursor that separates an earlier transfer from the one
 	// being observed.
 	ErrFileTransferWaitCursorRequired = errors.New("cursor is required to wait for a file-transfer result")
+	// ErrFileTransferWaitIDRequired is returned when a file-transfer wait cannot
+	// correlate terminal and lease-release events to one transfer.
+	ErrFileTransferWaitIDRequired = errors.New("transfer_id is required to wait for a file-transfer result")
+	// ErrInvalidCompletedFileTransferEvent is returned when a completed event
+	// cannot provide the authoritative saved-path result promised by the Tool.
+	ErrInvalidCompletedFileTransferEvent = errors.New("completed file-transfer event is missing required path metadata")
 	// ErrNilDeviceRegistry is returned when device tools have no discovery state owner.
 	ErrNilDeviceRegistry = errors.New("device registry must not be nil")
 	// ErrInvalidSessionLabel is returned when a display label contains a control character.
@@ -532,7 +538,7 @@ func (t *listSessionsTool) Call(ctx context.Context, _ json.RawMessage) (tool.Re
 			State:     info.State.String(),
 		}
 		if lease, active, err := t.application.LeaseStatus(info.ID); err == nil && active {
-			summary.Lease = &leaseSummary{Type: string(lease.Type), CreatedAt: lease.CreatedAt.Format(time.RFC3339Nano), State: lease.State}
+			summary.Lease = &leaseSummary{Type: string(lease.Type), TransferID: lease.TransferID, CreatedAt: lease.CreatedAt.Format(time.RFC3339Nano), State: lease.State}
 		}
 		result = append(result, summary)
 	}
@@ -756,32 +762,37 @@ func (*waitFileTransferTool) Name() string { return "terminal_wait_file_transfer
 
 // Description directs Agents away from terminal_wait for transfer outcomes.
 func (*waitFileTransferTool) Description() string {
-	return "Wait after an event cursor until a file transfer completes, is cancelled, or fails. Completed transfers include source_path, requested_path, resolved_path, renamed, and optional sha256; use resolved_path as the saved file path. Use this instead of terminal_wait for file-transfer outcomes."
+	return "Wait for one transfer_id after an event cursor until the transfer completes, is cancelled, or fails and its file-transfer lease has been released. Completed transfers include source_path, requested_path, resolved_path, renamed, and optional sha256; use resolved_path as the saved file path. Use this instead of terminal_wait for file-transfer outcomes."
 }
 
 // InputSchema describes a Session event cursor and an optional bounded wait.
 func (*waitFileTransferTool) InputSchema() tool.InputSchema {
 	return tool.InputSchema{Type: "object", Properties: map[string]tool.InputProperty{
-		"session_id": {Type: "string", Description: "Session ID or short reference returned by terminal_open_serial."},
-		"cursor":     {Type: "integer", Description: "Next Session event cursor captured before or during the transfer."},
-		"max_events": {Type: "integer", Description: "Maximum number of Session events inspected per read."},
-		"timeout_ms": {Type: "integer", Description: "Optional total wait timeout in milliseconds; maximum 86400000."},
-	}, Required: []string{"session_id", "cursor"}}
+		"session_id":  {Type: "string", Description: "Session ID or short reference returned by terminal_open_serial."},
+		"transfer_id": {Type: "string", Description: "Transfer ID published by FILE_TRANSFER_STARTED and the file-transfer lease events."},
+		"cursor":      {Type: "integer", Description: "Next Session event cursor captured before or during the transfer."},
+		"max_events":  {Type: "integer", Description: "Maximum number of Session events inspected per read."},
+		"timeout_ms":  {Type: "integer", Description: "Optional total wait timeout in milliseconds; maximum 86400000."},
+	}, Required: []string{"session_id", "transfer_id", "cursor"}}
 }
 
-// Call skips intermediate events and returns the first file-transfer terminal
-// event after cursor. The returned next cursor is immediately after that event,
-// so a caller never loses later events that arrived in the same buffer read.
+// Call skips unrelated events and returns only after both the matching terminal
+// event and matching file-transfer lease release have been observed. The next
+// cursor is immediately after the later of those two events.
 func (t *waitFileTransferTool) Call(ctx context.Context, input json.RawMessage) (tool.Result, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	var args eventInput
+	var args fileTransferWaitInput
 	if err := decodeInput(input, &args); err != nil {
 		return nil, err
 	}
 	if args.Cursor == nil {
 		return nil, ErrFileTransferWaitCursorRequired
+	}
+	transferID := strings.TrimSpace(args.TransferID)
+	if transferID == "" {
+		return nil, ErrFileTransferWaitIDRequired
 	}
 	limit := args.MaxEvents
 	if limit == 0 {
@@ -795,6 +806,9 @@ func (t *waitFileTransferTool) Call(ctx context.Context, input json.RawMessage) 
 
 	cursor := *args.Cursor
 	dropped := false
+	leaseReleased := false
+	var terminalEvent *session.Event
+	terminalState := ""
 	for {
 		chunk, readErr := t.application.ReadSessionEvents(waitCtx, args.SessionID, &cursor, limit)
 		if readErr != nil {
@@ -802,22 +816,60 @@ func (t *waitFileTransferTool) Call(ctx context.Context, input json.RawMessage) 
 		}
 		dropped = dropped || chunk.Dropped
 		for _, event := range chunk.Events {
-			state, terminal := fileTransferTerminalState(event.Type)
-			if !terminal {
+			if fileTransferEventID(event) != transferID {
 				continue
 			}
-			encoded := encodeSessionEvents([]session.Event{event})[0]
-			result := tool.Result{
-				"state":   state,
-				"event":   encoded,
-				"next":    event.ID + 1,
-				"dropped": dropped,
+			if event.Type == session.EventLeaseReleased && event.Metadata["type"] == string(app.LeaseTypeFileTransfer) {
+				leaseReleased = true
 			}
-			addResolvedFileTransferResult(result, state, event.Metadata)
-			return result, nil
+			state, terminal := fileTransferTerminalState(event.Type)
+			if terminal && terminalEvent == nil {
+				if state == "completed" {
+					if err := validateCompletedFileTransferEvent(event.Metadata); err != nil {
+						return nil, err
+					}
+				}
+				copy := event
+				terminalEvent = &copy
+				terminalState = state
+				if state == "cancelled" && event.Metadata["lease_released"] == true {
+					leaseReleased = true
+				}
+			}
+			if terminalEvent != nil && leaseReleased {
+				encoded := encodeSessionEvents([]session.Event{*terminalEvent})[0]
+				result := tool.Result{
+					"state":          terminalState,
+					"transfer_id":    transferID,
+					"event":          encoded,
+					"next":           event.ID + 1,
+					"dropped":        dropped,
+					"lease_released": true,
+				}
+				addResolvedFileTransferResult(result, terminalState, terminalEvent.Metadata)
+				return result, nil
+			}
 		}
 		cursor = chunk.Next
 	}
+}
+
+func fileTransferEventID(event session.Event) string {
+	transferID, _ := event.Metadata["transfer_id"].(string)
+	return transferID
+}
+
+func validateCompletedFileTransferEvent(metadata map[string]any) error {
+	for _, field := range []string{"source_path", "requested_path", "resolved_path"} {
+		value, ok := metadata[field].(string)
+		if !ok || strings.TrimSpace(value) == "" {
+			return fmt.Errorf("%w: %s", ErrInvalidCompletedFileTransferEvent, field)
+		}
+	}
+	if _, ok := metadata["renamed"].(bool); !ok {
+		return fmt.Errorf("%w: renamed", ErrInvalidCompletedFileTransferEvent)
+	}
+	return nil
 }
 
 // addResolvedFileTransferResult promotes the successful transfer paths from
@@ -925,17 +977,19 @@ func (*reportFileTransferTool) Name() string { return "terminal_report_file_tran
 
 // Description explains that the tool publishes no terminal bytes.
 func (*reportFileTransferTool) Description() string {
-	return "Publish a file-transfer status event for a Session without writing terminal output."
+	return "Publish a file-transfer status event only for the caller-owned active file-transfer lease, without writing terminal output."
 }
 
 // InputSchema describes a file-transfer status event and JSON metadata.
 func (*reportFileTransferTool) InputSchema() tool.InputSchema {
 	return tool.InputSchema{Type: "object", Properties: map[string]tool.InputProperty{
-		"session_id": {Type: "string", Description: "Session ID or short reference."},
-		"type":       {Type: "string", Description: "File-transfer event type.", Enum: []string{string(session.EventFileTransferStarted), string(session.EventFileTransferProgress), string(session.EventFileTransferCompleted), string(session.EventFileTransferFailed)}},
-		"actor":      {Type: "string", Description: "Optional adapter actor label; defaults to system."},
-		"metadata":   {Type: "object", Description: "Optional JSON-compatible transfer status metadata."},
-	}, Required: []string{"session_id", "type"}}
+		"session_id":  {Type: "string", Description: "Session ID or short reference."},
+		"owner":       {Type: "string", Description: "Opaque owner capability of the active file-transfer lease."},
+		"transfer_id": {Type: "string", Description: "Transfer ID returned when the file-transfer lease was acquired."},
+		"type":        {Type: "string", Description: "File-transfer event type.", Enum: []string{string(session.EventFileTransferStarted), string(session.EventFileTransferProgress), string(session.EventFileTransferCompleted), string(session.EventFileTransferFailed)}},
+		"actor":       {Type: "string", Description: "Optional adapter actor label; defaults to system."},
+		"metadata":    {Type: "object", Description: "Optional JSON-compatible transfer status metadata."},
+	}, Required: []string{"session_id", "owner", "transfer_id", "type"}}
 }
 
 // Call publishes one validated file-transfer event.
@@ -944,7 +998,7 @@ func (t *reportFileTransferTool) Call(ctx context.Context, input json.RawMessage
 	if err := decodeInput(input, &args); err != nil {
 		return nil, err
 	}
-	if err := t.application.ReportFileTransferEvent(args.SessionID, session.EventType(args.Type), args.Actor, args.Metadata); err != nil {
+	if err := t.application.ReportFileTransferEvent(args.SessionID, args.Owner, args.TransferID, session.EventType(args.Type), args.Actor, args.Metadata); err != nil {
 		return nil, err
 	}
 	return tool.Result{"published": true}, nil
@@ -1309,16 +1363,26 @@ type eventInput struct {
 	TimeoutMS *int64               `json:"timeout_ms"`
 }
 
+type fileTransferWaitInput struct {
+	SessionID  string               `json:"session_id"`
+	TransferID string               `json:"transfer_id"`
+	Cursor     *session.EventCursor `json:"cursor"`
+	MaxEvents  int                  `json:"max_events"`
+	TimeoutMS  *int64               `json:"timeout_ms"`
+}
+
 type attachmentInput struct {
 	SessionID string `json:"session_id"`
 	Actor     string `json:"actor"`
 }
 
 type fileTransferEventInput struct {
-	SessionID string         `json:"session_id"`
-	Type      string         `json:"type"`
-	Actor     string         `json:"actor"`
-	Metadata  map[string]any `json:"metadata"`
+	SessionID  string         `json:"session_id"`
+	Owner      string         `json:"owner"`
+	TransferID string         `json:"transfer_id"`
+	Type       string         `json:"type"`
+	Actor      string         `json:"actor"`
+	Metadata   map[string]any `json:"metadata"`
 }
 
 type fileTransferControlInput struct {
@@ -1416,13 +1480,18 @@ type sessionSummary struct {
 }
 
 type leaseSummary struct {
-	Type      string `json:"type"`
-	CreatedAt string `json:"created_at"`
-	State     string `json:"state"`
+	Type       string `json:"type"`
+	TransferID string `json:"transfer_id,omitempty"`
+	CreatedAt  string `json:"created_at"`
+	State      string `json:"state"`
 }
 
 func leaseResult(lease app.SessionLease) tool.Result {
-	return tool.Result{"session_id": lease.SessionID, "type": string(lease.Type), "created_at": lease.CreatedAt.Format(time.RFC3339Nano), "state": lease.State}
+	result := tool.Result{"session_id": lease.SessionID, "type": string(lease.Type), "created_at": lease.CreatedAt.Format(time.RFC3339Nano), "state": lease.State}
+	if lease.TransferID != "" {
+		result["transfer_id"] = lease.TransferID
+	}
+	return result
 }
 
 // validateSessionLabel keeps display-oriented metadata safe for future CLI and

@@ -30,6 +30,10 @@ Each reader owns its own output and activity cursors. One Client reading output 
 
 An existing shared Session can also carry a CLI-only [file transfer](file-transfer.md). Use `Ctrl+] f` in an attachment for a guided local flow, or run `channelterm file send` / `channelterm file receive` from another terminal. While a `file-transfer` lease is active, `Ctrl+C` in any bundled attachment opens a default-No local cancellation confirmation instead of calling `terminal_write`; normal terminal `Ctrl+C` still sends `0x03`. While confirmation is pending, the transfer owner pauses at a safe block boundary and the Host retains its lease. Independent MCP `terminal_write` calls therefore fail immediately rather than entering the prompt or interleaving with the shell protocol.
 
+The file-transfer lease and all of its status events share one `transfer_id`. MCP clients waiting on
+that ID receive the terminal result only after the matching lease release, so the next ordinary
+write does not race cleanup.
+
 That guarantee does not coordinate the meaning of concurrent commands. Session has no writer ownership, exclusive lease, transaction, priority, arbitration, or shell-state coordination. Clients must currently avoid conflicting command sequences themselves.
 
 After attachment, the CLI watches new activity from the current tail and renders non-empty Agent writes as local `AI` activity blocks. It does not replay older activity, and writes containing only carriage-return or line-feed bytes are not rendered as blocks. This local view does not add bytes to Session output or change another client's cursor.

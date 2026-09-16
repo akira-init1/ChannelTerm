@@ -133,7 +133,7 @@ Purpose: list the host Manager's current Session snapshot.
 
 - Required input: none; use `{}`.
 - Optional input: none.
-- Result: `sessions`, sorted by short reference. Each object contains `session_id`, `session_ref`, `transport`, `endpoint`, `label`, and `state`. An actively leased Session also has `lease` with `type`, `created_at`, and `state`; owner capabilities are never returned.
+- Result: `sessions`, sorted by short reference. Each object contains `session_id`, `session_ref`, `transport`, `endpoint`, `label`, and `state`. An actively leased Session also has `lease` with `type`, `created_at`, and `state`; a file-transfer lease adds `transfer_id`. Owner capabilities are never returned.
 
 ```json
 {}
@@ -226,21 +226,21 @@ Purpose: read retained structured Session state, or wait after an event cursor. 
 ```
 
 ```json
-{"events":[{"id":3,"timestamp":"2026-09-02T09:02:00Z","session_id":"0123456789abcdef0123456789abcdef","type":"FILE_TRANSFER_PROGRESS","actor":"user","metadata":{"sent":622592,"total":1048576,"percent":59.4,"speed":850000}}],"next":4,"dropped":false}
+{"events":[{"id":3,"timestamp":"2026-09-02T09:02:00Z","session_id":"0123456789abcdef0123456789abcdef","type":"FILE_TRANSFER_PROGRESS","actor":"user","metadata":{"transfer_id":"FT-123","sent":622592,"total":1048576,"percent":59.4,"speed":850000}}],"next":4,"dropped":false}
 ```
 
-Current event types are `SESSION_CREATED`, `SESSION_ATTACHED`, `SESSION_DETACHED`, `LEASE_ACQUIRED`, `LEASE_RELEASED`, `FILE_TRANSFER_STARTED`, `FILE_TRANSFER_PROGRESS`, `FILE_TRANSFER_COMPLETED`, `FILE_TRANSFER_CANCELLED`, and `FILE_TRANSFER_FAILED`. A `file-transfer` lease event includes an `output_cursor` metadata snapshot for the bundled attach client's local presentation; it does not change or consume raw Session output. `FILE_TRANSFER_CANCELLED` is emitted only after cleanup releases the lease and includes `reason: user_cancelled`, last confirmed progress, and `lease_released: true`, so an observing AI can distinguish cancellation from transfer failure. A slow observer receives `dropped: true` if its cursor predates bounded retention; it cannot block the Session reader or writer. Important errors: missing/unknown Session, Session not open, invalid limit or timeout, timeout without cursor, cancellation, deadline, EOF, or event-buffer failure.
+Current event types are `SESSION_CREATED`, `SESSION_ATTACHED`, `SESSION_DETACHED`, `LEASE_ACQUIRED`, `LEASE_RELEASED`, `FILE_TRANSFER_STARTED`, `FILE_TRANSFER_PROGRESS`, `FILE_TRANSFER_COMPLETED`, `FILE_TRANSFER_CANCELLED`, and `FILE_TRANSFER_FAILED`. Every event belonging to one file transfer, including its `file-transfer` lease acquire/release events, carries the same `transfer_id`. A lease event also includes an `output_cursor` metadata snapshot for the bundled attach client's local presentation; it does not change or consume raw Session output. `FILE_TRANSFER_CANCELLED` is emitted only after cleanup releases the lease and includes `reason: user_cancelled`, last confirmed progress, and `lease_released: true`, so an observing AI can distinguish cancellation from transfer failure. A slow observer receives `dropped: true` if its cursor predates bounded retention; it cannot block the Session reader or writer. Important errors: missing/unknown Session, Session not open, invalid limit or timeout, timeout without cursor, cancellation, deadline, EOF, or event-buffer failure.
 
 ## `terminal_wait_file_transfer`
 
-Purpose: wait through intermediate Session events and return only when one file transfer completes,
-is cancelled, or fails. Use this tool rather than `terminal_wait` for a transfer outcome;
+Purpose: wait through intermediate Session events and return only when the identified file transfer
+completes, is cancelled, or fails and its matching `file-transfer` lease has been released. Use this tool rather than `terminal_wait` for a transfer outcome;
 `terminal_wait` observes raw terminal bytes and a cancellation does not guarantee another byte or
 shell prompt.
 
-- Required input: `session_id`, `cursor`.
+- Required input: `session_id`, `transfer_id`, `cursor`.
 - Optional input: `max_events` (0 means 1024), `timeout_ms`.
-- Result: `state` (`completed`, `cancelled`, or `failed`), the terminal `event`, `next`, and
+- Result: `state` (`completed`, `cancelled`, or `failed`), `transfer_id`, `lease_released: true`, the terminal `event`, `next`, and
   `dropped`. Every completed transfer also returns top-level `source_path`, `requested_path`,
   `resolved_path`, and `renamed`; regular files additionally return `sha256`. `resolved_path` is
   the authoritative saved path after collision handling.
@@ -257,22 +257,23 @@ For a PC-to-board send these fields identify the local source, requested board d
 resolved board destination. For a board-to-PC receive they identify the board source, requested
 local destination, and resolved local destination.
 
-Capture the Session event cursor before starting the transfer, or retain the `next` cursor returned
-while observing its progress. The cursor prevents a terminal event from an older transfer from
+Capture the Session event cursor before starting the transfer, then obtain `transfer_id` from the
+matching `FILE_TRANSFER_STARTED` event or active file-transfer lease. The cursor bounds retained
+history while `transfer_id` prevents another transfer's terminal event or lease release from
 satisfying the wait.
 
 ```json
-{"session_id":"SER-1","cursor":7,"timeout_ms":30000}
+{"session_id":"SER-1","transfer_id":"FT-123","cursor":7,"timeout_ms":30000}
 ```
 
 ```json
-{"state":"cancelled","event":{"id":11,"timestamp":"2026-09-15T08:51:51Z","session_id":"0123456789abcdef0123456789abcdef","type":"FILE_TRANSFER_CANCELLED","actor":"user","metadata":{"transferred":32768,"total":98304,"percent":33.3,"reason":"user_cancelled","lease_released":true}},"next":12,"dropped":false}
+{"state":"cancelled","transfer_id":"FT-123","lease_released":true,"event":{"id":11,"timestamp":"2026-09-15T08:51:51Z","session_id":"0123456789abcdef0123456789abcdef","type":"FILE_TRANSFER_CANCELLED","actor":"user","metadata":{"transfer_id":"FT-123","transferred":32768,"total":98304,"percent":33.3,"reason":"user_cancelled","lease_released":true}},"next":12,"dropped":false}
 ```
 
 A successful send whose requested name already exists returns the resolved name directly:
 
 ```json
-{"state":"completed","source_path":"app.bin","requested_path":"/tmp/cterm/mcp-files/app.bin","resolved_path":"/tmp/cterm/mcp-files/app_1.bin","renamed":true,"sha256":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef","event":{"type":"FILE_TRANSFER_COMPLETED","metadata":{"source_path":"app.bin","requested_path":"/tmp/cterm/mcp-files/app.bin","resolved_path":"/tmp/cterm/mcp-files/app_1.bin","renamed":true,"sha256":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"}},"next":13,"dropped":false}
+{"state":"completed","transfer_id":"FT-123","lease_released":true,"source_path":"app.bin","requested_path":"/tmp/cterm/mcp-files/app.bin","resolved_path":"/tmp/cterm/mcp-files/app_1.bin","renamed":true,"sha256":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef","event":{"type":"FILE_TRANSFER_COMPLETED","metadata":{"transfer_id":"FT-123","source_path":"app.bin","requested_path":"/tmp/cterm/mcp-files/app.bin","resolved_path":"/tmp/cterm/mcp-files/app_1.bin","renamed":true,"sha256":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"}},"next":14,"dropped":false}
 ```
 
 Clients should always use the top-level `resolved_path` for subsequent operations on the saved
@@ -284,18 +285,20 @@ longer publish `local_path` or `remote_path`. During start and progress, consume
 `source_path` and `requested_path`; after `terminal_wait_file_transfer` returns
 `state: "completed"`, they must use the top-level `resolved_path` as the final saved destination.
 
-Progress, lease, attachment, and other lifecycle events are consumed internally until a transfer
-terminal event appears. A confirmed cancellation therefore returns only after bounded protocol
-cleanup and lease release. `next` points immediately after the returned event, including when later
-events were already buffered. `dropped` is true if any part of the inspected range was no longer
-retained. Important errors: missing/null cursor, missing/unknown Session, Session not open, invalid
-limit or timeout, cancellation, deadline, EOF, or event-buffer failure.
+Progress, attachment, and unrelated lifecycle events are consumed internally. Completion and failure
+events occur before lease release, so the Tool retains the matching terminal event and waits for the
+matching `LEASE_RELEASED`; cancellation already follows release. `next` points immediately after the
+later event required to establish both outcome and release. Once the Tool returns, a subsequent
+ordinary Session write does not race the completed transfer's lease. `dropped` is true if any part of
+the inspected range was no longer retained. Important errors: missing/null cursor, missing/empty
+`transfer_id`, malformed completed-event path metadata, missing/unknown Session, Session not open,
+invalid limit or timeout, cancellation, deadline, EOF, or event-buffer failure.
 
 ## Attachment and file-transfer reporting tools
 
 `terminal_session_attach` and `terminal_session_detach` record a CLI attachment lifecycle event. They require `session_id` and accept an optional `actor`; they neither acquire a lease nor write or close a Session. The bundled CLI calls them while opening and closing an MCP attachment.
 
-`terminal_report_file_transfer` is the bundled CLI's status bridge to the host-owned event stream. It requires `session_id` and `type` (`FILE_TRANSFER_STARTED`, `FILE_TRANSFER_PROGRESS`, `FILE_TRANSFER_COMPLETED`, or `FILE_TRANSFER_FAILED`) and accepts optional `actor` and JSON-compatible `metadata`. It never writes terminal bytes. Both directions use `source_path` for the origin and `requested_path` for the requested destination; completion includes the authoritative `resolved_path` and boolean `renamed`, while a regular file also records `sha256`. File-transfer events do not use `local_path` or `remote_path`. `FILE_TRANSFER_CANCELLED` is Host-generated after a confirmed cross-process cancellation releases its lease and cannot be forged through this reporting tool. AI clients can inspect all state through `terminal_session_events` or wait for one terminal outcome through `terminal_wait_file_transfer`; they should not treat report calls as a substitute for the existing file protocol or lease tools.
+`terminal_report_file_transfer` is the bundled CLI's status bridge to the host-owned event stream. It requires `session_id`, the active lease's opaque `owner`, its `transfer_id`, and `type` (`FILE_TRANSFER_STARTED`, `FILE_TRANSFER_PROGRESS`, `FILE_TRANSFER_COMPLETED`, or `FILE_TRANSFER_FAILED`); it accepts optional `actor` and JSON-compatible `metadata`. The Host rejects a missing lease, non-owner reporter, or mismatched transfer ID. It never writes terminal bytes. Both directions use `source_path` for the origin and `requested_path` for the requested destination. Completion is rejected unless non-empty string `source_path`, `requested_path`, and `resolved_path` plus boolean `renamed` are present; a regular file also records `sha256`. File-transfer events do not use `local_path` or `remote_path`. `FILE_TRANSFER_CANCELLED` is Host-generated after a confirmed cross-process cancellation releases its lease and cannot be forged through this reporting tool. AI clients can inspect all state through `terminal_session_events` or wait for one terminal outcome through `terminal_wait_file_transfer`; they should not treat report calls as a substitute for the existing file protocol or lease tools.
 
 Bundled CLI progress metadata carries `sent` or `received`, `total`, `percent`, and best-effort
 `speed`. A failed event retains those last confirmed progress values. User-confirmed cancellation
@@ -331,7 +334,7 @@ Purpose: acquire one exclusive application-level writer lease for an active Sess
 
 - Required input: `session_id`, caller-generated opaque `owner`, and `type` (`terminal`, `file-transfer`, or reserved `debug`).
 - Optional input: none.
-- Result: canonical `session_id`, `type`, UTC `created_at`, and `state` (`active`). The owner capability is not echoed.
+- Result: canonical `session_id`, `type`, UTC `created_at`, and `state` (`active`). A `file-transfer` lease additionally returns its non-secret `transfer_id`. The owner capability is not echoed.
 
 ```json
 {"session_id":"SER-1","owner":"file-transfer-opaque-capability","type":"file-transfer"}

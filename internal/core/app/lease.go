@@ -23,6 +23,9 @@ var (
 	ErrFileTransferCancelPending = errors.New("file transfer cancellation confirmation is already pending")
 	// ErrFileTransferCancelRequest is returned for a stale or unknown request ID.
 	ErrFileTransferCancelRequest = errors.New("file transfer cancellation request is invalid")
+	// ErrFileTransferIDMismatch is returned when file-transfer status does not
+	// identify the transfer owned by the active file-transfer lease.
+	ErrFileTransferIDMismatch = errors.New("file transfer ID does not match the active lease")
 )
 
 // LeaseType identifies the exclusive operation currently using a Session.
@@ -54,8 +57,11 @@ type SessionLease struct {
 	SessionID string
 	Owner     string
 	Type      LeaseType
-	CreatedAt time.Time
-	State     string
+	// TransferID identifies one file-transfer lease across its structured events.
+	// It is empty for leases whose Type is not LeaseTypeFileTransfer.
+	TransferID string
+	CreatedAt  time.Time
+	State      string
 }
 
 // FileTransferCancelRequest describes a Host-owned cancellation confirmation.
@@ -121,6 +127,7 @@ type leaseCoordinator struct {
 	gates             map[string]*sync.Mutex
 	fileTransfers     map[string]*fileTransferControl
 	nextCancelRequest uint64
+	nextTransferID    uint64
 }
 
 func newLeaseCoordinator() *leaseCoordinator {
@@ -148,6 +155,10 @@ func (c *leaseCoordinator) acquire(sessionID, owner string, typ LeaseType) (Sess
 		return SessionLease{}, &SessionBusyError{SessionID: sessionID, Lease: active}
 	}
 	lease := SessionLease{SessionID: sessionID, Owner: owner, Type: typ, CreatedAt: time.Now().UTC(), State: "active"}
+	if typ == LeaseTypeFileTransfer {
+		c.nextTransferID++
+		lease.TransferID = fmt.Sprintf("FT-%d", c.nextTransferID)
+	}
 	c.leases[sessionID] = lease
 	if typ == LeaseTypeFileTransfer {
 		c.fileTransfers[sessionID] = &fileTransferControl{state: "running", changed: make(chan struct{}), released: make(chan struct{})}
@@ -290,6 +301,24 @@ func (c *leaseCoordinator) recordFileTransferProgress(sessionID string, metadata
 	control.transferred = fileTransferMetadataInt64(metadata, "sent", "received", "transferred")
 	control.total = fileTransferMetadataInt64(metadata, "total")
 	control.percent = fileTransferMetadataFloat64(metadata, "percent")
+}
+
+// validateFileTransferReporter verifies the capability and transfer identity
+// together while the lease state is locked. Event publication remains outside
+// this coordinator because Session owns the structured event buffer.
+func (c *leaseCoordinator) validateFileTransferReporter(sessionID, owner, transferID string) error {
+	owner = strings.TrimSpace(owner)
+	transferID = strings.TrimSpace(transferID)
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	lease, exists := c.leases[sessionID]
+	if !exists || lease.Type != LeaseTypeFileTransfer || lease.Owner != owner {
+		return ErrLeaseNotOwned
+	}
+	if transferID == "" || lease.TransferID != transferID {
+		return ErrFileTransferIDMismatch
+	}
+	return nil
 }
 
 func (c *leaseCoordinator) fileTransferCancelConfirmed(sessionID string) bool {

@@ -35,7 +35,7 @@ func TestApplicationLeaseBlocksOtherWritersAndPreservesOtherSessions(t *testing.
 	if err != nil {
 		t.Fatalf("AcquireLease() error = %v", err)
 	}
-	if lease.SessionID != "first" || lease.Type != LeaseTypeFileTransfer || lease.State != "active" || lease.CreatedAt.IsZero() {
+	if lease.SessionID != "first" || lease.Type != LeaseTypeFileTransfer || lease.TransferID == "" || lease.State != "active" || lease.CreatedAt.IsZero() {
 		t.Errorf("AcquireLease() = %#v, want active lease for first", lease)
 	}
 	if _, err := application.WriteSession(context.Background(), "SER-1", session.WriteRequest{Actor: session.ActorUser, Data: []byte("blocked")}); !errors.Is(err, ErrSessionBusy) || !strings.Contains(err.Error(), "Session SER-1 is locked by file-transfer") {
@@ -69,6 +69,9 @@ func TestApplicationLeaseBlocksOtherWritersAndPreservesOtherSessions(t *testing.
 	if events.Events[len(events.Events)-2].Metadata["type"] != string(LeaseTypeFileTransfer) || events.Events[len(events.Events)-1].Metadata["state"] != "released" {
 		t.Errorf("lease event metadata = %+v", events.Events[len(events.Events)-2:])
 	}
+	if events.Events[len(events.Events)-2].Metadata["transfer_id"] != lease.TransferID || events.Events[len(events.Events)-1].Metadata["transfer_id"] != lease.TransferID {
+		t.Errorf("lease transfer IDs = %+v, want %q", events.Events[len(events.Events)-2:], lease.TransferID)
+	}
 	for _, event := range events.Events[len(events.Events)-2:] {
 		if _, ok := event.Metadata["output_cursor"].(uint64); !ok {
 			t.Errorf("lease event metadata = %+v, want output_cursor uint64", event.Metadata)
@@ -98,10 +101,14 @@ func TestFileTransferCancellationConfirmationPausesResumesAndCancels(t *testing.
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := application.AcquireLease("SER-1", "transfer-owner", LeaseTypeFileTransfer); err != nil {
+	lease, err := application.AcquireLease("SER-1", "transfer-owner", LeaseTypeFileTransfer)
+	if err != nil {
 		t.Fatal(err)
 	}
-	if err := application.ReportFileTransferEvent("SER-1", session.EventFileTransferProgress, "user", map[string]any{"sent": int64(24576), "total": int64(65536), "percent": 37.5}); err != nil {
+	if lease.TransferID == "" {
+		t.Fatal("file-transfer lease has empty TransferID")
+	}
+	if err := application.ReportFileTransferEvent("SER-1", "transfer-owner", lease.TransferID, session.EventFileTransferProgress, "user", map[string]any{"sent": int64(24576), "total": int64(65536), "percent": 37.5}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -148,7 +155,7 @@ func TestFileTransferCancellationConfirmationPausesResumesAndCancels(t *testing.
 	if err != nil || action != FileTransferCancel {
 		t.Fatalf("FileTransferCheckpoint() = %q, %v, want cancel", action, err)
 	}
-	if err := application.ReportFileTransferEvent("SER-1", session.EventFileTransferFailed, "user", map[string]any{"error": "user_cancelled", "sent": int64(24576), "total": int64(65536), "percent": 37.5}); err != nil {
+	if err := application.ReportFileTransferEvent("SER-1", "transfer-owner", lease.TransferID, session.EventFileTransferFailed, "user", map[string]any{"error": "user_cancelled", "sent": int64(24576), "total": int64(65536), "percent": 37.5}); err != nil {
 		t.Fatal(err)
 	}
 	if err := application.ReleaseLease("SER-1", "transfer-owner"); err != nil {
@@ -162,7 +169,7 @@ func TestFileTransferCancellationConfirmationPausesResumesAndCancels(t *testing.
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := events.Events[len(events.Events)-1]; got.Type != session.EventFileTransferCancelled || got.Metadata["reason"] != "user_cancelled" || got.Metadata["lease_released"] != true {
+	if got := events.Events[len(events.Events)-1]; got.Type != session.EventFileTransferCancelled || got.Metadata["transfer_id"] != lease.TransferID || got.Metadata["reason"] != "user_cancelled" || got.Metadata["lease_released"] != true {
 		t.Fatalf("last event = %#v, want released cancellation status", got)
 	}
 }

@@ -32,6 +32,7 @@ type fileCommandDependencies struct {
 	newAttach               attachSessionFactory
 	listSessions            func(context.Context, string) ([]mcpListedSession, error)
 	transferCancelRequested func() bool
+	sendFile                func(context.Context, app.FileTransferSession, io.Reader, int64, string, app.FileTransferCancelRequested, app.FileTransferProgress) (app.FileTransferResult, error)
 }
 
 // fileLeaseSession is implemented by attachments that can request Host-side
@@ -206,7 +207,11 @@ func runFileSend(ctx context.Context, args []string, output io.Writer, dependenc
 		if startErr := progress.Start(info.Size()); startErr != nil {
 			return startErr
 		}
-		result, transferErr := app.SendFileWithCancellation(ctx, terminal, file, info.Size(), remotePath, dependencies.transferCancelRequested, fileTransferProgressWithCancellation(progress.Report, dependencies.transferCancelRequested))
+		sendFile := dependencies.sendFile
+		if sendFile == nil {
+			sendFile = app.SendFileWithCancellation
+		}
+		result, transferErr := sendFile(ctx, terminal, file, info.Size(), remotePath, dependencies.transferCancelRequested, fileTransferProgressWithCancellation(progress.Report, dependencies.transferCancelRequested))
 		if transferErr != nil {
 			return transferErr
 		}
