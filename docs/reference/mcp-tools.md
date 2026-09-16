@@ -304,7 +304,8 @@ Bundled CLI progress metadata carries `sent` or `received`, `total`, `percent`, 
 `speed`. A failed event retains those last confirmed progress values. User-confirmed cancellation
 uses the stable `reason` value `user_cancelled`. A successful regular-file
 completion additionally carries full lowercase `local_sha256` and `remote_sha256` values; because
-completion follows verification, they match. Directory completion has no checksum fields.
+completion follows verification, they match. Directory completion uses the same fields for the
+verified tar-stream digest.
 
 ## `terminal_write`
 

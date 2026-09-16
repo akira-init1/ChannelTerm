@@ -101,7 +101,7 @@ channelterm file send ./build/release /tmp/release --session SER-1
 channelterm file receive /var/log/myapp ./myapp --session SER-1
 ```
 
-When the command omits its remote destination, it saves under `/tmp/cterm/mcp-files/`; the interactive shortcut uses `/tmp/cterm/user-files/`. ChannelTerm creates a missing destination hierarchy and reuses it on later transfers. The Linux shell uses native `mkdir`, `stty`, `dd`, `wc`, and `sha256sum` for files, plus `tar` for directories; ChannelTerm streams bounded chunks, reports progress, and verifies file SHA-256 values. Directory transfers use temporary target-side archives so cancellation stops after the active chunk instead of draining the remaining directory. A temporary file-transfer lease blocks other ChannelTerm writers until the command finishes. While that lease is active, `Ctrl+C` in any bundled attachment opens a default-No local cancellation confirmation; otherwise it keeps its normal remote-terminal meaning. See the [file-transfer workflow](docs/getting-started/file-transfer.md) for prerequisites and limits.
+When the command omits its remote destination, it saves under `/tmp/cterm/mcp-files/`; the interactive shortcut uses `/tmp/cterm/user-files/`. ChannelTerm creates a missing destination hierarchy and reuses it on later transfers. The Linux shell uses native `mkdir`, `stty`, `dd`, `wc`, and `sha256sum`, plus `tar` for directories; ChannelTerm streams bounded chunks, reports progress, and verifies end-to-end SHA-256 for file bytes and directory tar streams. Directory transfers use temporary target-side archives so cancellation stops after the active chunk instead of draining the remaining directory. A temporary file-transfer lease blocks other ChannelTerm writers until the command finishes. While that lease is active, `Ctrl+C` in any bundled attachment opens a default-No local cancellation confirmation; otherwise it keeps its normal remote-terminal meaning. See the [file-transfer workflow](docs/getting-started/file-transfer.md) for prerequisites and limits.
 
 To put an AI in that same Session, configure its MCP client to use the same Streamable HTTP endpoint:
 
@@ -125,7 +125,7 @@ Ctrl+] Esc  Cancel local escape mode
 
 Press `Ctrl+]` to enter local escape mode. ChannelTerm displays the available escape commands locally. `Ctrl+] f` starts a guided file/directory send/receive flow on the current attachment, with `/tmp/cterm/user-files/<basename>` and `./<basename>` defaults and non-overwriting `_1`, `_2` selection. `Ctrl+] t` is off by default and prepends local `[HH:MM:SS]` timestamps only to conservatively recognized shell prompts; it does not change shared Session or MCP output.
 
-The HTTP server has no ChannelTerm authentication or authorization layer. Its default listener is loopback-only; do not expose it to an untrusted network.
+The HTTP server requires a per-user Bearer token and defaults to a loopback-only listener. Built-in CLI clients use the local token automatically. Remote MCP clients must send the same token through the `Authorization` header; do not expose the endpoint without TLS and separate network access controls.
 
 ## What It Enables
 
@@ -136,7 +136,7 @@ The HTTP server has no ChannelTerm authentication or authorization layer. Its de
 - Client detach without closing the Session used by other clients.
 - Serial discovery, deterministic target references, TOML profiles, and private direct connections when sharing is not wanted.
 - MCP over stdio or Streamable HTTP, with the shared CLI workflow using the HTTP Session Host.
-- Bounded CLI file/directory send/receive over an existing serial Session: files use SHA-256 verification and directories use safe staged tar streams.
+- Bounded CLI file/directory send/receive over an existing serial Session, with SHA-256 verification and safe staged directory extraction.
 
 ## Example Workflows
 

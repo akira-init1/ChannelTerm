@@ -306,6 +306,9 @@ func runFileSendDirectory(ctx context.Context, localPath, remotePath string, opt
 		completed["sent"] = result.Size
 		completed["total"] = result.Size
 		completed["percent"] = float64(100)
+		completed["sha256"] = result.SHA256
+		completed["local_sha256"] = result.SHA256
+		completed["remote_sha256"] = result.SHA256
 		if eventErr := reportFileTransferEvent(ctx, attached, session.EventFileTransferCompleted, completed); eventErr != nil {
 			return eventErr
 		}
@@ -315,8 +318,7 @@ func runFileSendDirectory(ctx context.Context, localPath, remotePath string, opt
 		if finishErr := progress.finish(); finishErr != nil {
 			return finishErr
 		}
-		_, writeErr := fmt.Fprintf(output, "Tar stream: complete\nSaved: %s\n", result.RemotePath)
-		return writeErr
+		return writeFileTransferVerificationSummary(output, result.SHA256, result.RemotePath)
 	})
 }
 
@@ -481,6 +483,9 @@ func runFileReceiveDirectory(ctx context.Context, attached attachSession, remote
 	completed["received"] = result.Size
 	completed["total"] = result.Size
 	completed["percent"] = float64(100)
+	completed["sha256"] = result.SHA256
+	completed["local_sha256"] = result.SHA256
+	completed["remote_sha256"] = result.SHA256
 	if eventErr := reportFileTransferEvent(ctx, attached, session.EventFileTransferCompleted, completed); eventErr != nil {
 		return eventErr
 	}
@@ -490,8 +495,7 @@ func runFileReceiveDirectory(ctx context.Context, attached attachSession, remote
 	if finishErr := progress.finish(); finishErr != nil {
 		return finishErr
 	}
-	_, err = fmt.Fprintf(output, "Tar stream: complete\nSaved: %s\n", resolvedLocalPath)
-	return err
+	return writeFileTransferVerificationSummary(output, result.SHA256, resolvedLocalPath)
 }
 
 // withFileTransferLease holds a Host-side file-transfer lease for one complete

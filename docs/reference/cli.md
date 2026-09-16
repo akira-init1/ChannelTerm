@@ -170,7 +170,9 @@ are rejected. `--private` with a Session reference is rejected.
 When opening a target against the default local endpoint, `attach` may start
 `channelterm mcp --transport http` in the background and wait up to five seconds for readiness. That
 automatically started Host belongs to this `attach` process and is stopped, with its Sessions, when
-the process exits. An already-running or manually started Host is never stopped by `attach`. It
+the process exits. The attachment prints a notice when this happens so later clients do not mistake
+the child for a persistent service. Start `channelterm mcp --transport http` separately before
+attaching when the Host must survive the first attachment. An already-running or manually started Host is never stopped by `attach`. It
 will not auto-start a custom or remote endpoint. Opening a target through MCP requires a local
 loopback endpoint. A reused Session retains its original metadata and connection settings; new
 attach flags do not reconfigure it. Supplying `--save` still runs the open/save workflow rather than
@@ -236,6 +238,11 @@ channelterm attach SER-1 --endpoint http://127.0.0.1:12345/terminal
 Important errors include a missing Session reference, an offline custom host, a Session not found or
 already closed, an invalid target, forbidden target/Session option combinations, host startup
 timeout, MCP tool failure, serial configuration failure, and terminal I/O failure.
+
+All Streamable HTTP commands require a Bearer token. ChannelTerm creates and reads the default
+per-user token automatically. Set `CHANNELTERM_HTTP_AUTH_TOKEN` for a Host or built-in CLI client
+that must use an explicitly supplied token, including a remote endpoint. The value must not contain
+whitespace. External clients must send `Authorization: Bearer <token>` themselves.
 
 ## `events`
 

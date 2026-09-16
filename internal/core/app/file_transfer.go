@@ -691,15 +691,15 @@ func remotePathKindCommand(token, path string) string {
 }
 
 func directorySendInitCommand(token, archive, directory string) string {
-	return fmt.Sprintf("t='%s'; a=%s; d=%s; if ! mkdir -p \"$d\" 2>/dev/null; then printf '\\n@CTERM:%%s:ERROR:directory\\n' \"$t\"; elif ! command -v tar >/dev/null 2>&1; then printf '\\n@CTERM:%%s:ERROR:tar\\n' \"$t\"; elif command -v stty >/dev/null 2>&1 && command -v dd >/dev/null 2>&1 && command -v wc >/dev/null 2>&1 && printf x | dd of=/dev/null bs=1 count=1 iflag=fullblock 2>/dev/null && (set -C; : > \"$a\") 2>/dev/null; then printf '\\n@CTERM:%%s:INIT:OK\\n' \"$t\"; else printf '\\n@CTERM:%%s:ERROR:stage\\n' \"$t\"; fi", token, archive, directory)
+	return fmt.Sprintf("t='%s'; a=%s; d=%s; if ! mkdir -p \"$d\" 2>/dev/null; then printf '\\n@CTERM:%%s:ERROR:directory\\n' \"$t\"; elif ! command -v tar >/dev/null 2>&1; then printf '\\n@CTERM:%%s:ERROR:tar\\n' \"$t\"; elif command -v stty >/dev/null 2>&1 && command -v dd >/dev/null 2>&1 && command -v wc >/dev/null 2>&1 && command -v sha256sum >/dev/null 2>&1 && printf x | dd of=/dev/null bs=1 count=1 iflag=fullblock 2>/dev/null && (set -C; : > \"$a\") 2>/dev/null; then printf '\\n@CTERM:%%s:INIT:OK\\n' \"$t\"; else printf '\\n@CTERM:%%s:ERROR:stage\\n' \"$t\"; fi", token, archive, directory)
 }
 
-func directorySendFinishCommand(token, destination, staging, archive string, size int64) string {
-	return fmt.Sprintf("t='%s'; d=%s; s=%s; a=%s; if [ \"$(wc -c < \"$a\" 2>/dev/null)\" = '%d' ] && mkdir \"$s\" 2>/dev/null && tar -x -f \"$a\" -C \"$s\"; then rm -f \"$a\"; if [ ! -e \"$d\" ] && [ ! -L \"$d\" ] && mv \"$s\" \"$d\"; then printf '\\n@CTERM:%%s:FINAL:OK\\n' \"$t\"; else rm -rf \"$s\"; printf '\\n@CTERM:%%s:ERROR:commit\\n' \"$t\"; fi; else rm -f \"$a\"; rm -rf \"$s\"; printf '\\n@CTERM:%%s:ERROR:extract\\n' \"$t\"; fi", token, destination, staging, archive, size)
+func directorySendFinishCommand(token, destination, staging, archive string, size int64, expectedDigest string) string {
+	return fmt.Sprintf("t='%s'; d=%s; s=%s; a=%s; if n=$(wc -c < \"$a\" 2>/dev/null) && [ \"$n\" = '%d' ] && digest=$(sha256sum < \"$a\" 2>/dev/null); then set -- $digest; if [ \"$1\" != '%s' ]; then rm -f \"$a\"; printf '\\n@CTERM:%%s:ERROR:checksum\\n' \"$t\"; elif mkdir \"$s\" 2>/dev/null && tar -x -f \"$a\" -C \"$s\"; then rm -f \"$a\"; if [ ! -e \"$d\" ] && [ ! -L \"$d\" ] && mv \"$s\" \"$d\"; then printf '\\n@CTERM:%%s:FINAL:%%s:%%s\\n' \"$t\" \"$n\" \"$1\"; else rm -rf \"$s\"; printf '\\n@CTERM:%%s:ERROR:commit\\n' \"$t\"; fi; else rm -f \"$a\"; rm -rf \"$s\"; printf '\\n@CTERM:%%s:ERROR:extract\\n' \"$t\"; fi; else rm -f \"$a\"; rm -rf \"$s\"; printf '\\n@CTERM:%%s:ERROR:extract\\n' \"$t\"; fi", token, destination, staging, archive, size, expectedDigest)
 }
 
 func directoryReceiveInitCommand(token, source, archive string) string {
-	return fmt.Sprintf("t='%s'; a=%s; if ! command -v tar >/dev/null 2>&1; then printf '\\n@CTERM:%%s:ERROR:tar\\n' \"$t\"; elif command -v stty >/dev/null 2>&1 && command -v dd >/dev/null 2>&1 && command -v wc >/dev/null 2>&1 && tar -c -f \"$a\" -C %s . 2>/dev/null && n=$(wc -c < \"$a\" 2>/dev/null); then printf '\\n@CTERM:%%s:SIZE:%%s\\n' \"$t\" \"$n\"; else rm -f \"$a\"; printf '\\n@CTERM:%%s:ERROR:read\\n' \"$t\"; fi", token, archive, source)
+	return fmt.Sprintf("t='%s'; a=%s; if ! command -v tar >/dev/null 2>&1; then printf '\\n@CTERM:%%s:ERROR:tar\\n' \"$t\"; elif command -v stty >/dev/null 2>&1 && command -v dd >/dev/null 2>&1 && command -v wc >/dev/null 2>&1 && command -v sha256sum >/dev/null 2>&1 && tar -c -f \"$a\" -C %s . 2>/dev/null && n=$(wc -c < \"$a\" 2>/dev/null) && digest=$(sha256sum < \"$a\" 2>/dev/null); then set -- $digest; printf '\\n@CTERM:%%s:META:%%s:%%s\\n' \"$t\" \"$n\" \"$1\"; else rm -f \"$a\"; printf '\\n@CTERM:%%s:ERROR:read\\n' \"$t\"; fi", token, archive, source)
 }
 
 func directoryCleanupCommand(token, archive, staging string) string {

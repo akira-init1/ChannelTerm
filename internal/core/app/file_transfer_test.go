@@ -564,12 +564,23 @@ func (s *fileTransferTestSession) Write(request session.WriteRequest) (int, erro
 		s.emitLocked(fmt.Sprintf("\n@CTERM:%s:KIND:file\n", s.token))
 	case strings.Contains(command, ":ABORT:OK"):
 		s.emitLocked(fmt.Sprintf("\n@CTERM:%s:ABORT:OK\n", s.token))
-	case strings.Contains(command, ":FINAL:OK") && strings.Contains(command, "tar -x -f"):
-		s.emitLocked(fmt.Sprintf("\n@CTERM:%s:FINAL:OK\n", s.token))
+	case strings.Contains(command, ":FINAL:") && strings.Contains(command, "tar -x -f"):
+		if s.badMetadataHash {
+			s.emitLocked(fmt.Sprintf("\n@CTERM:%s:ERROR:checksum\n", s.token))
+			break
+		}
+		digest := sha256.Sum256(s.received)
+		digestText := hex.EncodeToString(digest[:])
+		s.emitLocked(fmt.Sprintf("\n@CTERM:%s:FINAL:%d:%s\n", s.token, len(s.received), digestText))
 	case strings.Contains(command, ":FINAL:OK") && strings.Contains(command, "rm -f"):
 		s.emitLocked(fmt.Sprintf("\n@CTERM:%s:FINAL:OK\n", s.token))
-	case strings.Contains(command, ":SIZE:"):
-		s.emitLocked(fmt.Sprintf("\n@CTERM:%s:SIZE:%d\n", s.token, len(s.remote)))
+	case strings.Contains(command, ":META:") && strings.Contains(command, "tar -c"):
+		digest := sha256.Sum256(s.remote)
+		digestText := hex.EncodeToString(digest[:])
+		if s.badMetadataHash {
+			digestText = strings.Repeat("0", sha256.Size*2)
+		}
+		s.emitLocked(fmt.Sprintf("\n@CTERM:%s:META:%d:%s\n", s.token, len(s.remote), digestText))
 	case strings.Contains(command, ":INIT:OK"):
 		s.received = nil
 		if s.failInitialization {
