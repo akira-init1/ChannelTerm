@@ -126,7 +126,10 @@ Physical serial endpoint
           `--> MCP Client
 ```
 
-The host Manager shares one active Session for an exact `transport + endpoint` pair within that host process. Each Client or Attachment maintains independent output and activity cursors. Closing one MCP connection releases only that Client; `terminal_close` or Session Host shutdown closes the shared Channel and its underlying serial resource.
+The host Manager shares one active Session for an exact `transport + endpoint` pair within that host
+process. Each Client or Attachment maintains independent output and activity cursors. Closing one
+MCP connection releases only that Client; `terminal_close` or Session Host shutdown closes the
+shared Channel and its underlying serial resource.
 
 ## CLI file transfer
 
@@ -152,4 +155,18 @@ local file <--> bounded CLI chunks
              wc -c + sha256sum
 ```
 
-The file-transfer use case is layered above Session and does not access Serial Transport directly. A CLI attachment uses the host's lease tools plus a lease-authorized write tool as byte-oriented clients of the host-owned Session; existing `terminal_write` input is unchanged. At each safe block boundary the lease owner calls the Host checkpoint. A separate attachment may move that checkpoint through `running -> confirming -> resumed/cancelled`, allowing cross-process cancellation without sending confirmation bytes to the board. Payloads are bounded, raw chunks. Other readers retain independent cursors; while the `file-transfer` lease is active, other writers receive an immediate busy error rather than waiting or interleaving bytes. A missing, expired, or replaced owner cannot use the leased-write path. If a lease expires during an in-flight Channel write, or bounded protocol recovery itself times out, Application closes the host-owned Session so `Channel.Close` releases the blocked write before a later open creates a replacement Session.
+The file-transfer use case is layered above Session and does not access Serial Transport directly. A
+CLI attachment uses the Host's lease and lease-authorized write tools as byte-oriented clients of
+the host-owned Session. Existing `terminal_write` input is unchanged.
+
+At each safe block boundary, the lease owner calls the Host checkpoint. A separate attachment can
+move that checkpoint through `running -> confirming -> resumed/cancelled`, allowing cross-process
+cancellation without sending confirmation bytes to the board. Payloads are bounded raw chunks, and
+other readers retain independent cursors. While the lease is active, other writers receive an
+immediate busy error instead of waiting or interleaving bytes.
+
+A missing, expired, or replaced owner cannot use the leased-write path. Application closes the
+host-owned Session if lease expiry finds a Channel write still in flight or if bounded protocol
+recovery times out. `Channel.Close` releases the blocked write before a later open creates a
+replacement Session. See [Application Module](../modules/application.md) for the lifecycle details
+and [File Transfer](../getting-started/file-transfer.md) for the user workflow.

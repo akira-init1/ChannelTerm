@@ -311,7 +311,8 @@ completion follows verification, they match. Directory completion has no checksu
 Purpose: write an explicitly encoded payload to an active Session without adding delimiters.
 
 - Required input: `session_id`, `data`.
-- Optional input: `encoding` (`utf8`, `hex`, or `base64`; default `utf8`) and `actor` (`user`, `agent`, or `system`; default `agent`).
+- Optional input: `encoding` (`utf8`, `hex`, or `base64`; default `utf8`) and `actor` (`user`,
+  `agent`, or `system`; default `agent`).
 - Result: `bytes_written`.
 
 ```json
@@ -322,25 +323,50 @@ Purpose: write an explicitly encoded payload to an active Session without adding
 {"bytes_written":7}
 ```
 
-Hex input may contain whitespace. Base64 uses the standard encoding. The entire encoded payload is validated before Session write, so malformed hex or Base64 writes nothing. A single call accepts at most 1 MiB after decoding, regardless of the MCP transport or selected encoding; input that cannot fit is rejected before allocating its decoded copy. The actor is retained only in the activity buffer and is never inserted into the device byte stream.
+Hex input may contain whitespace. Base64 uses the standard encoding. The entire encoded payload is
+validated before Session write, so malformed hex or Base64 writes nothing. A single call accepts at
+most 1 MiB after decoding, regardless of the MCP transport or selected encoding. Input that cannot
+fit is rejected before allocating its decoded copy. The actor is retained only in the activity
+buffer and is never inserted into the device byte stream.
 
-Important errors: payload larger than 1 MiB after decoding, missing/unknown Session, Session not open, invalid encoding or encoded data, invalid actor, cancellation before or during application retries, short write, and transport write failure. Safety: this tool controls the remote terminal. Include `\r` or `\n` only when the target protocol requires it; ChannelTerm adds neither automatically.
+Important errors: payload larger than 1 MiB after decoding, missing/unknown Session, Session not
+open, invalid encoding or encoded data, invalid actor, cancellation before or during application
+retries, short write, and transport write failure. Safety: this tool controls the remote terminal.
+Include `\r` or `\n` only when the target protocol requires it; ChannelTerm adds neither
+automatically.
 
-When another operation owns an exclusive lease, this unchanged tool returns a busy error such as `Session SER-1 is locked by file-transfer`. It never waits for the lease or accepts an owner capability.
+When another operation owns an exclusive lease, this unchanged tool returns a busy error such as
+`Session SER-1 is locked by file-transfer`. It never waits for the lease or accepts an owner
+capability.
 
 ## `terminal_acquire_lease`
 
 Purpose: acquire one exclusive application-level writer lease for an active Session.
 
-- Required input: `session_id`, caller-generated opaque `owner`, and `type` (`terminal`, `file-transfer`, or reserved `debug`).
+- Required input: `session_id`, caller-generated opaque `owner`, and `type` (`terminal`,
+  `file-transfer`, or reserved `debug`).
 - Optional input: none.
-- Result: canonical `session_id`, `type`, UTC `created_at`, UTC `expires_at`, and `state` (`active`). A `file-transfer` lease additionally returns its non-secret `transfer_id`. The owner capability is not echoed.
+- Result: canonical `session_id`, `type`, UTC `created_at`, UTC `expires_at`, and `state` (`active`).
+  A `file-transfer` lease additionally returns its non-secret `transfer_id`. The owner capability is
+  not echoed.
 
 ```json
 {"session_id":"SER-1","owner":"file-transfer-opaque-capability","type":"file-transfer"}
 ```
 
-Only one lease may be active for a Session. Readers and their cursors continue normally. Other ordinary writers fail immediately; a separate Session is unaffected. A lease expires 30 seconds after acquire or its latest successful renewal. Expiry releases writer ownership without the original owner capability; for file transfer it also publishes a failed terminal result with `reason: lease_expired` before `LEASE_RELEASED(state=expired)`. If a leased Channel write remains in flight at expiry, the Host closes and removes the Session to release that write safely; otherwise the Session remains available for a replacement lease. Important errors: missing Session, invalid owner/type, or an already active lease. Safety: an owner is a bearer capability and should be generated randomly, retained only for the operation, and never logged.
+Only one lease may be active for a Session. Readers and their cursors continue normally. Other
+ordinary writers fail immediately; a separate Session is unaffected. A lease expires 30 seconds
+after acquire or its latest successful renewal.
+
+Expiry releases writer ownership without the original owner capability. For file transfer, it also
+publishes a failed terminal result with `reason: lease_expired` before
+`LEASE_RELEASED(state=expired)`. If a leased Channel write remains in flight at expiry, the Host
+closes and removes the Session to release that write safely; otherwise the Session remains available
+for a replacement lease.
+
+Important errors: missing Session, invalid owner/type, or an already active lease. Safety: an owner
+is a bearer capability and should be generated randomly, retained only for the operation, and never
+logged.
 
 ## `terminal_renew_lease`
 
@@ -350,15 +376,30 @@ Purpose: extend an active exclusive lease before its Host-side TTL elapses.
 - Optional input: none.
 - Result: the same non-secret lease state as acquisition, with an updated `expires_at`.
 
-Only the current owner capability can renew. A missing, expired, or replacement lease returns an ownership error. Long-running operations must renew more frequently than the 30-second TTL; the bundled CLI renews every 10 seconds.
+Only the current owner capability can renew. A missing, expired, or replacement lease returns an
+ownership error. Long-running operations must renew more frequently than the 30-second TTL; the
+bundled CLI renews every 10 seconds.
 
 ## File-transfer cancellation control tools
 
-`terminal_begin_file_transfer_cancel` requires `session_id`. It returns `active: false` and `state: "inactive"` when no `file-transfer` lease exists, preserving ordinary terminal Ctrl+C behavior. For an active transfer it returns `active: true`, `state: "confirming"`, and an opaque `request_id`; a second concurrent confirmation is rejected.
+`terminal_begin_file_transfer_cancel` requires `session_id`. It returns `active: false` and
+`state: "inactive"` when no `file-transfer` lease exists, preserving ordinary terminal Ctrl+C
+behavior. For an active transfer it returns `active: true`, `state: "confirming"`, and an opaque
+`request_id`; a second concurrent confirmation is rejected.
 
-`terminal_resolve_file_transfer_cancel` requires `session_id`, that `request_id`, and boolean `cancel`. `cancel: false` returns `state: "resumed"` immediately. `cancel: true` signals the lease owner and normally returns `state: "cancelled"` with last confirmed `transferred`, `total`, and `percent` after lease release. If the owner disappeared, TTL expiry returns `state: "expired"` instead of waiting indefinitely. A stale request ID is rejected. Only a direct user `y`/`Y` answer should set `cancel: true`.
+`terminal_resolve_file_transfer_cancel` requires `session_id`, that `request_id`, and boolean
+`cancel`. `cancel: false` returns `state: "resumed"` immediately. `cancel: true` signals the lease
+owner and normally returns `state: "cancelled"` with last confirmed `transferred`, `total`, and
+`percent` after lease release. If the owner disappeared, TTL expiry returns `state: "expired"`
+instead of waiting indefinitely. A stale request ID is rejected. Only a direct user `y`/`Y` answer
+should set `cancel: true`.
 
-`terminal_file_transfer_checkpoint` requires `session_id` and the active lease `owner`. The bundled transfer process calls it only at safe protocol block boundaries. It returns `action: "continue"`, blocks while confirmation is pending, or returns `action: "cancel"`; a non-owner is rejected. These three tools carry control state only, never terminal bytes. The bundled attachment uses them for Ctrl+C; AI clients should wait for the final result with `terminal_wait_file_transfer` rather than initiating the user interaction themselves or waiting for raw terminal output.
+`terminal_file_transfer_checkpoint` requires `session_id` and the active lease `owner`. The bundled
+transfer process calls it only at safe protocol block boundaries. It returns `action: "continue"`,
+blocks while confirmation is pending, or returns `action: "cancel"`; a non-owner is rejected. These
+three tools carry control state only, never terminal bytes. The bundled attachment uses them for
+Ctrl+C. AI clients should wait for the final result with `terminal_wait_file_transfer` rather than
+initiating the user interaction themselves or waiting for raw terminal output.
 
 ## `terminal_write_leased`
 

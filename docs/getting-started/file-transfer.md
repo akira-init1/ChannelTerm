@@ -134,9 +134,11 @@ lease, publishes a `lease_expired` failure and release event, and allows another
 to acquire the Session. A stale owner cannot use leased writes after expiry. If a leased Channel
 write is still in flight at expiry, the Host instead closes and removes the Session so that the
 blocked write cannot prevent cleanup; reopen the device Session before retrying. A cancellation
-confirmation waiting on the missing owner returns as expired instead of remaining blocked. During PC-to-board payload input, the target-side raw TTY also has a
-10-second idle timeout; after that timeout the shell restores the saved TTY mode and rejects the
-short block rather than waiting indefinitely.
+confirmation waiting on the missing owner returns as expired instead of remaining blocked.
+
+During PC-to-board payload input, the target-side raw TTY has a 10-second idle timeout. After that
+timeout, the shell restores the saved TTY mode and rejects the short block rather than waiting
+indefinitely.
 
 After `y` or `Y`, ChannelTerm also cancels an outstanding wait for a protocol marker such as
 `PICK`, `INIT`, `READY`, `ACK`, or `FINAL`. This prevents a missing board response from trapping the
