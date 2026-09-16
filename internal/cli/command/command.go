@@ -72,9 +72,12 @@ type serialSessionFactory func(serialtransport.Config) (cliSession, error)
 const version = "0.1.0"
 
 const (
-	defaultMCPListen    = "127.0.0.1:37099"
-	defaultMCPPath      = "/mcp"
-	httpAuthTokenEnvVar = "CHANNELTERM_HTTP_AUTH_TOKEN"
+	defaultMCPListen            = "127.0.0.1:37099"
+	defaultMCPPath              = "/mcp"
+	httpAuthTokenEnvVar         = "CHANNELTERM_HTTP_AUTH_TOKEN"
+	httpHostLifetimeHeader      = "X-ChannelTerm-Host-Lifetime"
+	httpHostLifetimeAttachment  = "attachment"
+	internalTemporaryHostEnvVar = "CHANNELTERM_INTERNAL_TEMPORARY_HOST"
 )
 
 // runWithIO routes CLI commands while accepting I/O and session construction as
@@ -382,7 +385,8 @@ func runMCP(ctx context.Context, args []string, output io.Writer) (err error) {
 	if err != nil {
 		return err
 	}
-	return runMCPHTTP(ctx, registry, *listen, endpointPath, token, os.Stderr)
+	temporaryHost := os.Getenv(internalTemporaryHostEnvVar) == "1"
+	return runMCPHTTP(ctx, registry, *listen, endpointPath, token, temporaryHost, os.Stderr)
 }
 
 // loadHTTPAuthToken resolves one credential for both Host and built-in client
@@ -418,7 +422,7 @@ func normalizeMCPPath(path string) (string, error) {
 // The HTTP server is stopped with a bounded graceful shutdown. The handler owns
 // only temporary MCP request state; manager-owned terminal Sessions are closed
 // by runMCP after this function returns.
-func runMCPHTTP(ctx context.Context, registry *tool.Registry, listen, path, token string, stderr io.Writer) error {
+func runMCPHTTP(ctx context.Context, registry *tool.Registry, listen, path, token string, temporaryHost bool, stderr io.Writer) error {
 	listener, err := net.Listen("tcp", listen)
 	if err != nil {
 		return fmt.Errorf("listen for MCP Streamable HTTP on %q: %w", listen, err)
@@ -432,7 +436,7 @@ func runMCPHTTP(ctx context.Context, registry *tool.Registry, listen, path, toke
 		return fmt.Errorf("create MCP Streamable HTTP handler: %w", err)
 	}
 	mux := http.NewServeMux()
-	mux.Handle(path, requireBearerToken(token, handler))
+	mux.Handle(path, requireBearerToken(token, advertiseHostLifetime(temporaryHost, handler)))
 	server := &http.Server{Handler: mux}
 	endpoint := httpEndpoint(listener.Addr().String(), path)
 	if !isLoopbackListen(listener.Addr().String()) {
@@ -469,6 +473,18 @@ func runMCPHTTP(ctx context.Context, registry *tool.Registry, listen, path, toke
 		return nil
 	}
 	return fmt.Errorf("serve MCP Streamable HTTP: %w", err)
+}
+
+// advertiseHostLifetime lets every authenticated client distinguish an
+// attachment-owned Host from a separately started persistent Host. The header
+// is emitted on every MCP response because clients may connect after the owner.
+func advertiseHostLifetime(temporary bool, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		if temporary {
+			response.Header().Set(httpHostLifetimeHeader, httpHostLifetimeAttachment)
+		}
+		next.ServeHTTP(response, request)
+	})
 }
 
 // requireBearerToken rejects requests before the MCP handler allocates any

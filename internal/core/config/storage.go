@@ -144,8 +144,9 @@ func Update(path string, update func(*File) error) error {
 }
 
 // writeFileAtomically replaces path only after a complete same-directory
-// temporary file has reached stable storage. Keeping the temporary file beside
-// path preserves rename atomicity on all supported desktop platforms.
+// temporary file has reached stable storage. The rename is atomic where the
+// operating system provides that guarantee; every platform avoids writing a
+// partial new value directly over the previous file.
 func writeFileAtomically(path string, data []byte, mode os.FileMode) (err error) {
 	directory := filepath.Dir(path)
 	temporary, err := os.CreateTemp(directory, "."+filepath.Base(path)+"-*")

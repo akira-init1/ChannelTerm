@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"net/http/httptest"
 	"reflect"
 	"strings"
@@ -64,6 +65,20 @@ func TestMCPAttachRejectsMissingSession(t *testing.T) {
 	}
 }
 
+func TestMCPAttachDetectsTemporaryHostLifetime(t *testing.T) {
+	host := newAttachTestHostWithLifetime(t, true)
+	defer host.close()
+	attached, err := newMCPAttachSession(context.Background(), host.server.URL, "board")
+	if err != nil {
+		t.Fatalf("newMCPAttachSession() error = %v", err)
+	}
+	defer func() { _ = attached.Close() }()
+	temporary, ok := attached.(temporaryHostSession)
+	if !ok || !temporary.usesTemporaryHost() {
+		t.Error("attachment did not retain the Host lifetime response")
+	}
+}
+
 func TestMCPAttachRecoveryAbortClosesHostSession(t *testing.T) {
 	host := newAttachTestHost(t)
 	defer host.close()
@@ -116,13 +131,68 @@ func TestAutoStartedMCPHostStopsOnlyOnce(t *testing.T) {
 
 func TestAutoStartedHostNoticeExplainsLifecycle(t *testing.T) {
 	var output bytes.Buffer
-	if err := writeAutoStartedHostNotice(&output); err != nil {
-		t.Fatalf("writeAutoStartedHostNotice() error = %v", err)
+	attached := &fakeTemporaryAttachSession{fakeAttachSession: &fakeAttachSession{}}
+	if err := writeTemporaryHostNotice(&output, attached); err != nil {
+		t.Fatalf("writeTemporaryHostNotice() error = %v", err)
 	}
 	for _, text := range []string{"Temporary Session Host", "all shared Sessions stop", "channelterm mcp --transport http"} {
 		if !strings.Contains(output.String(), text) {
 			t.Errorf("notice = %q, want %q", output.String(), text)
 		}
+	}
+}
+
+func TestBearerTokenTransportScopesCredentialToEndpointOrigin(t *testing.T) {
+	destinationCalled := make(chan struct{}, 1)
+	destination := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		destinationCalled <- struct{}{}
+	}))
+	defer destination.Close()
+	source := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		if got := request.Header.Get("Authorization"); got != "Bearer secret" {
+			t.Errorf("source Authorization = %q, want bearer token", got)
+		}
+		http.Redirect(response, request, destination.URL, http.StatusTemporaryRedirect)
+	}))
+	defer source.Close()
+	transport, err := newBearerTokenTransport(source.URL+"/mcp", "secret")
+	if err != nil {
+		t.Fatal(err)
+	}
+	response, err := (&http.Client{Transport: transport}).Get(source.URL + "/mcp")
+	if response != nil {
+		_ = response.Body.Close()
+	}
+	if err == nil || !strings.Contains(err.Error(), "refuse to send") {
+		t.Fatalf("redirect error = %v, want cross-origin credential refusal", err)
+	}
+	select {
+	case <-destinationCalled:
+		t.Fatal("cross-origin redirect reached destination")
+	default:
+	}
+}
+
+func TestBearerTokenTransportDetectsTemporaryHost(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		if got := request.Header.Get("Authorization"); got != "Bearer secret" {
+			t.Errorf("Authorization = %q, want bearer token", got)
+		}
+		response.Header().Set(httpHostLifetimeHeader, httpHostLifetimeAttachment)
+		response.WriteHeader(http.StatusNoContent)
+	}))
+	defer server.Close()
+	transport, err := newBearerTokenTransport(server.URL+"/mcp", "secret")
+	if err != nil {
+		t.Fatal(err)
+	}
+	response, err := (&http.Client{Transport: transport}).Get(server.URL + "/mcp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = response.Body.Close()
+	if !transport.temporaryHost.Load() {
+		t.Error("temporary Host response was not detected")
 	}
 }
 
@@ -746,6 +816,10 @@ type attachTestHost struct {
 
 // newAttachTestHost creates an open board Session before serving MCP requests.
 func newAttachTestHost(t *testing.T) *attachTestHost {
+	return newAttachTestHostWithLifetime(t, false)
+}
+
+func newAttachTestHostWithLifetime(t *testing.T, temporary bool) *attachTestHost {
 	t.Helper()
 	manager := session.NewManager()
 	device := newAttachTestTransport()
@@ -767,6 +841,7 @@ func newAttachTestHost(t *testing.T) *attachTestHost {
 	if err != nil {
 		t.Fatalf("NewStreamableHTTPHandler() error = %v", err)
 	}
+	handler = advertiseHostLifetime(temporary, handler)
 	return &attachTestHost{manager: manager, device: device, server: httptest.NewServer(handler)}
 }
 
@@ -895,6 +970,10 @@ type fakeAttachSession struct {
 	onReadOutput      func()
 	onOutputDelivered func()
 }
+
+type fakeTemporaryAttachSession struct{ *fakeAttachSession }
+
+func (*fakeTemporaryAttachSession) usesTemporaryHost() bool { return true }
 
 // ReadRecent starts the CLI cursor with optional already-retained terminal data.
 func (s *fakeAttachSession) ReadRecent(context.Context, int) (session.OutputChunk, error) {

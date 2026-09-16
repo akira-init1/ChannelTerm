@@ -131,6 +131,43 @@ func TestLoadOrCreateHTTPAuthTokenPersistsOwnerOnlyCredential(t *testing.T) {
 	}
 }
 
+func TestLoadOrCreateHTTPAuthTokenSerializesConcurrentCreation(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "http-auth-token")
+	const callers = 16
+	results := make(chan string, callers)
+	errs := make(chan error, callers)
+	for range callers {
+		go func() {
+			token, err := LoadOrCreateHTTPAuthToken(path)
+			results <- token
+			errs <- err
+		}()
+	}
+	var want string
+	for range callers {
+		if err := <-errs; err != nil {
+			t.Fatalf("LoadOrCreateHTTPAuthToken() error = %v", err)
+		}
+		token := <-results
+		if want == "" {
+			want = token
+		}
+		if token != want {
+			t.Errorf("concurrent token = %q, want %q", token, want)
+		}
+	}
+}
+
+func TestLoadOrCreateHTTPAuthTokenRejectsTruncatedCredential(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "http-auth-token")
+	if err := os.WriteFile(path, []byte("a"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := LoadOrCreateHTTPAuthToken(path); err == nil || !strings.Contains(err.Error(), "32-byte Base64URL") {
+		t.Fatalf("LoadOrCreateHTTPAuthToken() error = %v, want credential length rejection", err)
+	}
+}
+
 func TestLoadResolvesConnectionPolicyAndRejectsInvalidValue(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.toml")
 	for _, tt := range []struct {

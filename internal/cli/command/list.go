@@ -403,7 +403,7 @@ func serialTargetReference(port string) string {
 // closes its client immediately after the snapshot. It never attaches to or
 // changes a remote Session.
 func listMCPSessions(ctx context.Context, endpoint string) ([]mcpListedSession, error) {
-	client, err := connectMCPClient(ctx, strings.TrimSpace(endpoint))
+	client, _, err := connectMCPClient(ctx, strings.TrimSpace(endpoint))
 	if err != nil {
 		return nil, err
 	}

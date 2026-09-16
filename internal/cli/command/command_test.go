@@ -156,7 +156,7 @@ func TestRunMCPHTTPShutsDownOnContextCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	var stderr bytes.Buffer
-	if err := runMCPHTTP(ctx, registry, "127.0.0.1:0", "/mcp", "test-token", &stderr); err != nil {
+	if err := runMCPHTTP(ctx, registry, "127.0.0.1:0", "/mcp", "test-token", false, &stderr); err != nil {
 		t.Fatalf("runMCPHTTP() error = %v", err)
 	}
 	if !strings.Contains(stderr.String(), "MCP Streamable HTTP listening on http://127.0.0.1:") || !strings.Contains(stderr.String(), "/mcp") {
@@ -174,7 +174,7 @@ func TestRunMCPHTTPWarnsWhenNetworkExposed(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	var stderr bytes.Buffer
-	if err := runMCPHTTP(ctx, registry, "0.0.0.0:0", "/mcp", "test-token", &stderr); err != nil {
+	if err := runMCPHTTP(ctx, registry, "0.0.0.0:0", "/mcp", "test-token", false, &stderr); err != nil {
 		t.Fatalf("runMCPHTTP() error = %v", err)
 	}
 	for _, warning := range []string{
@@ -215,6 +215,19 @@ func TestMCPHTTPBearerAuthentication(t *testing.T) {
 				t.Errorf("handler called = %t for status %d", called, tt.status)
 			}
 		})
+	}
+}
+
+func TestMCPHTTPAdvertisesTemporaryHostLifetimeAfterAuthentication(t *testing.T) {
+	handler := requireBearerToken("secret", advertiseHostLifetime(true, http.HandlerFunc(func(response http.ResponseWriter, _ *http.Request) {
+		response.WriteHeader(http.StatusNoContent)
+	})))
+	request := httptest.NewRequest(http.MethodPost, "/mcp", nil)
+	request.Header.Set("Authorization", "Bearer secret")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if got := response.Header().Get(httpHostLifetimeHeader); got != httpHostLifetimeAttachment {
+		t.Errorf("%s = %q, want %q", httpHostLifetimeHeader, got, httpHostLifetimeAttachment)
 	}
 }
 

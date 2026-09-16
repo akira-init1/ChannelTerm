@@ -1033,7 +1033,7 @@ func (s *leaseTrackingAttachSession) ReleaseFileTransferLease(context.Context) e
 // omit --session without selecting a closed Session.
 func TestAttachFileSessionSelectsOnlyOpenSession(t *testing.T) {
 	wantClient := &fakeAttachSession{}
-	attached, identifier, err := attachFileSession(context.Background(), fileOptions{endpoint: "test-endpoint"}, fileCommandDependencies{
+	attached, identifier, err := attachFileSession(context.Background(), fileOptions{endpoint: "test-endpoint"}, io.Discard, fileCommandDependencies{
 		listSessions: func(_ context.Context, endpoint string) ([]mcpListedSession, error) {
 			if endpoint != "test-endpoint" {
 				t.Errorf("list endpoint = %q, want test-endpoint", endpoint)
@@ -1058,7 +1058,7 @@ func TestAttachFileSessionSelectsOnlyOpenSession(t *testing.T) {
 // TestAttachFileSessionRequiresExplicitSelectionWhenAmbiguous prevents a file
 // from being sent to an arbitrary board when several Sessions are open.
 func TestAttachFileSessionRequiresExplicitSelectionWhenAmbiguous(t *testing.T) {
-	_, _, err := attachFileSession(context.Background(), fileOptions{endpoint: "test-endpoint"}, fileCommandDependencies{
+	_, _, err := attachFileSession(context.Background(), fileOptions{endpoint: "test-endpoint"}, io.Discard, fileCommandDependencies{
 		listSessions: func(context.Context, string) ([]mcpListedSession, error) {
 			return []mcpListedSession{{Reference: "SER-1", State: "open"}, {Reference: "SER-2", State: "open"}}, nil
 		},
