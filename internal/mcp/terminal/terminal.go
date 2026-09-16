@@ -1609,6 +1609,9 @@ func decodePayload(requested, data string) ([]byte, error) {
 	if encoding == "" {
 		encoding = "utf8"
 	}
+	if err := validatePayloadSizeBeforeDecode(encoding, data); err != nil {
+		return nil, err
+	}
 	switch encoding {
 	case "utf8":
 		return []byte(data), nil
@@ -1633,4 +1636,59 @@ func decodePayload(requested, data string) ([]byte, error) {
 	default:
 		return nil, fmt.Errorf("%w: %q", ErrInvalidEncoding, requested)
 	}
+}
+
+// validatePayloadSizeBeforeDecode rejects input that cannot fit within the
+// application write limit without first allocating a second decoded copy. The
+// Application repeats the decoded-byte check so non-MCP adapters cannot bypass
+// the same boundary.
+func validatePayloadSizeBeforeDecode(encoding, data string) error {
+	tooLarge := func() error {
+		return fmt.Errorf("%w: maximum %d decoded bytes", app.ErrWritePayloadTooLarge, app.MaxSessionWriteBytes)
+	}
+	switch encoding {
+	case "utf8":
+		if len(data) > app.MaxSessionWriteBytes {
+			return tooLarge()
+		}
+	case "hex":
+		encodedBytes := 0
+		for _, value := range data {
+			if unicode.IsSpace(value) {
+				continue
+			}
+			encodedBytes += utf8.RuneLen(value)
+			if encodedBytes > 2*app.MaxSessionWriteBytes {
+				return tooLarge()
+			}
+		}
+	case "base64":
+		encodedBytes := 0
+		maxEncodedBytes := base64.StdEncoding.EncodedLen(app.MaxSessionWriteBytes)
+		var previous, last byte
+		for index := range len(data) {
+			value := data[index]
+			if value == '\r' || value == '\n' {
+				continue
+			}
+			encodedBytes++
+			if encodedBytes > maxEncodedBytes {
+				return tooLarge()
+			}
+			previous, last = last, value
+		}
+		decodedBytes := encodedBytes / 4 * 3
+		if last == '=' {
+			decodedBytes--
+		}
+		if previous == '=' {
+			decodedBytes--
+		}
+		if decodedBytes > app.MaxSessionWriteBytes {
+			return tooLarge()
+		}
+	default:
+		return fmt.Errorf("%w: %q", ErrInvalidEncoding, encoding)
+	}
+	return nil
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -113,6 +114,104 @@ func TestLeaseCoordinatorExpiresAbandonedLeaseAndProtectsReplacement(t *testing.
 	}
 }
 
+func TestLeaseCoordinatorRejectsStaleOwnerWriteAfterExpiry(t *testing.T) {
+	const leaseTTL = 20 * time.Millisecond
+	coordinator := newLeaseCoordinatorWithTTL(leaseTTL)
+	if _, err := coordinator.acquire("session-1", "expired-owner", LeaseTypeFileTransfer); err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(2 * leaseTTL)
+	called := false
+	if _, err := coordinator.write("session-1", "expired-owner", "SER-1", func() (int, error) {
+		called = true
+		return 1, nil
+	}); !errors.Is(err, ErrLeaseNotOwned) {
+		t.Fatalf("stale leased write error = %v, want ErrLeaseNotOwned", err)
+	}
+	if called {
+		t.Fatal("stale leased write operation was called after expiry")
+	}
+}
+
+func TestApplicationLeasedWriteRequiresCurrentOwner(t *testing.T) {
+	manager := session.NewManager()
+	terminal := newFakeConnectedSession("first")
+	if err := terminal.Connect(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if err := manager.RegisterWithMetadata(terminal, session.SessionMetadata{Transport: "serial", Endpoint: "COM1"}); err != nil {
+		t.Fatal(err)
+	}
+	application, err := New(Dependencies{Manager: manager})
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := session.WriteRequest{Actor: session.ActorSystem, Data: []byte("protocol")}
+
+	if _, err := application.WriteSessionWithLease(context.Background(), "SER-1", "", request); !errors.Is(err, ErrInvalidLeaseOwner) {
+		t.Fatalf("empty-owner leased write error = %v, want ErrInvalidLeaseOwner", err)
+	}
+	if _, err := application.WriteSessionWithLease(context.Background(), "SER-1", "stale-owner", request); !errors.Is(err, ErrLeaseNotOwned) {
+		t.Fatalf("unleased write error = %v, want ErrLeaseNotOwned", err)
+	}
+	if _, err := application.AcquireLease("SER-1", "current-owner", LeaseTypeFileTransfer); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := application.WriteSessionWithLease(context.Background(), "SER-1", "stale-owner", request); !errors.Is(err, ErrLeaseNotOwned) {
+		t.Fatalf("wrong-owner write error = %v, want ErrLeaseNotOwned", err)
+	}
+	if err := application.ReleaseLease("SER-1", "current-owner"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := application.WriteSessionWithLease(context.Background(), "SER-1", "current-owner", request); !errors.Is(err, ErrLeaseNotOwned) {
+		t.Fatalf("released-owner write error = %v, want ErrLeaseNotOwned", err)
+	}
+	if got := terminal.writtenData(); len(got) != 0 {
+		t.Fatalf("rejected leased writes reached Session: %q", got)
+	}
+}
+
+func TestExpiredLeaseClosesSessionWithInFlightWrite(t *testing.T) {
+	manager := session.NewManager()
+	terminal := newBlockingWriteSession("first")
+	if err := terminal.Connect(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if err := manager.RegisterWithMetadata(terminal, session.SessionMetadata{Transport: "serial", Endpoint: "COM1"}); err != nil {
+		t.Fatal(err)
+	}
+	application, err := New(Dependencies{Manager: manager})
+	if err != nil {
+		t.Fatal(err)
+	}
+	application.leases.ttl = 20 * time.Millisecond
+	if _, err := application.AcquireLease("SER-1", "blocked-owner", LeaseTypeFileTransfer); err != nil {
+		t.Fatal(err)
+	}
+
+	writeResult := make(chan error, 1)
+	go func() {
+		_, writeErr := application.WriteSessionWithLease(context.Background(), "SER-1", "blocked-owner", session.WriteRequest{Actor: session.ActorSystem, Data: []byte("blocked")})
+		writeResult <- writeErr
+	}()
+	select {
+	case <-terminal.writeStarted:
+	case <-time.After(time.Second):
+		t.Fatal("leased write did not start")
+	}
+	select {
+	case writeErr := <-writeResult:
+		if !errors.Is(writeErr, session.ErrNotOpen) {
+			t.Fatalf("write error = %v, want Session close error", writeErr)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("lease expiry did not close Session and release blocked write")
+	}
+	if _, ok := manager.Get("first"); ok {
+		t.Fatal("expired Session with blocked write remains registered")
+	}
+}
+
 func TestLeaseExpiryReleasesConfirmedCancellationWait(t *testing.T) {
 	const leaseTTL = 20 * time.Millisecond
 	coordinator := newLeaseCoordinatorWithTTL(leaseTTL)
@@ -137,6 +236,33 @@ func TestLeaseExpiryReleasesConfirmedCancellationWait(t *testing.T) {
 	case <-time.After(4 * leaseTTL):
 		t.Fatal("confirmed cancellation remained blocked after lease expiry")
 	}
+}
+
+type blockingWriteSession struct {
+	*fakeConnectedSession
+	writeStarted chan struct{}
+	closed       chan struct{}
+	startOnce    sync.Once
+	closeOnce    sync.Once
+}
+
+func newBlockingWriteSession(id string) *blockingWriteSession {
+	return &blockingWriteSession{
+		fakeConnectedSession: newFakeConnectedSession(id),
+		writeStarted:         make(chan struct{}),
+		closed:               make(chan struct{}),
+	}
+}
+
+func (s *blockingWriteSession) Write(session.WriteRequest) (int, error) {
+	s.startOnce.Do(func() { close(s.writeStarted) })
+	<-s.closed
+	return 0, session.ErrNotOpen
+}
+
+func (s *blockingWriteSession) Close() error {
+	s.closeOnce.Do(func() { close(s.closed) })
+	return s.fakeConnectedSession.Close()
 }
 
 func TestApplicationPublishesFileTransferExpiryBeforeLeaseRelease(t *testing.T) {

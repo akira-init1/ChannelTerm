@@ -563,10 +563,10 @@ func (p *fileProtocol) cleanupDirectory(archive, staging string) error {
 		staging = "''"
 	}
 	if err := p.command(cleanupCtx, directoryCleanupCommand(p.token, archive, staging)); err != nil {
-		return err
+		return p.recoveryError(err)
 	}
 	_, err := p.expect(cleanupCtx, "ABORT", "OK")
-	return err
+	return p.recoveryError(err)
 }
 
 func directoryTarError(err error) error {

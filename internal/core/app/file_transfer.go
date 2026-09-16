@@ -26,6 +26,9 @@ const (
 	// fileTransferRecoveryTimeout exceeds the target-side 10-second raw-input
 	// idle timeout while bounding local TTY restoration and cleanup waits.
 	fileTransferRecoveryTimeout = 15 * time.Second
+	// fileTransferRecoveryAbortTimeout bounds the last-resort request that closes
+	// a shared Session after recovery itself reaches its deadline.
+	fileTransferRecoveryAbortTimeout = 5 * time.Second
 )
 
 var (
@@ -58,6 +61,10 @@ type fileTransferCancelRequester interface {
 
 type fileTransferCancellationCheckpointer interface {
 	FileTransferCancellationCheckpoint(context.Context) error
+}
+
+type fileTransferRecoveryAborter interface {
+	AbortFileTransferRecovery(context.Context) error
 }
 
 // FileTransferProgress receives transfer byte counts and the total size. A
@@ -529,7 +536,7 @@ func (p *fileProtocol) finishSendChunk(remaining, acknowledgedSize int64) error 
 	if remaining > 0 {
 		padding := make([]byte, remaining)
 		if _, err := writeFilePayload(cleanupCtx, p.terminal, padding); err != nil {
-			return fmt.Errorf("restore remote TTY after interrupted send: %w", err)
+			return p.recoveryError(fmt.Errorf("restore remote TTY after interrupted send: %w", err))
 		}
 	}
 	return p.finishPendingMarker("ACK", strconv.FormatInt(acknowledgedSize, 10))
@@ -541,7 +548,7 @@ func (p *fileProtocol) finishReceiveChunk(remaining []byte) error {
 	cleanupCtx, cancel := fileTransferRecoveryContext()
 	defer cancel()
 	if _, err := p.readExact(cleanupCtx, remaining); err != nil {
-		return fmt.Errorf("drain interrupted receive chunk: %w", err)
+		return p.recoveryError(fmt.Errorf("drain interrupted receive chunk: %w", err))
 	}
 	return nil
 }
@@ -550,6 +557,26 @@ func (p *fileProtocol) finishPendingMarker(phase, argument string) error {
 	cleanupCtx, cancel := fileTransferRecoveryContext()
 	defer cancel()
 	_, err := p.expect(cleanupCtx, phase, argument)
+	return p.recoveryError(err)
+}
+
+// recoveryError closes a shared Session only when bounded recovery itself times
+// out. A timed-out Channel write cannot be interrupted through the protocol-
+// neutral Channel interface; closing the owning Session is the portable escape
+// hatch that releases Host-side write serialization and lease state.
+func (p *fileProtocol) recoveryError(err error) error {
+	if err == nil || !errors.Is(err, context.DeadlineExceeded) {
+		return err
+	}
+	aborter, ok := p.terminal.(fileTransferRecoveryAborter)
+	if !ok {
+		return err
+	}
+	abortCtx, cancel := context.WithTimeout(context.Background(), fileTransferRecoveryAbortTimeout)
+	defer cancel()
+	if abortErr := aborter.AbortFileTransferRecovery(abortCtx); abortErr != nil {
+		return errors.Join(err, fmt.Errorf("close Session after file-transfer recovery timeout: %w", abortErr))
+	}
 	return err
 }
 

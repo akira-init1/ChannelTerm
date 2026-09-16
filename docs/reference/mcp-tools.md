@@ -322,7 +322,7 @@ Purpose: write an explicitly encoded payload to an active Session without adding
 {"bytes_written":7}
 ```
 
-Hex input may contain whitespace. Base64 uses the standard encoding. The entire encoded payload is validated before Session write, so malformed hex or Base64 writes nothing. A single call accepts at most 1 MiB after decoding, regardless of the MCP transport or selected encoding. The actor is retained only in the activity buffer and is never inserted into the device byte stream.
+Hex input may contain whitespace. Base64 uses the standard encoding. The entire encoded payload is validated before Session write, so malformed hex or Base64 writes nothing. A single call accepts at most 1 MiB after decoding, regardless of the MCP transport or selected encoding; input that cannot fit is rejected before allocating its decoded copy. The actor is retained only in the activity buffer and is never inserted into the device byte stream.
 
 Important errors: payload larger than 1 MiB after decoding, missing/unknown Session, Session not open, invalid encoding or encoded data, invalid actor, cancellation before or during application retries, short write, and transport write failure. Safety: this tool controls the remote terminal. Include `\r` or `\n` only when the target protocol requires it; ChannelTerm adds neither automatically.
 
@@ -340,7 +340,7 @@ Purpose: acquire one exclusive application-level writer lease for an active Sess
 {"session_id":"SER-1","owner":"file-transfer-opaque-capability","type":"file-transfer"}
 ```
 
-Only one lease may be active for a Session. Readers and their cursors continue normally. Other ordinary writers fail immediately; a separate Session is unaffected. A lease expires 30 seconds after acquire or its latest successful renewal. Expiry releases writer ownership without the original owner capability; for file transfer it also publishes a failed terminal result with `reason: lease_expired` before `LEASE_RELEASED(state=expired)`. Important errors: missing Session, invalid owner/type, or an already active lease. Safety: an owner is a bearer capability and should be generated randomly, retained only for the operation, and never logged.
+Only one lease may be active for a Session. Readers and their cursors continue normally. Other ordinary writers fail immediately; a separate Session is unaffected. A lease expires 30 seconds after acquire or its latest successful renewal. Expiry releases writer ownership without the original owner capability; for file transfer it also publishes a failed terminal result with `reason: lease_expired` before `LEASE_RELEASED(state=expired)`. If a leased Channel write remains in flight at expiry, the Host closes and removes the Session to release that write safely; otherwise the Session remains available for a replacement lease. Important errors: missing Session, invalid owner/type, or an already active lease. Safety: an owner is a bearer capability and should be generated randomly, retained only for the operation, and never logged.
 
 ## `terminal_renew_lease`
 

@@ -876,6 +876,23 @@ func (s *mcpAttachSession) ReleaseFileTransferLease(ctx context.Context) error {
 	return nil
 }
 
+// AbortFileTransferRecovery closes the Host-owned Session when bounded cleanup
+// cannot restore a usable protocol state. Ordinary attachment Close still only
+// detaches and never invokes terminal_close.
+func (s *mcpAttachSession) AbortFileTransferRecovery(ctx context.Context) error {
+	var result struct {
+		Closed bool `json:"closed"`
+	}
+	if err := s.call(ctx, "terminal_close", map[string]any{"session_id": s.id}, &result); err != nil {
+		return err
+	}
+	if !result.Closed {
+		return errors.New("file-transfer recovery abort did not close the Session")
+	}
+	s.attached = false
+	return nil
+}
+
 // BeginFileTransferCancel asks the Host whether another client currently owns
 // a file-transfer lease and, if so, opens one cancellation confirmation.
 func (s *mcpAttachSession) BeginFileTransferCancel(ctx context.Context) (string, bool, error) {

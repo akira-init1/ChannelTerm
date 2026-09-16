@@ -278,6 +278,9 @@ func (a *Application) WriteSession(ctx context.Context, identifier string, reque
 // lease exactly; ordinary writes must continue to use WriteSession. It applies
 // the same MaxSessionWriteBytes limit as WriteSession.
 func (a *Application) WriteSessionWithLease(ctx context.Context, identifier, owner string, request session.WriteRequest) (int, error) {
+	if strings.TrimSpace(owner) == "" {
+		return 0, ErrInvalidLeaseOwner
+	}
 	return a.writeSession(ctx, identifier, owner, request)
 }
 
@@ -400,7 +403,14 @@ func fileTransferLeaseEventMetadata(lease SessionLease, metadata map[string]any)
 	return metadata
 }
 
-func (a *Application) publishExpiredLease(lease SessionLease) {
+func (a *Application) publishExpiredLease(lease SessionLease, abortSession bool) {
+	if abortSession {
+		// Expiry must not wait for the per-Session lease gate: the active write
+		// holds it until Channel.Write returns. Close runs asynchronously so the
+		// Channel is released first, which unblocks the write and lets lease-state
+		// cleanup acquire the gate afterward.
+		defer func() { go a.closeSessionAfterExpiredWrite(lease.SessionID) }()
+	}
 	terminal, err := a.session(lease.SessionID)
 	if err != nil {
 		return
@@ -429,6 +439,14 @@ func (a *Application) publishExpiredLease(lease SessionLease) {
 			"output_cursor": uint64(presentationCursor),
 		}),
 	})
+}
+
+// closeSessionAfterExpiredWrite removes the Manager-owned Session before
+// clearing its recovering lease state. Session.Close interrupts the write that
+// still holds the lease gate, after which remove can acquire that gate safely.
+func (a *Application) closeSessionAfterExpiredWrite(sessionID string) {
+	_, _ = a.serial.CloseSession(sessionID)
+	a.leases.remove(sessionID)
 }
 
 // BeginFileTransferCancel atomically opens a confirmation request only when

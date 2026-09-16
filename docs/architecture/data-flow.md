@@ -29,7 +29,7 @@ One Session goroutine is the only continuous reader of a Channel. Consumers copy
 ```text
 CLI raw input                 MCP JSON input
       |                            |
-Ctrl+] local controller       decode complete payload
+Ctrl+] local controller       size preflight, then decode
       |                            |
       +------------+---------------+
                    |
@@ -152,4 +152,4 @@ local file <--> bounded CLI chunks
              wc -c + sha256sum
 ```
 
-The file-transfer use case is layered above Session and does not access Serial Transport directly. A CLI attachment uses the host's lease tools plus a lease-authorized write tool as byte-oriented clients of the host-owned Session; existing `terminal_write` input is unchanged. At each safe block boundary the lease owner calls the Host checkpoint. A separate attachment may move that checkpoint through `running -> confirming -> resumed/cancelled`, allowing cross-process cancellation without sending confirmation bytes to the board. Payloads are bounded, raw chunks. Other readers retain independent cursors; while the `file-transfer` lease is active, other writers receive an immediate busy error rather than waiting or interleaving bytes.
+The file-transfer use case is layered above Session and does not access Serial Transport directly. A CLI attachment uses the host's lease tools plus a lease-authorized write tool as byte-oriented clients of the host-owned Session; existing `terminal_write` input is unchanged. At each safe block boundary the lease owner calls the Host checkpoint. A separate attachment may move that checkpoint through `running -> confirming -> resumed/cancelled`, allowing cross-process cancellation without sending confirmation bytes to the board. Payloads are bounded, raw chunks. Other readers retain independent cursors; while the `file-transfer` lease is active, other writers receive an immediate busy error rather than waiting or interleaving bytes. A missing, expired, or replaced owner cannot use the leased-write path. If a lease expires during an in-flight Channel write, or bounded protocol recovery itself times out, Application closes the host-owned Session so `Channel.Close` releases the blocked write before a later open creates a replacement Session.

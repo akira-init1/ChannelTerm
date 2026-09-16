@@ -77,6 +77,18 @@ func (s internalFileTransferSession) WriteContext(ctx context.Context, request s
 	return s.attachSession.Write(request)
 }
 
+// AbortFileTransferRecovery asks a capable attachment to close the shared
+// Session after bounded protocol recovery itself times out.
+func (s internalFileTransferSession) AbortFileTransferRecovery(ctx context.Context) error {
+	aborter, ok := s.attachSession.(interface {
+		AbortFileTransferRecovery(context.Context) error
+	})
+	if !ok {
+		return errors.New("attached Session does not support file-transfer recovery abort")
+	}
+	return aborter.AbortFileTransferRecovery(ctx)
+}
+
 // FileTransferCancelRequested passes the optional safe-boundary cancellation
 // signal through to Core's file-transfer implementation.
 func (s internalFileTransferSession) FileTransferCancelRequested() bool {
