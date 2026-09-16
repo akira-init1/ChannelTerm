@@ -322,9 +322,9 @@ Purpose: write an explicitly encoded payload to an active Session without adding
 {"bytes_written":7}
 ```
 
-Hex input may contain whitespace. Base64 uses the standard encoding. The entire encoded payload is validated before Session write, so malformed hex or Base64 writes nothing. The actor is retained only in the activity buffer and is never inserted into the device byte stream.
+Hex input may contain whitespace. Base64 uses the standard encoding. The entire encoded payload is validated before Session write, so malformed hex or Base64 writes nothing. A single call accepts at most 1 MiB after decoding, regardless of the MCP transport or selected encoding. The actor is retained only in the activity buffer and is never inserted into the device byte stream.
 
-Important errors: missing/unknown Session, Session not open, invalid encoding or encoded data, invalid actor, cancellation before or during application retries, short write, and transport write failure. Safety: this tool controls the remote terminal. Include `\r` or `\n` only when the target protocol requires it; ChannelTerm adds neither automatically.
+Important errors: payload larger than 1 MiB after decoding, missing/unknown Session, Session not open, invalid encoding or encoded data, invalid actor, cancellation before or during application retries, short write, and transport write failure. Safety: this tool controls the remote terminal. Include `\r` or `\n` only when the target protocol requires it; ChannelTerm adds neither automatically.
 
 When another operation owns an exclusive lease, this unchanged tool returns a busy error such as `Session SER-1 is locked by file-transfer`. It never waits for the lease or accepts an owner capability.
 
@@ -368,7 +368,7 @@ Purpose: write through an active lease without changing the stable `terminal_wri
 - Optional input: `encoding` and `actor`, with the same semantics as `terminal_write`.
 - Result: `bytes_written`.
 
-The owner must exactly match the active lease for this Session. This tool exists for multi-step operations such as the CLI file transfer; normal terminal clients should continue to use `terminal_write`.
+The owner must exactly match the active lease for this Session. The same 1 MiB decoded-payload limit and encoding validation as `terminal_write` apply. This tool exists for multi-step operations such as the CLI file transfer; normal terminal clients should continue to use `terminal_write`.
 
 ## `terminal_release_lease`
 

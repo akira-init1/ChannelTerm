@@ -17,6 +17,12 @@ import (
 	serialtransport "github.com/akira-init1/ChannelTerm/internal/core/transport/serial"
 )
 
+const (
+	// MaxSessionWriteBytes is the largest payload accepted by one application
+	// write operation, including writes authorized by a Session lease.
+	MaxSessionWriteBytes = 1 * 1024 * 1024
+)
+
 var (
 	// ErrNilApplicationManager is returned when Application cannot own serial
 	// use cases because no Session Manager was supplied.
@@ -27,6 +33,9 @@ var (
 	// ErrSessionNotFound is returned when a Session use case receives no active
 	// Session ID or short reference owned by the Application's Manager.
 	ErrSessionNotFound = errors.New("application session not found")
+	// ErrWritePayloadTooLarge is returned before a Session write when its payload
+	// exceeds MaxSessionWriteBytes.
+	ErrWritePayloadTooLarge = errors.New("session write payload exceeds maximum size")
 )
 
 // Dependencies supplies the Core capabilities assembled into an Application.
@@ -257,14 +266,17 @@ func eventActor(actor string) string {
 //
 // ctx is checked before the operation and between short-write retries. The
 // Session retains responsibility for serializing concurrent writers and for
-// recording the supplied Actor; Application never changes request.Data.
+// recording the supplied Actor; Application never changes request.Data. A
+// request larger than MaxSessionWriteBytes returns ErrWritePayloadTooLarge
+// without looking up or writing to a Session.
 func (a *Application) WriteSession(ctx context.Context, identifier string, request session.WriteRequest) (int, error) {
 	return a.writeSession(ctx, identifier, "", request)
 }
 
 // WriteSessionWithLease writes one complete payload using owner as the
 // capability for an active lease on identifier. owner must match the active
-// lease exactly; ordinary writes must continue to use WriteSession.
+// lease exactly; ordinary writes must continue to use WriteSession. It applies
+// the same MaxSessionWriteBytes limit as WriteSession.
 func (a *Application) WriteSessionWithLease(ctx context.Context, identifier, owner string, request session.WriteRequest) (int, error) {
 	return a.writeSession(ctx, identifier, owner, request)
 }
@@ -272,6 +284,9 @@ func (a *Application) WriteSessionWithLease(ctx context.Context, identifier, own
 func (a *Application) writeSession(ctx context.Context, identifier, owner string, request session.WriteRequest) (int, error) {
 	if err := ctx.Err(); err != nil {
 		return 0, err
+	}
+	if len(request.Data) > MaxSessionWriteBytes {
+		return 0, fmt.Errorf("%w: got %d bytes, maximum %d", ErrWritePayloadTooLarge, len(request.Data), MaxSessionWriteBytes)
 	}
 	terminal, err := a.session(identifier)
 	if err != nil {

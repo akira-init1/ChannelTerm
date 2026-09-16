@@ -2,6 +2,7 @@ package terminal
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -438,6 +439,45 @@ func TestTerminalWriteRejectsInvalidActorWithoutWriting(t *testing.T) {
 	}
 	if got := terminal.writtenData(); len(got) != 0 {
 		t.Errorf("invalid actor wrote %q, want no Session data", got)
+	}
+}
+
+func TestTerminalWriteToolsRejectOversizedDecodedPayload(t *testing.T) {
+	manager := session.NewManager()
+	terminal := newFakeSession("session-1")
+	if err := terminal.Connect(context.Background()); err != nil {
+		t.Fatalf("Connect() error = %v", err)
+	}
+	if err := manager.Register(terminal); err != nil {
+		t.Fatalf("Register() error = %v", err)
+	}
+	application, err := app.New(app.Dependencies{Manager: manager})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	tools, err := NewTools(application)
+	if err != nil {
+		t.Fatalf("NewTools() error = %v", err)
+	}
+	payload := base64.StdEncoding.EncodeToString(make([]byte, app.MaxSessionWriteBytes+1))
+
+	ordinaryInput := fmt.Sprintf(`{"session_id":"session-1","encoding":"base64","data":%q}`, payload)
+	if _, err := callTool(tools, "terminal_write", context.Background(), ordinaryInput); !errors.Is(err, app.ErrWritePayloadTooLarge) {
+		t.Errorf("terminal_write error = %v, want ErrWritePayloadTooLarge", err)
+	}
+	if got := len(terminal.writtenData()); got != 0 {
+		t.Fatalf("terminal_write wrote %d bytes, want 0", got)
+	}
+
+	if _, err := application.AcquireLease("session-1", "owner", app.LeaseTypeTerminal); err != nil {
+		t.Fatalf("AcquireLease() error = %v", err)
+	}
+	leasedInput := fmt.Sprintf(`{"session_id":"session-1","owner":"owner","encoding":"base64","data":%q}`, payload)
+	if _, err := callTool(tools, "terminal_write_leased", context.Background(), leasedInput); !errors.Is(err, app.ErrWritePayloadTooLarge) {
+		t.Errorf("terminal_write_leased error = %v, want ErrWritePayloadTooLarge", err)
+	}
+	if got := len(terminal.writtenData()); got != 0 {
+		t.Errorf("terminal_write_leased wrote %d bytes, want 0", got)
 	}
 }
 

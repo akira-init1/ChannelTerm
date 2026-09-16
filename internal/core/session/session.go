@@ -24,6 +24,9 @@ const (
 	// DefaultActivityBufferCapacity is the fixed number of recent operations a
 	// Session retains for independent CLI and Agent activity consumers.
 	DefaultActivityBufferCapacity = 1024
+	// DefaultActivityBufferByteCapacity bounds the combined payload bytes retained
+	// by recent Session activity independently from the event-count capacity.
+	DefaultActivityBufferByteCapacity = 16 * 1024 * 1024
 	// DefaultEventBufferCapacity is the fixed number of structured lifecycle and
 	// operation events a Session retains for independent observers.
 	DefaultEventBufferCapacity = 1024
@@ -181,9 +184,10 @@ type Session interface {
 type Option func(*config) error
 
 type config struct {
-	receiveBufferCapacity  int
-	activityBufferCapacity int
-	eventBufferCapacity    int
+	receiveBufferCapacity      int
+	activityBufferCapacity     int
+	activityBufferByteCapacity int
+	eventBufferCapacity        int
 }
 
 // WithReceiveBufferCapacity sets the fixed number of output bytes retained by
@@ -211,6 +215,21 @@ func WithActivityBufferCapacity(events int) Option {
 			return ErrInvalidActivityBufferCapacity
 		}
 		cfg.activityBufferCapacity = events
+		return nil
+	}
+}
+
+// WithActivityBufferByteCapacity sets the total number of write payload bytes
+// retained by a Session's activity buffer.
+//
+// bytes must be positive. The buffer evicts the oldest complete events before
+// exceeding the limit; an individual larger event is not retained.
+func WithActivityBufferByteCapacity(bytes int) Option {
+	return func(cfg *config) error {
+		if bytes <= 0 {
+			return ErrInvalidActivityBufferByteCapacity
+		}
+		cfg.activityBufferByteCapacity = bytes
 		return nil
 	}
 }
@@ -256,8 +275,8 @@ type Core struct {
 //
 // id becomes the stable Session identifier and Manager registration key. source
 // is used once by Connect to establish the Channel that Core owns until Close.
-// options may change the default receive-output, activity-event, or structured
-// event capacity.
+// options may change the default receive-output, activity-event count, activity
+// payload byte, or structured event capacity.
 func New(id string, source transport.Transport, options ...Option) (*Core, error) {
 	if id == "" {
 		return nil, ErrInvalidID
@@ -266,7 +285,12 @@ func New(id string, source transport.Transport, options ...Option) (*Core, error
 		return nil, ErrNilTransport
 	}
 
-	cfg := config{receiveBufferCapacity: DefaultReceiveBufferSize, activityBufferCapacity: DefaultActivityBufferCapacity, eventBufferCapacity: DefaultEventBufferCapacity}
+	cfg := config{
+		receiveBufferCapacity:      DefaultReceiveBufferSize,
+		activityBufferCapacity:     DefaultActivityBufferCapacity,
+		activityBufferByteCapacity: DefaultActivityBufferByteCapacity,
+		eventBufferCapacity:        DefaultEventBufferCapacity,
+	}
 	for _, option := range options {
 		if option == nil {
 			continue
@@ -279,7 +303,7 @@ func New(id string, source transport.Transport, options ...Option) (*Core, error
 	if err != nil {
 		return nil, err
 	}
-	activity, err := newActivityBuffer(cfg.activityBufferCapacity)
+	activity, err := newActivityBuffer(cfg.activityBufferCapacity, cfg.activityBufferByteCapacity)
 	if err != nil {
 		return nil, err
 	}

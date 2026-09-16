@@ -26,7 +26,7 @@ This serialization protects byte-level write boundaries only. Session does not i
 
 ## Activity
 
-Every confirmed write records a `SessionEvent` with timestamp, actor (`user`, `agent`, or `system`), operation (`write`), and a copied payload. A partial write followed by an error records only the confirmed prefix; a zero-byte failure records nothing. Activity metadata is never forwarded to Channel.
+Every confirmed write records a `SessionEvent` with timestamp, actor (`user`, `agent`, or `system`), operation (`write`), and a copied payload. A partial write followed by an error records only the confirmed prefix; a zero-byte failure records nothing. Activity metadata is never forwarded to Channel. Retention is bounded by both 1024 events and 16 MiB of combined payload data. The oldest complete events are evicted before either limit is exceeded; one event larger than the byte limit is not retained, and older cursors report `Dropped`.
 
 Activity and remote output are independent cursor streams. Reading one cannot consume or modify the other.
 

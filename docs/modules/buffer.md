@@ -16,10 +16,11 @@ Session maintains two bounded, independent buffers: raw Channel output and write
 ## Activity buffer
 
 - Default capacity: 1024 `SessionEvent` values.
-- Overflow: overwrite the oldest event without blocking `Session.Write`.
+- Default payload capacity: 16 MiB across all retained events.
+- Overflow: evict the oldest complete events before either the event or payload limit is exceeded, without blocking `Session.Write`. A single payload larger than 16 MiB is not retained.
 - Payload ownership: event data is copied on append and copied again for readers.
 
-`ActivityCursor` is independent from `OutputCursor`. Recent activity returns a continuation cursor at the current tail, including when the event list is empty.
+`ActivityCursor` is independent from `OutputCursor`. Recent activity returns a continuation cursor at the current tail, including when the event list is empty. A read whose requested events were evicted, including an oversized event that was never retained, advances to the oldest available cursor and sets `Dropped`.
 
 ## Device event buffer
 

@@ -1030,7 +1030,7 @@ func (*writeTool) InputSchema() tool.InputSchema {
 		Type: "object",
 		Properties: map[string]tool.InputProperty{
 			"session_id": {Type: "string", Description: "Session ID or short reference returned by terminal_open_serial."},
-			"data":       {Type: "string", Description: "Payload to send without adding a line ending."},
+			"data":       {Type: "string", Description: "Payload to send without adding a line ending; decoded payload must not exceed 1 MiB."},
 			"encoding":   {Type: "string", Description: "Payload representation: utf8 (default), hex, or base64.", Enum: []string{"utf8", "hex", "base64"}},
 			"actor":      {Type: "string", Description: "Internal operation source: user, agent, or system.", Enum: []string{string(session.ActorUser), string(session.ActorAgent), string(session.ActorSystem)}},
 		},
