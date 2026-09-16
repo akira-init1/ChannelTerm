@@ -177,7 +177,7 @@ func runFileSend(ctx context.Context, args []string, output io.Writer, dependenc
 	if !info.Mode().IsRegular() {
 		return fmt.Errorf("local source %q must be a regular file or directory", localPath)
 	}
-	attached, identifier, err := attachFileSession(ctx, options, dependencies)
+	attached, identifier, err := attachFileSession(ctx, options, output, dependencies)
 	if err != nil {
 		return err
 	}
@@ -276,7 +276,7 @@ func runFileSendDirectory(ctx context.Context, localPath, remotePath string, opt
 	if err != nil {
 		return err
 	}
-	attached, identifier, err := attachFileSession(ctx, options, dependencies)
+	attached, identifier, err := attachFileSession(ctx, options, output, dependencies)
 	if err != nil {
 		return err
 	}
@@ -353,7 +353,7 @@ func runFileReceive(ctx context.Context, args []string, output io.Writer, depend
 	if err != nil || options.help {
 		return err
 	}
-	attached, identifier, err := attachFileSession(ctx, options, dependencies)
+	attached, identifier, err := attachFileSession(ctx, options, output, dependencies)
 	if err != nil {
 		return err
 	}
@@ -621,7 +621,7 @@ func parseFileOptions(name string, args []string, output io.Writer, usage func(i
 	return fileOptions{session: strings.TrimSpace(*identifier), endpoint: strings.TrimSpace(*endpoint), help: showHelp}, nil
 }
 
-func attachFileSession(ctx context.Context, options fileOptions, dependencies fileCommandDependencies) (attachSession, string, error) {
+func attachFileSession(ctx context.Context, options fileOptions, output io.Writer, dependencies fileCommandDependencies) (attachSession, string, error) {
 	identifier := options.session
 	if identifier == "" {
 		sessions, err := dependencies.listSessions(ctx, options.endpoint)
@@ -648,6 +648,10 @@ func attachFileSession(ctx context.Context, options fileOptions, dependencies fi
 	}
 	attached, err := dependencies.newAttach(ctx, options.endpoint, identifier)
 	if err != nil {
+		return nil, "", err
+	}
+	if err := writeTemporaryHostNotice(output, attached); err != nil {
+		_ = attached.Close()
 		return nil, "", err
 	}
 	return attached, identifier, nil

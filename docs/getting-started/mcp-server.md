@@ -39,7 +39,8 @@ creates an owner-readable token named `http-auth-token` in its platform user con
 directory. Built-in commands such as `attach`, `list`, `events`, and `file` read it automatically.
 For an external MCP client, configure the same header using the client's secret/header mechanism.
 For a remote Host or an explicit secret manager, set `CHANNELTERM_HTTP_AUTH_TOKEN` to the same value
-for both Host and client instead of copying the default local token file.
+for both Host and client instead of copying the default local token file. Built-in clients refuse
+cross-origin HTTP redirects so the credential cannot be forwarded to a different endpoint.
 
 Customize the listener and endpoint path with:
 
@@ -48,6 +49,11 @@ channelterm mcp --transport http --listen 127.0.0.1:12345 --path /terminal
 ```
 
 The path must begin with `/`. `attach` automatically starts a host only for the exact default local endpoint. For a different endpoint, start the host explicitly.
+
+An automatically started Host includes `X-ChannelTerm-Host-Lifetime: attachment` on every
+authenticated response. Bundled attachments and file commands use that signal to warn every client,
+including clients that join later, that the Host and its Sessions stop with the owning attachment.
+A separately started Host omits the header and persists until its own process is stopped.
 
 ## Discovery and policy
 

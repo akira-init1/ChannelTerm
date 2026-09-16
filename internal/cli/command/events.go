@@ -43,7 +43,7 @@ func runEvents(ctx context.Context, args []string, output io.Writer) error {
 	if *maxEvents <= 0 {
 		return errors.New("max-events must be positive")
 	}
-	remote, err := connectMCPClient(ctx, strings.TrimSpace(*endpoint))
+	remote, _, err := connectMCPClient(ctx, strings.TrimSpace(*endpoint))
 	if err != nil {
 		return fmt.Errorf("connect MCP endpoint %q: %w", *endpoint, err)
 	}

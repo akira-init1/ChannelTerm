@@ -170,9 +170,10 @@ are rejected. `--private` with a Session reference is rejected.
 When opening a target against the default local endpoint, `attach` may start
 `channelterm mcp --transport http` in the background and wait up to five seconds for readiness. That
 automatically started Host belongs to this `attach` process and is stopped, with its Sessions, when
-the process exits. The attachment prints a notice when this happens so later clients do not mistake
-the child for a persistent service. Start `channelterm mcp --transport http` separately before
-attaching when the Host must survive the first attachment. An already-running or manually started Host is never stopped by `attach`. It
+the process exits. It marks authenticated HTTP responses as attachment-owned, so every bundled
+attachment or file client that joins it prints the same lifecycle notice. Start
+`channelterm mcp --transport http` separately before attaching when the Host must survive the first
+attachment. An already-running or manually started Host is never stopped by `attach`. It
 will not auto-start a custom or remote endpoint. Opening a target through MCP requires a local
 loopback endpoint. A reused Session retains its original metadata and connection settings; new
 attach flags do not reconfigure it. Supplying `--save` still runs the open/save workflow rather than
@@ -242,7 +243,8 @@ timeout, MCP tool failure, serial configuration failure, and terminal I/O failur
 All Streamable HTTP commands require a Bearer token. ChannelTerm creates and reads the default
 per-user token automatically. Set `CHANNELTERM_HTTP_AUTH_TOKEN` for a Host or built-in CLI client
 that must use an explicitly supplied token, including a remote endpoint. The value must not contain
-whitespace. External clients must send `Authorization: Bearer <token>` themselves.
+whitespace. External clients must send `Authorization: Bearer <token>` themselves. Built-in clients
+refuse cross-origin redirects rather than forwarding the credential to another origin.
 
 ## `events`
 
@@ -474,7 +476,9 @@ channelterm mcp [--transport stdio|http] [--listen ADDRESS] [--path PATH] [--con
 Startup loads or creates `config.toml` and `state.json`, starts serial discovery, registers tools,
 and then serves until cancellation or client/process termination. Stdio writes no status text to
 stdout. HTTP writes its effective endpoint to stderr and warns when the bound address is not
-loopback. The current HTTP mode should be treated as unauthenticated terminal control.
+loopback. HTTP requires the configured Bearer token. An attachment-owned auto-started Host also
+returns `X-ChannelTerm-Host-Lifetime: attachment` on authenticated responses; a separately started
+Host omits that header.
 
 ```powershell
 channelterm mcp

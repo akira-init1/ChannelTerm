@@ -11,11 +11,13 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/akira-init1/ChannelTerm/internal/cli/terminalinput"
@@ -72,17 +74,20 @@ type attachSessionFactory func(context.Context, string, string) (attachSession, 
 // existing MCP terminal tools. The remote Manager continues to own the actual
 // Session and its single Transport reader.
 type mcpAttachSession struct {
-	id         string
-	client     *protocol.ClientSession
-	leaseOwner string
-	transferID string
-	attached   bool
+	id            string
+	client        *protocol.ClientSession
+	leaseOwner    string
+	transferID    string
+	attached      bool
+	temporaryHost bool
 	// fileTransferPresentationMu protects the transfer goroutine's local-owner
 	// state from the concurrent structured-event observer.
 	fileTransferPresentationMu    sync.RWMutex
 	localFileTransferPresentation bool
 	presentation                  *fileTransferPresentation
 }
+
+func (s *mcpAttachSession) usesTemporaryHost() bool { return s.temporaryHost }
 
 // newMCPAttachSession connects to an MCP HTTP host and verifies that id is
 // currently registered there. endpoint must be the complete Streamable HTTP
@@ -96,7 +101,7 @@ func newMCPAttachSession(ctx context.Context, endpoint, id string) (_ attachSess
 	if endpoint == "" {
 		return nil, errors.New("MCP endpoint is required")
 	}
-	remote, err := connectMCPClient(ctx, endpoint)
+	remote, temporaryHost, err := connectMCPClient(ctx, endpoint)
 	if err != nil {
 		return nil, fmt.Errorf("connect MCP endpoint %q: %w", endpoint, err)
 	}
@@ -106,7 +111,7 @@ func newMCPAttachSession(ctx context.Context, endpoint, id string) (_ attachSess
 		}
 	}()
 
-	attached := &mcpAttachSession{id: id, client: remote}
+	attached := &mcpAttachSession{id: id, client: remote, temporaryHost: temporaryHost}
 	if err := attached.verify(ctx); err != nil {
 		return nil, err
 	}
@@ -189,6 +194,9 @@ func runAttachSessionWithInterrupts(ctx context.Context, args []string, input io
 			err = fmt.Errorf("detach session %q: %w", flags.Arg(0), closeErr)
 		}
 	}()
+	if err := writeTemporaryHostNotice(output, attached); err != nil {
+		return err
+	}
 	rawInput, stopInputEcho, err := terminalinput.MakeRaw(input)
 	if err != nil {
 		return fmt.Errorf("configure console input: %w", err)
@@ -407,9 +415,6 @@ func runAttachTargetFirstWithInterrupts(ctx context.Context, target string, args
 		}
 		if startedHost != nil {
 			defer startedHost.stop()
-			if err := writeAutoStartedHostNotice(output); err != nil {
-				return err
-			}
 		}
 		state := "created"
 		if reused {
@@ -429,11 +434,24 @@ func runAttachTargetFirstWithInterrupts(ctx context.Context, target string, args
 	return runAttachSessionWithInterrupts(ctx, []string{"--endpoint", *endpoint, "--highlight", *highlightMode, target}, input, output, newAttach, interrupts)
 }
 
-// writeAutoStartedHostNotice makes the temporary Host ownership visible before
-// other clients can join and assume that the process is a persistent service.
+// writeAutoStartedHostNotice explains the attachment-owned Host lifecycle.
 func writeAutoStartedHostNotice(output io.Writer) error {
 	_, err := fmt.Fprintln(output, "[ChannelTerm] Temporary Session Host started; it and all shared Sessions stop when this attachment exits. Run 'channelterm mcp --transport http' separately for a persistent Host.")
 	return err
+}
+
+type temporaryHostSession interface {
+	usesTemporaryHost() bool
+}
+
+// writeTemporaryHostNotice warns every bundled attachment, including clients
+// that join an attachment-owned Host after the creating process.
+func writeTemporaryHostNotice(output io.Writer, attached attachSession) error {
+	host, ok := attached.(temporaryHostSession)
+	if !ok || !host.usesTemporaryHost() {
+		return nil
+	}
+	return writeAutoStartedHostNotice(output)
 }
 
 // defineAttachSerialFlags accepts the same connection settings as serial and
@@ -538,7 +556,7 @@ func openSharedSerialTarget(ctx context.Context, endpoint, target string, serial
 			startedHost.stop()
 		}
 	}()
-	client, err := connectMCPClient(ctx, endpoint)
+	client, _, err := connectMCPClient(ctx, endpoint)
 	if err != nil {
 		return mcpListedSession{}, false, nil, fmt.Errorf("connect Session Host %q: %w", endpoint, err)
 	}
@@ -706,6 +724,7 @@ func ensureMCPHost(ctx context.Context, endpoint string) (*autoStartedMCPHost, e
 		return nil, fmt.Errorf("Session Host %q is offline; start it explicitly before attach", endpoint)
 	}
 	command := exec.Command(os.Args[0], "mcp", "--transport", "http")
+	command.Env = append(os.Environ(), internalTemporaryHostEnvVar+"=1")
 	command.Stdin = nil
 	command.Stdout = io.Discard
 	command.Stderr = io.Discard
@@ -1176,32 +1195,88 @@ func (s *mcpAttachSession) call(ctx context.Context, name string, arguments map[
 // connectMCPClient opens a short-lived or attached MCP HTTP client. endpoint
 // must identify a Streamable HTTP handler; this function does not open a
 // terminal Session or send terminal bytes.
-func connectMCPClient(ctx context.Context, endpoint string) (*protocol.ClientSession, error) {
+func connectMCPClient(ctx context.Context, endpoint string) (*protocol.ClientSession, bool, error) {
 	token, err := loadHTTPAuthToken()
 	if err != nil {
-		return nil, err
+		return nil, false, err
+	}
+	transport, err := newBearerTokenTransport(endpoint, token)
+	if err != nil {
+		return nil, false, err
 	}
 	client := protocol.NewClient(&protocol.Implementation{Name: "channelterm-cli", Version: version}, nil)
 	remote, err := client.Connect(ctx, &protocol.StreamableClientTransport{
 		Endpoint:             endpoint,
-		HTTPClient:           &http.Client{Transport: bearerTokenTransport{token: token, base: http.DefaultTransport}},
+		HTTPClient:           &http.Client{Transport: transport},
 		DisableStandaloneSSE: true,
 	}, nil)
 	if err != nil {
-		return nil, fmt.Errorf("connect MCP endpoint %q: %w", endpoint, err)
+		return nil, false, fmt.Errorf("connect MCP endpoint %q: %w", endpoint, err)
 	}
-	return remote, nil
+	return remote, transport.temporaryHost.Load(), nil
 }
 
 type bearerTokenTransport struct {
-	token string
-	base  http.RoundTripper
+	token         string
+	base          http.RoundTripper
+	origin        *url.URL
+	temporaryHost atomic.Bool
 }
 
-func (t bearerTokenTransport) RoundTrip(request *http.Request) (*http.Response, error) {
+// newBearerTokenTransport binds one credential to the configured endpoint
+// origin. Redirected requests cannot carry it across scheme, host, or port.
+func newBearerTokenTransport(endpoint, token string) (*bearerTokenTransport, error) {
+	origin, err := url.Parse(endpoint)
+	if err != nil {
+		return nil, fmt.Errorf("parse MCP endpoint %q: %w", endpoint, err)
+	}
+	if origin.Scheme == "" || origin.Host == "" {
+		return nil, fmt.Errorf("MCP endpoint %q must include an HTTP scheme and host", endpoint)
+	}
+	if !strings.EqualFold(origin.Scheme, "http") && !strings.EqualFold(origin.Scheme, "https") {
+		return nil, fmt.Errorf("MCP endpoint %q must use http or https", endpoint)
+	}
+	return &bearerTokenTransport{token: token, base: http.DefaultTransport, origin: origin}, nil
+}
+
+// RoundTrip adds authentication only after enforcing the origin boundary and
+// records the Host lifetime signal from authenticated responses.
+func (t *bearerTokenTransport) RoundTrip(request *http.Request) (*http.Response, error) {
+	if !sameHTTPOrigin(t.origin, request.URL) {
+		return nil, fmt.Errorf("refuse to send ChannelTerm bearer token from %s to redirected origin %s", httpOrigin(t.origin), httpOrigin(request.URL))
+	}
 	request = request.Clone(request.Context())
 	request.Header.Set("Authorization", "Bearer "+t.token)
-	return t.base.RoundTrip(request)
+	response, err := t.base.RoundTrip(request)
+	if err == nil && response.Header.Get(httpHostLifetimeHeader) == httpHostLifetimeAttachment {
+		t.temporaryHost.Store(true)
+	}
+	return response, err
+}
+
+// sameHTTPOrigin compares normalized HTTP origins, treating omitted default
+// ports as equivalent to their explicit forms.
+func sameHTTPOrigin(first, second *url.URL) bool {
+	return strings.EqualFold(first.Scheme, second.Scheme) &&
+		strings.EqualFold(first.Hostname(), second.Hostname()) &&
+		effectiveHTTPPort(first) == effectiveHTTPPort(second)
+}
+
+func effectiveHTTPPort(value *url.URL) string {
+	if port := value.Port(); port != "" {
+		return port
+	}
+	if strings.EqualFold(value.Scheme, "http") {
+		return "80"
+	}
+	if strings.EqualFold(value.Scheme, "https") {
+		return "443"
+	}
+	return ""
+}
+
+func httpOrigin(value *url.URL) string {
+	return strings.ToLower(value.Scheme) + "://" + value.Host
 }
 
 // callMCPTool invokes one MCP tool and decodes its structured result. It keeps

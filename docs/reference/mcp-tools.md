@@ -4,6 +4,11 @@ The MCP adapter exposes terminal, discovery, lease, activity, file-transfer, and
 
 Successful calls return both structured content and an equivalent JSON text content item. Recoverable tool failures return an MCP tool result with `isError: true` and text beginning `<tool-name> failed:`. Structured inputs decoded by the terminal adapter reject unknown fields.
 
+Streamable HTTP requests require `Authorization: Bearer <token>`. An automatically started,
+attachment-owned Host returns `X-ChannelTerm-Host-Lifetime: attachment` on every authenticated MCP
+response so clients can distinguish it from a separately started persistent Host. The header does
+not change tool schemas or result objects.
+
 ## Common cursor rules
 
 - Output, activity, Session-event, and device-event cursors are independent monotonically increasing positions.

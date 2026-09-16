@@ -18,7 +18,10 @@ CLI and MCP serial opens use `LoadOrCreate`, which creates a minimal `config.tom
 
 `http-auth-token` is generated from 32 random bytes and stored with owner-only permissions where
 the platform honors them. `CHANNELTERM_HTTP_AUTH_TOKEN` overrides this file for both HTTP Host and
-built-in clients. The token is authentication material and must not be committed or printed in logs.
+built-in clients. Creation holds an adjacent `http-auth-token.lock` file and installs a fully written,
+synchronized temporary file, so concurrent first use cannot expose a partial credential. The stored
+value must decode to exactly 32 bytes of unpadded Base64URL. The token is authentication material and
+must not be committed or printed in logs.
 
 ## TOML schema
 
@@ -78,10 +81,12 @@ Only explicitly present flags or JSON properties override profile values. The po
 
 `--save NAME` or MCP `save` writes the final resolved profile before opening the transport. It creates or replaces `serial.profiles.NAME`. If `serial.default` is empty, the saved name becomes the default. Existing configuration is otherwise read-only.
 
-Writes use a synchronized temporary file in the same directory followed by atomic rename and
-directory synchronization. Profile saving also holds an adjacent `config.toml.lock` file across
-the latest read, profile merge, and write, so concurrent ChannelTerm processes preserve unrelated
-profile updates. The lock file contains no configuration or credential data.
+Writes use a synchronized temporary file in the same directory followed by replacement. Unix
+targets provide atomic rename and directory synchronization. Windows receives a fully synchronized
+replacement file but Go does not guarantee that the final rename is atomic and does not expose a
+portable directory-sync operation. Profile saving also holds an adjacent `config.toml.lock` file
+across the latest read, profile merge, and write, so concurrent ChannelTerm processes preserve
+unrelated profile updates. Lock files contain no configuration or credential data.
 
 Saving a serial profile does not create an empty `[preferences]` table. User
 preferences never supply serial values and do not participate in profile
