@@ -890,14 +890,20 @@ func (*zeroProgressTransport) State() channel.State          { return channel.St
 // failingTransport returns a prescribed reader failure to test Core's failed
 // state and error propagation independently of transport implementation.
 type failingTransport struct {
-	readErr error
-	closes  atomic.Int64
+	readErr   error
+	readReady <-chan struct{}
+	closes    atomic.Int64
 }
 
 func (t *failingTransport) Connect(context.Context) (channel.Channel, error) { return t, nil }
-func (t *failingTransport) Read([]byte) (int, error)                         { return 0, t.readErr }
-func (t *failingTransport) Write(p []byte) (int, error)                      { return len(p), nil }
-func (t *failingTransport) Resize(uint16, uint16) error                      { return nil }
+func (t *failingTransport) Read([]byte) (int, error) {
+	if t.readReady != nil {
+		<-t.readReady
+	}
+	return 0, t.readErr
+}
+func (t *failingTransport) Write(p []byte) (int, error) { return len(p), nil }
+func (t *failingTransport) Resize(uint16, uint16) error { return nil }
 func (t *failingTransport) Close() error {
 	t.closes.Add(1)
 	return nil

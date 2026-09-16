@@ -60,6 +60,8 @@ channelterm attach SER-COM8 --private --baud 115200
 
 Detaching a Client does not close a shared Session. `terminal_close` removes and closes one host-owned Session. Stopping the Session Host closes all Sessions still owned by its Manager. Session references such as `SER-1` are valid only for that host process lifetime.
 
+If the underlying serial Channel ends or its reader fails, the host automatically removes and closes the affected Session. Its short reference and opaque ID stop resolving, retained buffers are released, and a later open can create a new Session for the reconnected device. Clients waiting on the failed Session receive the original stream error and should list Sessions again before reconnecting.
+
 See [Identifiers](../reference/identifiers.md) before passing target references, Session references, or `session_id` values between commands.
 
 ## Future direction

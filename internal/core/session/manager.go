@@ -55,6 +55,14 @@ type registeredSession struct {
 	metadata SessionMetadata
 }
 
+// managedLifecycleSession exposes internal lifecycle information implemented
+// by Core. Manager uses it to reclaim asynchronous reader failures and to stop
+// observing explicitly closed Sessions without expanding the public interface.
+type managedLifecycleSession interface {
+	managerLifecycleDone() <-chan struct{}
+	managerShouldReap() bool
+}
+
 // endpointOpening coordinates one in-progress physical connection. Waiters do
 // not create a second Transport for the same endpoint; they receive the
 // resulting Session or the original opening error after the owner finishes.
@@ -100,6 +108,7 @@ func (m *Manager) RegisterWithMetadata(s Session, metadata SessionMetadata) erro
 	m.sessions[s.ID()] = registeredSession{session: s, metadata: metadata}
 	m.mu.Unlock()
 	publishSessionCreated(s, metadata)
+	m.watchLifecycle(s)
 	return nil
 }
 
@@ -158,6 +167,7 @@ func (m *Manager) GetOrCreate(ctx context.Context, metadata SessionMetadata, cre
 			m.mu.Unlock()
 			if err == nil {
 				publishSessionCreated(candidate, metadata)
+				m.watchLifecycle(candidate)
 			}
 		}
 		if err != nil && candidate != nil {
@@ -193,6 +203,41 @@ func publishSessionCreated(terminal Session, metadata SessionMetadata) {
 			"label":     metadata.Label,
 		},
 	})
+}
+
+// watchLifecycle removes and closes a registered Core after an asynchronous
+// terminal transition. The instance check prevents a delayed notification from
+// removing a newer Session that happens to reuse the same caller-provided ID.
+func (m *Manager) watchLifecycle(terminal Session) {
+	observed, ok := terminal.(managedLifecycleSession)
+	if !ok {
+		return
+	}
+	go func() {
+		<-observed.managerLifecycleDone()
+		if observed.managerShouldReap() && m.removeExact(terminal) {
+			_ = terminal.Close()
+		}
+	}()
+}
+
+// removeExact transfers ownership only when terminal is still the registered
+// instance. Session implementations are interface values and may not be
+// comparable, so identity is checked through the lifecycle signal channel.
+func (m *Manager) removeExact(terminal Session) bool {
+	observed, ok := terminal.(managedLifecycleSession)
+	if !ok {
+		return false
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	registered, exists := m.sessions[terminal.ID()]
+	current, currentOK := registered.session.(managedLifecycleSession)
+	if !exists || !currentOK || current.managerLifecycleDone() != observed.managerLifecycleDone() {
+		return false
+	}
+	delete(m.sessions, terminal.ID())
+	return true
 }
 
 // Get returns the Session registered under identifier and whether it exists.

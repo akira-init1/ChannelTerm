@@ -241,12 +241,15 @@ type Core struct {
 	activity  *activityBuffer
 	events    *eventBuffer
 
-	mu         sync.Mutex
-	writeMu    sync.Mutex
-	state      SessionState
-	closeErr   error
-	readerDone chan struct{}
-	readerStop chan struct{}
+	mu              sync.Mutex
+	writeMu         sync.Mutex
+	state           SessionState
+	closeErr        error
+	readerDone      chan struct{}
+	readerStop      chan struct{}
+	managerDone     chan struct{}
+	managerDoneOnce sync.Once
+	reapByManager   bool
 }
 
 // New creates a Core in StateNew with a fixed-capacity receive buffer.
@@ -285,13 +288,14 @@ func New(id string, source transport.Transport, options ...Option) (*Core, error
 		return nil, err
 	}
 	return &Core{
-		id:         id,
-		transport:  source,
-		receive:    receive,
-		activity:   activity,
-		events:     events,
-		state:      StateNew,
-		readerStop: make(chan struct{}),
+		id:          id,
+		transport:   source,
+		receive:     receive,
+		activity:    activity,
+		events:      events,
+		state:       StateNew,
+		readerStop:  make(chan struct{}),
+		managerDone: make(chan struct{}),
 	}, nil
 }
 
@@ -552,6 +556,24 @@ func (s *Core) isOpen() bool {
 	return s.state == StateOpen
 }
 
+// managerLifecycleDone lets Manager stop observing after any terminal cleanup
+// without adding Manager ownership concerns to the public Session contract.
+func (s *Core) managerLifecycleDone() <-chan struct{} { return s.managerDone }
+
+// managerShouldReap reports whether an asynchronous Channel reader failure,
+// rather than explicit cleanup, ended the Session.
+func (s *Core) managerShouldReap() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.reapByManager
+}
+
+// signalManagerDone releases the Manager watcher exactly once after either an
+// asynchronous reader failure or explicit cleanup reaches a terminal point.
+func (s *Core) signalManagerDone() {
+	s.managerDoneOnce.Do(func() { close(s.managerDone) })
+}
+
 // readLoop is the only goroutine that calls Channel.Read for a Core. It
 // publishes received bytes before handling an accompanying error because an
 // io.Reader may validly return both data and an error in the same call.
@@ -589,18 +611,23 @@ func (s *Core) handleReadError(err error) {
 	closing := s.state == StateClosing || s.state == StateClosed
 	if !closing {
 		s.state = StateFailed
+		s.reapByManager = true
 	}
 	s.mu.Unlock()
 
-	if closing || errors.Is(err, io.EOF) {
+	if closing {
 		s.receive.close(io.EOF)
 		s.activity.close(io.EOF)
 		s.events.close(io.EOF)
 		return
 	}
+	if errors.Is(err, io.EOF) {
+		err = io.EOF
+	}
 	s.receive.close(err)
 	s.activity.close(err)
 	s.events.close(err)
+	s.signalManagerDone()
 }
 
 // Close releases the underlying Channel, output reader, and receive buffer.
@@ -644,5 +671,6 @@ func (s *Core) Close() error {
 	s.closeErr = err
 	s.state = StateClosed
 	s.mu.Unlock()
+	s.signalManagerDone()
 	return err
 }
