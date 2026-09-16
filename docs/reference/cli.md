@@ -297,8 +297,11 @@ target TTY, removes temporary transfer data, releases the lease, and prints one 
 with the last confirmed byte counts. Cancellation and failure terminate a rendered progress line
 before printing their status; no success summary or 100% state is printed for those outcomes. The
 confirmed cancellation also interrupts an outstanding protocol-marker wait, while an already
-started raw block uses its cleanup path before lease release. This keeps a missing marker from
-leaving attach input permanently locked. The
+started raw block uses an independent cleanup path before lease release. Each recovery write, read,
+acknowledgement wait, and directory cleanup command has a 15-second deadline. A recovery timeout is
+reported alongside the original transfer failure; target TTY and temporary-file state are then
+unconfirmed. This keeps a missing marker or failed recovery from leaving attach input permanently
+locked. The
 CLI publishes `FILE_TRANSFER_STARTED`, `FILE_TRANSFER_PROGRESS`, `FILE_TRANSFER_COMPLETED`, or
 `FILE_TRANSFER_FAILED`; after a Host-mediated cancellation, the Host publishes
 `FILE_TRANSFER_CANCELLED` only after lease release. The Host-generated `transfer_id` is shared by

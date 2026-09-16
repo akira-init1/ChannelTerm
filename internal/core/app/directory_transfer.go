@@ -557,7 +557,8 @@ func posixDirectoryReceiveArchivePath(token string) string {
 // acknowledged, so the remote TTY is already restored. It removes temporary
 // archive and extraction paths before the Session lease is released.
 func (p *fileProtocol) cleanupDirectory(archive, staging string) error {
-	cleanupCtx := context.Background()
+	cleanupCtx, cancel := fileTransferRecoveryContext()
+	defer cancel()
 	if staging == "" {
 		staging = "''"
 	}

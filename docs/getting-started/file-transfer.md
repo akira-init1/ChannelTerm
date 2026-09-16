@@ -139,8 +139,12 @@ short block rather than waiting indefinitely.
 After `y` or `Y`, ChannelTerm also cancels an outstanding wait for a protocol marker such as
 `PICK`, `INIT`, `READY`, `ACK`, or `FINAL`. This prevents a missing board response from trapping the
 attachment in file-transfer mode. If raw payload transfer has already started, its bounded cleanup
-continues independently until it completes or drains that bounded block and restores the target
-TTY before the lease is released.
+continues independently while it tries to pad or drain the bounded block, consume its
+acknowledgement, restore the target TTY, and remove directory-transfer staging data. Each recovery
+write, read, acknowledgement wait, and cleanup command has a 15-second deadline. If the target
+shell or protocol stops responding, recovery returns after the applicable deadline and the lease is
+released; the reported failure includes the recovery timeout. In that case, target TTY restoration
+and temporary-file removal are not confirmed and should be checked manually before another transfer.
 
 ## Transfer flow
 

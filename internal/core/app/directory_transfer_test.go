@@ -104,21 +104,32 @@ func TestSendDirectoryCancellationStopsAfterOneBoundedBlock(t *testing.T) {
 	}
 }
 
-func TestSendDirectoryCancellationRecoveryHasNoUnsafeDeadline(t *testing.T) {
+func TestSendDirectoryCancellationRecoveryHasDeadline(t *testing.T) {
 	source := t.TempDir()
 	mustWriteDirectoryTestFile(t, filepath.Join(source, "large.bin"), bytes.Repeat([]byte("x"), FileTransferChunkSize*3))
-	terminal := &rejectCleanupDeadlineSession{fileTransferTestSession: newFileTransferTestSession(nil)}
+	terminal := &requireRecoveryDeadlineSession{fileTransferTestSession: newFileTransferTestSession(nil)}
 	_, err := SendDirectory(context.Background(), terminal, source, "/tmp/release", func(int64, int64) error {
 		return context.Canceled
 	})
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("SendDirectory() error = %v, want context.Canceled", err)
 	}
-	if terminal.deadlineRejected {
-		t.Fatal("directory cancellation recovery used a deadline while the remote TTY was raw")
-	}
 	if terminal.pendingSend != 0 {
 		t.Errorf("remote directory input still waits for %d bytes after cancellation", terminal.pendingSend)
+	}
+}
+
+func TestDirectoryCleanupHasDeadline(t *testing.T) {
+	terminal := &recoveryDeadlineProbeSession{fileTransferTestSession: newFileTransferTestSession(nil)}
+	protocol := &fileProtocol{terminal: terminal, token: "abc123"}
+	if err := protocol.cleanupDirectory("'/tmp/archive'", "'/tmp/staging'"); err != nil {
+		t.Fatalf("cleanupDirectory() error = %v", err)
+	}
+	if !terminal.writeDeadlineObserved {
+		t.Error("directory cleanup write had no deadline")
+	}
+	if !terminal.readDeadlineObserved {
+		t.Error("directory cleanup acknowledgement read had no deadline")
 	}
 }
 

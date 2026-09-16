@@ -178,18 +178,54 @@ func TestSendFilePadsInterruptedChunk(t *testing.T) {
 	}
 }
 
-func TestSendFileInterruptedChunkRecoveryHasNoUnsafeDeadline(t *testing.T) {
-	terminal := &rejectCleanupDeadlineSession{fileTransferTestSession: newFileTransferTestSession(nil)}
+func TestSendFileInterruptedChunkRecoveryHasDeadline(t *testing.T) {
+	terminal := &requireRecoveryDeadlineSession{fileTransferTestSession: newFileTransferTestSession(nil)}
 	terminal.failPayloadOnce = true
 	_, err := SendFile(context.Background(), terminal, strings.NewReader("payload"), 7, "/tmp/partial.bin", nil)
 	if err == nil || !strings.Contains(err.Error(), "injected payload failure") {
 		t.Fatalf("SendFile() error = %v, want injected payload failure", err)
 	}
-	if terminal.deadlineRejected {
-		t.Fatal("file cancellation recovery used a deadline while the remote TTY was raw")
+	if !terminal.deadlineObserved {
+		t.Fatal("file cancellation recovery write had no deadline")
 	}
 	if terminal.pendingSend != 0 {
 		t.Errorf("remote file input still waits for %d bytes after recovery", terminal.pendingSend)
+	}
+}
+
+func TestFileTransferRecoveryReadsHaveDeadline(t *testing.T) {
+	tests := []struct {
+		name    string
+		output  string
+		recover func(*fileProtocol) error
+	}{
+		{
+			name:   "pending acknowledgement",
+			output: "\n@CTERM:abc123:ACK:7\n",
+			recover: func(protocol *fileProtocol) error {
+				return protocol.finishPendingMarker("ACK", "7")
+			},
+		},
+		{
+			name:   "receive drain",
+			output: "payload",
+			recover: func(protocol *fileProtocol) error {
+				return protocol.finishReceiveChunk(make([]byte, len("payload")))
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			terminal := &recoveryDeadlineProbeSession{fileTransferTestSession: newFileTransferTestSession(nil)}
+			terminal.output = []byte(tt.output)
+			protocol := &fileProtocol{terminal: terminal, token: "abc123"}
+			if err := tt.recover(protocol); err != nil {
+				t.Fatalf("recovery error = %v", err)
+			}
+			if !terminal.readDeadlineObserved {
+				t.Fatal("recovery read had no deadline")
+			}
+		})
 	}
 }
 
@@ -370,21 +406,43 @@ type cancelableFileTransferSession struct {
 	cancellation *fileTransferTestCancellation
 }
 
-type rejectCleanupDeadlineSession struct {
+type requireRecoveryDeadlineSession struct {
 	*fileTransferTestSession
-	deadlineRejected bool
+	deadlineObserved bool
 }
 
-func (s *rejectCleanupDeadlineSession) WriteContext(ctx context.Context, request session.WriteRequest) (int, error) {
+func (s *requireRecoveryDeadlineSession) WriteContext(ctx context.Context, request session.WriteRequest) (int, error) {
 	s.mu.Lock()
 	cleanupPayload := s.pendingSend > 0 && len(s.received) > 0
 	s.mu.Unlock()
 	if cleanupPayload {
-		if _, hasDeadline := ctx.Deadline(); hasDeadline {
-			s.deadlineRejected = true
-			return 0, context.DeadlineExceeded
+		if _, hasDeadline := ctx.Deadline(); !hasDeadline {
+			return 0, errors.New("recovery write has no deadline")
 		}
+		s.deadlineObserved = true
 	}
+	return s.Write(request)
+}
+
+type recoveryDeadlineProbeSession struct {
+	*fileTransferTestSession
+	readDeadlineObserved  bool
+	writeDeadlineObserved bool
+}
+
+func (s *recoveryDeadlineProbeSession) ReadOutput(ctx context.Context, next session.OutputCursor, maxBytes int) (session.OutputChunk, error) {
+	if _, hasDeadline := ctx.Deadline(); !hasDeadline {
+		return session.OutputChunk{}, errors.New("recovery read has no deadline")
+	}
+	s.readDeadlineObserved = true
+	return s.fileTransferTestSession.ReadOutput(ctx, next, maxBytes)
+}
+
+func (s *recoveryDeadlineProbeSession) WriteContext(ctx context.Context, request session.WriteRequest) (int, error) {
+	if _, hasDeadline := ctx.Deadline(); !hasDeadline {
+		return 0, errors.New("recovery write has no deadline")
+	}
+	s.writeDeadlineObserved = true
 	return s.Write(request)
 }
 

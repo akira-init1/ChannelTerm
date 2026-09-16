@@ -12,6 +12,7 @@ import (
 	posixpath "path"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/akira-init1/ChannelTerm/internal/core/session"
 )
@@ -22,6 +23,9 @@ const (
 	// second while still amortizing the shell acknowledgement round trip.
 	FileTransferChunkSize = 8 * 1024
 	fileProtocolReadSize  = 32 * 1024
+	// fileTransferRecoveryTimeout exceeds the target-side 10-second raw-input
+	// idle timeout while bounding local TTY restoration and cleanup waits.
+	fileTransferRecoveryTimeout = 15 * time.Second
 )
 
 var (
@@ -520,7 +524,8 @@ func (p *fileProtocol) readExact(ctx context.Context, destination []byte) (int, 
 // or a short write. Completing that bounded block lets the shell restore its
 // saved TTY mode; the caller still receives the original transfer failure.
 func (p *fileProtocol) finishSendChunk(remaining, acknowledgedSize int64) error {
-	cleanupCtx := context.Background()
+	cleanupCtx, cancel := fileTransferRecoveryContext()
+	defer cancel()
 	if remaining > 0 {
 		padding := make([]byte, remaining)
 		if _, err := writeFilePayload(cleanupCtx, p.terminal, padding); err != nil {
@@ -533,7 +538,8 @@ func (p *fileProtocol) finishSendChunk(remaining, acknowledgedSize int64) error 
 // finishReceiveChunk drains an already-started bounded dd output so the remote
 // shell can finish the command and restore its saved TTY mode.
 func (p *fileProtocol) finishReceiveChunk(remaining []byte) error {
-	cleanupCtx := context.Background()
+	cleanupCtx, cancel := fileTransferRecoveryContext()
+	defer cancel()
 	if _, err := p.readExact(cleanupCtx, remaining); err != nil {
 		return fmt.Errorf("drain interrupted receive chunk: %w", err)
 	}
@@ -541,8 +547,16 @@ func (p *fileProtocol) finishReceiveChunk(remaining []byte) error {
 }
 
 func (p *fileProtocol) finishPendingMarker(phase, argument string) error {
-	_, err := p.expect(context.Background(), phase, argument)
+	cleanupCtx, cancel := fileTransferRecoveryContext()
+	defer cancel()
+	_, err := p.expect(cleanupCtx, phase, argument)
 	return err
+}
+
+// fileTransferRecoveryContext remains usable after the caller's operation is
+// cancelled but bounds recovery when the target shell stops responding.
+func fileTransferRecoveryContext() (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.Background(), fileTransferRecoveryTimeout)
 }
 
 func writeFilePayload(ctx context.Context, terminal FileTransferSession, data []byte) (int, error) {
