@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"testing"
 
@@ -165,6 +166,32 @@ func TestApplicationRoutesCoreUseCases(t *testing.T) {
 	closed, err := application.CloseSession("SER-1")
 	if err != nil || closed.ID != "session-8" || !terminal.closed {
 		t.Errorf("CloseSession() = %#v, %v, closed=%t", closed, err, terminal.closed)
+	}
+}
+
+func TestApplicationWriteSessionBoundsPayloadSize(t *testing.T) {
+	manager := session.NewManager()
+	application, err := New(Dependencies{Manager: manager})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	terminal := newFakeConnectedSession("session-1")
+	if err := manager.Register(terminal); err != nil {
+		t.Fatalf("Register() error = %v", err)
+	}
+
+	allowed := make([]byte, MaxSessionWriteBytes)
+	if written, err := application.WriteSession(context.Background(), "session-1", session.WriteRequest{Actor: session.ActorAgent, Data: allowed}); err != nil || written != len(allowed) {
+		t.Fatalf("WriteSession(maximum) = (%d, %v), want (%d, nil)", written, err, len(allowed))
+	}
+	before := len(terminal.writtenData())
+	tooLarge := make([]byte, MaxSessionWriteBytes+1)
+	written, err := application.WriteSession(context.Background(), "session-1", session.WriteRequest{Actor: session.ActorAgent, Data: tooLarge})
+	if !errors.Is(err, ErrWritePayloadTooLarge) || written != 0 {
+		t.Fatalf("WriteSession(too large) = (%d, %v), want (0, ErrWritePayloadTooLarge)", written, err)
+	}
+	if got := len(terminal.writtenData()); got != before {
+		t.Errorf("oversized write changed terminal bytes from %d to %d", before, got)
 	}
 }
 

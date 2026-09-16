@@ -11,6 +11,8 @@ import (
 var (
 	// ErrInvalidActivityBufferCapacity is returned when an activity buffer has no capacity.
 	ErrInvalidActivityBufferCapacity = errors.New("activity buffer capacity must be positive")
+	// ErrInvalidActivityBufferByteCapacity is returned when an activity buffer has no byte capacity.
+	ErrInvalidActivityBufferByteCapacity = errors.New("activity buffer byte capacity must be positive")
 	// ErrInvalidActivityReadLimit is returned when an activity read does not request events.
 	ErrInvalidActivityReadLimit = errors.New("activity read limit must be positive")
 )
@@ -59,22 +61,27 @@ type ActivityChunk struct {
 type activityBuffer struct {
 	mu sync.Mutex
 
-	events []SessionEvent
-	start  int
-	size   int
-	base   ActivityCursor
+	events   []SessionEvent
+	start    int
+	size     int
+	base     ActivityCursor
+	bytes    int
+	maxBytes int
 
 	notify chan struct{}
 	closed bool
 	err    error
 }
 
-// newActivityBuffer allocates fixed event slots for the lifetime of a Session.
-func newActivityBuffer(capacity int) (*activityBuffer, error) {
+// newActivityBuffer allocates fixed event slots with a total payload byte bound.
+func newActivityBuffer(capacity, maxBytes int) (*activityBuffer, error) {
 	if capacity <= 0 {
 		return nil, ErrInvalidActivityBufferCapacity
 	}
-	return &activityBuffer{events: make([]SessionEvent, capacity), notify: make(chan struct{})}, nil
+	if maxBytes <= 0 {
+		return nil, ErrInvalidActivityBufferByteCapacity
+	}
+	return &activityBuffer{events: make([]SessionEvent, capacity), maxBytes: maxBytes, notify: make(chan struct{})}, nil
 }
 
 // append records one completed operation. It clones Data while holding the
@@ -87,13 +94,19 @@ func (b *activityBuffer) append(event SessionEvent) {
 	}
 
 	event.Data = append([]byte(nil), event.Data...)
-	if b.size == len(b.events) {
-		b.events[b.start] = event
+	for b.size > 0 && (b.size == len(b.events) || b.bytes+len(event.Data) > b.maxBytes) {
+		b.bytes -= len(b.events[b.start].Data)
+		b.events[b.start] = SessionEvent{}
 		b.start = (b.start + 1) % len(b.events)
+		b.size--
 		b.base++
-	} else {
+	}
+	if len(event.Data) <= b.maxBytes {
 		b.events[(b.start+b.size)%len(b.events)] = event
 		b.size++
+		b.bytes += len(event.Data)
+	} else {
+		b.base++
 	}
 	b.signalLocked()
 }
@@ -154,6 +167,9 @@ func (b *activityBuffer) readChunk(next ActivityCursor, limit int) (ActivityChun
 	if next < end {
 		return b.copyLocked(next, min(limit, int(end-next)), dropped), nil, false, nil
 	}
+	if dropped {
+		return ActivityChunk{Next: next, Dropped: true}, nil, false, nil
+	}
 	return ActivityChunk{}, b.notify, b.closed, b.err
 }
 
@@ -189,6 +205,7 @@ func (b *activityBuffer) release() {
 	b.events = nil
 	b.start = 0
 	b.size = 0
+	b.bytes = 0
 	b.signalLocked()
 }
 

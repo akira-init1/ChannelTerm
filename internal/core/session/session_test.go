@@ -176,6 +176,55 @@ func TestCoreActivityCursorsAreIndependentAndReportOverflow(t *testing.T) {
 	}
 }
 
+func TestCoreActivityBufferBoundsRetainedPayloadBytes(t *testing.T) {
+	terminal := newFakeTransport()
+	s, err := New("board-1", terminal, WithActivityBufferCapacity(10), WithActivityBufferByteCapacity(6))
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	if err := s.Connect(context.Background()); err != nil {
+		t.Fatalf("Connect() error = %v", err)
+	}
+	defer s.Close()
+
+	for _, payload := range []string{"one", "two", "three"} {
+		if _, err := s.Write(WriteRequest{Actor: ActorAgent, Data: []byte(payload)}); err != nil {
+			t.Fatalf("Write(%q) error = %v", payload, err)
+		}
+	}
+
+	activity, err := s.ReadActivity(context.Background(), 0, 10)
+	if err != nil {
+		t.Fatalf("ReadActivity() error = %v", err)
+	}
+	if !activity.Dropped || activity.Next != 3 || len(activity.Events) != 1 || string(activity.Events[0].Data) != "three" {
+		t.Errorf("activity = %+v, want dropped event three through cursor 3", activity)
+	}
+}
+
+func TestCoreActivityBufferDropsSingleOversizedPayload(t *testing.T) {
+	terminal := newFakeTransport()
+	s, err := New("board-1", terminal, WithActivityBufferByteCapacity(4))
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	if err := s.Connect(context.Background()); err != nil {
+		t.Fatalf("Connect() error = %v", err)
+	}
+	defer s.Close()
+
+	if _, err := s.Write(WriteRequest{Actor: ActorAgent, Data: []byte("oversized")}); err != nil {
+		t.Fatalf("Write() error = %v", err)
+	}
+	activity, err := s.ReadActivity(context.Background(), 0, 1)
+	if err != nil {
+		t.Fatalf("ReadActivity() error = %v", err)
+	}
+	if !activity.Dropped || activity.Next != 1 || len(activity.Events) != 0 {
+		t.Errorf("activity = %+v, want dropped empty chunk through cursor 1", activity)
+	}
+}
+
 func TestCoreSlowActivityConsumerDoesNotBlockWriteAndCloseReleasesWaiter(t *testing.T) {
 	terminal := newFakeTransport()
 	s, err := New("board-1", terminal)
