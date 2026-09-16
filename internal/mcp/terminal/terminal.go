@@ -182,6 +182,7 @@ func serialToolsForApplication(application *app.Application) []tool.Tool {
 		&writeTool{serialTools: dependencies},
 		&writeLeasedTool{serialTools: dependencies},
 		&acquireLeaseTool{serialTools: dependencies},
+		&renewLeaseTool{serialTools: dependencies},
 		&beginFileTransferCancelTool{serialTools: dependencies},
 		&resolveFileTransferCancelTool{serialTools: dependencies},
 		&fileTransferCheckpointTool{serialTools: dependencies},
@@ -538,7 +539,7 @@ func (t *listSessionsTool) Call(ctx context.Context, _ json.RawMessage) (tool.Re
 			State:     info.State.String(),
 		}
 		if lease, active, err := t.application.LeaseStatus(info.ID); err == nil && active {
-			summary.Lease = &leaseSummary{Type: string(lease.Type), TransferID: lease.TransferID, CreatedAt: lease.CreatedAt.Format(time.RFC3339Nano), State: lease.State}
+			summary.Lease = &leaseSummary{Type: string(lease.Type), TransferID: lease.TransferID, CreatedAt: lease.CreatedAt.Format(time.RFC3339Nano), ExpiresAt: lease.ExpiresAt.Format(time.RFC3339Nano), State: lease.State}
 		}
 		result = append(result, summary)
 	}
@@ -1147,6 +1148,41 @@ func (t *acquireLeaseTool) Call(ctx context.Context, input json.RawMessage) (too
 	return leaseResult(lease), nil
 }
 
+// renewLeaseTool extends a caller-owned lease before its Host-side TTL elapses.
+type renewLeaseTool struct{ *serialTools }
+
+// Name returns the stable lease-renewal Tool identifier.
+func (*renewLeaseTool) Name() string { return "terminal_renew_lease" }
+
+// Description explains the heartbeat contract for long-running operations.
+func (*renewLeaseTool) Description() string {
+	return "Renew an exclusive Session lease owned by this operation before it expires."
+}
+
+// InputSchema describes the target and opaque owner capability.
+func (*renewLeaseTool) InputSchema() tool.InputSchema {
+	return tool.InputSchema{Type: "object", Properties: map[string]tool.InputProperty{
+		"session_id": {Type: "string", Description: "Session ID or short reference."},
+		"owner":      {Type: "string", Description: "Opaque caller-generated lease owner capability."},
+	}, Required: []string{"session_id", "owner"}}
+}
+
+// Call renews the lease after verifying the owner capability.
+func (t *renewLeaseTool) Call(ctx context.Context, input json.RawMessage) (tool.Result, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	var args leaseInput
+	if err := decodeInput(input, &args); err != nil {
+		return nil, err
+	}
+	lease, err := t.application.RenewLease(args.SessionID, args.Owner)
+	if err != nil {
+		return nil, err
+	}
+	return leaseResult(lease), nil
+}
+
 // beginFileTransferCancelTool opens the user confirmation state for the
 // active file-transfer lease without affecting ordinary terminal Sessions.
 type beginFileTransferCancelTool struct{ *serialTools }
@@ -1483,11 +1519,12 @@ type leaseSummary struct {
 	Type       string `json:"type"`
 	TransferID string `json:"transfer_id,omitempty"`
 	CreatedAt  string `json:"created_at"`
+	ExpiresAt  string `json:"expires_at"`
 	State      string `json:"state"`
 }
 
 func leaseResult(lease app.SessionLease) tool.Result {
-	result := tool.Result{"session_id": lease.SessionID, "type": string(lease.Type), "created_at": lease.CreatedAt.Format(time.RFC3339Nano), "state": lease.State}
+	result := tool.Result{"session_id": lease.SessionID, "type": string(lease.Type), "created_at": lease.CreatedAt.Format(time.RFC3339Nano), "expires_at": lease.ExpiresAt.Format(time.RFC3339Nano), "state": lease.State}
 	if lease.TransferID != "" {
 		result["transfer_id"] = lease.TransferID
 	}

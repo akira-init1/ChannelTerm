@@ -303,7 +303,9 @@ CLI publishes `FILE_TRANSFER_STARTED`, `FILE_TRANSFER_PROGRESS`, `FILE_TRANSFER_
 `FILE_TRANSFER_FAILED`; after a Host-mediated cancellation, the Host publishes
 `FILE_TRANSFER_CANCELLED` only after lease release. The Host-generated `transfer_id` is shared by
 the transfer's lease acquire/release and every file-transfer event; the lease owner capability is
-not published. The local
+not published. The CLI renews its 30-second Host lease every 10 seconds. If the CLI is killed or its
+MCP connection disappears, the Host expires the abandoned lease; a PC-to-board raw input block also
+restores the target TTY after 10 seconds without serial input and reports a short-block failure. The local
 initial 0% frame does not add a progress event. Directory events add `kind: "directory"`; their
 progress counts actual tar-stream bytes, calculated with a first standard-library tar counting pass
 and sent through a temporary target-side archive in acknowledged blocks. The remote shell must

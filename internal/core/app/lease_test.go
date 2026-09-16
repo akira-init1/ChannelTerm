@@ -88,6 +88,105 @@ func TestApplicationLeaseBlocksOtherWritersAndPreservesOtherSessions(t *testing.
 	}
 }
 
+func TestLeaseCoordinatorExpiresAbandonedLeaseAndProtectsReplacement(t *testing.T) {
+	const leaseTTL = 20 * time.Millisecond
+	coordinator := newLeaseCoordinatorWithTTL(leaseTTL)
+
+	first, err := coordinator.acquire("session-1", "abandoned-owner", LeaseTypeFileTransfer)
+	if err != nil {
+		t.Fatalf("acquire first lease: %v", err)
+	}
+	if first.ExpiresAt.IsZero() || !first.ExpiresAt.After(first.CreatedAt) {
+		t.Fatalf("first lease expiry = %v, created = %v", first.ExpiresAt, first.CreatedAt)
+	}
+
+	time.Sleep(2 * leaseTTL)
+	replacement, err := coordinator.acquire("session-1", "replacement-owner", LeaseTypeFileTransfer)
+	if err != nil {
+		t.Fatalf("acquire replacement lease after TTL: %v", err)
+	}
+	if replacement.Owner != "replacement-owner" || replacement.TransferID == first.TransferID {
+		t.Fatalf("replacement lease = %#v, first = %#v", replacement, first)
+	}
+	if _, _, _, err := coordinator.release("session-1", "abandoned-owner"); !errors.Is(err, ErrLeaseNotOwned) {
+		t.Fatalf("release replacement with abandoned owner error = %v, want ErrLeaseNotOwned", err)
+	}
+}
+
+func TestLeaseExpiryReleasesConfirmedCancellationWait(t *testing.T) {
+	const leaseTTL = 20 * time.Millisecond
+	coordinator := newLeaseCoordinatorWithTTL(leaseTTL)
+	if _, err := coordinator.acquire("session-1", "abandoned-owner", LeaseTypeFileTransfer); err != nil {
+		t.Fatal(err)
+	}
+	request, err := coordinator.beginFileTransferCancel("session-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	resolved := make(chan FileTransferCancelResolution, 1)
+	go func() {
+		resolution, _ := coordinator.resolveFileTransferCancel(context.Background(), "session-1", request.RequestID, true)
+		resolved <- resolution
+	}()
+
+	select {
+	case resolution := <-resolved:
+		if resolution.State != "expired" {
+			t.Fatalf("resolution state = %q, want expired", resolution.State)
+		}
+	case <-time.After(4 * leaseTTL):
+		t.Fatal("confirmed cancellation remained blocked after lease expiry")
+	}
+}
+
+func TestApplicationPublishesFileTransferExpiryBeforeLeaseRelease(t *testing.T) {
+	manager := session.NewManager()
+	terminal := newFakeConnectedSession("first")
+	if err := terminal.Connect(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if err := manager.RegisterWithMetadata(terminal, session.SessionMetadata{Transport: "serial", Endpoint: "COM1"}); err != nil {
+		t.Fatal(err)
+	}
+	application, err := New(Dependencies{Manager: manager})
+	if err != nil {
+		t.Fatal(err)
+	}
+	application.leases.ttl = 20 * time.Millisecond
+	lease, err := application.AcquireLease("SER-1", "abandoned-owner", LeaseTypeFileTransfer)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	time.Sleep(40 * time.Millisecond)
+	if _, err := application.AcquireLease("SER-1", "replacement-owner", LeaseTypeFileTransfer); err != nil {
+		t.Fatalf("AcquireLease() after expiry error = %v", err)
+	}
+	events, err := application.ReadSessionEvents(context.Background(), "SER-1", nil, 8)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var failedIndex, releasedIndex = -1, -1
+	for index, event := range events.Events {
+		if event.Metadata["transfer_id"] != lease.TransferID {
+			continue
+		}
+		switch event.Type {
+		case session.EventFileTransferFailed:
+			if event.Metadata["reason"] == "lease_expired" {
+				failedIndex = index
+			}
+		case session.EventLeaseReleased:
+			if event.Metadata["state"] == "expired" {
+				releasedIndex = index
+			}
+		}
+	}
+	if failedIndex < 0 || releasedIndex <= failedIndex {
+		t.Fatalf("expiry events = %#v, want failed before released for %s", events.Events, lease.TransferID)
+	}
+}
+
 func TestFileTransferCancellationConfirmationPausesResumesAndCancels(t *testing.T) {
 	manager := session.NewManager()
 	terminal := newFakeConnectedSession("first")

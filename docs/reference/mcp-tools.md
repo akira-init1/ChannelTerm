@@ -133,7 +133,7 @@ Purpose: list the host Manager's current Session snapshot.
 
 - Required input: none; use `{}`.
 - Optional input: none.
-- Result: `sessions`, sorted by short reference. Each object contains `session_id`, `session_ref`, `transport`, `endpoint`, `label`, and `state`. An actively leased Session also has `lease` with `type`, `created_at`, and `state`; a file-transfer lease adds `transfer_id`. Owner capabilities are never returned.
+- Result: `sessions`, sorted by short reference. Each object contains `session_id`, `session_ref`, `transport`, `endpoint`, `label`, and `state`. An actively leased Session also has `lease` with `type`, `created_at`, `expires_at`, and `state`; a file-transfer lease adds `transfer_id`. Owner capabilities are never returned.
 
 ```json
 {}
@@ -334,19 +334,29 @@ Purpose: acquire one exclusive application-level writer lease for an active Sess
 
 - Required input: `session_id`, caller-generated opaque `owner`, and `type` (`terminal`, `file-transfer`, or reserved `debug`).
 - Optional input: none.
-- Result: canonical `session_id`, `type`, UTC `created_at`, and `state` (`active`). A `file-transfer` lease additionally returns its non-secret `transfer_id`. The owner capability is not echoed.
+- Result: canonical `session_id`, `type`, UTC `created_at`, UTC `expires_at`, and `state` (`active`). A `file-transfer` lease additionally returns its non-secret `transfer_id`. The owner capability is not echoed.
 
 ```json
 {"session_id":"SER-1","owner":"file-transfer-opaque-capability","type":"file-transfer"}
 ```
 
-Only one lease may be active for a Session. Readers and their cursors continue normally. Other ordinary writers fail immediately; a separate Session is unaffected. Important errors: missing Session, invalid owner/type, or an already active lease. Safety: an owner is a bearer capability and should be generated randomly, retained only for the operation, and never logged.
+Only one lease may be active for a Session. Readers and their cursors continue normally. Other ordinary writers fail immediately; a separate Session is unaffected. A lease expires 30 seconds after acquire or its latest successful renewal. Expiry releases writer ownership without the original owner capability; for file transfer it also publishes a failed terminal result with `reason: lease_expired` before `LEASE_RELEASED(state=expired)`. Important errors: missing Session, invalid owner/type, or an already active lease. Safety: an owner is a bearer capability and should be generated randomly, retained only for the operation, and never logged.
+
+## `terminal_renew_lease`
+
+Purpose: extend an active exclusive lease before its Host-side TTL elapses.
+
+- Required input: `session_id`, `owner`.
+- Optional input: none.
+- Result: the same non-secret lease state as acquisition, with an updated `expires_at`.
+
+Only the current owner capability can renew. A missing, expired, or replacement lease returns an ownership error. Long-running operations must renew more frequently than the 30-second TTL; the bundled CLI renews every 10 seconds.
 
 ## File-transfer cancellation control tools
 
 `terminal_begin_file_transfer_cancel` requires `session_id`. It returns `active: false` and `state: "inactive"` when no `file-transfer` lease exists, preserving ordinary terminal Ctrl+C behavior. For an active transfer it returns `active: true`, `state: "confirming"`, and an opaque `request_id`; a second concurrent confirmation is rejected.
 
-`terminal_resolve_file_transfer_cancel` requires `session_id`, that `request_id`, and boolean `cancel`. `cancel: false` returns `state: "resumed"` immediately. `cancel: true` signals the lease owner and returns `state: "cancelled"` with last confirmed `transferred`, `total`, and `percent` only after lease release. A stale request ID is rejected. Only a direct user `y`/`Y` answer should set `cancel: true`.
+`terminal_resolve_file_transfer_cancel` requires `session_id`, that `request_id`, and boolean `cancel`. `cancel: false` returns `state: "resumed"` immediately. `cancel: true` signals the lease owner and normally returns `state: "cancelled"` with last confirmed `transferred`, `total`, and `percent` after lease release. If the owner disappeared, TTL expiry returns `state: "expired"` instead of waiting indefinitely. A stale request ID is rejected. Only a direct user `y`/`Y` answer should set `cancel: true`.
 
 `terminal_file_transfer_checkpoint` requires `session_id` and the active lease `owner`. The bundled transfer process calls it only at safe protocol block boundaries. It returns `action: "continue"`, blocks while confirmation is pending, or returns `action: "cancel"`; a non-owner is rejected. These three tools carry control state only, never terminal bytes. The bundled attachment uses them for Ctrl+C; AI clients should wait for the final result with `terminal_wait_file_transfer` rather than initiating the user interaction themselves or waiting for raw terminal output.
 

@@ -35,7 +35,7 @@ func TestServerListsAndUsesTerminalTools(t *testing.T) {
 		"terminal_open_serial": true, "terminal_read": true, "terminal_read_activity": true,
 		"terminal_session_events": true, "terminal_wait_file_transfer": true, "terminal_session_attach": true, "terminal_session_detach": true, "terminal_report_file_transfer": true,
 		"terminal_wait": true, "terminal_wait_activity": true, "terminal_write": true,
-		"terminal_write_leased": true, "terminal_acquire_lease": true, "terminal_release_lease": true,
+		"terminal_write_leased": true, "terminal_acquire_lease": true, "terminal_renew_lease": true, "terminal_release_lease": true,
 		"terminal_begin_file_transfer_cancel": true, "terminal_resolve_file_transfer_cancel": true, "terminal_file_transfer_checkpoint": true,
 		"terminal_list_devices": true, "terminal_read_device_events": true, "terminal_wait_device_event": true, "terminal_get_connection_decision": true,
 	}
@@ -91,7 +91,7 @@ func TestStreamableHTTPServerListsAndUsesTerminalTools(t *testing.T) {
 			"terminal_open_serial": true, "terminal_read": true, "terminal_read_activity": true,
 			"terminal_session_events": true, "terminal_wait_file_transfer": true, "terminal_session_attach": true, "terminal_session_detach": true, "terminal_report_file_transfer": true,
 			"terminal_wait": true, "terminal_wait_activity": true, "terminal_write": true,
-			"terminal_write_leased": true, "terminal_acquire_lease": true, "terminal_release_lease": true,
+			"terminal_write_leased": true, "terminal_acquire_lease": true, "terminal_renew_lease": true, "terminal_release_lease": true,
 			"terminal_begin_file_transfer_cancel": true, "terminal_resolve_file_transfer_cancel": true, "terminal_file_transfer_checkpoint": true,
 			"terminal_list_devices": true, "terminal_read_device_events": true, "terminal_wait_device_event": true, "terminal_get_connection_decision": true,
 		}
