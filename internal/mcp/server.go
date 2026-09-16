@@ -243,6 +243,10 @@ func newAdapter(registry *tool.Registry) (*adapter, error) {
 	if err != nil {
 		return nil, err
 	}
+	renewLease, err := lookup("terminal_renew_lease")
+	if err != nil {
+		return nil, err
+	}
 	beginFileTransferCancel, err := lookup("terminal_begin_file_transfer_cancel")
 	if err != nil {
 		return nil, err
@@ -295,6 +299,7 @@ func newAdapter(registry *tool.Registry) (*adapter, error) {
 		{name: "terminal_write", target: write.Name(), description: write.Description(), schema: write.InputSchema()},
 		{name: "terminal_write_leased", target: writeLeased.Name(), description: writeLeased.Description(), schema: writeLeased.InputSchema()},
 		{name: "terminal_acquire_lease", target: acquireLease.Name(), description: acquireLease.Description(), schema: acquireLease.InputSchema()},
+		{name: "terminal_renew_lease", target: renewLease.Name(), description: renewLease.Description(), schema: renewLease.InputSchema()},
 		{name: "terminal_begin_file_transfer_cancel", target: beginFileTransferCancel.Name(), description: beginFileTransferCancel.Description(), schema: beginFileTransferCancel.InputSchema()},
 		{name: "terminal_resolve_file_transfer_cancel", target: resolveFileTransferCancel.Name(), description: resolveFileTransferCancel.Description(), schema: resolveFileTransferCancel.InputSchema()},
 		{name: "terminal_file_transfer_checkpoint", target: fileTransferCheckpoint.Name(), description: fileTransferCheckpoint.Description(), schema: fileTransferCheckpoint.InputSchema()},

@@ -128,6 +128,14 @@ releases the lease, publishes `FILE_TRANSFER_CANCELLED` with `reason: user_cance
 returns to the attachment. Directory transfers use the same bounded blocks instead of one full-size
 raw tar interval.
 
+The Host lease has a 30-second TTL, and the bundled transfer client renews it every 10 seconds. If
+the client is killed or loses its MCP connection long enough to miss renewal, the Host expires the
+lease, publishes a `lease_expired` failure and release event, and allows another writer or transfer
+to acquire the Session. A cancellation confirmation waiting on the missing owner returns as expired
+instead of remaining blocked. During PC-to-board payload input, the target-side raw TTY also has a
+10-second idle timeout; after that timeout the shell restores the saved TTY mode and rejects the
+short block rather than waiting indefinitely.
+
 After `y` or `Y`, ChannelTerm also cancels an outstanding wait for a protocol marker such as
 `PICK`, `INIT`, `READY`, `ACK`, or `FINAL`. This prevents a missing board response from trapping the
 attachment in file-transfer mode. If raw payload transfer has already started, its bounded cleanup

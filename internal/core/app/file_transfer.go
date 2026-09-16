@@ -630,7 +630,7 @@ func remotePathStatusCommand(token, path string) string {
 }
 
 func sendChunkCommand(token, path string, size int64) string {
-	return fmt.Sprintf("t='%s'; n=%d; if exec 3>> %s; then saved=$(stty -g 2>/dev/null); if [ -n \"$saved\" ] && stty raw -echo; then printf '\\n@CTERM:%%s:READY:%%s\\n' \"$t\" \"$n\"; if dd bs=\"$n\" count=1 iflag=fullblock 2>/dev/null >&3; then exec 3>&-; stty \"$saved\"; printf '\\n@CTERM:%%s:ACK:%%s\\n' \"$t\" \"$n\"; else exec 3>&-; stty \"$saved\"; printf '\\n@CTERM:%%s:ERROR:write\\n' \"$t\"; fi; else exec 3>&-; printf '\\n@CTERM:%%s:ERROR:tty\\n' \"$t\"; fi; else printf '\\n@CTERM:%%s:ERROR:open\\n' \"$t\"; fi", token, size, path)
+	return fmt.Sprintf("t='%s'; n=%d; p=%s; if before=$(wc -c < \"$p\" 2>/dev/null) && exec 3>> \"$p\"; then saved=$(stty -g 2>/dev/null); if [ -n \"$saved\" ] && stty raw -echo min 0 time 100; then printf '\\n@CTERM:%%s:READY:%%s\\n' \"$t\" \"$n\"; dd bs=\"$n\" count=1 iflag=fullblock 2>/dev/null >&3; status=$?; exec 3>&-; stty \"$saved\"; if [ \"$status\" = 0 ] && after=$(wc -c < \"$p\" 2>/dev/null) && [ \"$((after-before))\" = \"$n\" ]; then printf '\\n@CTERM:%%s:ACK:%%s\\n' \"$t\" \"$n\"; else printf '\\n@CTERM:%%s:ERROR:write\\n' \"$t\"; fi; else exec 3>&-; printf '\\n@CTERM:%%s:ERROR:tty\\n' \"$t\"; fi; else printf '\\n@CTERM:%%s:ERROR:open\\n' \"$t\"; fi", token, size, path)
 }
 
 func verifyCommand(token, path string) string {

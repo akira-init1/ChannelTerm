@@ -83,13 +83,15 @@ func New(dependencies Dependencies) (*Application, error) {
 	if listPorts == nil {
 		listPorts = serialtransport.ListPorts
 	}
-	return &Application{
+	application := &Application{
 		serial:          serial,
 		leases:          newLeaseCoordinator(),
 		devices:         dependencies.Devices,
 		policy:          policy,
 		listSerialPorts: listPorts,
-	}, nil
+	}
+	application.leases.onExpired = application.publishExpiredLease
+	return application, nil
 }
 
 // OpenSerial resolves a profile and explicit overrides, opens or reuses a
@@ -317,11 +319,22 @@ func (a *Application) AcquireLease(identifier, owner string, typ LeaseType) (Ses
 		Metadata: fileTransferLeaseEventMetadata(lease, map[string]any{
 			"type":          string(lease.Type),
 			"created_at":    lease.CreatedAt.Format(time.RFC3339Nano),
+			"expires_at":    lease.ExpiresAt.Format(time.RFC3339Nano),
 			"state":         lease.State,
 			"output_cursor": uint64(presentationCursor),
 		}),
 	})
 	return lease, nil
+}
+
+// RenewLease extends an active lease only when owner matches its opaque
+// capability. Callers must renew before ExpiresAt to retain writer ownership.
+func (a *Application) RenewLease(identifier, owner string) (SessionLease, error) {
+	terminal, err := a.session(identifier)
+	if err != nil {
+		return SessionLease{}, err
+	}
+	return a.leases.renew(terminal.ID(), owner)
 }
 
 // ReleaseLease releases identifier's lease only when owner matches its owner
@@ -370,6 +383,37 @@ func fileTransferLeaseEventMetadata(lease SessionLease, metadata map[string]any)
 		metadata["transfer_id"] = lease.TransferID
 	}
 	return metadata
+}
+
+func (a *Application) publishExpiredLease(lease SessionLease) {
+	terminal, err := a.session(lease.SessionID)
+	if err != nil {
+		return
+	}
+	presentationCursor := sessionOutputCursor(terminal)
+	if lease.Type == LeaseTypeFileTransfer {
+		terminal.PublishEvent(session.Event{
+			Type:  session.EventFileTransferFailed,
+			Actor: string(session.ActorSystem),
+			Metadata: map[string]any{
+				"transfer_id":    lease.TransferID,
+				"error":          "lease expired",
+				"reason":         "lease_expired",
+				"lease_released": true,
+			},
+		})
+	}
+	terminal.PublishEvent(session.Event{
+		Type:  session.EventLeaseReleased,
+		Actor: string(session.ActorSystem),
+		Metadata: fileTransferLeaseEventMetadata(lease, map[string]any{
+			"type":          string(lease.Type),
+			"created_at":    lease.CreatedAt.Format(time.RFC3339Nano),
+			"expires_at":    lease.ExpiresAt.Format(time.RFC3339Nano),
+			"state":         "expired",
+			"output_cursor": uint64(presentationCursor),
+		}),
+	})
 }
 
 // BeginFileTransferCancel atomically opens a confirmation request only when

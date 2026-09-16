@@ -149,6 +149,21 @@ func TestSendFileInitializationCreatesDestinationHierarchy(t *testing.T) {
 	}
 }
 
+func TestSendChunkCommandRestoresTTYAfterAbandonedPayload(t *testing.T) {
+	command := sendChunkCommand("abc123", "'/tmp/firmware.bin'", 4096)
+	for _, required := range []string{
+		"stty raw -echo min 0 time 100",
+		`before=$(wc -c < "$p" 2>/dev/null)`,
+		`stty "$saved"`,
+		`after=$(wc -c < "$p" 2>/dev/null)`,
+		`[ "$((after-before))" = "$n" ]`,
+	} {
+		if !strings.Contains(command, required) {
+			t.Errorf("send chunk command missing %q: %s", required, command)
+		}
+	}
+}
+
 // TestSendFilePadsInterruptedChunk verifies a partial Session write does not
 // leave the board-side dd command waiting in raw TTY mode.
 func TestSendFilePadsInterruptedChunk(t *testing.T) {

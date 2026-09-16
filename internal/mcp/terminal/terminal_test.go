@@ -703,6 +703,15 @@ func TestLeaseToolsBlockOrdinaryWritesAndExposeSessionState(t *testing.T) {
 		t.Fatalf("terminal_acquire_lease error = %v", err)
 	}
 	transferID := lease["transfer_id"].(string)
+	originalExpiry := lease["expires_at"].(string)
+	time.Sleep(time.Millisecond)
+	renewed, err := callTool(tools, "terminal_renew_lease", context.Background(), `{"session_id":"SER-1","owner":"transfer-owner"}`)
+	if err != nil {
+		t.Fatalf("terminal_renew_lease error = %v", err)
+	}
+	if renewed["expires_at"].(string) <= originalExpiry {
+		t.Errorf("renewed expiry = %q, want after %q", renewed["expires_at"], originalExpiry)
+	}
 	if _, err := callTool(tools, "terminal_write", context.Background(), `{"session_id":"SER-1","data":"blocked"}`); !errors.Is(err, app.ErrSessionBusy) || !strings.Contains(err.Error(), "Session SER-1 is locked by file-transfer") {
 		t.Errorf("terminal_write while leased error = %v, want friendly busy error", err)
 	}

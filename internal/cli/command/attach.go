@@ -846,6 +846,18 @@ func (s *mcpAttachSession) AcquireFileTransferLease(ctx context.Context) error {
 	return nil
 }
 
+// RenewFileTransferLease extends this attachment's Host-side lease before its
+// TTL elapses. A missing local owner means no transfer is active to renew.
+func (s *mcpAttachSession) RenewFileTransferLease(ctx context.Context) error {
+	if s.leaseOwner == "" {
+		return errors.New("file transfer lease is not acquired")
+	}
+	return s.call(ctx, "terminal_renew_lease", map[string]any{
+		"session_id": s.id,
+		"owner":      s.leaseOwner,
+	}, nil)
+}
+
 // ReleaseFileTransferLease releases this attachment's file-transfer lease.
 // A failed release retains the owner locally so callers do not accidentally
 // resume ordinary writes while the Host still reports the Session as locked.

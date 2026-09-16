@@ -42,6 +42,10 @@ type fileLeaseSession interface {
 	ReleaseFileTransferLease(context.Context) error
 }
 
+type fileLeaseRenewSession interface {
+	RenewFileTransferLease(context.Context) error
+}
+
 // fileTransferEventReporter forwards client-side file-transfer status to the
 // host-owned Session event stream. The file payload continues to use the
 // existing attach Session byte path.
@@ -185,7 +189,8 @@ func runFileSend(ctx context.Context, args []string, output io.Writer, dependenc
 		return fmt.Errorf("stat local source %q: %w", localPath, err)
 	}
 	var progress *fileTransferReporter
-	operationErr := withFileTransferLease(ctx, attached, identifier, func() (operationErr error) {
+	operationErr := withFileTransferLease(ctx, attached, identifier, func(operationCtx context.Context) (operationErr error) {
+		ctx = operationCtx
 		terminal := internalFileTransferSession{attachSession: attached}
 		started := false
 		metadata := fileTransferPathMetadata("send", localPath, remotePath)
@@ -268,7 +273,8 @@ func runFileSendDirectory(ctx context.Context, localPath, remotePath string, opt
 			err = fmt.Errorf("detach file transfer Session %q: %w", identifier, closeErr)
 		}
 	}()
-	return withFileTransferLease(ctx, attached, identifier, func() (operationErr error) {
+	return withFileTransferLease(ctx, attached, identifier, func(operationCtx context.Context) (operationErr error) {
+		ctx = operationCtx
 		terminal := internalFileTransferSession{attachSession: attached}
 		metadata := fileTransferPathMetadata("send", localPath, remotePath)
 		metadata["kind"] = "directory"
@@ -344,7 +350,8 @@ func runFileReceive(ctx context.Context, args []string, output io.Writer, depend
 	}()
 
 	var progress *fileTransferReporter
-	operationErr := withFileTransferLease(ctx, attached, identifier, func() (operationErr error) {
+	operationErr := withFileTransferLease(ctx, attached, identifier, func(operationCtx context.Context) (operationErr error) {
+		ctx = operationCtx
 		terminal := internalFileTransferSession{attachSession: attached}
 		kind, kindErr := app.DetectRemotePath(ctx, terminal, remotePath)
 		if kindErr != nil {
@@ -478,7 +485,7 @@ func runFileReceiveDirectory(ctx context.Context, attached attachSession, remote
 // withFileTransferLease holds a Host-side file-transfer lease for one complete
 // command, including all protocol cleanup. It releases with a fresh bounded
 // context so cancellation of the transfer cannot leave the Session locked.
-func withFileTransferLease(ctx context.Context, attached attachSession, identifier string, operation func() error) (err error) {
+func withFileTransferLease(ctx context.Context, attached attachSession, identifier string, operation func(context.Context) error) (err error) {
 	lease, ok := attached.(fileLeaseSession)
 	if !ok {
 		return errors.New("attached Session does not support file transfer leases")
@@ -493,7 +500,52 @@ func withFileTransferLease(ctx context.Context, attached attachSession, identifi
 			err = fmt.Errorf("release file transfer lease for Session %q: %w", identifier, releaseErr)
 		}
 	}()
-	return operation()
+	operationCtx, cancelOperation := context.WithCancel(ctx)
+	defer cancelOperation()
+	stopHeartbeat, heartbeatResult := startFileTransferLeaseHeartbeat(operationCtx, attached, identifier, cancelOperation)
+	err = operation(operationCtx)
+	close(stopHeartbeat)
+	if heartbeatErr := <-heartbeatResult; heartbeatErr != nil {
+		err = errors.Join(err, heartbeatErr)
+	}
+	return err
+}
+
+// startFileTransferLeaseHeartbeat renews immediately, then once per interval.
+// It owns no release responsibility: a renewal failure cancels protocol work,
+// while withFileTransferLease still performs the bounded release attempt.
+func startFileTransferLeaseHeartbeat(ctx context.Context, attached attachSession, identifier string, cancelOperation context.CancelFunc) (chan struct{}, <-chan error) {
+	stop := make(chan struct{})
+	result := make(chan error, 1)
+	renewer, ok := attached.(fileLeaseRenewSession)
+	if !ok {
+		result <- nil
+		return stop, result
+	}
+	go func() {
+		ticker := time.NewTicker(10 * time.Second)
+		defer ticker.Stop()
+		for {
+			renewCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			renewErr := renewer.RenewFileTransferLease(renewCtx)
+			cancel()
+			if renewErr != nil {
+				cancelOperation()
+				result <- fmt.Errorf("renew file transfer lease for Session %q: %w", identifier, renewErr)
+				return
+			}
+			select {
+			case <-ctx.Done():
+				result <- nil
+				return
+			case <-stop:
+				result <- nil
+				return
+			case <-ticker.C:
+			}
+		}
+	}()
+	return stop, result
 }
 
 // reportFailedFileTransfer preserves the existing failure-event contract for

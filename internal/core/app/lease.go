@@ -28,6 +28,10 @@ var (
 	ErrFileTransferIDMismatch = errors.New("file transfer ID does not match the active lease")
 )
 
+// defaultLeaseTTL bounds abandoned writer ownership while allowing bundled
+// clients enough time for transient request latency between heartbeats.
+const defaultLeaseTTL = 30 * time.Second
+
 // LeaseType identifies the exclusive operation currently using a Session.
 type LeaseType string
 
@@ -61,7 +65,9 @@ type SessionLease struct {
 	// It is empty for leases whose Type is not LeaseTypeFileTransfer.
 	TransferID string
 	CreatedAt  time.Time
-	State      string
+	// ExpiresAt is the deadline by which the owner must renew the lease.
+	ExpiresAt time.Time
+	State     string
 }
 
 // FileTransferCancelRequest describes a Host-owned cancellation confirmation.
@@ -124,17 +130,26 @@ func (*SessionBusyError) Unwrap() error { return ErrSessionBusy }
 type leaseCoordinator struct {
 	mu                sync.Mutex
 	leases            map[string]SessionLease
+	timers            map[string]*time.Timer
 	gates             map[string]*sync.Mutex
 	fileTransfers     map[string]*fileTransferControl
 	nextCancelRequest uint64
 	nextTransferID    uint64
+	ttl               time.Duration
+	onExpired         func(SessionLease)
 }
 
 func newLeaseCoordinator() *leaseCoordinator {
+	return newLeaseCoordinatorWithTTL(defaultLeaseTTL)
+}
+
+func newLeaseCoordinatorWithTTL(ttl time.Duration) *leaseCoordinator {
 	return &leaseCoordinator{
 		leases:        make(map[string]SessionLease),
+		timers:        make(map[string]*time.Timer),
 		gates:         make(map[string]*sync.Mutex),
 		fileTransfers: make(map[string]*fileTransferControl),
+		ttl:           ttl,
 	}
 }
 
@@ -150,19 +165,52 @@ func (c *leaseCoordinator) acquire(sessionID, owner string, typ LeaseType) (Sess
 	gate.Lock()
 	defer gate.Unlock()
 	c.mu.Lock()
-	defer c.mu.Unlock()
 	if active, exists := c.leases[sessionID]; exists {
-		return SessionLease{}, &SessionBusyError{SessionID: sessionID, Lease: active}
+		if time.Now().UTC().Before(active.ExpiresAt) {
+			c.mu.Unlock()
+			return SessionLease{}, &SessionBusyError{SessionID: sessionID, Lease: active}
+		}
+		expired := c.expireLocked(sessionID)
+		c.mu.Unlock()
+		c.notifyExpired(expired)
+		c.mu.Lock()
 	}
-	lease := SessionLease{SessionID: sessionID, Owner: owner, Type: typ, CreatedAt: time.Now().UTC(), State: "active"}
+	now := time.Now().UTC()
+	lease := SessionLease{SessionID: sessionID, Owner: owner, Type: typ, CreatedAt: now, ExpiresAt: now.Add(c.ttl), State: "active"}
 	if typ == LeaseTypeFileTransfer {
 		c.nextTransferID++
 		lease.TransferID = fmt.Sprintf("FT-%d", c.nextTransferID)
 	}
 	c.leases[sessionID] = lease
+	c.scheduleExpiryLocked(lease)
 	if typ == LeaseTypeFileTransfer {
 		c.fileTransfers[sessionID] = &fileTransferControl{state: "running", changed: make(chan struct{}), released: make(chan struct{})}
 	}
+	c.mu.Unlock()
+	return lease, nil
+}
+
+func (c *leaseCoordinator) renew(sessionID, owner string) (SessionLease, error) {
+	owner = strings.TrimSpace(owner)
+	gate := c.gate(sessionID)
+	gate.Lock()
+	defer gate.Unlock()
+	c.mu.Lock()
+	lease, exists := c.leases[sessionID]
+	if !exists || lease.Owner != owner {
+		c.mu.Unlock()
+		return SessionLease{}, ErrLeaseNotOwned
+	}
+	if !time.Now().UTC().Before(lease.ExpiresAt) {
+		expired := c.expireLocked(sessionID)
+		c.mu.Unlock()
+		c.notifyExpired(expired)
+		return SessionLease{}, ErrLeaseNotOwned
+	}
+	lease.ExpiresAt = time.Now().UTC().Add(c.ttl)
+	c.leases[sessionID] = lease
+	c.scheduleExpiryLocked(lease)
+	c.mu.Unlock()
 	return lease, nil
 }
 
@@ -179,6 +227,7 @@ func (c *leaseCoordinator) release(sessionID, owner string) (SessionLease, bool,
 	if active.Owner != owner {
 		return SessionLease{}, false, nil, ErrLeaseNotOwned
 	}
+	c.stopExpiryLocked(sessionID)
 	delete(c.leases, sessionID)
 	var cancelled *FileTransferCancelResolution
 	if control := c.fileTransfers[sessionID]; control != nil {
@@ -206,6 +255,67 @@ func (c *leaseCoordinator) release(sessionID, owner string) (SessionLease, bool,
 		}
 	}
 	return active, true, cancelled, nil
+}
+
+// scheduleExpiryLocked replaces the Session timer while preserving the owner
+// capability in the callback. A stale callback cannot remove a replacement
+// lease acquired after the original owner expired or released it.
+func (c *leaseCoordinator) scheduleExpiryLocked(lease SessionLease) {
+	c.stopExpiryLocked(lease.SessionID)
+	delay := time.Until(lease.ExpiresAt)
+	if delay < 0 {
+		delay = 0
+	}
+	c.timers[lease.SessionID] = time.AfterFunc(delay, func() {
+		c.expire(lease.SessionID, lease.Owner, lease.ExpiresAt)
+	})
+}
+
+func (c *leaseCoordinator) expire(sessionID, owner string, expiresAt time.Time) {
+	gate := c.gate(sessionID)
+	gate.Lock()
+	defer gate.Unlock()
+	c.mu.Lock()
+	lease, exists := c.leases[sessionID]
+	if !exists || lease.Owner != owner || !lease.ExpiresAt.Equal(expiresAt) || time.Now().UTC().Before(lease.ExpiresAt) {
+		c.mu.Unlock()
+		return
+	}
+	expired := c.expireLocked(sessionID)
+	c.mu.Unlock()
+	c.notifyExpired(expired)
+}
+
+// expireLocked removes one known-expired lease and wakes every waiter exactly
+// once. The caller must hold both the Session gate and c.mu so no write,
+// renewal, release, or replacement acquisition can cross the cleanup.
+func (c *leaseCoordinator) expireLocked(sessionID string) SessionLease {
+	lease := c.leases[sessionID]
+	delete(c.leases, sessionID)
+	delete(c.timers, sessionID)
+	if control := c.fileTransfers[sessionID]; control != nil {
+		control.state = "expired"
+		control.resolution = FileTransferCancelResolution{State: "expired", Transferred: control.transferred, Total: control.total, Percent: control.percent}
+		close(control.released)
+		close(control.changed)
+		delete(c.fileTransfers, sessionID)
+	}
+	return lease
+}
+
+// notifyExpired publishes adapter-visible state only after coordinator locks
+// are released because event consumers may immediately call back into leases.
+func (c *leaseCoordinator) notifyExpired(lease SessionLease) {
+	if c.onExpired != nil {
+		c.onExpired(lease)
+	}
+}
+
+func (c *leaseCoordinator) stopExpiryLocked(sessionID string) {
+	if timer := c.timers[sessionID]; timer != nil {
+		timer.Stop()
+		delete(c.timers, sessionID)
+	}
 }
 
 func (c *leaseCoordinator) beginFileTransferCancel(sessionID string) (FileTransferCancelRequest, error) {
@@ -355,9 +465,18 @@ func fileTransferMetadataFloat64(metadata map[string]any, key string) float64 {
 }
 
 func (c *leaseCoordinator) status(sessionID string) (SessionLease, bool) {
+	gate := c.gate(sessionID)
+	gate.Lock()
+	defer gate.Unlock()
 	c.mu.Lock()
-	defer c.mu.Unlock()
 	lease, ok := c.leases[sessionID]
+	if ok && !time.Now().UTC().Before(lease.ExpiresAt) {
+		expired := c.expireLocked(sessionID)
+		c.mu.Unlock()
+		c.notifyExpired(expired)
+		return SessionLease{}, false
+	}
+	c.mu.Unlock()
 	return lease, ok
 }
 
@@ -367,6 +486,12 @@ func (c *leaseCoordinator) write(sessionID, owner, displayID string, operation f
 	defer gate.Unlock()
 	c.mu.Lock()
 	lease, exists := c.leases[sessionID]
+	if exists && !time.Now().UTC().Before(lease.ExpiresAt) {
+		expired := c.expireLocked(sessionID)
+		c.mu.Unlock()
+		c.notifyExpired(expired)
+		return operation()
+	}
 	c.mu.Unlock()
 	if !exists || lease.Owner == owner {
 		return operation()
@@ -380,6 +505,7 @@ func (c *leaseCoordinator) remove(sessionID string) {
 	defer gate.Unlock()
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.stopExpiryLocked(sessionID)
 	delete(c.leases, sessionID)
 	if control := c.fileTransfers[sessionID]; control != nil {
 		close(control.released)

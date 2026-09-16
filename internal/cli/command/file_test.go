@@ -385,12 +385,26 @@ func (s *cancellableShortcutSession) lifecycle() []string {
 func TestWithFileTransferLeaseReleasesAfterFailure(t *testing.T) {
 	attached := &leaseTrackingAttachSession{}
 	want := errors.New("transfer failed")
-	err := withFileTransferLease(context.Background(), attached, "SER-1", func() error { return want })
+	err := withFileTransferLease(context.Background(), attached, "SER-1", func(context.Context) error { return want })
 	if !errors.Is(err, want) {
 		t.Fatalf("withFileTransferLease() error = %v, want transfer failure", err)
 	}
 	if attached.acquires != 1 || attached.releases != 1 {
 		t.Errorf("lease acquire/release = %d/%d, want 1/1", attached.acquires, attached.releases)
+	}
+}
+
+func TestWithFileTransferLeaseCancelsOperationWhenHeartbeatFails(t *testing.T) {
+	attached := &failingLeaseHeartbeatSession{}
+	err := withFileTransferLease(context.Background(), attached, "SER-1", func(ctx context.Context) error {
+		<-ctx.Done()
+		return ctx.Err()
+	})
+	if err == nil || !strings.Contains(err.Error(), "renew file transfer lease") {
+		t.Fatalf("withFileTransferLease() error = %v, want heartbeat failure", err)
+	}
+	if attached.acquires != 1 || attached.renews != 1 || attached.releases != 1 {
+		t.Errorf("lease lifecycle = acquire:%d renew:%d release:%d, want 1/1/1", attached.acquires, attached.renews, attached.releases)
 	}
 }
 
@@ -409,6 +423,16 @@ type leaseTrackingAttachSession struct {
 	fakeAttachSession
 	acquires int
 	releases int
+}
+
+type failingLeaseHeartbeatSession struct {
+	leaseTrackingAttachSession
+	renews int
+}
+
+func (s *failingLeaseHeartbeatSession) RenewFileTransferLease(context.Context) error {
+	s.renews++
+	return errors.New("injected heartbeat failure")
 }
 
 func TestFileTransferProgressPublishesStructuredProgress(t *testing.T) {
