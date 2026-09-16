@@ -42,14 +42,16 @@ In a third terminal, observe the shared transfer state without rendering raw fil
 channelterm events SER-1
 ```
 
-An MCP client should capture the Session event cursor and call
-`terminal_wait_file_transfer` for the final `completed`, `cancelled`, or `failed` result. It must
+An MCP client should capture the Session event cursor, obtain `transfer_id` from the transfer's
+structured start or lease event, and call `terminal_wait_file_transfer` with both values for the
+final `completed`, `cancelled`, or `failed` result. It must
 not use `terminal_wait` as the transfer completion signal because that tool waits only for raw
 terminal bytes and cancellation may not emit another shell prompt. Every completed result uses
 three fixed path meanings: `source_path` is the source location, `requested_path` is the requested
 destination, and `resolved_path` is the final saved destination. For send, use `resolved_path` for
 later board commands; for receive, use it for later local operations. `renamed` reports whether
-collision handling selected an `_N` sibling.
+collision handling selected an `_N` sibling. The wait returns only after the matching
+`file-transfer` lease is released, so an AI may immediately issue its next ordinary Session command.
 
 Receive a file from the board:
 

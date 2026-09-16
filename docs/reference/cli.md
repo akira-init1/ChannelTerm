@@ -301,7 +301,9 @@ started raw block uses its cleanup path before lease release. This keeps a missi
 leaving attach input permanently locked. The
 CLI publishes `FILE_TRANSFER_STARTED`, `FILE_TRANSFER_PROGRESS`, `FILE_TRANSFER_COMPLETED`, or
 `FILE_TRANSFER_FAILED`; after a Host-mediated cancellation, the Host publishes
-`FILE_TRANSFER_CANCELLED` only after lease release. The local
+`FILE_TRANSFER_CANCELLED` only after lease release. The Host-generated `transfer_id` is shared by
+the transfer's lease acquire/release and every file-transfer event; the lease owner capability is
+not published. The local
 initial 0% frame does not add a progress event. Directory events add `kind: "directory"`; their
 progress counts actual tar-stream bytes, calculated with a first standard-library tar counting pass
 and sent through a temporary target-side archive in acknowledged blocks. The remote shell must

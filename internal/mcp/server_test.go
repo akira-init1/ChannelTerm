@@ -198,7 +198,7 @@ func TestStreamableHTTPWaitFileTransferReturnsCancellationResult(t *testing.T) {
 	returned := make(chan callResult, 1)
 	go func() {
 		result, err := client.CallTool(context.Background(), &protocol.CallToolParams{Name: "terminal_wait_file_transfer", Arguments: map[string]any{
-			"session_id": "board", "cursor": cursor, "timeout_ms": 1000,
+			"session_id": "board", "transfer_id": "FT-cancel", "cursor": cursor, "timeout_ms": 1000,
 		}})
 		returned <- callResult{result: result, err: err}
 	}()
@@ -213,7 +213,7 @@ func TestStreamableHTTPWaitFileTransferReturnsCancellationResult(t *testing.T) {
 	case <-time.After(20 * time.Millisecond):
 	}
 	terminal.PublishEvent(session.Event{Type: session.EventFileTransferCancelled, Metadata: map[string]any{
-		"reason": "user_cancelled", "transferred": 32768, "total": 98304, "percent": 33.3, "lease_released": true,
+		"transfer_id": "FT-cancel", "reason": "user_cancelled", "transferred": 32768, "total": 98304, "percent": 33.3, "lease_released": true,
 	}})
 
 	select {
@@ -247,20 +247,22 @@ func TestStreamableHTTPWaitFileTransferReturnsResolvedSendPath(t *testing.T) {
 		t.Fatal("managed Session board was not found")
 	}
 	terminal.PublishEvent(session.Event{Type: session.EventFileTransferCompleted, Metadata: map[string]any{
+		"transfer_id":    "FT-send",
 		"source_path":    "app.bin",
 		"requested_path": "/tmp/cterm/mcp-files/app.bin",
 		"resolved_path":  "/tmp/cterm/mcp-files/app_1.bin",
 		"renamed":        true,
 		"sha256":         "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
 	}})
+	terminal.PublishEvent(session.Event{Type: session.EventLeaseReleased, Metadata: map[string]any{"type": "file-transfer", "transfer_id": "FT-send"}})
 	result, err := client.CallTool(context.Background(), &protocol.CallToolParams{Name: "terminal_wait_file_transfer", Arguments: map[string]any{
-		"session_id": "board", "cursor": cursor, "timeout_ms": 1000,
+		"session_id": "board", "transfer_id": "FT-send", "cursor": cursor, "timeout_ms": 1000,
 	}})
 	if err != nil || result == nil || result.IsError {
 		t.Fatalf("terminal_wait_file_transfer result = %#v, %v", result, err)
 	}
 	structured := result.StructuredContent.(map[string]any)
-	if structured["state"] != "completed" || structured["source_path"] != "app.bin" || structured["requested_path"] != "/tmp/cterm/mcp-files/app.bin" || structured["resolved_path"] != "/tmp/cterm/mcp-files/app_1.bin" || structured["renamed"] != true || structured["sha256"] != "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef" {
+	if structured["state"] != "completed" || structured["transfer_id"] != "FT-send" || structured["lease_released"] != true || structured["source_path"] != "app.bin" || structured["requested_path"] != "/tmp/cterm/mcp-files/app.bin" || structured["resolved_path"] != "/tmp/cterm/mcp-files/app_1.bin" || structured["renamed"] != true || structured["sha256"] != "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef" {
 		t.Fatalf("terminal_wait_file_transfer structured result = %#v", structured)
 	}
 	event := structured["event"].(map[string]any)

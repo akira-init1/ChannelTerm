@@ -15,7 +15,9 @@ import (
 	"time"
 
 	"github.com/akira-init1/ChannelTerm/internal/cli/interactive"
+	"github.com/akira-init1/ChannelTerm/internal/core/app"
 	"github.com/akira-init1/ChannelTerm/internal/core/session"
+	protocol "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 func TestNextAvailableLocalPathPreservesExtensionsAndAvoidsOverwrite(t *testing.T) {
@@ -469,6 +471,101 @@ func TestResolvedTransferPathMetadataDistinguishesRequestedAndActualPaths(t *tes
 				t.Errorf("resolved metadata unexpectedly contains removed remote_path: %#v", metadata)
 			}
 		})
+	}
+}
+
+func TestFileSendCollisionResultReachesMCPWaitAfterLeaseRelease(t *testing.T) {
+	host := newAttachTestHost(t)
+	defer host.close()
+	agent, closeAgent := newAttachTestAgent(t, host.server.URL)
+	defer closeAgent()
+
+	initial, err := agent.CallTool(context.Background(), &protocol.CallToolParams{Name: "terminal_session_events", Arguments: map[string]any{"session_id": "board"}})
+	if err != nil || initial == nil || initial.IsError {
+		t.Fatalf("initial terminal_session_events = %#v, %v", initial, err)
+	}
+	var initialEvents struct {
+		Next uint64 `json:"next"`
+	}
+	decodeStructured(t, initial.StructuredContent, &initialEvents)
+
+	source := filepath.Join(t.TempDir(), "app.bin")
+	if err := os.WriteFile(source, []byte("data"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	requested := "/tmp/cterm/mcp-files/app.bin"
+	resolved := "/tmp/cterm/mcp-files/app_1.bin"
+	dependencies := fileCommandDependencies{
+		newAttach: func(ctx context.Context, endpoint, identifier string) (attachSession, error) {
+			return newMCPAttachSession(ctx, endpoint, identifier)
+		},
+		listSessions: func(context.Context, string) ([]mcpListedSession, error) {
+			return nil, nil
+		},
+		sendFile: func(_ context.Context, _ app.FileTransferSession, _ io.Reader, size int64, remotePath string, _ app.FileTransferCancelRequested, progress app.FileTransferProgress) (app.FileTransferResult, error) {
+			if remotePath != requested {
+				t.Errorf("remote path = %q, want %q", remotePath, requested)
+			}
+			if progress != nil {
+				if err := progress(size, size); err != nil {
+					return app.FileTransferResult{}, err
+				}
+			}
+			return app.FileTransferResult{Size: size, SHA256: strings.Repeat("a", 64), RemotePath: resolved}, nil
+		},
+	}
+	var output bytes.Buffer
+	if err := runFileSend(context.Background(), []string{source, requested, "--session", "board", "--endpoint", host.server.URL}, &output, dependencies); err != nil {
+		t.Fatalf("runFileSend() error = %v", err)
+	}
+
+	observed, err := agent.CallTool(context.Background(), &protocol.CallToolParams{Name: "terminal_session_events", Arguments: map[string]any{"session_id": "board", "cursor": initialEvents.Next, "max_events": 32, "timeout_ms": 1000}})
+	if err != nil || observed == nil || observed.IsError {
+		t.Fatalf("terminal_session_events after send = %#v, %v", observed, err)
+	}
+	var eventResult struct {
+		Events []struct {
+			Type     string         `json:"type"`
+			Metadata map[string]any `json:"metadata"`
+		} `json:"events"`
+	}
+	decodeStructured(t, observed.StructuredContent, &eventResult)
+	transferID := ""
+	completedSeen := false
+	releasedSeen := false
+	for _, event := range eventResult.Events {
+		if event.Type == string(session.EventFileTransferStarted) {
+			transferID, _ = event.Metadata["transfer_id"].(string)
+		}
+		if event.Type == string(session.EventFileTransferCompleted) && event.Metadata["resolved_path"] == resolved {
+			completedSeen = true
+		}
+		if event.Type == string(session.EventLeaseReleased) && event.Metadata["type"] == string(app.LeaseTypeFileTransfer) {
+			releasedSeen = true
+		}
+	}
+	if transferID == "" || !completedSeen || !releasedSeen {
+		t.Fatalf("transfer events = %#v, want one identified completed and released transfer", eventResult.Events)
+	}
+
+	waited, err := agent.CallTool(context.Background(), &protocol.CallToolParams{Name: "terminal_wait_file_transfer", Arguments: map[string]any{"session_id": "board", "transfer_id": transferID, "cursor": initialEvents.Next, "timeout_ms": 1000}})
+	if err != nil || waited == nil || waited.IsError {
+		t.Fatalf("terminal_wait_file_transfer = %#v, %v", waited, err)
+	}
+	var result struct {
+		State         string `json:"state"`
+		TransferID    string `json:"transfer_id"`
+		ResolvedPath  string `json:"resolved_path"`
+		Renamed       bool   `json:"renamed"`
+		LeaseReleased bool   `json:"lease_released"`
+	}
+	decodeStructured(t, waited.StructuredContent, &result)
+	if result.State != "completed" || result.TransferID != transferID || result.ResolvedPath != resolved || !result.Renamed || !result.LeaseReleased {
+		t.Fatalf("wait result = %#v", result)
+	}
+	write, err := agent.CallTool(context.Background(), &protocol.CallToolParams{Name: "terminal_write", Arguments: map[string]any{"session_id": "board", "data": "ready"}})
+	if err != nil || write == nil || write.IsError {
+		t.Fatalf("terminal_write immediately after wait = %#v, %v", write, err)
 	}
 }
 

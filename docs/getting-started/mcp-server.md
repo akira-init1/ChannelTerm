@@ -59,11 +59,13 @@ present. Human sends from the `Ctrl+] f` attachment menu instead default to
 
 An AI client must not use `terminal_wait` as its file-transfer completion signal. That tool waits
 only for raw terminal bytes, and a user cancellation may restore the target TTY without producing
-another prompt. Capture the `next` cursor from `terminal_session_events` before or during the
-transfer, then call `terminal_wait_file_transfer` with that cursor. It skips progress and unrelated
-lifecycle events and returns a structured `completed`, `cancelled`, or `failed` state. A cancelled
-result is returned after cleanup releases the transfer lease and includes the retained byte counts
-and `reason: user_cancelled` in its event metadata.
+another prompt. Capture the `next` cursor from `terminal_session_events` before the transfer, obtain
+`transfer_id` from its `FILE_TRANSFER_STARTED` event or active lease, then call
+`terminal_wait_file_transfer` with both. It ignores other transfers and returns a structured
+`completed`, `cancelled`, or `failed` state only after the matching file-transfer lease is released.
+The returned `lease_released: true` means the next ordinary Session command will not race this
+transfer's lease. A cancelled result includes the retained byte counts and `reason: user_cancelled`
+in its event metadata.
 
 ## Network security
 

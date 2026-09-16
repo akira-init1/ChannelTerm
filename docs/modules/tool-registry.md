@@ -17,8 +17,8 @@ Registry does not replace existing Tools, own Sessions, know MCP result types, o
 `internal/mcp/terminal` implements registered Tool names for serial, Session, file-transfer, device,
 and decision use cases. `internal/mcp/server.go` requires those names and exposes them over MCP. The
 three generic wait tools below are public aliases with `cursor` made required; the focused
-`terminal_wait_file_transfer` Tool is registered directly and filters the Session event stream to
-one terminal transfer result.
+`terminal_wait_file_transfer` Tool is registered directly and filters the Session event stream by
+`transfer_id` until both one terminal transfer result and its file-transfer lease release are present.
 
 ```text
 terminal_read                -> terminal_read + terminal_wait

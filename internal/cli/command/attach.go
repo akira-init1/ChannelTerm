@@ -74,6 +74,7 @@ type mcpAttachSession struct {
 	id         string
 	client     *protocol.ClientSession
 	leaseOwner string
+	transferID string
 	attached   bool
 	// fileTransferPresentationMu protects the transfer goroutine's local-owner
 	// state from the concurrent structured-event observer.
@@ -826,14 +827,22 @@ func (s *mcpAttachSession) AcquireFileTransferLease(ctx context.Context) error {
 		return fmt.Errorf("generate file transfer lease owner: %w", err)
 	}
 	owner := "file-transfer-" + hex.EncodeToString(token[:])
+	var result struct {
+		TransferID string `json:"transfer_id"`
+	}
 	if err := s.call(ctx, "terminal_acquire_lease", map[string]any{
 		"session_id": s.id,
 		"owner":      owner,
 		"type":       "file-transfer",
-	}, nil); err != nil {
+	}, &result); err != nil {
 		return err
 	}
+	if strings.TrimSpace(result.TransferID) == "" {
+		_ = s.call(ctx, "terminal_release_lease", map[string]any{"session_id": s.id, "owner": owner}, nil)
+		return errors.New("file transfer lease did not return transfer_id")
+	}
 	s.leaseOwner = owner
+	s.transferID = strings.TrimSpace(result.TransferID)
 	return nil
 }
 
@@ -851,6 +860,7 @@ func (s *mcpAttachSession) ReleaseFileTransferLease(ctx context.Context) error {
 		return err
 	}
 	s.leaseOwner = ""
+	s.transferID = ""
 	return nil
 }
 
@@ -929,6 +939,9 @@ func (s *mcpAttachSession) FileTransferCancellationCheckpoint(ctx context.Contex
 // ReportFileTransferEvent forwards structured file-transfer state to the host
 // Session event stream. It never writes terminal bytes.
 func (s *mcpAttachSession) ReportFileTransferEvent(ctx context.Context, typ session.EventType, metadata map[string]any) error {
+	if s.leaseOwner == "" || s.transferID == "" {
+		return errors.New("file transfer event requires an active file-transfer lease")
+	}
 	if typ == session.EventFileTransferStarted {
 		s.fileTransferPresentationMu.Lock()
 		s.localFileTransferPresentation = true
@@ -939,10 +952,12 @@ func (s *mcpAttachSession) ReportFileTransferEvent(ctx context.Context, typ sess
 		}
 	}
 	err := s.call(ctx, "terminal_report_file_transfer", map[string]any{
-		"session_id": s.id,
-		"type":       string(typ),
-		"actor":      "user",
-		"metadata":   metadata,
+		"session_id":  s.id,
+		"owner":       s.leaseOwner,
+		"transfer_id": s.transferID,
+		"type":        string(typ),
+		"actor":       "user",
+		"metadata":    metadata,
 	}, nil)
 	if err != nil && typ == session.EventFileTransferStarted {
 		s.fileTransferPresentationEnded()
