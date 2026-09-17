@@ -109,7 +109,7 @@ To put an AI in that same Session, configure its MCP client to use the same Stre
 http://127.0.0.1:37099/mcp
 ```
 
-The AI can use the MCP Session tools to list Sessions and read or write `SER-1`; see the [MCP workflow](docs/getting-started/mcp-server.md) and [tool reference](docs/reference/mcp-tools.md). The separate `channelterm init --mcp` convenience command installs a stdio MCP configuration; use the shared HTTP endpoint when a CLI and an AI must join the same host-owned Session.
+The AI can use the MCP Session tools to list Sessions and read or write `SER-1`; see the [MCP workflow](docs/getting-started/mcp-server.md) and [tool reference](docs/reference/mcp-tools.md). Run `channelterm init --mcp` to install client configuration or `channelterm init --mcp-show` to print it; both prompt for HTTP or stdio and default to HTTP. Printed HTTP configuration contains the local Bearer credential and must not be shared or committed.
 
 While attached:
 

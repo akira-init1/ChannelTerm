@@ -4,13 +4,28 @@ ChannelTerm exposes the same terminal Tool Registry over MCP stdio and stateless
 
 ## Configure supported MCP clients
 
-To add the default local stdio server to installed or already configured Codex, Claude Code, OpenCode, and Zoo Code clients, run:
+To add ChannelTerm to installed or already configured Codex, Claude Code, OpenCode, and Zoo Code clients, run:
 
 ```powershell
 channelterm init --mcp
 ```
 
-The command adds a `channelterm` entry that starts `channelterm mcp`. It preserves other entries, leaves an existing `channelterm` entry unchanged, and writes configuration atomically. To inspect every generated format without modifying files, use `channelterm init --mcp-show`; append `codex`, `claude`, `opencode`, or `zoo` to show just one client.
+The command prompts for HTTP or stdio and defaults to HTTP when you press Enter. HTTP installs the
+shared endpoint `http://127.0.0.1:37099/mcp` with its Bearer credential; stdio installs an entry that
+starts `channelterm mcp`. The command preserves other entries, leaves an existing `channelterm`
+entry unchanged, and writes configuration atomically.
+
+To print every supported client's configuration without modifying client files, run:
+
+```powershell
+channelterm init --mcp-show
+```
+
+This command presents the same HTTP-or-stdio prompt and also defaults to HTTP. The HTTP examples
+contain the actual per-user Bearer credential, so they can be pasted directly into Codex, Claude
+Code, OpenCode, or Zoo Code. Do not share, log, or commit HTTP output. Selecting HTTP creates
+`http-auth-token` on first use when necessary. Append `codex`, `claude`, `opencode`, or `zoo` to
+display only one client's selected configuration.
 
 ## Stdio
 
