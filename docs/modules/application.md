@@ -17,11 +17,14 @@ discarding an `Application` does not start or close the Registry or close the Ma
   `DetachSession`, `WriteSession`, `AcquireLease`, `RenewLease`, `ReleaseLease`, `LeaseStatus`,
   `BeginFileTransferCancel`, `ResolveFileTransferCancel`, `FileTransferCheckpoint`, and
   `CloseSession`: operate by opaque Session ID or short Session reference.
-- `SendFile`, `ReceiveFile`, `SendFileWithCancellation`, and `ReceiveFileWithCancellation`: stream
+- `WithFileTransferShell`, `SendFile`, `ReceiveFile`, `SendFileWithCancellation`, and
+  `ReceiveFileWithCancellation`: enter one target-side non-interactive shell per transfer, stream
   bounded chunks through a cursor-based Session view, coordinate the minimal Linux shell protocol,
   report acknowledged progress, and verify byte count and SHA-256 without owning local files or
-  presentation. The `WithCancellation` forms accept an explicit safe-boundary cancellation probe
-  for adapters that own local input state.
+  presentation. The shell scope keeps all internal chunk commands out of the interactive parent
+  shell's history; nested probing and receive operations reuse the same scope. The
+  `WithCancellation` forms accept an explicit safe-boundary cancellation probe for adapters that
+  own local input state.
 - `ListSerialPorts`: enumerate ports without opening them or changing Registry state.
 - `ListSerialProfiles`: read and resolve named profiles; a missing file is an empty list and is not
   created.
@@ -108,6 +111,15 @@ lease before its first protocol command, renews it every 10 seconds, and release
 failure, or cancellation. A send creates a missing remote destination hierarchy before payload
 transmission and reuses an existing hierarchy. Destination collision selection remains the first
 free `_N` sibling.
+
+The interactive target shell receives one recognizable
+`CTERM_FILE_TRANSFER=1 sh -c ...` bootstrap command. That command runs a non-interactive child shell,
+so path probing, per-chunk commands, verification, and cleanup do not create additional interactive
+history entries. The child is kept alive every five seconds while no protocol command is active and
+has a 30-second remote idle watchdog. A killed client therefore leaves at most the one bootstrap
+history entry, and the child exits after its keepalives stop. Normal completion and safe-boundary
+cancellation explicitly stop the watchdog and exit the child before the file-transfer lease is
+released.
 
 The protocol reads or writes at most 8 KiB of payload per chunk, saves and restores the remote TTY
 mode around each raw `dd` operation, and performs end-to-end SHA-256 verification for regular files

@@ -208,6 +208,15 @@ func SendDirectory(ctx context.Context, terminal FileTransferSession, source, re
 	if terminal == nil {
 		return DirectoryTransferResult{}, errors.New("file transfer session must not be nil")
 	}
+	if _, ok := terminal.(*shellFileTransferSession); !ok {
+		var result DirectoryTransferResult
+		err := WithFileTransferShell(ctx, terminal, func(scoped FileTransferSession) error {
+			var transferErr error
+			result, transferErr = SendDirectory(ctx, scoped, source, remotePath, progress)
+			return transferErr
+		})
+		return result, err
+	}
 	plan, err := makeDirectoryPlan(source)
 	if err != nil {
 		return DirectoryTransferResult{}, err
@@ -294,6 +303,15 @@ func DetectRemotePath(ctx context.Context, terminal FileTransferSession, remoteP
 	if err != nil {
 		return "", err
 	}
+	if _, ok := terminal.(*shellFileTransferSession); !ok {
+		var kind RemotePathKind
+		err := WithFileTransferShell(ctx, terminal, func(scoped FileTransferSession) error {
+			var detectErr error
+			kind, detectErr = DetectRemotePath(ctx, scoped, remotePath)
+			return detectErr
+		})
+		return kind, err
+	}
 	protocol, err := newFileProtocol(ctx, terminal)
 	if err != nil {
 		return "", err
@@ -335,6 +353,15 @@ func ReceiveDirectory(ctx context.Context, terminal FileTransferSession, remoteP
 			return DirectoryTransferResult{}, fmt.Errorf("inspect extraction staging directory %q: %w", destination, err)
 		}
 		return DirectoryTransferResult{}, fmt.Errorf("extraction staging path %q is not a directory", destination)
+	}
+	if _, ok := terminal.(*shellFileTransferSession); !ok {
+		var result DirectoryTransferResult
+		err := WithFileTransferShell(ctx, terminal, func(scoped FileTransferSession) error {
+			var transferErr error
+			result, transferErr = ReceiveDirectory(ctx, scoped, remotePath, destination, progress)
+			return transferErr
+		})
+		return result, err
 	}
 	protocol, err := newFileProtocol(ctx, terminal)
 	if err != nil {

@@ -349,8 +349,15 @@ the Host closes and removes that Session to release the blocked write. The local
 does not add a progress event. Directory events add `kind: "directory"`; their
 progress counts actual tar-stream bytes, calculated with a first standard-library tar counting pass
 and sent through a temporary target-side archive in acknowledged blocks. The remote shell must
-provide `mkdir`, `stty`, `dd` with `iflag=fullblock`, `wc`, and `sha256sum` for files, plus `tar` for
-directories.
+provide `mkdir`, `stty`, `dd` with `iflag=fullblock`, `wc`, `sha256sum`, and `sleep` for files, plus
+`tar` for directories.
+
+One command beginning with `CTERM_FILE_TRANSFER=1` starts a non-interactive child shell for the
+complete transfer. Remote probing, per-chunk commands, verification, and cleanup execute in that
+child, so the interactive shell receives one history entry per transfer rather than one per chunk.
+The CLI never deletes or rewrites existing shell history. It refreshes the idle child's watchdog
+every five seconds; if the client disappears, the child exits after 30 seconds without a keepalive.
+Normal completion or confirmed cancellation exits it before releasing the file-transfer lease.
 
 File-transfer events use the same path fields in both directions: `source_path` is the source
 location, `requested_path` is the user- or Agent-requested destination before collision handling,

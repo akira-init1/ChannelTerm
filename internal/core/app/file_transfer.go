@@ -92,9 +92,10 @@ type FileTransferResult struct {
 // SendFile streams size bytes from source through terminal into remotePath.
 //
 // The remote endpoint must be an idle POSIX-compatible Linux shell providing
-// stty, dd with iflag=fullblock, wc, and sha256sum. Each payload chunk is sent
-// through Session.Write and acknowledged only after dd appends it. The final
-// byte count and SHA-256 digest are independently computed by the remote shell.
+// stty, dd with iflag=fullblock, wc, sha256sum, and sleep. Each payload chunk is
+// sent through Session.Write and acknowledged only after dd appends it. The
+// final byte count and SHA-256 digest are independently computed by the remote
+// shell.
 func SendFile(ctx context.Context, terminal FileTransferSession, source io.Reader, size int64, remotePath string, progress FileTransferProgress) (FileTransferResult, error) {
 	return SendFileWithCancellation(ctx, terminal, source, size, remotePath, nil, progress)
 }
@@ -114,6 +115,15 @@ func SendFileWithCancellation(ctx context.Context, terminal FileTransferSession,
 	}
 	if _, err := quoteRemotePath(remotePath); err != nil {
 		return FileTransferResult{}, err
+	}
+	if _, ok := terminal.(*shellFileTransferSession); !ok {
+		var result FileTransferResult
+		err := WithFileTransferShell(ctx, terminal, func(scoped FileTransferSession) error {
+			var transferErr error
+			result, transferErr = SendFileWithCancellation(ctx, scoped, source, size, remotePath, cancelRequested, progress)
+			return transferErr
+		})
+		return result, err
 	}
 	protocol, err := newFileProtocol(ctx, terminal)
 	if err != nil {
@@ -292,6 +302,15 @@ func ReceiveFileWithCancellation(ctx context.Context, terminal FileTransferSessi
 	if err != nil {
 		return FileTransferResult{}, err
 	}
+	if _, ok := terminal.(*shellFileTransferSession); !ok {
+		var result FileTransferResult
+		err := WithFileTransferShell(ctx, terminal, func(scoped FileTransferSession) error {
+			var transferErr error
+			result, transferErr = ReceiveFileWithCancellation(ctx, scoped, destination, remotePath, cancelRequested, progress)
+			return transferErr
+		})
+		return result, err
+	}
 	protocol, err := newFileProtocol(ctx, terminal)
 	if err != nil {
 		return FileTransferResult{}, err
@@ -421,15 +440,23 @@ func newFileProtocol(ctx context.Context, terminal FileTransferSession) (*filePr
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	var tokenBytes [12]byte
-	if _, err := rand.Read(tokenBytes[:]); err != nil {
-		return nil, fmt.Errorf("generate file transfer token: %w", err)
+	token, err := newFileTransferToken()
+	if err != nil {
+		return nil, err
 	}
 	recent, err := terminal.ReadRecent(ctx, 1)
 	if err != nil {
 		return nil, fmt.Errorf("initialize file transfer output cursor: %w", err)
 	}
-	return &fileProtocol{terminal: terminal, token: hex.EncodeToString(tokenBytes[:]), cursor: recent.Next}, nil
+	return &fileProtocol{terminal: terminal, token: token, cursor: recent.Next}, nil
+}
+
+func newFileTransferToken() (string, error) {
+	var tokenBytes [12]byte
+	if _, err := rand.Read(tokenBytes[:]); err != nil {
+		return "", fmt.Errorf("generate file transfer token: %w", err)
+	}
+	return hex.EncodeToString(tokenBytes[:]), nil
 }
 
 // command submits one shell line through Session instead of accessing Channel
@@ -438,6 +465,9 @@ func newFileProtocol(ctx context.Context, terminal FileTransferSession) (*filePr
 func (p *fileProtocol) command(ctx context.Context, command string) error {
 	if err := ctx.Err(); err != nil {
 		return err
+	}
+	if shell, ok := p.terminal.(*shellFileTransferSession); ok {
+		return shell.writeCommand(ctx, command)
 	}
 	_, err := writeFilePayload(ctx, p.terminal, []byte(command+"\n"))
 	if err != nil {
@@ -476,6 +506,9 @@ func (p *fileProtocol) expectPhase(ctx context.Context, phase string) ([]string,
 				fields := strings.Split(line[len(prefix):], ":")
 				if len(fields) == 0 {
 					continue
+				}
+				if shell, ok := p.terminal.(*shellFileTransferSession); ok && isFileTransferCommandComplete(fields[0]) {
+					shell.commandCompleted()
 				}
 				if fields[0] == "ERROR" {
 					return nil, fmt.Errorf("remote file transfer failed: %s", strings.Join(fields[1:], ":"))
