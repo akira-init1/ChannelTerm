@@ -759,18 +759,53 @@ func TestRunAttachCleansUpAfterSessionErrorDuringEscapePending(t *testing.T) {
 	}
 }
 
-func TestRunAttachHighlightAlwaysStylesManagedSessionOutput(t *testing.T) {
+func TestRunAttachHighlightsManagedSessionOutputByDefault(t *testing.T) {
+	t.Setenv("NO_COLOR", "")
+	t.Setenv("CLICOLOR_FORCE", "1")
 	ctx, cancel := context.WithCancel(context.Background())
 	client := &fakeAttachSession{recentData: []byte("driver is not open\n"), onReadOutput: cancel}
 	var output bytes.Buffer
-	if err := runAttach(ctx, []string{"board", "--highlight", "always"}, strings.NewReader(""), &output, func(context.Context, string, string) (attachSession, error) {
+	if err := runAttach(ctx, []string{"board"}, strings.NewReader(""), &output, func(context.Context, string, string) (attachSession, error) {
 		return client, nil
 	}); err != nil {
 		t.Fatalf("runAttach() error = %v", err)
 	}
-	const highlighted = "driver is \x1b[1;91mnot open\x1b[0m\n"
-	if !strings.Contains(output.String(), highlighted) {
-		t.Errorf("output = %q, want highlighted managed output %q", output.String(), highlighted)
+	if !strings.Contains(output.String(), "\x1b[") || !strings.Contains(output.String(), "not open\x1b[0m\n") {
+		t.Errorf("output = %q, want highlighted managed output", output.String())
+	}
+}
+
+func TestRunAttachHighlightFalsePreservesManagedSessionOutput(t *testing.T) {
+	t.Setenv("NO_COLOR", "")
+	t.Setenv("CLICOLOR_FORCE", "1")
+	ctx, cancel := context.WithCancel(context.Background())
+	client := &fakeAttachSession{recentData: []byte("driver is not open\n"), onReadOutput: cancel}
+	var output bytes.Buffer
+	if err := runAttach(ctx, []string{"board", "--highlight=false"}, strings.NewReader(""), &output, func(context.Context, string, string) (attachSession, error) {
+		return client, nil
+	}); err != nil {
+		t.Fatalf("runAttach() error = %v", err)
+	}
+	if !strings.Contains(output.String(), "driver is not open\n") || strings.Contains(output.String(), "\x1b[") {
+		t.Errorf("output = %q, want unchanged managed output", output.String())
+	}
+}
+
+func TestStripAttachControlFlagsHandlesBooleanHighlight(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+		want []string
+	}{
+		{name: "implicit true", args: []string{"--highlight", "--baud", "921600"}, want: []string{"--baud", "921600"}},
+		{name: "explicit false", args: []string{"--highlight=false", "--wake"}, want: []string{"--wake"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := stripAttachControlFlags(tt.args); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("stripAttachControlFlags(%q) = %q, want %q", tt.args, got, tt.want)
+			}
+		})
 	}
 }
 

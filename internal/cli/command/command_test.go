@@ -341,32 +341,35 @@ func TestRunSerialSeparatesDisconnectStatusFromUnterminatedRemoteOutput(t *testi
 	}
 }
 
-func TestRunSerialHighlightAlwaysStylesOnlyTerminalOutput(t *testing.T) {
+func TestRunSerialHighlightsTerminalOutputByDefault(t *testing.T) {
+	t.Setenv("NO_COLOR", "")
+	t.Setenv("CLICOLOR_FORCE", "1")
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	terminal := &fakeCLISession{outputData: []byte("driver is not open\n"), onFirstOutput: cancel}
 	var output bytes.Buffer
-	err := runWithIO(ctx, serialArgsWithConfig(t, "serial", "--port", "COM8", "--highlight", "always"), strings.NewReader(""), &output, func(serialtransport.Config) (cliSession, error) {
+	err := runWithIO(ctx, serialArgsWithConfig(t, "serial", "--port", "COM8"), strings.NewReader(""), &output, func(serialtransport.Config) (cliSession, error) {
 		return terminal, nil
 	})
 	if err != nil {
 		t.Fatalf("runWithIO() error = %v", err)
 	}
-	const highlighted = "driver is \x1b[1;91mnot open\x1b[0m\n"
-	if !strings.Contains(output.String(), highlighted) {
-		t.Errorf("output = %q, want highlighted terminal phrase %q", output.String(), highlighted)
+	if !strings.Contains(output.String(), "\x1b[") || !strings.Contains(output.String(), "not open\x1b[0m\n") {
+		t.Errorf("output = %q, want highlighted terminal phrase", output.String())
 	}
 	if strings.Contains(output.String(), "\x1b[1;91mConnected:") {
 		t.Errorf("output = %q, want local connection status to remain plain", output.String())
 	}
 }
 
-func TestRunSerialHighlightNeverPreservesTerminalBytes(t *testing.T) {
+func TestRunSerialHighlightFalsePreservesTerminalBytes(t *testing.T) {
+	t.Setenv("NO_COLOR", "")
+	t.Setenv("CLICOLOR_FORCE", "1")
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	terminal := &fakeCLISession{outputData: []byte("driver is not open\n"), onFirstOutput: cancel}
 	var output bytes.Buffer
-	err := runWithIO(ctx, serialArgsWithConfig(t, "serial", "--port", "COM8", "--highlight", "never"), strings.NewReader(""), &output, func(serialtransport.Config) (cliSession, error) {
+	err := runWithIO(ctx, serialArgsWithConfig(t, "serial", "--port", "COM8", "--highlight=false"), strings.NewReader(""), &output, func(serialtransport.Config) (cliSession, error) {
 		return terminal, nil
 	})
 	if err != nil {
