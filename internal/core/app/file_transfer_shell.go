@@ -1,6 +1,7 @@
 package app
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -12,17 +13,18 @@ import (
 )
 
 const (
-	fileTransferShellBootstrapPrefix = "CTERM_FILE_TRANSFER=1 sh -c 'while IFS= read -r ct_line; do eval \"$ct_line\"; done'"
-	fileTransferShellIdleTimeout     = 30 * time.Second
-	fileTransferShellHeartbeat       = 5 * time.Second
-	fileTransferShellWriteTimeout    = 5 * time.Second
+	fileTransferShellBootstrapCommand = "if [ -n \"$BASH_VERSION\" ];then history -d \"$HISTCMD\";fi;stty -echo;printf '\\036\\037';CTERM_FT=1 sh -c 'while read -r x;do eval \"$x\";done';stty echo;printf '\\035\\034'"
+	fileTransferShellEchoHiddenMarker = "\x1e\x1f"
+	fileTransferShellExitedMarker     = "\x1d\x1c"
+	fileTransferShellIdleTimeout      = 30 * time.Second
+	fileTransferShellHeartbeat        = 5 * time.Second
+	fileTransferShellWriteTimeout     = 5 * time.Second
 )
 
 // WithFileTransferShell runs operation inside one non-interactive target-side
-// shell. The interactive parent shell therefore records one recognizable
-// transfer entry instead of one command for every bounded payload chunk.
-// Nested calls reuse the active shell so remote probing and the selected
-// receive operation remain one history entry.
+// shell. An interactive Bash parent deletes the bootstrap from its in-memory
+// history while other shells still receive one recognizable entry instead of
+// one command per bounded payload chunk. Nested calls reuse the active shell.
 func WithFileTransferShell(ctx context.Context, terminal FileTransferSession, operation func(FileTransferSession) error) (err error) {
 	if terminal == nil {
 		return errors.New("file transfer session must not be nil")
@@ -96,10 +98,13 @@ func (s *shellFileTransferSession) start(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("initialize file-transfer shell cursor: %w", err)
 	}
-	if _, err := writeFilePayload(ctx, s.terminal, []byte(fileTransferShellBootstrapCommand(s.token)+"\n")); err != nil {
+	if _, err := writeFilePayload(ctx, s.terminal, []byte(fileTransferShellBootstrapCommand+"\n")); err != nil {
 		return fmt.Errorf("start remote file-transfer shell: %w", err)
 	}
 	s.started = true
+	if err := waitForFileTransferShellMarker(ctx, s.terminal, recent.Next, fileTransferShellEchoHiddenMarker); err != nil {
+		return fmt.Errorf("wait for remote file-transfer shell to disable echo: %w", err)
+	}
 	if _, err := writeFilePayload(ctx, s.terminal, []byte(fileTransferShellInitCommand(s.token)+"\n")); err != nil {
 		return fmt.Errorf("initialize remote file-transfer shell: %w", err)
 	}
@@ -109,9 +114,7 @@ func (s *shellFileTransferSession) start(ctx context.Context) error {
 		return fmt.Errorf("wait for remote file-transfer shell: %w", err)
 	}
 	if len(event) == 2 && event[0] == "ERROR" && event[1] == "sleep" {
-		// The child exits immediately after this marker, so a cleanup command
-		// would reach the interactive parent and create another history entry.
-		if _, exitErr := waiter.expect(ctx, "SHELL", "EXITED"); exitErr != nil {
+		if exitErr := waitForFileTransferShellMarker(ctx, s.terminal, recent.Next, fileTransferShellExitedMarker); exitErr != nil {
 			return errors.Join(errors.New("remote file transfer failed: sleep command is unavailable"), exitErr)
 		}
 		s.started = false
@@ -128,6 +131,33 @@ func (s *shellFileTransferSession) start(ctx context.Context) error {
 	s.idle = true
 	s.writeMu.Unlock()
 	return nil
+}
+
+// waitForFileTransferShellMarker waits for control bytes that are absent from
+// the echoed textual shell commands. The startup marker prevents command input
+// from racing stty -echo. The exit marker is emitted by the interactive parent
+// only after the child has exited, so the lease's presentation cursor includes
+// every earlier bootstrap echo before attach resumes ordinary rendering.
+func waitForFileTransferShellMarker(ctx context.Context, terminal FileTransferSession, cursor session.OutputCursor, markerText string) error {
+	marker := []byte(markerText)
+	pending := make([]byte, 0, len(marker)*2)
+	for {
+		chunk, err := terminal.ReadOutput(ctx, cursor, fileProtocolReadSize)
+		if err != nil {
+			return err
+		}
+		if chunk.Dropped {
+			return fmt.Errorf("%w: Session output was overwritten while disabling terminal echo", ErrFileTransferProtocol)
+		}
+		cursor = chunk.Next
+		pending = append(pending, chunk.Data...)
+		if bytes.Contains(pending, marker) {
+			return nil
+		}
+		if len(pending) >= len(marker) {
+			pending = append(pending[:0], pending[len(pending)-len(marker)+1:]...)
+		}
+	}
 }
 
 func (s *shellFileTransferSession) close(ctx context.Context) error {
@@ -159,8 +189,7 @@ func (s *shellFileTransferSession) close(ctx context.Context) error {
 	if _, err := writeFilePayload(ctx, s.terminal, []byte(fileTransferShellCloseCommand()+"\n")); err != nil {
 		return s.recoveryError(fmt.Errorf("close remote file-transfer shell: %w", err))
 	}
-	waiter := &fileProtocol{terminal: s.terminal, token: s.token, cursor: recent.Next}
-	if _, err := waiter.expect(ctx, "SHELL", "EXITED"); err != nil {
+	if err := waitForFileTransferShellMarker(ctx, s.terminal, recent.Next, fileTransferShellExitedMarker); err != nil {
 		return s.recoveryError(fmt.Errorf("confirm remote file-transfer shell exit: %w", err))
 	}
 	return nil
@@ -188,7 +217,7 @@ func (s *shellFileTransferSession) heartbeat() {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), fileTransferShellWriteTimeout)
 	defer cancel()
-	if _, err := writeFilePayload(ctx, s.terminal, []byte("if [ \"$CTERM_FILE_TRANSFER\" = 1 ]; then ct_active; ct_idle; fi\n")); err != nil {
+	if _, err := writeFilePayload(ctx, s.terminal, []byte("if [ -n \"$CTERM_FT\" ]; then ct_active; ct_idle; fi\n")); err != nil {
 		s.heartbeatErr = fmt.Errorf("keep remote file-transfer shell alive: %w", err)
 		s.idle = false
 	}
@@ -204,7 +233,7 @@ func (s *shellFileTransferSession) writeCommand(ctx context.Context, command str
 		return s.heartbeatErr
 	}
 	s.idle = false
-	wrapped := "if [ \"$CTERM_FILE_TRANSFER\" = 1 ]; then ct_active; " + command + "; ct_idle; fi"
+	wrapped := "if [ -n \"$CTERM_FT\" ]; then ct_active; " + command + "; ct_idle; fi"
 	if _, err := writeFilePayload(ctx, s.terminal, []byte(wrapped+"\n")); err != nil {
 		return fmt.Errorf("write remote file-transfer command: %w", err)
 	}
@@ -288,15 +317,11 @@ func fileTransferShellInitCommand(token string) string {
 	// The watchdog owns its sleep child and forwards termination to it. Without
 	// that forwarding, refreshing the watchdog could orphan one sleep process
 	// per heartbeat on shells that do not exec the background subshell's sleep.
-	return fmt.Sprintf("t='%s'; if ! command -v sleep >/dev/null 2>&1; then printf '\\n@CTERM:%%s:SHELL:ERROR:sleep\\n' \"$t\"; exit 127; fi; ct_pid=$$; ct_watch=; ct_watchdog(){ trap 'kill \"$ct_sleep\" 2>/dev/null; wait \"$ct_sleep\" 2>/dev/null; exit 0' 1 15; sleep %d & ct_sleep=$!; wait \"$ct_sleep\"; kill -TERM \"$ct_pid\" 2>/dev/null; }; ct_active(){ if [ -n \"$ct_watch\" ]; then kill \"$ct_watch\" 2>/dev/null; wait \"$ct_watch\" 2>/dev/null; ct_watch=; fi; }; ct_idle(){ ct_watchdog & ct_watch=$!; }; ct_timeout(){ printf '\\n@CTERM:%%s:SHELL:TIMEOUT\\n' \"$t\"; exit 124; }; trap 'ct_timeout' 1 15; trap 'ct_active' 0; printf '\\n@CTERM:%%s:SHELL:READY\\n' \"$t\"; ct_idle", token, seconds)
-}
-
-func fileTransferShellBootstrapCommand(token string) string {
-	return fmt.Sprintf(fileTransferShellBootstrapPrefix+"; (t='%s'; printf '\\n@CTERM:%%s:SHELL:EXITED\\n' \"$t\")", token)
+	return fmt.Sprintf("printf '\\033[1A\\r\\033[2K'; t='%s'; if ! command -v sleep >/dev/null 2>&1; then stty echo; printf '\\n@CTERM:%%s:SHELL:ERROR:sleep\\n' \"$t\"; exit 127; fi; ct_pid=$$; ct_watch=; ct_watchdog(){ trap 'kill \"$ct_sleep\" 2>/dev/null; wait \"$ct_sleep\" 2>/dev/null; exit 0' 1 15; sleep %d & ct_sleep=$!; wait \"$ct_sleep\"; kill -TERM \"$ct_pid\" 2>/dev/null; }; ct_active(){ if [ -n \"$ct_watch\" ]; then kill \"$ct_watch\" 2>/dev/null; wait \"$ct_watch\" 2>/dev/null; ct_watch=; fi; }; ct_idle(){ ct_watchdog & ct_watch=$!; }; ct_timeout(){ stty echo; printf '\\n@CTERM:%%s:SHELL:TIMEOUT\\n' \"$t\"; exit 124; }; trap 'ct_timeout' 1 15; trap 'ct_active' 0; printf '\\n@CTERM:%%s:SHELL:READY\\n' \"$t\"; ct_idle", token, seconds)
 }
 
 func fileTransferShellCloseCommand() string {
-	return "if [ \"$CTERM_FILE_TRANSFER\" = 1 ]; then ct_active; trap - 0 1 15; exit; fi"
+	return "if [ -n \"$CTERM_FT\" ]; then ct_active; trap - 0 1 15; exit; fi"
 }
 
 // isFileTransferCommandComplete keeps the shell busy across each raw block:

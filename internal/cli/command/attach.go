@@ -954,6 +954,13 @@ func (s *mcpAttachSession) fileTransferCancelPromptFinished() {
 	}
 }
 
+func (s *mcpAttachSession) terminalCommandActive() bool {
+	s.fileTransferPresentationMu.RLock()
+	presentation := s.presentation
+	s.fileTransferPresentationMu.RUnlock()
+	return presentation != nil && presentation.terminalCommandActive()
+}
+
 // ResolveFileTransferCancel forwards the local confirmation answer. A true
 // answer returns only after the transfer owner has released its lease.
 func (s *mcpAttachSession) ResolveFileTransferCancel(ctx context.Context, requestID string, cancelTransfer bool) (string, error) {

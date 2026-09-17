@@ -70,6 +70,35 @@ authenticated response. Bundled attachments and file commands use that signal to
 including clients that join later, that the Host and its Sessions stop with the owning attachment.
 A separately started Host omits the header and persists until its own process is stopped.
 
+## Execute Bash commands without shell history
+
+At a known idle Bash prompt, an AI should use `terminal_exec` rather than `terminal_write` for an
+ordinary non-interactive command:
+
+```json
+{"session_id":"SER-1","command":"uname -a","timeout_ms":30000}
+```
+
+ChannelTerm runs the command in an isolated non-interactive Bash child, automatically owns and renews a temporary
+writer lease, and returns the exit code plus the exact raw-output cursor range. The parent Bash
+removes ChannelTerm's bootstrap from its current history, so neither the command nor the bootstrap
+appears under the Up arrow. A bundled `attach` client displays the original command once in its
+local `AI` block and continues showing the real device output. Human input is ignored locally while
+the command lease is active and resumes after release.
+
+Use one compound command when steps share a directory or environment, for example
+`cd /tmp && sha256sum app.bin`. Each call uses a new child, so `cd` and `export` do not persist into
+the human shell or the next call. The tool rejects a partial line already entered by a human or AI,
+but no generic serial protocol can prove that an arbitrary device is at a shell prompt. Do not call
+it while a foreground process owns the terminal. Use `terminal_write` for raw keys, interactive
+programs, password prompts, and non-shell devices; those raw bytes retain the target's normal
+history behavior.
+
+The default command timeout is 30 seconds. Timeout or MCP cancellation sends Ctrl+C and waits for
+the wrapper to restore terminal echo. A failed recovery closes the Session rather than allowing new
+writes into an unknown TTY state. Commands are retained in structured events for the observable
+`AI` block, so never place passwords or tokens in the command text.
+
 ## Discovery and policy
 
 At startup, the MCP process loads or creates `config.toml` and `state.json`, performs an initial device scan, and then scans periodically. The initial scan establishes a presence baseline without emitting `appeared` events. Discovery never opens a port or creates a Session.
@@ -100,6 +129,10 @@ in its event metadata.
 The default listener is loopback-only, and HTTP requests require a Bearer token. Authentication
 does not provide per-tool authorization, TLS, user identity, revocation, or protection from a
 malicious process running as the same operating-system user and able to read that user's token.
+The same Bearer credential authorizes `terminal_exec`; history isolation is not a security boundary
+and does not reduce the command's authority on the connected device. Command text is retained in
+Session events for attached observers, so credentials and other secrets must use an appropriate
+interactive or device-specific input path instead of command arguments.
 Binding a non-loopback address still prints a warning. Use TLS termination and separate network
 access controls; do not expose the endpoint directly to an untrusted network.
 

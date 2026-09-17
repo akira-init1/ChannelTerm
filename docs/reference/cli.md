@@ -205,7 +205,12 @@ bypassing it for an already listed Session.
 
 The initial attach read returns recent retained output, then uses private cursors to wait for later
 output and activity. New non-empty Agent writes are shown as local `AI` activity blocks; prior
-activity and CR/LF-only writes are not rendered. For a `file-transfer` lease, attach suppresses only
+activity and CR/LF-only writes are not rendered. A `terminal_exec` event renders its original
+command in the same `AI` block format while the internal `system` wrapper is hidden by exact output
+cursor boundaries. Command output remains raw and visible. During the command's `terminal` lease,
+ordinary attachment keys are discarded locally and produce
+`[ChannelTerm] Input ignored while an AI command is running. Cancel it from the MCP client.` at most
+once; input resumes when the lease is released. For a `file-transfer` lease, attach suppresses only
 the Host-recorded raw-output cursor range of ChannelTerm's internal preflight, protocol, payload,
 and cleanup work; it neither edits Session raw bytes nor filters marker-shaped board text. The same
 rule applies to retained output from a transfer that finished before the attachment joined.
@@ -352,12 +357,17 @@ and sent through a temporary target-side archive in acknowledged blocks. The rem
 provide `mkdir`, `stty`, `dd` with `iflag=fullblock`, `wc`, `sha256sum`, and `sleep` for files, plus
 `tar` for directories.
 
-One command beginning with `CTERM_FILE_TRANSFER=1` starts a non-interactive child shell for the
-complete transfer. Remote probing, per-chunk commands, verification, and cleanup execute in that
-child, so the interactive shell receives one history entry per transfer rather than one per chunk.
-The CLI never deletes or rewrites existing shell history. It refreshes the idle child's watchdog
-every five seconds; if the client disappears, the child exits after 30 seconds without a keepalive.
-Normal completion or confirmed cancellation exits it before releasing the file-transfer lease.
+One command containing `CTERM_FT=1` starts a non-interactive child shell for the complete transfer.
+On Bash, the bootstrap removes only its own current in-memory history entry; it never deletes or
+rewrites an earlier user command. A non-Bash POSIX shell without compatible history deletion retains
+the bootstrap as one entry. The CLI temporarily disables target-terminal input echo and clears the
+displayed command after the child starts. Remote probing, per-chunk commands, verification, and
+cleanup execute in that child, so they create no additional interactive history entries. The CLI
+refreshes the idle child's watchdog every five seconds; if the client disappears, the child restores
+terminal echo and exits after 30 seconds without a keepalive. Normal completion or confirmed
+cancellation restores echo and exits it before releasing the file-transfer lease. The CLI waits for
+a parent-shell exit confirmation before ending its local presentation gate, preventing the retained
+bootstrap echo from appearing below the completion status.
 
 File-transfer events use the same path fields in both directions: `source_path` is the source
 location, `requested_path` is the user- or Agent-requested destination before collision handling,

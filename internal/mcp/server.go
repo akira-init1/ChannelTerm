@@ -231,6 +231,10 @@ func newAdapter(registry *tool.Registry) (*adapter, error) {
 	if err != nil {
 		return nil, err
 	}
+	executeCommand, err := lookup("terminal_exec")
+	if err != nil {
+		return nil, err
+	}
 	write, err := lookup("terminal_write")
 	if err != nil {
 		return nil, err
@@ -296,6 +300,7 @@ func newAdapter(registry *tool.Registry) (*adapter, error) {
 		{name: "terminal_session_attach", target: attachSession.Name(), description: attachSession.Description(), schema: attachSession.InputSchema()},
 		{name: "terminal_session_detach", target: detachSession.Name(), description: detachSession.Description(), schema: detachSession.InputSchema()},
 		{name: "terminal_report_file_transfer", target: reportFileTransfer.Name(), description: reportFileTransfer.Description(), schema: reportFileTransfer.InputSchema()},
+		{name: "terminal_exec", target: executeCommand.Name(), description: executeCommand.Description(), schema: executeCommand.InputSchema()},
 		{name: "terminal_write", target: write.Name(), description: write.Description(), schema: write.InputSchema()},
 		{name: "terminal_write_leased", target: writeLeased.Name(), description: writeLeased.Description(), schema: writeLeased.InputSchema()},
 		{name: "terminal_acquire_lease", target: acquireLease.Name(), description: acquireLease.Description(), schema: acquireLease.InputSchema()},

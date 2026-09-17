@@ -918,6 +918,30 @@ func TestAttachInputDispatcherFileMenuSingleKeyChoices(t *testing.T) {
 	}
 }
 
+func TestAttachInputDispatcherIgnoresInputDuringTerminalCommand(t *testing.T) {
+	attached := &activeTerminalCommandAttachSession{fakeAttachSession: &fakeAttachSession{}, active: true}
+	var output bytes.Buffer
+	dispatcher := newAttachInputDispatcherWithPump(context.Background(), &attachInputPump{}, attached, func(data []byte) error {
+		_, err := output.Write(data)
+		return err
+	}, func() error { return nil }, func() {}, nil)
+	if !dispatcher.dispatch([]byte("ls\r")) {
+		t.Fatal("dispatch stopped while ignoring terminal command input")
+	}
+	if got := attached.writtenData(); len(got) != 0 {
+		t.Fatalf("remote input = %q, want none while terminal command is active", got)
+	}
+	if count := strings.Count(output.String(), "Input ignored while an AI command is running"); count != 1 {
+		t.Fatalf("local warning count = %d, want one; output = %q", count, output.String())
+	}
+	if !dispatcher.dispatch([]byte("pwd\r")) {
+		t.Fatal("second ignored dispatch stopped")
+	}
+	if count := strings.Count(output.String(), "Input ignored while an AI command is running"); count != 1 {
+		t.Fatalf("repeated local warning count = %d, want one", count)
+	}
+}
+
 type lockedBuffer struct {
 	mu   sync.Mutex
 	data bytes.Buffer
@@ -932,6 +956,13 @@ type presentationAwareExternalTransferSession struct {
 	externalTransferAttachSession
 	presentation *fileTransferPresentation
 }
+
+type activeTerminalCommandAttachSession struct {
+	*fakeAttachSession
+	active bool
+}
+
+func (s *activeTerminalCommandAttachSession) terminalCommandActive() bool { return s.active }
 
 func (s *presentationAwareExternalTransferSession) fileTransferCancelPromptStarted() {
 	s.presentation.beginCancelConfirmation()

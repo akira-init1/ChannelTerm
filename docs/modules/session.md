@@ -54,10 +54,18 @@ does not contain terminal bytes or activity write payloads.
 
 The current event types are `SESSION_CREATED`, `SESSION_ATTACHED`, `SESSION_DETACHED`,
 `LEASE_ACQUIRED`, `LEASE_RELEASED`, `FILE_TRANSFER_STARTED`, `FILE_TRANSFER_PROGRESS`,
-`FILE_TRANSFER_COMPLETED`, `FILE_TRANSFER_CANCELLED`, and `FILE_TRANSFER_FAILED`. One file
+`FILE_TRANSFER_COMPLETED`, `FILE_TRANSFER_CANCELLED`, `FILE_TRANSFER_FAILED`,
+`TERMINAL_COMMAND_STARTED`, `TERMINAL_COMMAND_OUTPUT_STARTED`, `TERMINAL_COMMAND_COMPLETED`, and
+`TERMINAL_COMMAND_FAILED`. One file
 transfer's lease acquire/release and status events all carry the same process-local `transfer_id`.
 `file-transfer` lease events also include an `output_cursor` snapshot used only by attach
 presentation to suppress the corresponding internal raw-output range.
+
+One isolated Agent command carries the same non-secret `command_id` across its command events.
+Command metadata records the original display command, bootstrap/output cursor boundary, exit code,
+or failure text. Internal shell wrapper bytes remain raw Session output and `system` write activity;
+the event cursor metadata lets presentation suppress only that wrapper without changing Session
+storage. Lease owner capabilities are never event metadata.
 
 Event metadata for file progress includes confirmed byte counts, total size, percent, and
 best-effort speed. A user-confirmed cancellation is published after lease release with last

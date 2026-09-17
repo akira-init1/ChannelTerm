@@ -11,6 +11,7 @@ import (
 	"io"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -506,6 +507,33 @@ func TestTerminalWriteLeasedRejectsMissingLease(t *testing.T) {
 	}
 	if got := len(terminal.writtenData()); got != 0 {
 		t.Fatalf("terminal_write_leased wrote %d bytes without an active lease", got)
+	}
+}
+
+func TestTerminalExecSchemaAndInputValidation(t *testing.T) {
+	manager := session.NewManager()
+	tools, err := NewSerialTools(manager)
+	if err != nil {
+		t.Fatal(err)
+	}
+	execute := findTool(t, tools, "terminal_exec")
+	schema := execute.InputSchema()
+	for _, required := range []string{"session_id", "command"} {
+		if !slices.Contains(schema.Required, required) {
+			t.Errorf("terminal_exec required fields = %v, want %q", schema.Required, required)
+		}
+	}
+	if _, ok := schema.Properties["actor"]; ok {
+		t.Error("terminal_exec schema unexpectedly exposes actor")
+	}
+	if _, err := execute.Call(context.Background(), json.RawMessage(`{"session_id":"SER-1","command":"pwd\nwhoami"}`)); !errors.Is(err, app.ErrTerminalCommandControlCharacter) {
+		t.Fatalf("terminal_exec multiline error = %v, want ErrTerminalCommandControlCharacter", err)
+	}
+	if _, err := execute.Call(context.Background(), json.RawMessage(`{"session_id":"SER-1","command":"pwd","timeout_ms":0}`)); !errors.Is(err, ErrInvalidWaitTimeout) {
+		t.Fatalf("terminal_exec timeout error = %v, want ErrInvalidWaitTimeout", err)
+	}
+	if _, err := execute.Call(context.Background(), json.RawMessage(`{"session_id":"missing","command":"pwd"}`)); !errors.Is(err, app.ErrSessionNotFound) {
+		t.Fatalf("terminal_exec missing Session error = %v, want ErrSessionNotFound", err)
 	}
 }
 
@@ -1526,6 +1554,17 @@ func callTool(tools []tool.Tool, name string, ctx context.Context, input string)
 		}
 	}
 	return nil, fmt.Errorf("test tool %q not found", name)
+}
+
+func findTool(t *testing.T, tools []tool.Tool, name string) tool.Tool {
+	t.Helper()
+	for _, candidate := range tools {
+		if candidate.Name() == name {
+			return candidate
+		}
+	}
+	t.Fatalf("tool %q not found", name)
+	return nil
 }
 
 // fakeSession records calls while implementing the same public lifecycle that

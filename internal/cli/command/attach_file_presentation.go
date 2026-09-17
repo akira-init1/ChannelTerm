@@ -9,9 +9,10 @@ import (
 	"github.com/akira-init1/ChannelTerm/internal/core/session"
 )
 
-// fileTransferPresentation gates one attach client's local terminal rendering.
-// It deliberately owns no Session cursor or terminal bytes: the caller keeps
-// advancing its cursor while this gate suppresses only local presentation.
+// fileTransferPresentation gates one attach client's local terminal rendering
+// for file transfers and isolated terminal-command bootstraps. It deliberately
+// owns no Session cursor or terminal bytes: the caller keeps advancing its
+// cursor while this gate suppresses only local presentation.
 type fileTransferPresentation struct {
 	mu sync.Mutex
 
@@ -20,6 +21,13 @@ type fileTransferPresentation struct {
 	legacyActive bool
 	openStart    *session.OutputCursor
 	ranges       []fileTransferOutputRange
+
+	// Agent commands use the same cursor-based suppression mechanism for their
+	// echoed bootstrap only. Command output begins at a structured cursor and
+	// remains ordinary raw terminal output.
+	commandOpenStart *session.OutputCursor
+	commandID        string
+	commandActive    bool
 
 	// The observer progress frame ends with a carriage return so later events
 	// can overwrite it. Retain its last confirmed state to terminate that line
@@ -102,6 +110,26 @@ func (p *fileTransferPresentation) handle(event session.Event, local bool, write
 			}
 			p.legacyActive = false
 		}
+		if event.Metadata["type"] == "terminal" {
+			p.closeTerminalCommandRange(event.Metadata)
+			p.commandActive = false
+			p.commandID = ""
+		}
+	case session.EventTerminalCommandStarted:
+		if cursor, ok := fileTransferEventCursor(event.Metadata); ok {
+			p.commandOpenStart = &cursor
+		}
+		p.commandID = fileTransferEventString(event.Metadata, "command_id")
+		p.commandActive = true
+		if !local {
+			text = renderTerminalCommandEvent(event)
+		}
+	case session.EventTerminalCommandOutputStarted:
+		if p.commandID == "" || p.commandID == fileTransferEventString(event.Metadata, "command_id") {
+			p.closeTerminalCommandRange(event.Metadata)
+		}
+	case session.EventTerminalCommandCompleted, session.EventTerminalCommandFailed:
+		p.addTerminalCommandHiddenRange(event.Metadata)
 	case session.EventFileTransferStarted:
 		if p.openStart == nil {
 			p.legacyActive = true
@@ -219,6 +247,50 @@ func (p *fileTransferPresentation) handle(event session.Event, local bool, write
 		return nil
 	}
 	return write([]byte(text))
+}
+
+func (p *fileTransferPresentation) addTerminalCommandHiddenRange(metadata map[string]any) {
+	start, startOK := terminalCommandEventCursor(metadata, "hidden_start")
+	end, endOK := terminalCommandEventCursor(metadata, "hidden_end")
+	if !startOK || !endOK || end < start {
+		return
+	}
+	outputRange := fileTransferOutputRange{start: start, end: end}
+	if len(p.ranges) == 0 || p.ranges[len(p.ranges)-1] != outputRange {
+		p.ranges = append(p.ranges, outputRange)
+	}
+}
+
+func terminalCommandEventCursor(metadata map[string]any, key string) (session.OutputCursor, bool) {
+	return fileTransferEventCursor(map[string]any{"output_cursor": metadata[key]})
+}
+
+func (p *fileTransferPresentation) closeTerminalCommandRange(metadata map[string]any) {
+	if p.commandOpenStart == nil {
+		return
+	}
+	cursor, ok := fileTransferEventCursor(metadata)
+	if ok && cursor >= *p.commandOpenStart {
+		outputRange := fileTransferOutputRange{start: *p.commandOpenStart, end: cursor}
+		if len(p.ranges) == 0 || p.ranges[len(p.ranges)-1] != outputRange {
+			p.ranges = append(p.ranges, outputRange)
+		}
+	}
+	p.commandOpenStart = nil
+}
+
+func (p *fileTransferPresentation) terminalCommandActive() bool {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.commandActive
+}
+
+func renderTerminalCommandEvent(event session.Event) string {
+	command := fileTransferEventString(event.Metadata, "command")
+	if command == "" {
+		return ""
+	}
+	return fmt.Sprintf("\r\n──────── AI ────────\r\n[%s] >> %s\r\n────────────────────\r\n", event.Timestamp.Format("15:04:05"), command)
 }
 
 func fileTransferEventCancelled(metadata map[string]any) bool {
@@ -393,6 +465,9 @@ func (p *fileTransferPresentation) visibleParts(start session.OutputCursor, data
 	for index := range data {
 		cursor := start + session.OutputCursor(index)
 		hidden := p.openStart != nil && cursor >= *p.openStart
+		if !hidden && p.commandOpenStart != nil && cursor >= *p.commandOpenStart {
+			hidden = true
+		}
 		if !hidden {
 			for _, outputRange := range p.ranges {
 				if cursor >= outputRange.start && cursor < outputRange.end {
