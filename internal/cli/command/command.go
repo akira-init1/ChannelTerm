@@ -1,7 +1,9 @@
 package command
 
 import (
+	"bufio"
 	"context"
+	"crypto/subtle"
 	"errors"
 	"flag"
 	"fmt"
@@ -35,7 +37,15 @@ import (
 // and stderr remain adapter concerns; Core packages never receive them.
 func Run(ctx context.Context, args []string, input io.Reader, stdout, stderr io.Writer) error {
 	_ = stderr
-	return runWithIO(ctx, args, input, stdout, nil)
+	return runWithIOWithInterrupts(ctx, args, input, stdout, nil, nil)
+}
+
+// RunWithInterrupts routes one CLI invocation while treating process-level
+// Console interruptions as local interactive input when attach is active.
+// Other commands retain normal process-cancellation semantics for interrupts.
+func RunWithInterrupts(ctx context.Context, args []string, input io.Reader, stdout, stderr io.Writer, interrupts <-chan os.Signal) error {
+	_ = stderr
+	return runWithIOWithInterrupts(ctx, args, input, stdout, nil, interrupts)
 }
 
 // run parses a CLI invocation and writes usage text to output.
@@ -63,15 +73,24 @@ type serialSessionFactory func(serialtransport.Config) (cliSession, error)
 const version = "0.1.0"
 
 const (
-	defaultMCPListen = "127.0.0.1:37099"
-	defaultMCPPath   = "/mcp"
+	defaultMCPListen            = "127.0.0.1:37099"
+	defaultMCPPath              = "/mcp"
+	mcpTransportDocsURL         = "https://modelcontextprotocol.io/specification/2025-11-25/basic/transports"
+	httpAuthTokenEnvVar         = "CHANNELTERM_HTTP_AUTH_TOKEN"
+	httpHostLifetimeHeader      = "X-ChannelTerm-Host-Lifetime"
+	httpHostLifetimeAttachment  = "attachment"
+	internalTemporaryHostEnvVar = "CHANNELTERM_INTERNAL_TEMPORARY_HOST"
 )
 
 // runWithIO routes CLI commands while accepting I/O and session construction as
 // dependencies. This keeps parsing testable without changing process-wide
 // standard streams or opening a physical serial device.
 func runWithIO(ctx context.Context, args []string, input io.Reader, output io.Writer, newSession serialSessionFactory) error {
-	return runWithDependencies(ctx, args, input, output, newSession, newMCPAttachSession)
+	return runWithIOWithInterrupts(ctx, args, input, output, newSession, nil)
+}
+
+func runWithIOWithInterrupts(ctx context.Context, args []string, input io.Reader, output io.Writer, newSession serialSessionFactory, interrupts <-chan os.Signal) error {
+	return runWithDependenciesWithInterrupts(ctx, args, input, output, newSession, newMCPAttachSession, interrupts)
 }
 
 // runWithDependencies routes CLI commands with injectable connection factories.
@@ -79,6 +98,22 @@ func runWithIO(ctx context.Context, args []string, input io.Reader, output io.Wr
 // The separate attach factory keeps tests independent from a running MCP HTTP
 // server while production attach clients still use the shared MCP host.
 func runWithDependencies(ctx context.Context, args []string, input io.Reader, output io.Writer, newSession serialSessionFactory, newAttach attachSessionFactory) error {
+	return runWithDependenciesWithInterrupts(ctx, args, input, output, newSession, newAttach, nil)
+}
+
+func runWithDependenciesWithInterrupts(ctx context.Context, args []string, input io.Reader, output io.Writer, newSession serialSessionFactory, newAttach attachSessionFactory, interrupts <-chan os.Signal) error {
+	if interrupts != nil && (len(args) == 0 || args[0] != "attach") {
+		var stop context.CancelFunc
+		ctx, stop = context.WithCancel(ctx)
+		defer stop()
+		go func() {
+			select {
+			case <-ctx.Done():
+			case <-interrupts:
+				stop()
+			}
+		}()
+	}
 	if len(args) > 0 && args[0] == "serial" {
 		return runSerial(ctx, args[1:], input, output, newSession)
 	}
@@ -86,7 +121,13 @@ func runWithDependencies(ctx context.Context, args []string, input io.Reader, ou
 		return runApplicationConnect(ctx, args[1:], input, output, newSession)
 	}
 	if len(args) > 0 && args[0] == "attach" {
-		return runAttach(ctx, args[1:], input, output, newAttach)
+		return runAttachWithInterrupts(ctx, args[1:], input, output, newAttach, interrupts)
+	}
+	if len(args) > 0 && args[0] == "file" {
+		return runFile(ctx, args[1:], output, newAttach)
+	}
+	if len(args) > 0 && args[0] == "events" {
+		return runEvents(ctx, args[1:], output)
 	}
 	if len(args) > 0 && args[0] == "list" {
 		return runList(ctx, args[1:], output)
@@ -95,7 +136,7 @@ func runWithDependencies(ctx context.Context, args []string, input io.Reader, ou
 		return runMCP(ctx, args[1:], output)
 	}
 	if len(args) > 0 && args[0] == "init" {
-		return runInit(args[1:], output)
+		return runInit(args[1:], input, output)
 	}
 
 	flags := flag.NewFlagSet("channelterm", flag.ContinueOnError)
@@ -107,6 +148,8 @@ func runWithDependencies(ctx context.Context, args []string, input io.Reader, ou
 		fmt.Fprintln(output)
 		fmt.Fprintln(output, "Commands:")
 		fmt.Fprintln(output, "  attach  Attach to a Session hosted by local MCP HTTP")
+		fmt.Fprintln(output, "  events  Stream structured events from a shared Session")
+		fmt.Fprintln(output, "  file    Send or receive a file through a shared Session")
 		fmt.Fprintln(output, "  help    Show this help message")
 		fmt.Fprintln(output, "  init    Configure supported MCP clients")
 		fmt.Fprintln(output, "  list    List local devices, saved profiles, and MCP sessions")
@@ -150,35 +193,48 @@ func runWithDependencies(ctx context.Context, args []string, input io.Reader, ou
 	return nil
 }
 
-// runInit discovers supported MCP clients, installs their ChannelTerm endpoint
-// configuration, or prints the exact generated examples without writing files.
-func runInit(args []string, output io.Writer) error {
+// runInit discovers supported MCP clients and installs or displays a selected
+// ChannelTerm transport configuration.
+func runInit(args []string, input io.Reader, output io.Writer) error {
 	adapters, err := initmcp.NewAdapters(initmcp.Options{})
 	if err != nil {
 		return fmt.Errorf("initialize MCP client adapters: %w", err)
 	}
-	return runInitWithAdapters(args, output, adapters)
+	return runInitWithAdapters(args, input, output, adapters, loadHTTPAuthToken)
 }
 
 // runInitWithAdapters keeps init command tests independent from real user
 // configuration while production uses the standard adapter locations.
-func runInitWithAdapters(args []string, output io.Writer, adapters []initmcp.Adapter) error {
+func runInitWithAdapters(args []string, input io.Reader, output io.Writer, adapters []initmcp.Adapter, loadToken func() (string, error)) error {
 	flags := flag.NewFlagSet("init", flag.ContinueOnError)
 	flags.SetOutput(output)
-	install := flags.Bool("mcp", false, "detect supported MCP clients and install ChannelTerm configuration")
-	show := flags.Bool("mcp-show", false, "print ChannelTerm MCP configuration examples without writing files")
+	install := flags.Bool("mcp", false, "detect supported MCP clients and install the selected configuration")
+	transportHelp := flags.Bool("mcp-help", false, "show MCP transport help and exit")
+	show := flags.Bool("mcp-show", false, "print configuration examples for the selected transport")
 	flags.Usage = func() {
-		fmt.Fprintln(output, "Usage: channelterm init --mcp | --mcp-show [codex|claude|opencode|zoo]")
+		fmt.Fprintln(output, "Usage: channelterm init --mcp | --mcp-show [codex|claude|opencode|zoo] | --mcp-help")
 		fmt.Fprintln(output)
 		fmt.Fprintln(output, "Install or display ChannelTerm MCP client configurations.")
 		fmt.Fprintln(output)
 		flags.PrintDefaults()
+		fmt.Fprintln(output)
+		fmt.Fprintln(output, "Transport choices:")
+		fmt.Fprintln(output, "  HTTP (default)  Connect clients to the shared ChannelTerm Host; multiple clients can share Sessions.")
+		fmt.Fprintln(output, "                  Uses Streamable HTTP at http://127.0.0.1:37099/mcp and requires a Bearer token.")
+		fmt.Fprintln(output, "  stdio           Each MCP client launches a local channelterm mcp child process over stdin/stdout.")
+		fmt.Fprintln(output)
+		fmt.Fprintln(output, "MCP transport specification:")
+		fmt.Fprintf(output, "  %s\n", mcpTransportDocsURL)
 	}
 	if err := flags.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			return nil
 		}
 		return err
+	}
+	if *transportHelp {
+		flags.Usage()
+		return nil
 	}
 	if *install == *show {
 		return errors.New("choose exactly one of --mcp or --mcp-show")
@@ -189,21 +245,52 @@ func runInitWithAdapters(args []string, output io.Writer, adapters []initmcp.Ada
 	if *install && flags.NArg() != 0 {
 		return fmt.Errorf("unexpected init argument %q", flags.Arg(0))
 	}
-	endpoint := initmcp.DefaultEndpoint()
+	selected := adapters
 	if *show {
-		selected, err := selectMCPAdapters(adapters, flags.Arg(0))
-		if err != nil {
-			return err
+		selectedAdapters, selectErr := selectMCPAdapters(adapters, flags.Arg(0))
+		if selectErr != nil {
+			return selectErr
 		}
-		for index, adapter := range selected {
-			example, err := adapter.Example(endpoint)
+		selected = selectedAdapters
+	}
+	transport, err := promptMCPTransport(input, output)
+	if err != nil {
+		return err
+	}
+	endpoint := initmcp.DefaultEndpoint()
+	if transport == initmcp.TransportStreamableHTTP {
+		token, err := loadToken()
+		if err != nil {
+			return fmt.Errorf("load shared HTTP authentication token: %w", err)
+		}
+		endpoint = initmcp.Endpoint{
+			Transport: initmcp.TransportStreamableHTTP,
+			URL:       httpEndpoint(defaultMCPListen, defaultMCPPath),
+			Headers:   map[string]string{"Authorization": "Bearer " + token},
+		}
+	}
+	if *show {
+		type renderedExample struct {
+			name   string
+			config string
+		}
+		rendered := make([]renderedExample, 0, len(selected))
+		for _, adapter := range selected {
+			configuration, err := adapter.Example(endpoint)
 			if err != nil {
-				return fmt.Errorf("generate %s MCP configuration: %w", adapter.Name(), err)
+				return fmt.Errorf("generate %s %s MCP configuration: %w", adapter.Name(), transport, err)
 			}
-			if index > 0 {
-				fmt.Fprintln(output)
-			}
-			fmt.Fprintf(output, "%s:\n%s", adapter.Name(), example)
+			rendered = append(rendered, renderedExample{name: adapter.Name(), config: configuration})
+		}
+		if transport == initmcp.TransportStreamableHTTP {
+			fmt.Fprintln(output, "Shared HTTP configurations")
+			fmt.Fprintln(output, "Warning: these configurations contain a local authentication credential.")
+			fmt.Fprintln(output, "Do not share or commit this output.")
+		} else {
+			fmt.Fprintln(output, "Local stdio configurations")
+		}
+		for _, example := range rendered {
+			fmt.Fprintf(output, "\n=== %s ===\n%s", example.name, example.config)
 		}
 		return nil
 	}
@@ -232,6 +319,30 @@ func runInitWithAdapters(args []string, output io.Writer, adapters []initmcp.Ada
 		return errors.New("no supported MCP clients were detected")
 	}
 	return nil
+}
+
+// promptMCPTransport reads one explicit transport choice. Empty input and a
+// closed, empty non-interactive input select HTTP so the documented default is
+// consistent for interactive and piped invocations.
+func promptMCPTransport(input io.Reader, output io.Writer) (initmcp.Transport, error) {
+	fmt.Fprintln(output, "Select MCP transport:")
+	fmt.Fprintln(output, "  1) HTTP (default) - shared Host for multiple clients")
+	fmt.Fprintln(output, "  2) stdio - local child process for each MCP client")
+	fmt.Fprint(output, "Choice [1]: ")
+
+	line, err := bufio.NewReader(input).ReadString('\n')
+	if err != nil && !errors.Is(err, io.EOF) {
+		return "", fmt.Errorf("read MCP transport selection: %w", err)
+	}
+	choice := strings.ToLower(strings.TrimSpace(line))
+	switch choice {
+	case "", "1", "http":
+		return initmcp.TransportStreamableHTTP, nil
+	case "2", "stdio":
+		return initmcp.TransportStdio, nil
+	default:
+		return "", fmt.Errorf("invalid MCP transport %q; choose 1/http or 2/stdio", choice)
+	}
 }
 
 // selectMCPAdapters treats an omitted identifier as a request for every
@@ -340,7 +451,29 @@ func runMCP(ctx context.Context, args []string, output io.Writer) (err error) {
 	if selectedTransport == "stdio" {
 		return mcp.Run(ctx, registry, &protocol.StdioTransport{})
 	}
-	return runMCPHTTP(ctx, registry, *listen, endpointPath, os.Stderr)
+	token, err := loadHTTPAuthToken()
+	if err != nil {
+		return err
+	}
+	temporaryHost := os.Getenv(internalTemporaryHostEnvVar) == "1"
+	return runMCPHTTP(ctx, registry, *listen, endpointPath, token, temporaryHost, os.Stderr)
+}
+
+// loadHTTPAuthToken resolves one credential for both Host and built-in client
+// use. The environment override supports remote Hosts without copying their
+// token into the caller's default local credential file.
+func loadHTTPAuthToken() (string, error) {
+	if token := strings.TrimSpace(os.Getenv(httpAuthTokenEnvVar)); token != "" {
+		if strings.ContainsAny(token, "\r\n \t") {
+			return "", fmt.Errorf("%s must not contain whitespace", httpAuthTokenEnvVar)
+		}
+		return token, nil
+	}
+	path, err := config.DefaultHTTPAuthTokenPath()
+	if err != nil {
+		return "", err
+	}
+	return config.LoadOrCreateHTTPAuthToken(path)
 }
 
 // normalizeMCPPath validates the endpoint mounted for the HTTP MCP handler.
@@ -359,7 +492,7 @@ func normalizeMCPPath(path string) (string, error) {
 // The HTTP server is stopped with a bounded graceful shutdown. The handler owns
 // only temporary MCP request state; manager-owned terminal Sessions are closed
 // by runMCP after this function returns.
-func runMCPHTTP(ctx context.Context, registry *tool.Registry, listen, path string, stderr io.Writer) error {
+func runMCPHTTP(ctx context.Context, registry *tool.Registry, listen, path, token string, temporaryHost bool, stderr io.Writer) error {
 	listener, err := net.Listen("tcp", listen)
 	if err != nil {
 		return fmt.Errorf("listen for MCP Streamable HTTP on %q: %w", listen, err)
@@ -373,7 +506,7 @@ func runMCPHTTP(ctx context.Context, registry *tool.Registry, listen, path strin
 		return fmt.Errorf("create MCP Streamable HTTP handler: %w", err)
 	}
 	mux := http.NewServeMux()
-	mux.Handle(path, handler)
+	mux.Handle(path, requireBearerToken(token, advertiseHostLifetime(temporaryHost, handler)))
 	server := &http.Server{Handler: mux}
 	endpoint := httpEndpoint(listener.Addr().String(), path)
 	if !isLoopbackListen(listener.Addr().String()) {
@@ -382,23 +515,61 @@ func runMCPHTTP(ctx context.Context, registry *tool.Registry, listen, path strin
 		fmt.Fprintln(stderr, "Use only on a trusted network.")
 	}
 	fmt.Fprintf(stderr, "MCP Streamable HTTP listening on %s\n", endpoint)
+	fmt.Fprintln(stderr, "HTTP authentication: Bearer token required.")
 
-	serverStopped := make(chan struct{})
+	stopShutdown := make(chan struct{})
+	shutdownDone := make(chan error, 1)
 	go func() {
 		select {
 		case <-ctx.Done():
 			shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
-			_ = server.Shutdown(shutdownCtx)
-		case <-serverStopped:
+			shutdownErr := server.Shutdown(shutdownCtx)
+			cancel()
+			if shutdownErr != nil {
+				shutdownErr = errors.Join(shutdownErr, server.Close())
+			}
+			shutdownDone <- shutdownErr
+		case <-stopShutdown:
+			shutdownDone <- nil
 		}
 	}()
 	err = server.Serve(listener)
-	close(serverStopped)
+	close(stopShutdown)
+	shutdownErr := <-shutdownDone
+	if shutdownErr != nil {
+		return fmt.Errorf("shutdown MCP Streamable HTTP: %w", shutdownErr)
+	}
 	if errors.Is(err, http.ErrServerClosed) || errors.Is(err, net.ErrClosed) || errors.Is(ctx.Err(), context.Canceled) {
 		return nil
 	}
 	return fmt.Errorf("serve MCP Streamable HTTP: %w", err)
+}
+
+// advertiseHostLifetime lets every authenticated client distinguish an
+// attachment-owned Host from a separately started persistent Host. The header
+// is emitted on every MCP response because clients may connect after the owner.
+func advertiseHostLifetime(temporary bool, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		if temporary {
+			response.Header().Set(httpHostLifetimeHeader, httpHostLifetimeAttachment)
+		}
+		next.ServeHTTP(response, request)
+	})
+}
+
+// requireBearerToken rejects requests before the MCP handler allocates any
+// protocol state. Constant-time comparison avoids leaking a valid token prefix.
+func requireBearerToken(token string, next http.Handler) http.Handler {
+	want := "Bearer " + token
+	return http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		got := request.Header.Get("Authorization")
+		if len(got) != len(want) || subtle.ConstantTimeCompare([]byte(got), []byte(want)) != 1 {
+			response.Header().Set("WWW-Authenticate", "Bearer")
+			http.Error(response, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		next.ServeHTTP(response, request)
+	})
 }
 
 // httpEndpoint formats a listener address and path as a client-ready HTTP URL.
@@ -562,12 +733,15 @@ func runSerialWithTarget(ctx context.Context, args []string, input io.Reader, ou
 		return err
 	}
 	var outputMu sync.Mutex
+	promptTimestamps := newPromptTimestampRenderer(terminalOutputWriter(output, renderer), terminalOutputFlusher(renderer), time.Now)
 	writeLocalOutput := func(data []byte) error {
 		outputMu.Lock()
 		defer outputMu.Unlock()
+		if err := promptTimestamps.Flush(); err != nil {
+			return err
+		}
 		return writeAll(output, data)
 	}
-	promptTimestamps := newPromptTimestampRenderer(terminalOutputWriter(output, renderer), terminalOutputFlusher(renderer), time.Now)
 	writeTerminalOutput := func(data []byte) error {
 		outputMu.Lock()
 		defer outputMu.Unlock()
@@ -970,9 +1144,12 @@ func forwardInputWithPromptTimestamp(input io.Reader, terminal interface {
 			for _, action := range controller.Process(buffer[:n]) {
 				switch action.Kind {
 				case interactive.ActionRemote:
-					if writeSession(terminal, session.ActorUser, action.Data) != nil {
-						cancel()
-						return
+					if writeErr := writeSession(terminal, session.ActorUser, action.Data); writeErr != nil {
+						if writeLocal == nil || writeLocal(writeFailureText(writeErr)) != nil {
+							cancel()
+							return
+						}
+						continue
 					}
 				case interactive.ActionEscapePending:
 					if writeLocal == nil || writeLocal(escapePendingText) != nil {
@@ -994,6 +1171,11 @@ func forwardInputWithPromptTimestamp(input io.Reader, terminal interface {
 					}
 				case interactive.ActionTogglePromptTimestamp:
 					if togglePromptTimestamp == nil || togglePromptTimestamp() != nil {
+						cancel()
+						return
+					}
+				case interactive.ActionFileTransfer:
+					if writeLocal == nil || writeLocal(fileTransferUnavailableText) != nil {
 						cancel()
 						return
 					}
@@ -1020,14 +1202,23 @@ func forwardInputWithPromptTimestamp(input io.Reader, terminal interface {
 // escapePendingText confirms locally that Ctrl+] entered escape mode. Its
 // leading and trailing line breaks keep it readable beside unstructured remote
 // terminal output; it is never sent to the remote Session.
-var escapePendingText = []byte("\r\n[ChannelTerm] Escape: q quit | ? help | ] send Ctrl+] | t prompt time | Esc cancel\r\n")
+var escapePendingText = []byte("\r\n[ChannelTerm] Escape: q quit | ? help | ] send Ctrl+] | f file transfer | t prompt time | Esc cancel\r\n")
+
+// writeFailureText renders a remote-write failure locally. In particular, a
+// file-transfer lease remains visible to an attached human without detaching
+// the reader, so input can resume when the owner releases its lease.
+func writeFailureText(err error) []byte {
+	return []byte("\r\n[ChannelTerm] write failed: " + err.Error() + "\r\n")
+}
 
 // escapeCancelledText confirms that Esc returned this CLI to normal input
 // mode. It is local presentation and never enters Session data.
 var escapeCancelledText = []byte("\r\n[ChannelTerm] Escape cancelled\r\n")
 
 // escapeHelpText is local CLI output and is never sent to the remote Session.
-var escapeHelpText = []byte("\r\nChannelTerm escape commands:\r\n\r\n  q    Quit session\r\n  ?    Show this help\r\n  ]    Send Ctrl+] to remote\r\n  t    Toggle prompt timestamps\r\n  Esc  Cancel escape mode\r\n")
+var escapeHelpText = []byte("\r\nChannelTerm escape commands:\r\n\r\n  q    Quit session\r\n  ?    Show this help\r\n  ]    Send Ctrl+] to remote\r\n  f    Open file transfer (attach)\r\n  t    Toggle prompt timestamps\r\n  Esc  Cancel escape mode\r\n")
+
+var fileTransferUnavailableText = []byte("\r\n[ChannelTerm] File transfer is available from shared attach only.\r\n")
 
 // promptTimestampStatusText reports a CLI-local presentation setting. It is
 // written only to the current terminal output and never enters Session data.

@@ -1,6 +1,6 @@
 # Buffers and Cursors
 
-Session maintains two bounded, independent buffers: raw terminal output and write activity. Device Registry maintains a third bounded stream for discovery events.
+Session maintains two bounded, independent buffers: raw Channel output and write activity. Device Registry maintains a third bounded stream for discovery events.
 
 ## Output receive buffer
 
@@ -16,10 +16,11 @@ Session maintains two bounded, independent buffers: raw terminal output and writ
 ## Activity buffer
 
 - Default capacity: 1024 `SessionEvent` values.
-- Overflow: overwrite the oldest event without blocking `Session.Write`.
+- Default payload capacity: 16 MiB across all retained events.
+- Overflow: evict the oldest complete events before either the event or payload limit is exceeded, without blocking `Session.Write`. A single payload larger than 16 MiB is not retained.
 - Payload ownership: event data is copied on append and copied again for readers.
 
-`ActivityCursor` is independent from `OutputCursor`. Recent activity returns a continuation cursor at the current tail, including when the event list is empty.
+`ActivityCursor` is independent from `OutputCursor`. Recent activity returns a continuation cursor at the current tail, including when the event list is empty. A read whose requested events were evicted, including an oversized event that was never retained, advances to the oldest available cursor and sets `Dropped`.
 
 ## Device event buffer
 
@@ -27,6 +28,6 @@ Device Registry retains 1024 appearance/disappearance events. It uses its own `d
 
 ## Concurrency and close
 
-Each buffer replaces a notification channel whenever data or lifecycle state changes. Readers inspect state under a short mutex and wait without holding it. Slow or blocked consumers therefore do not apply backpressure to terminal reads, writes, or device scans.
+Each buffer replaces a notification channel whenever data or lifecycle state changes. Readers inspect state under a short mutex and wait without holding it. Slow or blocked consumers therefore do not apply backpressure to Channel reads, Session writes, or device scans.
 
 Closing wakes current waiters after retained data has been consumed. Session close then releases its output and activity backing storage. These buffers are retention windows, not persistent logs; cursor overflow is permanent data loss for that consumer.

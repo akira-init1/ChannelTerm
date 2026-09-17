@@ -2,17 +2,22 @@ package command
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
 	"io"
+	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/akira-init1/ChannelTerm/internal/cli/terminalinput"
@@ -45,6 +50,23 @@ type attachSession interface {
 	Close() error
 }
 
+// attachEventSession is the optional structured Session-event view used by a
+// shared attachment to gate local presentation during file transfers. It does
+// not alter the attachment's independent raw-output cursor.
+type attachEventSession interface {
+	ReadRecentEvents(int) (session.EventChunk, error)
+	ReadEvents(context.Context, session.EventCursor, int) (session.EventChunk, error)
+}
+
+// localFileTransferPresentation identifies the attachment that reported a
+// transfer. That attachment already renders its detailed local formatter, so
+// it suppresses duplicate summaries from the shared event observer.
+type localFileTransferPresentation interface {
+	fileTransferPresentationIsLocal() bool
+	fileTransferPresentationEnded()
+	setFileTransferPresentation(*fileTransferPresentation)
+}
+
 // attachSessionFactory creates a detached client view for an existing Session.
 type attachSessionFactory func(context.Context, string, string) (attachSession, error)
 
@@ -52,9 +74,20 @@ type attachSessionFactory func(context.Context, string, string) (attachSession, 
 // existing MCP terminal tools. The remote Manager continues to own the actual
 // Session and its single Transport reader.
 type mcpAttachSession struct {
-	id     string
-	client *protocol.ClientSession
+	id            string
+	client        *protocol.ClientSession
+	leaseOwner    string
+	transferID    string
+	attached      bool
+	temporaryHost bool
+	// fileTransferPresentationMu protects the transfer goroutine's local-owner
+	// state from the concurrent structured-event observer.
+	fileTransferPresentationMu    sync.RWMutex
+	localFileTransferPresentation bool
+	presentation                  *fileTransferPresentation
 }
+
+func (s *mcpAttachSession) usesTemporaryHost() bool { return s.temporaryHost }
 
 // newMCPAttachSession connects to an MCP HTTP host and verifies that id is
 // currently registered there. endpoint must be the complete Streamable HTTP
@@ -68,7 +101,7 @@ func newMCPAttachSession(ctx context.Context, endpoint, id string) (_ attachSess
 	if endpoint == "" {
 		return nil, errors.New("MCP endpoint is required")
 	}
-	remote, err := connectMCPClient(ctx, endpoint)
+	remote, temporaryHost, err := connectMCPClient(ctx, endpoint)
 	if err != nil {
 		return nil, fmt.Errorf("connect MCP endpoint %q: %w", endpoint, err)
 	}
@@ -78,10 +111,14 @@ func newMCPAttachSession(ctx context.Context, endpoint, id string) (_ attachSess
 		}
 	}()
 
-	attached := &mcpAttachSession{id: id, client: remote}
+	attached := &mcpAttachSession{id: id, client: remote, temporaryHost: temporaryHost}
 	if err := attached.verify(ctx); err != nil {
 		return nil, err
 	}
+	if err := attached.call(ctx, "terminal_session_attach", map[string]any{"session_id": id, "actor": "user"}, nil); err != nil {
+		return nil, err
+	}
+	attached.attached = true
 	return attached, nil
 }
 
@@ -89,19 +126,29 @@ func newMCPAttachSession(ctx context.Context, endpoint, id string) (_ attachSess
 // Session reference attaches to an existing host session, while a serial target
 // reference such as SER-COM8 creates or reuses one shared host session first.
 func runAttach(ctx context.Context, args []string, input io.Reader, output io.Writer, newAttach attachSessionFactory) error {
+	return runAttachWithInterrupts(ctx, args, input, output, newAttach, nil)
+}
+
+// runAttachWithInterrupts uses optional process-level Console interruptions as
+// another input source for the one attach input dispatcher.
+func runAttachWithInterrupts(ctx context.Context, args []string, input io.Reader, output io.Writer, newAttach attachSessionFactory, interrupts <-chan os.Signal) error {
 	if len(args) == 1 && (args[0] == "--help" || args[0] == "-h") {
-		return runAttachTargetFirst(ctx, "SER-COM8", args, input, output, newAttach)
+		return runAttachTargetFirstWithInterrupts(ctx, "SER-COM8", args, input, output, newAttach, interrupts)
 	}
 	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
-		return runAttachTargetFirst(ctx, args[0], args[1:], input, output, newAttach)
+		return runAttachTargetFirstWithInterrupts(ctx, args[0], args[1:], input, output, newAttach, interrupts)
 	}
-	return runAttachSession(ctx, args, input, output, newAttach)
+	return runAttachSessionWithInterrupts(ctx, args, input, output, newAttach, interrupts)
 }
 
 // runAttachSession creates a client-specific cursor and bridges local terminal
 // I/O to an already-open Session. Cancellation detaches only this CLI client;
 // it does not call terminal_close or otherwise change the Manager-owned lifecycle.
 func runAttachSession(ctx context.Context, args []string, input io.Reader, output io.Writer, newAttach attachSessionFactory) (err error) {
+	return runAttachSessionWithInterrupts(ctx, args, input, output, newAttach, nil)
+}
+
+func runAttachSessionWithInterrupts(ctx context.Context, args []string, input io.Reader, output io.Writer, newAttach attachSessionFactory, interrupts <-chan os.Signal) (err error) {
 	flags := flag.NewFlagSet("attach", flag.ContinueOnError)
 	flags.SetOutput(output)
 	endpoint := flags.String("endpoint", defaultMCPEndpoint, "MCP Streamable HTTP endpoint")
@@ -147,6 +194,9 @@ func runAttachSession(ctx context.Context, args []string, input io.Reader, outpu
 			err = fmt.Errorf("detach session %q: %w", flags.Arg(0), closeErr)
 		}
 	}()
+	if err := writeTemporaryHostNotice(output, attached); err != nil {
+		return err
+	}
 	rawInput, stopInputEcho, err := terminalinput.MakeRaw(input)
 	if err != nil {
 		return fmt.Errorf("configure console input: %w", err)
@@ -160,17 +210,59 @@ func runAttachSession(ctx context.Context, args []string, input io.Reader, outpu
 
 	attachCtx, cancel := context.WithCancel(ctx)
 	var activityWait sync.WaitGroup
+	var eventWait sync.WaitGroup
 	defer func() {
 		cancel()
 		activityWait.Wait()
+		eventWait.Wait()
 	}()
 	var outputMu sync.Mutex
+	lineState := newPresentationLineState()
+	renderTerminal := terminalOutputWriter(output, renderer)
+	writeRenderedTerminal := func(data []byte) error {
+		if err := renderTerminal(data); err != nil {
+			return err
+		}
+		lineState.observe(data)
+		return nil
+	}
+	promptTimestamps := newPromptTimestampRenderer(writeRenderedTerminal, terminalOutputFlusher(renderer), time.Now)
 	writeLocalOutput := func(data []byte) error {
 		outputMu.Lock()
 		defer outputMu.Unlock()
-		return writeAll(output, data)
+		if err := promptTimestamps.Flush(); err != nil {
+			return err
+		}
+		if err := writeAll(output, data); err != nil {
+			return err
+		}
+		lineState.observe(data)
+		return nil
 	}
-	promptTimestamps := newPromptTimestampRenderer(terminalOutputWriter(output, renderer), terminalOutputFlusher(renderer), time.Now)
+	writeLocalStatus := func(data []byte) error {
+		outputMu.Lock()
+		defer outputMu.Unlock()
+		if err := promptTimestamps.Flush(); err != nil {
+			return err
+		}
+		if prefix := lineState.lineStartPrefix(); len(prefix) > 0 {
+			if err := writeAll(output, prefix); err != nil {
+				return err
+			}
+			lineState.observe(prefix)
+		}
+		if err := writeAll(output, data); err != nil {
+			return err
+		}
+		lineState.observe(data)
+		if !lineState.atLineStart {
+			if err := writeAll(output, []byte("\r\n")); err != nil {
+				return err
+			}
+			lineState.observe([]byte("\r\n"))
+		}
+		return nil
+	}
 	writeTerminalOutput := func(data []byte) error {
 		outputMu.Lock()
 		defer outputMu.Unlock()
@@ -190,7 +282,30 @@ func runAttachSession(ctx context.Context, args []string, input io.Reader, outpu
 		}
 		return writeAll(output, promptTimestampStatusText(enabled))
 	}
-	go forwardInputWithPromptTimestamp(input, attached, writeLocalOutput, togglePromptTimestamps, cancel)
+	presentation := newFileTransferPresentation()
+	if owner, ok := attached.(localFileTransferPresentation); ok {
+		owner.setFileTransferPresentation(presentation)
+	}
+	go forwardAttachInputWithPresentation(attachCtx, input, attached, writeLocalOutput, writeLocalStatus, togglePromptTimestamps, cancel, interrupts)
+	events, hasEvents := attached.(attachEventSession)
+	if hasEvents {
+		eventChunk, eventErr := events.ReadRecentEvents(session.DefaultEventBufferCapacity)
+		if eventErr != nil && !errors.Is(eventErr, context.Canceled) {
+			return fmt.Errorf("read attached session events: %w", eventErr)
+		}
+		for _, event := range eventChunk.Events {
+			// Retained events establish the presentation state before the initial
+			// raw-output snapshot. They are historical context, not new local
+			// notifications for an attachment that has just joined.
+			_ = presentation.handle(event, true, nil)
+		}
+		eventCursor := eventChunk.Next
+		eventWait.Add(1)
+		go func() {
+			defer eventWait.Done()
+			forwardFileTransferEvents(attachCtx, events, eventCursor, attached, presentation, writeLocalStatus)
+		}()
+	}
 
 	activity, err := attached.ReadRecentActivity(attachCtx, 1)
 	if err != nil && !errors.Is(err, context.Canceled) {
@@ -210,10 +325,14 @@ func runAttachSession(ctx context.Context, args []string, input io.Reader, outpu
 	cursor := chunk.Next
 	lastOutputEndedLine := true
 	if len(chunk.Data) > 0 {
-		if err := writeTerminalOutput(chunk.Data); err != nil {
+		refreshFileTransferPresentation(events, presentation)
+		rendered, err := writeAttachedTerminalOutputAt(presentation, writeTerminalOutput, chunk.Next, chunk.Data)
+		if err != nil {
 			return fmt.Errorf("write attached session output: %w", err)
 		}
-		lastOutputEndedLine = chunk.Data[len(chunk.Data)-1] == '\n'
+		if rendered {
+			lastOutputEndedLine = chunk.Data[len(chunk.Data)-1] == '\n'
+		}
 	}
 	for {
 		chunk, err := attached.ReadOutput(attachCtx, cursor, 32*1024)
@@ -223,6 +342,7 @@ func runAttachSession(ctx context.Context, args []string, input io.Reader, outpu
 				// cancellation before emitting the detach status so local-only blocks
 				// cannot interleave with this final terminal status line.
 				activityWait.Wait()
+				eventWait.Wait()
 				if flushErr := flushTerminalOutput(); flushErr != nil {
 					return fmt.Errorf("flush attached session output: %w", flushErr)
 				}
@@ -237,10 +357,14 @@ func runAttachSession(ctx context.Context, args []string, input io.Reader, outpu
 		if len(chunk.Data) == 0 {
 			continue
 		}
-		if err := writeTerminalOutput(chunk.Data); err != nil {
+		refreshFileTransferPresentation(events, presentation)
+		rendered, err := writeAttachedTerminalOutputAt(presentation, writeTerminalOutput, chunk.Next, chunk.Data)
+		if err != nil {
 			return fmt.Errorf("write attached session output: %w", err)
 		}
-		lastOutputEndedLine = chunk.Data[len(chunk.Data)-1] == '\n'
+		if rendered {
+			lastOutputEndedLine = chunk.Data[len(chunk.Data)-1] == '\n'
+		}
 	}
 }
 
@@ -248,6 +372,10 @@ func runAttachSession(ctx context.Context, args []string, input io.Reader, outpu
 // first and options afterwards. It keeps the older flag-first Session form
 // available through runAttachSession for scripts that already use it.
 func runAttachTargetFirst(ctx context.Context, target string, args []string, input io.Reader, output io.Writer, newAttach attachSessionFactory) error {
+	return runAttachTargetFirstWithInterrupts(ctx, target, args, input, output, newAttach, nil)
+}
+
+func runAttachTargetFirstWithInterrupts(ctx context.Context, target string, args []string, input io.Reader, output io.Writer, newAttach attachSessionFactory, interrupts <-chan os.Signal) error {
 	flags := flag.NewFlagSet("attach", flag.ContinueOnError)
 	flags.SetOutput(output)
 	endpoint := flags.String("endpoint", defaultMCPEndpoint, "Session Host endpoint")
@@ -281,9 +409,12 @@ func runAttachTargetFirst(ctx context.Context, target string, args []string, inp
 			serialArgs = append(serialArgs, "--highlight", *highlightMode)
 			return runApplicationConnect(ctx, append([]string{target}, serialArgs...), input, output, nil)
 		}
-		opened, reused, err := openSharedSerialTarget(ctx, strings.TrimSpace(*endpoint), target, serialArgs)
+		opened, reused, startedHost, err := openSharedSerialTarget(ctx, strings.TrimSpace(*endpoint), target, serialArgs)
 		if err != nil {
 			return err
+		}
+		if startedHost != nil {
+			defer startedHost.stop()
 		}
 		state := "created"
 		if reused {
@@ -292,7 +423,7 @@ func runAttachTargetFirst(ctx context.Context, target string, args []string, inp
 		if _, err := fmt.Fprintf(output, "Shared Session %s: %s (%s)\r\n", state, opened.Reference, opened.ID); err != nil {
 			return err
 		}
-		return runAttachSession(ctx, []string{"--endpoint", *endpoint, "--highlight", *highlightMode, opened.ID}, input, output, newAttach)
+		return runAttachSessionWithInterrupts(ctx, []string{"--endpoint", *endpoint, "--highlight", *highlightMode, opened.ID}, input, output, newAttach, interrupts)
 	}
 	if *private {
 		return errors.New("--private requires a serial target reference such as SER-COM8")
@@ -300,7 +431,27 @@ func runAttachTargetFirst(ctx context.Context, target string, args []string, inp
 	if hasAttachSerialOption(flags) {
 		return errors.New("serial options require a serial target reference such as SER-COM8")
 	}
-	return runAttachSession(ctx, []string{"--endpoint", *endpoint, "--highlight", *highlightMode, target}, input, output, newAttach)
+	return runAttachSessionWithInterrupts(ctx, []string{"--endpoint", *endpoint, "--highlight", *highlightMode, target}, input, output, newAttach, interrupts)
+}
+
+// writeAutoStartedHostNotice explains the attachment-owned Host lifecycle.
+func writeAutoStartedHostNotice(output io.Writer) error {
+	_, err := fmt.Fprintln(output, "[ChannelTerm] Temporary Session Host started; it and all shared Sessions stop when this attachment exits. Run 'channelterm mcp --transport http' separately for a persistent Host.")
+	return err
+}
+
+type temporaryHostSession interface {
+	usesTemporaryHost() bool
+}
+
+// writeTemporaryHostNotice warns every bundled attachment, including clients
+// that join an attachment-owned Host after the creating process.
+func writeTemporaryHostNotice(output io.Writer, attached attachSession) error {
+	host, ok := attached.(temporaryHostSession)
+	if !ok || !host.usesTemporaryHost() {
+		return nil
+	}
+	return writeAutoStartedHostNotice(output)
 }
 
 // defineAttachSerialFlags accepts the same connection settings as serial and
@@ -326,7 +477,7 @@ func writeAttachTargetUsage(output io.Writer) {
 	fmt.Fprintln(output, "attach SER-COM8 creates or joins a shared local Session Host connection.")
 	fmt.Fprintln(output, "attach SER-1 or a full session_id joins an existing shared Session.")
 	fmt.Fprintln(output, "--private (or --no-mcp) opens a local connection that MCP and other users cannot join.")
-	fmt.Fprintln(output, "Ctrl+C is sent to the remote session. Use Ctrl+] q to leave this CLI window; Ctrl+] t toggles local prompt timestamps.")
+	fmt.Fprintln(output, "Ctrl+C is sent to the remote session. Use Ctrl+] q to leave this CLI window; Ctrl+] f opens file transfer; Ctrl+] t toggles local prompt timestamps.")
 }
 
 // hasAttachSerialOption detects settings that cannot apply when target names a
@@ -382,52 +533,60 @@ func isSerialTargetReference(value string) bool {
 // openSharedSerialTarget ensures the local Session Host exists, then uses its
 // normal MCP tools to atomically create or reuse a serial Session. The Host is
 // the sole physical-port owner; this CLI only attaches afterwards.
-func openSharedSerialTarget(ctx context.Context, endpoint, target string, serialArgs []string) (mcpListedSession, bool, error) {
+func openSharedSerialTarget(ctx context.Context, endpoint, target string, serialArgs []string) (opened mcpListedSession, reused bool, startedHost *autoStartedMCPHost, err error) {
 	if !isLocalMCPEndpoint(endpoint) {
-		return mcpListedSession{}, false, errors.New("opening a target reference requires a local Session Host endpoint")
+		return mcpListedSession{}, false, nil, errors.New("opening a target reference requires a local Session Host endpoint")
 	}
 	application, err := app.New(app.Dependencies{Manager: session.NewManager()})
 	if err != nil {
-		return mcpListedSession{}, false, err
+		return mcpListedSession{}, false, nil, err
 	}
 	port, err := application.ResolveSerialTarget(ctx, target)
 	if err != nil {
-		return mcpListedSession{}, false, err
+		return mcpListedSession{}, false, nil, err
 	}
-	if err := ensureMCPHost(ctx, endpoint); err != nil {
-		return mcpListedSession{}, false, err
-	}
-	client, err := connectMCPClient(ctx, endpoint)
+	startedHost, err = ensureMCPHost(ctx, endpoint)
 	if err != nil {
-		return mcpListedSession{}, false, fmt.Errorf("connect Session Host %q: %w", endpoint, err)
+		return mcpListedSession{}, false, nil, err
+	}
+	// Do not leave an automatically started Host behind if opening the target
+	// fails before ownership is returned to the attach command.
+	defer func() {
+		if err != nil && startedHost != nil {
+			startedHost.stop()
+		}
+	}()
+	client, _, err := connectMCPClient(ctx, endpoint)
+	if err != nil {
+		return mcpListedSession{}, false, nil, fmt.Errorf("connect Session Host %q: %w", endpoint, err)
 	}
 	defer func() { _ = client.Close() }()
 	var listed struct {
 		Sessions []mcpListedSession `json:"sessions"`
 	}
 	if err := callMCPTool(ctx, client, "terminal_list_sessions", map[string]any{}, &listed); err != nil {
-		return mcpListedSession{}, false, err
+		return mcpListedSession{}, false, nil, err
 	}
 	if !attachOptionIsProvided(serialArgs, "save") {
 		for _, candidate := range listed.Sessions {
 			if candidate.Transport == "serial" && strings.EqualFold(candidate.Endpoint, port) && candidate.State == "open" {
-				return candidate, true, nil
+				return candidate, true, startedHost, nil
 			}
 		}
 	}
 	arguments, err := attachSerialOpenArguments(serialArgs, port)
 	if err != nil {
-		return mcpListedSession{}, false, err
+		return mcpListedSession{}, false, nil, err
 	}
-	var opened struct {
+	var openedResponse struct {
 		ID        string `json:"session_id"`
 		Reference string `json:"session_ref"`
 		Reused    bool   `json:"reused"`
 	}
-	if err := callMCPTool(ctx, client, "terminal_open_serial", arguments, &opened); err != nil {
-		return mcpListedSession{}, false, err
+	if err := callMCPTool(ctx, client, "terminal_open_serial", arguments, &openedResponse); err != nil {
+		return mcpListedSession{}, false, nil, err
 	}
-	return mcpListedSession{ID: opened.ID, Reference: opened.Reference, Transport: "serial", Endpoint: port, State: "open"}, opened.Reused, nil
+	return mcpListedSession{ID: openedResponse.ID, Reference: openedResponse.Reference, Transport: "serial", Endpoint: port, State: "open"}, openedResponse.Reused, startedHost, nil
 }
 
 // attachSerialOpenArguments translates explicitly supplied attach options to
@@ -497,23 +656,82 @@ func attachOptionIsProvided(args []string, option string) bool {
 	return false
 }
 
-// ensureMCPHost starts the default loopback Host when it is absent. The child
-// owns Sessions independently from the attaching CLI, so Ctrl+C in this window
-// cannot terminate a shared connection that other users or Agents still use.
-func ensureMCPHost(ctx context.Context, endpoint string) error {
+// autoStartedMCPHost is a default Host process started by one attach command.
+// It is deliberately distinct from a pre-existing or manually started Host:
+// only the command that created it stops it when that attachment ends.
+type autoStartedMCPHost struct {
+	done     <-chan struct{}
+	signal   func() error
+	kill     func() error
+	stopOnce sync.Once
+}
+
+// stop requests graceful process shutdown before forcibly ending a Host that
+// did not respond. It is safe to call more than once.
+func (h *autoStartedMCPHost) stop() {
+	if h == nil {
+		return
+	}
+	h.stopOnce.Do(func() {
+		select {
+		case <-h.done:
+			return
+		default:
+		}
+		if h.signal() != nil {
+			_ = h.kill()
+		}
+		timer := time.NewTimer(5 * time.Second)
+		defer timer.Stop()
+		select {
+		case <-h.done:
+		case <-timer.C:
+			_ = h.kill()
+			// Do not keep the attaching process alive forever if the operating
+			// system rejects a final kill request. The normal path above still
+			// waits for the child so it can be reaped.
+			select {
+			case <-h.done:
+			case <-time.After(time.Second):
+			}
+		}
+	})
+}
+
+// newAutoStartedMCPHost starts command's waiter immediately so the child is
+// reaped even when the parent exits after a failed readiness check.
+func newAutoStartedMCPHost(command *exec.Cmd) *autoStartedMCPHost {
+	done := make(chan struct{})
+	go func() {
+		_ = command.Wait()
+		close(done)
+	}()
+	return &autoStartedMCPHost{
+		done:   done,
+		signal: func() error { return command.Process.Signal(os.Interrupt) },
+		kill:   func() error { return command.Process.Kill() },
+	}
+}
+
+// ensureMCPHost starts the default loopback Host when it is absent. A returned
+// Host is owned by the caller and must be stopped when that attach command
+// exits; an already-running Host returns nil and is never stopped here.
+func ensureMCPHost(ctx context.Context, endpoint string) (*autoStartedMCPHost, error) {
 	if _, err := listMCPSessions(ctx, endpoint); err == nil {
-		return nil
+		return nil, nil
 	}
 	if endpoint != defaultMCPEndpoint {
-		return fmt.Errorf("Session Host %q is offline; start it explicitly before attach", endpoint)
+		return nil, fmt.Errorf("Session Host %q is offline; start it explicitly before attach", endpoint)
 	}
 	command := exec.Command(os.Args[0], "mcp", "--transport", "http")
+	command.Env = append(os.Environ(), internalTemporaryHostEnvVar+"=1")
 	command.Stdin = nil
 	command.Stdout = io.Discard
 	command.Stderr = io.Discard
 	if err := command.Start(); err != nil {
-		return fmt.Errorf("start Session Host: %w", err)
+		return nil, fmt.Errorf("start Session Host: %w", err)
 	}
+	host := newAutoStartedMCPHost(command)
 	deadline := time.NewTimer(5 * time.Second)
 	defer deadline.Stop()
 	tick := time.NewTicker(100 * time.Millisecond)
@@ -521,12 +739,14 @@ func ensureMCPHost(ctx context.Context, endpoint string) error {
 	for {
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
+			host.stop()
+			return nil, ctx.Err()
 		case <-deadline.C:
-			return errors.New("Session Host did not become ready within 5 seconds")
+			host.stop()
+			return nil, errors.New("Session Host did not become ready within 5 seconds")
 		case <-tick.C:
 			if _, err := listMCPSessions(ctx, endpoint); err == nil {
-				return nil
+				return host, nil
 			}
 		}
 	}
@@ -579,30 +799,271 @@ func (s *mcpAttachSession) ReadActivity(ctx context.Context, next session.Activi
 	return s.readActivity(ctx, "terminal_wait_activity", &next, maxEvents)
 }
 
+// ReadRecentEvents establishes this attachment's private structured-event
+// cursor without replaying the Session's complete event history.
+func (s *mcpAttachSession) ReadRecentEvents(maxEvents int) (session.EventChunk, error) {
+	return s.readEvents(context.Background(), nil, maxEvents)
+}
+
+// ReadEvents waits for structured Session events without changing an output,
+// activity, or any other client's event cursor.
+func (s *mcpAttachSession) ReadEvents(ctx context.Context, next session.EventCursor, maxEvents int) (session.EventChunk, error) {
+	return s.readEvents(ctx, &next, maxEvents)
+}
+
 // Write forwards the complete caller payload in Base64 so raw local terminal
-// bytes remain lossless. The remote Session's write lock provides atomicity
-// with MCP Agent terminal_write calls.
+// bytes remain lossless. The Host retains Session write serialization and
+// applies any active Application lease before the write reaches Session.
 func (s *mcpAttachSession) Write(request session.WriteRequest) (int, error) {
+	return s.WriteContext(context.Background(), request)
+}
+
+// WriteContext forwards one complete caller payload while allowing non-
+// interactive CLI use cases such as file transfer to cancel an in-flight MCP
+// request. The host-owned Session still provides the actual write serialization.
+func (s *mcpAttachSession) WriteContext(ctx context.Context, request session.WriteRequest) (int, error) {
 	if !request.Actor.Valid() {
 		return 0, fmt.Errorf("%w: %q", session.ErrInvalidActor, request.Actor)
 	}
 	var result struct {
 		BytesWritten int `json:"bytes_written"`
 	}
-	if err := s.call(context.Background(), "terminal_write", map[string]any{
+	toolName := "terminal_write"
+	arguments := map[string]any{
 		"session_id": s.id,
 		"data":       base64.StdEncoding.EncodeToString(request.Data),
 		"encoding":   "base64",
 		"actor":      request.Actor,
-	}, &result); err != nil {
+	}
+	if s.leaseOwner != "" {
+		toolName = "terminal_write_leased"
+		arguments["owner"] = s.leaseOwner
+	}
+	if err := s.call(ctx, toolName, arguments, &result); err != nil {
 		return 0, err
 	}
 	return result.BytesWritten, nil
 }
 
-// Close releases only the MCP client connection and deliberately omits
-// terminal_close, preserving the shared Session after local detach.
-func (s *mcpAttachSession) Close() error { return s.client.Close() }
+// AcquireFileTransferLease reserves the remote Session for this attachment's
+// file-transfer operation. The generated owner is an opaque capability used
+// only by terminal_write_leased and terminal_release_lease.
+func (s *mcpAttachSession) AcquireFileTransferLease(ctx context.Context) error {
+	if s.leaseOwner != "" {
+		return errors.New("file transfer lease is already acquired")
+	}
+	var token [16]byte
+	if _, err := rand.Read(token[:]); err != nil {
+		return fmt.Errorf("generate file transfer lease owner: %w", err)
+	}
+	owner := "file-transfer-" + hex.EncodeToString(token[:])
+	var result struct {
+		TransferID string `json:"transfer_id"`
+	}
+	if err := s.call(ctx, "terminal_acquire_lease", map[string]any{
+		"session_id": s.id,
+		"owner":      owner,
+		"type":       "file-transfer",
+	}, &result); err != nil {
+		return err
+	}
+	if strings.TrimSpace(result.TransferID) == "" {
+		_ = s.call(ctx, "terminal_release_lease", map[string]any{"session_id": s.id, "owner": owner}, nil)
+		return errors.New("file transfer lease did not return transfer_id")
+	}
+	s.leaseOwner = owner
+	s.transferID = strings.TrimSpace(result.TransferID)
+	return nil
+}
+
+// RenewFileTransferLease extends this attachment's Host-side lease before its
+// TTL elapses. A missing local owner means no transfer is active to renew.
+func (s *mcpAttachSession) RenewFileTransferLease(ctx context.Context) error {
+	if s.leaseOwner == "" {
+		return errors.New("file transfer lease is not acquired")
+	}
+	return s.call(ctx, "terminal_renew_lease", map[string]any{
+		"session_id": s.id,
+		"owner":      s.leaseOwner,
+	}, nil)
+}
+
+// ReleaseFileTransferLease releases this attachment's file-transfer lease.
+// A failed release retains the owner locally so callers do not accidentally
+// resume ordinary writes while the Host still reports the Session as locked.
+func (s *mcpAttachSession) ReleaseFileTransferLease(ctx context.Context) error {
+	if s.leaseOwner == "" {
+		return nil
+	}
+	if err := s.call(ctx, "terminal_release_lease", map[string]any{
+		"session_id": s.id,
+		"owner":      s.leaseOwner,
+	}, nil); err != nil {
+		return err
+	}
+	s.leaseOwner = ""
+	s.transferID = ""
+	return nil
+}
+
+// AbortFileTransferRecovery closes the Host-owned Session when bounded cleanup
+// cannot restore a usable protocol state. Ordinary attachment Close still only
+// detaches and never invokes terminal_close.
+func (s *mcpAttachSession) AbortFileTransferRecovery(ctx context.Context) error {
+	var result struct {
+		Closed bool `json:"closed"`
+	}
+	if err := s.call(ctx, "terminal_close", map[string]any{"session_id": s.id}, &result); err != nil {
+		return err
+	}
+	if !result.Closed {
+		return errors.New("file-transfer recovery abort did not close the Session")
+	}
+	s.attached = false
+	return nil
+}
+
+// BeginFileTransferCancel asks the Host whether another client currently owns
+// a file-transfer lease and, if so, opens one cancellation confirmation.
+func (s *mcpAttachSession) BeginFileTransferCancel(ctx context.Context) (string, bool, error) {
+	var result struct {
+		Active    bool   `json:"active"`
+		RequestID string `json:"request_id"`
+	}
+	if err := s.call(ctx, "terminal_begin_file_transfer_cancel", map[string]any{"session_id": s.id}, &result); err != nil {
+		return "", false, err
+	}
+	return result.RequestID, result.Active, nil
+}
+
+func (s *mcpAttachSession) fileTransferCancelPromptStarted() {
+	s.fileTransferPresentationMu.RLock()
+	presentation := s.presentation
+	s.fileTransferPresentationMu.RUnlock()
+	if presentation != nil {
+		presentation.beginCancelConfirmation()
+	}
+}
+
+func (s *mcpAttachSession) fileTransferCancelPromptFinished() {
+	s.fileTransferPresentationMu.RLock()
+	presentation := s.presentation
+	s.fileTransferPresentationMu.RUnlock()
+	if presentation != nil {
+		presentation.finishCancelConfirmation()
+	}
+}
+
+func (s *mcpAttachSession) terminalCommandActive() bool {
+	s.fileTransferPresentationMu.RLock()
+	presentation := s.presentation
+	s.fileTransferPresentationMu.RUnlock()
+	return presentation != nil && presentation.terminalCommandActive()
+}
+
+// ResolveFileTransferCancel forwards the local confirmation answer. A true
+// answer returns only after the transfer owner has released its lease.
+func (s *mcpAttachSession) ResolveFileTransferCancel(ctx context.Context, requestID string, cancelTransfer bool) (string, error) {
+	var result struct {
+		State string `json:"state"`
+	}
+	err := s.call(ctx, "terminal_resolve_file_transfer_cancel", map[string]any{
+		"session_id": s.id,
+		"request_id": requestID,
+		"cancel":     cancelTransfer,
+	}, &result)
+	return result.State, err
+}
+
+// FileTransferCancelRequested checks the Host at a safe protocol boundary.
+// The call blocks while another attachment is showing the confirmation prompt.
+func (s *mcpAttachSession) FileTransferCancelRequested() bool {
+	return s.FileTransferCancellationCheckpoint(context.Background()) != nil
+}
+
+// FileTransferCancellationCheckpoint preserves Host or MCP errors separately
+// from the context.Canceled result of an explicit user confirmation.
+func (s *mcpAttachSession) FileTransferCancellationCheckpoint(ctx context.Context) error {
+	if s.leaseOwner == "" {
+		return nil
+	}
+	var result struct {
+		Action string `json:"action"`
+	}
+	if err := s.call(ctx, "terminal_file_transfer_checkpoint", map[string]any{
+		"session_id": s.id,
+		"owner":      s.leaseOwner,
+	}, &result); err != nil {
+		return err
+	}
+	if result.Action == "cancel" {
+		return context.Canceled
+	}
+	return nil
+}
+
+// ReportFileTransferEvent forwards structured file-transfer state to the host
+// Session event stream. It never writes terminal bytes.
+func (s *mcpAttachSession) ReportFileTransferEvent(ctx context.Context, typ session.EventType, metadata map[string]any) error {
+	if s.leaseOwner == "" || s.transferID == "" {
+		return errors.New("file transfer event requires an active file-transfer lease")
+	}
+	if typ == session.EventFileTransferStarted {
+		s.fileTransferPresentationMu.Lock()
+		s.localFileTransferPresentation = true
+		presentation := s.presentation
+		s.fileTransferPresentationMu.Unlock()
+		if presentation != nil {
+			presentation.handle(session.Event{Type: typ}, true, nil)
+		}
+	}
+	err := s.call(ctx, "terminal_report_file_transfer", map[string]any{
+		"session_id":  s.id,
+		"owner":       s.leaseOwner,
+		"transfer_id": s.transferID,
+		"type":        string(typ),
+		"actor":       "user",
+		"metadata":    metadata,
+	}, nil)
+	if err != nil && typ == session.EventFileTransferStarted {
+		s.fileTransferPresentationEnded()
+	}
+	return err
+}
+
+func (s *mcpAttachSession) setFileTransferPresentation(presentation *fileTransferPresentation) {
+	s.fileTransferPresentationMu.Lock()
+	s.presentation = presentation
+	s.fileTransferPresentationMu.Unlock()
+}
+
+func (s *mcpAttachSession) fileTransferPresentationIsLocal() bool {
+	s.fileTransferPresentationMu.RLock()
+	defer s.fileTransferPresentationMu.RUnlock()
+	return s.localFileTransferPresentation
+}
+
+func (s *mcpAttachSession) fileTransferPresentationEnded() {
+	s.fileTransferPresentationMu.Lock()
+	s.localFileTransferPresentation = false
+	s.fileTransferPresentationMu.Unlock()
+}
+
+// Close records the client detachment, then releases only the MCP client
+// connection. It deliberately omits terminal_close, preserving the shared
+// Session after local detach.
+func (s *mcpAttachSession) Close() error {
+	var detachErr error
+	if s.attached {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		detachErr = s.call(ctx, "terminal_session_detach", map[string]any{"session_id": s.id, "actor": "user"}, nil)
+		cancel()
+		if detachErr == nil {
+			s.attached = false
+		}
+	}
+	return errors.Join(detachErr, s.client.Close())
+}
 
 // read decodes the lossless Base64 result emitted by the existing terminal
 // tools into the core cursor representation used by the local output loop.
@@ -666,6 +1127,22 @@ func (s *mcpAttachSession) readActivity(ctx context.Context, toolName string, cu
 	return session.ActivityChunk{Events: events, Next: session.ActivityCursor(result.Next), Dropped: result.Dropped}, nil
 }
 
+func (s *mcpAttachSession) readEvents(ctx context.Context, cursor *session.EventCursor, maxEvents int) (session.EventChunk, error) {
+	arguments := map[string]any{"session_id": s.id, "max_events": maxEvents}
+	if cursor != nil {
+		arguments["cursor"] = uint64(*cursor)
+	}
+	var result struct {
+		Events  []session.Event `json:"events"`
+		Next    uint64          `json:"next"`
+		Dropped bool            `json:"dropped"`
+	}
+	if err := s.call(ctx, "terminal_session_events", arguments, &result); err != nil {
+		return session.EventChunk{}, err
+	}
+	return session.EventChunk{Events: result.Events, Next: session.EventCursor(result.Next), Dropped: result.Dropped}, nil
+}
+
 // forwardAgentActivity waits independently from raw output and renders only
 // Agent writes. Its context is cancelled during detach so an idle activity wait
 // cannot retain the attach client after raw output forwarding has exited.
@@ -725,16 +1202,88 @@ func (s *mcpAttachSession) call(ctx context.Context, name string, arguments map[
 // connectMCPClient opens a short-lived or attached MCP HTTP client. endpoint
 // must identify a Streamable HTTP handler; this function does not open a
 // terminal Session or send terminal bytes.
-func connectMCPClient(ctx context.Context, endpoint string) (*protocol.ClientSession, error) {
+func connectMCPClient(ctx context.Context, endpoint string) (*protocol.ClientSession, bool, error) {
+	token, err := loadHTTPAuthToken()
+	if err != nil {
+		return nil, false, err
+	}
+	transport, err := newBearerTokenTransport(endpoint, token)
+	if err != nil {
+		return nil, false, err
+	}
 	client := protocol.NewClient(&protocol.Implementation{Name: "channelterm-cli", Version: version}, nil)
 	remote, err := client.Connect(ctx, &protocol.StreamableClientTransport{
 		Endpoint:             endpoint,
+		HTTPClient:           &http.Client{Transport: transport},
 		DisableStandaloneSSE: true,
 	}, nil)
 	if err != nil {
-		return nil, fmt.Errorf("connect MCP endpoint %q: %w", endpoint, err)
+		return nil, false, fmt.Errorf("connect MCP endpoint %q: %w", endpoint, err)
 	}
-	return remote, nil
+	return remote, transport.temporaryHost.Load(), nil
+}
+
+type bearerTokenTransport struct {
+	token         string
+	base          http.RoundTripper
+	origin        *url.URL
+	temporaryHost atomic.Bool
+}
+
+// newBearerTokenTransport binds one credential to the configured endpoint
+// origin. Redirected requests cannot carry it across scheme, host, or port.
+func newBearerTokenTransport(endpoint, token string) (*bearerTokenTransport, error) {
+	origin, err := url.Parse(endpoint)
+	if err != nil {
+		return nil, fmt.Errorf("parse MCP endpoint %q: %w", endpoint, err)
+	}
+	if origin.Scheme == "" || origin.Host == "" {
+		return nil, fmt.Errorf("MCP endpoint %q must include an HTTP scheme and host", endpoint)
+	}
+	if !strings.EqualFold(origin.Scheme, "http") && !strings.EqualFold(origin.Scheme, "https") {
+		return nil, fmt.Errorf("MCP endpoint %q must use http or https", endpoint)
+	}
+	return &bearerTokenTransport{token: token, base: http.DefaultTransport, origin: origin}, nil
+}
+
+// RoundTrip adds authentication only after enforcing the origin boundary and
+// records the Host lifetime signal from authenticated responses.
+func (t *bearerTokenTransport) RoundTrip(request *http.Request) (*http.Response, error) {
+	if !sameHTTPOrigin(t.origin, request.URL) {
+		return nil, fmt.Errorf("refuse to send ChannelTerm bearer token from %s to redirected origin %s", httpOrigin(t.origin), httpOrigin(request.URL))
+	}
+	request = request.Clone(request.Context())
+	request.Header.Set("Authorization", "Bearer "+t.token)
+	response, err := t.base.RoundTrip(request)
+	if err == nil && response.Header.Get(httpHostLifetimeHeader) == httpHostLifetimeAttachment {
+		t.temporaryHost.Store(true)
+	}
+	return response, err
+}
+
+// sameHTTPOrigin compares normalized HTTP origins, treating omitted default
+// ports as equivalent to their explicit forms.
+func sameHTTPOrigin(first, second *url.URL) bool {
+	return strings.EqualFold(first.Scheme, second.Scheme) &&
+		strings.EqualFold(first.Hostname(), second.Hostname()) &&
+		effectiveHTTPPort(first) == effectiveHTTPPort(second)
+}
+
+func effectiveHTTPPort(value *url.URL) string {
+	if port := value.Port(); port != "" {
+		return port
+	}
+	if strings.EqualFold(value.Scheme, "http") {
+		return "80"
+	}
+	if strings.EqualFold(value.Scheme, "https") {
+		return "443"
+	}
+	return ""
+}
+
+func httpOrigin(value *url.URL) string {
+	return strings.ToLower(value.Scheme) + "://" + value.Host
 }
 
 // callMCPTool invokes one MCP tool and decodes its structured result. It keeps
@@ -747,6 +1296,9 @@ func callMCPTool(ctx context.Context, client *protocol.ClientSession, name strin
 	}
 	if result.IsError {
 		return fmt.Errorf("MCP tool %q: %s", name, resultMessage(result))
+	}
+	if destination == nil {
+		return nil
 	}
 	encoded, err := json.Marshal(result.StructuredContent)
 	if err != nil {

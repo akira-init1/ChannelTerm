@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/akira-init1/ChannelTerm/internal/core/channel"
 	"github.com/akira-init1/ChannelTerm/internal/core/connectionpolicy"
 	"github.com/akira-init1/ChannelTerm/internal/core/device"
 	"github.com/akira-init1/ChannelTerm/internal/core/session"
@@ -32,7 +33,10 @@ func TestServerListsAndUsesTerminalTools(t *testing.T) {
 	want := map[string]bool{
 		"terminal_close": true, "terminal_list_serial_ports": true, "terminal_list_sessions": true,
 		"terminal_open_serial": true, "terminal_read": true, "terminal_read_activity": true,
-		"terminal_wait": true, "terminal_wait_activity": true, "terminal_write": true,
+		"terminal_session_events": true, "terminal_wait_file_transfer": true, "terminal_session_attach": true, "terminal_session_detach": true, "terminal_report_file_transfer": true,
+		"terminal_wait": true, "terminal_wait_activity": true, "terminal_exec": true, "terminal_write": true,
+		"terminal_write_leased": true, "terminal_acquire_lease": true, "terminal_renew_lease": true, "terminal_release_lease": true,
+		"terminal_begin_file_transfer_cancel": true, "terminal_resolve_file_transfer_cancel": true, "terminal_file_transfer_checkpoint": true,
 		"terminal_list_devices": true, "terminal_read_device_events": true, "terminal_wait_device_event": true, "terminal_get_connection_decision": true,
 	}
 	if len(listed.Tools) != len(want) {
@@ -44,6 +48,9 @@ func TestServerListsAndUsesTerminalTools(t *testing.T) {
 		}
 		if registered.Name == "terminal_wait_device_event" && !strings.Contains(registered.Description, "terminal_get_connection_decision") {
 			t.Errorf("terminal_wait_device_event description = %q, want connection-decision guidance", registered.Description)
+		}
+		if registered.Name == "terminal_wait" && !strings.Contains(registered.Description, "terminal_wait_file_transfer") {
+			t.Errorf("terminal_wait description = %q, want file-transfer wait guidance", registered.Description)
 		}
 	}
 	sessions := callTool(t, client, "terminal_list_sessions", map[string]any{})
@@ -82,7 +89,10 @@ func TestStreamableHTTPServerListsAndUsesTerminalTools(t *testing.T) {
 		want := map[string]bool{
 			"terminal_close": true, "terminal_list_serial_ports": true, "terminal_list_sessions": true,
 			"terminal_open_serial": true, "terminal_read": true, "terminal_read_activity": true,
-			"terminal_wait": true, "terminal_wait_activity": true, "terminal_write": true,
+			"terminal_session_events": true, "terminal_wait_file_transfer": true, "terminal_session_attach": true, "terminal_session_detach": true, "terminal_report_file_transfer": true,
+			"terminal_wait": true, "terminal_wait_activity": true, "terminal_exec": true, "terminal_write": true,
+			"terminal_write_leased": true, "terminal_acquire_lease": true, "terminal_renew_lease": true, "terminal_release_lease": true,
+			"terminal_begin_file_transfer_cancel": true, "terminal_resolve_file_transfer_cancel": true, "terminal_file_transfer_checkpoint": true,
 			"terminal_list_devices": true, "terminal_read_device_events": true, "terminal_wait_device_event": true, "terminal_get_connection_decision": true,
 		}
 		if len(listed.Tools) != len(want) {
@@ -109,7 +119,9 @@ func TestStreamableHTTPServerListsAndUsesTerminalTools(t *testing.T) {
 	}
 }
 
-func TestStreamableHTTPWaitCancelsAndAllowsReconnect(t *testing.T) {
+// TestStreamableHTTPWaitCancellationKeepsClientUsable verifies an HTTP
+// cancellation notification does not poison later calls on the same client.
+func TestStreamableHTTPWaitCancellationKeepsClientUsable(t *testing.T) {
 	manager, registry, device := newTestRegistry(t)
 	defer func() { _ = manager.Close() }()
 	client, closeClient := connectHTTPTestClient(t, registry)
@@ -159,17 +171,107 @@ func TestStreamableHTTPWaitCancelsAndAllowsReconnect(t *testing.T) {
 		t.Fatal("terminal_wait remained blocked after HTTP client cancellation")
 	}
 
-	if err := client.Close(); err != nil {
-		t.Fatalf("HTTP client Close() error = %v", err)
+	write, err := client.CallTool(context.Background(), &protocol.CallToolParams{Name: "terminal_write", Arguments: map[string]any{"session_id": "board", "data": "still connected\n"}})
+	if err != nil || write.IsError {
+		t.Fatalf("terminal_write after cancelled wait = %#v, %v; want success on the same client", write, err)
 	}
-	reconnected, closeReconnected := connectHTTPTestClient(t, registry)
-	defer closeReconnected()
-	listed, err := reconnected.ListTools(context.Background(), nil)
-	if err != nil || len(listed.Tools) != 13 {
-		t.Errorf("ListTools() after reconnect = %#v, %v; want thirteen tools", listed, err)
+	if got := string(device.writtenData()); got != "still connected\n" {
+		t.Errorf("device input = %q, want connection to remain usable", got)
 	}
 	if terminal, ok := manager.Get("board"); !ok || terminal.State() != session.StateOpen {
-		t.Errorf("session after HTTP disconnect = %v, registered = %t; want open managed session", terminal, ok)
+		t.Errorf("session after HTTP cancellation = %v, registered = %t; want open managed session", terminal, ok)
+	}
+}
+
+func TestStreamableHTTPWaitFileTransferReturnsCancellationResult(t *testing.T) {
+	manager, registry, _ := newTestRegistry(t)
+	defer func() { _ = manager.Close() }()
+	client, closeClient := connectHTTPTestClient(t, registry)
+	defer closeClient()
+
+	events := callTool(t, client, "terminal_session_events", map[string]any{"session_id": "board"})
+	cursor := resultNumber(t, events, "next")
+	type callResult struct {
+		result *protocol.CallToolResult
+		err    error
+	}
+	returned := make(chan callResult, 1)
+	go func() {
+		result, err := client.CallTool(context.Background(), &protocol.CallToolParams{Name: "terminal_wait_file_transfer", Arguments: map[string]any{
+			"session_id": "board", "transfer_id": "FT-cancel", "cursor": cursor, "timeout_ms": 1000,
+		}})
+		returned <- callResult{result: result, err: err}
+	}()
+	terminal, ok := manager.Get("board")
+	if !ok {
+		t.Fatal("managed Session board was not found")
+	}
+	terminal.PublishEvent(session.Event{Type: session.EventFileTransferProgress, Metadata: map[string]any{"sent": 32768, "total": 98304, "percent": 33.3}})
+	select {
+	case result := <-returned:
+		t.Fatalf("file-transfer wait returned for progress: %#v, %v", result.result, result.err)
+	case <-time.After(20 * time.Millisecond):
+	}
+	terminal.PublishEvent(session.Event{Type: session.EventFileTransferCancelled, Metadata: map[string]any{
+		"transfer_id": "FT-cancel", "reason": "user_cancelled", "transferred": 32768, "total": 98304, "percent": 33.3, "lease_released": true,
+	}})
+
+	select {
+	case result := <-returned:
+		if result.err != nil || result.result == nil || result.result.IsError {
+			t.Fatalf("terminal_wait_file_transfer result = %#v, %v", result.result, result.err)
+		}
+		if state := resultString(t, result.result, "state"); state != "cancelled" {
+			t.Fatalf("terminal_wait_file_transfer state = %q, want cancelled", state)
+		}
+		structured := result.result.StructuredContent.(map[string]any)
+		event, ok := structured["event"].(map[string]any)
+		if !ok || event["type"] != string(session.EventFileTransferCancelled) {
+			t.Fatalf("terminal_wait_file_transfer event = %#v, want FILE_TRANSFER_CANCELLED", structured["event"])
+		}
+	case <-time.After(time.Second):
+		t.Fatal("terminal_wait_file_transfer did not return after cancellation")
+	}
+}
+
+func TestStreamableHTTPWaitFileTransferReturnsResolvedSendPath(t *testing.T) {
+	manager, registry, _ := newTestRegistry(t)
+	defer func() { _ = manager.Close() }()
+	client, closeClient := connectHTTPTestClient(t, registry)
+	defer closeClient()
+
+	events := callTool(t, client, "terminal_session_events", map[string]any{"session_id": "board"})
+	cursor := resultNumber(t, events, "next")
+	terminal, ok := manager.Get("board")
+	if !ok {
+		t.Fatal("managed Session board was not found")
+	}
+	terminal.PublishEvent(session.Event{Type: session.EventFileTransferCompleted, Metadata: map[string]any{
+		"transfer_id":    "FT-send",
+		"source_path":    "app.bin",
+		"requested_path": "/tmp/cterm/mcp-files/app.bin",
+		"resolved_path":  "/tmp/cterm/mcp-files/app_1.bin",
+		"renamed":        true,
+		"sha256":         "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+	}})
+	terminal.PublishEvent(session.Event{Type: session.EventLeaseReleased, Metadata: map[string]any{"type": "file-transfer", "transfer_id": "FT-send"}})
+	result, err := client.CallTool(context.Background(), &protocol.CallToolParams{Name: "terminal_wait_file_transfer", Arguments: map[string]any{
+		"session_id": "board", "transfer_id": "FT-send", "cursor": cursor, "timeout_ms": 1000,
+	}})
+	if err != nil || result == nil || result.IsError {
+		t.Fatalf("terminal_wait_file_transfer result = %#v, %v", result, err)
+	}
+	structured := result.StructuredContent.(map[string]any)
+	if structured["state"] != "completed" || structured["transfer_id"] != "FT-send" || structured["lease_released"] != true || structured["source_path"] != "app.bin" || structured["requested_path"] != "/tmp/cterm/mcp-files/app.bin" || structured["resolved_path"] != "/tmp/cterm/mcp-files/app_1.bin" || structured["renamed"] != true || structured["sha256"] != "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef" {
+		t.Fatalf("terminal_wait_file_transfer structured result = %#v", structured)
+	}
+	event := structured["event"].(map[string]any)
+	metadata := event["metadata"].(map[string]any)
+	if _, localOK := metadata["local_path"]; localOK {
+		t.Fatalf("completed transfer metadata unexpectedly contains removed local_path: %#v", metadata)
+	}
+	if _, remoteOK := metadata["remote_path"]; remoteOK {
+		t.Fatalf("completed transfer metadata unexpectedly contains removed remote_path: %#v", metadata)
 	}
 }
 
@@ -590,7 +692,7 @@ func newFakeTransport() *fakeTransport {
 	return &fakeTransport{output: make(chan []byte, 8), closed: make(chan struct{})}
 }
 
-func (*fakeTransport) Connect(context.Context) error { return nil }
+func (t *fakeTransport) Connect(context.Context) (channel.Channel, error) { return t, nil }
 
 func (t *fakeTransport) Read(buffer []byte) (int, error) {
 	select {
@@ -609,6 +711,7 @@ func (t *fakeTransport) Write(data []byte) (int, error) {
 }
 
 func (*fakeTransport) Resize(uint16, uint16) error { return nil }
+func (*fakeTransport) State() channel.State        { return channel.StateOpen }
 
 func (t *fakeTransport) Close() error {
 	t.once.Do(func() { close(t.closed) })

@@ -10,10 +10,21 @@ The default directory is the platform directory returned by Go's `os.UserConfigD
 
 - User configuration: `config.toml`
 - Managed device identity state: `state.json`
+- Streamable HTTP bearer credential: `http-auth-token`
 
 CLI and MCP serial opens use `LoadOrCreate`, which creates a minimal `config.toml` with owner-only file permissions where the platform honors them. `channelterm list` treats a missing configuration file as an empty profile list and does not create it.
 
 `--config` and MCP `config_path` select an alternate TOML path for that operation. They do not move `state.json`.
+
+`http-auth-token` is generated from 32 random bytes and stored with owner-only permissions where
+the platform honors them. The first HTTP Host, built-in HTTP client, or HTTP selection in
+`channelterm init --mcp` or `channelterm init --mcp-show` creates it when absent.
+`CHANNELTERM_HTTP_AUTH_TOKEN` overrides this file for all these uses. Creation holds an adjacent
+`http-auth-token.lock` file and installs a fully written,
+synchronized temporary file, so concurrent first use cannot expose a partial credential. The stored
+value must decode to exactly 32 bytes of unpadded Base64URL. The token is authentication material and
+must not be committed or copied into logs. The HTTP selection in `init --mcp-show` intentionally
+includes it in generated configurations, so that output must be handled as a secret.
 
 ## TOML schema
 
@@ -72,6 +83,13 @@ built-in serial defaults
 Only explicitly present flags or JSON properties override profile values. The port in a target-first `connect` or `attach SER-*` operation is always selected by that target.
 
 `--save NAME` or MCP `save` writes the final resolved profile before opening the transport. It creates or replaces `serial.profiles.NAME`. If `serial.default` is empty, the saved name becomes the default. Existing configuration is otherwise read-only.
+
+Writes use a synchronized temporary file in the same directory followed by replacement. Unix
+targets provide atomic rename and directory synchronization. Windows receives a fully synchronized
+replacement file but Go does not guarantee that the final rename is atomic and does not expose a
+portable directory-sync operation. Profile saving also holds an adjacent `config.toml.lock` file
+across the latest read, profile merge, and write, so concurrent ChannelTerm processes preserve
+unrelated profile updates. Lock files contain no configuration or credential data.
 
 Saving a serial profile does not create an empty `[preferences]` table. User
 preferences never supply serial values and do not participate in profile

@@ -8,12 +8,19 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/akira-init1/ChannelTerm/internal/core/config"
 	"github.com/akira-init1/ChannelTerm/internal/core/connectionpolicy"
 	"github.com/akira-init1/ChannelTerm/internal/core/device"
 	"github.com/akira-init1/ChannelTerm/internal/core/session"
 	serialtransport "github.com/akira-init1/ChannelTerm/internal/core/transport/serial"
+)
+
+const (
+	// MaxSessionWriteBytes is the largest payload accepted by one application
+	// write operation, including writes authorized by a Session lease.
+	MaxSessionWriteBytes = 1 * 1024 * 1024
 )
 
 var (
@@ -26,6 +33,9 @@ var (
 	// ErrSessionNotFound is returned when a Session use case receives no active
 	// Session ID or short reference owned by the Application's Manager.
 	ErrSessionNotFound = errors.New("application session not found")
+	// ErrWritePayloadTooLarge is returned before a Session write when its payload
+	// exceeds MaxSessionWriteBytes.
+	ErrWritePayloadTooLarge = errors.New("session write payload exceeds maximum size")
 )
 
 // Dependencies supplies the Core capabilities assembled into an Application.
@@ -52,6 +62,7 @@ type Dependencies struct {
 // lifetime; the Composition Root owns the supplied Manager and Registry.
 type Application struct {
 	serial          *SerialService
+	leases          *leaseCoordinator
 	devices         *device.Registry
 	policy          connectionpolicy.Policy
 	listSerialPorts func() ([]serialtransport.Port, error)
@@ -81,12 +92,15 @@ func New(dependencies Dependencies) (*Application, error) {
 	if listPorts == nil {
 		listPorts = serialtransport.ListPorts
 	}
-	return &Application{
+	application := &Application{
 		serial:          serial,
+		leases:          newLeaseCoordinator(),
 		devices:         dependencies.Devices,
 		policy:          policy,
 		listSerialPorts: listPorts,
-	}, nil
+	}
+	application.leases.onExpired = application.publishExpiredLease
+	return application, nil
 }
 
 // OpenSerial resolves a profile and explicit overrides, opens or reuses a
@@ -144,14 +158,138 @@ func (a *Application) ReadSessionActivity(ctx context.Context, identifier string
 	return terminal.ReadActivity(ctx, *cursor, maxEvents)
 }
 
-// WriteSession writes one complete payload to a managed Session.
+// ReadSessionEvents returns retained structured Session events or waits after
+// the supplied cursor. A nil cursor reads the newest retained events. Events
+// are separate from raw output and activity, so each observer has an
+// independent cursor and cannot consume terminal data for another client.
+func (a *Application) ReadSessionEvents(ctx context.Context, identifier string, cursor *session.EventCursor, maxEvents int) (session.EventChunk, error) {
+	terminal, err := a.session(identifier)
+	if err != nil {
+		return session.EventChunk{}, err
+	}
+	if cursor == nil {
+		return terminal.ReadRecentEvents(maxEvents)
+	}
+	return terminal.ReadEvents(ctx, *cursor, maxEvents)
+}
+
+// AttachSession records one adapter attachment to an active Session. It does
+// not acquire writer ownership or alter Session lifecycle; it only publishes
+// observer-visible metadata on the separate Session event stream.
+func (a *Application) AttachSession(identifier, actor string) error {
+	terminal, err := a.session(identifier)
+	if err != nil {
+		return err
+	}
+	terminal.PublishEvent(session.Event{Type: session.EventSessionAttached, Actor: eventActor(actor)})
+	return nil
+}
+
+// DetachSession records one adapter detachment from an active Session. It does
+// not close the shared Session or affect any other attachment.
+func (a *Application) DetachSession(identifier, actor string) error {
+	terminal, err := a.session(identifier)
+	if err != nil {
+		return err
+	}
+	terminal.PublishEvent(session.Event{Type: session.EventSessionDetached, Actor: eventActor(actor)})
+	return nil
+}
+
+// ReportFileTransferEvent publishes one validated file-transfer transition on
+// the Session event stream. owner and transferID must match the active
+// file-transfer lease. Metadata is presentation data only and must not include
+// transfer payload bytes or lease owner capabilities.
+func (a *Application) ReportFileTransferEvent(identifier, owner, transferID string, typ session.EventType, actor string, metadata map[string]any) error {
+	switch typ {
+	case session.EventFileTransferStarted, session.EventFileTransferProgress, session.EventFileTransferCompleted, session.EventFileTransferFailed:
+	default:
+		return fmt.Errorf("unsupported file transfer event type %q", typ)
+	}
+	terminal, err := a.session(identifier)
+	if err != nil {
+		return err
+	}
+	transferID = strings.TrimSpace(transferID)
+	if err := a.leases.validateFileTransferReporter(terminal.ID(), owner, transferID); err != nil {
+		return err
+	}
+	eventMetadata := copyFileTransferEventMetadata(metadata)
+	eventMetadata["transfer_id"] = transferID
+	if typ == session.EventFileTransferCompleted {
+		if err := validateCompletedFileTransferMetadata(eventMetadata); err != nil {
+			return err
+		}
+	}
+	a.leases.recordFileTransferProgress(terminal.ID(), eventMetadata)
+	// A Host-confirmed cancellation is emitted after lease release below. Do
+	// not expose the transfer process's context cancellation as a duplicate
+	// failure before cleanup has completed.
+	if typ == session.EventFileTransferFailed && a.leases.fileTransferCancelConfirmed(terminal.ID()) {
+		return nil
+	}
+	terminal.PublishEvent(session.Event{Type: typ, Actor: eventActor(actor), Metadata: eventMetadata})
+	return nil
+}
+
+func copyFileTransferEventMetadata(metadata map[string]any) map[string]any {
+	copy := make(map[string]any, len(metadata)+1)
+	for key, value := range metadata {
+		copy[key] = value
+	}
+	return copy
+}
+
+func validateCompletedFileTransferMetadata(metadata map[string]any) error {
+	for _, field := range []string{"source_path", "requested_path", "resolved_path"} {
+		value, ok := metadata[field].(string)
+		if !ok || strings.TrimSpace(value) == "" {
+			return fmt.Errorf("completed file transfer requires non-empty string %s", field)
+		}
+	}
+	if _, ok := metadata["renamed"].(bool); !ok {
+		return errors.New("completed file transfer requires boolean renamed")
+	}
+	return nil
+}
+
+func eventActor(actor string) string {
+	actor = strings.TrimSpace(actor)
+	if actor == "" {
+		return string(session.ActorSystem)
+	}
+	return actor
+}
+
+// WriteSession writes one complete payload to a managed Session. It rejects
+// writes while another operation owns an exclusive lease.
 //
 // ctx is checked before the operation and between short-write retries. The
 // Session retains responsibility for serializing concurrent writers and for
-// recording the supplied Actor; Application never changes request.Data.
+// recording the supplied Actor; Application never changes request.Data. A
+// request larger than MaxSessionWriteBytes returns ErrWritePayloadTooLarge
+// without looking up or writing to a Session.
 func (a *Application) WriteSession(ctx context.Context, identifier string, request session.WriteRequest) (int, error) {
+	return a.writeSession(ctx, identifier, "", request)
+}
+
+// WriteSessionWithLease writes one complete payload using owner as the
+// capability for an active lease on identifier. owner must match the active
+// lease exactly; ordinary writes must continue to use WriteSession. It applies
+// the same MaxSessionWriteBytes limit as WriteSession.
+func (a *Application) WriteSessionWithLease(ctx context.Context, identifier, owner string, request session.WriteRequest) (int, error) {
+	if strings.TrimSpace(owner) == "" {
+		return 0, ErrInvalidLeaseOwner
+	}
+	return a.writeSession(ctx, identifier, owner, request)
+}
+
+func (a *Application) writeSession(ctx context.Context, identifier, owner string, request session.WriteRequest) (int, error) {
 	if err := ctx.Err(); err != nil {
 		return 0, err
+	}
+	if len(request.Data) > MaxSessionWriteBytes {
+		return 0, fmt.Errorf("%w: got %d bytes, maximum %d", ErrWritePayloadTooLarge, len(request.Data), MaxSessionWriteBytes)
 	}
 	terminal, err := a.session(identifier)
 	if err != nil {
@@ -160,23 +298,208 @@ func (a *Application) WriteSession(ctx context.Context, identifier string, reque
 	if !request.Actor.Valid() {
 		return 0, session.ErrInvalidActor
 	}
-	remaining := request.Data
-	written := 0
-	for len(remaining) > 0 {
-		if err := ctx.Err(); err != nil {
-			return written, err
+	return a.leases.write(terminal.ID(), owner, strings.TrimSpace(identifier), func() (int, error) {
+		remaining := request.Data
+		written := 0
+		for len(remaining) > 0 {
+			if err := ctx.Err(); err != nil {
+				return written, err
+			}
+			n, err := terminal.Write(session.WriteRequest{Actor: request.Actor, Data: remaining})
+			written += n
+			if err != nil {
+				return written, err
+			}
+			if n <= 0 {
+				return written, io.ErrShortWrite
+			}
+			remaining = remaining[n:]
 		}
-		n, err := terminal.Write(session.WriteRequest{Actor: request.Actor, Data: remaining})
-		written += n
-		if err != nil {
-			return written, err
-		}
-		if n <= 0 {
-			return written, io.ErrShortWrite
-		}
-		remaining = remaining[n:]
+		return written, nil
+	})
+}
+
+// AcquireLease creates one exclusive application-level lease for an active
+// Session. It does not affect readers, raw output, or Session lifecycle.
+func (a *Application) AcquireLease(identifier, owner string, typ LeaseType) (SessionLease, error) {
+	terminal, err := a.session(identifier)
+	if err != nil {
+		return SessionLease{}, err
 	}
-	return written, nil
+	presentationCursor := sessionOutputCursor(terminal)
+	lease, err := a.leases.acquire(terminal.ID(), owner, typ)
+	if err != nil {
+		return SessionLease{}, err
+	}
+	terminal.PublishEvent(session.Event{
+		Type:  session.EventLeaseAcquired,
+		Actor: string(session.ActorSystem),
+		Metadata: fileTransferLeaseEventMetadata(lease, map[string]any{
+			"type":          string(lease.Type),
+			"created_at":    lease.CreatedAt.Format(time.RFC3339Nano),
+			"expires_at":    lease.ExpiresAt.Format(time.RFC3339Nano),
+			"state":         lease.State,
+			"output_cursor": uint64(presentationCursor),
+		}),
+	})
+	return lease, nil
+}
+
+// RenewLease extends an active lease only when owner matches its opaque
+// capability. Callers must renew before ExpiresAt to retain writer ownership.
+func (a *Application) RenewLease(identifier, owner string) (SessionLease, error) {
+	terminal, err := a.session(identifier)
+	if err != nil {
+		return SessionLease{}, err
+	}
+	return a.leases.renew(terminal.ID(), owner)
+}
+
+// ReleaseLease releases identifier's lease only when owner matches its owner
+// capability. Releasing an already absent lease is successful and idempotent.
+func (a *Application) ReleaseLease(identifier, owner string) error {
+	terminal, err := a.session(identifier)
+	if err != nil {
+		return err
+	}
+	lease, released, cancelled, err := a.leases.release(terminal.ID(), owner)
+	if err != nil {
+		return err
+	}
+	if released {
+		presentationCursor := sessionOutputCursor(terminal)
+		terminal.PublishEvent(session.Event{
+			Type:  session.EventLeaseReleased,
+			Actor: string(session.ActorSystem),
+			Metadata: fileTransferLeaseEventMetadata(lease, map[string]any{
+				"type":          string(lease.Type),
+				"created_at":    lease.CreatedAt.Format(time.RFC3339Nano),
+				"state":         "released",
+				"output_cursor": uint64(presentationCursor),
+			}),
+		})
+		if cancelled != nil {
+			terminal.PublishEvent(session.Event{
+				Type:  session.EventFileTransferCancelled,
+				Actor: string(session.ActorUser),
+				Metadata: map[string]any{
+					"transfer_id":    lease.TransferID,
+					"transferred":    cancelled.Transferred,
+					"total":          cancelled.Total,
+					"percent":        cancelled.Percent,
+					"reason":         "user_cancelled",
+					"lease_released": true,
+				},
+			})
+		}
+	}
+	return nil
+}
+
+func fileTransferLeaseEventMetadata(lease SessionLease, metadata map[string]any) map[string]any {
+	if lease.TransferID != "" {
+		metadata["transfer_id"] = lease.TransferID
+	}
+	return metadata
+}
+
+func (a *Application) publishExpiredLease(lease SessionLease, abortSession bool) {
+	if abortSession {
+		// Expiry must not wait for the per-Session lease gate: the active write
+		// holds it until Channel.Write returns. Close runs asynchronously so the
+		// Channel is released first, which unblocks the write and lets lease-state
+		// cleanup acquire the gate afterward.
+		defer func() { go a.closeSessionAfterExpiredWrite(lease.SessionID) }()
+	}
+	terminal, err := a.session(lease.SessionID)
+	if err != nil {
+		return
+	}
+	presentationCursor := sessionOutputCursor(terminal)
+	if lease.Type == LeaseTypeFileTransfer {
+		terminal.PublishEvent(session.Event{
+			Type:  session.EventFileTransferFailed,
+			Actor: string(session.ActorSystem),
+			Metadata: map[string]any{
+				"transfer_id":    lease.TransferID,
+				"error":          "lease expired",
+				"reason":         "lease_expired",
+				"lease_released": true,
+			},
+		})
+	}
+	terminal.PublishEvent(session.Event{
+		Type:  session.EventLeaseReleased,
+		Actor: string(session.ActorSystem),
+		Metadata: fileTransferLeaseEventMetadata(lease, map[string]any{
+			"type":          string(lease.Type),
+			"created_at":    lease.CreatedAt.Format(time.RFC3339Nano),
+			"expires_at":    lease.ExpiresAt.Format(time.RFC3339Nano),
+			"state":         "expired",
+			"output_cursor": uint64(presentationCursor),
+		}),
+	})
+}
+
+// closeSessionAfterExpiredWrite removes the Manager-owned Session before
+// clearing its recovering lease state. Session.Close interrupts the write that
+// still holds the lease gate, after which remove can acquire that gate safely.
+func (a *Application) closeSessionAfterExpiredWrite(sessionID string) {
+	_, _ = a.serial.CloseSession(sessionID)
+	a.leases.remove(sessionID)
+}
+
+// BeginFileTransferCancel atomically opens a confirmation request only when
+// identifier currently has an active file-transfer lease. Ordinary terminal
+// input can therefore preserve its existing Ctrl+C byte semantics.
+func (a *Application) BeginFileTransferCancel(identifier string) (FileTransferCancelRequest, error) {
+	terminal, err := a.session(identifier)
+	if err != nil {
+		return FileTransferCancelRequest{}, err
+	}
+	return a.leases.beginFileTransferCancel(terminal.ID())
+}
+
+// ResolveFileTransferCancel answers a Host-owned confirmation. A negative
+// answer resumes immediately. A positive answer waits until the transfer owner
+// restores protocol state and releases its lease.
+func (a *Application) ResolveFileTransferCancel(ctx context.Context, identifier, requestID string, cancel bool) (FileTransferCancelResolution, error) {
+	terminal, err := a.session(identifier)
+	if err != nil {
+		return FileTransferCancelResolution{}, err
+	}
+	return a.leases.resolveFileTransferCancel(ctx, terminal.ID(), requestID, cancel)
+}
+
+// FileTransferCheckpoint blocks a lease owner at a safe protocol boundary
+// while a user confirmation is pending, then returns continue or cancel.
+func (a *Application) FileTransferCheckpoint(ctx context.Context, identifier, owner string) (FileTransferControlAction, error) {
+	terminal, err := a.session(identifier)
+	if err != nil {
+		return "", err
+	}
+	return a.leases.fileTransferCheckpoint(ctx, terminal.ID(), owner)
+}
+
+// sessionOutputCursor snapshots the current raw-output tail for presentation
+// metadata. It does not consume output or alter any reader's independent
+// cursor; an unavailable snapshot merely falls back to the zero cursor.
+func sessionOutputCursor(terminal session.Session) session.OutputCursor {
+	chunk, err := terminal.ReadRecent(1)
+	if err != nil {
+		return 0
+	}
+	return chunk.Next
+}
+
+// LeaseStatus reports identifier's current exclusive lease, if any.
+func (a *Application) LeaseStatus(identifier string) (SessionLease, bool, error) {
+	terminal, err := a.session(identifier)
+	if err != nil {
+		return SessionLease{}, false, err
+	}
+	lease, ok := a.leases.status(terminal.ID())
+	return lease, ok, nil
 }
 
 // CloseSession removes and closes a managed Session identified by its opaque
@@ -191,12 +514,13 @@ func (a *Application) CloseSession(identifier string) (session.SessionInfo, erro
 		if info.ID != identifier && info.Metadata.Reference != identifier {
 			continue
 		}
-		closed, err := a.serial.CloseSession(identifier)
-		if err != nil {
-			return session.SessionInfo{}, err
-		}
+		closed, closeErr := a.serial.CloseSession(identifier)
 		if !closed {
 			return session.SessionInfo{}, ErrSessionNotFound
+		}
+		a.leases.remove(info.ID)
+		if closeErr != nil {
+			return session.SessionInfo{}, closeErr
 		}
 		return info, nil
 	}

@@ -8,6 +8,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/akira-init1/ChannelTerm/internal/core/channel"
 )
 
 func TestCoreConnectAndOutput(t *testing.T) {
@@ -174,6 +176,55 @@ func TestCoreActivityCursorsAreIndependentAndReportOverflow(t *testing.T) {
 	}
 }
 
+func TestCoreActivityBufferBoundsRetainedPayloadBytes(t *testing.T) {
+	terminal := newFakeTransport()
+	s, err := New("board-1", terminal, WithActivityBufferCapacity(10), WithActivityBufferByteCapacity(6))
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	if err := s.Connect(context.Background()); err != nil {
+		t.Fatalf("Connect() error = %v", err)
+	}
+	defer s.Close()
+
+	for _, payload := range []string{"one", "two", "three"} {
+		if _, err := s.Write(WriteRequest{Actor: ActorAgent, Data: []byte(payload)}); err != nil {
+			t.Fatalf("Write(%q) error = %v", payload, err)
+		}
+	}
+
+	activity, err := s.ReadActivity(context.Background(), 0, 10)
+	if err != nil {
+		t.Fatalf("ReadActivity() error = %v", err)
+	}
+	if !activity.Dropped || activity.Next != 3 || len(activity.Events) != 1 || string(activity.Events[0].Data) != "three" {
+		t.Errorf("activity = %+v, want dropped event three through cursor 3", activity)
+	}
+}
+
+func TestCoreActivityBufferDropsSingleOversizedPayload(t *testing.T) {
+	terminal := newFakeTransport()
+	s, err := New("board-1", terminal, WithActivityBufferByteCapacity(4))
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	if err := s.Connect(context.Background()); err != nil {
+		t.Fatalf("Connect() error = %v", err)
+	}
+	defer s.Close()
+
+	if _, err := s.Write(WriteRequest{Actor: ActorAgent, Data: []byte("oversized")}); err != nil {
+		t.Fatalf("Write() error = %v", err)
+	}
+	activity, err := s.ReadActivity(context.Background(), 0, 1)
+	if err != nil {
+		t.Fatalf("ReadActivity() error = %v", err)
+	}
+	if !activity.Dropped || activity.Next != 1 || len(activity.Events) != 0 {
+		t.Errorf("activity = %+v, want dropped empty chunk through cursor 1", activity)
+	}
+}
+
 func TestCoreSlowActivityConsumerDoesNotBlockWriteAndCloseReleasesWaiter(t *testing.T) {
 	terminal := newFakeTransport()
 	s, err := New("board-1", terminal)
@@ -234,6 +285,92 @@ func TestCoreSlowActivityConsumerDoesNotBlockWriteAndCloseReleasesWaiter(t *test
 	}
 }
 
+func TestCorePublishesStructuredEventsWithoutTerminalOutput(t *testing.T) {
+	terminal := newFakeTransport()
+	s, err := New("board-1", terminal)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Connect(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+
+	s.PublishEvent(Event{Type: EventSessionAttached, Actor: "user", Metadata: map[string]any{"client": "cli"}})
+	chunk, err := s.ReadEvents(context.Background(), 0, 1)
+	if err != nil {
+		t.Fatalf("ReadEvents() error = %v", err)
+	}
+	if len(chunk.Events) != 1 || chunk.Events[0].ID != 0 || chunk.Events[0].SessionID != "board-1" || chunk.Events[0].Type != EventSessionAttached || chunk.Events[0].Metadata["client"] != "cli" {
+		t.Errorf("event = %+v, want attached event for board-1", chunk.Events)
+	}
+	output, err := s.ReadRecent(64)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(output.Data) != 0 {
+		t.Errorf("terminal output = %q, want no event data", output.Data)
+	}
+}
+
+func TestCoreEventCursorsAreIndependentForMultipleObservers(t *testing.T) {
+	terminal := newFakeTransport()
+	s, err := New("board-1", terminal)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Connect(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	s.PublishEvent(Event{Type: EventSessionAttached, Actor: "user"})
+	s.PublishEvent(Event{Type: EventLeaseAcquired, Actor: "system"})
+
+	first, err := s.ReadEvents(context.Background(), 0, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := s.ReadEvents(context.Background(), 0, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(first.Events) != 2 || len(second.Events) != 2 || first.Events[0].Type != second.Events[0].Type || first.Next != second.Next {
+		t.Errorf("independent event reads = %+v / %+v, want identical two-event snapshots", first, second)
+	}
+}
+
+func TestCoreSlowEventObserverDoesNotBlockPublish(t *testing.T) {
+	terminal := newFakeTransport()
+	s, err := New("board-1", terminal, WithEventBufferCapacity(2))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Connect(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+
+	published := make(chan struct{})
+	go func() {
+		for range 3 {
+			s.PublishEvent(Event{Type: EventFileTransferProgress, Actor: "user"})
+		}
+		close(published)
+	}()
+	select {
+	case <-published:
+	case <-time.After(time.Second):
+		t.Fatal("slow event observer blocked Session event publication")
+	}
+	chunk, err := s.ReadEvents(context.Background(), 0, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !chunk.Dropped || len(chunk.Events) != 2 || chunk.Next != 3 {
+		t.Errorf("slow observer chunk = %+v, want dropped tail through cursor 3", chunk)
+	}
+}
+
 func TestCoreCloseIsIdempotentAndStopsReader(t *testing.T) {
 	terminal := newFakeTransport()
 	s, err := New("board-1", terminal)
@@ -288,6 +425,40 @@ func TestCoreConnectHonorsCancelledContext(t *testing.T) {
 	}
 	if got := s.State(); got != StateFailed {
 		t.Errorf("State() = %s, want %s", got, StateFailed)
+	}
+	if err := s.Close(); err != nil {
+		t.Fatalf("Close() error = %v", err)
+	}
+}
+
+func TestCoreConnectRejectsNilChannel(t *testing.T) {
+	s, err := New("board-1", nilChannelTransport{})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	if err := s.Connect(context.Background()); !errors.Is(err, ErrNilChannel) {
+		t.Errorf("Connect() error = %v, want ErrNilChannel", err)
+	}
+	if got := s.State(); got != StateFailed {
+		t.Errorf("State() = %s, want %s", got, StateFailed)
+	}
+}
+
+func TestCoreTreatsResizeAsOptionalChannelCapability(t *testing.T) {
+	underlying := newFakeTransport()
+	stream, err := channel.NewStream(underlying)
+	if err != nil {
+		t.Fatalf("channel.NewStream() error = %v", err)
+	}
+	s, err := New("board-1", fixedChannelTransport{stream: stream})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	if err := s.Connect(context.Background()); err != nil {
+		t.Fatalf("Connect() error = %v", err)
+	}
+	if err := s.Resize(80, 24); !errors.Is(err, channel.ErrResizeUnsupported) {
+		t.Errorf("Resize() error = %v, want channel.ErrResizeUnsupported", err)
 	}
 	if err := s.Close(); err != nil {
 		t.Fatalf("Close() error = %v", err)
@@ -591,6 +762,18 @@ func TestNewRejectsInvalidArguments(t *testing.T) {
 	}
 }
 
+type nilChannelTransport struct{}
+
+func (nilChannelTransport) Connect(context.Context) (channel.Channel, error) { return nil, nil }
+
+type fixedChannelTransport struct {
+	stream channel.Channel
+}
+
+func (t fixedChannelTransport) Connect(context.Context) (channel.Channel, error) {
+	return t.stream, nil
+}
+
 // fakeTransport provides controllable blocking reads and recorded writes so
 // Session lifecycle tests exercise concurrency without a physical endpoint.
 type fakeTransport struct {
@@ -650,7 +833,7 @@ func newBlockedWriteTransport() *blockedWriteTransport {
 	return &blockedWriteTransport{writeStarted: make(chan struct{}), closed: make(chan struct{})}
 }
 
-func (t *blockedWriteTransport) Connect(context.Context) error { return nil }
+func (t *blockedWriteTransport) Connect(context.Context) (channel.Channel, error) { return t, nil }
 func (t *blockedWriteTransport) Read([]byte) (int, error) {
 	<-t.closed
 	return 0, io.EOF
@@ -669,6 +852,7 @@ func (t *blockedWriteTransport) Close() error {
 	t.closeOnce.Do(func() { close(t.closed) })
 	return nil
 }
+func (*blockedWriteTransport) State() channel.State { return channel.StateOpen }
 
 // newFakeTransport creates independent channels for each test so Close can
 // deterministically release a blocked Read.
@@ -679,7 +863,7 @@ func newFakeTransport() *fakeTransport {
 	}
 }
 
-func (f *fakeTransport) Connect(context.Context) error { return nil }
+func (f *fakeTransport) Connect(context.Context) (channel.Channel, error) { return f, nil }
 
 func (f *fakeTransport) Read(p []byte) (int, error) {
 	select {
@@ -712,6 +896,8 @@ func (f *fakeTransport) Close() error {
 	return nil
 }
 
+func (*fakeTransport) State() channel.State { return channel.StateOpen }
+
 func (f *fakeTransport) emit(data []byte) {
 	f.output <- append([]byte(nil), data...)
 }
@@ -740,7 +926,7 @@ type zeroProgressTransport struct {
 	reads atomic.Int64
 }
 
-func (t *zeroProgressTransport) Connect(context.Context) error { return nil }
+func (t *zeroProgressTransport) Connect(context.Context) (channel.Channel, error) { return t, nil }
 func (t *zeroProgressTransport) Read([]byte) (int, error) {
 	t.reads.Add(1)
 	return 0, nil
@@ -748,23 +934,31 @@ func (t *zeroProgressTransport) Read([]byte) (int, error) {
 func (t *zeroProgressTransport) Write(p []byte) (int, error) { return len(p), nil }
 func (t *zeroProgressTransport) Resize(uint16, uint16) error { return nil }
 func (t *zeroProgressTransport) Close() error                { return nil }
+func (*zeroProgressTransport) State() channel.State          { return channel.StateOpen }
 
 // failingTransport returns a prescribed reader failure to test Core's failed
 // state and error propagation independently of transport implementation.
 type failingTransport struct {
-	readErr error
-	closes  atomic.Int64
+	readErr   error
+	readReady <-chan struct{}
+	closes    atomic.Int64
 }
 
-func (t *failingTransport) Connect(context.Context) error { return nil }
-func (t *failingTransport) Read([]byte) (int, error)      { return 0, t.readErr }
-func (t *failingTransport) Write(p []byte) (int, error)   { return len(p), nil }
-func (t *failingTransport) Resize(uint16, uint16) error   { return nil }
+func (t *failingTransport) Connect(context.Context) (channel.Channel, error) { return t, nil }
+func (t *failingTransport) Read([]byte) (int, error) {
+	if t.readReady != nil {
+		<-t.readReady
+	}
+	return 0, t.readErr
+}
+func (t *failingTransport) Write(p []byte) (int, error) { return len(p), nil }
+func (t *failingTransport) Resize(uint16, uint16) error { return nil }
 func (t *failingTransport) Close() error {
 	t.closes.Add(1)
 	return nil
 }
-func (t *failingTransport) closeCount() int { return int(t.closes.Load()) }
+func (t *failingTransport) closeCount() int    { return int(t.closes.Load()) }
+func (*failingTransport) State() channel.State { return channel.StateOpen }
 
 // burstTransport emits a finite stream without blocking so tests can exercise
 // high-volume reader behavior and buffer retention deterministically.
@@ -773,7 +967,7 @@ type burstTransport struct {
 	reads     atomic.Int64
 }
 
-func (t *burstTransport) Connect(context.Context) error { return nil }
+func (t *burstTransport) Connect(context.Context) (channel.Channel, error) { return t, nil }
 func (t *burstTransport) Read(p []byte) (int, error) {
 	if t.remaining == 0 {
 		return 0, io.EOF
@@ -789,3 +983,12 @@ func (t *burstTransport) Read(p []byte) (int, error) {
 func (t *burstTransport) Write(p []byte) (int, error) { return len(p), nil }
 func (t *burstTransport) Resize(uint16, uint16) error { return nil }
 func (t *burstTransport) Close() error                { return nil }
+func (*burstTransport) State() channel.State          { return channel.StateOpen }
+
+func (t *shortWriteTransport) Connect(context.Context) (channel.Channel, error) {
+	return t, nil
+}
+
+func (t *partialWriteTransport) Connect(context.Context) (channel.Channel, error) {
+	return t, nil
+}

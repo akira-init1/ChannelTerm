@@ -100,7 +100,11 @@ func claudeEntry(endpoint Endpoint) (map[string]any, error) {
 	case TransportStdio:
 		return map[string]any{"command": endpoint.Command, "args": endpoint.Args}, nil
 	case TransportStreamableHTTP:
-		return map[string]any{"type": "http", "url": endpoint.URL}, nil
+		entry := map[string]any{"type": "http", "url": endpoint.URL}
+		if headers := cloneHeaders(endpoint.Headers); headers != nil {
+			entry["headers"] = headers
+		}
+		return entry, nil
 	default:
 		return nil, fmt.Errorf("unsupported Claude Code transport %q", endpoint.Transport)
 	}

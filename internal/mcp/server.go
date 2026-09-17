@@ -5,6 +5,7 @@
 package mcp
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -59,12 +60,93 @@ func NewStreamableHTTPHandler(registry *tool.Registry) (http.Handler, error) {
 	if err != nil {
 		return nil, err
 	}
-	return protocol.NewStreamableHTTPHandler(func(*http.Request) *protocol.Server {
+	handler := protocol.NewStreamableHTTPHandler(func(*http.Request) *protocol.Server {
 		return server
 	}, &protocol.StreamableHTTPOptions{
 		Stateless:                    true,
 		PropagateRequestCancellation: true,
-	}), nil
+	})
+	return repairCancellationNotificationMetadata(handler), nil
+}
+
+const maxCancellationNotificationBytes = 64 * 1024
+
+// repairCancellationNotificationMetadata supplies metadata omitted by the MCP
+// Go SDK v1.7 client when it cancels a >= 2026-07-28 Streamable HTTP request.
+// Without this narrow compatibility repair, the SDK server rejects its own
+// notifications/cancelled message with HTTP 400 and the client permanently
+// marks an otherwise healthy attachment connection as failed.
+func repairCancellationNotificationMetadata(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		if request.Method != http.MethodPost ||
+			request.Header.Get("Mcp-Method") != "notifications/cancelled" ||
+			request.Header.Get("Mcp-Protocol-Version") < "2026-07-28" ||
+			request.ContentLength < 0 || request.ContentLength > maxCancellationNotificationBytes {
+			next.ServeHTTP(response, request)
+			return
+		}
+
+		body, err := io.ReadAll(request.Body)
+		if err != nil {
+			http.Error(response, "failed to read cancellation notification", http.StatusBadRequest)
+			return
+		}
+		request.Body = io.NopCloser(bytes.NewReader(body))
+		var envelope map[string]json.RawMessage
+		if json.Unmarshal(body, &envelope) != nil {
+			next.ServeHTTP(response, request)
+			return
+		}
+		var method string
+		if json.Unmarshal(envelope["method"], &method) != nil || method != "notifications/cancelled" {
+			next.ServeHTTP(response, request)
+			return
+		}
+		var params map[string]json.RawMessage
+		if json.Unmarshal(envelope["params"], &params) != nil {
+			next.ServeHTTP(response, request)
+			return
+		}
+		var metadata map[string]json.RawMessage
+		if rawMetadata, ok := params["_meta"]; ok {
+			if json.Unmarshal(rawMetadata, &metadata) != nil {
+				next.ServeHTTP(response, request)
+				return
+			}
+		} else {
+			metadata = make(map[string]json.RawMessage)
+		}
+		if _, ok := metadata[protocol.MetaKeyProtocolVersion]; ok {
+			next.ServeHTTP(response, request)
+			return
+		}
+		version, err := json.Marshal(request.Header.Get("Mcp-Protocol-Version"))
+		if err != nil {
+			next.ServeHTTP(response, request)
+			return
+		}
+		metadata[protocol.MetaKeyProtocolVersion] = version
+		encodedMetadata, err := json.Marshal(metadata)
+		if err != nil {
+			next.ServeHTTP(response, request)
+			return
+		}
+		params["_meta"] = encodedMetadata
+		encodedParams, err := json.Marshal(params)
+		if err != nil {
+			next.ServeHTTP(response, request)
+			return
+		}
+		envelope["params"] = encodedParams
+		repaired, err := json.Marshal(envelope)
+		if err != nil {
+			next.ServeHTTP(response, request)
+			return
+		}
+		request.Body = io.NopCloser(bytes.NewReader(repaired))
+		request.ContentLength = int64(len(repaired))
+		next.ServeHTTP(response, request)
+	})
 }
 
 // Run serves one MCP client over transport until it disconnects or ctx ends.
@@ -129,7 +211,59 @@ func newAdapter(registry *tool.Registry) (*adapter, error) {
 	if err != nil {
 		return nil, err
 	}
+	readEvents, err := lookup("terminal_session_events")
+	if err != nil {
+		return nil, err
+	}
+	waitFileTransfer, err := lookup("terminal_wait_file_transfer")
+	if err != nil {
+		return nil, err
+	}
+	attachSession, err := lookup("terminal_session_attach")
+	if err != nil {
+		return nil, err
+	}
+	detachSession, err := lookup("terminal_session_detach")
+	if err != nil {
+		return nil, err
+	}
+	reportFileTransfer, err := lookup("terminal_report_file_transfer")
+	if err != nil {
+		return nil, err
+	}
+	executeCommand, err := lookup("terminal_exec")
+	if err != nil {
+		return nil, err
+	}
 	write, err := lookup("terminal_write")
+	if err != nil {
+		return nil, err
+	}
+	writeLeased, err := lookup("terminal_write_leased")
+	if err != nil {
+		return nil, err
+	}
+	acquireLease, err := lookup("terminal_acquire_lease")
+	if err != nil {
+		return nil, err
+	}
+	renewLease, err := lookup("terminal_renew_lease")
+	if err != nil {
+		return nil, err
+	}
+	beginFileTransferCancel, err := lookup("terminal_begin_file_transfer_cancel")
+	if err != nil {
+		return nil, err
+	}
+	resolveFileTransferCancel, err := lookup("terminal_resolve_file_transfer_cancel")
+	if err != nil {
+		return nil, err
+	}
+	fileTransferCheckpoint, err := lookup("terminal_file_transfer_checkpoint")
+	if err != nil {
+		return nil, err
+	}
+	releaseLease, err := lookup("terminal_release_lease")
 	if err != nil {
 		return nil, err
 	}
@@ -161,8 +295,21 @@ func newAdapter(registry *tool.Registry) (*adapter, error) {
 		{name: "terminal_list_sessions", target: list.Name(), description: "List active terminal sessions and their lifecycle states.", schema: list.InputSchema()},
 		{name: "terminal_read", target: read.Name(), description: read.Description(), schema: read.InputSchema()},
 		{name: "terminal_read_activity", target: readActivity.Name(), description: readActivity.Description(), schema: readActivity.InputSchema()},
+		{name: "terminal_session_events", target: readEvents.Name(), description: readEvents.Description(), schema: readEvents.InputSchema()},
+		{name: "terminal_wait_file_transfer", target: waitFileTransfer.Name(), description: waitFileTransfer.Description(), schema: waitFileTransfer.InputSchema(), requireCursor: true},
+		{name: "terminal_session_attach", target: attachSession.Name(), description: attachSession.Description(), schema: attachSession.InputSchema()},
+		{name: "terminal_session_detach", target: detachSession.Name(), description: detachSession.Description(), schema: detachSession.InputSchema()},
+		{name: "terminal_report_file_transfer", target: reportFileTransfer.Name(), description: reportFileTransfer.Description(), schema: reportFileTransfer.InputSchema()},
+		{name: "terminal_exec", target: executeCommand.Name(), description: executeCommand.Description(), schema: executeCommand.InputSchema()},
 		{name: "terminal_write", target: write.Name(), description: write.Description(), schema: write.InputSchema()},
-		{name: "terminal_wait", target: read.Name(), description: "Wait for terminal output after cursor and return the next output chunk.", schema: waitSchema(read.InputSchema()), requireCursor: true},
+		{name: "terminal_write_leased", target: writeLeased.Name(), description: writeLeased.Description(), schema: writeLeased.InputSchema()},
+		{name: "terminal_acquire_lease", target: acquireLease.Name(), description: acquireLease.Description(), schema: acquireLease.InputSchema()},
+		{name: "terminal_renew_lease", target: renewLease.Name(), description: renewLease.Description(), schema: renewLease.InputSchema()},
+		{name: "terminal_begin_file_transfer_cancel", target: beginFileTransferCancel.Name(), description: beginFileTransferCancel.Description(), schema: beginFileTransferCancel.InputSchema()},
+		{name: "terminal_resolve_file_transfer_cancel", target: resolveFileTransferCancel.Name(), description: resolveFileTransferCancel.Description(), schema: resolveFileTransferCancel.InputSchema()},
+		{name: "terminal_file_transfer_checkpoint", target: fileTransferCheckpoint.Name(), description: fileTransferCheckpoint.Description(), schema: fileTransferCheckpoint.InputSchema()},
+		{name: "terminal_release_lease", target: releaseLease.Name(), description: releaseLease.Description(), schema: releaseLease.InputSchema()},
+		{name: "terminal_wait", target: read.Name(), description: "Wait only for terminal output bytes after cursor. This does not return file-transfer status; use terminal_wait_file_transfer for transfer completion or cancellation.", schema: waitSchema(read.InputSchema()), requireCursor: true},
 		{name: "terminal_wait_activity", target: readActivity.Name(), description: "Wait for Session activity events after cursor and return the next event chunk.", schema: waitSchema(readActivity.InputSchema()), requireCursor: true},
 		{name: "terminal_open_serial", target: open.Name(), description: open.Description(), schema: open.InputSchema()},
 		{name: "terminal_list_serial_ports", target: listSerialPorts.Name(), description: listSerialPorts.Description(), schema: listSerialPorts.InputSchema()},

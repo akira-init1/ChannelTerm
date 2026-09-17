@@ -123,6 +123,24 @@ func TestRendererStylesTimestampedPromptBeforeNewline(t *testing.T) {
 	}
 }
 
+func TestRendererFlushResetsPromptEchoStateBeforeLocalStatus(t *testing.T) {
+	var output bytes.Buffer
+	renderer := New(&output)
+	prompt := []byte("root@board:~# ")
+	if _, err := renderer.Write(prompt); err != nil {
+		t.Fatalf("first prompt Write() error = %v", err)
+	}
+	if err := renderer.Flush(); err != nil {
+		t.Fatalf("Flush() error = %v", err)
+	}
+	if _, err := renderer.Write(prompt); err != nil {
+		t.Fatalf("second prompt Write() error = %v", err)
+	}
+	if got := bytes.Count(output.Bytes(), []byte(stylePromptUser+"root"+styleReset)); got != 2 {
+		t.Errorf("styled prompt count = %d, want 2 after local presentation boundary; output = %q", got, output.String())
+	}
+}
+
 func TestRendererUsesBrightPaletteStyles(t *testing.T) {
 	var output bytes.Buffer
 	renderer := New(&output)

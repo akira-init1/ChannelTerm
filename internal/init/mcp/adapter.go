@@ -33,10 +33,14 @@ const (
 // Endpoint is the client-neutral description of a ChannelTerm MCP server.
 // Exactly the fields for its selected Transport must be populated.
 type Endpoint struct {
+	// Transport selects stdio or Streamable HTTP rendering.
 	Transport Transport
-	Command   string
-	Args      []string
-	URL       string
+	// Command and Args describe a stdio server process.
+	Command string
+	Args    []string
+	// URL and Headers describe a Streamable HTTP server.
+	URL     string
+	Headers map[string]string
 }
 
 // DefaultEndpoint returns the local stdio configuration installed by init.
@@ -57,10 +61,31 @@ func (e Endpoint) Validate() error {
 		if err != nil || parsed.Scheme == "" || parsed.Host == "" {
 			return fmt.Errorf("MCP Streamable HTTP URL is invalid: %q", e.URL)
 		}
+		for name, value := range e.Headers {
+			if strings.TrimSpace(name) == "" || strings.ContainsAny(name, "\r\n") {
+				return fmt.Errorf("MCP Streamable HTTP header name is invalid: %q", name)
+			}
+			if strings.ContainsAny(value, "\r\n") {
+				return fmt.Errorf("MCP Streamable HTTP header %q contains a line break", name)
+			}
+		}
 	default:
 		return fmt.Errorf("unsupported MCP endpoint transport %q", e.Transport)
 	}
 	return nil
+}
+
+// cloneHeaders gives each rendered client entry its own map so encoders or
+// callers cannot mutate the shared endpoint description through an alias.
+func cloneHeaders(headers map[string]string) map[string]string {
+	if len(headers) == 0 {
+		return nil
+	}
+	cloned := make(map[string]string, len(headers))
+	for name, value := range headers {
+		cloned[name] = value
+	}
+	return cloned
 }
 
 // InstallResult describes the completed configuration operation.

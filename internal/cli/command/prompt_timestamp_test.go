@@ -2,6 +2,7 @@ package command
 
 import (
 	"bytes"
+	"strings"
 	"testing"
 	"time"
 )
@@ -102,6 +103,30 @@ func TestPromptTimestampRendererRecognizesPromptAfterCREchoTerminator(t *testing
 	want := "[14:05:01] root@board:~# top\r\n[14:05:01] root@board:~# "
 	if got := output.String(); got != want {
 		t.Errorf("rendered output = %q, want %q", got, want)
+	}
+}
+
+func TestPromptTimestampRendererFlushResetsPromptEchoStateBeforeLocalStatus(t *testing.T) {
+	var output bytes.Buffer
+	renderer := newPromptTimestampRenderer(func(data []byte) error {
+		_, err := output.Write(data)
+		return err
+	}, nil, fixedPromptTimestampClock)
+	if _, err := renderer.Toggle(); err != nil {
+		t.Fatalf("Toggle() error = %v", err)
+	}
+	for index := 0; index < 2; index++ {
+		if err := renderer.Write([]byte("root@board:~# ")); err != nil {
+			t.Fatalf("prompt %d Write() error = %v", index+1, err)
+		}
+		if index == 0 {
+			if err := renderer.Flush(); err != nil {
+				t.Fatalf("Flush() error = %v", err)
+			}
+		}
+	}
+	if got := strings.Count(output.String(), "[14:05:01]"); got != 2 {
+		t.Errorf("timestamp count = %d, want 2 after local presentation boundary; output = %q", got, output.String())
 	}
 }
 
