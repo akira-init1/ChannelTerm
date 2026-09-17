@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/akira-init1/ChannelTerm/internal/core/app"
 	"github.com/akira-init1/ChannelTerm/internal/core/config"
 	serialtransport "github.com/akira-init1/ChannelTerm/internal/core/transport/serial"
 )
@@ -74,6 +75,27 @@ func TestRunListMergesLocalSessionIntoTargetRow(t *testing.T) {
 	}
 	if strings.Contains(string(encoded), "ssh-opaque") || strings.Contains(string(encoded), "board.example") {
 		t.Errorf("serial-filtered report = %s, must not contain SSH session", encoded)
+	}
+}
+
+func TestRunListShowsSessionLeaseOccupancy(t *testing.T) {
+	sources := listSources{
+		listPorts:    func() ([]serialtransport.Port, error) { return nil, nil },
+		listProfiles: func(context.Context, string) ([]app.SerialProfileInfo, error) { return nil, nil },
+		listSessions: func(context.Context, string) ([]mcpListedSession, error) {
+			return []mcpListedSession{{ID: "session-id", Reference: "SER-1", Transport: "serial", Endpoint: "COM8", State: "open", Lease: &mcpSessionLease{Type: "file-transfer", State: "active"}}}, nil
+		},
+	}
+	var output bytes.Buffer
+	if err := runListWithSources(context.Background(), []string{"--kind", "session", "--json"}, &output, sources); err != nil {
+		t.Fatalf("runListWithSources() error = %v", err)
+	}
+	var report listReport
+	if err := json.Unmarshal(output.Bytes(), &report); err != nil {
+		t.Fatalf("decode JSON output: %v", err)
+	}
+	if len(report.Items) != 1 || report.Items[0].Occupancy != "locked by file-transfer" {
+		t.Errorf("list report = %#v, want file-transfer occupancy", report.Items)
 	}
 }
 

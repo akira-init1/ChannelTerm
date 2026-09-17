@@ -6,7 +6,7 @@
 OS serial driver
       |
       v
-Serial Transport.Read
+Serial Channel.Read
       |
       v
 Session reader goroutine
@@ -22,14 +22,14 @@ Application.ReadSession
       `--> MCP cursor --> utf8 / hex / base64 result
 ```
 
-One Session goroutine is the only continuous reader of a Transport. Consumers copy bounded chunks by independent absolute cursor. Slow consumers cannot block the Transport reader; they receive `dropped: true` if overwritten output passes their cursor.
+One Session goroutine is the only continuous reader of a Channel. Consumers copy bounded chunks by independent absolute cursor. Slow consumers cannot block the Channel reader; they receive `dropped: true` if overwritten output passes their cursor.
 
 ## Terminal input
 
 ```text
 CLI raw input                 MCP JSON input
       |                            |
-Ctrl+] local controller       decode complete payload
+Ctrl+] local controller       size preflight, then decode
       |                            |
       +------------+---------------+
                    |
@@ -42,13 +42,28 @@ Ctrl+] local controller       decode complete payload
           +--------+---------+
           |                  |
           v                  v
-  Activity Buffer     Transport.Write
+  Activity Buffer      Channel.Write
                              |
                              v
                        serial device
 ```
 
-`Ctrl+C` is ordinary remote data in the CLI raw-input path. `Ctrl+]` commands remain local. Prompt timestamps are per-CLI presentation state and are inserted only before recognized shell prompts after Session reads, so they never enter the Ring Buffer or MCP cursor path. Session serializes each complete write, including short-write retries, so concurrent payload bytes do not interleave. This does not coordinate writer intent: Session provides no writer ownership, exclusive lease, transaction, priority, arbitration, or shell-state coordination. Activity records actor and confirmed bytes but actor metadata is not sent to the device.
+`Ctrl+C` is ordinary remote data in the normal CLI raw-input path. While the Host reports an active `file-transfer` lease, it instead opens a default-No local cancellation confirmation in any bundled attachment. The transfer owner blocks at its next safe boundary while the Host keeps the lease; a negative answer resumes it, while a positive answer stops it before the next block and waits for lease release. A locally confirmed cancellation also cancels an outstanding protocol-marker read; raw-block cleanup uses an independent context so it can restore the remote TTY before release. `Ctrl+]` commands remain local. Prompt timestamps are per-CLI presentation state and are inserted only before recognized shell prompts after Session reads, so they never enter the Ring Buffer or MCP cursor path. Session serializes each complete write, including short-write retries, so concurrent payload bytes do not interleave. This does not coordinate writer intent: Session provides no writer ownership, exclusive lease, transaction, priority, arbitration, or shell-state coordination. Activity records actor and confirmed bytes but actor metadata is not sent to the device.
+
+## Session events
+
+```text
+Manager / CLI attachment / Application lease / CLI file transfer
+                              |
+                              v
+                    Session Event Buffer
+                              |
+                 +------------+------------+
+                 v                         v
+        CLI events JSON Lines       MCP terminal_session_events
+```
+
+Events are structured state, not terminal bytes. Each observer advances its own event cursor; a slow observer can lose only old retained events (`dropped: true`) and never blocks the serial reader, Session writer, or another observer. File-transfer reporting traverses the existing MCP attachment only to publish status on the host-owned Session; payload I/O remains on the existing raw read/write path.
 
 ## Serial open and reuse
 
@@ -66,8 +81,8 @@ Session Manager.GetOrCreate(transport, endpoint)
           |
           +--> active Session exists --> return it with reused=true
           |
-          `--> create Serial Transport --> Session.Connect --> optional wake
-                                      --> Manager registration
+          `--> create Serial Transport --> open Serial Channel --> Session reader
+                                      --> optional wake --> Manager registration
 ```
 
 Concurrent opens for the same exact endpoint wait on one in-progress open. Failed and closed Sessions do not permanently reserve the endpoint.
@@ -102,10 +117,56 @@ Physical serial endpoint
    Serial Transport
           |
           v
+    Serial Channel
+          |
+          v
  host-owned Session
           |
           +--> CLI Attachment through MCP
           `--> MCP Client
 ```
 
-The host Manager shares one active Session for an exact `transport + endpoint` pair within that host process. Each Client or Attachment maintains independent output and activity cursors. Closing one MCP connection releases only that Client; `terminal_close` or Session Host shutdown releases the shared Transport.
+The host Manager shares one active Session for an exact `transport + endpoint` pair within that host
+process. Each Client or Attachment maintains independent output and activity cursors. Closing one
+MCP connection releases only that Client; `terminal_close` or Session Host shutdown closes the
+shared Channel and its underlying serial resource.
+
+## CLI file transfer
+
+```text
+local file <--> bounded CLI chunks
+                     |
+                     v
+        file-transfer Application lease
+                     |
+                     v
+          existing Session read/write
+                     |
+                     v
+                  Channel
+                     |
+                     v
+               Serial Transport
+                     |
+                     v
+        Linux shell: stty + dd
+                     |
+                     v
+             wc -c + sha256sum
+```
+
+The file-transfer use case is layered above Session and does not access Serial Transport directly. A
+CLI attachment uses the Host's lease and lease-authorized write tools as byte-oriented clients of
+the host-owned Session. Existing `terminal_write` input is unchanged.
+
+At each safe block boundary, the lease owner calls the Host checkpoint. A separate attachment can
+move that checkpoint through `running -> confirming -> resumed/cancelled`, allowing cross-process
+cancellation without sending confirmation bytes to the board. Payloads are bounded raw chunks, and
+other readers retain independent cursors. While the lease is active, other writers receive an
+immediate busy error instead of waiting or interleaving bytes.
+
+A missing, expired, or replaced owner cannot use the leased-write path. Application closes the
+host-owned Session if lease expiry finds a Channel write still in flight or if bounded protocol
+recovery times out. `Channel.Close` releases the blocked write before a later open creates a
+replacement Session. See [Application Module](../modules/application.md) for the lifecycle details
+and [File Transfer](../getting-started/file-transfer.md) for the user workflow.

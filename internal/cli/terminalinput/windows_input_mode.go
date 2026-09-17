@@ -10,8 +10,11 @@ const (
 	windowsVirtualKeyControl          uint16 = 0x11
 	windowsVirtualKeyMenu             uint16 = 0x12
 	windowsVirtualKeyEscape           uint16 = 0x1B
+	windowsVirtualKeyC                uint16 = 'C'
 	windowsRightAltPressed            uint32 = 0x0001
 	windowsLeftAltPressed             uint32 = 0x0002
+	windowsRightControlPressed        uint32 = 0x0004
+	windowsLeftControlPressed         uint32 = 0x0008
 )
 
 // windowsKeyEventRecord mirrors the KEY_EVENT_RECORD payload at the start of
@@ -37,6 +40,7 @@ type windowsInputRecord struct {
 type windowsEscapeReadPlan struct {
 	discardRecords  int
 	escapeRepeats   int
+	controlCRepeats int
 	readSingleUTF16 bool
 }
 
@@ -47,11 +51,11 @@ func windowsRawInputMode(mode uint32) uint32 {
 	return mode | windowsEnableVirtualTerminalInput
 }
 
-// windowsEscapePlan identifies a queued Esc key before ReadConsole translates
-// it. Key-up, modifier, and non-key records may be consumed because the normal
-// byte-stream read discards them. If a character-producing non-Alt key precedes
-// Esc, the caller reads one UTF-16 value first and replans so input order
-// remains unchanged.
+// windowsEscapePlan identifies queued Esc and Ctrl+C keys before ReadConsole
+// translates them. Key-up, modifier, and non-key records may be consumed
+// because the normal byte-stream read discards them. If a character-producing
+// non-Alt key precedes a local control key, the caller reads one UTF-16 value
+// first and replans so input order remains unchanged.
 func windowsEscapePlan(records []windowsInputRecord) windowsEscapeReadPlan {
 	ignorable := 0
 	producerSeen := false
@@ -73,6 +77,16 @@ func windowsEscapePlan(records []windowsInputRecord) windowsEscapeReadPlan {
 			}
 			return windowsEscapeReadPlan{discardRecords: index + 1, escapeRepeats: repeats}
 		}
+		if windowsControlCKey(record.key) {
+			if producerSeen {
+				return windowsEscapeReadPlan{readSingleUTF16: producerCanReadAlone}
+			}
+			repeats := int(record.key.repeatCount)
+			if repeats == 0 {
+				repeats = 1
+			}
+			return windowsEscapeReadPlan{discardRecords: index + 1, controlCRepeats: repeats}
+		}
 		if !producerSeen {
 			producerSeen = true
 			producerCanReadAlone = record.key.unicodeChar != 0 && record.key.controlKeyState&(windowsRightAltPressed|windowsLeftAltPressed) == 0
@@ -82,6 +96,16 @@ func windowsEscapePlan(records []windowsInputRecord) windowsEscapeReadPlan {
 		return windowsEscapeReadPlan{discardRecords: ignorable}
 	}
 	return windowsEscapeReadPlan{}
+}
+
+// windowsControlCKey recognizes the Ctrl+C representations emitted by Windows
+// console hosts in raw mode. Some hosts expose Unicode ETX directly while
+// others retain the C virtual-key code and Ctrl modifier state.
+func windowsControlCKey(key windowsKeyEventRecord) bool {
+	if key.unicodeChar == 0x03 {
+		return true
+	}
+	return key.virtualKeyCode == windowsVirtualKeyC && key.controlKeyState&(windowsRightControlPressed|windowsLeftControlPressed) != 0
 }
 
 func windowsModifierKey(virtualKeyCode uint16) bool {

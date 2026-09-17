@@ -5,6 +5,8 @@ import (
 	"context"
 	"errors"
 	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -154,7 +156,7 @@ func TestRunMCPHTTPShutsDownOnContextCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	var stderr bytes.Buffer
-	if err := runMCPHTTP(ctx, registry, "127.0.0.1:0", "/mcp", &stderr); err != nil {
+	if err := runMCPHTTP(ctx, registry, "127.0.0.1:0", "/mcp", "test-token", false, &stderr); err != nil {
 		t.Fatalf("runMCPHTTP() error = %v", err)
 	}
 	if !strings.Contains(stderr.String(), "MCP Streamable HTTP listening on http://127.0.0.1:") || !strings.Contains(stderr.String(), "/mcp") {
@@ -172,7 +174,7 @@ func TestRunMCPHTTPWarnsWhenNetworkExposed(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	var stderr bytes.Buffer
-	if err := runMCPHTTP(ctx, registry, "0.0.0.0:0", "/mcp", &stderr); err != nil {
+	if err := runMCPHTTP(ctx, registry, "0.0.0.0:0", "/mcp", "test-token", false, &stderr); err != nil {
 		t.Fatalf("runMCPHTTP() error = %v", err)
 	}
 	for _, warning := range []string{
@@ -183,6 +185,49 @@ func TestRunMCPHTTPWarnsWhenNetworkExposed(t *testing.T) {
 		if !strings.Contains(stderr.String(), warning) {
 			t.Errorf("network startup output = %q, want %q", stderr.String(), warning)
 		}
+	}
+}
+
+func TestMCPHTTPBearerAuthentication(t *testing.T) {
+	called := false
+	handler := requireBearerToken("secret", http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		called = true
+	}))
+	for _, tt := range []struct {
+		name   string
+		header string
+		status int
+	}{
+		{name: "missing", status: http.StatusUnauthorized},
+		{name: "wrong", header: "Bearer wrong", status: http.StatusUnauthorized},
+		{name: "valid", header: "Bearer secret", status: http.StatusOK},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			called = false
+			request := httptest.NewRequest(http.MethodPost, "/mcp", nil)
+			request.Header.Set("Authorization", tt.header)
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, request)
+			if response.Code != tt.status {
+				t.Errorf("status = %d, want %d", response.Code, tt.status)
+			}
+			if called != (tt.status == http.StatusOK) {
+				t.Errorf("handler called = %t for status %d", called, tt.status)
+			}
+		})
+	}
+}
+
+func TestMCPHTTPAdvertisesTemporaryHostLifetimeAfterAuthentication(t *testing.T) {
+	handler := requireBearerToken("secret", advertiseHostLifetime(true, http.HandlerFunc(func(response http.ResponseWriter, _ *http.Request) {
+		response.WriteHeader(http.StatusNoContent)
+	})))
+	request := httptest.NewRequest(http.MethodPost, "/mcp", nil)
+	request.Header.Set("Authorization", "Bearer secret")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if got := response.Header().Get(httpHostLifetimeHeader); got != httpHostLifetimeAttachment {
+		t.Errorf("%s = %q, want %q", httpHostLifetimeHeader, got, httpHostLifetimeAttachment)
 	}
 }
 
@@ -588,6 +633,54 @@ func TestForwardInputWritesAllBytes(t *testing.T) {
 	}
 }
 
+func TestForwardInputReportsLeaseWriteFailureAndKeepsInputActive(t *testing.T) {
+	terminal := &firstWriteFailure{err: errors.New("Session SER-1 is locked by file-transfer")}
+	var local bytes.Buffer
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	forwardInput(&oneByteInputReader{data: []byte("ab")}, terminal, func(data []byte) error {
+		_, err := local.Write(data)
+		return err
+	}, cancel)
+	if ctx.Err() != nil {
+		t.Fatal("forwardInput() cancelled after a recoverable lease write failure")
+	}
+	if got := string(terminal.written); got != "b" {
+		t.Errorf("successful remote input = %q, want b", got)
+	}
+	if got := local.String(); !strings.Contains(got, "[ChannelTerm] write failed: Session SER-1 is locked by file-transfer") {
+		t.Errorf("local output = %q, want friendly lease failure", got)
+	}
+}
+
+type firstWriteFailure struct {
+	err     error
+	written []byte
+}
+
+type oneByteInputReader struct {
+	data []byte
+}
+
+func (r *oneByteInputReader) Read(buffer []byte) (int, error) {
+	if len(r.data) == 0 {
+		return 0, io.EOF
+	}
+	buffer[0] = r.data[0]
+	r.data = r.data[1:]
+	return 1, nil
+}
+
+func (s *firstWriteFailure) Write(request session.WriteRequest) (int, error) {
+	if s.err != nil {
+		err := s.err
+		s.err = nil
+		return 0, err
+	}
+	s.written = append(s.written, request.Data...)
+	return len(request.Data), nil
+}
+
 func TestForwardInputForwardsControlCWithoutCancelling(t *testing.T) {
 	terminal := &fakeCLISession{}
 	var local bytes.Buffer
@@ -643,7 +736,7 @@ func TestForwardInputDisplaysEscapePendingLocally(t *testing.T) {
 	if got := terminal.writtenData(); len(got) != 0 {
 		t.Errorf("written input = %q, want no remote input", got)
 	}
-	const want = "\r\n[ChannelTerm] Escape: q quit | ? help | ] send Ctrl+] | t prompt time | Esc cancel\r\n"
+	const want = "\r\n[ChannelTerm] Escape: q quit | ? help | ] send Ctrl+] | f file transfer | t prompt time | Esc cancel\r\n"
 	if got := local.String(); got != want {
 		t.Errorf("local output = %q, want %q", got, want)
 	}
@@ -900,6 +993,17 @@ func (s *fakeCLISession) ReadActivity(ctx context.Context, _ session.ActivityCur
 func (*fakeCLISession) ReadRecentActivity(int) (session.ActivityChunk, error) {
 	return session.ActivityChunk{}, nil
 }
+
+func (s *fakeCLISession) ReadEvents(ctx context.Context, _ session.EventCursor, _ int) (session.EventChunk, error) {
+	<-ctx.Done()
+	return session.EventChunk{}, ctx.Err()
+}
+
+func (*fakeCLISession) ReadRecentEvents(int) (session.EventChunk, error) {
+	return session.EventChunk{}, nil
+}
+
+func (*fakeCLISession) PublishEvent(session.Event) {}
 
 func (s *fakeCLISession) Write(request session.WriteRequest) (int, error) {
 	s.mu.Lock()

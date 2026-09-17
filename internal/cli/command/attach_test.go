@@ -6,7 +6,9 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
+	"net/http"
 	"net/http/httptest"
 	"reflect"
 	"strings"
@@ -15,6 +17,7 @@ import (
 	"time"
 
 	"github.com/akira-init1/ChannelTerm/internal/cli/interactive"
+	"github.com/akira-init1/ChannelTerm/internal/core/channel"
 	"github.com/akira-init1/ChannelTerm/internal/core/session"
 	mcpadapter "github.com/akira-init1/ChannelTerm/internal/mcp"
 	protocol "github.com/modelcontextprotocol/go-sdk/mcp"
@@ -59,6 +62,157 @@ func TestMCPAttachRejectsMissingSession(t *testing.T) {
 	}
 	if !errors.Is(err, ErrAttachedSessionNotFound) {
 		t.Errorf("newMCPAttachSession() error = %v, want ErrAttachedSessionNotFound", err)
+	}
+}
+
+func TestMCPAttachDetectsTemporaryHostLifetime(t *testing.T) {
+	host := newAttachTestHostWithLifetime(t, true)
+	defer host.close()
+	attached, err := newMCPAttachSession(context.Background(), host.server.URL, "board")
+	if err != nil {
+		t.Fatalf("newMCPAttachSession() error = %v", err)
+	}
+	defer func() { _ = attached.Close() }()
+	temporary, ok := attached.(temporaryHostSession)
+	if !ok || !temporary.usesTemporaryHost() {
+		t.Error("attachment did not retain the Host lifetime response")
+	}
+}
+
+func TestMCPAttachRecoveryAbortClosesHostSession(t *testing.T) {
+	host := newAttachTestHost(t)
+	defer host.close()
+
+	attached, err := newMCPAttachSession(context.Background(), host.server.URL, "board")
+	if err != nil {
+		t.Fatal(err)
+	}
+	mcpSession := attached.(*mcpAttachSession)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	if err := mcpSession.AbortFileTransferRecovery(ctx); err != nil {
+		t.Fatalf("AbortFileTransferRecovery() error = %v", err)
+	}
+	if _, ok := host.manager.Get("board"); ok {
+		t.Fatal("Host Session remains registered after recovery abort")
+	}
+	if err := attached.Close(); err != nil {
+		t.Fatalf("Close() after recovery abort error = %v", err)
+	}
+}
+
+func TestAutoStartedMCPHostStopsOnlyOnce(t *testing.T) {
+	done := make(chan struct{})
+	signals := 0
+	kills := 0
+	host := &autoStartedMCPHost{
+		done: done,
+		signal: func() error {
+			signals++
+			close(done)
+			return nil
+		},
+		kill: func() error {
+			kills++
+			return nil
+		},
+	}
+
+	host.stop()
+	host.stop()
+
+	if signals != 1 {
+		t.Errorf("shutdown signals = %d, want 1", signals)
+	}
+	if kills != 0 {
+		t.Errorf("forced kills = %d, want 0", kills)
+	}
+}
+
+func TestAutoStartedHostNoticeExplainsLifecycle(t *testing.T) {
+	var output bytes.Buffer
+	attached := &fakeTemporaryAttachSession{fakeAttachSession: &fakeAttachSession{}}
+	if err := writeTemporaryHostNotice(&output, attached); err != nil {
+		t.Fatalf("writeTemporaryHostNotice() error = %v", err)
+	}
+	for _, text := range []string{"Temporary Session Host", "all shared Sessions stop", "channelterm mcp --transport http"} {
+		if !strings.Contains(output.String(), text) {
+			t.Errorf("notice = %q, want %q", output.String(), text)
+		}
+	}
+}
+
+func TestBearerTokenTransportScopesCredentialToEndpointOrigin(t *testing.T) {
+	destinationCalled := make(chan struct{}, 1)
+	destination := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		destinationCalled <- struct{}{}
+	}))
+	defer destination.Close()
+	source := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		if got := request.Header.Get("Authorization"); got != "Bearer secret" {
+			t.Errorf("source Authorization = %q, want bearer token", got)
+		}
+		http.Redirect(response, request, destination.URL, http.StatusTemporaryRedirect)
+	}))
+	defer source.Close()
+	transport, err := newBearerTokenTransport(source.URL+"/mcp", "secret")
+	if err != nil {
+		t.Fatal(err)
+	}
+	response, err := (&http.Client{Transport: transport}).Get(source.URL + "/mcp")
+	if response != nil {
+		_ = response.Body.Close()
+	}
+	if err == nil || !strings.Contains(err.Error(), "refuse to send") {
+		t.Fatalf("redirect error = %v, want cross-origin credential refusal", err)
+	}
+	select {
+	case <-destinationCalled:
+		t.Fatal("cross-origin redirect reached destination")
+	default:
+	}
+}
+
+func TestBearerTokenTransportDetectsTemporaryHost(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		if got := request.Header.Get("Authorization"); got != "Bearer secret" {
+			t.Errorf("Authorization = %q, want bearer token", got)
+		}
+		response.Header().Set(httpHostLifetimeHeader, httpHostLifetimeAttachment)
+		response.WriteHeader(http.StatusNoContent)
+	}))
+	defer server.Close()
+	transport, err := newBearerTokenTransport(server.URL+"/mcp", "secret")
+	if err != nil {
+		t.Fatal(err)
+	}
+	response, err := (&http.Client{Transport: transport}).Get(server.URL + "/mcp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = response.Body.Close()
+	if !transport.temporaryHost.Load() {
+		t.Error("temporary Host response was not detected")
+	}
+}
+
+func TestAutoStartedMCPHostKillsWhenGracefulShutdownCannotStart(t *testing.T) {
+	done := make(chan struct{})
+	kills := 0
+	host := &autoStartedMCPHost{
+		done:   done,
+		signal: func() error { return errors.New("interrupt unavailable") },
+		kill: func() error {
+			kills++
+			close(done)
+			return nil
+		},
+	}
+
+	host.stop()
+
+	if kills != 1 {
+		t.Errorf("forced kills = %d, want 1", kills)
 	}
 }
 
@@ -146,6 +300,211 @@ func TestMCPAttachSessionCloseReleasesWait(t *testing.T) {
 	}
 }
 
+// TestMCPAttachCancelledWaitKeepsConnectionUsable verifies cancellation of one
+// long-poll request cannot poison the shared attachment client or its active
+// file-transfer lease used by later terminal writes.
+func TestMCPAttachCancelledWaitKeepsConnectionUsable(t *testing.T) {
+	host := newAttachTestHost(t)
+	defer host.close()
+	attached := newAttachedForTest(t, host.server.URL)
+	defer func() { _ = attached.Close() }()
+	lease := attached.(fileLeaseSession)
+	if err := lease.AcquireFileTransferLease(context.Background()); err != nil {
+		t.Fatalf("AcquireFileTransferLease() error = %v", err)
+	}
+	defer func() { _ = lease.ReleaseFileTransferLease(context.Background()) }()
+
+	waitCtx, cancelWait := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancelWait()
+	if _, err := attached.ReadOutput(waitCtx, 0, 128); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("cancelled ReadOutput() error = %v, want context deadline exceeded", err)
+	}
+	if _, err := attached.Write(session.WriteRequest{Actor: session.ActorUser, Data: []byte("still connected\n")}); err != nil {
+		t.Fatalf("Write() after cancelled wait error = %v", err)
+	}
+	if got := string(host.device.waitWritten(t)); got != "still connected\n" {
+		t.Errorf("device input = %q, want connection to remain usable", got)
+	}
+	if err := lease.ReleaseFileTransferLease(context.Background()); err != nil {
+		t.Fatalf("ReleaseFileTransferLease() error = %v", err)
+	}
+}
+
+func TestMCPAttachControlsExternallyOwnedFileTransferCancellation(t *testing.T) {
+	host := newAttachTestHost(t)
+	defer host.close()
+	owner := newAttachedForTest(t, host.server.URL)
+	defer func() { _ = owner.Close() }()
+	observer := newAttachedForTest(t, host.server.URL)
+	defer func() { _ = observer.Close() }()
+
+	lease := owner.(fileLeaseSession)
+	if err := lease.AcquireFileTransferLease(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	reporter := owner.(fileTransferEventReporter)
+	if err := reporter.ReportFileTransferEvent(context.Background(), session.EventFileTransferProgress, map[string]any{"sent": int64(24576), "total": int64(65536), "percent": 37.5}); err != nil {
+		t.Fatal(err)
+	}
+	controller := observer.(fileTransferCancelController)
+	requester := owner.(interface{ FileTransferCancelRequested() bool })
+
+	requestID, active, err := controller.BeginFileTransferCancel(context.Background())
+	if err != nil || !active || requestID == "" {
+		t.Fatalf("BeginFileTransferCancel() = %q, %t, %v", requestID, active, err)
+	}
+	checkpoint := make(chan bool, 1)
+	go func() { checkpoint <- requester.FileTransferCancelRequested() }()
+	select {
+	case <-checkpoint:
+		t.Fatal("owner checkpoint returned while observer confirmation was pending")
+	case <-time.After(20 * time.Millisecond):
+	}
+	state, err := controller.ResolveFileTransferCancel(context.Background(), requestID, false)
+	if err != nil || state != "resumed" {
+		t.Fatalf("decline = %q, %v", state, err)
+	}
+	if cancelled := <-checkpoint; cancelled {
+		t.Fatal("declined confirmation cancelled the owner")
+	}
+
+	requestID, active, err = controller.BeginFileTransferCancel(context.Background())
+	if err != nil || !active {
+		t.Fatalf("second BeginFileTransferCancel() = %q, %t, %v", requestID, active, err)
+	}
+	type resolvedResult struct {
+		state string
+		err   error
+	}
+	resolved := make(chan resolvedResult, 1)
+	go func() {
+		state, resolveErr := controller.ResolveFileTransferCancel(context.Background(), requestID, true)
+		resolved <- resolvedResult{state: state, err: resolveErr}
+	}()
+	if cancelled := requester.FileTransferCancelRequested(); !cancelled {
+		t.Fatal("confirmed cancellation did not reach transfer owner")
+	}
+	select {
+	case result := <-resolved:
+		t.Fatalf("confirmation returned before lease release: %#v", result)
+	case <-time.After(20 * time.Millisecond):
+	}
+	if err := reporter.ReportFileTransferEvent(context.Background(), session.EventFileTransferFailed, map[string]any{"error": "user_cancelled", "reason": "user_cancelled", "sent": int64(24576), "total": int64(65536), "percent": 37.5}); err != nil {
+		t.Fatal(err)
+	}
+	if err := lease.ReleaseFileTransferLease(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	result := <-resolved
+	if result.err != nil || result.state != "cancelled" {
+		t.Fatalf("confirmed resolution = %#v", result)
+	}
+	events := observer.(attachEventSession)
+	chunk, err := events.ReadRecentEvents(session.DefaultEventBufferCapacity)
+	if err != nil {
+		t.Fatal(err)
+	}
+	last := chunk.Events[len(chunk.Events)-1]
+	if last.Type != session.EventFileTransferCancelled || last.Metadata["reason"] != "user_cancelled" || last.Metadata["lease_released"] != true {
+		t.Fatalf("last event = %#v, want released user cancellation", last)
+	}
+}
+
+func TestMCPAttachLocalCancellationAfterExternalCancellationInterruptsProtocolWait(t *testing.T) {
+	host := newAttachTestHost(t)
+	defer host.close()
+	externalOwner := newAttachedForTest(t, host.server.URL)
+	defer func() { _ = externalOwner.Close() }()
+	attached := newAttachedForTest(t, host.server.URL)
+	defer func() { _ = attached.Close() }()
+
+	externalLease := externalOwner.(fileLeaseSession)
+	if err := externalLease.AcquireFileTransferLease(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	controller := attached.(fileTransferCancelController)
+	requestID, active, err := controller.BeginFileTransferCancel(context.Background())
+	if err != nil || !active {
+		t.Fatalf("external BeginFileTransferCancel() = %q, %t, %v", requestID, active, err)
+	}
+	externalResolved := make(chan error, 1)
+	go func() {
+		state, resolveErr := controller.ResolveFileTransferCancel(context.Background(), requestID, true)
+		if resolveErr == nil && state != "cancelled" {
+			resolveErr = fmt.Errorf("external cancellation state = %q", state)
+		}
+		externalResolved <- resolveErr
+	}()
+	if cancelled := externalOwner.(interface{ FileTransferCancelRequested() bool }).FileTransferCancelRequested(); !cancelled {
+		t.Fatal("external owner did not observe cancellation")
+	}
+	if err := externalLease.ReleaseFileTransferLease(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if err := <-externalResolved; err != nil {
+		t.Fatal(err)
+	}
+
+	inputReader, inputWriter := io.Pipe()
+	defer inputReader.Close()
+	defer inputWriter.Close()
+	pump := newAttachInputPump(inputReader)
+	var output lockedBuffer
+	localStarted := make(chan struct{})
+	dispatcher := newAttachInputDispatcherWithPump(context.Background(), &pump, attached, func(data []byte) error {
+		_, writeErr := output.Write(data)
+		return writeErr
+	}, func() error { return nil }, func() {}, func(workerCtx context.Context, transfer attachSession, _ io.Writer, _ func() bool, _ string, _, _ string) error {
+		lease := transfer.(fileLeaseSession)
+		if acquireErr := lease.AcquireFileTransferLease(workerCtx); acquireErr != nil {
+			return acquireErr
+		}
+		defer func() { _ = lease.ReleaseFileTransferLease(context.Background()) }()
+		close(localStarted)
+		_, readErr := transfer.ReadOutput(workerCtx, 0, 128)
+		return readErr
+	})
+	dispatchDone := make(chan struct{})
+	go func() {
+		dispatcher.run()
+		close(dispatchDone)
+	}()
+	if _, err := inputWriter.Write([]byte("\x1dfssources.bin\n\n")); err != nil {
+		t.Fatal(err)
+	}
+	waitForSignal(t, localStarted, "local transfer protocol wait")
+	if _, err := inputWriter.Write([]byte{0x03}); err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.Now().Add(time.Second)
+	for !strings.Contains(output.String(), "Cancel file transfer? [y/N]:") && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	if _, err := inputWriter.Write([]byte{'Y'}); err != nil {
+		t.Fatal(err)
+	}
+	deadline = time.Now().Add(time.Second)
+	for !strings.Contains(output.String(), "Reason     : cancelled by user") && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	if got := output.String(); !strings.Contains(got, "File transfer cancelled") || strings.Contains(got, "Input ignored during file transfer") {
+		t.Fatalf("output = %q, want completed local cancellation without a stuck input mode", got)
+	}
+
+	agent, closeAgent := newAttachTestAgent(t, host.server.URL)
+	defer closeAgent()
+	write, err := agent.CallTool(context.Background(), &protocol.CallToolParams{Name: "terminal_write", Arguments: map[string]any{
+		"session_id": "board", "data": "lease released\n",
+	}})
+	if err != nil || write == nil || write.IsError {
+		t.Fatalf("terminal_write after local cancellation = %#v, %v", write, err)
+	}
+	if err := inputWriter.Close(); err != nil {
+		t.Fatal(err)
+	}
+	waitForSignal(t, dispatchDone, "dispatcher exit")
+}
+
 func TestMCPAttachMultipleConsumersReceiveSameOutput(t *testing.T) {
 	host := newAttachTestHost(t)
 	defer host.close()
@@ -168,6 +527,35 @@ func TestMCPAttachMultipleConsumersReceiveSameOutput(t *testing.T) {
 		}
 		if got := string(chunk.Data); got != "fanout\n" {
 			t.Errorf("consumer %d data = %q, want fanout", index, got)
+		}
+	}
+}
+
+func TestMCPAttachReadsIndependentFileTransferEvents(t *testing.T) {
+	host := newAttachTestHost(t)
+	defer host.close()
+	first := newAttachedForTest(t, host.server.URL)
+	defer func() { _ = first.Close() }()
+	second := newAttachedForTest(t, host.server.URL)
+	defer func() { _ = second.Close() }()
+	managed, ok := host.manager.Get("board")
+	if !ok {
+		t.Fatal("managed board Session not found")
+	}
+	managed.PublishEvent(session.Event{Type: session.EventFileTransferStarted, Metadata: map[string]any{
+		"direction": "send", "source_path": "system.dts", "requested_path": "/tmp/system.dts",
+	}})
+	for index, attached := range []attachSession{first, second} {
+		reader, ok := attached.(attachEventSession)
+		if !ok {
+			t.Fatalf("attachment %d does not implement attachEventSession", index)
+		}
+		chunk, err := reader.ReadRecentEvents(session.DefaultEventBufferCapacity)
+		if err != nil {
+			t.Fatalf("attachment %d ReadRecentEvents() error = %v", index, err)
+		}
+		if len(chunk.Events) == 0 || chunk.Events[len(chunk.Events)-1].Type != session.EventFileTransferStarted {
+			t.Errorf("attachment %d events = %#v, want retained file-transfer start", index, chunk.Events)
 		}
 	}
 }
@@ -428,6 +816,10 @@ type attachTestHost struct {
 
 // newAttachTestHost creates an open board Session before serving MCP requests.
 func newAttachTestHost(t *testing.T) *attachTestHost {
+	return newAttachTestHostWithLifetime(t, false)
+}
+
+func newAttachTestHostWithLifetime(t *testing.T, temporary bool) *attachTestHost {
 	t.Helper()
 	manager := session.NewManager()
 	device := newAttachTestTransport()
@@ -449,6 +841,7 @@ func newAttachTestHost(t *testing.T) *attachTestHost {
 	if err != nil {
 		t.Fatalf("NewStreamableHTTPHandler() error = %v", err)
 	}
+	handler = advertiseHostLifetime(temporary, handler)
 	return &attachTestHost{manager: manager, device: device, server: httptest.NewServer(handler)}
 }
 
@@ -499,7 +892,7 @@ func newAttachTestTransport() *attachTestTransport {
 }
 
 // Connect satisfies transport.Transport without contacting a physical device.
-func (*attachTestTransport) Connect(context.Context) error { return nil }
+func (t *attachTestTransport) Connect(context.Context) (channel.Channel, error) { return t, nil }
 
 // Read blocks until injected output arrives or Close releases Core's reader.
 func (t *attachTestTransport) Read(p []byte) (int, error) {
@@ -525,6 +918,9 @@ func (t *attachTestTransport) Write(data []byte) (int, error) {
 
 // Resize is unsupported by the fake serial-style transport.
 func (*attachTestTransport) Resize(uint16, uint16) error { return errors.New("resize unsupported") }
+
+// State reports the established test Channel lifecycle.
+func (*attachTestTransport) State() channel.State { return channel.StateOpen }
 
 // Close unblocks the only Core reader and is safe when Manager cleanup repeats it.
 func (t *attachTestTransport) Close() error {
@@ -574,6 +970,10 @@ type fakeAttachSession struct {
 	onReadOutput      func()
 	onOutputDelivered func()
 }
+
+type fakeTemporaryAttachSession struct{ *fakeAttachSession }
+
+func (*fakeTemporaryAttachSession) usesTemporaryHost() bool { return true }
 
 // ReadRecent starts the CLI cursor with optional already-retained terminal data.
 func (s *fakeAttachSession) ReadRecent(context.Context, int) (session.OutputChunk, error) {

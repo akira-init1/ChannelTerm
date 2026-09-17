@@ -11,6 +11,8 @@ import (
 var (
 	// ErrInvalidActivityBufferCapacity is returned when an activity buffer has no capacity.
 	ErrInvalidActivityBufferCapacity = errors.New("activity buffer capacity must be positive")
+	// ErrInvalidActivityBufferByteCapacity is returned when an activity buffer has no byte capacity.
+	ErrInvalidActivityBufferByteCapacity = errors.New("activity buffer byte capacity must be positive")
 	// ErrInvalidActivityReadLimit is returned when an activity read does not request events.
 	ErrInvalidActivityReadLimit = errors.New("activity read limit must be positive")
 )
@@ -18,7 +20,7 @@ var (
 // ActivityCursor identifies the next activity event a consumer expects.
 //
 // Cursors are monotonically increasing for one Session. They are independent
-// from OutputCursor because activity metadata and terminal output have separate
+// from OutputCursor because activity metadata and stream output have separate
 // retention, overflow, and consumer lifecycles.
 type ActivityCursor uint64
 
@@ -26,15 +28,15 @@ type ActivityCursor uint64
 type Operation string
 
 const (
-	// OperationWrite records bytes successfully passed to a Session Transport.
+	// OperationWrite records bytes successfully passed to a Session Channel.
 	OperationWrite Operation = "write"
 )
 
-// SessionEvent records a completed terminal operation and its internal source.
+// SessionEvent records a completed stream operation and its internal source.
 //
 // Timestamp is the local time at which Core began executing the operation. Data
 // is a copied snapshot of the bytes actually written; it may be a prefix of the
-// original request when a Transport reports a partial write followed by an error.
+// original request when a Channel reports a partial write followed by an error.
 type SessionEvent struct {
 	Timestamp time.Time
 	Actor     Actor
@@ -59,22 +61,27 @@ type ActivityChunk struct {
 type activityBuffer struct {
 	mu sync.Mutex
 
-	events []SessionEvent
-	start  int
-	size   int
-	base   ActivityCursor
+	events   []SessionEvent
+	start    int
+	size     int
+	base     ActivityCursor
+	bytes    int
+	maxBytes int
 
 	notify chan struct{}
 	closed bool
 	err    error
 }
 
-// newActivityBuffer allocates fixed event slots for the lifetime of a Session.
-func newActivityBuffer(capacity int) (*activityBuffer, error) {
+// newActivityBuffer allocates fixed event slots with a total payload byte bound.
+func newActivityBuffer(capacity, maxBytes int) (*activityBuffer, error) {
 	if capacity <= 0 {
 		return nil, ErrInvalidActivityBufferCapacity
 	}
-	return &activityBuffer{events: make([]SessionEvent, capacity), notify: make(chan struct{})}, nil
+	if maxBytes <= 0 {
+		return nil, ErrInvalidActivityBufferByteCapacity
+	}
+	return &activityBuffer{events: make([]SessionEvent, capacity), maxBytes: maxBytes, notify: make(chan struct{})}, nil
 }
 
 // append records one completed operation. It clones Data while holding the
@@ -87,13 +94,19 @@ func (b *activityBuffer) append(event SessionEvent) {
 	}
 
 	event.Data = append([]byte(nil), event.Data...)
-	if b.size == len(b.events) {
-		b.events[b.start] = event
+	for b.size > 0 && (b.size == len(b.events) || b.bytes+len(event.Data) > b.maxBytes) {
+		b.bytes -= len(b.events[b.start].Data)
+		b.events[b.start] = SessionEvent{}
 		b.start = (b.start + 1) % len(b.events)
+		b.size--
 		b.base++
-	} else {
+	}
+	if len(event.Data) <= b.maxBytes {
 		b.events[(b.start+b.size)%len(b.events)] = event
 		b.size++
+		b.bytes += len(event.Data)
+	} else {
+		b.base++
 	}
 	b.signalLocked()
 }
@@ -154,6 +167,9 @@ func (b *activityBuffer) readChunk(next ActivityCursor, limit int) (ActivityChun
 	if next < end {
 		return b.copyLocked(next, min(limit, int(end-next)), dropped), nil, false, nil
 	}
+	if dropped {
+		return ActivityChunk{Next: next, Dropped: true}, nil, false, nil
+	}
 	return ActivityChunk{}, b.notify, b.closed, b.err
 }
 
@@ -169,7 +185,7 @@ func (b *activityBuffer) copyLocked(start ActivityCursor, count int, dropped boo
 	return ActivityChunk{Events: events, Next: start + ActivityCursor(count), Dropped: dropped}
 }
 
-// close wakes all readers with the terminal end condition while retaining
+// close wakes all readers with the final stream condition while retaining
 // already-recorded events for readers whose cursor has not reached the tail.
 func (b *activityBuffer) close(err error) {
 	b.mu.Lock()
@@ -189,6 +205,7 @@ func (b *activityBuffer) release() {
 	b.events = nil
 	b.start = 0
 	b.size = 0
+	b.bytes = 0
 	b.signalLocked()
 }
 

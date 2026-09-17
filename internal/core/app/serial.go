@@ -50,6 +50,7 @@ type SerialDependencies struct {
 	ConfigPath   configPathResolver
 	LoadConfig   configLoader
 	SaveConfig   configSaver
+	UpdateConfig configUpdater
 	NewSession   SerialSessionFactory
 	NewSessionID sessionIDGenerator
 }
@@ -57,6 +58,7 @@ type SerialDependencies struct {
 type configPathResolver func() (string, error)
 type configLoader func(string) (config.File, error)
 type configSaver func(string, config.File) error
+type configUpdater func(string, func(*config.File) error) error
 type sessionIDGenerator func() (string, error)
 
 // SerialService owns serial connection use cases over one shared Session Manager.
@@ -70,6 +72,7 @@ type SerialService struct {
 	configPath   configPathResolver
 	loadConfig   configLoader
 	saveConfig   configSaver
+	updateConfig configUpdater
 	newSession   SerialSessionFactory
 	newSessionID sessionIDGenerator
 }
@@ -112,6 +115,7 @@ func NewSerialServiceWithDependencies(manager *session.Manager, dependencies Ser
 		configPath:   config.DefaultPath,
 		loadConfig:   config.LoadOrCreate,
 		saveConfig:   config.Save,
+		updateConfig: config.Update,
 		newSession:   newSerialSession,
 		newSessionID: newSessionID,
 	}
@@ -123,6 +127,19 @@ func NewSerialServiceWithDependencies(manager *session.Manager, dependencies Ser
 	}
 	if dependencies.SaveConfig != nil {
 		service.saveConfig = dependencies.SaveConfig
+		service.updateConfig = func(path string, update func(*config.File) error) error {
+			file, err := service.loadConfig(path)
+			if err != nil {
+				return err
+			}
+			if err := update(&file); err != nil {
+				return err
+			}
+			return service.saveConfig(path, file)
+		}
+	}
+	if dependencies.UpdateConfig != nil {
+		service.updateConfig = dependencies.UpdateConfig
 	}
 	if dependencies.NewSession != nil {
 		service.newSession = dependencies.NewSession
@@ -168,8 +185,10 @@ func (s *SerialService) OpenSerial(ctx context.Context, request OpenSerialReques
 		return OpenSerialResult{}, err
 	}
 	if strings.TrimSpace(request.Save) != "" {
-		file.SaveSerialProfile(request.Save, profile)
-		if err := s.saveConfig(path, file); err != nil {
+		if err := s.updateConfig(path, func(latest *config.File) error {
+			latest.SaveSerialProfile(request.Save, profile)
+			return nil
+		}); err != nil {
 			return OpenSerialResult{}, err
 		}
 	}

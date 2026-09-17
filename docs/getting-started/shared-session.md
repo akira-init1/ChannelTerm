@@ -1,9 +1,12 @@
 # Shared Sessions
 
-An HTTP MCP process can act as a local Session Host. It owns the physical serial connection while CLI windows and MCP Clients use independent cursors over the same Session.
+An HTTP MCP process can act as a local Session Host. It owns the physical serial connection while
+CLI windows and MCP Clients use independent cursors over the same Session. When `attach` starts the
+default local Host automatically, that Host is stopped when the initiating `attach` process exits.
+A manually started Host remains available until it is stopped explicitly.
 
 ```text
-Physical serial endpoint -> Serial Transport -> Session -> Client / Attachment
+Physical serial endpoint -> Serial Transport -> Channel -> Session -> Client / Attachment
 ```
 
 ## Create or join by target
@@ -12,9 +15,18 @@ Physical serial endpoint -> Serial Transport -> Session -> Client / Attachment
 channelterm attach SER-COM8 --baud 115200
 ```
 
-For the default endpoint, `attach` starts a background local HTTP host if one is not already reachable. It then asks the host to open the serial target. Within that host's Manager, one active Session is shared for an exact `transport + endpoint` pair, so another open for `serial + COM8` returns the existing Session instead of opening the port twice.
+For the default endpoint, `attach` starts a background local HTTP host if one is not already
+reachable. It then asks the host to open the serial target. Within that host's Manager, one active
+Session is shared for an exact `transport + endpoint` pair, so another open for `serial + COM8`
+returns the existing Session instead of opening the port twice.
 
-The command reports whether the shared Session was created or reused, then attaches the current terminal. Press `Ctrl+]` to enter local escape mode; ChannelTerm displays the available escape commands locally. `Ctrl+] t` toggles prompt timestamps for this CLI attachment only, so other CLI attachments and MCP readers continue to receive raw output. `Ctrl+] Esc` reports `[ChannelTerm] Escape cancelled` locally, cancels escape mode without sending a byte to the shared Session, and returns subsequent input to normal remote forwarding; `Ctrl+] q` detaches this CLI without closing the host-owned Session.
+The command reports whether the shared Session was created or reused, then attaches the current
+terminal. Press `Ctrl+]` to enter local escape mode; ChannelTerm displays the available escape
+commands locally. `Ctrl+] t` toggles prompt timestamps for this CLI attachment only, so other CLI
+attachments and MCP readers continue to receive raw output. `Ctrl+] Esc` reports
+`[ChannelTerm] Escape cancelled` locally, cancels escape mode without sending a byte to the shared
+Session, and returns subsequent input to normal remote forwarding. `Ctrl+] q` detaches this CLI
+without closing the host-owned Session.
 
 ## Join an existing Session
 
@@ -26,11 +38,44 @@ channelterm attach SER-1
 channelterm attach 0123456789abcdef0123456789abcdef
 ```
 
-Each reader owns its own output and activity cursors. One Client reading output does not consume it for another Client. Session writes are serialized as complete payloads, including retries after short Transport writes, so concurrent payload bytes do not interleave.
+Each reader owns its own output and activity cursors. One Client reading output does not consume it
+for another Client. Session writes are serialized as complete payloads, including retries after
+short Transport writes, so concurrent payload bytes do not interleave.
 
-That guarantee does not coordinate the meaning of concurrent commands. Session has no writer ownership, exclusive lease, transaction, priority, arbitration, or shell-state coordination. Clients must currently avoid conflicting command sequences themselves.
+An existing shared Session can also carry a CLI-only [file transfer](file-transfer.md). Use
+`Ctrl+] f` in an attachment for a guided local flow, or run `channelterm file send` /
+`channelterm file receive` from another terminal. While a `file-transfer` lease is active, `Ctrl+C`
+in any bundled attachment opens a default-No local cancellation confirmation instead of calling
+`terminal_write`; normal terminal `Ctrl+C` still sends `0x03`. While confirmation is pending, the
+transfer owner pauses at a safe block boundary and the Host retains its lease. Independent MCP
+`terminal_write` calls therefore fail immediately rather than entering the prompt or interleaving
+with the shell protocol.
 
-After attachment, the CLI watches new activity from the current tail and renders non-empty Agent writes as local `AI` activity blocks. It does not replay older activity, and writes containing only carriage-return or line-feed bytes are not rendered as blocks. This local view does not add bytes to Session output or change another client's cursor.
+The file-transfer lease and all of its status events share one `transfer_id`. MCP clients waiting on
+that ID receive the terminal result only after the matching lease release, so the next ordinary
+write does not race cleanup.
+
+That guarantee does not coordinate the meaning of concurrent commands. Session has no writer
+ownership, exclusive lease, transaction, priority, arbitration, or shell-state coordination.
+Clients must currently avoid conflicting command sequences themselves.
+
+After attachment, the CLI watches new activity from the current tail and renders non-empty Agent
+writes as local `AI` activity blocks. It does not replay older activity, and writes containing only
+carriage-return or line-feed bytes are not rendered as blocks. This local view does not add bytes
+to Session output or change another client's cursor.
+
+## Observe shared state
+
+Use a separate terminal to observe attachment, lease, and file-transfer state without consuming device output:
+
+```powershell
+channelterm events SER-1
+```
+
+The command emits JSON Lines from the same bounded Session Event Stream used by MCP
+`terminal_session_events`. Each observer owns its cursor. If an observer is slower than the retained
+window, it receives `dropped: true` and continues at the returned cursor; it never slows the serial
+reader or Session writers.
 
 ## Use a private connection
 
@@ -38,14 +83,31 @@ After attachment, the CLI watches new activity from the current tail and renders
 channelterm attach SER-COM8 --private --baud 115200
 ```
 
-`--no-mcp` is an alias for `--private`. The current CLI process owns this port and closes it when the client exits. Other CLI or MCP clients cannot join it. `--private` is valid only with a serial target reference, not with a Session reference.
+`--no-mcp` is an alias for `--private`. The current CLI process owns this port and closes it when
+the client exits. Other CLI or MCP clients cannot join it. `--private` is valid only with a serial
+target reference, not with a Session reference.
 
 ## Lifecycle boundary
 
-Detaching a Client does not close a shared Session. `terminal_close` removes and closes one host-owned Session. Stopping the Session Host closes all Sessions still owned by its Manager. Session references such as `SER-1` are valid only for that host process lifetime.
+Detaching a Client does not close a shared Session. `terminal_close` removes and closes one
+host-owned Session. Stopping the Session Host closes all Sessions still owned by its Manager.
+Session references such as `SER-1` are valid only for that host process lifetime.
 
-See [Identifiers](../reference/identifiers.md) before passing target references, Session references, or `session_id` values between commands.
+If the underlying serial Channel ends or its reader fails, the host automatically removes and
+closes the affected Session. Its short reference and opaque ID stop resolving, retained buffers are
+released, and a later open can create a new Session for the reconnected device. Clients waiting on
+the failed Session receive the original stream error and should list Sessions again before
+reconnecting.
+
+An expired writer lease normally leaves the Session open for another writer. If expiry occurs while
+a leased Channel write is still blocked, the Host closes and removes that Session. Clients should
+list Sessions and reopen the endpoint before retrying. The implementation rationale and exact lease
+timing are documented in [Application Module](../modules/application.md).
+
+See [Identifiers](../reference/identifiers.md) before passing target references, Session references,
+or `session_id` values between commands.
 
 ## Future direction
 
-Stronger multi-writer coordination may be added above the byte-serialization boundary in the future. It is not part of the current Session contract.
+Stronger multi-writer coordination may be added above the byte-serialization boundary in the
+future. It is not part of the current Session contract.

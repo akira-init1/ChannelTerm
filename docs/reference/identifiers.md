@@ -8,6 +8,7 @@ ChannelTerm exposes several identifiers with different ownership and lifetimes. 
 | Shared Session reference | A Manager-owned live Session | Session Manager | One Session Host process; never reused by that Manager | `SER-1` |
 | Opaque `session_id` | The canonical Manager registration key for a live Session | Application cryptographic random ID generator | One Session registration; lost when removed or the host exits | `0123456789abcdef0123456789abcdef` |
 | `device_id` | A Device Registry identity record | Device State Store | Persistent only when reliable USB evidence is available; otherwise process-local | `dev_0123456789abcdef0123456789abcdef` |
+| `transfer_id` | One file-transfer lease and its structured events | Session Host lease coordinator | One file-transfer lease within one Host process | `FT-123` |
 
 ## Local target reference
 
@@ -35,6 +36,15 @@ Persistent IDs use the `dev_` prefix plus a random 128-bit value and are recover
 
 `usb_path` evidence identifies a device class at one physical USB location; it is weaker than a device serial number and must not be described as proof of the same physical board after moving ports.
 
+## `transfer_id`
+
+The Session Host allocates a `transfer_id` when it acquires a `file-transfer` lease. The lease
+acquire/release and every STARTED, PROGRESS, COMPLETED, FAILED, or CANCELLED event for that transfer
+carry the same value. It is a correlation identifier, not the secret lease `owner` capability, and
+is valid only for that Host process. Pass it together with the Session and an event cursor to
+`terminal_wait_file_transfer`; do not use it as a Session ID or assume its current `FT-` formatting
+is globally unique.
+
 ## Correct usage
 
 ```text
@@ -42,6 +52,7 @@ SER-COM8  -> resolve/open local serial target
 SER-1     -> read/write/attach/close existing shared Session
 session_id-> canonical programmatic address of that Session
 device_id -> correlate Device Registry identity records
+transfer_id -> correlate one file-transfer lease and outcome
 ```
 
 Do not pass `device_id` to Session operations. Do not pass `SER-COM8` to a tool expecting an existing Session. Do not infer a target reference or endpoint from an opaque Session or device ID.

@@ -22,6 +22,9 @@ const (
 	// ActionTogglePromptTimestamp asks the local interactive client to toggle
 	// its presentation-only shell prompt timestamps.
 	ActionTogglePromptTimestamp
+	// ActionFileTransfer asks the local interactive client to open its
+	// file-transfer menu. The menu and transfer remain local to that client.
+	ActionFileTransfer
 	// ActionEscapePending reports that the controller has entered local escape
 	// mode and is waiting for its command byte.
 	ActionEscapePending
@@ -36,7 +39,7 @@ const (
 //
 // Data is populated for ActionRemote and contains caller-owned bytes copied by
 // Controller. Command is populated for ActionUnknownEscape. ActionQuit,
-// ActionHelp, ActionTogglePromptTimestamp, ActionEscapePending, and
+// ActionHelp, ActionTogglePromptTimestamp, ActionFileTransfer, ActionEscapePending, and
 // ActionCancelEscape do not carry payload data.
 type Action struct {
 	Kind    ActionKind
@@ -100,6 +103,8 @@ func (c *Controller) Process(data []byte) []Action {
 				actions = append(actions, Action{Kind: ActionHelp})
 			case 't':
 				actions = append(actions, Action{Kind: ActionTogglePromptTimestamp})
+			case 'f':
+				actions = append(actions, Action{Kind: ActionFileTransfer})
 			case ']':
 				actions = append(actions, Action{Kind: ActionRemote, Data: []byte{c.EscapeByte()}})
 			case 0x03:

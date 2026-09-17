@@ -29,7 +29,10 @@ import (
 	serialtransport "github.com/akira-init1/ChannelTerm/internal/core/transport/serial"
 )
 
-const maxWaitTimeout = 24 * time.Hour
+const (
+	maxWaitTimeout                = 24 * time.Hour
+	defaultTerminalCommandTimeout = 30 * time.Second
+)
 
 var (
 	// ErrNilSessionManager is returned when serial tools have no Session owner.
@@ -48,6 +51,16 @@ var (
 	ErrWaitTimeoutTooLarge = errors.New("timeout_ms exceeds the maximum of 24 hours")
 	// ErrTimeoutRequiresCursor is returned when timeout_ms is sent to terminal_read without a cursor wait.
 	ErrTimeoutRequiresCursor = errors.New("timeout_ms requires a cursor")
+	// ErrFileTransferWaitCursorRequired is returned when a file-transfer wait
+	// omits the event cursor that separates an earlier transfer from the one
+	// being observed.
+	ErrFileTransferWaitCursorRequired = errors.New("cursor is required to wait for a file-transfer result")
+	// ErrFileTransferWaitIDRequired is returned when a file-transfer wait cannot
+	// correlate terminal and lease-release events to one transfer.
+	ErrFileTransferWaitIDRequired = errors.New("transfer_id is required to wait for a file-transfer result")
+	// ErrInvalidCompletedFileTransferEvent is returned when a completed event
+	// cannot provide the authoritative saved-path result promised by the Tool.
+	ErrInvalidCompletedFileTransferEvent = errors.New("completed file-transfer event is missing required path metadata")
 	// ErrNilDeviceRegistry is returned when device tools have no discovery state owner.
 	ErrNilDeviceRegistry = errors.New("device registry must not be nil")
 	// ErrInvalidSessionLabel is returned when a display label contains a control character.
@@ -123,9 +136,9 @@ type connectableSession = app.ConnectedSession
 type serialSessionFactory = app.SerialSessionFactory
 type serialPortLister func() ([]serialtransport.Port, error)
 
-// serialTools contains construction dependencies shared by the six exposed
-// tools. It exists to make tests use fakes without making runtime dependency
-// injection part of the public Tool API.
+// serialTools contains construction dependencies shared by Session-addressed
+// terminal tools. It exists to make tests use fakes without making runtime
+// dependency injection part of the public Tool API.
 type serialTools struct {
 	application *app.Application
 }
@@ -164,7 +177,20 @@ func serialToolsForApplication(application *app.Application) []tool.Tool {
 		&listSessionsTool{serialTools: dependencies},
 		&readTool{serialTools: dependencies},
 		&readActivityTool{serialTools: dependencies},
+		&readSessionEventsTool{serialTools: dependencies},
+		&waitFileTransferTool{serialTools: dependencies},
+		&attachSessionTool{serialTools: dependencies},
+		&detachSessionTool{serialTools: dependencies},
+		&reportFileTransferTool{serialTools: dependencies},
+		&executeCommandTool{serialTools: dependencies},
 		&writeTool{serialTools: dependencies},
+		&writeLeasedTool{serialTools: dependencies},
+		&acquireLeaseTool{serialTools: dependencies},
+		&renewLeaseTool{serialTools: dependencies},
+		&beginFileTransferCancelTool{serialTools: dependencies},
+		&resolveFileTransferCancelTool{serialTools: dependencies},
+		&fileTransferCheckpointTool{serialTools: dependencies},
+		&releaseLeaseTool{serialTools: dependencies},
 		&closeTool{serialTools: dependencies},
 	}
 }
@@ -508,14 +534,18 @@ func (t *listSessionsTool) Call(ctx context.Context, _ json.RawMessage) (tool.Re
 	sessions := t.application.ListSessions()
 	result := make([]sessionSummary, 0, len(sessions))
 	for _, info := range sessions {
-		result = append(result, sessionSummary{
+		summary := sessionSummary{
 			ID:        info.ID,
 			Reference: info.Metadata.Reference,
 			Transport: info.Metadata.Transport,
 			Endpoint:  info.Metadata.Endpoint,
 			Label:     info.Metadata.Label,
 			State:     info.State.String(),
-		})
+		}
+		if lease, active, err := t.application.LeaseStatus(info.ID); err == nil && active {
+			summary.Lease = &leaseSummary{Type: string(lease.Type), TransferID: lease.TransferID, CreatedAt: lease.CreatedAt.Format(time.RFC3339Nano), ExpiresAt: lease.ExpiresAt.Format(time.RFC3339Nano), State: lease.State}
+		}
+		result = append(result, summary)
 	}
 	sort.Slice(result, func(i, j int) bool { return result[i].Reference < result[j].Reference })
 	return tool.Result{"sessions": result}, nil
@@ -670,14 +700,384 @@ func encodeActivityEvents(events []session.SessionEvent) []activityEventResult {
 	return encoded
 }
 
+// readSessionEventsTool exposes structured Session lifecycle and operation
+// events without reading terminal output or changing a write/activity cursor.
+type readSessionEventsTool struct{ *serialTools }
+
+// Name returns the stable terminal_session_events Tool identifier.
+func (*readSessionEventsTool) Name() string { return "terminal_session_events" }
+
+// Description explains independent cursor-based Session event observation.
+func (*readSessionEventsTool) Description() string {
+	return "Read retained structured Session events, or wait for events after an event cursor. Events never include terminal output bytes."
+}
+
+// InputSchema describes bounded Session-event reads and optional cursor waiting.
+func (*readSessionEventsTool) InputSchema() tool.InputSchema {
+	return tool.InputSchema{Type: "object", Properties: map[string]tool.InputProperty{
+		"session_id": {Type: "string", Description: "Session ID or short reference returned by terminal_open_serial."},
+		"cursor":     {Type: "integer", Description: "Optional next event cursor; when set, wait for newer events."},
+		"max_events": {Type: "integer", Description: "Maximum number of Session events to return."},
+		"timeout_ms": {Type: "integer", Description: "Optional wait timeout in milliseconds when cursor is supplied; maximum 86400000."},
+	}, Required: []string{"session_id"}}
+}
+
+// Call returns a copied structured event chunk from the requested Session.
+func (t *readSessionEventsTool) Call(ctx context.Context, input json.RawMessage) (tool.Result, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	var args eventInput
+	if err := decodeInput(input, &args); err != nil {
+		return nil, err
+	}
+	limit := args.MaxEvents
+	if limit == 0 {
+		limit = session.DefaultEventBufferCapacity
+	}
+	var chunk session.EventChunk
+	var err error
+	if args.Cursor == nil {
+		if args.TimeoutMS != nil {
+			return nil, ErrTimeoutRequiresCursor
+		}
+		chunk, err = t.application.ReadSessionEvents(ctx, args.SessionID, nil, limit)
+	} else {
+		waitCtx, cancel, timeoutErr := waitContext(ctx, args.TimeoutMS)
+		if timeoutErr != nil {
+			return nil, timeoutErr
+		}
+		defer cancel()
+		chunk, err = t.application.ReadSessionEvents(waitCtx, args.SessionID, args.Cursor, limit)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("read events for session %q: %w", args.SessionID, err)
+	}
+	return tool.Result{"events": encodeSessionEvents(chunk.Events), "next": uint64(chunk.Next), "dropped": chunk.Dropped}, nil
+}
+
+// waitFileTransferTool waits through progress and lifecycle noise until the
+// observed transfer reaches one unambiguous terminal state. It reads only the
+// structured Session event stream and never waits for a shell prompt or raw
+// terminal byte that might not be emitted after cancellation.
+type waitFileTransferTool struct{ *serialTools }
+
+// Name returns the stable terminal_wait_file_transfer Tool identifier.
+func (*waitFileTransferTool) Name() string { return "terminal_wait_file_transfer" }
+
+// Description directs Agents away from terminal_wait for transfer outcomes.
+func (*waitFileTransferTool) Description() string {
+	return "Wait for one transfer_id after an event cursor until the transfer completes, is cancelled, or fails and its file-transfer lease has been released. Completed transfers include source_path, requested_path, resolved_path, renamed, and optional sha256; use resolved_path as the saved file path. Use this instead of terminal_wait for file-transfer outcomes."
+}
+
+// InputSchema describes a Session event cursor and an optional bounded wait.
+func (*waitFileTransferTool) InputSchema() tool.InputSchema {
+	return tool.InputSchema{Type: "object", Properties: map[string]tool.InputProperty{
+		"session_id":  {Type: "string", Description: "Session ID or short reference returned by terminal_open_serial."},
+		"transfer_id": {Type: "string", Description: "Transfer ID published by FILE_TRANSFER_STARTED and the file-transfer lease events."},
+		"cursor":      {Type: "integer", Description: "Next Session event cursor captured before or during the transfer."},
+		"max_events":  {Type: "integer", Description: "Maximum number of Session events inspected per read."},
+		"timeout_ms":  {Type: "integer", Description: "Optional total wait timeout in milliseconds; maximum 86400000."},
+	}, Required: []string{"session_id", "transfer_id", "cursor"}}
+}
+
+// Call skips unrelated events and returns only after both the matching terminal
+// event and matching file-transfer lease release have been observed. The next
+// cursor is immediately after the later of those two events.
+func (t *waitFileTransferTool) Call(ctx context.Context, input json.RawMessage) (tool.Result, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	var args fileTransferWaitInput
+	if err := decodeInput(input, &args); err != nil {
+		return nil, err
+	}
+	if args.Cursor == nil {
+		return nil, ErrFileTransferWaitCursorRequired
+	}
+	transferID := strings.TrimSpace(args.TransferID)
+	if transferID == "" {
+		return nil, ErrFileTransferWaitIDRequired
+	}
+	limit := args.MaxEvents
+	if limit == 0 {
+		limit = session.DefaultEventBufferCapacity
+	}
+	waitCtx, cancel, err := waitContext(ctx, args.TimeoutMS)
+	if err != nil {
+		return nil, err
+	}
+	defer cancel()
+
+	cursor := *args.Cursor
+	dropped := false
+	leaseReleased := false
+	var terminalEvent *session.Event
+	terminalState := ""
+	for {
+		chunk, readErr := t.application.ReadSessionEvents(waitCtx, args.SessionID, &cursor, limit)
+		if readErr != nil {
+			return nil, fmt.Errorf("wait for file transfer on session %q: %w", args.SessionID, readErr)
+		}
+		dropped = dropped || chunk.Dropped
+		for _, event := range chunk.Events {
+			if fileTransferEventID(event) != transferID {
+				continue
+			}
+			if event.Type == session.EventLeaseReleased && event.Metadata["type"] == string(app.LeaseTypeFileTransfer) {
+				leaseReleased = true
+			}
+			state, terminal := fileTransferTerminalState(event.Type)
+			if terminal && terminalEvent == nil {
+				if state == "completed" {
+					if err := validateCompletedFileTransferEvent(event.Metadata); err != nil {
+						return nil, err
+					}
+				}
+				copy := event
+				terminalEvent = &copy
+				terminalState = state
+				if state == "cancelled" && event.Metadata["lease_released"] == true {
+					leaseReleased = true
+				}
+			}
+			if terminalEvent != nil && leaseReleased {
+				encoded := encodeSessionEvents([]session.Event{*terminalEvent})[0]
+				result := tool.Result{
+					"state":          terminalState,
+					"transfer_id":    transferID,
+					"event":          encoded,
+					"next":           event.ID + 1,
+					"dropped":        dropped,
+					"lease_released": true,
+				}
+				addResolvedFileTransferResult(result, terminalState, terminalEvent.Metadata)
+				return result, nil
+			}
+		}
+		cursor = chunk.Next
+	}
+}
+
+func fileTransferEventID(event session.Event) string {
+	transferID, _ := event.Metadata["transfer_id"].(string)
+	return transferID
+}
+
+func validateCompletedFileTransferEvent(metadata map[string]any) error {
+	for _, field := range []string{"source_path", "requested_path", "resolved_path"} {
+		value, ok := metadata[field].(string)
+		if !ok || strings.TrimSpace(value) == "" {
+			return fmt.Errorf("%w: %s", ErrInvalidCompletedFileTransferEvent, field)
+		}
+	}
+	if _, ok := metadata["renamed"].(bool); !ok {
+		return fmt.Errorf("%w: renamed", ErrInvalidCompletedFileTransferEvent)
+	}
+	return nil
+}
+
+// addResolvedFileTransferResult promotes the successful transfer paths from
+// event metadata so an Agent does not have to infer the saved path after the
+// collision policy selects an _N sibling. Non-completed terminal states retain
+// the existing state/event response without path fields.
+func addResolvedFileTransferResult(result tool.Result, state string, metadata map[string]any) {
+	if state != "completed" {
+		return
+	}
+	sourcePath, sourceOK := metadata["source_path"].(string)
+	requestedPath, requestedOK := metadata["requested_path"].(string)
+	resolvedPath, resolvedOK := metadata["resolved_path"].(string)
+	renamed, renamedOK := metadata["renamed"].(bool)
+	if !sourceOK || !requestedOK || !resolvedOK || !renamedOK {
+		return
+	}
+	result["source_path"] = sourcePath
+	result["requested_path"] = requestedPath
+	result["resolved_path"] = resolvedPath
+	result["renamed"] = renamed
+	if digest, ok := metadata["sha256"].(string); ok {
+		result["sha256"] = digest
+	}
+}
+
+func fileTransferTerminalState(typ session.EventType) (string, bool) {
+	switch typ {
+	case session.EventFileTransferCompleted:
+		return "completed", true
+	case session.EventFileTransferCancelled:
+		return "cancelled", true
+	case session.EventFileTransferFailed:
+		return "failed", true
+	default:
+		return "", false
+	}
+}
+
+// attachSessionTool records one CLI attachment without changing the shared
+// Session lifecycle or terminal byte stream.
+type attachSessionTool struct{ *serialTools }
+
+// Name returns the stable terminal_session_attach Tool identifier.
+func (*attachSessionTool) Name() string { return "terminal_session_attach" }
+
+// Description explains that this marks an adapter attachment only.
+func (*attachSessionTool) Description() string {
+	return "Record one client attachment on the Session event stream without acquiring a lease or writing terminal bytes."
+}
+
+// InputSchema describes the attached Session and optional display actor.
+func (*attachSessionTool) InputSchema() tool.InputSchema {
+	return tool.InputSchema{Type: "object", Properties: map[string]tool.InputProperty{
+		"session_id": {Type: "string", Description: "Session ID or short reference."},
+		"actor":      {Type: "string", Description: "Optional adapter actor label; defaults to system."},
+	}, Required: []string{"session_id"}}
+}
+
+// Call records an attachment event.
+func (t *attachSessionTool) Call(ctx context.Context, input json.RawMessage) (tool.Result, error) {
+	var args attachmentInput
+	if err := decodeInput(input, &args); err != nil {
+		return nil, err
+	}
+	if err := t.application.AttachSession(args.SessionID, args.Actor); err != nil {
+		return nil, err
+	}
+	return tool.Result{"attached": true}, nil
+}
+
+// detachSessionTool records one CLI detachment without closing the Session.
+type detachSessionTool struct{ *serialTools }
+
+// Name returns the stable terminal_session_detach Tool identifier.
+func (*detachSessionTool) Name() string { return "terminal_session_detach" }
+
+// Description explains that this marks an adapter detachment only.
+func (*detachSessionTool) Description() string {
+	return "Record one client detachment on the Session event stream without closing the shared Session."
+}
+
+// InputSchema describes the detached Session and optional display actor.
+func (*detachSessionTool) InputSchema() tool.InputSchema { return (&attachSessionTool{}).InputSchema() }
+
+// Call records a detachment event.
+func (t *detachSessionTool) Call(ctx context.Context, input json.RawMessage) (tool.Result, error) {
+	var args attachmentInput
+	if err := decodeInput(input, &args); err != nil {
+		return nil, err
+	}
+	if err := t.application.DetachSession(args.SessionID, args.Actor); err != nil {
+		return nil, err
+	}
+	return tool.Result{"detached": true}, nil
+}
+
+// reportFileTransferTool is the CLI-to-host bridge for file-transfer events.
+// File payload I/O stays on the existing terminal tools; this tool only emits
+// structured status that observers can read through terminal_session_events.
+type reportFileTransferTool struct{ *serialTools }
+
+// Name returns the stable terminal_report_file_transfer Tool identifier.
+func (*reportFileTransferTool) Name() string { return "terminal_report_file_transfer" }
+
+// Description explains that the tool publishes no terminal bytes.
+func (*reportFileTransferTool) Description() string {
+	return "Publish a file-transfer status event only for the caller-owned active file-transfer lease, without writing terminal output."
+}
+
+// InputSchema describes a file-transfer status event and JSON metadata.
+func (*reportFileTransferTool) InputSchema() tool.InputSchema {
+	return tool.InputSchema{Type: "object", Properties: map[string]tool.InputProperty{
+		"session_id":  {Type: "string", Description: "Session ID or short reference."},
+		"owner":       {Type: "string", Description: "Opaque owner capability of the active file-transfer lease."},
+		"transfer_id": {Type: "string", Description: "Transfer ID returned when the file-transfer lease was acquired."},
+		"type":        {Type: "string", Description: "File-transfer event type.", Enum: []string{string(session.EventFileTransferStarted), string(session.EventFileTransferProgress), string(session.EventFileTransferCompleted), string(session.EventFileTransferFailed)}},
+		"actor":       {Type: "string", Description: "Optional adapter actor label; defaults to system."},
+		"metadata":    {Type: "object", Description: "Optional JSON-compatible transfer status metadata."},
+	}, Required: []string{"session_id", "owner", "transfer_id", "type"}}
+}
+
+// Call publishes one validated file-transfer event.
+func (t *reportFileTransferTool) Call(ctx context.Context, input json.RawMessage) (tool.Result, error) {
+	var args fileTransferEventInput
+	if err := decodeInput(input, &args); err != nil {
+		return nil, err
+	}
+	if err := t.application.ReportFileTransferEvent(args.SessionID, args.Owner, args.TransferID, session.EventType(args.Type), args.Actor, args.Metadata); err != nil {
+		return nil, err
+	}
+	return tool.Result{"published": true}, nil
+}
+
+// encodeSessionEvents returns JSON-ready event snapshots without terminal data.
+func encodeSessionEvents(events []session.Event) []sessionEventResult {
+	encoded := make([]sessionEventResult, 0, len(events))
+	for _, event := range events {
+		encoded = append(encoded, sessionEventResult{ID: event.ID, Timestamp: event.Timestamp.Format(time.RFC3339Nano), SessionID: event.SessionID, Type: string(event.Type), Actor: event.Actor, Metadata: event.Metadata})
+	}
+	return encoded
+}
+
 type writeTool struct{ *serialTools }
+
+type executeCommandTool struct{ *serialTools }
+
+// Name returns the stable terminal_exec Tool identifier.
+func (*executeCommandTool) Name() string { return "terminal_exec" }
+
+// Description explains that terminal_exec is the history-free alternative to
+// raw writes when an Agent intends to run one non-interactive Bash command.
+func (*executeCommandTool) Description() string {
+	return "Execute one non-interactive command through an idle Bash prompt without adding it to Bash history; use terminal_write for raw keys or interactive programs."
+}
+
+// InputSchema describes one printable command and its bounded total timeout.
+func (*executeCommandTool) InputSchema() tool.InputSchema {
+	return tool.InputSchema{
+		Type: "object",
+		Properties: map[string]tool.InputProperty{
+			"session_id": {Type: "string", Description: "Session ID or short reference returned by terminal_open_serial."},
+			"command":    {Type: "string", Description: "One printable command line; control characters and embedded newlines are rejected."},
+			"timeout_ms": {Type: "integer", Description: "Optional total execution timeout in milliseconds; default 30000, maximum 86400000."},
+		},
+		Required: []string{"session_id", "command"},
+	}
+}
+
+// Call delegates command lifecycle, lease renewal, history isolation, and
+// bounded recovery to Application and returns raw-output cursor boundaries.
+func (t *executeCommandTool) Call(ctx context.Context, input json.RawMessage) (tool.Result, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	var args executeCommandInput
+	if err := decodeInput(input, &args); err != nil {
+		return nil, err
+	}
+	executionCtx, cancel, err := terminalCommandContext(ctx, args.TimeoutMS)
+	if err != nil {
+		return nil, err
+	}
+	defer cancel()
+	result, err := t.application.ExecuteTerminalCommand(executionCtx, args.SessionID, args.Command)
+	if err != nil {
+		return nil, fmt.Errorf("execute terminal command on session %q: %w", args.SessionID, err)
+	}
+	return tool.Result{
+		"session_id":   result.SessionID,
+		"command_id":   result.CommandID,
+		"exit_code":    result.ExitCode,
+		"output_start": uint64(result.OutputStart),
+		"output_end":   uint64(result.OutputEnd),
+	}, nil
+}
 
 // Name returns the stable terminal_write Tool identifier.
 func (*writeTool) Name() string { return "terminal_write" }
 
 // Description explains that the Tool sends lossless byte input to an active terminal session.
 func (*writeTool) Description() string {
-	return "Write UTF-8, hexadecimal, or base64 bytes to an active terminal session."
+	return "Write raw UTF-8, hexadecimal, or base64 bytes to an active terminal session; shell lines follow target history, so use terminal_exec for an idle Bash command."
 }
 
 // InputSchema describes the session ID and text payload required for a write.
@@ -686,7 +1086,7 @@ func (*writeTool) InputSchema() tool.InputSchema {
 		Type: "object",
 		Properties: map[string]tool.InputProperty{
 			"session_id": {Type: "string", Description: "Session ID or short reference returned by terminal_open_serial."},
-			"data":       {Type: "string", Description: "Payload to send without adding a line ending."},
+			"data":       {Type: "string", Description: "Payload to send without adding a line ending; decoded payload must not exceed 1 MiB."},
 			"encoding":   {Type: "string", Description: "Payload representation: utf8 (default), hex, or base64.", Enum: []string{"utf8", "hex", "base64"}},
 			"actor":      {Type: "string", Description: "Internal operation source: user, agent, or system.", Enum: []string{string(session.ActorUser), string(session.ActorAgent), string(session.ActorSystem)}},
 		},
@@ -720,6 +1120,259 @@ func (t *writeTool) Call(ctx context.Context, input json.RawMessage) (tool.Resul
 		return nil, fmt.Errorf("write session %q: %w", args.SessionID, err)
 	}
 	return tool.Result{"bytes_written": len(payload)}, nil
+}
+
+// writeLeasedTool writes through a caller-owned lease without extending the
+// stable terminal_write input schema used by existing MCP clients.
+type writeLeasedTool struct{ *serialTools }
+
+// Name returns the lease-aware terminal write Tool identifier.
+func (*writeLeasedTool) Name() string { return "terminal_write_leased" }
+
+// Description explains that the Tool is only for an active exclusive lease.
+func (*writeLeasedTool) Description() string {
+	return "Write bytes through an active Session lease owned by this operation."
+}
+
+// InputSchema describes the normal write payload plus its lease owner capability.
+func (*writeLeasedTool) InputSchema() tool.InputSchema {
+	schema := (&writeTool{}).InputSchema()
+	schema.Properties["owner"] = tool.InputProperty{Type: "string", Description: "Opaque owner capability returned to the lease caller."}
+	schema.Required = append(schema.Required, "owner")
+	return schema
+}
+
+// Call writes only when owner matches the Session's active lease.
+func (t *writeLeasedTool) Call(ctx context.Context, input json.RawMessage) (tool.Result, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	var args leasedWriteInput
+	if err := decodeInput(input, &args); err != nil {
+		return nil, err
+	}
+	payload, err := decodePayload(args.Encoding, args.Data)
+	if err != nil {
+		return nil, fmt.Errorf("decode write payload: %w", err)
+	}
+	actor := args.Actor
+	if actor == "" {
+		actor = session.ActorAgent
+	}
+	if !actor.Valid() {
+		return nil, fmt.Errorf("%w: %q", session.ErrInvalidActor, actor)
+	}
+	if _, err := t.application.WriteSessionWithLease(ctx, args.SessionID, args.Owner, session.WriteRequest{Actor: actor, Data: payload}); err != nil {
+		return nil, fmt.Errorf("write leased session %q: %w", args.SessionID, err)
+	}
+	return tool.Result{"bytes_written": len(payload)}, nil
+}
+
+// acquireLeaseTool creates an exclusive application-level Session lease.
+type acquireLeaseTool struct{ *serialTools }
+
+// Name returns the stable lease-acquisition Tool identifier.
+func (*acquireLeaseTool) Name() string { return "terminal_acquire_lease" }
+
+// Description explains that readers remain available while other writers fail immediately.
+func (*acquireLeaseTool) Description() string {
+	return "Acquire one exclusive Session lease. Readers continue normally; other writers fail until release."
+}
+
+// InputSchema describes the target, opaque owner capability, and lease type.
+func (*acquireLeaseTool) InputSchema() tool.InputSchema {
+	return tool.InputSchema{Type: "object", Properties: map[string]tool.InputProperty{
+		"session_id": {Type: "string", Description: "Session ID or short reference."},
+		"owner":      {Type: "string", Description: "Opaque caller-generated lease owner capability."},
+		"type":       {Type: "string", Description: "Exclusive operation type.", Enum: []string{string(app.LeaseTypeTerminal), string(app.LeaseTypeFileTransfer), string(app.LeaseTypeDebug)}},
+	}, Required: []string{"session_id", "owner", "type"}}
+}
+
+// Call acquires and returns non-secret lease state. The owner capability is not echoed.
+func (t *acquireLeaseTool) Call(ctx context.Context, input json.RawMessage) (tool.Result, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	var args leaseInput
+	if err := decodeInput(input, &args); err != nil {
+		return nil, err
+	}
+	lease, err := t.application.AcquireLease(args.SessionID, args.Owner, app.LeaseType(args.Type))
+	if err != nil {
+		return nil, err
+	}
+	return leaseResult(lease), nil
+}
+
+// renewLeaseTool extends a caller-owned lease before its Host-side TTL elapses.
+type renewLeaseTool struct{ *serialTools }
+
+// Name returns the stable lease-renewal Tool identifier.
+func (*renewLeaseTool) Name() string { return "terminal_renew_lease" }
+
+// Description explains the heartbeat contract for long-running operations.
+func (*renewLeaseTool) Description() string {
+	return "Renew an exclusive Session lease owned by this operation before it expires."
+}
+
+// InputSchema describes the target and opaque owner capability.
+func (*renewLeaseTool) InputSchema() tool.InputSchema {
+	return tool.InputSchema{Type: "object", Properties: map[string]tool.InputProperty{
+		"session_id": {Type: "string", Description: "Session ID or short reference."},
+		"owner":      {Type: "string", Description: "Opaque caller-generated lease owner capability."},
+	}, Required: []string{"session_id", "owner"}}
+}
+
+// Call renews the lease after verifying the owner capability.
+func (t *renewLeaseTool) Call(ctx context.Context, input json.RawMessage) (tool.Result, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	var args leaseInput
+	if err := decodeInput(input, &args); err != nil {
+		return nil, err
+	}
+	lease, err := t.application.RenewLease(args.SessionID, args.Owner)
+	if err != nil {
+		return nil, err
+	}
+	return leaseResult(lease), nil
+}
+
+// beginFileTransferCancelTool opens the user confirmation state for the
+// active file-transfer lease without affecting ordinary terminal Sessions.
+type beginFileTransferCancelTool struct{ *serialTools }
+
+// Name returns the stable cancellation-begin Tool identifier.
+func (*beginFileTransferCancelTool) Name() string { return "terminal_begin_file_transfer_cancel" }
+
+// Description explains the conditional Ctrl+C control operation.
+func (*beginFileTransferCancelTool) Description() string {
+	return "Begin cancellation confirmation only when a file-transfer lease is active on the Session."
+}
+
+// InputSchema describes the observed Session.
+func (*beginFileTransferCancelTool) InputSchema() tool.InputSchema {
+	return tool.InputSchema{Type: "object", Properties: map[string]tool.InputProperty{
+		"session_id": {Type: "string", Description: "Session ID or short reference."},
+	}, Required: []string{"session_id"}}
+}
+
+// Call returns inactive for an ordinary terminal Session or a request ID that
+// must accompany the user's confirmation answer.
+func (t *beginFileTransferCancelTool) Call(ctx context.Context, input json.RawMessage) (tool.Result, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	var args fileTransferControlInput
+	if err := decodeInput(input, &args); err != nil {
+		return nil, err
+	}
+	request, err := t.application.BeginFileTransferCancel(args.SessionID)
+	if err != nil {
+		return nil, err
+	}
+	return tool.Result{"active": request.Active, "request_id": request.RequestID, "state": request.State}, nil
+}
+
+// resolveFileTransferCancelTool applies one confirmation answer.
+type resolveFileTransferCancelTool struct{ *serialTools }
+
+// Name returns the stable cancellation-resolution Tool identifier.
+func (*resolveFileTransferCancelTool) Name() string { return "terminal_resolve_file_transfer_cancel" }
+
+// Description explains that only cancel=true stops a transfer.
+func (*resolveFileTransferCancelTool) Description() string {
+	return "Resolve a file-transfer cancellation confirmation; false resumes and true waits for safe cleanup and lease release."
+}
+
+// InputSchema describes the request ID and explicit confirmation answer.
+func (*resolveFileTransferCancelTool) InputSchema() tool.InputSchema {
+	return tool.InputSchema{Type: "object", Properties: map[string]tool.InputProperty{
+		"session_id": {Type: "string", Description: "Session ID or short reference."},
+		"request_id": {Type: "string", Description: "Request ID returned by terminal_begin_file_transfer_cancel."},
+		"cancel":     {Type: "boolean", Description: "True only for an explicit y/Y answer."},
+	}, Required: []string{"session_id", "request_id", "cancel"}}
+}
+
+// Call resumes immediately or waits for confirmed cancellation cleanup.
+func (t *resolveFileTransferCancelTool) Call(ctx context.Context, input json.RawMessage) (tool.Result, error) {
+	var args fileTransferControlInput
+	if err := decodeInput(input, &args); err != nil {
+		return nil, err
+	}
+	result, err := t.application.ResolveFileTransferCancel(ctx, args.SessionID, args.RequestID, args.Cancel)
+	if err != nil {
+		return nil, err
+	}
+	return tool.Result{"state": result.State, "transferred": result.Transferred, "total": result.Total, "percent": result.Percent}, nil
+}
+
+// fileTransferCheckpointTool blocks the lease owner only while a local user is
+// deciding whether to cancel at a safe protocol boundary.
+type fileTransferCheckpointTool struct{ *serialTools }
+
+// Name returns the stable transfer checkpoint Tool identifier.
+func (*fileTransferCheckpointTool) Name() string { return "terminal_file_transfer_checkpoint" }
+
+// Description explains the lease-owner polling contract.
+func (*fileTransferCheckpointTool) Description() string {
+	return "Check a file-transfer lease at a safe block boundary, waiting while cancellation confirmation is pending."
+}
+
+// InputSchema describes the Session and its opaque lease capability.
+func (*fileTransferCheckpointTool) InputSchema() tool.InputSchema {
+	return tool.InputSchema{Type: "object", Properties: map[string]tool.InputProperty{
+		"session_id": {Type: "string", Description: "Session ID or short reference."},
+		"owner":      {Type: "string", Description: "Opaque owner capability for the active file-transfer lease."},
+	}, Required: []string{"session_id", "owner"}}
+}
+
+// Call returns continue or cancel after any pending confirmation is resolved.
+func (t *fileTransferCheckpointTool) Call(ctx context.Context, input json.RawMessage) (tool.Result, error) {
+	var args fileTransferControlInput
+	if err := decodeInput(input, &args); err != nil {
+		return nil, err
+	}
+	action, err := t.application.FileTransferCheckpoint(ctx, args.SessionID, args.Owner)
+	if err != nil {
+		return nil, err
+	}
+	return tool.Result{"action": string(action)}, nil
+}
+
+// releaseLeaseTool releases a caller-owned exclusive Session lease.
+type releaseLeaseTool struct{ *serialTools }
+
+// Name returns the stable lease-release Tool identifier.
+func (*releaseLeaseTool) Name() string { return "terminal_release_lease" }
+
+// Description explains that release is idempotent for an already absent lease.
+func (*releaseLeaseTool) Description() string {
+	return "Release an exclusive Session lease owned by this operation."
+}
+
+// InputSchema describes the target and opaque owner capability.
+func (*releaseLeaseTool) InputSchema() tool.InputSchema {
+	return tool.InputSchema{Type: "object", Properties: map[string]tool.InputProperty{
+		"session_id": {Type: "string", Description: "Session ID or short reference."},
+		"owner":      {Type: "string", Description: "Opaque caller-generated lease owner capability."},
+	}, Required: []string{"session_id", "owner"}}
+}
+
+// Call releases the lease after verifying the owner capability.
+func (t *releaseLeaseTool) Call(ctx context.Context, input json.RawMessage) (tool.Result, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	var args leaseInput
+	if err := decodeInput(input, &args); err != nil {
+		return nil, err
+	}
+	if err := t.application.ReleaseLease(args.SessionID, args.Owner); err != nil {
+		return nil, err
+	}
+	return tool.Result{"released": true}, nil
 }
 
 type closeTool struct{ *serialTools }
@@ -795,6 +1448,42 @@ type activityInput struct {
 	TimeoutMS *int64                  `json:"timeout_ms"`
 }
 
+type eventInput struct {
+	SessionID string               `json:"session_id"`
+	Cursor    *session.EventCursor `json:"cursor"`
+	MaxEvents int                  `json:"max_events"`
+	TimeoutMS *int64               `json:"timeout_ms"`
+}
+
+type fileTransferWaitInput struct {
+	SessionID  string               `json:"session_id"`
+	TransferID string               `json:"transfer_id"`
+	Cursor     *session.EventCursor `json:"cursor"`
+	MaxEvents  int                  `json:"max_events"`
+	TimeoutMS  *int64               `json:"timeout_ms"`
+}
+
+type attachmentInput struct {
+	SessionID string `json:"session_id"`
+	Actor     string `json:"actor"`
+}
+
+type fileTransferEventInput struct {
+	SessionID  string         `json:"session_id"`
+	Owner      string         `json:"owner"`
+	TransferID string         `json:"transfer_id"`
+	Type       string         `json:"type"`
+	Actor      string         `json:"actor"`
+	Metadata   map[string]any `json:"metadata"`
+}
+
+type fileTransferControlInput struct {
+	SessionID string `json:"session_id"`
+	Owner     string `json:"owner"`
+	RequestID string `json:"request_id"`
+	Cancel    bool   `json:"cancel"`
+}
+
 type deviceEventsInput struct {
 	Cursor    *device.Cursor `json:"cursor"`
 	MaxEvents int            `json:"max_events"`
@@ -838,6 +1527,15 @@ type activityEventResult struct {
 	Encoding  string `json:"encoding"`
 }
 
+type sessionEventResult struct {
+	ID        uint64         `json:"id"`
+	Timestamp string         `json:"timestamp"`
+	SessionID string         `json:"session_id"`
+	Type      string         `json:"type"`
+	Actor     string         `json:"actor"`
+	Metadata  map[string]any `json:"metadata,omitempty"`
+}
+
 type writeInput struct {
 	SessionID string        `json:"session_id"`
 	Data      string        `json:"data"`
@@ -845,17 +1543,54 @@ type writeInput struct {
 	Actor     session.Actor `json:"actor"`
 }
 
+type executeCommandInput struct {
+	SessionID string `json:"session_id"`
+	Command   string `json:"command"`
+	TimeoutMS *int64 `json:"timeout_ms"`
+}
+
+type leasedWriteInput struct {
+	SessionID string        `json:"session_id"`
+	Owner     string        `json:"owner"`
+	Data      string        `json:"data"`
+	Encoding  string        `json:"encoding"`
+	Actor     session.Actor `json:"actor"`
+}
+
+type leaseInput struct {
+	SessionID string `json:"session_id"`
+	Owner     string `json:"owner"`
+	Type      string `json:"type"`
+}
+
 type closeInput struct {
 	SessionID string `json:"session_id"`
 }
 
 type sessionSummary struct {
-	ID        string `json:"session_id"`
-	Reference string `json:"session_ref"`
-	Transport string `json:"transport"`
-	Endpoint  string `json:"endpoint"`
-	Label     string `json:"label"`
-	State     string `json:"state"`
+	ID        string        `json:"session_id"`
+	Reference string        `json:"session_ref"`
+	Transport string        `json:"transport"`
+	Endpoint  string        `json:"endpoint"`
+	Label     string        `json:"label"`
+	State     string        `json:"state"`
+	Lease     *leaseSummary `json:"lease,omitempty"`
+}
+
+type leaseSummary struct {
+	Type       string `json:"type"`
+	TransferID string `json:"transfer_id,omitempty"`
+	CreatedAt  string `json:"created_at"`
+	ExpiresAt  string `json:"expires_at"`
+	State      string `json:"state"`
+}
+
+func leaseResult(lease app.SessionLease) tool.Result {
+	result := tool.Result{"session_id": lease.SessionID, "type": string(lease.Type), "created_at": lease.CreatedAt.Format(time.RFC3339Nano), "expires_at": lease.ExpiresAt.Format(time.RFC3339Nano), "state": lease.State}
+	if lease.TransferID != "" {
+		result["transfer_id"] = lease.TransferID
+	}
+	return result
 }
 
 // validateSessionLabel keeps display-oriented metadata safe for future CLI and
@@ -906,6 +1641,14 @@ func waitContext(parent context.Context, timeoutMS *int64) (context.Context, con
 	return ctx, cancel, nil
 }
 
+func terminalCommandContext(parent context.Context, timeoutMS *int64) (context.Context, context.CancelFunc, error) {
+	if timeoutMS == nil {
+		ctx, cancel := context.WithTimeout(parent, defaultTerminalCommandTimeout)
+		return ctx, cancel, nil
+	}
+	return waitContext(parent, timeoutMS)
+}
+
 // encodeOutput converts raw Ring Buffer bytes to the requested lossless
 // representation. UTF-8 rejects malformed byte sequences rather than letting
 // Go's string conversion make callers mistake replacement text for source data.
@@ -936,6 +1679,9 @@ func decodePayload(requested, data string) ([]byte, error) {
 	if encoding == "" {
 		encoding = "utf8"
 	}
+	if err := validatePayloadSizeBeforeDecode(encoding, data); err != nil {
+		return nil, err
+	}
 	switch encoding {
 	case "utf8":
 		return []byte(data), nil
@@ -960,4 +1706,59 @@ func decodePayload(requested, data string) ([]byte, error) {
 	default:
 		return nil, fmt.Errorf("%w: %q", ErrInvalidEncoding, requested)
 	}
+}
+
+// validatePayloadSizeBeforeDecode rejects input that cannot fit within the
+// application write limit without first allocating a second decoded copy. The
+// Application repeats the decoded-byte check so non-MCP adapters cannot bypass
+// the same boundary.
+func validatePayloadSizeBeforeDecode(encoding, data string) error {
+	tooLarge := func() error {
+		return fmt.Errorf("%w: maximum %d decoded bytes", app.ErrWritePayloadTooLarge, app.MaxSessionWriteBytes)
+	}
+	switch encoding {
+	case "utf8":
+		if len(data) > app.MaxSessionWriteBytes {
+			return tooLarge()
+		}
+	case "hex":
+		encodedBytes := 0
+		for _, value := range data {
+			if unicode.IsSpace(value) {
+				continue
+			}
+			encodedBytes += utf8.RuneLen(value)
+			if encodedBytes > 2*app.MaxSessionWriteBytes {
+				return tooLarge()
+			}
+		}
+	case "base64":
+		encodedBytes := 0
+		maxEncodedBytes := base64.StdEncoding.EncodedLen(app.MaxSessionWriteBytes)
+		var previous, last byte
+		for index := range len(data) {
+			value := data[index]
+			if value == '\r' || value == '\n' {
+				continue
+			}
+			encodedBytes++
+			if encodedBytes > maxEncodedBytes {
+				return tooLarge()
+			}
+			previous, last = last, value
+		}
+		decodedBytes := encodedBytes / 4 * 3
+		if last == '=' {
+			decodedBytes--
+		}
+		if previous == '=' {
+			decodedBytes--
+		}
+		if decodedBytes > app.MaxSessionWriteBytes {
+			return tooLarge()
+		}
+	default:
+		return fmt.Errorf("%w: %q", ErrInvalidEncoding, encoding)
+	}
+	return nil
 }

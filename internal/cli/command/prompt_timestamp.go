@@ -114,8 +114,9 @@ func (r *promptTimestampRenderer) Write(data []byte) error {
 	return nil
 }
 
-// Flush writes an incomplete candidate as raw remote data before flushing the
-// downstream local renderer during orderly disconnect.
+// Flush writes an incomplete candidate as raw remote data, ends prompt-echo
+// state, and flushes the downstream renderer before local status output or an
+// orderly disconnect.
 func (r *promptTimestampRenderer) Flush() error {
 	return r.flushPending()
 }

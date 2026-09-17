@@ -24,9 +24,11 @@ ChannelTerm currently implements serial communication on Windows, Linux, and mac
 
 ## A Shared Terminal in Practice
 
-An attached CLI renders each new, non-empty Agent write as a local `AI` activity block. The lines after the block are still the device's raw terminal output, and the human can type at the same prompt:
+An attached CLI renders an Agent command as a local `AI` activity block. `terminal_exec` keeps that
+command out of an idle Bash prompt's history; the lines after the block are still the device's raw
+terminal output, and the human can type again when the short command lease is released:
 
-```text
+```bash
 root@board:~#
 
 ──────── AI ────────
@@ -38,7 +40,10 @@ human-still-here
 root@board:~#
 ```
 
-The exact command output and input echo depend on the connected device. The `AI` block is local presentation derived from Session activity; it is not inserted into the device byte stream or stored terminal output.
+The exact command output depends on the connected device. The `AI` block is local presentation
+derived from structured Session events; it is not inserted into the device byte stream or stored
+terminal output. Raw keys and interactive programs still use `terminal_write` and retain the
+device's normal history behavior.
 
 ## Why ChannelTerm?
 
@@ -92,13 +97,30 @@ For the default local endpoint, `attach` starts the loopback Session Host when n
 channelterm list --kind session
 ```
 
+That shared serial Session can also transfer regular files and directories without an AI client or a separately installed board-side transfer agent. Directories use standard tar and acknowledged, cancellation-friendly chunks:
+
+```bash
+channelterm file send firmware.bin --session SER-1
+channelterm file receive /tmp/log.txt ./log.txt --session SER-1
+channelterm file send ./build/release /tmp/release --session SER-1
+channelterm file receive /var/log/myapp ./myapp --session SER-1
+```
+
+When the command omits its remote destination, it saves under `/tmp/cterm/mcp-files/`; the interactive shortcut uses `/tmp/cterm/user-files/`. ChannelTerm creates a missing destination hierarchy and reuses it on later transfers. The Linux shell uses native `mkdir`, `stty`, `dd`, `wc`, `sha256sum`, and `sleep`, plus `tar` for directories; ChannelTerm streams bounded chunks, reports progress, and verifies end-to-end SHA-256 for file bytes and directory tar streams. Directory transfers use temporary target-side archives so cancellation stops after the active chunk instead of draining the remaining directory. A temporary file-transfer lease blocks other ChannelTerm writers until the command finishes. While that lease is active, `Ctrl+C` in any bundled attachment opens a default-No local cancellation confirmation; otherwise it keeps its normal remote-terminal meaning. See the [file-transfer workflow](docs/getting-started/file-transfer.md) for prerequisites and limits.
+
 To put an AI in that same Session, configure its MCP client to use the same Streamable HTTP endpoint:
 
 ```text
 http://127.0.0.1:37099/mcp
 ```
 
-The AI can use the MCP Session tools to list Sessions and read or write `SER-1`; see the [MCP workflow](docs/getting-started/mcp-server.md) and [tool reference](docs/reference/mcp-tools.md). The separate `channelterm init --mcp` convenience command installs a stdio MCP configuration; use the shared HTTP endpoint when a CLI and an AI must join the same host-owned Session.
+The AI can use the MCP Session tools to list and read `SER-1`, run an idle Bash command with
+`terminal_exec`, or send explicitly raw terminal bytes with `terminal_write`; see the
+[MCP workflow](docs/getting-started/mcp-server.md) and
+[tool reference](docs/reference/mcp-tools.md). Run `channelterm init --mcp` to install client
+configuration or `channelterm init --mcp-show` to print it; both prompt for HTTP or stdio and
+default to HTTP. Printed HTTP configuration contains the local Bearer credential and must not be
+shared or committed.
 
 While attached:
 
@@ -108,12 +130,13 @@ Ctrl+] q    Detach this CLI without closing the shared Session
 Ctrl+] ?    Show local escape help
 Ctrl+] ]    Send a literal Ctrl+] byte
 Ctrl+] t    Toggle local shell-prompt timestamps
+Ctrl+] f    Open the local file send/receive menu
 Ctrl+] Esc  Cancel local escape mode
 ```
 
-Press `Ctrl+]` to enter local escape mode. ChannelTerm displays the available escape commands locally. `Ctrl+] t` is off by default and prepends local `[HH:MM:SS]` timestamps only to conservatively recognized shell prompts; it does not change shared Session or MCP output.
+Press `Ctrl+]` to enter local escape mode. ChannelTerm displays the available escape commands locally. `Ctrl+] f` starts a guided file/directory send/receive flow on the current attachment, with `/tmp/cterm/user-files/<basename>` and `./<basename>` defaults and non-overwriting `_1`, `_2` selection. `Ctrl+] t` is off by default and prepends local `[HH:MM:SS]` timestamps only to conservatively recognized shell prompts; it does not change shared Session or MCP output.
 
-The HTTP server has no ChannelTerm authentication or authorization layer. Its default listener is loopback-only; do not expose it to an untrusted network.
+The HTTP server requires a per-user Bearer token and defaults to a loopback-only listener. Built-in CLI clients use the local token automatically. Remote MCP clients must send the same token through the `Authorization` header; do not expose the endpoint without TLS and separate network access controls.
 
 ## What It Enables
 
@@ -124,6 +147,7 @@ The HTTP server has no ChannelTerm authentication or authorization layer. Its de
 - Client detach without closing the Session used by other clients.
 - Serial discovery, deterministic target references, TOML profiles, and private direct connections when sharing is not wanted.
 - MCP over stdio or Streamable HTTP, with the shared CLI workflow using the HTTP Session Host.
+- Bounded CLI file/directory send/receive over an existing serial Session, with SHA-256 verification and safe staged directory extraction.
 
 ## Example Workflows
 
@@ -133,11 +157,16 @@ Attach to a board once. An AI reads the retained boot log and runs a focused dia
 
 ### AI operates, human observes
 
-The AI sends a command with `terminal_write`. The attached CLI displays the new Agent write as an `AI` activity block, followed by the real bytes returned by the device.
+At an idle Bash prompt, the AI sends a non-interactive command with `terminal_exec`. The attached
+CLI displays the command once as an `AI` activity block, followed by the real bytes returned by the
+device, while the command and internal bootstrap stay out of Bash history.
 
 ### Human intervenes
 
-The human can type into the shared Session or send `Ctrl+C` to the remote terminal, then continue observing or detach with `Ctrl+] q`. ChannelTerm serializes complete write payloads so their bytes do not interleave, but it does not provide writer ownership, command transactions, priority, or shell-state arbitration; clients must avoid conflicting command sequences.
+The human can type into the shared Session or send `Ctrl+C` to the remote terminal, then continue
+observing or detach with `Ctrl+] q`. A short `terminal_exec` lease temporarily locks human input;
+ordinary raw writes retain byte-level serialization without shell-state arbitration, so clients
+must still avoid conflicting raw command sequences.
 
 ## How It Works
 
@@ -153,7 +182,7 @@ AI via MCP --------+--> Session --> Serial Transport <--> Device
                         `------- retained raw output
 ```
 
-The Session Host owns the physical port and the Session lifetime. A Session owns the single Transport reader, bounded in-memory output and activity retention, and write serialization. CLI and MCP adapters use the same Core behavior; presentation such as highlighting and the `AI` activity block stays outside stored terminal data.
+The Session Host owns the physical port and the Session lifetime. A Serial Transport opens a protocol-neutral Channel; Session owns the single Channel reader, bounded in-memory output and activity retention, and write serialization. CLI and MCP adapters use the same Core behavior; presentation such as highlighting and the `AI` activity block stays outside stored terminal data.
 
 Shared Session references such as `SER-1` are valid only within the owning host process. Stopping that host closes its Sessions; detaching one client does not.
 
@@ -174,6 +203,7 @@ See [Build from source](docs/getting-started/build.md) for the supported platfor
 - [Documentation index](docs/README.md)
 - [Serial terminal workflow](docs/getting-started/serial-terminal.md)
 - [Shared Session workflow](docs/getting-started/shared-session.md)
+- [File-transfer workflow](docs/getting-started/file-transfer.md)
 - [MCP server workflow](docs/getting-started/mcp-server.md)
 - [CLI reference](docs/reference/cli.md)
 - [MCP tool reference](docs/reference/mcp-tools.md)
@@ -186,7 +216,7 @@ For exact command flags and defaults, the running program's `--help` output is a
 
 Serial is the only concrete Transport implemented today. The transport-neutral Core leaves room for future SSH or Telnet Transports and stronger multi-writer coordination, but these are directions rather than implemented features or release commitments.
 
-ChannelTerm does not currently implement GDB, JTAG/OpenOCD, virtual serial devices, file transfer, a built-in AI, or multi-agent orchestration.
+ChannelTerm does not currently implement GDB, JTAG/OpenOCD, virtual serial devices, a built-in AI, or multi-agent orchestration. File transfer is intentionally a small Linux-shell protocol rather than a general transfer agent.
 
 ## License
 

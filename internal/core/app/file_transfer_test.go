@@ -1,0 +1,810 @@
+package app
+
+import (
+	"bytes"
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"errors"
+	"fmt"
+	"io"
+	"os"
+	"os/exec"
+	"regexp"
+	"runtime"
+	"strconv"
+	"strings"
+	"sync"
+	"testing"
+	"time"
+
+	"github.com/akira-init1/ChannelTerm/internal/core/session"
+)
+
+// TestSendFileStreamsSmallFileAndVerifiesMetadata covers binary payloads,
+// acknowledged progress, size verification, and end-to-end hashing.
+func TestSendFileStreamsSmallFileAndVerifiesMetadata(t *testing.T) {
+	content := []byte("ChannelTerm\x00file\ntransfer\xff")
+	terminal := newFileTransferTestSession(nil)
+	var progress []int64
+	result, err := SendFile(context.Background(), terminal, bytes.NewReader(content), int64(len(content)), "/tmp/firmware.bin", func(transferred, total int64) error {
+		if total != int64(len(content)) {
+			t.Errorf("progress total = %d, want %d", total, len(content))
+		}
+		progress = append(progress, transferred)
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("SendFile() error = %v", err)
+	}
+	if !bytes.Equal(terminal.received, content) {
+		t.Errorf("remote content = %x, want %x", terminal.received, content)
+	}
+	wantDigest := sha256.Sum256(content)
+	if result.Size != int64(len(content)) || result.SHA256 != hex.EncodeToString(wantDigest[:]) {
+		t.Errorf("SendFile() result = %+v, want size %d digest %x", result, len(content), wantDigest)
+	}
+	if len(progress) != 1 || progress[0] != int64(len(content)) {
+		t.Errorf("progress = %v, want final size", progress)
+	}
+}
+
+func TestSendFileReturnsCollisionResolvedRemotePath(t *testing.T) {
+	terminal := newFileTransferTestSession(nil)
+	terminal.pathCollisions = 1
+	result, err := SendFile(context.Background(), terminal, strings.NewReader("data"), 4, "/tmp/cterm/mcp-files/app.bin", nil)
+	if err != nil {
+		t.Fatalf("SendFile() error = %v", err)
+	}
+	if result.RemotePath != "/tmp/cterm/mcp-files/app_1.bin" {
+		t.Errorf("SendFile() remote path = %q, want collision-resolved app_1.bin", result.RemotePath)
+	}
+}
+
+// TestSendFileStreamsLargeInputInBoundedChunks proves a 10 MiB source never
+// becomes one source read or Session write.
+func TestSendFileStreamsLargeInputInBoundedChunks(t *testing.T) {
+	const size = 10*1024*1024 + 137
+	source := &generatedFileReader{remaining: size}
+	terminal := newFileTransferTestSession(nil)
+	result, err := SendFile(context.Background(), terminal, source, size, "/tmp/large.bin", nil)
+	if err != nil {
+		t.Fatalf("SendFile() error = %v", err)
+	}
+	if result.Size != size || len(terminal.received) != size {
+		t.Errorf("transferred size = %d/%d, want %d", result.Size, len(terminal.received), size)
+	}
+	if source.maxRead > FileTransferChunkSize {
+		t.Errorf("largest source read = %d, want <= %d", source.maxRead, FileTransferChunkSize)
+	}
+	if terminal.maxPayload > FileTransferChunkSize {
+		t.Errorf("largest Session payload = %d, want <= %d", terminal.maxPayload, FileTransferChunkSize)
+	}
+	if got := terminal.interactiveCommands; len(got) != 1 || got[0] != fileTransferShellBootstrapCommand {
+		t.Errorf("interactive shell history = %v, want one file-transfer entry", got)
+	}
+	if terminal.shellActive {
+		t.Fatal("non-interactive file-transfer shell remained active after success")
+	}
+}
+
+func TestFileTransferShellClosesAfterCancellation(t *testing.T) {
+	content := bytes.Repeat([]byte("x"), FileTransferChunkSize*2)
+	terminal := &cancelAfterFirstSendChunk{fileTransferTestSession: newFileTransferTestSession(nil)}
+	_, err := SendFile(context.Background(), terminal, bytes.NewReader(content), int64(len(content)), "/tmp/cancel.bin", nil)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("SendFile() error = %v, want context.Canceled", err)
+	}
+	if terminal.shellActive {
+		t.Fatal("non-interactive file-transfer shell remained active after cancellation")
+	}
+	if got := terminal.interactiveCommands; len(got) != 1 {
+		t.Errorf("interactive shell history = %v, want one file-transfer entry", got)
+	}
+}
+
+func TestFileTransferShellScopeIsReused(t *testing.T) {
+	terminal := newFileTransferTestSession(nil)
+	err := WithFileTransferShell(context.Background(), terminal, func(scoped FileTransferSession) error {
+		if _, err := DetectRemotePath(context.Background(), scoped, "/tmp/file"); err != nil {
+			return err
+		}
+		_, err := SendFile(context.Background(), scoped, strings.NewReader("data"), 4, "/tmp/file", nil)
+		return err
+	})
+	if err != nil {
+		t.Fatalf("WithFileTransferShell() error = %v", err)
+	}
+	if got := terminal.interactiveCommands; len(got) != 1 {
+		t.Errorf("interactive shell history = %v, want one reused entry", got)
+	}
+	if terminal.shellActive {
+		t.Fatal("non-interactive file-transfer shell remained active after nested operations")
+	}
+}
+
+func TestFileTransferShellCommandsBoundIdleLifetime(t *testing.T) {
+	initCommand := fileTransferShellInitCommand("abc123")
+	for _, required := range []string{"\\033[1A", "sleep 30", "kill -TERM", "trap 'ct_timeout' 1 15", ":SHELL:READY"} {
+		if !strings.Contains(initCommand, required) {
+			t.Errorf("file-transfer shell initialization missing %q: %s", required, initCommand)
+		}
+	}
+	if len(fileTransferShellBootstrapCommand) > 192 {
+		t.Errorf("file-transfer shell bootstrap is not a short recognizable entry: %s", fileTransferShellBootstrapCommand)
+	}
+	for _, required := range []string{"$BASH_VERSION", "history -d \"$HISTCMD\"", "stty -echo", "printf '\\036\\037'", "CTERM_FT=1", "stty echo", "printf '\\035\\034'"} {
+		if !strings.Contains(fileTransferShellBootstrapCommand, required) {
+			t.Errorf("file-transfer shell bootstrap missing %q: %s", required, fileTransferShellBootstrapCommand)
+		}
+	}
+	closeCommand := fileTransferShellCloseCommand()
+	for _, required := range []string{"ct_active", "exit", "fi"} {
+		if !strings.Contains(closeCommand, required) {
+			t.Errorf("file-transfer shell close command missing %q: %s", required, closeCommand)
+		}
+	}
+	if !strings.HasSuffix(closeCommand, "fi") {
+		t.Errorf("file-transfer shell close command does not confirm and exit: %s", closeCommand)
+	}
+}
+
+func TestFileTransferShellCommandsHaveValidShellSyntax(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX shell syntax check is unavailable on Windows")
+	}
+	commands := map[string]string{
+		"bootstrap":  fileTransferShellBootstrapCommand,
+		"initialize": fileTransferShellInitCommand("abc123"),
+		"close":      fileTransferShellCloseCommand(),
+	}
+	for name, command := range commands {
+		t.Run(name, func(t *testing.T) {
+			output, err := exec.Command("sh", "-n", "-c", command).CombinedOutput()
+			if err != nil {
+				t.Fatalf("shell syntax error = %v, output = %q, command = %s", err, output, command)
+			}
+		})
+	}
+}
+
+func TestFileTransferShellBootstrapConfirmsParentResumed(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX shell execution is unavailable on Windows")
+	}
+	command := exec.Command("sh", "-c", fileTransferShellBootstrapCommand)
+	command.Stdin = strings.NewReader("exit\n")
+	output, err := command.Output()
+	if err != nil {
+		t.Fatalf("file-transfer shell bootstrap error = %v, output = %x", err, output)
+	}
+	want := fileTransferShellEchoHiddenMarker + fileTransferShellExitedMarker
+	if string(output) != want {
+		t.Fatalf("file-transfer shell bootstrap output = %x, want parent markers %x", output, want)
+	}
+}
+
+func TestFileTransferShellBootstrapDeletesItsBashHistoryEntry(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Bash history check is unavailable on Windows")
+	}
+	bash, err := exec.LookPath("bash")
+	if err != nil {
+		t.Skip("Bash is unavailable")
+	}
+	command := exec.Command(bash, "--noprofile", "--norc", "-i")
+	command.Env = append(os.Environ(), "HISTFILE=/dev/null")
+	command.Stdin = strings.NewReader("echo USER_COMMAND_BEFORE_TRANSFER\n" + fileTransferShellBootstrapCommand + "\nexit\nhistory\nexit\n")
+	output, err := command.CombinedOutput()
+	if err != nil {
+		t.Fatalf("interactive Bash history check error = %v, output = %q", err, output)
+	}
+	if regexp.MustCompile(`(?m)^\s*[0-9]+\s+.*CTERM_FT=1`).Match(output) {
+		t.Fatalf("interactive Bash history retained bootstrap: %q", output)
+	}
+	if !strings.Contains(string(output), "echo USER_COMMAND_BEFORE_TRANSFER") {
+		t.Fatalf("interactive Bash history lost prior user command: %q", output)
+	}
+}
+
+func TestFileTransferShellReportsMissingSleepWithoutResidualChild(t *testing.T) {
+	terminal := newFileTransferTestSession(nil)
+	terminal.failSleep = true
+	_, err := SendFile(context.Background(), terminal, strings.NewReader("data"), 4, "/tmp/file", nil)
+	if err == nil || !strings.Contains(err.Error(), "sleep command is unavailable") {
+		t.Fatalf("SendFile() error = %v, want missing sleep failure", err)
+	}
+	if terminal.shellActive {
+		t.Fatal("file-transfer child remained active after missing sleep failure")
+	}
+	if got := terminal.interactiveCommands; len(got) != 1 {
+		t.Errorf("interactive shell history = %v, want only the failed bootstrap entry", got)
+	}
+}
+
+// TestReceiveFileVerifiesSHA256 covers marker/payload coalescing and successful
+// verification in the board-to-PC direction.
+func TestReceiveFileVerifiesSHA256(t *testing.T) {
+	content := bytes.Repeat([]byte("hash-me-\x00\xff"), FileTransferChunkSize/4)
+	terminal := newFileTransferTestSession(content)
+	var destination bytes.Buffer
+	var progress []int64
+	result, err := ReceiveFile(context.Background(), terminal, &destination, "/tmp/log.txt", func(transferred, total int64) error {
+		if total != int64(len(content)) {
+			t.Errorf("progress total = %d, want %d", total, len(content))
+		}
+		progress = append(progress, transferred)
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("ReceiveFile() error = %v", err)
+	}
+	if !bytes.Equal(destination.Bytes(), content) {
+		t.Fatal("ReceiveFile() destination differs from remote content")
+	}
+	wantDigest := sha256.Sum256(content)
+	if result.SHA256 != hex.EncodeToString(wantDigest[:]) {
+		t.Errorf("ReceiveFile() SHA-256 = %s, want %x", result.SHA256, wantDigest)
+	}
+	if len(progress) < 2 || progress[0] != 0 || progress[len(progress)-1] != int64(len(content)) {
+		t.Errorf("progress = %v, want initial zero and final size", progress)
+	}
+}
+
+// TestReceiveFileRejectsChecksumMismatch verifies corrupted or changing remote
+// metadata cannot be reported as a successful transfer.
+func TestReceiveFileRejectsChecksumMismatch(t *testing.T) {
+	terminal := newFileTransferTestSession([]byte("remote data"))
+	terminal.badMetadataHash = true
+	var destination bytes.Buffer
+	_, err := ReceiveFile(context.Background(), terminal, &destination, "/tmp/log.txt", nil)
+	if !errors.Is(err, ErrFileTransferChecksumMismatch) {
+		t.Fatalf("ReceiveFile() error = %v, want ErrFileTransferChecksumMismatch", err)
+	}
+}
+
+// TestSendFileReportsRemoteInitializationFailure verifies missing or
+// incompatible Linux commands fail before any payload is sent.
+func TestSendFileReportsRemoteInitializationFailure(t *testing.T) {
+	terminal := newFileTransferTestSession(nil)
+	terminal.failInitialization = true
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	_, err := SendFile(ctx, terminal, strings.NewReader("data"), 4, "/read-only/file", nil)
+	if err == nil || !strings.Contains(err.Error(), "remote file transfer failed: tools") {
+		t.Fatalf("SendFile() error = %v, want remote tools failure", err)
+	}
+}
+
+func TestSendFileReportsRemoteDirectoryCreationFailure(t *testing.T) {
+	terminal := newFileTransferTestSession(nil)
+	terminal.failDirectoryCreation = true
+	_, err := SendFile(context.Background(), terminal, strings.NewReader("data"), 4, "/tmp/cterm/mcp-files/file.bin", nil)
+	if err == nil || !strings.Contains(err.Error(), "remote file transfer failed: directory") {
+		t.Fatalf("SendFile() error = %v, want remote directory failure", err)
+	}
+}
+
+func TestSendFileInitializationCreatesDestinationHierarchy(t *testing.T) {
+	command := sendInitCommand("abc123", "'/tmp/cterm/mcp-files/firmware.bin'", "'/tmp/cterm/mcp-files'")
+	if !strings.Contains(command, `mkdir -p "$d"`) || !strings.Contains(command, "d='/tmp/cterm/mcp-files'") {
+		t.Fatalf("file initialization does not create its destination hierarchy: %s", command)
+	}
+}
+
+func TestSendChunkCommandRestoresTTYAfterAbandonedPayload(t *testing.T) {
+	command := sendChunkCommand("abc123", "'/tmp/firmware.bin'", 4096)
+	for _, required := range []string{
+		"stty raw -echo min 0 time 100",
+		`before=$(wc -c < "$p" 2>/dev/null)`,
+		`stty "$saved"`,
+		`after=$(wc -c < "$p" 2>/dev/null)`,
+		`[ "$((after-before))" = "$n" ]`,
+	} {
+		if !strings.Contains(command, required) {
+			t.Errorf("send chunk command missing %q: %s", required, command)
+		}
+	}
+}
+
+// TestSendFilePadsInterruptedChunk verifies a partial Session write does not
+// leave the board-side dd command waiting in raw TTY mode.
+func TestSendFilePadsInterruptedChunk(t *testing.T) {
+	terminal := newFileTransferTestSession(nil)
+	terminal.failPayloadOnce = true
+	_, err := SendFile(context.Background(), terminal, strings.NewReader("payload"), 7, "/tmp/partial.bin", nil)
+	if err == nil || !strings.Contains(err.Error(), "injected payload failure") {
+		t.Fatalf("SendFile() error = %v, want injected payload failure", err)
+	}
+	if terminal.pendingSend != 0 {
+		t.Errorf("remote dd still waits for %d bytes after cleanup", terminal.pendingSend)
+	}
+}
+
+func TestSendFileInterruptedChunkRecoveryHasDeadline(t *testing.T) {
+	terminal := &requireRecoveryDeadlineSession{fileTransferTestSession: newFileTransferTestSession(nil)}
+	terminal.failPayloadOnce = true
+	_, err := SendFile(context.Background(), terminal, strings.NewReader("payload"), 7, "/tmp/partial.bin", nil)
+	if err == nil || !strings.Contains(err.Error(), "injected payload failure") {
+		t.Fatalf("SendFile() error = %v, want injected payload failure", err)
+	}
+	if !terminal.deadlineObserved {
+		t.Fatal("file cancellation recovery write had no deadline")
+	}
+	if terminal.pendingSend != 0 {
+		t.Errorf("remote file input still waits for %d bytes after recovery", terminal.pendingSend)
+	}
+}
+
+func TestFileTransferRecoveryReadsHaveDeadline(t *testing.T) {
+	tests := []struct {
+		name    string
+		output  string
+		recover func(*fileProtocol) error
+	}{
+		{
+			name:   "pending acknowledgement",
+			output: "\n@CTERM:abc123:ACK:7\n",
+			recover: func(protocol *fileProtocol) error {
+				return protocol.finishPendingMarker("ACK", "7")
+			},
+		},
+		{
+			name:   "receive drain",
+			output: "payload",
+			recover: func(protocol *fileProtocol) error {
+				return protocol.finishReceiveChunk(make([]byte, len("payload")))
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			terminal := &recoveryDeadlineProbeSession{fileTransferTestSession: newFileTransferTestSession(nil)}
+			terminal.output = []byte(tt.output)
+			protocol := &fileProtocol{terminal: terminal, token: "abc123"}
+			if err := tt.recover(protocol); err != nil {
+				t.Fatalf("recovery error = %v", err)
+			}
+			if !terminal.readDeadlineObserved {
+				t.Fatal("recovery read had no deadline")
+			}
+		})
+	}
+}
+
+func TestFileTransferRecoveryTimeoutAbortsSharedSession(t *testing.T) {
+	terminal := &recoveryAbortSession{fileTransferTestSession: newFileTransferTestSession(nil)}
+	protocol := &fileProtocol{terminal: terminal, token: "abc123"}
+	err := protocol.finishSendChunk(1, 1)
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("finishSendChunk() error = %v, want context deadline", err)
+	}
+	if terminal.aborts != 1 {
+		t.Fatalf("recovery abort calls = %d, want 1", terminal.aborts)
+	}
+}
+
+func TestSendFileStopsAfterCurrentChunkWhenCancellationIsRequested(t *testing.T) {
+	content := bytes.Repeat([]byte("s"), 2*FileTransferChunkSize)
+	terminal := cancelAfterFirstSendChunk{fileTransferTestSession: newFileTransferTestSession(nil)}
+	_, err := SendFile(context.Background(), &terminal, bytes.NewReader(content), int64(len(content)), "/tmp/cancel.bin", nil)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("SendFile() error = %v, want context.Canceled", err)
+	}
+	if got := len(terminal.received); got != FileTransferChunkSize {
+		t.Errorf("received bytes = %d, want one completed chunk", got)
+	}
+	if terminal.pendingSend != 0 {
+		t.Errorf("pending remote chunk = %d, want 0 after acknowledged current chunk", terminal.pendingSend)
+	}
+}
+
+func TestSendFileWithCancellationStopsAfterCurrentChunk(t *testing.T) {
+	content := bytes.Repeat([]byte("s"), 2*FileTransferChunkSize)
+	terminal := newFileTransferTestSession(nil)
+	_, err := SendFileWithCancellation(context.Background(), terminal, bytes.NewReader(content), int64(len(content)), "/tmp/cancel.bin", func() bool {
+		terminal.mu.Lock()
+		defer terminal.mu.Unlock()
+		return len(terminal.received) >= FileTransferChunkSize && terminal.pendingSend == 0
+	}, nil)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("SendFileWithCancellation() error = %v, want context.Canceled", err)
+	}
+	if got := len(terminal.received); got != FileTransferChunkSize {
+		t.Errorf("received bytes = %d, want one completed chunk", got)
+	}
+}
+
+func TestReceiveFileStopsAfterCurrentChunkWhenCancellationIsRequested(t *testing.T) {
+	content := bytes.Repeat([]byte("r"), 2*FileTransferChunkSize)
+	cancellation := &fileTransferTestCancellation{}
+	terminal := cancelableFileTransferSession{fileTransferTestSession: newFileTransferTestSession(content), cancellation: cancellation}
+	var destination bytes.Buffer
+	_, err := ReceiveFile(context.Background(), &terminal, &destination, "/tmp/cancel.bin", func(transferred, _ int64) error {
+		if transferred == FileTransferChunkSize {
+			cancellation.Request()
+		}
+		return nil
+	})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("ReceiveFile() error = %v, want context.Canceled", err)
+	}
+	if got := destination.Len(); got != FileTransferChunkSize {
+		t.Errorf("received bytes = %d, want one completed chunk", got)
+	}
+}
+
+func TestReceiveFileWithCancellationStopsAfterCurrentChunk(t *testing.T) {
+	content := bytes.Repeat([]byte("r"), 2*FileTransferChunkSize)
+	terminal := newFileTransferTestSession(content)
+	cancelled := false
+	var destination bytes.Buffer
+	_, err := ReceiveFileWithCancellation(context.Background(), terminal, &destination, "/tmp/cancel.bin", func() bool { return cancelled }, func(transferred, _ int64) error {
+		if transferred == FileTransferChunkSize {
+			cancelled = true
+		}
+		return nil
+	})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("ReceiveFileWithCancellation() error = %v, want context.Canceled", err)
+	}
+	if got := destination.Len(); got != FileTransferChunkSize {
+		t.Errorf("destination bytes = %d, want one completed chunk", got)
+	}
+}
+
+func TestIncrementPOSIXFilenamePreservesNamesAndExtensions(t *testing.T) {
+	tests := map[string]string{
+		"/tmp/firmware.bin":                  "/tmp/firmware_1.bin",
+		"/tmp/cterm/mcp-files/firmware.bin":  "/tmp/cterm/mcp-files/firmware_1.bin",
+		"/tmp/cterm/user-files/firmware.bin": "/tmp/cterm/user-files/firmware_1.bin",
+		"/tmp/app.log":                       "/tmp/app_1.log",
+		"/tmp/README":                        "/tmp/README_1",
+		"/tmp/.env":                          "/tmp/.env_1",
+		"/tmp/backup.tar.gz":                 "/tmp/backup_1.tar.gz",
+	}
+	for input, want := range tests {
+		if got := incrementPOSIXFilename(input, 1); got != want {
+			t.Errorf("incrementPOSIXFilename(%q, 1) = %q, want %q", input, got, want)
+		}
+	}
+}
+
+type generatedFileReader struct {
+	remaining int64
+	offset    int64
+	maxRead   int
+}
+
+func (r *generatedFileReader) Read(buffer []byte) (int, error) {
+	if len(buffer) > r.maxRead {
+		r.maxRead = len(buffer)
+	}
+	if r.remaining == 0 {
+		return 0, io.EOF
+	}
+	count := len(buffer)
+	if int64(count) > r.remaining {
+		count = int(r.remaining)
+	}
+	for index := range count {
+		buffer[index] = byte((r.offset + int64(index)) % 251)
+	}
+	r.offset += int64(count)
+	r.remaining -= int64(count)
+	return count, nil
+}
+
+var (
+	fileTestTokenPattern = regexp.MustCompile(`t='([0-9a-f]+)'`)
+	fileTestSizePattern  = regexp.MustCompile(`; n=([0-9]+);`)
+	fileTestIndexPattern = regexp.MustCompile(`; i=([0-9]+);`)
+)
+
+type fileTransferTestSession struct {
+	mu sync.Mutex
+
+	output []byte
+	notify chan struct{}
+
+	token                 string
+	received              []byte
+	remote                []byte
+	pendingSend           int
+	pendingSendTotal      int
+	maxPayload            int
+	badMetadataHash       bool
+	failInitialization    bool
+	failDirectoryCreation bool
+	failTar               bool
+	failSleep             bool
+	failPayloadOnce       bool
+	pathCollisions        int
+	pathChecks            int
+	receiving             bool
+	shellActive           bool
+	interactiveCommands   []string
+}
+
+type cancelAfterFirstSendChunk struct{ *fileTransferTestSession }
+
+func (s *cancelAfterFirstSendChunk) FileTransferCancelRequested() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return len(s.received) >= FileTransferChunkSize && s.pendingSend == 0
+}
+
+type cancelAfterFirstDirectorySendChunk struct{ *fileTransferTestSession }
+
+func (s *cancelAfterFirstDirectorySendChunk) FileTransferCancelRequested() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return len(s.received) >= FileTransferChunkSize
+}
+
+type fileTransferTestCancellation struct {
+	mu        sync.Mutex
+	requested bool
+}
+
+func (c *fileTransferTestCancellation) Request() {
+	c.mu.Lock()
+	c.requested = true
+	c.mu.Unlock()
+}
+
+func (c *fileTransferTestCancellation) Requested() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.requested
+}
+
+type cancelableFileTransferSession struct {
+	*fileTransferTestSession
+	cancellation *fileTransferTestCancellation
+}
+
+type requireRecoveryDeadlineSession struct {
+	*fileTransferTestSession
+	deadlineObserved bool
+}
+
+func (s *requireRecoveryDeadlineSession) WriteContext(ctx context.Context, request session.WriteRequest) (int, error) {
+	s.mu.Lock()
+	cleanupPayload := s.pendingSend > 0 && len(s.received) > 0
+	s.mu.Unlock()
+	if cleanupPayload {
+		if _, hasDeadline := ctx.Deadline(); !hasDeadline {
+			return 0, errors.New("recovery write has no deadline")
+		}
+		s.deadlineObserved = true
+	}
+	return s.Write(request)
+}
+
+type recoveryDeadlineProbeSession struct {
+	*fileTransferTestSession
+	readDeadlineObserved  bool
+	writeDeadlineObserved bool
+}
+
+type recoveryAbortSession struct {
+	*fileTransferTestSession
+	aborts int
+}
+
+func (s *recoveryAbortSession) WriteContext(context.Context, session.WriteRequest) (int, error) {
+	return 0, context.DeadlineExceeded
+}
+
+func (s *recoveryAbortSession) AbortFileTransferRecovery(context.Context) error {
+	s.aborts++
+	return nil
+}
+
+func (s *recoveryDeadlineProbeSession) ReadOutput(ctx context.Context, next session.OutputCursor, maxBytes int) (session.OutputChunk, error) {
+	if _, hasDeadline := ctx.Deadline(); !hasDeadline {
+		return session.OutputChunk{}, errors.New("recovery read has no deadline")
+	}
+	s.readDeadlineObserved = true
+	return s.fileTransferTestSession.ReadOutput(ctx, next, maxBytes)
+}
+
+func (s *recoveryDeadlineProbeSession) WriteContext(ctx context.Context, request session.WriteRequest) (int, error) {
+	if _, hasDeadline := ctx.Deadline(); !hasDeadline {
+		return 0, errors.New("recovery write has no deadline")
+	}
+	s.writeDeadlineObserved = true
+	return s.Write(request)
+}
+
+func (s *cancelableFileTransferSession) FileTransferCancelRequested() bool {
+	return s.cancellation.Requested()
+}
+
+func newFileTransferTestSession(remote []byte) *fileTransferTestSession {
+	return &fileTransferTestSession{remote: append([]byte(nil), remote...), notify: make(chan struct{})}
+}
+
+func (s *fileTransferTestSession) ReadRecent(_ context.Context, maxBytes int) (session.OutputChunk, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	start := len(s.output) - maxBytes
+	if start < 0 {
+		start = 0
+	}
+	return session.OutputChunk{Data: append([]byte(nil), s.output[start:]...), Next: session.OutputCursor(len(s.output))}, nil
+}
+
+func (s *fileTransferTestSession) ReadOutput(ctx context.Context, next session.OutputCursor, maxBytes int) (session.OutputChunk, error) {
+	for {
+		s.mu.Lock()
+		if int(next) < len(s.output) {
+			end := int(next) + maxBytes
+			if end > len(s.output) {
+				end = len(s.output)
+			}
+			data := append([]byte(nil), s.output[int(next):end]...)
+			s.mu.Unlock()
+			return session.OutputChunk{Data: data, Next: session.OutputCursor(end)}, nil
+		}
+		notify := s.notify
+		s.mu.Unlock()
+		select {
+		case <-ctx.Done():
+			return session.OutputChunk{}, ctx.Err()
+		case <-notify:
+		}
+	}
+}
+
+func (s *fileTransferTestSession) Write(request session.WriteRequest) (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	data := request.Data
+	if s.pendingSend > 0 {
+		count := len(data)
+		if count > s.pendingSend {
+			count = s.pendingSend
+		}
+		injectedFailure := s.failPayloadOnce
+		if injectedFailure {
+			s.failPayloadOnce = false
+			count /= 2
+			if count == 0 {
+				count = 1
+			}
+		}
+		s.received = append(s.received, data[:count]...)
+		if count > s.maxPayload {
+			s.maxPayload = count
+		}
+		s.pendingSend -= count
+		if s.pendingSend == 0 {
+			s.emitLocked(fmt.Sprintf("\n@CTERM:%s:ACK:%d\n", s.token, s.pendingSendTotal))
+		}
+		if injectedFailure {
+			return count, errors.New("injected payload failure")
+		}
+		return count, nil
+	}
+	command := string(data)
+	if command == fileTransferShellBootstrapCommand+"\n" {
+		if s.shellActive {
+			return 0, errors.New("test file-transfer shell is already active")
+		}
+		s.shellActive = true
+		s.interactiveCommands = append(s.interactiveCommands, strings.TrimSpace(command))
+		s.emitLocked(fileTransferShellEchoHiddenMarker)
+		return len(data), nil
+	}
+	if command == fileTransferShellCloseCommand()+"\n" {
+		s.shellActive = false
+		s.emitLocked(fileTransferShellExitedMarker)
+		return len(data), nil
+	}
+	tokenMatch := fileTestTokenPattern.FindStringSubmatch(command)
+	if strings.Contains(command, "ct_active; ct_idle") && !strings.Contains(command, "t='") {
+		return len(data), nil
+	}
+	if len(tokenMatch) != 2 {
+		return 0, errors.New("test shell command has no transfer token")
+	}
+	s.token = tokenMatch[1]
+	switch {
+	case s.failSleep && strings.Contains(command, ":SHELL:READY"):
+		s.emitLocked(fmt.Sprintf("\n@CTERM:%s:SHELL:ERROR:sleep\n", s.token))
+		s.shellActive = false
+		s.emitLocked(fileTransferShellExitedMarker)
+	case strings.Contains(command, ":SHELL:READY"):
+		s.emitLocked(fmt.Sprintf("\n@CTERM:%s:SHELL:READY\n", s.token))
+	case s.failDirectoryCreation && strings.Contains(command, "mkdir -p"):
+		s.emitLocked(fmt.Sprintf("\n@CTERM:%s:ERROR:directory\n", s.token))
+	case s.failTar && strings.Contains(command, "command -v tar"):
+		s.emitLocked(fmt.Sprintf("\n@CTERM:%s:ERROR:tar\n", s.token))
+	case strings.Contains(command, ":PICK:"):
+		if s.pathChecks < s.pathCollisions {
+			s.pathChecks++
+			s.emitLocked(fmt.Sprintf("\n@CTERM:%s:PICK:EXISTS\n", s.token))
+		} else {
+			s.emitLocked(fmt.Sprintf("\n@CTERM:%s:PICK:FREE\n", s.token))
+		}
+	case strings.Contains(command, ":KIND:"):
+		s.emitLocked(fmt.Sprintf("\n@CTERM:%s:KIND:file\n", s.token))
+	case strings.Contains(command, ":ABORT:OK"):
+		s.emitLocked(fmt.Sprintf("\n@CTERM:%s:ABORT:OK\n", s.token))
+	case strings.Contains(command, ":FINAL:") && strings.Contains(command, "tar -x -f"):
+		if s.badMetadataHash {
+			s.emitLocked(fmt.Sprintf("\n@CTERM:%s:ERROR:checksum\n", s.token))
+			break
+		}
+		digest := sha256.Sum256(s.received)
+		digestText := hex.EncodeToString(digest[:])
+		s.emitLocked(fmt.Sprintf("\n@CTERM:%s:FINAL:%d:%s\n", s.token, len(s.received), digestText))
+	case strings.Contains(command, ":FINAL:OK") && strings.Contains(command, "rm -f"):
+		s.emitLocked(fmt.Sprintf("\n@CTERM:%s:FINAL:OK\n", s.token))
+	case strings.Contains(command, ":META:") && strings.Contains(command, "tar -c"):
+		digest := sha256.Sum256(s.remote)
+		digestText := hex.EncodeToString(digest[:])
+		if s.badMetadataHash {
+			digestText = strings.Repeat("0", sha256.Size*2)
+		}
+		s.emitLocked(fmt.Sprintf("\n@CTERM:%s:META:%d:%s\n", s.token, len(s.remote), digestText))
+	case strings.Contains(command, ":INIT:OK"):
+		s.received = nil
+		if s.failInitialization {
+			s.emitLocked(fmt.Sprintf("\n@CTERM:%s:ERROR:tools\n", s.token))
+		} else {
+			s.emitLocked(fmt.Sprintf("\n@CTERM:%s:INIT:OK\n", s.token))
+		}
+	case strings.Contains(command, ":READY:"):
+		size := mustFileTestNumber(command, fileTestSizePattern)
+		s.pendingSend = size
+		s.pendingSendTotal = size
+		s.emitLocked(fmt.Sprintf("\n@CTERM:%s:READY:%d\n", s.token, size))
+	case strings.Contains(command, ":FINAL:"):
+		content := s.received
+		if s.receiving {
+			content = s.remote
+		}
+		digest := sha256.Sum256(content)
+		s.emitLocked(fmt.Sprintf("\n@CTERM:%s:FINAL:%d:%x\n", s.token, len(content), digest))
+	case strings.Contains(command, ":META:"):
+		s.receiving = true
+		digest := sha256.Sum256(s.remote)
+		digestText := hex.EncodeToString(digest[:])
+		if s.badMetadataHash {
+			digestText = strings.Repeat("0", sha256.Size*2)
+		}
+		s.emitLocked(fmt.Sprintf("\n@CTERM:%s:META:%d:%s\n", s.token, len(s.remote), digestText))
+	case strings.Contains(command, ":DATA:"):
+		index := mustFileTestNumber(command, fileTestIndexPattern)
+		size := mustFileTestNumber(command, fileTestSizePattern)
+		start := index * FileTransferChunkSize
+		end := start + size
+		s.emitLocked(fmt.Sprintf("\n@CTERM:%s:DATA:%d\n", s.token, size))
+		s.emitLocked(string(s.remote[start:end]))
+		s.emitLocked(fmt.Sprintf("\n@CTERM:%s:ACK:%d\n", s.token, size))
+	default:
+		return 0, fmt.Errorf("unrecognized test shell command: %s", command)
+	}
+	return len(data), nil
+}
+
+func (s *fileTransferTestSession) emitLocked(data string) {
+	s.output = append(s.output, data...)
+	close(s.notify)
+	s.notify = make(chan struct{})
+}
+
+func mustFileTestNumber(command string, pattern *regexp.Regexp) int {
+	match := pattern.FindStringSubmatch(command)
+	if len(match) != 2 {
+		panic("missing number in test command: " + command)
+	}
+	value, err := strconv.Atoi(match[1])
+	if err != nil {
+		panic(err)
+	}
+	return value
+}
