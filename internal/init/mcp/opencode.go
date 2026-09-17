@@ -91,7 +91,11 @@ func openCodeEntry(endpoint Endpoint) (map[string]any, error) {
 	case TransportStdio:
 		return map[string]any{"type": "local", "command": append([]string{endpoint.Command}, endpoint.Args...)}, nil
 	case TransportStreamableHTTP:
-		return map[string]any{"type": "remote", "url": endpoint.URL}, nil
+		entry := map[string]any{"type": "remote", "url": endpoint.URL, "oauth": false}
+		if headers := cloneHeaders(endpoint.Headers); headers != nil {
+			entry["headers"] = headers
+		}
+		return entry, nil
 	default:
 		return nil, fmt.Errorf("unsupported OpenCode transport %q", endpoint.Transport)
 	}

@@ -19,14 +19,38 @@ func TestAdaptersRenderClientSpecificExamplesFromOneEndpointModel(t *testing.T) 
 			if !strings.Contains(stdio, "channelterm") || !strings.Contains(stdio, "mcp") {
 				t.Errorf("stdio example = %q, want ChannelTerm command", stdio)
 			}
-			http, err := adapter.Example(Endpoint{Transport: TransportStreamableHTTP, URL: "http://127.0.0.1:37099/mcp"})
+			http, err := adapter.Example(Endpoint{
+				Transport: TransportStreamableHTTP,
+				URL:       "http://127.0.0.1:37099/mcp",
+				Headers:   map[string]string{"Authorization": "Bearer test-token"},
+			})
 			if err != nil {
 				t.Fatalf("Example(Streamable HTTP) error = %v", err)
 			}
 			if !strings.Contains(http, "http://127.0.0.1:37099/mcp") {
 				t.Errorf("Streamable HTTP example = %q, want endpoint URL", http)
 			}
+			if !strings.Contains(http, "Authorization") || !strings.Contains(http, "Bearer test-token") {
+				t.Errorf("Streamable HTTP example = %q, want bearer Authorization header", http)
+			}
+			if adapter.ID() == "codex" && !strings.Contains(http, "http_headers") {
+				t.Errorf("Codex Streamable HTTP example = %q, want http_headers", http)
+			}
+			if adapter.ID() == "opencode" && !strings.Contains(http, `"oauth": false`) {
+				t.Errorf("OpenCode Streamable HTTP example = %q, want OAuth disabled", http)
+			}
 		})
+	}
+}
+
+func TestEndpointRejectsUnsafeHTTPHeaders(t *testing.T) {
+	for _, endpoint := range []Endpoint{
+		{Transport: TransportStreamableHTTP, URL: "http://127.0.0.1:37099/mcp", Headers: map[string]string{"Bad\nName": "value"}},
+		{Transport: TransportStreamableHTTP, URL: "http://127.0.0.1:37099/mcp", Headers: map[string]string{"Authorization": "Bearer value\r\nInjected: true"}},
+	} {
+		if err := endpoint.Validate(); err == nil {
+			t.Errorf("Validate(%#v) succeeded, want unsafe header rejection", endpoint)
+		}
 	}
 }
 

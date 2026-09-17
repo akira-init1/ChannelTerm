@@ -87,7 +87,11 @@ func codexEntry(endpoint Endpoint) (map[string]any, error) {
 	case TransportStdio:
 		return map[string]any{"command": endpoint.Command, "args": endpoint.Args}, nil
 	case TransportStreamableHTTP:
-		return map[string]any{"url": endpoint.URL}, nil
+		entry := map[string]any{"url": endpoint.URL}
+		if headers := cloneHeaders(endpoint.Headers); headers != nil {
+			entry["http_headers"] = headers
+		}
+		return entry, nil
 	default:
 		return nil, fmt.Errorf("unsupported Codex transport %q", endpoint.Transport)
 	}

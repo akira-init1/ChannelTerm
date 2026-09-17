@@ -17,11 +17,14 @@ CLI and MCP serial opens use `LoadOrCreate`, which creates a minimal `config.tom
 `--config` and MCP `config_path` select an alternate TOML path for that operation. They do not move `state.json`.
 
 `http-auth-token` is generated from 32 random bytes and stored with owner-only permissions where
-the platform honors them. `CHANNELTERM_HTTP_AUTH_TOKEN` overrides this file for both HTTP Host and
-built-in clients. Creation holds an adjacent `http-auth-token.lock` file and installs a fully written,
+the platform honors them. The first HTTP Host, built-in HTTP client, or HTTP selection in
+`channelterm init --mcp` or `channelterm init --mcp-show` creates it when absent.
+`CHANNELTERM_HTTP_AUTH_TOKEN` overrides this file for all these uses. Creation holds an adjacent
+`http-auth-token.lock` file and installs a fully written,
 synchronized temporary file, so concurrent first use cannot expose a partial credential. The stored
 value must decode to exactly 32 bytes of unpadded Base64URL. The token is authentication material and
-must not be committed or printed in logs.
+must not be committed or copied into logs. The HTTP selection in `init --mcp-show` intentionally
+includes it in generated configurations, so that output must be handled as a secret.
 
 ## TOML schema
 

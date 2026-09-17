@@ -1,6 +1,7 @@
 package command
 
 import (
+	"bufio"
 	"context"
 	"crypto/subtle"
 	"errors"
@@ -74,6 +75,7 @@ const version = "0.1.0"
 const (
 	defaultMCPListen            = "127.0.0.1:37099"
 	defaultMCPPath              = "/mcp"
+	mcpTransportDocsURL         = "https://modelcontextprotocol.io/specification/2025-11-25/basic/transports"
 	httpAuthTokenEnvVar         = "CHANNELTERM_HTTP_AUTH_TOKEN"
 	httpHostLifetimeHeader      = "X-ChannelTerm-Host-Lifetime"
 	httpHostLifetimeAttachment  = "attachment"
@@ -134,7 +136,7 @@ func runWithDependenciesWithInterrupts(ctx context.Context, args []string, input
 		return runMCP(ctx, args[1:], output)
 	}
 	if len(args) > 0 && args[0] == "init" {
-		return runInit(args[1:], output)
+		return runInit(args[1:], input, output)
 	}
 
 	flags := flag.NewFlagSet("channelterm", flag.ContinueOnError)
@@ -191,35 +193,48 @@ func runWithDependenciesWithInterrupts(ctx context.Context, args []string, input
 	return nil
 }
 
-// runInit discovers supported MCP clients, installs their ChannelTerm endpoint
-// configuration, or prints the exact generated examples without writing files.
-func runInit(args []string, output io.Writer) error {
+// runInit discovers supported MCP clients and installs or displays a selected
+// ChannelTerm transport configuration.
+func runInit(args []string, input io.Reader, output io.Writer) error {
 	adapters, err := initmcp.NewAdapters(initmcp.Options{})
 	if err != nil {
 		return fmt.Errorf("initialize MCP client adapters: %w", err)
 	}
-	return runInitWithAdapters(args, output, adapters)
+	return runInitWithAdapters(args, input, output, adapters, loadHTTPAuthToken)
 }
 
 // runInitWithAdapters keeps init command tests independent from real user
 // configuration while production uses the standard adapter locations.
-func runInitWithAdapters(args []string, output io.Writer, adapters []initmcp.Adapter) error {
+func runInitWithAdapters(args []string, input io.Reader, output io.Writer, adapters []initmcp.Adapter, loadToken func() (string, error)) error {
 	flags := flag.NewFlagSet("init", flag.ContinueOnError)
 	flags.SetOutput(output)
-	install := flags.Bool("mcp", false, "detect supported MCP clients and install ChannelTerm configuration")
-	show := flags.Bool("mcp-show", false, "print ChannelTerm MCP configuration examples without writing files")
+	install := flags.Bool("mcp", false, "detect supported MCP clients and install the selected configuration")
+	transportHelp := flags.Bool("mcp-help", false, "show MCP transport help and exit")
+	show := flags.Bool("mcp-show", false, "print configuration examples for the selected transport")
 	flags.Usage = func() {
-		fmt.Fprintln(output, "Usage: channelterm init --mcp | --mcp-show [codex|claude|opencode|zoo]")
+		fmt.Fprintln(output, "Usage: channelterm init --mcp | --mcp-show [codex|claude|opencode|zoo] | --mcp-help")
 		fmt.Fprintln(output)
 		fmt.Fprintln(output, "Install or display ChannelTerm MCP client configurations.")
 		fmt.Fprintln(output)
 		flags.PrintDefaults()
+		fmt.Fprintln(output)
+		fmt.Fprintln(output, "Transport choices:")
+		fmt.Fprintln(output, "  HTTP (default)  Connect clients to the shared ChannelTerm Host; multiple clients can share Sessions.")
+		fmt.Fprintln(output, "                  Uses Streamable HTTP at http://127.0.0.1:37099/mcp and requires a Bearer token.")
+		fmt.Fprintln(output, "  stdio           Each MCP client launches a local channelterm mcp child process over stdin/stdout.")
+		fmt.Fprintln(output)
+		fmt.Fprintln(output, "MCP transport specification:")
+		fmt.Fprintf(output, "  %s\n", mcpTransportDocsURL)
 	}
 	if err := flags.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			return nil
 		}
 		return err
+	}
+	if *transportHelp {
+		flags.Usage()
+		return nil
 	}
 	if *install == *show {
 		return errors.New("choose exactly one of --mcp or --mcp-show")
@@ -230,21 +245,52 @@ func runInitWithAdapters(args []string, output io.Writer, adapters []initmcp.Ada
 	if *install && flags.NArg() != 0 {
 		return fmt.Errorf("unexpected init argument %q", flags.Arg(0))
 	}
-	endpoint := initmcp.DefaultEndpoint()
+	selected := adapters
 	if *show {
-		selected, err := selectMCPAdapters(adapters, flags.Arg(0))
-		if err != nil {
-			return err
+		selectedAdapters, selectErr := selectMCPAdapters(adapters, flags.Arg(0))
+		if selectErr != nil {
+			return selectErr
 		}
-		for index, adapter := range selected {
-			example, err := adapter.Example(endpoint)
+		selected = selectedAdapters
+	}
+	transport, err := promptMCPTransport(input, output)
+	if err != nil {
+		return err
+	}
+	endpoint := initmcp.DefaultEndpoint()
+	if transport == initmcp.TransportStreamableHTTP {
+		token, err := loadToken()
+		if err != nil {
+			return fmt.Errorf("load shared HTTP authentication token: %w", err)
+		}
+		endpoint = initmcp.Endpoint{
+			Transport: initmcp.TransportStreamableHTTP,
+			URL:       httpEndpoint(defaultMCPListen, defaultMCPPath),
+			Headers:   map[string]string{"Authorization": "Bearer " + token},
+		}
+	}
+	if *show {
+		type renderedExample struct {
+			name   string
+			config string
+		}
+		rendered := make([]renderedExample, 0, len(selected))
+		for _, adapter := range selected {
+			configuration, err := adapter.Example(endpoint)
 			if err != nil {
-				return fmt.Errorf("generate %s MCP configuration: %w", adapter.Name(), err)
+				return fmt.Errorf("generate %s %s MCP configuration: %w", adapter.Name(), transport, err)
 			}
-			if index > 0 {
-				fmt.Fprintln(output)
-			}
-			fmt.Fprintf(output, "%s:\n%s", adapter.Name(), example)
+			rendered = append(rendered, renderedExample{name: adapter.Name(), config: configuration})
+		}
+		if transport == initmcp.TransportStreamableHTTP {
+			fmt.Fprintln(output, "Shared HTTP configurations")
+			fmt.Fprintln(output, "Warning: these configurations contain a local authentication credential.")
+			fmt.Fprintln(output, "Do not share or commit this output.")
+		} else {
+			fmt.Fprintln(output, "Local stdio configurations")
+		}
+		for _, example := range rendered {
+			fmt.Fprintf(output, "\n=== %s ===\n%s", example.name, example.config)
 		}
 		return nil
 	}
@@ -273,6 +319,30 @@ func runInitWithAdapters(args []string, output io.Writer, adapters []initmcp.Ada
 		return errors.New("no supported MCP clients were detected")
 	}
 	return nil
+}
+
+// promptMCPTransport reads one explicit transport choice. Empty input and a
+// closed, empty non-interactive input select HTTP so the documented default is
+// consistent for interactive and piped invocations.
+func promptMCPTransport(input io.Reader, output io.Writer) (initmcp.Transport, error) {
+	fmt.Fprintln(output, "Select MCP transport:")
+	fmt.Fprintln(output, "  1) HTTP (default) - shared Host for multiple clients")
+	fmt.Fprintln(output, "  2) stdio - local child process for each MCP client")
+	fmt.Fprint(output, "Choice [1]: ")
+
+	line, err := bufio.NewReader(input).ReadString('\n')
+	if err != nil && !errors.Is(err, io.EOF) {
+		return "", fmt.Errorf("read MCP transport selection: %w", err)
+	}
+	choice := strings.ToLower(strings.TrimSpace(line))
+	switch choice {
+	case "", "1", "http":
+		return initmcp.TransportStreamableHTTP, nil
+	case "2", "stdio":
+		return initmcp.TransportStdio, nil
+	default:
+		return "", fmt.Errorf("invalid MCP transport %q; choose 1/http or 2/stdio", choice)
+	}
 }
 
 // selectMCPAdapters treats an omitted identifier as a request for every
