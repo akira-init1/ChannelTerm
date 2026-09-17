@@ -366,82 +366,84 @@ func runFileReceive(ctx context.Context, args []string, output io.Writer, depend
 	var progress *fileTransferReporter
 	operationErr := withFileTransferLease(ctx, attached, identifier, func(operationCtx context.Context) (operationErr error) {
 		ctx = operationCtx
-		terminal := internalFileTransferSession{attachSession: attached}
-		kind, kindErr := app.DetectRemotePath(ctx, terminal, remotePath)
-		if kindErr != nil {
-			return fmt.Errorf("inspect remote source %q: %w", remotePath, kindErr)
-		}
-		switch kind {
-		case app.RemotePathDirectory:
-			return runFileReceiveDirectory(ctx, attached, remotePath, requestedLocalPath, output, dependencies.transferCancelRequested)
-		case app.RemotePathMissing:
-			return fmt.Errorf("remote source %q does not exist", remotePath)
-		case app.RemotePathUnsupported:
-			return fmt.Errorf("remote source %q must be a regular file or directory", remotePath)
-		case app.RemotePathFile:
-		default:
-			return fmt.Errorf("remote source %q has unsupported type %q", remotePath, kind)
-		}
-		resolvedLocalPath, pathErr := nextAvailableLocalPath(requestedLocalPath)
-		if pathErr != nil {
-			return pathErr
-		}
-		directory := filepath.Dir(resolvedLocalPath)
-		temporary, err := os.CreateTemp(directory, ".channelterm-receive-*")
-		if err != nil {
-			return fmt.Errorf("create temporary destination beside %q: %w", resolvedLocalPath, err)
-		}
-		temporaryPath := temporary.Name()
-		defer func() { _ = os.Remove(temporaryPath) }()
-		started := false
-		metadata := fileTransferPathMetadata("receive", remotePath, requestedLocalPath)
-		setResolvedTransferPathMetadata(metadata, requestedLocalPath, resolvedLocalPath, filepath.Clean(requestedLocalPath) != filepath.Clean(resolvedLocalPath))
-		if eventErr := reportFileTransferEvent(ctx, attached, session.EventFileTransferStarted, metadata); eventErr != nil {
-			return eventErr
-		}
-		started = true
-		defer func() {
-			if operationErr == nil || !started {
-				return
+		baseTerminal := internalFileTransferSession{attachSession: attached}
+		return app.WithFileTransferShell(ctx, baseTerminal, func(terminal app.FileTransferSession) (operationErr error) {
+			kind, kindErr := app.DetectRemotePath(ctx, terminal, remotePath)
+			if kindErr != nil {
+				return fmt.Errorf("inspect remote source %q: %w", remotePath, kindErr)
 			}
-			failureCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
-			failureMetadata := fileTransferFailureMetadata(metadata, operationErr)
-			_ = reportFileTransferEvent(failureCtx, attached, session.EventFileTransferFailed, failureMetadata)
-		}()
-		progress = newFileTransferProgress(ctx, output, attached, metadata)
-		result, transferErr := app.ReceiveFileWithCancellation(ctx, terminal, temporary, remotePath, dependencies.transferCancelRequested, fileTransferProgressWithCancellation(progress.Report, dependencies.transferCancelRequested))
-		if transferErr != nil {
-			_ = temporary.Close()
-			return transferErr
-		}
-		if syncErr := temporary.Sync(); syncErr != nil {
-			_ = temporary.Close()
-			return fmt.Errorf("sync temporary destination for %q: %w", resolvedLocalPath, syncErr)
-		}
-		if closeErr := temporary.Close(); closeErr != nil {
-			return fmt.Errorf("close temporary destination for %q: %w", resolvedLocalPath, closeErr)
-		}
-		if replaceErr := replaceReceivedFile(temporaryPath, resolvedLocalPath); replaceErr != nil {
-			return fmt.Errorf("install received file %q: %w", resolvedLocalPath, replaceErr)
-		}
-		completedMetadata := copyFileTransferMetadata(metadata)
-		completedMetadata["received"] = result.Size
-		completedMetadata["total"] = result.Size
-		completedMetadata["percent"] = float64(100)
-		completedMetadata["sha256"] = result.SHA256
-		completedMetadata["local_sha256"] = result.SHA256
-		completedMetadata["remote_sha256"] = result.SHA256
-		if eventErr := reportFileTransferEvent(ctx, attached, session.EventFileTransferCompleted, completedMetadata); eventErr != nil {
-			return eventErr
-		}
-		if completeErr := progress.Complete(result.Size); completeErr != nil {
-			return completeErr
-		}
-		if finishErr := progress.finish(); finishErr != nil {
-			return finishErr
-		}
-		return writeFileTransferVerificationSummary(output, result.SHA256, resolvedLocalPath)
+			switch kind {
+			case app.RemotePathDirectory:
+				return runFileReceiveDirectory(ctx, terminal, attached, remotePath, requestedLocalPath, output, dependencies.transferCancelRequested)
+			case app.RemotePathMissing:
+				return fmt.Errorf("remote source %q does not exist", remotePath)
+			case app.RemotePathUnsupported:
+				return fmt.Errorf("remote source %q must be a regular file or directory", remotePath)
+			case app.RemotePathFile:
+			default:
+				return fmt.Errorf("remote source %q has unsupported type %q", remotePath, kind)
+			}
+			resolvedLocalPath, pathErr := nextAvailableLocalPath(requestedLocalPath)
+			if pathErr != nil {
+				return pathErr
+			}
+			directory := filepath.Dir(resolvedLocalPath)
+			temporary, err := os.CreateTemp(directory, ".channelterm-receive-*")
+			if err != nil {
+				return fmt.Errorf("create temporary destination beside %q: %w", resolvedLocalPath, err)
+			}
+			temporaryPath := temporary.Name()
+			defer func() { _ = os.Remove(temporaryPath) }()
+			started := false
+			metadata := fileTransferPathMetadata("receive", remotePath, requestedLocalPath)
+			setResolvedTransferPathMetadata(metadata, requestedLocalPath, resolvedLocalPath, filepath.Clean(requestedLocalPath) != filepath.Clean(resolvedLocalPath))
+			if eventErr := reportFileTransferEvent(ctx, attached, session.EventFileTransferStarted, metadata); eventErr != nil {
+				return eventErr
+			}
+			started = true
+			defer func() {
+				if operationErr == nil || !started {
+					return
+				}
+				failureCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer cancel()
+				failureMetadata := fileTransferFailureMetadata(metadata, operationErr)
+				_ = reportFileTransferEvent(failureCtx, attached, session.EventFileTransferFailed, failureMetadata)
+			}()
+			progress = newFileTransferProgress(ctx, output, attached, metadata)
+			result, transferErr := app.ReceiveFileWithCancellation(ctx, terminal, temporary, remotePath, dependencies.transferCancelRequested, fileTransferProgressWithCancellation(progress.Report, dependencies.transferCancelRequested))
+			if transferErr != nil {
+				_ = temporary.Close()
+				return transferErr
+			}
+			if syncErr := temporary.Sync(); syncErr != nil {
+				_ = temporary.Close()
+				return fmt.Errorf("sync temporary destination for %q: %w", resolvedLocalPath, syncErr)
+			}
+			if closeErr := temporary.Close(); closeErr != nil {
+				return fmt.Errorf("close temporary destination for %q: %w", resolvedLocalPath, closeErr)
+			}
+			if replaceErr := replaceReceivedFile(temporaryPath, resolvedLocalPath); replaceErr != nil {
+				return fmt.Errorf("install received file %q: %w", resolvedLocalPath, replaceErr)
+			}
+			completedMetadata := copyFileTransferMetadata(metadata)
+			completedMetadata["received"] = result.Size
+			completedMetadata["total"] = result.Size
+			completedMetadata["percent"] = float64(100)
+			completedMetadata["sha256"] = result.SHA256
+			completedMetadata["local_sha256"] = result.SHA256
+			completedMetadata["remote_sha256"] = result.SHA256
+			if eventErr := reportFileTransferEvent(ctx, attached, session.EventFileTransferCompleted, completedMetadata); eventErr != nil {
+				return eventErr
+			}
+			if completeErr := progress.Complete(result.Size); completeErr != nil {
+				return completeErr
+			}
+			if finishErr := progress.finish(); finishErr != nil {
+				return finishErr
+			}
+			return writeFileTransferVerificationSummary(output, result.SHA256, resolvedLocalPath)
+		})
 	})
 	if progress != nil && operationErr != nil {
 		return finishFileTransferPresentation(output, progress, operationErr)
@@ -451,8 +453,7 @@ func runFileReceive(ctx context.Context, args []string, output io.Writer, depend
 
 // runFileReceiveDirectory runs while the caller holds the one file-transfer
 // lease, including remote tar probing, extraction, and final local rename.
-func runFileReceiveDirectory(ctx context.Context, attached attachSession, remotePath, localPath string, output io.Writer, cancelRequested func() bool) (operationErr error) {
-	terminal := internalFileTransferSession{attachSession: attached}
+func runFileReceiveDirectory(ctx context.Context, terminal app.FileTransferSession, attached attachSession, remotePath, localPath string, output io.Writer, cancelRequested func() bool) (operationErr error) {
 	requestedLocalPath := localPath
 	resolvedLocalPath, err := nextAvailableLocalDirectory(requestedLocalPath)
 	if err != nil {

@@ -7,7 +7,7 @@ interactive Linux shell.
 ## Preconditions
 
 - The remote shell is idle and accepts POSIX-style shell commands.
-- The board provides `mkdir`, `stty`, `dd` with `iflag=fullblock`, `wc`, and `sha256sum`. BusyBox or GNU
+- The board provides `mkdir`, `stty`, `dd` with `iflag=fullblock`, `wc`, `sha256sum`, and `sleep`. BusyBox or GNU
   userland may provide these commands. Directory transfer also requires `tar`; ChannelTerm checks
   `command -v tar` and does not install it.
 - The serial settings already match the board. File transfer does not change baud rate, data bits,
@@ -85,6 +85,12 @@ file first, then installs it only when the chosen destination remains absent. Co
 before running the command. A non-default Host endpoint is a terminal-control boundary and must be
 trusted. The HTTP Host requires a Bearer token but does not provide TLS or per-tool authorization.
 The feature does not change the loopback-only default listener.
+
+Each transfer starts one non-interactive child shell through a single recognizable parent-shell
+entry beginning with `CTERM_FILE_TRANSFER=1`. Remote-path probing, chunk commands, verification, and
+cleanup run inside that child, so the board's interactive shell history gains one entry per
+transfer rather than one entry per 8 KiB block. ChannelTerm does not delete or rewrite existing
+shell history.
 
 ## Attach shortcut
 
@@ -182,6 +188,12 @@ per-transfer token. The raw interval is limited to one chunk rather than the who
 reports progress only after a chunk is acknowledged and publishes it as `FILE_TRANSFER_PROGRESS`
 with structured confirmed byte counts, percent, and best-effort speed. It also publishes start,
 completion, cancellation, and failure events without mixing them into raw Session output.
+
+While the child shell is waiting safely between protocol commands, ChannelTerm refreshes its idle
+watchdog every five seconds. If the transfer client is killed and those keepalives stop, the child
+exits after 30 seconds and returns control to the interactive parent shell. Normal completion and a
+confirmed cancellation exit it immediately after bounded recovery. An active raw input block keeps
+its separate 10-second timeout and restores the saved TTY before the child becomes idle.
 
 The local `file send` and `file receive` displays share one 20-cell ASCII progress formatter. For a
 non-empty regular file, it immediately renders a 0% frame before the first payload (for receive,

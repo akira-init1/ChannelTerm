@@ -26,7 +26,7 @@ ChannelTerm currently implements serial communication on Windows, Linux, and mac
 
 An attached CLI renders each new, non-empty Agent write as a local `AI` activity block. The lines after the block are still the device's raw terminal output, and the human can type at the same prompt:
 
-```text
+```bash
 root@board:~#
 
 ──────── AI ────────
@@ -101,7 +101,7 @@ channelterm file send ./build/release /tmp/release --session SER-1
 channelterm file receive /var/log/myapp ./myapp --session SER-1
 ```
 
-When the command omits its remote destination, it saves under `/tmp/cterm/mcp-files/`; the interactive shortcut uses `/tmp/cterm/user-files/`. ChannelTerm creates a missing destination hierarchy and reuses it on later transfers. The Linux shell uses native `mkdir`, `stty`, `dd`, `wc`, and `sha256sum`, plus `tar` for directories; ChannelTerm streams bounded chunks, reports progress, and verifies end-to-end SHA-256 for file bytes and directory tar streams. Directory transfers use temporary target-side archives so cancellation stops after the active chunk instead of draining the remaining directory. A temporary file-transfer lease blocks other ChannelTerm writers until the command finishes. While that lease is active, `Ctrl+C` in any bundled attachment opens a default-No local cancellation confirmation; otherwise it keeps its normal remote-terminal meaning. See the [file-transfer workflow](docs/getting-started/file-transfer.md) for prerequisites and limits.
+When the command omits its remote destination, it saves under `/tmp/cterm/mcp-files/`; the interactive shortcut uses `/tmp/cterm/user-files/`. ChannelTerm creates a missing destination hierarchy and reuses it on later transfers. The Linux shell uses native `mkdir`, `stty`, `dd`, `wc`, `sha256sum`, and `sleep`, plus `tar` for directories; ChannelTerm streams bounded chunks, reports progress, and verifies end-to-end SHA-256 for file bytes and directory tar streams. Directory transfers use temporary target-side archives so cancellation stops after the active chunk instead of draining the remaining directory. A temporary file-transfer lease blocks other ChannelTerm writers until the command finishes. While that lease is active, `Ctrl+C` in any bundled attachment opens a default-No local cancellation confirmation; otherwise it keeps its normal remote-terminal meaning. See the [file-transfer workflow](docs/getting-started/file-transfer.md) for prerequisites and limits.
 
 To put an AI in that same Session, configure its MCP client to use the same Streamable HTTP endpoint:
 

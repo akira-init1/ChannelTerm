@@ -8,7 +8,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os/exec"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -76,6 +78,113 @@ func TestSendFileStreamsLargeInputInBoundedChunks(t *testing.T) {
 	}
 	if terminal.maxPayload > FileTransferChunkSize {
 		t.Errorf("largest Session payload = %d, want <= %d", terminal.maxPayload, FileTransferChunkSize)
+	}
+	if got := terminal.interactiveCommands; len(got) != 1 || !strings.HasPrefix(got[0], fileTransferShellBootstrapPrefix) {
+		t.Errorf("interactive shell history = %v, want one file-transfer entry", got)
+	}
+	if terminal.shellActive {
+		t.Fatal("non-interactive file-transfer shell remained active after success")
+	}
+}
+
+func TestFileTransferShellClosesAfterCancellation(t *testing.T) {
+	content := bytes.Repeat([]byte("x"), FileTransferChunkSize*2)
+	terminal := &cancelAfterFirstSendChunk{fileTransferTestSession: newFileTransferTestSession(nil)}
+	_, err := SendFile(context.Background(), terminal, bytes.NewReader(content), int64(len(content)), "/tmp/cancel.bin", nil)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("SendFile() error = %v, want context.Canceled", err)
+	}
+	if terminal.shellActive {
+		t.Fatal("non-interactive file-transfer shell remained active after cancellation")
+	}
+	if got := terminal.interactiveCommands; len(got) != 1 {
+		t.Errorf("interactive shell history = %v, want one file-transfer entry", got)
+	}
+}
+
+func TestFileTransferShellScopeIsReused(t *testing.T) {
+	terminal := newFileTransferTestSession(nil)
+	err := WithFileTransferShell(context.Background(), terminal, func(scoped FileTransferSession) error {
+		if _, err := DetectRemotePath(context.Background(), scoped, "/tmp/file"); err != nil {
+			return err
+		}
+		_, err := SendFile(context.Background(), scoped, strings.NewReader("data"), 4, "/tmp/file", nil)
+		return err
+	})
+	if err != nil {
+		t.Fatalf("WithFileTransferShell() error = %v", err)
+	}
+	if got := terminal.interactiveCommands; len(got) != 1 {
+		t.Errorf("interactive shell history = %v, want one reused entry", got)
+	}
+	if terminal.shellActive {
+		t.Fatal("non-interactive file-transfer shell remained active after nested operations")
+	}
+}
+
+func TestFileTransferShellCommandsBoundIdleLifetime(t *testing.T) {
+	initCommand := fileTransferShellInitCommand("abc123")
+	for _, required := range []string{"sleep 30", "kill -TERM", "trap 'ct_timeout' 1 15", ":SHELL:READY"} {
+		if !strings.Contains(initCommand, required) {
+			t.Errorf("file-transfer shell initialization missing %q: %s", required, initCommand)
+		}
+	}
+	bootstrapCommand := fileTransferShellBootstrapCommand("abc123")
+	if !strings.Contains(bootstrapCommand, ":SHELL:EXITED") || !strings.HasPrefix(bootstrapCommand, fileTransferShellBootstrapPrefix) {
+		t.Errorf("file-transfer shell bootstrap does not confirm child exit: %s", bootstrapCommand)
+	}
+	closeCommand := fileTransferShellCloseCommand()
+	if !strings.Contains(closeCommand, "ct_active") || !strings.Contains(closeCommand, "exit") || !strings.HasSuffix(closeCommand, "fi") {
+		t.Errorf("file-transfer shell close command does not confirm and exit: %s", closeCommand)
+	}
+}
+
+func TestFileTransferShellCommandsHaveValidShellSyntax(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX shell syntax check is unavailable on Windows")
+	}
+	commands := map[string]string{
+		"bootstrap":  fileTransferShellBootstrapCommand("abc123"),
+		"initialize": fileTransferShellInitCommand("abc123"),
+		"close":      fileTransferShellCloseCommand(),
+	}
+	for name, command := range commands {
+		t.Run(name, func(t *testing.T) {
+			output, err := exec.Command("sh", "-n", "-c", command).CombinedOutput()
+			if err != nil {
+				t.Fatalf("shell syntax error = %v, output = %q, command = %s", err, output, command)
+			}
+		})
+	}
+}
+
+func TestFileTransferShellBootstrapConfirmsChildExit(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX shell execution is unavailable on Windows")
+	}
+	command := exec.Command("sh", "-c", fileTransferShellBootstrapCommand("abc123"))
+	command.Stdin = strings.NewReader("exit\n")
+	output, err := command.CombinedOutput()
+	if err != nil {
+		t.Fatalf("file-transfer shell bootstrap error = %v, output = %q", err, output)
+	}
+	if !strings.Contains(string(output), "@CTERM:abc123:SHELL:EXITED") {
+		t.Fatalf("file-transfer shell bootstrap output = %q, want child exit marker", output)
+	}
+}
+
+func TestFileTransferShellReportsMissingSleepWithoutResidualChild(t *testing.T) {
+	terminal := newFileTransferTestSession(nil)
+	terminal.failSleep = true
+	_, err := SendFile(context.Background(), terminal, strings.NewReader("data"), 4, "/tmp/file", nil)
+	if err == nil || !strings.Contains(err.Error(), "sleep command is unavailable") {
+		t.Fatalf("SendFile() error = %v, want missing sleep failure", err)
+	}
+	if terminal.shellActive {
+		t.Fatal("file-transfer child remained active after missing sleep failure")
+	}
+	if got := terminal.interactiveCommands; len(got) != 1 {
+		t.Errorf("interactive shell history = %v, want only the failed bootstrap entry", got)
 	}
 }
 
@@ -365,6 +474,7 @@ type fileTransferTestSession struct {
 	notify chan struct{}
 
 	token                 string
+	shellToken            string
 	received              []byte
 	remote                []byte
 	pendingSend           int
@@ -374,10 +484,13 @@ type fileTransferTestSession struct {
 	failInitialization    bool
 	failDirectoryCreation bool
 	failTar               bool
+	failSleep             bool
 	failPayloadOnce       bool
 	pathCollisions        int
 	pathChecks            int
 	receiving             bool
+	shellActive           bool
+	interactiveCommands   []string
 }
 
 type cancelAfterFirstSendChunk struct{ *fileTransferTestSession }
@@ -543,12 +656,40 @@ func (s *fileTransferTestSession) Write(request session.WriteRequest) (int, erro
 		return count, nil
 	}
 	command := string(data)
+	if strings.HasPrefix(command, fileTransferShellBootstrapPrefix) {
+		if s.shellActive {
+			return 0, errors.New("test file-transfer shell is already active")
+		}
+		tokenMatch := fileTestTokenPattern.FindStringSubmatch(command)
+		if len(tokenMatch) != 2 {
+			return 0, errors.New("test file-transfer shell bootstrap has no token")
+		}
+		s.token = tokenMatch[1]
+		s.shellToken = tokenMatch[1]
+		s.shellActive = true
+		s.interactiveCommands = append(s.interactiveCommands, strings.TrimSpace(command))
+		return len(data), nil
+	}
+	if command == fileTransferShellCloseCommand()+"\n" {
+		s.emitLocked(fmt.Sprintf("\n@CTERM:%s:SHELL:EXITED\n", s.shellToken))
+		s.shellActive = false
+		return len(data), nil
+	}
 	tokenMatch := fileTestTokenPattern.FindStringSubmatch(command)
+	if strings.Contains(command, "ct_active; ct_idle") && !strings.Contains(command, "t='") {
+		return len(data), nil
+	}
 	if len(tokenMatch) != 2 {
 		return 0, errors.New("test shell command has no transfer token")
 	}
 	s.token = tokenMatch[1]
 	switch {
+	case s.failSleep && strings.Contains(command, ":SHELL:READY"):
+		s.emitLocked(fmt.Sprintf("\n@CTERM:%s:SHELL:ERROR:sleep\n", s.token))
+		s.emitLocked(fmt.Sprintf("\n@CTERM:%s:SHELL:EXITED\n", s.token))
+		s.shellActive = false
+	case strings.Contains(command, ":SHELL:READY"):
+		s.emitLocked(fmt.Sprintf("\n@CTERM:%s:SHELL:READY\n", s.token))
 	case s.failDirectoryCreation && strings.Contains(command, "mkdir -p"):
 		s.emitLocked(fmt.Sprintf("\n@CTERM:%s:ERROR:directory\n", s.token))
 	case s.failTar && strings.Contains(command, "command -v tar"):
