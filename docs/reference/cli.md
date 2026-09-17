@@ -101,7 +101,7 @@ channelterm serial [--profile NAME] [--port PORT] [options]
 | `--stop-bits` | `1` | `1`, `1.5`, or `2`. |
 | `--flow-control` | `none` | Schema values: `none`, `software`, `hardware`. Only `none` is currently implemented by the backend. |
 | `--wake` | false | Sends one carriage return after a newly opened Session connects. |
-| `--highlight` | `auto` | `auto`, `always`, or `never`; affects local presentation only. |
+| `--highlight` | true | Boolean. Applies semantic colors to plain terminal text; use `--highlight=false` to disable ChannelTerm styling. |
 | `--profile` | none | Named profile from the selected TOML file. |
 | `--config` | default path | Alternate TOML configuration path. Missing files are created for an opening workflow. |
 | `--save` | none | Saves resolved settings under a non-empty profile name before opening. |
@@ -122,21 +122,32 @@ Side effects and lifecycle:
   `Ctrl+] t` toggles this CLI instance's prompt timestamps, which are off by default. The timestamp
   uses local `[HH:MM:SS]` format and appears only before conservatively recognized shell prompts,
   not ordinary output lines. This feedback is not Session output.
-- Received Session bytes remain raw; optional highlighting and prompt timestamps are applied only
-  while writing this CLI's output.
+- Received Session bytes remain raw. Highlighting is enabled by default only for a color-capable
+  terminal output and prompt timestamps are applied only while writing this CLI's output.
+- The highlighter assigns non-bold semantic colors to status words, boot headings, field names,
+  embedded interface/protocol identifiers, addresses, versions, timestamps, numbers, units,
+  quoted values, structural `()`, `[]`, and `{}` delimiters, and recognized shell-prompt components. It
+  selects TrueColor, 256-color, or 16-color output from local terminal capabilities. `NO_COLOR`
+  disables generated colors, `CLICOLOR_FORCE` can force color for a non-terminal destination, and
+  ordinary redirected output remains unstyled.
+- Remote ANSI/VT takes precedence. Escape-containing output is byte-transparent, including sequences
+  split across reads. Persistent SGR attributes and the alternate screen keep the attachment in raw
+  presentation; semantic highlighting resumes only after remote state is reset and a safe line
+  boundary is reached. Full-screen programs such as `vim` and `htop` are therefore not mixed with
+  semantic styling.
 
 Examples:
 
 ```powershell
 channelterm serial --port COM8
 channelterm serial --port COM8 --baud 921600 --parity even --stop-bits 2
-channelterm serial --profile board --baud 115200 --highlight never
+channelterm serial --profile board --baud 115200 --highlight=false
 channelterm serial --port COM8 --save board
 ```
 
 Important errors include a missing port, an unknown profile, empty `--save`, unsupported or invalid
-serial values, a busy/missing/inaccessible port, invalid highlight mode, unexpected positional
-arguments, raw-console setup failure, and I/O or close errors. Saving happens before the physical
+serial values, a busy/missing/inaccessible port, an invalid Boolean highlight value, unexpected
+positional arguments, raw-console setup failure, and I/O or close errors. Saving happens before the physical
 open, so a saved profile may remain after an open failure.
 
 ## `connect`
@@ -182,7 +193,7 @@ The normal target-first forms are:
 | --- | --- | --- |
 | `--endpoint` | `http://127.0.0.1:37099/mcp` | Complete Streamable HTTP MCP endpoint. |
 | `--private`, `--no-mcp` | false | Open a serial target locally; valid only for a target reference. |
-| `--highlight` | `auto` | `auto`, `always`, or `never`. |
+| `--highlight` | true | Boolean. Applies the same local semantic highlighting as `serial`; use `--highlight=false` for raw presentation. |
 | `--profile`, `--config`, `--baud`, `--data-bits`, `--parity`, `--stop-bits`, `--flow-control`, `--wake`, `--save` | as for `serial` | Used only when the first argument is a serial target. |
 | `--label` | empty | Display-only label for a newly created shared Session; not an identifier. |
 | `--help`, `-h` | false | Print command help without connecting. |
@@ -261,7 +272,7 @@ Examples:
 ```powershell
 channelterm attach SER-COM8 --baud 115200 --label board
 channelterm attach SER-1
-channelterm attach SER-COM8 --private --highlight never
+channelterm attach SER-COM8 --private --highlight=false
 channelterm attach SER-1 --endpoint http://127.0.0.1:12345/terminal
 ```
 

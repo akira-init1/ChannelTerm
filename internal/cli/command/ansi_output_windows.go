@@ -11,7 +11,8 @@ import (
 const enableVirtualTerminalProcessing = 0x0004
 
 // enableANSIOutput enables Windows virtual-terminal processing when the output
-// handle is a console. A non-console handle leaves auto highlighting disabled.
+// handle is a console. It is required for both remote ANSI and local semantic
+// highlighting.
 func enableANSIOutput(output *os.File) bool {
 	handle := windows.Handle(output.Fd())
 	var mode uint32

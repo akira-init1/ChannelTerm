@@ -1,32 +1,30 @@
 package command
 
 import (
-	"errors"
 	"io"
 	"os"
-	"strings"
 
 	"github.com/akira-init1/ChannelTerm/internal/cli/highlight"
+	"github.com/muesli/termenv"
 	"golang.org/x/term"
 )
 
-var errInvalidHighlightMode = errors.New("highlight mode must be auto, always, or never")
-
-// resolveHighlightRenderer chooses whether one CLI terminal consumer receives
-// presentation-only ANSI styling. It never changes Session or MCP output.
-func resolveHighlightRenderer(mode string, output io.Writer) (*highlight.Renderer, error) {
-	switch strings.ToLower(strings.TrimSpace(mode)) {
-	case "never":
-		return nil, nil
-	case "always":
-		return highlight.New(output), nil
-	case "auto":
-		file, ok := output.(*os.File)
-		if !ok || !term.IsTerminal(int(file.Fd())) || !enableANSIOutput(file) {
-			return nil, nil
+// resolveHighlightRenderer enables local ANSI processing and chooses whether
+// one CLI terminal consumer receives presentation-only semantic styling. It
+// never changes Session or MCP output. Remote ANSI remains usable when local
+// semantic highlighting is disabled.
+func resolveHighlightRenderer(enabled bool, output io.Writer) *highlight.Renderer {
+	if file, ok := output.(*os.File); ok && term.IsTerminal(int(file.Fd())) {
+		if !enableANSIOutput(file) {
+			return nil
 		}
-		return highlight.New(output), nil
-	default:
-		return nil, errInvalidHighlightMode
 	}
+	if !enabled {
+		return nil
+	}
+	profile := termenv.NewOutput(output).EnvColorProfile()
+	if profile == termenv.Ascii {
+		return nil
+	}
+	return highlight.New(output, highlight.WithColorProfile(profile))
 }

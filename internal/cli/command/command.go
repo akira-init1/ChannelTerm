@@ -700,7 +700,7 @@ func runSerialWithTarget(ctx context.Context, args []string, input io.Reader, ou
 	stopBits := flags.String("stop-bits", string(serialtransport.StopBitsOne), "serial stop bits: 1, 1.5, or 2")
 	flowControl := flags.String("flow-control", string(serialtransport.FlowControlNone), "serial flow control: none, software, or hardware")
 	wake := flags.Bool("wake", false, "send one carriage return after connecting to an already-open shell with no prompt")
-	highlightMode := flags.String("highlight", "auto", "terminal highlighting: auto, always, or never")
+	highlightEnabled := flags.Bool("highlight", true, "apply semantic colors to plain terminal text")
 	profileName := flags.String("profile", "", "named serial profile to use")
 	configPath := flags.String("config", "", "path to a TOML configuration file")
 	saveName := flags.String("save", "", "save the resolved settings as a named serial profile")
@@ -728,10 +728,7 @@ func runSerialWithTarget(ctx context.Context, args []string, input io.Reader, ou
 	if flags.NArg() != 0 {
 		return fmt.Errorf("unexpected serial argument %q", flags.Arg(0))
 	}
-	renderer, err := resolveHighlightRenderer(*highlightMode, output)
-	if err != nil {
-		return err
-	}
+	renderer := resolveHighlightRenderer(*highlightEnabled, output)
 	var outputMu sync.Mutex
 	promptTimestamps := newPromptTimestampRenderer(terminalOutputWriter(output, renderer), terminalOutputFlusher(renderer), time.Now)
 	writeLocalOutput := func(data []byte) error {
