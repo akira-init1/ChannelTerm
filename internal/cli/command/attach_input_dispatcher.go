@@ -45,29 +45,34 @@ type fileTransferCancelPromptPresenter interface {
 	fileTransferCancelPromptFinished()
 }
 
+type terminalCommandActivity interface {
+	terminalCommandActive() bool
+}
+
 // attachInputDispatcher owns all local interpretation of one attach console.
 // attachInputPump is its sole stdin/Console reader; menu, path, and transfer
 // modes consume only the pump's ordered results and never read stdin directly.
 type attachInputDispatcher struct {
-	ctx                   context.Context
-	pump                  *attachInputPump
-	interrupts            <-chan os.Signal
-	terminal              attachSession
-	writeLocal            func([]byte) error
-	writeStatus           func([]byte) error
-	togglePromptTimestamp func() error
-	stopAttach            context.CancelFunc
-	controller            *interactive.Controller
-	mode                  attachInputMode
-	line                  []byte
-	skipLineFeed          bool
-	localPath             string
-	remotePath            string
-	transferDone          <-chan error
-	transferCancellation  *fileTransferCancellation
-	transferSummary       *fileTransferSummaryBuffer
-	externalCancelRequest string
-	inputIgnoredAnnounced bool
+	ctx                          context.Context
+	pump                         *attachInputPump
+	interrupts                   <-chan os.Signal
+	terminal                     attachSession
+	writeLocal                   func([]byte) error
+	writeStatus                  func([]byte) error
+	togglePromptTimestamp        func() error
+	stopAttach                   context.CancelFunc
+	controller                   *interactive.Controller
+	mode                         attachInputMode
+	line                         []byte
+	skipLineFeed                 bool
+	localPath                    string
+	remotePath                   string
+	transferDone                 <-chan error
+	transferCancellation         *fileTransferCancellation
+	transferSummary              *fileTransferSummaryBuffer
+	externalCancelRequest        string
+	inputIgnoredAnnounced        bool
+	commandInputIgnoredAnnounced bool
 	// ignoreControlCUntil prevents keyboard auto-repeat and the duplicate
 	// Windows CTRL_C_EVENT from escaping transfer mode after a cancellation.
 	// Those events can otherwise reach the board after the worker has restored
@@ -168,6 +173,9 @@ func (d *attachInputDispatcher) dispatchInterrupt(interrupt os.Signal) bool {
 // handleControlC is the single mode-aware Ctrl+C decision for both a raw byte
 // and a process-level Console interruption.
 func (d *attachInputDispatcher) handleControlC() bool {
+	if d.terminalCommandInputActive() {
+		return d.ignoreTerminalCommandInput()
+	}
 	if d.mode != attachInputModeFileTransfer && time.Now().Before(d.ignoreControlCUntil) {
 		return true
 	}
@@ -199,6 +207,10 @@ func (d *attachInputDispatcher) dispatch(data []byte) bool {
 	if d.mode == attachInputModeFileTransferCancelConfirm && time.Now().Before(d.ignoreControlCUntil) && len(data) > 0 && (data[0] == 'c' || data[0] == 'C') {
 		return true
 	}
+	if d.terminalCommandInputActive() {
+		return d.ignoreTerminalCommandInput()
+	}
+	d.commandInputIgnoredAnnounced = false
 	for len(data) > 0 {
 		if data[0] == 0x03 {
 			if !d.handleControlC() {
@@ -294,6 +306,19 @@ func (d *attachInputDispatcher) dispatchAttach(data []byte) bool {
 		}
 	}
 	return flushRemote()
+}
+
+func (d *attachInputDispatcher) terminalCommandInputActive() bool {
+	command, ok := d.terminal.(terminalCommandActivity)
+	return ok && command.terminalCommandActive()
+}
+
+func (d *attachInputDispatcher) ignoreTerminalCommandInput() bool {
+	if d.commandInputIgnoredAnnounced {
+		return true
+	}
+	d.commandInputIgnoredAnnounced = true
+	return d.writeLocal != nil && d.writeLocal(terminalCommandInputIgnoredText) == nil
 }
 
 func (d *attachInputDispatcher) enterFileMenu() bool {

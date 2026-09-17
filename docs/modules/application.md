@@ -14,7 +14,7 @@ discarding an `Application` does not start or close the Registry or close the Ma
   optionally write one wake carriage return, and
   return Manager-owned metadata.
 - `ListSessions`, `ReadSession`, `ReadSessionActivity`, `ReadSessionEvents`, `AttachSession`,
-  `DetachSession`, `WriteSession`, `AcquireLease`, `RenewLease`, `ReleaseLease`, `LeaseStatus`,
+  `DetachSession`, `WriteSession`, `ExecuteTerminalCommand`, `AcquireLease`, `RenewLease`, `ReleaseLease`, `LeaseStatus`,
   `BeginFileTransferCancel`, `ResolveFileTransferCancel`, `FileTransferCheckpoint`, and
   `CloseSession`: operate by opaque Session ID or short Session reference.
 - `WithFileTransferShell`, `SendFile`, `ReceiveFile`, `SendFileWithCancellation`, and
@@ -61,6 +61,22 @@ Application does not encode terminal bytes, add presentation, or merge output wi
 between retries. Session still provides lower-level byte-boundary write serialization and activity
 recording.
 
+`ExecuteTerminalCommand` is the command-aware alternative to a raw Agent write. It accepts one
+printable command line, acquires and renews a `terminal` lease, rejects a Session whose retained
+write activity shows unsubmitted interactive input, and runs the command in an isolated
+non-interactive child shell. The interactive parent must be Bash: it deletes only the current
+bootstrap history entry, disables input echo, and emits cursor markers around the child. The child
+therefore cannot change the human shell's directory or environment. Application publishes the
+original command and bootstrap/output boundary as structured terminal-command events; it writes
+the internal wrapper as `system`, not `agent`, activity.
+
+Cancellation sends Ctrl+C through the still-owned lease and waits up to five seconds for the
+wrapper to restore terminal echo and report its exit. If that recovery cannot be confirmed,
+Application closes the Session rather than release a lease over an unknown terminal state. A
+completed command returns its exit code plus raw-output start and end cursors. Interactive programs,
+multiline input, background-job lifecycle, and arbitrary raw keys remain `WriteSession` concerns,
+not terminal-command semantics.
+
 Application additionally owns one exclusive lease per managed Session. Supported lease types are
 `terminal`, `file-transfer`, and reserved `debug`. A normal write fails immediately with
 `ErrSessionBusy` while a lease is active. `WriteSessionWithLease` requires a non-empty matching
@@ -106,20 +122,30 @@ installation is reported successful only when byte count and digest match.
 corresponding state changes on the independent event stream. Readers, cursors, raw output, Channel,
 and Session internals are unaffected. See [Session](session.md).
 
+Terminal command execution publishes `TERMINAL_COMMAND_STARTED`,
+`TERMINAL_COMMAND_OUTPUT_STARTED`, `TERMINAL_COMMAND_COMPLETED`, or
+`TERMINAL_COMMAND_FAILED`. Lease events still delimit exclusive writer ownership. The command event
+contains the display command and output cursor but never the lease owner capability.
+
 File transfer uses the same Session write and output-cursor semantics. It obtains a `file-transfer`
 lease before its first protocol command, renews it every 10 seconds, and releases it on success,
 failure, or cancellation. A send creates a missing remote destination hierarchy before payload
 transmission and reuses an existing hierarchy. Destination collision selection remains the first
 free `_N` sibling.
 
-The interactive target shell receives one recognizable
-`CTERM_FILE_TRANSFER=1 sh -c ...` bootstrap command. That command runs a non-interactive child shell,
-so path probing, per-chunk commands, verification, and cleanup do not create additional interactive
-history entries. The child is kept alive every five seconds while no protocol command is active and
-has a 30-second remote idle watchdog. A killed client therefore leaves at most the one bootstrap
-history entry, and the child exits after its keepalives stop. Normal completion and safe-boundary
-cancellation explicitly stop the watchdog and exit the child before the file-transfer lease is
-released.
+The interactive target shell receives one `CTERM_FT=1 sh -c ...` bootstrap command. On Bash, the
+bootstrap removes its own current in-memory history entry without changing earlier user history.
+Shells without Bash-compatible history deletion retain the bootstrap as one recognizable entry.
+The bootstrap temporarily disables target-terminal input echo, and initialization clears the
+displayed command after the child starts. The non-interactive child runs path probing, per-chunk
+commands, verification, and cleanup without additional interactive history entries. The child is
+kept alive every five seconds while no protocol command is active and has a 30-second remote idle
+watchdog. A killed client therefore leaves no Bash entry, or at most the one fallback entry on
+another shell, and the child exits after its keepalives stop. Normal completion and safe-boundary
+cancellation explicitly stop the watchdog, restore terminal echo, and exit the child before the
+file-transfer lease is released. The bootstrap emits its final confirmation from the interactive
+parent only after the child exits; this keeps all earlier command echo inside the lease's suppressed
+presentation cursor range.
 
 The protocol reads or writes at most 8 KiB of payload per chunk, saves and restores the remote TTY
 mode around each raw `dd` operation, and performs end-to-end SHA-256 verification for regular files

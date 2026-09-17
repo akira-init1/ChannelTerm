@@ -29,7 +29,10 @@ import (
 	serialtransport "github.com/akira-init1/ChannelTerm/internal/core/transport/serial"
 )
 
-const maxWaitTimeout = 24 * time.Hour
+const (
+	maxWaitTimeout                = 24 * time.Hour
+	defaultTerminalCommandTimeout = 30 * time.Second
+)
 
 var (
 	// ErrNilSessionManager is returned when serial tools have no Session owner.
@@ -133,9 +136,9 @@ type connectableSession = app.ConnectedSession
 type serialSessionFactory = app.SerialSessionFactory
 type serialPortLister func() ([]serialtransport.Port, error)
 
-// serialTools contains construction dependencies shared by the six exposed
-// tools. It exists to make tests use fakes without making runtime dependency
-// injection part of the public Tool API.
+// serialTools contains construction dependencies shared by Session-addressed
+// terminal tools. It exists to make tests use fakes without making runtime
+// dependency injection part of the public Tool API.
 type serialTools struct {
 	application *app.Application
 }
@@ -179,6 +182,7 @@ func serialToolsForApplication(application *app.Application) []tool.Tool {
 		&attachSessionTool{serialTools: dependencies},
 		&detachSessionTool{serialTools: dependencies},
 		&reportFileTransferTool{serialTools: dependencies},
+		&executeCommandTool{serialTools: dependencies},
 		&writeTool{serialTools: dependencies},
 		&writeLeasedTool{serialTools: dependencies},
 		&acquireLeaseTool{serialTools: dependencies},
@@ -1016,12 +1020,64 @@ func encodeSessionEvents(events []session.Event) []sessionEventResult {
 
 type writeTool struct{ *serialTools }
 
+type executeCommandTool struct{ *serialTools }
+
+// Name returns the stable terminal_exec Tool identifier.
+func (*executeCommandTool) Name() string { return "terminal_exec" }
+
+// Description explains that terminal_exec is the history-free alternative to
+// raw writes when an Agent intends to run one non-interactive Bash command.
+func (*executeCommandTool) Description() string {
+	return "Execute one non-interactive command through an idle Bash prompt without adding it to Bash history; use terminal_write for raw keys or interactive programs."
+}
+
+// InputSchema describes one printable command and its bounded total timeout.
+func (*executeCommandTool) InputSchema() tool.InputSchema {
+	return tool.InputSchema{
+		Type: "object",
+		Properties: map[string]tool.InputProperty{
+			"session_id": {Type: "string", Description: "Session ID or short reference returned by terminal_open_serial."},
+			"command":    {Type: "string", Description: "One printable command line; control characters and embedded newlines are rejected."},
+			"timeout_ms": {Type: "integer", Description: "Optional total execution timeout in milliseconds; default 30000, maximum 86400000."},
+		},
+		Required: []string{"session_id", "command"},
+	}
+}
+
+// Call delegates command lifecycle, lease renewal, history isolation, and
+// bounded recovery to Application and returns raw-output cursor boundaries.
+func (t *executeCommandTool) Call(ctx context.Context, input json.RawMessage) (tool.Result, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	var args executeCommandInput
+	if err := decodeInput(input, &args); err != nil {
+		return nil, err
+	}
+	executionCtx, cancel, err := terminalCommandContext(ctx, args.TimeoutMS)
+	if err != nil {
+		return nil, err
+	}
+	defer cancel()
+	result, err := t.application.ExecuteTerminalCommand(executionCtx, args.SessionID, args.Command)
+	if err != nil {
+		return nil, fmt.Errorf("execute terminal command on session %q: %w", args.SessionID, err)
+	}
+	return tool.Result{
+		"session_id":   result.SessionID,
+		"command_id":   result.CommandID,
+		"exit_code":    result.ExitCode,
+		"output_start": uint64(result.OutputStart),
+		"output_end":   uint64(result.OutputEnd),
+	}, nil
+}
+
 // Name returns the stable terminal_write Tool identifier.
 func (*writeTool) Name() string { return "terminal_write" }
 
 // Description explains that the Tool sends lossless byte input to an active terminal session.
 func (*writeTool) Description() string {
-	return "Write UTF-8, hexadecimal, or base64 bytes to an active terminal session."
+	return "Write raw UTF-8, hexadecimal, or base64 bytes to an active terminal session; shell lines follow target history, so use terminal_exec for an idle Bash command."
 }
 
 // InputSchema describes the session ID and text payload required for a write.
@@ -1487,6 +1543,12 @@ type writeInput struct {
 	Actor     session.Actor `json:"actor"`
 }
 
+type executeCommandInput struct {
+	SessionID string `json:"session_id"`
+	Command   string `json:"command"`
+	TimeoutMS *int64 `json:"timeout_ms"`
+}
+
 type leasedWriteInput struct {
 	SessionID string        `json:"session_id"`
 	Owner     string        `json:"owner"`
@@ -1577,6 +1639,14 @@ func waitContext(parent context.Context, timeoutMS *int64) (context.Context, con
 	timeout := time.Duration(*timeoutMS) * time.Millisecond
 	ctx, cancel := context.WithTimeout(parent, timeout)
 	return ctx, cancel, nil
+}
+
+func terminalCommandContext(parent context.Context, timeoutMS *int64) (context.Context, context.CancelFunc, error) {
+	if timeoutMS == nil {
+		ctx, cancel := context.WithTimeout(parent, defaultTerminalCommandTimeout)
+		return ctx, cancel, nil
+	}
+	return waitContext(parent, timeoutMS)
 }
 
 // encodeOutput converts raw Ring Buffer bytes to the requested lossless

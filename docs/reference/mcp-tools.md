@@ -1,6 +1,6 @@
 # MCP Tool Reference
 
-The MCP adapter exposes terminal, discovery, lease, activity, file-transfer, and structured Session-event tools. It also provides cursor-required wait tools for raw output, activity, device events, and file-transfer terminal results.
+The MCP adapter exposes terminal, command execution, discovery, lease, activity, file-transfer, and structured Session-event tools. It also provides cursor-required wait tools for raw output, activity, device events, and file-transfer terminal results.
 
 Successful calls return both structured content and an equivalent JSON text content item. Recoverable tool failures return an MCP tool result with `isError: true` and text beginning `<tool-name> failed:`. Structured inputs decoded by the terminal adapter reject unknown fields.
 
@@ -234,7 +234,7 @@ Purpose: read retained structured Session state, or wait after an event cursor. 
 {"events":[{"id":3,"timestamp":"2026-09-02T09:02:00Z","session_id":"0123456789abcdef0123456789abcdef","type":"FILE_TRANSFER_PROGRESS","actor":"user","metadata":{"transfer_id":"FT-123","sent":622592,"total":1048576,"percent":59.4,"speed":850000}}],"next":4,"dropped":false}
 ```
 
-Current event types are `SESSION_CREATED`, `SESSION_ATTACHED`, `SESSION_DETACHED`, `LEASE_ACQUIRED`, `LEASE_RELEASED`, `FILE_TRANSFER_STARTED`, `FILE_TRANSFER_PROGRESS`, `FILE_TRANSFER_COMPLETED`, `FILE_TRANSFER_CANCELLED`, and `FILE_TRANSFER_FAILED`. Every event belonging to one file transfer, including its `file-transfer` lease acquire/release events, carries the same `transfer_id`. A lease event also includes an `output_cursor` metadata snapshot for the bundled attach client's local presentation; it does not change or consume raw Session output. `FILE_TRANSFER_CANCELLED` is emitted only after cleanup releases the lease and includes `reason: user_cancelled`, last confirmed progress, and `lease_released: true`, so an observing AI can distinguish cancellation from transfer failure. A slow observer receives `dropped: true` if its cursor predates bounded retention; it cannot block the Session reader or writer. Important errors: missing/unknown Session, Session not open, invalid limit or timeout, timeout without cursor, cancellation, deadline, EOF, or event-buffer failure.
+Current event types are `SESSION_CREATED`, `SESSION_ATTACHED`, `SESSION_DETACHED`, `LEASE_ACQUIRED`, `LEASE_RELEASED`, `FILE_TRANSFER_STARTED`, `FILE_TRANSFER_PROGRESS`, `FILE_TRANSFER_COMPLETED`, `FILE_TRANSFER_CANCELLED`, `FILE_TRANSFER_FAILED`, `TERMINAL_COMMAND_STARTED`, `TERMINAL_COMMAND_OUTPUT_STARTED`, `TERMINAL_COMMAND_COMPLETED`, and `TERMINAL_COMMAND_FAILED`. Every event belonging to one file transfer, including its `file-transfer` lease acquire/release events, carries the same `transfer_id`. Terminal-command events carry a non-secret `command_id`; the started event includes the original command and bootstrap start cursor, the output-started event identifies the first command-output cursor, and completion includes the exit code plus the internal completion-marker range. A lease event also includes an `output_cursor` metadata snapshot for the bundled attach client's local presentation; it does not change or consume raw Session output. `FILE_TRANSFER_CANCELLED` is emitted only after cleanup releases the lease and includes `reason: user_cancelled`, last confirmed progress, and `lease_released: true`, so an observing AI can distinguish cancellation from transfer failure. A slow observer receives `dropped: true` if its cursor predates bounded retention; it cannot block the Session reader or writer. Important errors: missing/unknown Session, Session not open, invalid limit or timeout, timeout without cursor, cancellation, deadline, EOF, or event-buffer failure.
 
 ## `terminal_wait_file_transfer`
 
@@ -312,6 +312,52 @@ completion additionally carries full lowercase `local_sha256` and `remote_sha256
 completion follows verification, they match. Directory completion uses the same fields for the
 verified tar-stream digest.
 
+## `terminal_exec`
+
+Purpose: execute one non-interactive command through an idle interactive Bash prompt without adding
+the command or ChannelTerm's bootstrap to Bash history.
+
+- Required input: `session_id`, `command`.
+- Optional input: `timeout_ms` (default `30000`, maximum `86400000`).
+- Result: canonical `session_id`, `command_id`, `exit_code`, `output_start`, and `output_end`.
+
+```json
+{"session_id":"SER-1","command":"sha256sum /tmp/app.bin","timeout_ms":30000}
+```
+
+```json
+{"session_id":"8f6f3c76a3903ca393b6ace8812f91fe","command_id":"CMD-0123456789abcdef01234567","exit_code":0,"output_start":420,"output_end":512}
+```
+
+The command must be one non-empty UTF-8 line of at most 64 KiB and cannot contain control
+characters. ChannelTerm acquires a `terminal` lease, checks retained write activity for unsubmitted
+interactive input, hides the echoed internal bootstrap through cursor metadata, and runs the
+command in a non-interactive child Bash without profile or rc files. The bundled attachment renders the original command once
+in its local `AI` block; raw command output remains in the Session between `output_start` and
+`output_end`. Internal wrapper writes use the `system` actor and do not create a second Agent
+activity block.
+
+The parent prompt must be interactive Bash so it can delete the current bootstrap history entry.
+The child cannot persist `cd`, `export`, aliases, shell functions, or other state into the human
+shell or a later `terminal_exec` call. Use one compound command when state must be shared within a
+call. Interactive/full-screen programs, password prompts, arbitrary key input, multiline scripts,
+and deliberately persistent background jobs must use an explicitly managed raw-terminal workflow
+instead.
+
+The lease blocks other ChannelTerm writers until completion and is renewed internally; callers do
+not use the public lease tools for `terminal_exec`. If retained activity indicates a partial human
+or Agent input line, the call fails before writing any bootstrap bytes. ChannelTerm cannot
+portably prove that an arbitrary terminal is showing a shell prompt, so clients must call this tool
+only at a known idle prompt. Cancellation or timeout sends Ctrl+C, waits up to five seconds for
+remote echo restoration, then releases the lease. If restoration cannot be confirmed, the Host
+closes the Session instead of returning it in an unknown TTY state.
+
+Important errors: empty, multiline, control-character, invalid UTF-8, or oversized command;
+unknown/non-open Session; active lease; pending interactive input; non-Bash parent; timeout or MCP
+cancellation; lost output marker; transport failure; or failed recovery. Do not include passwords,
+tokens, or other secrets in `command`: the original text is intentionally retained in structured
+Session events for observable `AI` presentation.
+
 ## `terminal_write`
 
 Purpose: write an explicitly encoded payload to an active Session without adding delimiters.
@@ -339,7 +385,8 @@ Important errors: payload larger than 1 MiB after decoding, missing/unknown Sess
 open, invalid encoding or encoded data, invalid actor, cancellation before or during application
 retries, short write, and transport write failure. Safety: this tool controls the remote terminal.
 Include `\r` or `\n` only when the target protocol requires it; ChannelTerm adds neither
-automatically.
+automatically. A shell line sent with this raw-byte tool follows the remote shell's normal history
+behavior. Agents should use `terminal_exec` for an idle Bash command that must stay out of history.
 
 When another operation owns an exclusive lease, this unchanged tool returns a busy error such as
 `Session SER-1 is locked by file-transfer`. It never waits for the lease or accepts an owner

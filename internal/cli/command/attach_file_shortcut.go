@@ -644,6 +644,8 @@ func (s nonClosingAttachSession) FileTransferCancellationCheckpoint(ctx context.
 
 var fileTransferMenuText = []byte("\r\nFile transfer:\r\n  s  Send PC -> Board\r\n  r  Receive Board -> PC\r\n  Esc  Cancel\r\nSelect: ")
 var fileTransferInputIgnoredText = []byte("\r\n[ChannelTerm] Input ignored during file transfer. Ctrl+C to cancel.\r\n")
+
+var terminalCommandInputIgnoredText = []byte("\r\n[ChannelTerm] Input ignored while an AI command is running. Cancel it from the MCP client.\r\n")
 var fileTransferCancelConfirmationText = []byte("\r\n[ChannelTerm] Cancel file transfer? [y/N]: ")
 var fileTransferResumedText = []byte("\r\n[ChannelTerm] File transfer resumed\r\n")
 

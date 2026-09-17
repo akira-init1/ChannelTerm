@@ -24,7 +24,9 @@ ChannelTerm currently implements serial communication on Windows, Linux, and mac
 
 ## A Shared Terminal in Practice
 
-An attached CLI renders each new, non-empty Agent write as a local `AI` activity block. The lines after the block are still the device's raw terminal output, and the human can type at the same prompt:
+An attached CLI renders an Agent command as a local `AI` activity block. `terminal_exec` keeps that
+command out of an idle Bash prompt's history; the lines after the block are still the device's raw
+terminal output, and the human can type again when the short command lease is released:
 
 ```bash
 root@board:~#
@@ -38,7 +40,10 @@ human-still-here
 root@board:~#
 ```
 
-The exact command output and input echo depend on the connected device. The `AI` block is local presentation derived from Session activity; it is not inserted into the device byte stream or stored terminal output.
+The exact command output depends on the connected device. The `AI` block is local presentation
+derived from structured Session events; it is not inserted into the device byte stream or stored
+terminal output. Raw keys and interactive programs still use `terminal_write` and retain the
+device's normal history behavior.
 
 ## Why ChannelTerm?
 
@@ -109,7 +114,13 @@ To put an AI in that same Session, configure its MCP client to use the same Stre
 http://127.0.0.1:37099/mcp
 ```
 
-The AI can use the MCP Session tools to list Sessions and read or write `SER-1`; see the [MCP workflow](docs/getting-started/mcp-server.md) and [tool reference](docs/reference/mcp-tools.md). Run `channelterm init --mcp` to install client configuration or `channelterm init --mcp-show` to print it; both prompt for HTTP or stdio and default to HTTP. Printed HTTP configuration contains the local Bearer credential and must not be shared or committed.
+The AI can use the MCP Session tools to list and read `SER-1`, run an idle Bash command with
+`terminal_exec`, or send explicitly raw terminal bytes with `terminal_write`; see the
+[MCP workflow](docs/getting-started/mcp-server.md) and
+[tool reference](docs/reference/mcp-tools.md). Run `channelterm init --mcp` to install client
+configuration or `channelterm init --mcp-show` to print it; both prompt for HTTP or stdio and
+default to HTTP. Printed HTTP configuration contains the local Bearer credential and must not be
+shared or committed.
 
 While attached:
 
@@ -146,11 +157,16 @@ Attach to a board once. An AI reads the retained boot log and runs a focused dia
 
 ### AI operates, human observes
 
-The AI sends a command with `terminal_write`. The attached CLI displays the new Agent write as an `AI` activity block, followed by the real bytes returned by the device.
+At an idle Bash prompt, the AI sends a non-interactive command with `terminal_exec`. The attached
+CLI displays the command once as an `AI` activity block, followed by the real bytes returned by the
+device, while the command and internal bootstrap stay out of Bash history.
 
 ### Human intervenes
 
-The human can type into the shared Session or send `Ctrl+C` to the remote terminal, then continue observing or detach with `Ctrl+] q`. ChannelTerm serializes complete write payloads so their bytes do not interleave, but it does not provide writer ownership, command transactions, priority, or shell-state arbitration; clients must avoid conflicting command sequences.
+The human can type into the shared Session or send `Ctrl+C` to the remote terminal, then continue
+observing or detach with `Ctrl+] q`. A short `terminal_exec` lease temporarily locks human input;
+ordinary raw writes retain byte-level serialization without shell-state arbitration, so clients
+must still avoid conflicting raw command sequences.
 
 ## How It Works
 

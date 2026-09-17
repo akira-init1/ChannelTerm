@@ -86,11 +86,15 @@ before running the command. A non-default Host endpoint is a terminal-control bo
 trusted. The HTTP Host requires a Bearer token but does not provide TLS or per-tool authorization.
 The feature does not change the loopback-only default listener.
 
-Each transfer starts one non-interactive child shell through a single recognizable parent-shell
-entry beginning with `CTERM_FILE_TRANSFER=1`. Remote-path probing, chunk commands, verification, and
-cleanup run inside that child, so the board's interactive shell history gains one entry per
-transfer rather than one entry per 8 KiB block. ChannelTerm does not delete or rewrite existing
-shell history.
+Each transfer starts one non-interactive child shell through a parent-shell bootstrap containing
+`CTERM_FT=1`. In an interactive Bash shell, that bootstrap deletes its own current in-memory history
+entry before starting the child; it does not delete or rewrite any earlier user command. Other
+POSIX shells that do not provide Bash-compatible history deletion retain one recognizable bootstrap
+entry. ChannelTerm temporarily disables target-terminal input echo and clears the bootstrap from the
+current screen after the child starts. Remote-path probing, chunk commands, verification, and
+cleanup run inside the child and never create separate interactive history entries. Completion waits
+for the interactive parent shell to resume before releasing the presentation gate, so the retained
+bootstrap echo is not printed after the transfer status.
 
 ## Attach shortcut
 

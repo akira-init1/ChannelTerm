@@ -204,11 +204,15 @@ type fakeConnectedSession struct {
 	connected bool
 	closed    bool
 	writes    []byte
+	activity  []session.SessionEvent
+	output    []byte
+	outputNew chan struct{}
 	events    []session.Event
+	onWrite   func(session.WriteRequest)
 }
 
 func newFakeConnectedSession(id string) *fakeConnectedSession {
-	return &fakeConnectedSession{id: id, state: session.StateNew}
+	return &fakeConnectedSession{id: id, state: session.StateNew, outputNew: make(chan struct{})}
 }
 
 func (s *fakeConnectedSession) ID() string { return s.id }
@@ -227,20 +231,45 @@ func (s *fakeConnectedSession) Connect(context.Context) error {
 	return nil
 }
 
-func (*fakeConnectedSession) ReadOutput(context.Context, session.OutputCursor, int) (session.OutputChunk, error) {
-	return session.OutputChunk{}, nil
+func (s *fakeConnectedSession) ReadOutput(ctx context.Context, next session.OutputCursor, maxBytes int) (session.OutputChunk, error) {
+	for {
+		s.mu.Lock()
+		if int(next) < len(s.output) {
+			end := min(len(s.output), int(next)+maxBytes)
+			chunk := session.OutputChunk{Data: append([]byte(nil), s.output[next:end]...), Next: session.OutputCursor(end)}
+			s.mu.Unlock()
+			return chunk, nil
+		}
+		notify := s.outputNew
+		closed := s.closed
+		s.mu.Unlock()
+		if closed {
+			return session.OutputChunk{}, session.ErrNotOpen
+		}
+		select {
+		case <-ctx.Done():
+			return session.OutputChunk{}, ctx.Err()
+		case <-notify:
+		}
+	}
 }
 
-func (*fakeConnectedSession) ReadRecent(int) (session.OutputChunk, error) {
-	return session.OutputChunk{}, nil
+func (s *fakeConnectedSession) ReadRecent(maxBytes int) (session.OutputChunk, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	start := max(0, len(s.output)-maxBytes)
+	return session.OutputChunk{Data: append([]byte(nil), s.output[start:]...), Next: session.OutputCursor(len(s.output))}, nil
 }
 
 func (*fakeConnectedSession) ReadActivity(context.Context, session.ActivityCursor, int) (session.ActivityChunk, error) {
 	return session.ActivityChunk{}, nil
 }
 
-func (*fakeConnectedSession) ReadRecentActivity(int) (session.ActivityChunk, error) {
-	return session.ActivityChunk{}, nil
+func (s *fakeConnectedSession) ReadRecentActivity(limit int) (session.ActivityChunk, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	start := max(0, len(s.activity)-limit)
+	return session.ActivityChunk{Events: append([]session.SessionEvent(nil), s.activity[start:]...), Next: session.ActivityCursor(len(s.activity))}, nil
 }
 
 func (s *fakeConnectedSession) ReadEvents(_ context.Context, next session.EventCursor, limit int) (session.EventChunk, error) {
@@ -276,8 +305,13 @@ func (s *fakeConnectedSession) PublishEvent(event session.Event) {
 
 func (s *fakeConnectedSession) Write(request session.WriteRequest) (int, error) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	s.writes = append(s.writes, request.Data...)
+	s.activity = append(s.activity, session.SessionEvent{Actor: request.Actor, Operation: session.OperationWrite, Data: append([]byte(nil), request.Data...)})
+	onWrite := s.onWrite
+	s.mu.Unlock()
+	if onWrite != nil {
+		onWrite(request)
+	}
 	return len(request.Data), nil
 }
 
@@ -288,7 +322,16 @@ func (s *fakeConnectedSession) Close() error {
 	defer s.mu.Unlock()
 	s.closed = true
 	s.state = session.StateClosed
+	close(s.outputNew)
 	return nil
+}
+
+func (s *fakeConnectedSession) emitOutput(data []byte) {
+	s.mu.Lock()
+	s.output = append(s.output, data...)
+	close(s.outputNew)
+	s.outputNew = make(chan struct{})
+	s.mu.Unlock()
 }
 
 func (s *fakeConnectedSession) writtenData() []byte {

@@ -391,6 +391,96 @@ func TestFileTransferPresentationSuppressesLeaseRangeWithoutFilteringUserContent
 	}
 }
 
+func TestFileTransferPresentationSuppressesDelayedBootstrapEchoAfterCompletion(t *testing.T) {
+	presentation := newFileTransferPresentation()
+	var output bytes.Buffer
+	write := func(data []byte) error {
+		_, err := output.Write(data)
+		return err
+	}
+	bootstrap := []byte("root@board:~# stty -echo;CTERM_FT=1 sh -c '...';stty echo\r\n")
+	if err := presentation.handle(session.Event{Type: session.EventLeaseAcquired, Metadata: map[string]any{
+		"type": "file-transfer", "output_cursor": uint64(0),
+	}}, true, write); err != nil {
+		t.Fatal(err)
+	}
+	if err := presentation.handle(session.Event{Type: session.EventFileTransferCompleted}, true, write); err != nil {
+		t.Fatal(err)
+	}
+	if err := presentation.handle(session.Event{Type: session.EventLeaseReleased, Metadata: map[string]any{
+		"type": "file-transfer", "output_cursor": uint64(len(bootstrap)),
+	}}, true, write); err != nil {
+		t.Fatal(err)
+	}
+	if rendered, err := writeAttachedTerminalOutputAt(presentation, write, session.OutputCursor(len(bootstrap)), bootstrap); err != nil || rendered {
+		t.Fatalf("delayed bootstrap echo = rendered=%t, err=%v; want suppressed", rendered, err)
+	}
+	if output.Len() != 0 {
+		t.Fatalf("delayed bootstrap output = %q, want hidden", output.String())
+	}
+}
+
+func TestTerminalCommandPresentationShowsOriginalCommandAndHidesOnlyBootstrap(t *testing.T) {
+	presentation := newFileTransferPresentation()
+	var output bytes.Buffer
+	write := func(data []byte) error {
+		_, err := output.Write(data)
+		return err
+	}
+	startedAt := time.Date(2026, time.September, 17, 14, 6, 13, 0, time.Local)
+	if err := presentation.handle(session.Event{
+		Timestamp: startedAt,
+		Type:      session.EventTerminalCommandStarted,
+		Metadata: map[string]any{
+			"command_id":    "CMD-1",
+			"command":       "sha256sum app.bin",
+			"output_cursor": uint64(6),
+		},
+	}, false, write); err != nil {
+		t.Fatal(err)
+	}
+	if !presentation.terminalCommandActive() {
+		t.Fatal("terminal command presentation is not active after start")
+	}
+	if err := presentation.handle(session.Event{
+		Type: session.EventTerminalCommandOutputStarted,
+		Metadata: map[string]any{
+			"command_id":    "CMD-1",
+			"output_cursor": uint64(15),
+		},
+	}, false, write); err != nil {
+		t.Fatal(err)
+	}
+	if err := presentation.handle(session.Event{
+		Type: session.EventTerminalCommandCompleted,
+		Metadata: map[string]any{
+			"command_id":   "CMD-1",
+			"hidden_start": uint64(29),
+			"hidden_end":   uint64(33),
+		},
+	}, false, write); err != nil {
+		t.Fatal(err)
+	}
+	data := []byte("beforeBOOTSTRAPcommand outputCTRL")
+	rendered, err := writeAttachedTerminalOutputAt(presentation, write, session.OutputCursor(len(data)), data)
+	if err != nil || !rendered {
+		t.Fatalf("writeAttachedTerminalOutputAt() = %t, %v", rendered, err)
+	}
+	want := "\r\n──────── AI ────────\r\n[14:06:13] >> sha256sum app.bin\r\n────────────────────\r\n" + "before" + "command output"
+	if got := output.String(); got != want {
+		t.Fatalf("terminal command presentation = %q, want %q", got, want)
+	}
+	if err := presentation.handle(session.Event{Type: session.EventLeaseReleased, Metadata: map[string]any{
+		"type":          "terminal",
+		"output_cursor": uint64(len(data)),
+	}}, false, write); err != nil {
+		t.Fatal(err)
+	}
+	if presentation.terminalCommandActive() {
+		t.Fatal("terminal command presentation remained active after lease release")
+	}
+}
+
 func TestFileTransferPresentationRestoresAIActivityAfterEveryTerminalState(t *testing.T) {
 	states := []struct {
 		name  string

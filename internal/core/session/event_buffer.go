@@ -43,6 +43,18 @@ const (
 	EventFileTransferCancelled EventType = "FILE_TRANSFER_CANCELLED"
 	// EventFileTransferFailed records a failed file transfer.
 	EventFileTransferFailed EventType = "FILE_TRANSFER_FAILED"
+	// EventTerminalCommandStarted records an Agent shell command entering its
+	// isolated execution scope. Metadata includes the original display command
+	// and the raw-output cursor from which bootstrap presentation is hidden.
+	EventTerminalCommandStarted EventType = "TERMINAL_COMMAND_STARTED"
+	// EventTerminalCommandOutputStarted records the first raw-output cursor that
+	// belongs to the command rather than its hidden shell bootstrap.
+	EventTerminalCommandOutputStarted EventType = "TERMINAL_COMMAND_OUTPUT_STARTED"
+	// EventTerminalCommandCompleted records an isolated shell command exit code.
+	EventTerminalCommandCompleted EventType = "TERMINAL_COMMAND_COMPLETED"
+	// EventTerminalCommandFailed records setup, cancellation, or recovery failure
+	// before a normal isolated shell command completion.
+	EventTerminalCommandFailed EventType = "TERMINAL_COMMAND_FAILED"
 )
 
 // EventCursor identifies the next Session event a consumer expects.
