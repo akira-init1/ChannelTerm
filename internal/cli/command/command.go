@@ -780,19 +780,28 @@ func runSerialWithTarget(ctx context.Context, args []string, input io.Reader, ou
 		return formatCLISerialOpenError(err, *configPath)
 	}
 	terminal := applicationSession{application: application, identifier: opened.Info.ID}
-	defer func() {
-		if _, closeErr := application.CloseSession(opened.Info.ID); closeErr != nil && err == nil {
-			err = fmt.Errorf("close serial port %q: %w", opened.Profile.Port, closeErr)
-		}
-	}()
 	rawInput, stopInputEcho, err := terminalinput.MakeRaw(input)
 	if err != nil {
+		_, _ = application.CloseSession(opened.Info.ID)
 		return fmt.Errorf("configure console input: %w", err)
 	}
 	input = rawInput
+	var inputDone <-chan struct{}
 	defer func() {
-		if restoreErr := stopInputEcho(); restoreErr != nil && err == nil {
+		// Stop new input dispatch first, then close the Session so an active
+		// transport Write is interrupted. Waiting for the dispatcher before
+		// restoring the console guarantees no command-owned goroutine can write
+		// terminal output after runSerialWithTarget returns.
+		cancel()
+		_, closeErr := application.CloseSession(opened.Info.ID)
+		if inputDone != nil {
+			<-inputDone
+		}
+		restoreErr := stopInputEcho()
+		if restoreErr != nil && err == nil {
 			err = fmt.Errorf("restore console input: %w", restoreErr)
+		} else if closeErr != nil && err == nil {
+			err = fmt.Errorf("close serial port %q: %w", opened.Profile.Port, closeErr)
 		}
 	}()
 	if err := writeConnectionStatus(output, opened.Profile.Port, opened.Profile.BaudRate); err != nil {
@@ -809,7 +818,12 @@ func runSerialWithTarget(ctx context.Context, args []string, input io.Reader, ou
 	// leaves control bytes available to the shared interactive controller, which
 	// forwards Ctrl+C to the remote Session and reserves only the escape prefix
 	// for ChannelTerm-local commands.
-	go forwardInputWithPromptTimestamp(input, terminal, writeLocalOutput, togglePromptTimestamps, cancel)
+	inputFinished := make(chan struct{})
+	inputDone = inputFinished
+	go func() {
+		defer close(inputFinished)
+		forwardInputWithPromptTimestampContext(sessionCtx, input, terminal, writeLocalOutput, togglePromptTimestamps, cancel)
+	}()
 
 	cursor := session.OutputCursor(0)
 	lastOutputEndedLine := true
@@ -1124,7 +1138,7 @@ func rootCause(err error) error {
 func forwardInput(input io.Reader, terminal interface {
 	Write(session.WriteRequest) (int, error)
 }, writeLocal func([]byte) error, cancel context.CancelFunc) {
-	forwardInputWithPromptTimestamp(input, terminal, writeLocal, nil, cancel)
+	forwardInputWithPromptTimestampContext(context.Background(), input, terminal, writeLocal, nil, cancel)
 }
 
 // forwardInputWithPromptTimestamp adds local prompt-timestamp control to the
@@ -1133,65 +1147,76 @@ func forwardInput(input io.Reader, terminal interface {
 func forwardInputWithPromptTimestamp(input io.Reader, terminal interface {
 	Write(session.WriteRequest) (int, error)
 }, writeLocal func([]byte) error, togglePromptTimestamp func() error, cancel context.CancelFunc) {
+	forwardInputWithPromptTimestampContext(context.Background(), input, terminal, writeLocal, togglePromptTimestamp, cancel)
+}
+
+// forwardInputWithPromptTimestampContext stops dispatching as soon as ctx is
+// cancelled. The input pump isolates a potentially non-cancellable Read so the
+// dispatcher can finish before its command returns and releases Session/output
+// ownership.
+func forwardInputWithPromptTimestampContext(ctx context.Context, input io.Reader, terminal interface {
+	Write(session.WriteRequest) (int, error)
+}, writeLocal func([]byte) error, togglePromptTimestamp func() error, cancel context.CancelFunc) {
 	controller := interactive.NewController(interactive.DefaultEscapeByte)
-	buffer := make([]byte, 4*1024)
+	pump := newAttachInputPumpContext(ctx, input)
 	for {
-		n, err := input.Read(buffer)
-		if n > 0 {
-			for _, action := range controller.Process(buffer[:n]) {
-				switch action.Kind {
-				case interactive.ActionRemote:
-					if writeErr := writeSession(terminal, session.ActorUser, action.Data); writeErr != nil {
-						if writeLocal == nil || writeLocal(writeFailureText(writeErr)) != nil {
-							cancel()
-							return
-						}
-						continue
+		result, ok := pump.next(ctx)
+		if !ok || result.err != nil || len(result.data) == 0 {
+			return
+		}
+		if err := ctx.Err(); err != nil {
+			return
+		}
+		for _, action := range controller.Process(result.data) {
+			if err := ctx.Err(); err != nil {
+				return
+			}
+			switch action.Kind {
+			case interactive.ActionRemote:
+				if writeErr := writeSession(terminal, session.ActorUser, action.Data); writeErr != nil {
+					if ctx.Err() != nil {
+						return
 					}
-				case interactive.ActionEscapePending:
-					if writeLocal == nil || writeLocal(escapePendingText) != nil {
+					if writeLocal == nil || writeLocal(writeFailureText(writeErr)) != nil {
 						cancel()
 						return
 					}
-				case interactive.ActionCancelEscape:
-					if writeLocal == nil || writeLocal(escapeCancelledText) != nil {
-						cancel()
-						return
-					}
-				case interactive.ActionQuit:
+					continue
+				}
+			case interactive.ActionEscapePending:
+				if writeLocal == nil || writeLocal(escapePendingText) != nil {
 					cancel()
 					return
-				case interactive.ActionHelp:
-					if writeLocal == nil || writeLocal(escapeHelpText) != nil {
-						cancel()
-						return
-					}
-				case interactive.ActionTogglePromptTimestamp:
-					if togglePromptTimestamp == nil || togglePromptTimestamp() != nil {
-						cancel()
-						return
-					}
-				case interactive.ActionFileTransfer:
-					if writeLocal == nil || writeLocal(fileTransferUnavailableText) != nil {
-						cancel()
-						return
-					}
-				case interactive.ActionUnknownEscape:
-					if writeLocal == nil || writeLocal(unknownEscapeText(action.Command)) != nil {
-						cancel()
-						return
-					}
+				}
+			case interactive.ActionCancelEscape:
+				if writeLocal == nil || writeLocal(escapeCancelledText) != nil {
+					cancel()
+					return
+				}
+			case interactive.ActionQuit:
+				cancel()
+				return
+			case interactive.ActionHelp:
+				if writeLocal == nil || writeLocal(escapeHelpText) != nil {
+					cancel()
+					return
+				}
+			case interactive.ActionTogglePromptTimestamp:
+				if togglePromptTimestamp == nil || togglePromptTimestamp() != nil {
+					cancel()
+					return
+				}
+			case interactive.ActionFileTransfer:
+				if writeLocal == nil || writeLocal(fileTransferUnavailableText) != nil {
+					cancel()
+					return
+				}
+			case interactive.ActionUnknownEscape:
+				if writeLocal == nil || writeLocal(unknownEscapeText(action.Command)) != nil {
+					cancel()
+					return
 				}
 			}
-		}
-		if err != nil {
-			return
-		}
-		if n == 0 {
-			// An io.Reader should not return (0, nil) with a non-empty buffer.
-			// Treat it as an ended input source to avoid a CPU spin on a broken
-			// console or test reader.
-			return
 		}
 	}
 }
