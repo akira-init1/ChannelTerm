@@ -359,7 +359,18 @@ Every user-visible change must also record a separate `README Impact: Yes` or `R
 
 README is intentionally separate from detailed docs.
 
-Create a translated README such as `README.zh-CN.md` or `README.ja.md` only when the maintainer explicitly requests it. `README.md` remains the source of truth. When the canonical README changes, review any existing translations for impact. A translation must not claim behavior or capabilities absent from the English README or current implementation.
+Create a translated README such as `README.zh-CN.md` or `README.ja.md` only when the maintainer explicitly requests it. `README.md` remains the source of truth. A translation must not claim behavior or capabilities absent from the English README or current implementation.
+
+Every modification to `README.md` requires a synchronization pass over **all** existing translated
+README files in the same contribution. Translate changed behavior, commands, examples, workflow,
+positioning, and compatibility statements into every maintained language; apply navigation and
+structural changes consistently as well. Do not merge an English README change while any existing
+translation still describes the previous behavior. A translation-only wording or grammar fix may
+remain scoped to that language, but it must not introduce a fact that is absent from `README.md`.
+
+When a translated README is added, removed, or renamed, update the language navigation in
+`README.md` and every remaining translation, and update the project-entry list in
+`docs/README.md`, all in the same contribution.
 
 Every user-visible change must explicitly determine its README Impact. Update README when a change:
 

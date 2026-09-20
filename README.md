@@ -1,3 +1,5 @@
+[English](README.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [日本語](README.ja.md) | [한국어](README.ko.md)
+
 # ChannelTerm
 
 ChannelTerm lets humans and AI share the same hardware terminal session.
@@ -21,6 +23,68 @@ AI does not replace your terminal. It joins it: the AI can read and operate the 
 ```
 
 ChannelTerm currently implements serial communication on Windows, Linux, and macOS. It is not a built-in AI; it exposes real terminal Sessions to human CLI clients and external AI clients through MCP.
+
+## Quick Start: Share One Serial Session
+
+For a Session that survives individual CLI attachments, keep a dedicated Host running.
+
+Terminal 1 — start the persistent local Host:
+
+```bash
+channelterm mcp --transport http
+```
+
+Readiness is confirmed by `MCP Streamable HTTP listening on http://127.0.0.1:37099/mcp`.
+Silence after that line is normal.
+
+Terminal 2 — list native serial targets, then open and attach to one:
+
+```bash
+channelterm list --kind device --transport serial --no-mcp
+
+# Windows
+channelterm attach COM8 --baud 115200 --label board
+
+# Linux
+channelterm attach /dev/ttyUSB0 --baud 115200 --label board
+
+# macOS
+channelterm attach /dev/cu.usbserial-110 --baud 115200 --label board
+```
+
+Use only the command for the current platform. `--label board` is an optional display name; it is
+not an identifier and cannot replace a Session reference.
+
+Terminal 3 — another human CLI lists and joins the existing Session:
+
+```bash
+channelterm list --kind session
+channelterm attach SER-1
+```
+
+Every attachment receives the same raw device output through an independent cursor. Press
+`Ctrl+] q` to detach one CLI without closing the shared Session. Stop Terminal 1 with `Ctrl+C` only
+when the Host and all of its Sessions should close.
+
+For a quick single-terminal workflow, `channelterm attach COM8` (or a native `/dev/...` target)
+can start a temporary Host automatically. That Host and its Sessions stop when the creating
+attachment exits, so the dedicated Host above is the recommended shared workflow.
+
+While attached:
+
+```text
+Ctrl+C      Send 0x03 to the remote terminal
+Ctrl+] q    Detach this CLI without closing the shared Session
+Ctrl+] ?    Show local escape help
+Ctrl+] ]    Send a literal Ctrl+] byte
+Ctrl+] t    Toggle local shell-prompt timestamps
+Ctrl+] f    Open the local file send/receive menu
+Ctrl+] Esc  Cancel local escape mode
+```
+
+To add a supported AI client to the same Host, run `channelterm init --mcp`, select HTTP, and let
+the client list or operate `SER-1`. See [MCP Server](docs/getting-started/mcp-server.md) for the
+authentication and client workflow.
 
 ## A Shared Terminal in Practice
 
@@ -73,29 +137,7 @@ Serial device ---- Session
 
 The result is a hardware-debugging workflow where AI actions stay observable and the human remains present. Sharing is more than reopening the same port: every client sees retained raw output through an independent cursor, and all writes pass through the same Session.
 
-## Quick Start
-
-Build or install `channelterm`, then list the serial targets detected on the machine:
-
-```bash
-channelterm list --kind device --transport serial --no-mcp
-```
-
-Create or join a shared Session and attach the human terminal. Use the target printed by `list`:
-
-```bash
-# Linux example
-channelterm attach /dev/ttyUSB0 --baud 115200
-
-# Windows example
-channelterm attach COM8 --baud 115200
-```
-
-For the default local endpoint, `attach` starts the loopback Session Host when needed, asks it to open or reuse the target, and then joins the returned Session. From another shell, inspect its short reference:
-
-```bash
-channelterm list --kind session
-```
+## AI, Files, and Local Controls
 
 That shared serial Session can also transfer regular files and directories without an AI client or a separately installed board-side transfer agent. Directories use standard tar and acknowledged, cancellation-friendly chunks:
 
@@ -121,18 +163,6 @@ The AI can use the MCP Session tools to list and read `SER-1`, run an idle Bash 
 configuration or `channelterm init --mcp-show` to print it; both prompt for HTTP or stdio and
 default to HTTP. Printed HTTP configuration contains the local Bearer credential and must not be
 shared or committed.
-
-While attached:
-
-```text
-Ctrl+C      Send 0x03 to the remote terminal
-Ctrl+] q    Detach this CLI without closing the shared Session
-Ctrl+] ?    Show local escape help
-Ctrl+] ]    Send a literal Ctrl+] byte
-Ctrl+] t    Toggle local shell-prompt timestamps
-Ctrl+] f    Open the local file send/receive menu
-Ctrl+] Esc  Cancel local escape mode
-```
 
 Press `Ctrl+]` to enter local escape mode. ChannelTerm displays the available escape commands locally. `Ctrl+] f` starts a guided file/directory send/receive flow on the current attachment, with `/tmp/cterm/user-files/<basename>` and `./<basename>` defaults and non-overwriting `_1`, `_2` selection. `Ctrl+] t` is off by default and prepends local `[HH:MM:SS]` timestamps only to conservatively recognized shell prompts; it does not change shared Session or MCP output.
 

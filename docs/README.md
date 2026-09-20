@@ -2,6 +2,14 @@
 
 This navigation index links every public document. Technical facts are owned by the linked pages; for command-line flags and defaults, the running program's `--help` output remains authoritative.
 
+## Project Entry Points
+
+- [English README](../README.md) — canonical public landing page
+- [简体中文 README](../README.zh-CN.md)
+- [繁體中文 README](../README.zh-TW.md)
+- [日本語 README](../README.ja.md)
+- [한국어 README](../README.ko.md)
+
 ## Getting Started
 
 - [Build from source](getting-started/build.md)
