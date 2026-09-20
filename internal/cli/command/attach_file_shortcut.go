@@ -37,6 +37,12 @@ type attachInputResult struct {
 }
 
 func newAttachInputPump(input io.Reader) attachInputPump {
+	return newAttachInputPumpContext(context.Background(), input)
+}
+
+// newAttachInputPumpContext isolates a potentially blocking Reader while
+// allowing result delivery to stop with its owning command Context.
+func newAttachInputPumpContext(ctx context.Context, input io.Reader) attachInputPump {
 	results := make(chan attachInputResult)
 	go func() {
 		defer close(results)
@@ -45,15 +51,30 @@ func newAttachInputPump(input io.Reader) attachInputPump {
 			n, err := input.Read(buffer)
 			if n > 0 {
 				data := append([]byte(nil), buffer[:n]...)
-				results <- attachInputResult{data: data}
+				if !sendAttachInputResult(ctx, results, attachInputResult{data: data}) {
+					return
+				}
 			}
 			if err != nil || n == 0 {
-				results <- attachInputResult{err: err}
+				sendAttachInputResult(ctx, results, attachInputResult{err: err})
 				return
 			}
 		}
 	}()
 	return attachInputPump{results: results}
+}
+
+// sendAttachInputResult prevents a completed attachment or direct serial
+// command from leaving its input reader blocked while publishing a final
+// result. The underlying Read may remain blocked for an arbitrary io.Reader,
+// but after it returns the pump no longer touches command-owned state.
+func sendAttachInputResult(ctx context.Context, results chan<- attachInputResult, result attachInputResult) bool {
+	select {
+	case results <- result:
+		return true
+	case <-ctx.Done():
+		return false
+	}
 }
 
 func (p *attachInputPump) next(ctx context.Context) (attachInputResult, bool) {
@@ -105,7 +126,7 @@ func forwardAttachInputWithInterrupts(ctx context.Context, input io.Reader, term
 // forwardAttachInputWithPresentation routes input while keeping ordinary local
 // UI text distinct from status blocks that must begin at a line boundary.
 func forwardAttachInputWithPresentation(ctx context.Context, input io.Reader, terminal attachSession, writeLocal func([]byte) error, writeStatus func([]byte) error, togglePromptTimestamp func() error, cancel context.CancelFunc, interrupts <-chan os.Signal) {
-	pump := newAttachInputPump(input)
+	pump := newAttachInputPumpContext(ctx, input)
 	dispatcher := newAttachInputDispatcherWithPumpAndInterrupts(ctx, &pump, terminal, writeLocal, togglePromptTimestamp, cancel, runAttachShortcutFileTransfer, interrupts)
 	dispatcher.writeStatus = writeStatus
 	dispatcher.run()

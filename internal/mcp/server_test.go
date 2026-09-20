@@ -59,7 +59,7 @@ func TestServerListsAndUsesTerminalTools(t *testing.T) {
 	}
 
 	device.emit([]byte("boot> "))
-	read := callTool(t, client, "terminal_read", map[string]any{"session_id": "board", "max_bytes": 128})
+	read := callTool(t, client, "terminal_read", map[string]any{"session_id": "board", "cursor": 0, "max_bytes": 128, "timeout_ms": 1000})
 	if read.IsError {
 		t.Fatalf("terminal_read result = %#v", read)
 	}
@@ -106,7 +106,7 @@ func TestStreamableHTTPServerListsAndUsesTerminalTools(t *testing.T) {
 	}
 
 	device.emit([]byte("boot> "))
-	read := callTool(t, client, "terminal_read", map[string]any{"session_id": "board", "max_bytes": 128})
+	read := callTool(t, client, "terminal_read", map[string]any{"session_id": "board", "cursor": 0, "max_bytes": 128, "timeout_ms": 1000})
 	if read.IsError || resultString(t, read, "data") != "boot> " {
 		t.Errorf("terminal_read result = %#v, want HTTP call through the shared Registry", read)
 	}
@@ -128,7 +128,7 @@ func TestStreamableHTTPWaitCancellationKeepsClientUsable(t *testing.T) {
 	defer closeClient()
 
 	device.emit([]byte("ready"))
-	read := callTool(t, client, "terminal_read", map[string]any{"session_id": "board"})
+	read := callTool(t, client, "terminal_read", map[string]any{"session_id": "board", "cursor": 0, "timeout_ms": 1000})
 	cursor := resultNumber(t, read, "next")
 	returned := make(chan *protocol.CallToolResult, 1)
 	returnError := make(chan error, 1)
@@ -309,7 +309,7 @@ func TestServerWaitReturnsNewOutputAndSupportsTimeout(t *testing.T) {
 	defer closeClient()
 
 	device.emit([]byte("ready"))
-	read := callTool(t, client, "terminal_read", map[string]any{"session_id": "board"})
+	read := callTool(t, client, "terminal_read", map[string]any{"session_id": "board", "cursor": 0, "timeout_ms": 1000})
 	cursor := resultNumber(t, read, "next")
 
 	timedOut, err := client.CallTool(context.Background(), &protocol.CallToolParams{Name: "terminal_wait", Arguments: map[string]any{"session_id": "board", "cursor": cursor, "timeout_ms": 40}})
