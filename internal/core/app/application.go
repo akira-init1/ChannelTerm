@@ -682,24 +682,25 @@ func (a *Application) ListSerialProfiles(ctx context.Context, configuredPath str
 	return profiles, nil
 }
 
-// ResolveSerialTarget resolves a currently present `SER-<port>` reference to
-// its operating-system serial port name. It performs discovery only and never
-// opens a Transport or creates a Session.
-func (a *Application) ResolveSerialTarget(ctx context.Context, reference string) (string, error) {
-	reference = strings.TrimSpace(reference)
-	if !strings.HasPrefix(strings.ToUpper(reference), "SER-") {
-		return "", fmt.Errorf("unsupported direct target reference %q; currently only SER-* targets are supported", reference)
+// ResolveSerialTarget verifies that an operating-system serial endpoint is
+// currently present and returns the exact name reported by discovery. It never
+// opens a Transport or creates a Session. See "Identifiers and References"
+// (docs/reference/identifiers.md) for the target and Session identifier boundary.
+func (a *Application) ResolveSerialTarget(ctx context.Context, target string) (string, error) {
+	target = strings.TrimSpace(target)
+	if target == "" {
+		return "", errors.New("serial target must not be empty")
 	}
 	ports, err := a.ListSerialPorts(ctx)
 	if err != nil {
 		return "", fmt.Errorf("list serial targets: %w", err)
 	}
 	for _, port := range ports {
-		if strings.EqualFold("SER-"+strings.TrimSpace(port.Name), reference) {
+		if serialtransport.SamePortName(port.Name, target) {
 			return port.Name, nil
 		}
 	}
-	return "", fmt.Errorf("serial target reference %q is not present; run channelterm list --transport serial", reference)
+	return "", fmt.Errorf("serial target %q is not present; run channelterm list --transport serial", target)
 }
 
 // session resolves one Manager-owned Session without transferring ownership.

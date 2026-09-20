@@ -12,7 +12,7 @@ Physical serial endpoint -> Serial Transport -> Channel -> Session -> Client / A
 ## Create or join by target
 
 ```powershell
-channelterm attach SER-COM8 --baud 115200
+channelterm attach COM8 --baud 115200
 ```
 
 For the default endpoint, `attach` starts a background local HTTP host if one is not already
@@ -86,12 +86,12 @@ reader or Session writers.
 ## Use a private connection
 
 ```powershell
-channelterm attach SER-COM8 --private --baud 115200
+channelterm attach COM8 --private --baud 115200
 ```
 
 `--no-mcp` is an alias for `--private`. The current CLI process owns this port and closes it when
 the client exits. Other CLI or MCP clients cannot join it. `--private` is valid only with a serial
-target reference, not with a Session reference.
+serial target, not with a Session reference.
 
 ## Lifecycle boundary
 
@@ -110,7 +110,7 @@ a leased Channel write is still blocked, the Host closes and removes that Sessio
 list Sessions and reopen the endpoint before retrying. The implementation rationale and exact lease
 timing are documented in [Application Module](../modules/application.md).
 
-See [Identifiers](../reference/identifiers.md) before passing target references, Session references,
+See [Identifiers](../reference/identifiers.md) before passing serial targets, Session references,
 or `session_id` values between commands.
 
 ## Future direction

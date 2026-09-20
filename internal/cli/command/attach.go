@@ -123,8 +123,8 @@ func newMCPAttachSession(ctx context.Context, endpoint, id string) (_ attachSess
 }
 
 // runAttach is the unified user terminal entry point. A Session ID or short
-// Session reference attaches to an existing host session, while a serial target
-// reference such as SER-COM8 creates or reuses one shared host session first.
+// Session reference attaches to an existing host session, while a native
+// serial target such as COM8 creates or reuses one shared host session first.
 func runAttach(ctx context.Context, args []string, input io.Reader, output io.Writer, newAttach attachSessionFactory) error {
 	return runAttachWithInterrupts(ctx, args, input, output, newAttach, nil)
 }
@@ -133,7 +133,7 @@ func runAttach(ctx context.Context, args []string, input io.Reader, output io.Wr
 // another input source for the one attach input dispatcher.
 func runAttachWithInterrupts(ctx context.Context, args []string, input io.Reader, output io.Writer, newAttach attachSessionFactory, interrupts <-chan os.Signal) error {
 	if len(args) == 1 && (args[0] == "--help" || args[0] == "-h") {
-		return runAttachTargetFirstWithInterrupts(ctx, "SER-COM8", args, input, output, newAttach, interrupts)
+		return runAttachTargetFirstWithInterrupts(ctx, "COM8", args, input, output, newAttach, interrupts)
 	}
 	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
 		return runAttachTargetFirstWithInterrupts(ctx, args[0], args[1:], input, output, newAttach, interrupts)
@@ -400,7 +400,7 @@ func runAttachTargetFirstWithInterrupts(ctx context.Context, target string, args
 	if flags.NArg() != 0 {
 		return fmt.Errorf("unexpected attach argument %q", flags.Arg(0))
 	}
-	if isSerialTargetReference(target) && !isShortSessionReference(target) {
+	if classifyAttachDestination(target) == attachSerialDestination {
 		serialArgs := stripAttachControlFlags(args)
 		if *private {
 			serialArgs = append(serialArgs, fmt.Sprintf("--highlight=%t", *highlightEnabled))
@@ -423,10 +423,10 @@ func runAttachTargetFirstWithInterrupts(ctx context.Context, target string, args
 		return runAttachSessionWithInterrupts(ctx, []string{"--endpoint", *endpoint, fmt.Sprintf("--highlight=%t", *highlightEnabled), opened.ID}, input, output, newAttach, interrupts)
 	}
 	if *private {
-		return errors.New("--private requires a serial target reference such as SER-COM8")
+		return errors.New("--private requires a serial target such as COM8 or /dev/ttyUSB0")
 	}
 	if hasAttachSerialOption(flags) {
-		return errors.New("serial options require a serial target reference such as SER-COM8")
+		return errors.New("serial options require a serial target such as COM8 or /dev/ttyUSB0")
 	}
 	return runAttachSessionWithInterrupts(ctx, []string{"--endpoint", *endpoint, fmt.Sprintf("--highlight=%t", *highlightEnabled), target}, input, output, newAttach, interrupts)
 }
@@ -471,7 +471,7 @@ func defineAttachSerialFlags(flags *flag.FlagSet) {
 func writeAttachTargetUsage(output io.Writer) {
 	fmt.Fprintln(output, "Usage: channelterm attach TARGET_OR_SESSION [options]")
 	fmt.Fprintln(output)
-	fmt.Fprintln(output, "attach SER-COM8 creates or joins a shared local Session Host connection.")
+	fmt.Fprintln(output, "attach COM8 or attach /dev/ttyUSB0 creates or joins a shared local Session Host connection.")
 	fmt.Fprintln(output, "attach SER-1 or a full session_id joins an existing shared Session.")
 	fmt.Fprintln(output, "--private (or --no-mcp) opens a local connection that MCP and other users cannot join.")
 	fmt.Fprintln(output, "Ctrl+C is sent to the remote session. Use Ctrl+] q to leave this CLI window; Ctrl+] f opens file transfer; Ctrl+] t toggles local prompt timestamps.")
@@ -512,21 +512,38 @@ func stripAttachControlFlags(args []string) []string {
 	return serialArgs
 }
 
-// isShortSessionReference distinguishes Manager references such as SER-1 from
-// endpoint references such as SER-COM8 without assuming future transport names.
-func isShortSessionReference(value string) bool {
-	separator := strings.LastIndex(strings.TrimSpace(value), "-")
-	if separator <= 0 || separator == len(strings.TrimSpace(value))-1 {
-		return false
+type attachDestinationKind uint8
+
+const (
+	attachSessionDestination attachDestinationKind = iota
+	attachSerialDestination
+)
+
+// classifyAttachDestination is the extension boundary for transport-specific
+// target syntax. Only native serial targets exist today; future SSH, Telnet, or
+// other adapters add their own destination kind here without changing Session
+// reference semantics. See "Identifiers and References"
+// (docs/reference/identifiers.md).
+func classifyAttachDestination(value string) attachDestinationKind {
+	if isNativeSerialTarget(value) {
+		return attachSerialDestination
 	}
-	_, err := strconv.ParseUint(strings.TrimSpace(value)[separator+1:], 10, 64)
-	return err == nil
+	return attachSessionDestination
 }
 
-// isSerialTargetReference recognizes the deterministic serial endpoint
-// references emitted by list. Session references are handled separately.
-func isSerialTargetReference(value string) bool {
-	return strings.HasPrefix(strings.ToUpper(strings.TrimSpace(value)), "SER-")
+// isNativeSerialTarget recognizes operating-system serial endpoint forms on
+// the supported desktop platforms.
+func isNativeSerialTarget(value string) bool {
+	value = strings.TrimSpace(value)
+	if strings.HasPrefix(value, "/dev/") {
+		return len(value) > len("/dev/")
+	}
+	upper := strings.ToUpper(value)
+	if !strings.HasPrefix(upper, "COM") || len(upper) == len("COM") {
+		return false
+	}
+	_, err := strconv.ParseUint(upper[len("COM"):], 10, 32)
+	return err == nil
 }
 
 // openSharedSerialTarget ensures the local Session Host exists, then uses its
@@ -534,7 +551,7 @@ func isSerialTargetReference(value string) bool {
 // the sole physical-port owner; this CLI only attaches afterwards.
 func openSharedSerialTarget(ctx context.Context, endpoint, target string, serialArgs []string) (opened mcpListedSession, reused bool, startedHost *autoStartedMCPHost, err error) {
 	if !isLocalMCPEndpoint(endpoint) {
-		return mcpListedSession{}, false, nil, errors.New("opening a target reference requires a local Session Host endpoint")
+		return mcpListedSession{}, false, nil, errors.New("opening a serial target requires a local Session Host endpoint")
 	}
 	application, err := app.New(app.Dependencies{Manager: session.NewManager()})
 	if err != nil {
@@ -568,7 +585,7 @@ func openSharedSerialTarget(ctx context.Context, endpoint, target string, serial
 	}
 	if !attachOptionIsProvided(serialArgs, "save") {
 		for _, candidate := range listed.Sessions {
-			if candidate.Transport == "serial" && strings.EqualFold(candidate.Endpoint, port) && candidate.State == "open" {
+			if candidate.Transport == "serial" && serialtransport.SamePortName(candidate.Endpoint, port) && candidate.State == "open" {
 				return candidate, true, startedHost, nil
 			}
 		}

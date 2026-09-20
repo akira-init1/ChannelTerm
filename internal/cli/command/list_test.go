@@ -63,7 +63,7 @@ func TestRunListMergesLocalSessionIntoTargetRow(t *testing.T) {
 		t.Fatalf("report = %#v, want one merged local target", report)
 	}
 	item := report.Items[0]
-	if item.Reference != "SER-COM8" || item.MCPReference != "SER-1" || item.SessionID != "serial-opaque" {
+	if item.Reference != "COM8" || item.MCPReference != "SER-1" || item.SessionID != "serial-opaque" {
 		t.Errorf("merged item = %#v, want target and MCP session references", item)
 	}
 	if item.Occupancy != "owned by ChannelTerm" || item.Source != "local+config+mcp" || item.Label != "board" {
@@ -99,7 +99,7 @@ func TestRunListShowsSessionLeaseOccupancy(t *testing.T) {
 	}
 }
 
-func TestRunListRendersTargetReferenceWithoutMCP(t *testing.T) {
+func TestRunListRendersNativeTargetWithoutMCP(t *testing.T) {
 	sources := listSources{
 		configPath: func() (string, error) { return "config.toml", nil },
 		loadConfig: func(string) (config.File, error) { return config.File{}, nil },
@@ -116,9 +116,14 @@ func TestRunListRendersTargetReferenceWithoutMCP(t *testing.T) {
 		t.Fatalf("runListWithSources() error = %v", err)
 	}
 	got := output.String()
-	for _, want := range []string{"SER-COM9", "COM9", "MCP SESSION", "-"} {
+	for _, want := range []string{"TARGET", "COM9", "SESSION", "-"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("list output = %q, want %q", got, want)
+		}
+	}
+	for _, unwanted := range []string{"SER-COM9", "REF", "TRANSPORT", "SOURCE"} {
+		if strings.Contains(got, unwanted) {
+			t.Errorf("compact list output = %q, must not contain %q", got, unwanted)
 		}
 	}
 }
@@ -155,6 +160,11 @@ func TestRunListLongFormatControlsFullSessionID(t *testing.T) {
 			}
 			if contains := strings.Contains(got, "SESSION ID"); contains != tt.wantHeader {
 				t.Errorf("long header presence = %t, want %t in %q", contains, tt.wantHeader, got)
+			}
+			if !tt.wantID {
+				if !strings.Contains(got, "TARGET") || !strings.Contains(got, "SER-1 (open)") {
+					t.Errorf("compact list output = %q, want native target and short Session columns", got)
+				}
 			}
 		})
 	}

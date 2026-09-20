@@ -688,9 +688,9 @@ func runSerial(ctx context.Context, args []string, input io.Reader, output io.Wr
 }
 
 // runSerialWithTarget performs a direct serial connection and optionally
-// prints targetReference after connecting. connect supplies that reference,
+// prints the selected target after connecting. connect supplies that target,
 // while the serial command intentionally retains its established output.
-func runSerialWithTarget(ctx context.Context, args []string, input io.Reader, output io.Writer, newSession serialSessionFactory, targetReference string) (err error) {
+func runSerialWithTarget(ctx context.Context, args []string, input io.Reader, output io.Writer, newSession serialSessionFactory, target string) (err error) {
 	flags := flag.NewFlagSet("serial", flag.ContinueOnError)
 	flags.SetOutput(output)
 	port := flags.String("port", "", "serial port name, for example COM3")
@@ -807,9 +807,9 @@ func runSerialWithTarget(ctx context.Context, args []string, input io.Reader, ou
 	if err := writeConnectionStatus(output, opened.Profile.Port, opened.Profile.BaudRate); err != nil {
 		return fmt.Errorf("write connection status: %w", err)
 	}
-	if targetReference != "" {
-		if err := writeTargetReferenceStatus(output, targetReference); err != nil {
-			return fmt.Errorf("write target reference status: %w", err)
+	if target != "" {
+		if err := writeTargetStatus(output, target); err != nil {
+			return fmt.Errorf("write target status: %w", err)
 		}
 	}
 	// Input has an independent goroutine because a blocked serial Write must not
@@ -874,24 +874,24 @@ func terminalOutputFlusher(renderer *highlight.Renderer) func() error {
 	return renderer.Flush
 }
 
-// runConnect resolves a reference emitted by list and opens that local target
+// runConnect resolves a target emitted by list and opens that local endpoint
 // in this CLI process. It does not attach to an MCP Session; attach remains the
 // command for a Session owned by a running MCP host.
 func runConnect(ctx context.Context, args []string, input io.Reader, output io.Writer, newSession serialSessionFactory, listPorts func() ([]serialtransport.Port, error)) error {
-	return runConnectWithResolver(ctx, args, input, output, newSession, func(_ context.Context, reference string) (string, error) {
-		return resolveSerialTargetReference(reference, listPorts)
+	return runConnectWithResolver(ctx, args, input, output, newSession, func(_ context.Context, target string) (string, error) {
+		return resolveSerialTarget(target, listPorts)
 	})
 }
 
 // runApplicationConnect resolves a target through Application before applying
 // CLI-only serial flags and rendering the local interactive session.
 func runApplicationConnect(ctx context.Context, args []string, input io.Reader, output io.Writer, newSession serialSessionFactory) error {
-	return runConnectWithResolver(ctx, args, input, output, newSession, func(ctx context.Context, reference string) (string, error) {
+	return runConnectWithResolver(ctx, args, input, output, newSession, func(ctx context.Context, target string) (string, error) {
 		application, err := app.New(app.Dependencies{Manager: session.NewManager()})
 		if err != nil {
 			return "", err
 		}
-		return application.ResolveSerialTarget(ctx, reference)
+		return application.ResolveSerialTarget(ctx, target)
 	})
 }
 
@@ -904,11 +904,11 @@ func runConnectWithResolver(ctx context.Context, args []string, input io.Reader,
 	}
 	if len(args) == 0 {
 		writeConnectUsage(output)
-		return errors.New("connect requires a target reference; run channelterm list --transport serial")
+		return errors.New("connect requires a serial target; run channelterm list --transport serial")
 	}
 	if strings.HasPrefix(args[0], "-") {
 		writeConnectUsage(output)
-		return fmt.Errorf("connect target reference must be first, got %q", args[0])
+		return fmt.Errorf("connect target must be first, got %q", args[0])
 	}
 	if err := rejectConnectPortOverride(args[1:]); err != nil {
 		return err
@@ -920,52 +920,51 @@ func runConnectWithResolver(ctx context.Context, args []string, input io.Reader,
 	serialArgs := make([]string, 0, len(args)+1)
 	serialArgs = append(serialArgs, "--port", port)
 	serialArgs = append(serialArgs, args[1:]...)
-	return runSerialWithTarget(ctx, serialArgs, input, output, newSession, serialTargetReference(port))
+	return runSerialWithTarget(ctx, serialArgs, input, output, newSession, port)
 }
 
 // writeConnectUsage documents the distinct lifetimes of direct targets and
 // MCP Sessions so a short reference cannot imply that a local process can
 // attach to a Session owned by another process.
 func writeConnectUsage(output io.Writer) {
-	fmt.Fprintln(output, "Usage: channelterm connect TARGET_REF [serial options]")
+	fmt.Fprintln(output, "Usage: channelterm connect TARGET [serial options]")
 	fmt.Fprintln(output)
-	fmt.Fprintln(output, "Connect directly to a serial target listed by channelterm list, for example SER-COM8.")
+	fmt.Fprintln(output, "Connect directly to a serial target listed by channelterm list, for example COM8 or /dev/ttyUSB0.")
 	fmt.Fprintln(output, "Use channelterm attach SER-1 only for an existing MCP-managed Session.")
-	fmt.Fprintln(output, "The target reference must be first; --port is selected by TARGET_REF and cannot be overridden.")
+	fmt.Fprintln(output, "The target must be first; --port is selected by TARGET and cannot be overridden.")
 }
 
-// rejectConnectPortOverride prevents a displayed target reference and a later
-// --port value from disagreeing about which hardware this invocation opens.
+// rejectConnectPortOverride prevents a displayed target and a later --port
+// value from disagreeing about which hardware this invocation opens.
 func rejectConnectPortOverride(args []string) error {
 	for _, arg := range args {
 		if arg == "--port" || strings.HasPrefix(arg, "--port=") {
-			return errors.New("connect selects the serial port from TARGET_REF; remove --port")
+			return errors.New("connect selects the serial port from TARGET; remove --port")
 		}
 	}
 	return nil
 }
 
-// resolveSerialTargetReference scans only for the requested port before
-// connecting. The reference is based on the endpoint text rather than scan
-// order, and the scan ensures the displayed device is still present.
-func resolveSerialTargetReference(reference string, listPorts func() ([]serialtransport.Port, error)) (string, error) {
+// resolveSerialTarget scans only for the requested operating-system endpoint
+// before connecting, ensuring the displayed device is still present.
+func resolveSerialTarget(target string, listPorts func() ([]serialtransport.Port, error)) (string, error) {
 	if listPorts == nil {
 		return "", errors.New("serial target lister must not be nil")
 	}
-	reference = strings.TrimSpace(reference)
-	if !strings.HasPrefix(strings.ToUpper(reference), "SER-") {
-		return "", fmt.Errorf("unsupported direct target reference %q; currently only SER-* targets are supported", reference)
+	target = strings.TrimSpace(target)
+	if target == "" {
+		return "", errors.New("serial target must not be empty")
 	}
 	ports, err := listPorts()
 	if err != nil {
 		return "", fmt.Errorf("list serial targets: %w", err)
 	}
 	for _, port := range ports {
-		if strings.EqualFold(serialTargetReference(port.Name), reference) {
+		if serialtransport.SamePortName(port.Name, target) {
 			return port.Name, nil
 		}
 	}
-	return "", fmt.Errorf("serial target reference %q is not present; run channelterm list --transport serial", reference)
+	return "", fmt.Errorf("serial target %q is not present; run channelterm list --transport serial", target)
 }
 
 // serialOverrides retains only flags the user actually supplied. This avoids a
@@ -1017,10 +1016,10 @@ func writeConnectionStatus(output io.Writer, port string, baudRate int) error {
 	return writeAll(output, []byte(fmt.Sprintf("Connected: %s @ %d\r\nNo wake character sent by default; use --wake for an idle shell without a prompt.\r\nEscape: Ctrl+]  |  Help: Ctrl+] ?  |  Prompt time: Ctrl+] t\r\n", port, baudRate)))
 }
 
-// writeTargetReferenceStatus prints the short stable reference used for this
+// writeTargetStatus prints the operating-system endpoint selected for this
 // direct connection without exposing an internal Session ID.
-func writeTargetReferenceStatus(output io.Writer, reference string) error {
-	return writeAll(output, []byte(fmt.Sprintf("Target: %s\r\n", reference)))
+func writeTargetStatus(output io.Writer, target string) error {
+	return writeAll(output, []byte(fmt.Sprintf("Target: %s\r\n", target)))
 }
 
 // writeDisconnectStatus keeps local status separate from unmodified remote

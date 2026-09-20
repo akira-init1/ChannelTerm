@@ -14,6 +14,30 @@ import (
 	goserial "go.bug.st/serial"
 )
 
+func TestSamePortNameUsesPlatformPathSemantics(t *testing.T) {
+	tests := []struct {
+		name       string
+		platform   string
+		discovered string
+		supplied   string
+		want       bool
+	}{
+		{name: "Windows exact", platform: "windows", discovered: "COM50", supplied: "COM50", want: true},
+		{name: "Windows case insensitive", platform: "windows", discovered: "COM50", supplied: "com50", want: true},
+		{name: "Linux exact", platform: "linux", discovered: "/dev/ttyUSB0", supplied: "/dev/ttyUSB0", want: true},
+		{name: "Linux case sensitive", platform: "linux", discovered: "/dev/ttyUSB0", supplied: "/dev/ttyusb0", want: false},
+		{name: "macOS exact", platform: platformMacOS, discovered: "/dev/cu.usbserial-110", supplied: "/dev/cu.usbserial-110", want: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := portNameKey(tt.platform, tt.discovered) == portNameKey(tt.platform, tt.supplied)
+			if got != tt.want {
+				t.Errorf("port-name equality for %q, %q, %q = %t, want %t", tt.platform, tt.discovered, tt.supplied, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestDiagnoseOpenErrorClassifiesCommonFailures(t *testing.T) {
 	tests := []struct {
 		name     string

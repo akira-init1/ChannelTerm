@@ -124,7 +124,7 @@ func runListWithSources(ctx context.Context, args []string, output io.Writer, so
 		fmt.Fprintln(output)
 		fmt.Fprintln(output, "List detected local ports, saved connection profiles, and sessions from an existing MCP HTTP server.")
 		fmt.Fprintln(output, "The command never opens a serial port, connects to SSH, or writes configuration.")
-		fmt.Fprintln(output, "Device references such as SER-COM8 and MCP session references such as SER-1 can be passed to channelterm attach.")
+		fmt.Fprintln(output, "Native device targets such as COM8 or /dev/ttyUSB0 and Session references such as SER-1 can be passed to channelterm attach.")
 		fmt.Fprintln(output)
 		flags.PrintDefaults()
 	}
@@ -176,7 +176,7 @@ func collectList(ctx context.Context, endpoint, configuredPath string, noMCP boo
 		}
 		for _, port := range ports {
 			report.Items = append(report.Items, listItem{
-				Reference: serialTargetReference(port.Name),
+				Reference: strings.TrimSpace(port.Name),
 				Kind:      "device",
 				Transport: "serial",
 				Target:    port.Name,
@@ -198,7 +198,7 @@ func collectList(ctx context.Context, endpoint, configuredPath string, noMCP boo
 				if strings.TrimSpace(listed.Profile.Port) == "" {
 					state = "incomplete"
 				}
-				report.Items = append(report.Items, listItem{Reference: serialTargetReference(listed.Profile.Port), Kind: "profile", Transport: "serial", Target: listed.Profile.Port, State: state, Occupancy: "not connected", Source: "config", Label: listed.Name})
+				report.Items = append(report.Items, listItem{Reference: strings.TrimSpace(listed.Profile.Port), Kind: "profile", Transport: "serial", Target: listed.Profile.Port, State: state, Occupancy: "not connected", Source: "config", Label: listed.Name})
 			}
 		} else {
 			path := configuredPath
@@ -229,7 +229,7 @@ func collectList(ctx context.Context, endpoint, configuredPath string, noMCP boo
 						state = "incomplete"
 					}
 					report.Items = append(report.Items, listItem{
-						Reference: serialTargetReference(profile.Port),
+						Reference: strings.TrimSpace(profile.Port),
 						Kind:      "profile",
 						Transport: "serial",
 						Target:    profile.Port,
@@ -345,7 +345,14 @@ func mergeSessionIntoTarget(target *listItem, listed listItem) {
 // listTargetKey uses a separator outside normal endpoint syntax so one
 // transport cannot merge with another merely because their target text matches.
 func listTargetKey(transport, target string) string {
-	return strings.ToLower(strings.TrimSpace(transport)) + "\x00" + strings.ToLower(strings.TrimSpace(target))
+	transport = strings.ToLower(strings.TrimSpace(transport))
+	target = strings.TrimSpace(target)
+	if transport == "serial" {
+		target = serialtransport.PortNameKey(target)
+	} else {
+		target = strings.ToLower(target)
+	}
+	return transport + "\x00" + target
 }
 
 // combineListSource forms a stable, compact source summary without repeating a
@@ -386,17 +393,6 @@ func isLocalMCPEndpoint(endpoint string) bool {
 		return true
 	}
 	return net.ParseIP(host) != nil && net.ParseIP(host).IsLoopback()
-}
-
-// serialTargetReference is a deterministic local target reference. It uses
-// the reported endpoint rather than enumeration order so a rescan cannot make
-// a previously displayed reference select a different serial port.
-func serialTargetReference(port string) string {
-	port = strings.TrimSpace(port)
-	if port == "" {
-		return ""
-	}
-	return "SER-" + strings.ToUpper(port)
 }
 
 // listMCPSessions uses the existing read-only terminal_list_sessions tool and
@@ -475,37 +471,35 @@ func renderList(output io.Writer, report listReport, longOutput bool) error {
 		return err
 	}
 	table := tabwriter.NewWriter(output, 0, 0, 2, ' ', 0)
-	header := "REF\tKIND\tTRANSPORT\tTARGET\tSTATE\tOCCUPANCY\tMCP SESSION\tSOURCE\tLABEL"
+	header := "TARGET\tKIND\tSTATE\tOCCUPANCY\tSESSION\tLABEL"
 	if longOutput {
-		header = "REF\tKIND\tTRANSPORT\tTARGET\tSTATE\tOCCUPANCY\tMCP SESSION\tSESSION ID\tSOURCE\tLABEL"
+		header = "TARGET\tKIND\tTRANSPORT\tSTATE\tOCCUPANCY\tSESSION\tSESSION ID\tSOURCE\tLABEL"
 	}
 	if _, err := fmt.Fprintln(table, header); err != nil {
 		return err
 	}
 	for _, item := range report.Items {
-		reference := item.Reference
-		if reference == "" {
-			reference = "-"
-		}
 		target := item.Target
 		if target == "" {
 			target = "-"
 		}
-		mcpSession := "-"
+		sessionReference := "-"
 		if item.MCPReference != "" {
-			mcpSession = item.MCPReference + " (" + item.MCPState + ")"
+			sessionReference = item.MCPReference + " (" + item.MCPState + ")"
+		} else if item.Kind == "session" && item.Reference != "" {
+			sessionReference = item.Reference
 		}
 		if longOutput {
 			sessionID := item.SessionID
 			if sessionID == "" {
 				sessionID = "-"
 			}
-			if _, err := fmt.Fprintf(table, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", reference, item.Kind, item.Transport, target, item.State, item.Occupancy, mcpSession, sessionID, item.Source, item.Label); err != nil {
+			if _, err := fmt.Fprintf(table, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", target, item.Kind, item.Transport, item.State, item.Occupancy, sessionReference, sessionID, item.Source, item.Label); err != nil {
 				return err
 			}
 			continue
 		}
-		if _, err := fmt.Fprintf(table, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", reference, item.Kind, item.Transport, target, item.State, item.Occupancy, mcpSession, item.Source, item.Label); err != nil {
+		if _, err := fmt.Fprintf(table, "%s\t%s\t%s\t%s\t%s\t%s\n", target, item.Kind, item.State, item.Occupancy, sessionReference, item.Label); err != nil {
 			return err
 		}
 	}

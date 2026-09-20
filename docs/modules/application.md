@@ -28,7 +28,7 @@ discarding an `Application` does not start or close the Registry or close the Ma
 - `ListSerialPorts`: enumerate ports without opening them or changing Registry state.
 - `ListSerialProfiles`: read and resolve named profiles; a missing file is an empty list and is not
   created.
-- `ResolveSerialTarget`: resolve a currently present `SER-*` target to the operating-system endpoint.
+- `ResolveSerialTarget`: verify that a native operating-system serial endpoint is currently present.
 - `ListDevices`, `ReadDeviceEvents`: expose Registry snapshots and cursor streams.
 - `ConnectionDecision`: combine exact device presence, exact active Session metadata, and policy
   without changing state.

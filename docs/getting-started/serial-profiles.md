@@ -21,7 +21,7 @@ channelterm serial --profile board
 For a target-first shared connection, the target still selects the port while the profile supplies other settings:
 
 ```powershell
-channelterm attach SER-COM8 --profile board
+channelterm attach COM8 --profile board
 ```
 
 ## TOML example

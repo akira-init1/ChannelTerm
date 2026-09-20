@@ -2,9 +2,9 @@
 
 ## No serial port was selected
 
-`serial port is required` means neither the command, selected profile, nor default profile resolved a port. Supply `--port`, select a complete profile, or use a current `SER-*` target from `channelterm list`.
+`serial port is required` means neither the command, selected profile, nor default profile resolved a port. Supply `--port`, select a complete profile, or use a current native target from `channelterm list`.
 
-## The target reference is not present
+## The serial target is not present
 
 `connect` and target-based `attach` resolve a local target against current serial enumeration. Run:
 
@@ -12,7 +12,7 @@
 channelterm list --kind device --transport serial --no-mcp
 ```
 
-Use the exact current `REF`. A stale reference fails instead of opening a similarly named port.
+Use the exact current `TARGET`. A stale target fails instead of opening a similarly named port.
 
 ## The port is missing, busy, or inaccessible
 

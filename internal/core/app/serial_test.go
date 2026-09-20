@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"errors"
+	"strings"
 	"sync"
 	"testing"
 
@@ -166,6 +167,31 @@ func TestApplicationRoutesCoreUseCases(t *testing.T) {
 	closed, err := application.CloseSession("SER-1")
 	if err != nil || closed.ID != "session-8" || !terminal.closed {
 		t.Errorf("CloseSession() = %#v, %v, closed=%t", closed, err, terminal.closed)
+	}
+}
+
+func TestApplicationResolveSerialTargetUsesNativePortName(t *testing.T) {
+	application, err := New(Dependencies{
+		Manager: session.NewManager(),
+		ListSerialPorts: func() ([]serialtransport.Port, error) {
+			return []serialtransport.Port{{Name: "/dev/ttyUSB0"}, {Name: "COM50"}}, nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+
+	for _, target := range []string{"/dev/ttyUSB0", "COM50"} {
+		got, resolveErr := application.ResolveSerialTarget(context.Background(), target)
+		if resolveErr != nil {
+			t.Fatalf("ResolveSerialTarget(%q) error = %v", target, resolveErr)
+		}
+		if got != target {
+			t.Errorf("ResolveSerialTarget(%q) = %q, want %q", target, got, target)
+		}
+	}
+	if _, resolveErr := application.ResolveSerialTarget(context.Background(), "SER-COM50"); resolveErr == nil || !strings.Contains(resolveErr.Error(), "is not present") {
+		t.Fatalf("ResolveSerialTarget(legacy target) error = %v, want not present", resolveErr)
 	}
 }
 

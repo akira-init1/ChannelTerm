@@ -870,45 +870,45 @@ func TestWriteConnectionStatusUsesCRLF(t *testing.T) {
 	}
 }
 
-func TestWriteTargetReferenceStatusUsesCRLF(t *testing.T) {
+func TestWriteTargetStatusUsesCRLF(t *testing.T) {
 	var output bytes.Buffer
-	if err := writeTargetReferenceStatus(&output, "SER-COM8"); err != nil {
-		t.Fatalf("writeTargetReferenceStatus() error = %v", err)
+	if err := writeTargetStatus(&output, "COM8"); err != nil {
+		t.Fatalf("writeTargetStatus() error = %v", err)
 	}
-	if got := output.String(); got != "Target: SER-COM8\r\n" {
+	if got := output.String(); got != "Target: COM8\r\n" {
 		t.Errorf("target status = %q, want explicit CRLF delimiters", got)
 	}
 }
 
-func TestResolveSerialTargetReference(t *testing.T) {
+func TestResolveSerialTarget(t *testing.T) {
 	tests := []struct {
-		name      string
-		reference string
-		ports     []serialtransport.Port
-		want      string
-		wantErr   string
+		name    string
+		target  string
+		ports   []serialtransport.Port
+		want    string
+		wantErr string
 	}{
-		{name: "listed Windows port", reference: "SER-COM8", ports: []serialtransport.Port{{Name: "COM8"}}, want: "COM8"},
-		{name: "case insensitive reference", reference: "ser-com8", ports: []serialtransport.Port{{Name: "COM8"}}, want: "COM8"},
-		{name: "missing port", reference: "SER-COM9", ports: []serialtransport.Port{{Name: "COM8"}}, wantErr: "is not present"},
-		{name: "future transport", reference: "SSH-1", wantErr: "currently only SER-*"},
+		{name: "listed Windows port", target: "COM8", ports: []serialtransport.Port{{Name: "COM8"}}, want: "COM8"},
+		{name: "listed Linux port", target: "/dev/ttyUSB0", ports: []serialtransport.Port{{Name: "/dev/ttyUSB0"}}, want: "/dev/ttyUSB0"},
+		{name: "legacy prefixed target", target: "SER-COM8", ports: []serialtransport.Port{{Name: "COM8"}}, wantErr: "is not present"},
+		{name: "missing port", target: "COM9", ports: []serialtransport.Port{{Name: "COM8"}}, wantErr: "is not present"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := resolveSerialTargetReference(tt.reference, func() ([]serialtransport.Port, error) {
+			got, err := resolveSerialTarget(tt.target, func() ([]serialtransport.Port, error) {
 				return tt.ports, nil
 			})
 			if tt.wantErr != "" {
 				if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
-					t.Fatalf("resolveSerialTargetReference() error = %v, want containing %q", err, tt.wantErr)
+					t.Fatalf("resolveSerialTarget() error = %v, want containing %q", err, tt.wantErr)
 				}
 				return
 			}
 			if err != nil {
-				t.Fatalf("resolveSerialTargetReference() error = %v", err)
+				t.Fatalf("resolveSerialTarget() error = %v", err)
 			}
 			if got != tt.want {
-				t.Errorf("resolveSerialTargetReference() = %q, want %q", got, tt.want)
+				t.Errorf("resolveSerialTarget() = %q, want %q", got, tt.want)
 			}
 		})
 	}

@@ -133,7 +133,8 @@ Mandatory rules:
 - Write serialization is not semantic multi-writer coordination. It provides no writer ownership, exclusive lease, transaction, priority, arbitration, or shell-state coordination. Stronger multi-writer coordination is a future direction, not current behavior.
 - Session output must remain raw. Presentation transformations such as highlighting belong outside Session.
 - Session IDs are opaque identifiers. Short references such as `SER-1` are convenience references and are not interchangeable with opaque Session IDs.
-- Target references such as `SER-COM8` identify targets, not live Session IDs.
+- Native targets such as `COM8` or `/dev/ttyUSB0` identify serial endpoints, not live Session IDs.
+- CLI `TARGET` is a transport-neutral role. Serial is the only implemented target grammar; future Transport grammars must remain unambiguous with `<TRANSPORT>-<N>` Session references and be documented before use.
 - Interfaces should be small and close to their consumers.
 - Keep implementation under `internal/` unless a stable external Go API is intentionally designed and reviewed.
 - Avoid global mutable state when dependency injection or an owned long-lived object is appropriate.
