@@ -152,7 +152,7 @@ func runAttachSessionWithInterrupts(ctx context.Context, args []string, input io
 	flags := flag.NewFlagSet("attach", flag.ContinueOnError)
 	flags.SetOutput(output)
 	endpoint := flags.String("endpoint", defaultMCPEndpoint, "MCP Streamable HTTP endpoint")
-	highlightMode := flags.String("highlight", "auto", "terminal highlighting: auto, always, or never")
+	highlightEnabled := flags.Bool("highlight", true, "apply semantic colors to plain terminal text")
 	help := flags.Bool("help", false, "show help and exit")
 	shortHelp := flags.Bool("h", false, "show help and exit")
 	flags.Usage = func() {
@@ -177,10 +177,7 @@ func runAttachSessionWithInterrupts(ctx context.Context, args []string, input io
 	if flags.NArg() > 1 {
 		return fmt.Errorf("unexpected attach argument %q", flags.Arg(1))
 	}
-	renderer, err := resolveHighlightRenderer(*highlightMode, output)
-	if err != nil {
-		return err
-	}
+	renderer := resolveHighlightRenderer(*highlightEnabled, output)
 	if newAttach == nil {
 		return errors.New("attach session factory must not be nil")
 	}
@@ -381,7 +378,7 @@ func runAttachTargetFirstWithInterrupts(ctx context.Context, target string, args
 	endpoint := flags.String("endpoint", defaultMCPEndpoint, "Session Host endpoint")
 	private := flags.Bool("private", false, "open a private local connection without Session Host or MCP")
 	flags.BoolVar(private, "no-mcp", false, "alias for --private")
-	highlightMode := flags.String("highlight", "auto", "terminal highlighting: auto, always, or never")
+	highlightEnabled := flags.Bool("highlight", true, "apply semantic colors to plain terminal text")
 	help := flags.Bool("help", false, "show help and exit")
 	shortHelp := flags.Bool("h", false, "show help and exit")
 	defineAttachSerialFlags(flags)
@@ -406,7 +403,7 @@ func runAttachTargetFirstWithInterrupts(ctx context.Context, target string, args
 	if isSerialTargetReference(target) && !isShortSessionReference(target) {
 		serialArgs := stripAttachControlFlags(args)
 		if *private {
-			serialArgs = append(serialArgs, "--highlight", *highlightMode)
+			serialArgs = append(serialArgs, fmt.Sprintf("--highlight=%t", *highlightEnabled))
 			return runApplicationConnect(ctx, append([]string{target}, serialArgs...), input, output, nil)
 		}
 		opened, reused, startedHost, err := openSharedSerialTarget(ctx, strings.TrimSpace(*endpoint), target, serialArgs)
@@ -423,7 +420,7 @@ func runAttachTargetFirstWithInterrupts(ctx context.Context, target string, args
 		if _, err := fmt.Fprintf(output, "Shared Session %s: %s (%s)\r\n", state, opened.Reference, opened.ID); err != nil {
 			return err
 		}
-		return runAttachSessionWithInterrupts(ctx, []string{"--endpoint", *endpoint, "--highlight", *highlightMode, opened.ID}, input, output, newAttach, interrupts)
+		return runAttachSessionWithInterrupts(ctx, []string{"--endpoint", *endpoint, fmt.Sprintf("--highlight=%t", *highlightEnabled), opened.ID}, input, output, newAttach, interrupts)
 	}
 	if *private {
 		return errors.New("--private requires a serial target reference such as SER-COM8")
@@ -431,7 +428,7 @@ func runAttachTargetFirstWithInterrupts(ctx context.Context, target string, args
 	if hasAttachSerialOption(flags) {
 		return errors.New("serial options require a serial target reference such as SER-COM8")
 	}
-	return runAttachSessionWithInterrupts(ctx, []string{"--endpoint", *endpoint, "--highlight", *highlightMode, target}, input, output, newAttach, interrupts)
+	return runAttachSessionWithInterrupts(ctx, []string{"--endpoint", *endpoint, fmt.Sprintf("--highlight=%t", *highlightEnabled), target}, input, output, newAttach, interrupts)
 }
 
 // writeAutoStartedHostNotice explains the attachment-owned Host lifecycle.
@@ -501,8 +498,10 @@ func stripAttachControlFlags(args []string) []string {
 		switch arg {
 		case "--private", "--no-mcp":
 			continue
-		case "--endpoint", "--highlight":
+		case "--endpoint":
 			index++
+			continue
+		case "--highlight":
 			continue
 		}
 		if strings.HasPrefix(arg, "--endpoint=") || strings.HasPrefix(arg, "--highlight=") {

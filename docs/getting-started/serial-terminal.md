@@ -47,13 +47,23 @@ Use `--wake` only when a known, already-running shell is idle without a prompt. 
 
 ## Local highlighting
 
-`serial`, `connect`, and `attach` accept `--highlight auto|always|never`.
+`serial`, `connect`, and `attach` enable semantic highlighting by default when stdout is a
+color-capable terminal. Use `--highlight=false` when ChannelTerm must not add presentation colors.
 
-- `auto` enables ANSI highlighting only for a compatible terminal output.
-- `always` forces the line-oriented highlighter.
-- `never` writes received bytes without ChannelTerm styling.
+- Plain terminal text receives non-bold semantic colors for errors, warnings, successful states,
+  boot headings, field names, embedded interface/protocol identifiers, addresses, versions,
+  timestamps, numbers, units, quoted values, structural delimiters, and recognized shell prompts.
+- Local output automatically degrades from TrueColor to 256 colors, 16 colors, or no generated
+  color. `NO_COLOR` disables generated colors and `CLICOLOR_FORCE=1` forces color when stdout is not
+  detected as a terminal.
+- Remote ANSI/VT always wins. Escape-containing output is forwarded raw, including sequences split
+  across reads. Persistent SGR attributes and the alternate screen keep raw presentation active;
+  semantic highlighting resumes only after the remote state is reset at a safe line boundary. This
+  preserves full-screen programs such as `vim`, `htop`, and `menuconfig` without requiring reattach.
+- Invalid UTF-8, standalone carriage-return updates, and other unsafe line controls pass through
+  unchanged.
 
-Highlighting is presentation-only. Session buffers and MCP reads keep the original bytes. Lines containing screen-control sequences or invalid UTF-8 are passed through unchanged to avoid corrupting interactive output.
+Highlighting is presentation-only. Session buffers and MCP reads keep the original bytes.
 
 ## Current serial constraints
 

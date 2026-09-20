@@ -132,11 +132,11 @@ func TestWindowsConsoleReaderKeepsPrefixBeforeEscape(t *testing.T) {
 // console-handle wait.
 func TestWindowsConsoleReaderPreservesUTF8AcrossSmallReads(t *testing.T) {
 	events := &fakeWindowsConsoleEvents{
-		records:    []windowsInputRecord{{eventType: windowsKeyEvent, key: windowsKeyEventRecord{keyDown: 1, unicodeChar: '日'}}},
-		characters: []uint16{'日'},
+		records:    []windowsInputRecord{{eventType: windowsKeyEvent, key: windowsKeyEventRecord{keyDown: 1, unicodeChar: 'Ω'}}},
+		characters: []uint16{'Ω'},
 	}
 	reader := &windowsConsoleReader{events: events}
-	want := []byte("日")
+	want := []byte("Ω")
 	for index := range want {
 		buffer := make([]byte, 1)
 		n, err := reader.Read(buffer)

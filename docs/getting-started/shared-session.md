@@ -28,6 +28,12 @@ attachments and MCP readers continue to receive raw output. `Ctrl+] Esc` reports
 Session, and returns subsequent input to normal remote forwarding. `Ctrl+] q` detaches this CLI
 without closing the host-owned Session.
 
+Each CLI attachment applies semantic colors to safe plain text by default when its own stdout is a
+color-capable terminal. Use `--highlight=false` to disable generated colors. Remote ANSI/VT causes
+only that attachment to use byte-transparent output while its control or persistent display state
+is active; highlighting resumes after a safe reset boundary. Session history and every other
+client continue to receive the same raw bytes.
+
 ## Join an existing Session
 
 List host Sessions and copy either the short reference or opaque ID:
