@@ -8,7 +8,8 @@ List currently detected serial targets without querying MCP:
 channelterm list --kind device --transport serial --no-mcp
 ```
 
-A Windows port such as `COM8` is shown with the local target reference `SER-COM8`. Unix endpoints retain the operating-system path; for example `/dev/ttyUSB0` is shown as `SER-/DEV/TTYUSB0`.
+Targets use the operating-system name shown by discovery: for example `COM8` on Windows,
+`/dev/ttyUSB0` on Linux, or `/dev/cu.usbserial-110` on macOS.
 
 ## Open a direct terminal
 
@@ -23,10 +24,10 @@ The conventional defaults are 115200 baud, 8 data bits, no parity, one stop bit,
 The `connect` command resolves a target printed by `list` and then opens the same kind of private connection:
 
 ```powershell
-channelterm connect SER-COM8 --baud 115200
+channelterm connect COM8 --baud 115200
 ```
 
-`TARGET_REF` must be the first argument to `connect`, and `--port` cannot be combined with it.
+`TARGET` must be the first argument to `connect`, and `--port` cannot be combined with it.
 
 ## Interactive input
 

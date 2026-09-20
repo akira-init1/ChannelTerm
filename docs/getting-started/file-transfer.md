@@ -19,7 +19,7 @@ interactive Linux shell.
 First create or join a shared serial Session in one terminal:
 
 ```powershell
-channelterm attach SER-COM8 --baud 115200
+channelterm attach COM8 --baud 115200
 ```
 
 The default `attach` workflow starts the local loopback Session Host automatically when necessary.

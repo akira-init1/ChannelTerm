@@ -85,10 +85,10 @@ Create or join a shared Session and attach the human terminal. Use the target pr
 
 ```bash
 # Linux example
-channelterm attach SER-/DEV/TTYUSB0 --baud 115200
+channelterm attach /dev/ttyUSB0 --baud 115200
 
 # Windows example
-channelterm attach SER-COM8 --baud 115200
+channelterm attach COM8 --baud 115200
 ```
 
 For the default local endpoint, `attach` starts the loopback Session Host when needed, asks it to open or reuse the target, and then joins the returned Session. From another shell, inspect its short reference:
@@ -145,7 +145,7 @@ The HTTP server requires a per-user Bearer token and defaults to a loopback-only
 - Visible Agent writes in attached terminals without modifying raw Session output.
 - Direct human input, including a remote `Ctrl+C`, while the AI remains connected.
 - Client detach without closing the Session used by other clients.
-- Serial discovery, deterministic target references, TOML profiles, and private direct connections when sharing is not wanted.
+- Serial discovery with native Windows, Linux, and macOS target names, TOML profiles, and private direct connections when sharing is not wanted.
 - MCP over stdio or Streamable HTTP, with the shared CLI workflow using the HTTP Session Host.
 - Bounded CLI file/directory send/receive over an existing serial Session, with SHA-256 verification and safe staged directory extraction.
 

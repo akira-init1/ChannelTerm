@@ -822,20 +822,22 @@ func TestAttachSerialOpenArgumentsRetainExplicitSettings(t *testing.T) {
 
 func TestAttachReferenceClassification(t *testing.T) {
 	for _, tt := range []struct {
-		value       string
-		wantSession bool
-		wantTarget  bool
+		value string
+		want  attachDestinationKind
 	}{
-		{value: "SER-1", wantSession: true, wantTarget: true},
-		{value: "SER-COM8", wantTarget: true},
-		{value: "SSH-1", wantSession: true},
-		{value: "ee7fd9f7b2d06688e1ad125580c25bc0"},
+		{value: "SER-1", want: attachSessionDestination},
+		{value: "COM50", want: attachSerialDestination},
+		{value: "com50", want: attachSerialDestination},
+		{value: "/dev/ttyUSB0", want: attachSerialDestination},
+		{value: "/dev/cu.usbserial-110", want: attachSerialDestination},
+		{value: "SER-COM8", want: attachSessionDestination},
+		{value: "SSH-1", want: attachSessionDestination},
+		{value: "user@example.test", want: attachSessionDestination},
+		{value: "example.test:23", want: attachSessionDestination},
+		{value: "ee7fd9f7b2d06688e1ad125580c25bc0", want: attachSessionDestination},
 	} {
-		if got := isShortSessionReference(tt.value); got != tt.wantSession {
-			t.Errorf("isShortSessionReference(%q) = %t, want %t", tt.value, got, tt.wantSession)
-		}
-		if got := isSerialTargetReference(tt.value); got != tt.wantTarget {
-			t.Errorf("isSerialTargetReference(%q) = %t, want %t", tt.value, got, tt.wantTarget)
+		if got := classifyAttachDestination(tt.value); got != tt.want {
+			t.Errorf("classifyAttachDestination(%q) = %d, want %d", tt.value, got, tt.want)
 		}
 	}
 }

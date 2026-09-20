@@ -152,25 +152,26 @@ open, so a saved profile may remain after an open failure.
 
 ## `connect`
 
-Purpose: resolve a current local target reference from serial discovery and open it as a private
+Purpose: resolve a current native serial target from discovery and open it as a private
 Session.
 
 ```text
-channelterm connect TARGET_REF [serial options]
+channelterm connect TARGET [serial options]
 ```
 
-`TARGET_REF` must be first and currently must resolve as a present `SER-*` serial target. `--port`
-is rejected because the target already selects the endpoint. All remaining serial options use
+`TARGET` must be first and must exactly name a present operating-system serial endpoint, such as
+`COM8`, `/dev/ttyUSB0`, or `/dev/cu.usbserial-110`. Windows port matching is case-insensitive;
+Unix device paths are case-sensitive. `--port` is rejected because the target already selects the endpoint. All remaining serial options use
 `serial` semantics, including profile inheritance, `--save`, `--wake`, highlighting, and local
 ownership.
 
 ```powershell
-channelterm connect SER-COM8 --baud 115200
+channelterm connect COM8 --baud 115200
 ```
 
-Errors include a missing or flag-first target, an unsupported reference family, a reference that is
-no longer present, a forbidden `--port` override, and the same configuration/open errors as `serial`
-.
+Errors include a missing or flag-first target, a target that is no longer present, a forbidden
+`--port` override, and the same configuration/open errors as `serial`. The former `SER-COM8` and
+`SER-/DEV/TTYUSB0` device-target forms are not accepted; `SER-N` remains a Session reference.
 
 ## `attach`
 
@@ -181,18 +182,24 @@ privacy flag, to a local private serial target.
 channelterm attach TARGET_OR_SESSION [options]
 ```
 
+`TARGET` is reserved as the transport-neutral destination position. Only native serial targets are
+implemented today. Future SSH or Telnet support may add its own explicitly documented target form;
+the current CLI does not accept SSH or Telnet destinations. See
+[Identifiers and References](identifiers.md#transport-extension-boundary).
+
 The normal target-first forms are:
 
-- `attach SER-COM8`: ensure the default local Session Host is running, create or reuse its Session
+- `attach COM8`: ensure the default local Session Host is running, create or reuse its Session
   for `COM8`, then attach.
+- `attach /dev/ttyUSB0`: the equivalent native-target form on Linux.
 - `attach SER-1`: attach to an existing Session by short reference.
 - `attach <session_id>`: attach by opaque ID.
-- `attach SER-COM8 --private`: open a private local connection without MCP.
+- `attach COM8 --private`: open a private local connection without MCP.
 
 | Option | Default | Accepted values and effect |
 | --- | --- | --- |
 | `--endpoint` | `http://127.0.0.1:37099/mcp` | Complete Streamable HTTP MCP endpoint. |
-| `--private`, `--no-mcp` | false | Open a serial target locally; valid only for a target reference. |
+| `--private`, `--no-mcp` | false | Open a serial target locally; valid only for a native serial target. |
 | `--highlight` | true | Boolean. Applies the same local semantic highlighting as `serial`; use `--highlight=false` for raw presentation. |
 | `--profile`, `--config`, `--baud`, `--data-bits`, `--parity`, `--stop-bits`, `--flow-control`, `--wake`, `--save` | as for `serial` | Used only when the first argument is a serial target. |
 | `--label` | empty | Display-only label for a newly created shared Session; not an identifier. |
@@ -270,9 +277,9 @@ Session output. `Ctrl+] q` closes only the MCP client connection. It does not ca
 Examples:
 
 ```powershell
-channelterm attach SER-COM8 --baud 115200 --label board
+channelterm attach COM8 --baud 115200 --label board
 channelterm attach SER-1
-channelterm attach SER-COM8 --private --highlight=false
+channelterm attach COM8 --private --highlight=false
 channelterm attach SER-1 --endpoint http://127.0.0.1:12345/terminal
 ```
 
@@ -492,9 +499,15 @@ profiles. An active Host lease is displayed in the Session row's occupancy as
 loopback host are merged when they describe the same endpoint. A remote host's Session is not merged
 with a similarly named local port.
 
+The compact table shows `TARGET`, `KIND`, `STATE`, `OCCUPANCY`, `SESSION`, and `LABEL`. `TARGET` is
+directly usable with `connect` or target-based `attach`; `SESSION` contains a short reference such
+as `SER-1` when one exists. Long output also shows transport, opaque Session ID, and source.
+
 The JSON object has `mcp` and `items` fields. Each item reports `kind`, `transport`, `target`,
-`state`, `occupancy`, `source`, and optional reference, Session, and label fields. Treat the JSON
-fields as the script-oriented output; the compact table is presentation-oriented.
+`state`, `occupancy`, `source`, and optional reference, Session, and label fields. For device and
+profile rows, `reference` is now the same native endpoint as `target`; it is no longer a generated
+`SER-<port>` value. Treat JSON fields as the script-oriented output; the compact table is
+presentation-oriented.
 
 Examples:
 

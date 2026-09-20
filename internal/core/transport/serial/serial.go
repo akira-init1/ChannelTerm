@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"runtime"
 	"strings"
 
 	"github.com/akira-init1/ChannelTerm/internal/core/channel"
@@ -130,6 +131,28 @@ func ListPorts() ([]Port, error) {
 		ports = append(ports, Port{Name: name})
 	}
 	return enrichPorts(ports), nil
+}
+
+// SamePortName reports whether a discovered serial port name matches a user
+// supplied operating-system endpoint. Windows device names are
+// case-insensitive; Unix device paths retain case-sensitive path semantics.
+func SamePortName(discovered, supplied string) bool {
+	return portNameKey(runtime.GOOS, discovered) == portNameKey(runtime.GOOS, supplied)
+}
+
+// PortNameKey returns an operating-system-aware comparison key for a serial
+// endpoint. The key is for equality and indexing only; callers must retain the
+// discovered name when opening a port or presenting it to a user.
+func PortNameKey(name string) string {
+	return portNameKey(runtime.GOOS, name)
+}
+
+func portNameKey(platform, name string) string {
+	name = strings.TrimSpace(name)
+	if platform == "windows" {
+		return strings.ToUpper(name)
+	}
+	return name
 }
 
 // Transport opens serial-backed Channels.
