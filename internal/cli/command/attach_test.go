@@ -874,7 +874,7 @@ func newAttachTestHostWithLifetime(t *testing.T, temporary bool) *attachTestHost
 	if err != nil {
 		t.Fatalf("newMCPRegistry() error = %v", err)
 	}
-	handler, err := mcpadapter.NewStreamableHTTPHandler(registry)
+	handler, err := mcpadapter.NewStreamableHTTPHandler(registry, "test")
 	if err != nil {
 		t.Fatalf("NewStreamableHTTPHandler() error = %v", err)
 	}

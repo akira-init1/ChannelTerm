@@ -1,6 +1,7 @@
 # ChannelTerm Documentation
 
-This navigation index links every public document. Technical facts are owned by the linked pages; for command-line flags and defaults, the running program's `--help` output remains authoritative.
+This navigation index links every public document. Technical facts are owned by the linked pages;
+for command-line flags and defaults, the running program's `--help` output remains authoritative.
 
 ## Project Entry Points
 

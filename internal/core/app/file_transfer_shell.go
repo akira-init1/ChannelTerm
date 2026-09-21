@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	fileTransferShellBootstrapCommand = "if [ -n \"$BASH_VERSION\" ];then history -d \"$HISTCMD\";fi;stty -echo;printf '\\036\\037';CTERM_FT=1 sh -c 'while read -r x;do eval \"$x\";done';stty echo;printf '\\035\\034'"
+	fileTransferShellBootstrapCommand = "if [ -n \"$BASH_VERSION\" ];then " + bashDeleteCurrentHistoryEntry + ";fi;stty -echo;printf '\\036\\037';CTERM_FT=1 sh -c 'while read -r x;do eval \"$x\";done';stty echo;printf '\\035\\034'"
 	fileTransferShellEchoHiddenMarker = "\x1e\x1f"
 	fileTransferShellExitedMarker     = "\x1d\x1c"
 	fileTransferShellIdleTimeout      = 30 * time.Second

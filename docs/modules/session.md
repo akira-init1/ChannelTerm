@@ -1,6 +1,8 @@
 # Session Module
 
-`internal/core/session` owns shared Session lifecycle above a protocol-neutral Channel, the single Channel reader, retained output, retained write activity, retained structured events, and Manager registration.
+`internal/core/session` owns shared Session lifecycle above a protocol-neutral Channel, the single
+Channel reader, retained output, retained write activity, retained structured events, and Manager
+registration.
 
 ## Lifecycle
 
@@ -10,13 +12,25 @@ new --> connecting --> open --> closing --> closed
           +----error-----+--> failed
 ```
 
-`Connect` may run only from `new`. It checks and passes the context to Transport connection, then accepts ownership of the returned Channel. A cancelled or failed connection, or a successful Transport result with no Channel, enters `failed` and closes both reader-facing buffers.
+`Connect` may run only from `new`. It checks and passes the context to Transport connection, then
+accepts ownership of the returned Channel. A cancelled or failed connection, or a successful
+Transport result with no Channel, enters `failed` and closes both reader-facing buffers.
 
-Only `open` permits read, write, activity read, event read, and resize operations. `Close` wakes waiting readers, closes the Channel to unblock active I/O, waits for the reader goroutine, releases buffer memory, and enters `closed`. Sequential repeated closes return the first close result. The caller must not run `Connect` concurrently with `Close`.
+Only `open` permits read, write, activity read, event read, and resize operations. `Close` wakes
+waiting readers, closes the Channel to unblock active I/O, waits for the reader goroutine, releases
+buffer memory, and enters `closed`. Sequential repeated closes return the first close result. The
+caller must not run `Connect` concurrently with `Close`.
 
-Application may deliberately remove and close a Manager-owned Session when an application lease expires during an in-flight Channel write or when bounded file-transfer recovery times out. This uses the existing `Close` contract to interrupt an otherwise non-cancellable Channel write; it does not add context or deadline semantics to the protocol-neutral Channel interface.
+Application may deliberately remove and close a Manager-owned Session when an application lease
+expires during an in-flight Channel write or when bounded file-transfer recovery times out. This
+uses the existing `Close` contract to interrupt an otherwise non-cancellable Channel write; it does
+not add context or deadline semantics to the protocol-neutral Channel interface.
 
-An unexpected reader error enters `failed`. EOF is treated as an output end condition. Received bytes returned with an error are appended before the error is handled. A Manager-owned Session then notifies its Manager, which removes that exact Session instance and closes it to release the Channel and all retained buffers. The terminal state after cleanup is `closed`; waiting readers still receive the original reader error recorded before cleanup.
+An unexpected reader error enters `failed`. EOF is treated as an output end condition. Received
+bytes returned with an error are appended before the error is handled. A Manager-owned Session then
+notifies its Manager, which removes that exact Session instance and closes it to release the Channel
+and all retained buffers. The terminal state after cleanup is `closed`; waiting readers still
+receive the original reader error recorded before cleanup.
 
 ## Ownership and concurrency
 
@@ -24,14 +38,14 @@ A Session keeps its Transport only for connection establishment and owns the ret
 close. Exactly one reader goroutine calls `Channel.Read` and appends bytes to the receive buffer.
 Session never delegates Channel reads to consumers.
 
-Writes use a separate mutex across the complete short-write retry loop. Concurrent callers
-therefore cannot interleave their payload bytes. `Close` does not wait for that write mutex; closing
-the Channel is responsible for releasing an in-progress blocking write and avoids a lock cycle.
+Writes use a separate mutex across the complete short-write retry loop. Concurrent callers therefore
+cannot interleave their payload bytes. `Close` does not wait for that write mutex; closing the
+Channel is responsible for releasing an in-progress blocking write and avoids a lock cycle.
 
 This serialization protects byte-level write boundaries only. Session does not infer writer intent
 and does not provide writer ownership, an exclusive lease, a transaction, priority, arbitration, or
-shell-state coordination. Clients that need semantic coordination must currently arrange it
-outside Session.
+shell-state coordination. Clients that need semantic coordination must currently arrange it outside
+Session.
 
 ## Activity
 
@@ -44,7 +58,8 @@ Retention is bounded by both 1024 events and 16 MiB of combined payload data. Th
 events are evicted before either limit is exceeded. One event larger than the byte limit is not
 retained, and older cursors report `Dropped`.
 
-Activity and remote output are independent cursor streams. Reading one cannot consume or modify the other.
+Activity and remote output are independent cursor streams. Reading one cannot consume or modify the
+other.
 
 ## Structured event stream
 
@@ -56,10 +71,9 @@ The current event types are `SESSION_CREATED`, `SESSION_ATTACHED`, `SESSION_DETA
 `LEASE_ACQUIRED`, `LEASE_RELEASED`, `FILE_TRANSFER_STARTED`, `FILE_TRANSFER_PROGRESS`,
 `FILE_TRANSFER_COMPLETED`, `FILE_TRANSFER_CANCELLED`, `FILE_TRANSFER_FAILED`,
 `TERMINAL_COMMAND_STARTED`, `TERMINAL_COMMAND_OUTPUT_STARTED`, `TERMINAL_COMMAND_COMPLETED`, and
-`TERMINAL_COMMAND_FAILED`. One file
-transfer's lease acquire/release and status events all carry the same process-local `transfer_id`.
-`file-transfer` lease events also include an `output_cursor` snapshot used only by attach
-presentation to suppress the corresponding internal raw-output range.
+`TERMINAL_COMMAND_FAILED`. One file transfer's lease acquire/release and status events all carry the
+same process-local `transfer_id`. `file-transfer` lease events also include an `output_cursor`
+snapshot used only by attach presentation to suppress the corresponding internal raw-output range.
 
 One isolated Agent command carries the same non-secret `command_id` across its command events.
 Command metadata records the original display command, bootstrap/output cursor boundary, exit code,
@@ -76,15 +90,15 @@ capability.
 
 `ReadEvents` and `ReadRecentEvents` give every observer an independent event cursor. The fixed
 1024-event retention overwrites its oldest event for a slow observer and reports `Dropped`.
-Publishing does not send on observer channels, so it cannot block Channel reads, Session writes,
-or another observer.
+Publishing does not send on observer channels, so it cannot block Channel reads, Session writes, or
+another observer.
 
 ## Optional stream capabilities
 
-Read, write, close, and lifecycle state form the complete base Channel contract. `Resize` remains
-on Session for current terminal compatibility, but Session invokes it only when the established
-Channel implements the optional `channel.Resizer` capability. File, debug/JTAG, and other
-non-terminal Channels therefore do not need a meaningless resize method.
+Read, write, close, and lifecycle state form the complete base Channel contract. `Resize` remains on
+Session for current terminal compatibility, but Session invokes it only when the established Channel
+implements the optional `channel.Resizer` capability. File, debug/JTAG, and other non-terminal
+Channels therefore do not need a meaningless resize method.
 
 ## Manager
 
@@ -110,4 +124,5 @@ removes that same instance and calls `Close`. This prevents failed Sessions from
 Channel, receive buffer, activity buffer, event buffer, or a stale list entry. An instance check
 prevents a delayed completion signal from removing a newer Session that reuses the same ID.
 
-After a successful registration, Manager publishes `SESSION_CREATED` with display metadata. Registration remains complete even if an observer is slow.
+After a successful registration, Manager publishes `SESSION_CREATED` with display metadata.
+Registration remains complete even if an observer is slow.

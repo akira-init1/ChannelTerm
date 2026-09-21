@@ -11,6 +11,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -69,13 +70,20 @@ type cliSession interface {
 // opening so CLI behavior can be tested without a device.
 type serialSessionFactory func(serialtransport.Config) (cliSession, error)
 
-// version identifies this CLI build in the version command output.
-const version = "0.1.0"
+var (
+	// version identifies this CLI build in CLI and MCP metadata. Release builds
+	// replace the development value through the Go linker's -X flag.
+	version = "devel"
+	// buildCommit and buildTime record binary provenance when a repository build
+	// script supplies them. Direct Go builds retain explicit unknown values.
+	buildCommit = "unknown"
+	buildTime   = "unknown"
+)
 
 const (
 	defaultMCPListen            = "127.0.0.1:37099"
 	defaultMCPPath              = "/mcp"
-	mcpTransportDocsURL         = "https://modelcontextprotocol.io/specification/2025-11-25/basic/transports"
+	mcpTransportDocsURL         = "https://modelcontextprotocol.io/specification/latest/basic/transports"
 	httpAuthTokenEnvVar         = "CHANNELTERM_HTTP_AUTH_TOKEN"
 	httpHostLifetimeHeader      = "X-ChannelTerm-Host-Lifetime"
 	httpHostLifetimeAttachment  = "attachment"
@@ -163,6 +171,7 @@ func runWithDependenciesWithInterrupts(ctx context.Context, args []string, input
 	help := flags.Bool("help", false, "show help and exit")
 	shortHelp := flags.Bool("h", false, "show help and exit")
 	showVersion := flags.Bool("version", false, "print version and exit")
+	shortVersion := flags.Bool("v", false, "print version and exit")
 
 	if len(args) == 1 && args[0] == "help" {
 		flags.Usage()
@@ -181,7 +190,7 @@ func runWithDependenciesWithInterrupts(ctx context.Context, args []string, input
 	if flags.NArg() > 0 {
 		return fmt.Errorf("unknown command %q", flags.Arg(0))
 	}
-	if *showVersion {
+	if *showVersion || *shortVersion {
 		printVersion(output)
 		return nil
 	}
@@ -449,7 +458,7 @@ func runMCP(ctx context.Context, args []string, output io.Writer) (err error) {
 		return err
 	}
 	if selectedTransport == "stdio" {
-		return mcp.Run(ctx, registry, &protocol.StdioTransport{})
+		return mcp.Run(ctx, registry, version, &protocol.StdioTransport{})
 	}
 	token, err := loadHTTPAuthToken()
 	if err != nil {
@@ -497,7 +506,7 @@ func runMCPHTTP(ctx context.Context, registry *tool.Registry, listen, path, toke
 	if err != nil {
 		return fmt.Errorf("listen for MCP Streamable HTTP on %q: %w", listen, err)
 	}
-	handler, err := mcp.NewStreamableHTTPHandler(registry)
+	handler, err := mcp.NewStreamableHTTPHandler(registry, version)
 	if err != nil {
 		closeErr := listener.Close()
 		if closeErr != nil {
@@ -1043,9 +1052,14 @@ func writeDisconnectStatusWriter(writeLocal func([]byte) error, lastOutputEndedL
 	return writeLocal([]byte("Disconnected.\r\n"))
 }
 
-// printVersion emits the stable CLI version format used by scripts and users.
+// printVersion emits version and build provenance in a stable line-oriented
+// format used by scripts and users.
 func printVersion(output io.Writer) {
 	fmt.Fprintf(output, "channelterm %s\n", version)
+	fmt.Fprintf(output, "commit:   %s\n", buildCommit)
+	fmt.Fprintf(output, "built:    %s\n", buildTime)
+	fmt.Fprintf(output, "go:       %s\n", runtime.Version())
+	fmt.Fprintf(output, "platform: %s/%s\n", runtime.GOOS, runtime.GOARCH)
 }
 
 // newCLISerialApplication adapts the CLI's injectable Session factory to the

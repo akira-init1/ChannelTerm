@@ -102,8 +102,10 @@ HTTP を選ぶと、対応する Codex、Claude Code、OpenCode、Zoo Code ク�
 対話型プログラムには `terminal_write` を使用します。
 
 HTTP Host は Bearer token を必要とし、既定ではループバックだけを待ち受けます。組み込み CLI
-はローカルユーザーの token を自動的に読み取ります。TLS と追加のネットワークアクセス制御なしで
-信頼できないネットワークへ公開しないでください。
+はローカルユーザーの token を自動的に読み取ります。[信頼できる LAN で待ち受ける](docs/getting-started/mcp-server.md#listen-on-a-lan)
+こともできますが、リモートクライアントは Host の到達可能な LAN アドレスを使用し、
+`Authorization` ヘッダーで同じ token を送信する必要があります。TLS と追加のネットワークアクセス
+制御なしで信頼できないネットワークへ公開しないでください。
 
 ## ファイル転送
 
@@ -115,13 +117,18 @@ channelterm file receive /tmp/log.txt ./log.txt --session SER-1
 channelterm file send ./build/release /tmp/release --session SER-1
 ```
 
+送信時にリモートの宛先を省略すると、ファイルまたはディレクトリは既定で
+`/tmp/cterm/mcp-files/` に保存されます。対話型ショートカットは
+`/tmp/cterm/user-files/` を使用します。ChannelTerm は必要なディレクトリを作成し、同名の
+宛先がある場合は既存内容を上書きしないよう `_1`、`_2` などの名前を選びます。
+
 ターゲット側は必要な標準コマンドを備えた Linux Shell である必要があります。前提条件、上書き
 保護、キャンセル、SHA-256 検証については[ファイル転送ワークフロー](docs/getting-started/file-transfer.md)
 を参照してください。
 
 ## インストールとビルド
 
-ChannelTerm には [`go.mod`](go.mod) で指定された Go バージョンが必要です。
+ChannelTerm には Go 1.25 以降が必要です。現在サポートされているパッチリリースを使用してください。
 
 ```bash
 git clone https://github.com/akira-init1/ChannelTerm.git
@@ -132,6 +139,35 @@ go build ./cmd/channelterm
 対応デスクトップターゲットは Windows、Linux、macOS の amd64/arm64 です。詳細は
 [ソースからのビルド](docs/getting-started/build.md)および
 [ビルドとテスト](docs/development/building-and-testing.md)を参照してください。
+
+## 設定
+
+ChannelTerm はローカルファイルを各プラットフォームのユーザー設定ディレクトリに保存します。
+
+| プラットフォーム | 既定のディレクトリ |
+| --- | --- |
+| Windows | `%AppData%\channelterm\` |
+| Linux | `$XDG_CONFIG_HOME/channelterm/`、未設定の場合は `~/.config/channelterm/` |
+| macOS | `~/Library/Application Support/channelterm/` |
+
+`config.toml` にはユーザー管理のシリアル Profile と接続ポリシーが保存されます。`state.json` は
+ChannelTerm が管理するデバイス識別状態です。`http-auth-token` は MCP HTTP クライアントの認証に
+使用する秘密情報なので、共有したりコミットしたりしないでください。
+
+```powershell
+# シリアル Profile を保存して再利用します。
+channelterm serial --port COM8 --baud 115200 --save board
+channelterm serial --profile board
+
+# この操作で別の config.toml を使用します。
+channelterm serial --config ./channelterm.toml --profile board
+```
+
+主なオプションは `--profile`、`--save`、`--config`、`--port`、`--baud` です。MCP Host は
+`--connection-policy ask|auto|deny` にも対応します。`--config` が切り替えるのは選択した
+`config.toml` だけで、既定の `state.json` や `http-auth-token` は移動しません。全フィールド、
+優先順位、検証、永続化の動作については[シリアル Profile](docs/getting-started/serial-profiles.md)と
+[設定リファレンス](docs/reference/configuration.md)を参照してください。
 
 ## ドキュメント
 

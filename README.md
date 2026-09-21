@@ -166,7 +166,11 @@ shared or committed.
 
 Press `Ctrl+]` to enter local escape mode. ChannelTerm displays the available escape commands locally. `Ctrl+] f` starts a guided file/directory send/receive flow on the current attachment, with `/tmp/cterm/user-files/<basename>` and `./<basename>` defaults and non-overwriting `_1`, `_2` selection. `Ctrl+] t` is off by default and prepends local `[HH:MM:SS]` timestamps only to conservatively recognized shell prompts; it does not change shared Session or MCP output.
 
-The HTTP server requires a per-user Bearer token and defaults to a loopback-only listener. Built-in CLI clients use the local token automatically. Remote MCP clients must send the same token through the `Authorization` header; do not expose the endpoint without TLS and separate network access controls.
+The HTTP server requires a per-user Bearer token and defaults to a loopback-only listener. Built-in
+CLI clients use the local token automatically. It can also [listen on a trusted
+LAN](docs/getting-started/mcp-server.md#listen-on-a-lan); remote clients must use the Host's reachable
+address and send the same token through the `Authorization` header. Do not expose the endpoint
+without TLS and separate network access controls.
 
 ## What It Enables
 
@@ -218,7 +222,7 @@ Shared Session references such as `SER-1` are valid only within the owning host 
 
 ## Installation
 
-ChannelTerm currently requires the Go version declared in [`go.mod`](go.mod) (Go 1.25.0 at the time of writing). Build the native executable from the repository root:
+ChannelTerm requires Go 1.25 or newer. Use a currently supported patched Go toolchain, then build the native executable from the repository root:
 
 ```bash
 git clone https://github.com/akira-init1/ChannelTerm.git
@@ -227,6 +231,35 @@ go build ./cmd/channelterm
 ```
 
 See [Build from source](docs/getting-started/build.md) for the supported platforms and [Building and testing](docs/development/building-and-testing.md) for repository checks and cross-build scripts.
+
+## Configuration
+
+ChannelTerm stores its local files under the platform user-configuration directory:
+
+| Platform | Default directory |
+| --- | --- |
+| Windows | `%AppData%\channelterm\` |
+| Linux | `$XDG_CONFIG_HOME/channelterm/`, or `~/.config/channelterm/` when unset |
+| macOS | `~/Library/Application Support/channelterm/` |
+
+`config.toml` contains user-owned serial profiles and connection policy. `state.json` is
+ChannelTerm-managed device identity state. `http-auth-token` is the secret used to authenticate MCP
+HTTP clients; do not share or commit it.
+
+```powershell
+# Save and reuse a serial profile.
+channelterm serial --port COM8 --baud 115200 --save board
+channelterm serial --profile board
+
+# Select a different config.toml for this operation.
+channelterm serial --config ./channelterm.toml --profile board
+```
+
+Common options are `--profile`, `--save`, `--config`, `--port`, and `--baud`; the MCP Host also
+accepts `--connection-policy ask|auto|deny`. `--config` changes only the selected `config.toml`, not
+the default `state.json` or `http-auth-token`. See [Serial profiles](docs/getting-started/serial-profiles.md)
+and the [configuration reference](docs/reference/configuration.md) for complete fields, precedence,
+validation, and persistence behavior.
 
 ## Documentation
 

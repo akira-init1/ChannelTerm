@@ -50,7 +50,7 @@ func TestExecuteTerminalCommandUsesIsolatedHistoryFreeShell(t *testing.T) {
 		t.Fatalf("ExecuteTerminalCommand() = %#v, want completed command cursor range and exit 7", result)
 	}
 	written := terminal.writtenData()
-	if !strings.Contains(string(written), `history -d "$HISTCMD"`) || !strings.Contains(string(written), `"$BASH" --noprofile --norc -c 'printf command-output'`) {
+	if !strings.Contains(string(written), bashDeleteCurrentHistoryEntry) || !strings.Contains(string(written), `"$BASH" --noprofile --norc -c 'printf command-output'`) {
 		t.Fatalf("terminal bootstrap = %q, want history deletion and isolated child command", written)
 	}
 	terminal.mu.Lock()

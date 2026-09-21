@@ -99,8 +99,10 @@ channelterm init --mcp
 `http://127.0.0.1:37099/mcp`。AI 可以列出、读取和操作 `SER-1`；在已知空闲的 Bash 提示符
 上应优先使用 `terminal_exec`，原始按键和交互程序使用 `terminal_write`。
 
-HTTP Host 需要 Bearer token，默认只监听回环地址。内置 CLI 会读取本机用户 token；不要把
-未经 TLS 和额外网络访问控制保护的端点直接暴露到不可信网络。
+HTTP Host 需要 Bearer token，默认只监听回环地址。内置 CLI 会读取本机用户 token；它也可以
+[监听受信任的局域网](docs/getting-started/mcp-server.md#listen-on-a-lan)，远程客户端必须使用 Host
+可达的局域网地址，并通过 `Authorization` 请求头发送相同的 token。不要把未经 TLS 和额外网络
+访问控制保护的端点直接暴露到不可信网络。
 
 ## 文件传输
 
@@ -112,12 +114,16 @@ channelterm file receive /tmp/log.txt ./log.txt --session SER-1
 channelterm file send ./build/release /tmp/release --session SER-1
 ```
 
+发送时省略远端目标路径，文件或目录会默认保存到 `/tmp/cterm/mcp-files/`；交互快捷键默认
+使用 `/tmp/cterm/user-files/`。ChannelTerm 会按需创建目录，并为同名目标选择 `_1`、`_2`
+等不覆盖现有内容的名称。
+
 目标端必须是具备所需标准命令的 Linux Shell。具体前提、覆盖保护、取消和 SHA-256 校验规则
 见[文件传输流程](docs/getting-started/file-transfer.md)。
 
 ## 安装与构建
 
-ChannelTerm 需要 [`go.mod`](go.mod) 声明的 Go 版本。在仓库根目录构建：
+ChannelTerm 需要 Go 1.25 或更高版本。请使用当前仍受支持的补丁版本，然后在仓库根目录构建：
 
 ```bash
 git clone https://github.com/akira-init1/ChannelTerm.git
@@ -127,6 +133,33 @@ go build ./cmd/channelterm
 
 支持的桌面目标为 Windows、Linux、macOS 的 amd64/arm64。详见
 [从源码构建](docs/getting-started/build.md)和[构建与测试](docs/development/building-and-testing.md)。
+
+## 配置
+
+ChannelTerm 将本地文件保存在各平台的用户配置目录中：
+
+| 平台 | 默认目录 |
+| --- | --- |
+| Windows | `%AppData%\channelterm\` |
+| Linux | `$XDG_CONFIG_HOME/channelterm/`；未设置时为 `~/.config/channelterm/` |
+| macOS | `~/Library/Application Support/channelterm/` |
+
+`config.toml` 保存用户维护的串口 Profile 和连接策略；`state.json` 是 ChannelTerm 自动维护的
+设备身份状态；`http-auth-token` 是 MCP HTTP 客户端的认证密钥，请勿分享或提交。
+
+```powershell
+# 保存并复用串口 Profile。
+channelterm serial --port COM8 --baud 115200 --save board
+channelterm serial --profile board
+
+# 本次操作使用另一个 config.toml。
+channelterm serial --config ./channelterm.toml --profile board
+```
+
+常用参数包括 `--profile`、`--save`、`--config`、`--port` 和 `--baud`；MCP Host 还支持
+`--connection-policy ask|auto|deny`。`--config` 只替换所选的 `config.toml`，不会移动默认的
+`state.json` 或 `http-auth-token`。完整字段、优先级、校验和持久化行为见
+[串口 Profile](docs/getting-started/serial-profiles.md)和[配置参考](docs/reference/configuration.md)。
 
 ## 文档
 

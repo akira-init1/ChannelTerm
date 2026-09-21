@@ -1,0 +1,97 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: minimum-go
+            os: ubuntu-latest
+            go: 1.25.x
+          - name: linux
+            os: ubuntu-latest
+            go: stable
+          - name: windows
+            os: windows-latest
+            go: stable
+          - name: macos
+            os: macos-latest
+            go: stable
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: ${{ matrix.go }}
+          cache-dependency-path: go.sum
+      - run: go test ./...
+      - name: Validate PowerShell release build
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          CHANNELTERM_VERSION: 0.0.0-ci
+        run: |
+          ./scripts/build.ps1
+          $actual = @(& ./dist/channelterm-windows-amd64.exe version)
+          if ($actual.Count -ne 5 -or
+              $actual[0] -ne 'channelterm 0.0.0-ci' -or
+              $actual[1] -notmatch '^commit:   [0-9a-f]{12}$' -or
+              $actual[2] -notmatch '^built:    [0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$' -or
+              $actual[3] -notmatch '^go:       go' -or
+              $actual[4] -ne 'platform: windows/amd64') {
+            throw "unexpected version output: $($actual -join '; ')"
+          }
+
+  quality:
+    name: Quality and cross-build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: stable
+          cache-dependency-path: go.sum
+      - name: Check formatting
+        shell: bash
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [[ -n "${unformatted}" ]]; then
+            printf 'gofmt required for:\n%s\n' "${unformatted}"
+            exit 1
+          fi
+      - run: git diff --check
+      - name: Check release version validation
+        shell: bash
+        run: |
+          source ./scripts/release.sh
+          valid=(0.1.0 1.2.3-rc.1 1.2.3-alpha.beta 1.2.3+build.5 1.2.3-rc.1+build.5)
+          invalid=(01.2.3 1.02.3 1.2.03 1.2.3-01 1.2.3- 1.2.3+ 1.2.3..rc 1.2.3-.. 1.2.3_rc v1.2.3 1.2)
+          for candidate in "${valid[@]}"; do
+            is_semver "${candidate}" || { printf 'valid SemVer rejected: %s\n' "${candidate}"; exit 1; }
+          done
+          for candidate in "${invalid[@]}"; do
+            if is_semver "${candidate}"; then
+              printf 'invalid SemVer accepted: %s\n' "${candidate}"
+              exit 1
+            fi
+          done
+      - run: go vet ./...
+      - run: go test -race ./...
+      - run: ./scripts/build.sh
+      - run: go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...

@@ -1,8 +1,16 @@
 # MCP Tool Reference
 
-The MCP adapter exposes terminal, command execution, discovery, lease, activity, file-transfer, and structured Session-event tools. It also provides cursor-required wait tools for raw output, activity, device events, and file-transfer terminal results.
+The MCP adapter exposes terminal, command execution, discovery, lease, activity, file-transfer, and
+structured Session-event tools. It also provides cursor-required wait tools for raw output,
+activity, device events, and file-transfer terminal results.
 
-Successful calls return both structured content and an equivalent JSON text content item. Recoverable tool failures return an MCP tool result with `isError: true` and text beginning `<tool-name> failed:`. Structured inputs decoded by the terminal adapter reject unknown fields.
+The MCP initialization response reports the same ChannelTerm build version as `channelterm version`.
+Ordinary source builds report `devel`; tagged release artifacts report their injected release
+version.
+
+Successful calls return both structured content and an equivalent JSON text content item.
+Recoverable tool failures return an MCP tool result with `isError: true` and text beginning
+`<tool-name> failed:`. Structured inputs decoded by the terminal adapter reject unknown fields.
 
 Streamable HTTP requests require `Authorization: Bearer <token>`. An automatically started,
 attachment-owned Host returns `X-ChannelTerm-Host-Lifetime: attachment` on every authenticated MCP
@@ -11,15 +19,21 @@ not change tool schemas or result objects.
 
 ## Common cursor rules
 
-- Output, activity, Session-event, and device-event cursors are independent monotonically increasing positions.
+- Output, activity, Session-event, and device-event cursors are independent monotonically increasing
+  positions.
 - A read without `cursor` returns a recent snapshot immediately.
-- A read with `cursor` waits until data is available, the request is cancelled, the source closes, or `timeout_ms` expires.
-- Cancelling a Streamable HTTP wait leaves that same MCP client connection usable for later calls; resume with the saved cursor.
+- A read with `cursor` waits until data is available, the request is cancelled, the source closes,
+  or `timeout_ms` expires.
+- Cancelling a Streamable HTTP wait leaves that same MCP client connection usable for later calls;
+  resume with the saved cursor.
 - `timeout_ms` requires `cursor`, must be positive, and cannot exceed `86400000` (24 hours).
 - A `terminal_wait*` tool additionally requires `cursor` in its public MCP schema.
-- `dropped: true` means the requested cursor predates the bounded retention window. Continue with the returned `next`, but treat older data as lost.
+- `dropped: true` means the requested cursor predates the bounded retention window. Continue with
+  the returned `next`, but treat older data as lost.
 
-Session-addressed tools accept either an opaque `session_id` or a current short Session reference such as `SER-1` in the property named `session_id`. Labels and `device_id` values are not Session addresses.
+Session-addressed tools accept either an opaque `session_id` or a current short Session reference
+such as `SER-1` in the property named `session_id`. Labels and `device_id` values are not Session
+addresses.
 
 ## `terminal_list_serial_ports`
 
@@ -27,7 +41,8 @@ Purpose: enumerate serial endpoints currently reported by the operating system w
 
 - Required input: none; use `{}`.
 - Optional input: none.
-- Result: `ports`, an array of objects containing `name`, `vid`, `pid`, `usb_serial`, `manufacturer`, `product`, and `usb_path`. Metadata strings are best effort and may be empty.
+- Result: `ports`, an array of objects containing `name`, `vid`, `pid`, `usb_serial`,
+  `manufacturer`, `product`, and `usb_path`. Metadata strings are best effort and may be empty.
 
 ```json
 {}
@@ -37,7 +52,8 @@ Purpose: enumerate serial endpoints currently reported by the operating system w
 {"ports":[{"name":"COM8","vid":"0403","pid":"6010","usb_serial":"ABC123","manufacturer":"FTDI","product":"USB UART","usb_path":"1-2"}]}
 ```
 
-Important errors: operating-system enumeration failures and request cancellation. Safety: read-only; it does not load profiles, change Device Registry state, create a Session, or send bytes.
+Important errors: operating-system enumeration failures and request cancellation. Safety: read-only;
+it does not load profiles, change Device Registry state, create a Session, or send bytes.
 
 ## `terminal_list_devices`
 
@@ -45,7 +61,8 @@ Purpose: return the Device Registry's current presence and identity snapshot.
 
 - Required input: none; use `{}`.
 - Optional input: none.
-- Result: `devices`, an array with `device_id`, `identity_method`, `persistent`, `transport`, `endpoint`, `state`, USB metadata fields, `first_seen`, and `last_seen`.
+- Result: `devices`, an array with `device_id`, `identity_method`, `persistent`, `transport`,
+  `endpoint`, `state`, USB metadata fields, `first_seen`, and `last_seen`.
 
 ```json
 {}
@@ -55,7 +72,8 @@ Purpose: return the Device Registry's current presence and identity snapshot.
 {"devices":[{"device_id":"dev_0123456789abcdef0123456789abcdef","identity_method":"usb_serial","persistent":true,"transport":"serial","endpoint":"COM8","state":"present","vid":"0403","pid":"6010","usb_serial":"ABC123","manufacturer":"FTDI","product":"USB UART","usb_path":"1-2","first_seen":"2026-08-28T09:00:00Z","last_seen":"2026-08-28T09:00:03Z"}]}
 ```
 
-Important errors: cancellation or an unavailable/uninitialized application Device Registry. Safety: read-only; presence does not imply an open Session.
+Important errors: cancellation or an unavailable/uninitialized application Device Registry. Safety:
+read-only; presence does not imply an open Session.
 
 ## `terminal_read_device_events`
 
@@ -63,7 +81,8 @@ Purpose: read retained appearance/disappearance events immediately, or wait afte
 
 - Required input: none.
 - Optional input: `cursor` (integer), `max_events` (integer; 0 means 1024), `timeout_ms`.
-- Result: `events` array with `timestamp`, `type` (`appeared` or `disappeared`), `transport`, and `endpoint`; plus `next` and `dropped`.
+- Result: `events` array with `timestamp`, `type` (`appeared` or `disappeared`), `transport`, and
+  `endpoint`; plus `next` and `dropped`.
 
 ```json
 {"cursor":0,"max_events":16,"timeout_ms":30000}
@@ -73,11 +92,14 @@ Purpose: read retained appearance/disappearance events immediately, or wait afte
 {"events":[{"timestamp":"2026-08-28T09:01:00Z","type":"appeared","transport":"serial","endpoint":"COM11"}],"next":1,"dropped":false}
 ```
 
-Important errors: non-positive effective limits, invalid timeout, timeout without cursor, cancellation, timeout, or closed Registry. Safety: events describe discovery only. After an `appeared` event, evaluate `terminal_get_connection_decision` before a discovery-driven open.
+Important errors: non-positive effective limits, invalid timeout, timeout without cursor,
+cancellation, timeout, or closed Registry. Safety: events describe discovery only. After an
+`appeared` event, evaluate `terminal_get_connection_decision` before a discovery-driven open.
 
 ## `terminal_wait_device_event`
 
-Purpose: wait for device events after a known device-event cursor. This MCP name invokes the same implementation and returns the same fields as `terminal_read_device_events`.
+Purpose: wait for device events after a known device-event cursor. This MCP name invokes the same
+implementation and returns the same fields as `terminal_read_device_events`.
 
 - Required input: `cursor`.
 - Optional input: `max_events`, `timeout_ms`.
@@ -87,17 +109,21 @@ Purpose: wait for device events after a known device-event cursor. This MCP name
 {"cursor":1,"timeout_ms":30000}
 ```
 
-Important errors: missing/null cursor, invalid timeout or limit, cancellation, timeout, or Registry closure. Safety: waiting never opens a port or creates a Session; use the decision tool after an appearance event.
+Important errors: missing/null cursor, invalid timeout or limit, cancellation, timeout, or Registry
+closure. Safety: waiting never opens a port or creates a Session; use the decision tool after an
+appearance event.
 
 ## `terminal_get_connection_decision`
 
-Purpose: evaluate the configured discovery policy for one exact runtime endpoint without taking the action.
+Purpose: evaluate the configured discovery policy for one exact runtime endpoint without taking the
+action.
 
 - Required input: non-empty `transport` and `endpoint` strings.
 - Optional input: none.
 - Result always includes `transport`, `endpoint`, `present`, `connected`, `policy`, and `action`.
 - When absent, result also includes `reason: "device_not_present"`.
-- When an active Session already owns the endpoint, result also includes `session_id`, `session_ref`, and `reason: "already_connected"`.
+- When an active Session already owns the endpoint, result also includes `session_id`,
+  `session_ref`, and `reason: "already_connected"`.
 
 ```json
 {"transport":"serial","endpoint":"COM8"}
@@ -107,17 +133,25 @@ Purpose: evaluate the configured discovery policy for one exact runtime endpoint
 {"transport":"serial","endpoint":"COM8","present":true,"connected":false,"policy":"ask","action":"ask"}
 ```
 
-Actions are `none`, `ask`, `connect`, or `deny`. `new`, `connecting`, `open`, and `closing` Sessions count as connected; `failed` and `closed` Sessions do not.
+Actions are `none`, `ask`, `connect`, or `deny`. `new`, `connecting`, `open`, and `closing` Sessions
+count as connected; `failed` and `closed` Sessions do not.
 
-Important errors: missing/blank fields, cancellation, or unavailable Device Registry. Safety: the tool never prompts, opens, closes, or writes. `ask` requires client-obtained user approval; `connect` permits a client-controlled open only when connection settings are known. `deny` affects discovery-driven behavior, not an explicit user request.
+Important errors: missing/blank fields, cancellation, or unavailable Device Registry. Safety: the
+tool never prompts, opens, closes, or writes. `ask` requires client-obtained user approval;
+`connect` permits a client-controlled open only when connection settings are known. `deny` affects
+discovery-driven behavior, not an explicit user request.
 
 ## `terminal_open_serial`
 
-Purpose: resolve serial configuration, optionally save it, connect or reuse a Session, and register it with the host Manager.
+Purpose: resolve serial configuration, optionally save it, connect or reuse a Session, and register
+it with the host Manager.
 
-- Required input: no schema field is always required, but profile resolution and overrides must produce a non-empty port.
-- Optional input: `profile`, `config_path`, `save`, `port`, `baud`, `data_bits`, `parity`, `stop_bits`, `flow_control`, `wake`, and `label`.
-- Accepted enums: parity `none|odd|even|mark|space`; stop bits `1|1.5|2`; flow control `none|software|hardware`.
+- Required input: no schema field is always required, but profile resolution and overrides must
+  produce a non-empty port.
+- Optional input: `profile`, `config_path`, `save`, `port`, `baud`, `data_bits`, `parity`,
+  `stop_bits`, `flow_control`, `wake`, and `label`.
+- Accepted enums: parity `none|odd|even|mark|space`; stop bits `1|1.5|2`; flow control
+  `none|software|hardware`.
 - Result: `session_id`, `session_ref`, and `reused`.
 
 ```json
@@ -128,9 +162,16 @@ Purpose: resolve serial configuration, optionally save it, connect or reuse a Se
 {"session_id":"0123456789abcdef0123456789abcdef","session_ref":"SER-1","reused":false}
 ```
 
-Within one Manager, ChannelTerm shares one active Session for an exact transport/endpoint pair. A repeated open returns the original Session and metadata with `reused: true`. A new Session sends no input unless `wake` resolves to true, in which case one system-attributed carriage return is written after connect. `save` persists the resolved profile before the physical open.
+Within one Manager, ChannelTerm shares one active Session for an exact transport/endpoint pair. A
+repeated open returns the original Session and metadata with `reused: true`. A new Session sends no
+input unless `wake` resolves to true, in which case one system-attributed carriage return is written
+after connect. `save` persists the resolved profile before the physical open.
 
-Important errors: missing port after resolution, unknown profile, invalid serial settings, unsupported non-`none` flow control, control characters in `label`, configuration read/write failure, busy/missing/inaccessible port, cancellation, connection failure, or repeated ID collision. Safety: this tool can open real hardware and `wake` can transmit data. For a discovery-driven open, call it only after user approval or a decision action of `connect`.
+Important errors: missing port after resolution, unknown profile, invalid serial settings,
+unsupported non-`none` flow control, control characters in `label`, configuration read/write
+failure, busy/missing/inaccessible port, cancellation, connection failure, or repeated ID collision.
+Safety: this tool can open real hardware and `wake` can transmit data. For a discovery-driven open,
+call it only after user approval or a decision action of `connect`.
 
 ## `terminal_list_sessions`
 
@@ -138,7 +179,10 @@ Purpose: list the host Manager's current Session snapshot.
 
 - Required input: none; use `{}`.
 - Optional input: none.
-- Result: `sessions`, sorted by short reference. Each object contains `session_id`, `session_ref`, `transport`, `endpoint`, `label`, and `state`. An actively leased Session also has `lease` with `type`, `created_at`, `expires_at`, and `state`; a file-transfer lease adds `transfer_id`. Owner capabilities are never returned.
+- Result: `sessions`, sorted by short reference. Each object contains `session_id`, `session_ref`,
+  `transport`, `endpoint`, `label`, and `state`. An actively leased Session also has `lease` with
+  `type`, `created_at`, `expires_at`, and `state`; a file-transfer lease adds `transfer_id`. Owner
+  capabilities are never returned.
 
 ```json
 {}
@@ -148,14 +192,16 @@ Purpose: list the host Manager's current Session snapshot.
 {"sessions":[{"session_id":"0123456789abcdef0123456789abcdef","session_ref":"SER-1","transport":"serial","endpoint":"COM8","label":"board","state":"open"}]}
 ```
 
-Important errors: request cancellation. Safety: read-only snapshot; state can change immediately after the call. Empty and duplicate labels are valid and are not lookup keys.
+Important errors: request cancellation. Safety: read-only snapshot; state can change immediately
+after the call. Empty and duplicate labels are valid and are not lookup keys.
 
 ## `terminal_read`
 
 Purpose: read recent raw Session output, or read/wait from an output cursor.
 
 - Required input: `session_id`.
-- Optional input: `cursor`, `max_bytes` (0 means 65536), `encoding` (`utf8`, `hex`, or `base64`; default `utf8`), and `timeout_ms`.
+- Optional input: `cursor`, `max_bytes` (0 means 65536), `encoding` (`utf8`, `hex`, or `base64`;
+  default `utf8`), and `timeout_ms`.
 - Result: `data`, `encoding`, `bytes_read`, `next`, and `dropped`.
 
 ```json
@@ -166,13 +212,19 @@ Purpose: read recent raw Session output, or read/wait from an output cursor.
 {"data":"boot> ","encoding":"utf8","bytes_read":6,"next":42,"dropped":false}
 ```
 
-`bytes_read` and `next` count raw bytes regardless of result encoding. UTF-8 mode fails on malformed bytes rather than replacing them; retry with hex or Base64 for binary output.
+`bytes_read` and `next` count raw bytes regardless of result encoding. UTF-8 mode fails on malformed
+bytes rather than replacing them; retry with hex or Base64 for binary output.
 
-Important errors: missing/unknown Session, Session not open, invalid/non-positive limit, unsupported encoding, invalid UTF-8, timeout without cursor, invalid timeout, cancellation, deadline, EOF after close, or underlying reader failure. Safety: read-only; each caller owns its cursor and does not consume another caller's output.
+Important errors: missing/unknown Session, Session not open, invalid/non-positive limit, unsupported
+encoding, invalid UTF-8, timeout without cursor, invalid timeout, cancellation, deadline, EOF after
+close, or underlying reader failure. Safety: read-only; each caller owns its cursor and does not
+consume another caller's output.
 
 ## `terminal_wait`
 
-Purpose: wait for raw terminal output after a known cursor. It invokes `terminal_read` but prevents an accidental recent snapshot. It does not return file-transfer state; use `terminal_wait_file_transfer` for completion, cancellation, or failure.
+Purpose: wait for raw terminal output after a known cursor. It invokes `terminal_read` but prevents
+an accidental recent snapshot. It does not return file-transfer state; use
+`terminal_wait_file_transfer` for completion, cancellation, or failure.
 
 - Required input: `session_id`, `cursor`.
 - Optional input: `max_bytes`, `encoding`, `timeout_ms`.
@@ -182,15 +234,18 @@ Purpose: wait for raw terminal output after a known cursor. It invokes `terminal
 {"session_id":"SER-1","cursor":42,"timeout_ms":5000}
 ```
 
-Important errors: missing/null cursor and every `terminal_read` error. Safety: cancellation releases the wait and does not close the Session; the same HTTP client can continue with its saved cursor.
+Important errors: missing/null cursor and every `terminal_read` error. Safety: cancellation releases
+the wait and does not close the Session; the same HTTP client can continue with its saved cursor.
 
 ## `terminal_read_activity`
 
-Purpose: read recent Session operation metadata, or read/wait from an activity cursor. Activity is separate from remote terminal output.
+Purpose: read recent Session operation metadata, or read/wait from an activity cursor. Activity is
+separate from remote terminal output.
 
 - Required input: `session_id`.
 - Optional input: `cursor`, `max_events` (0 means 1024), `timeout_ms`.
-- Result: `events`, `next`, and `dropped`. Each event contains `timestamp`, `actor`, `operation`, `data`, and `encoding`.
+- Result: `events`, `next`, and `dropped`. Each event contains `timestamp`, `actor`, `operation`,
+  `data`, and `encoding`.
 
 ```json
 {"session_id":"SER-1"}
@@ -200,13 +255,17 @@ Purpose: read recent Session operation metadata, or read/wait from an activity c
 {"events":[{"timestamp":"2026-08-28T09:02:00Z","actor":"agent","operation":"write","data":"c3RhdHVzXHI=","encoding":"base64"}],"next":7,"dropped":false}
 ```
 
-The current operation is `write`; event data is always Base64 and contains only bytes confirmed written by the Transport.
+The current operation is `write`; event data is always Base64 and contains only bytes confirmed
+written by the Transport.
 
-Important errors: missing/unknown Session, Session not open, invalid limit or timeout, timeout without cursor, cancellation, deadline, EOF, or activity-buffer failure. Safety: reading activity never reads or alters remote output cursors.
+Important errors: missing/unknown Session, Session not open, invalid limit or timeout, timeout
+without cursor, cancellation, deadline, EOF, or activity-buffer failure. Safety: reading activity
+never reads or alters remote output cursors.
 
 ## `terminal_wait_activity`
 
-Purpose: wait for Session activity after a known activity cursor. It invokes `terminal_read_activity` with a required cursor.
+Purpose: wait for Session activity after a known activity cursor. It invokes
+`terminal_read_activity` with a required cursor.
 
 - Required input: `session_id`, `cursor`.
 - Optional input: `max_events`, `timeout_ms`.
@@ -216,15 +275,18 @@ Purpose: wait for Session activity after a known activity cursor. It invokes `te
 {"session_id":"SER-1","cursor":7,"timeout_ms":5000}
 ```
 
-Important errors: missing/null cursor and every `terminal_read_activity` error. Safety: cancellation ends only this wait and does not affect the Session or another consumer.
+Important errors: missing/null cursor and every `terminal_read_activity` error. Safety: cancellation
+ends only this wait and does not affect the Session or another consumer.
 
 ## `terminal_session_events`
 
-Purpose: read retained structured Session state, or wait after an event cursor. It is read-only: events do not include or consume terminal output.
+Purpose: read retained structured Session state, or wait after an event cursor. It is read-only:
+events do not include or consume terminal output.
 
 - Required input: `session_id`.
 - Optional input: `cursor`, `max_events` (0 means 1024), `timeout_ms`.
-- Result: `events`, `next`, and `dropped`. Each event has `id`, `timestamp`, `session_id`, `type`, `actor`, and optional JSON `metadata`.
+- Result: `events`, `next`, and `dropped`. Each event has `id`, `timestamp`, `session_id`, `type`,
+  `actor`, and optional JSON `metadata`.
 
 ```json
 {"session_id":"SER-1","cursor":3,"max_events":32,"timeout_ms":30000}
@@ -234,21 +296,36 @@ Purpose: read retained structured Session state, or wait after an event cursor. 
 {"events":[{"id":3,"timestamp":"2026-09-02T09:02:00Z","session_id":"0123456789abcdef0123456789abcdef","type":"FILE_TRANSFER_PROGRESS","actor":"user","metadata":{"transfer_id":"FT-123","sent":622592,"total":1048576,"percent":59.4,"speed":850000}}],"next":4,"dropped":false}
 ```
 
-Current event types are `SESSION_CREATED`, `SESSION_ATTACHED`, `SESSION_DETACHED`, `LEASE_ACQUIRED`, `LEASE_RELEASED`, `FILE_TRANSFER_STARTED`, `FILE_TRANSFER_PROGRESS`, `FILE_TRANSFER_COMPLETED`, `FILE_TRANSFER_CANCELLED`, `FILE_TRANSFER_FAILED`, `TERMINAL_COMMAND_STARTED`, `TERMINAL_COMMAND_OUTPUT_STARTED`, `TERMINAL_COMMAND_COMPLETED`, and `TERMINAL_COMMAND_FAILED`. Every event belonging to one file transfer, including its `file-transfer` lease acquire/release events, carries the same `transfer_id`. Terminal-command events carry a non-secret `command_id`; the started event includes the original command and bootstrap start cursor, the output-started event identifies the first command-output cursor, and completion includes the exit code plus the internal completion-marker range. A lease event also includes an `output_cursor` metadata snapshot for the bundled attach client's local presentation; it does not change or consume raw Session output. `FILE_TRANSFER_CANCELLED` is emitted only after cleanup releases the lease and includes `reason: user_cancelled`, last confirmed progress, and `lease_released: true`, so an observing AI can distinguish cancellation from transfer failure. A slow observer receives `dropped: true` if its cursor predates bounded retention; it cannot block the Session reader or writer. Important errors: missing/unknown Session, Session not open, invalid limit or timeout, timeout without cursor, cancellation, deadline, EOF, or event-buffer failure.
+Current event types are `SESSION_CREATED`, `SESSION_ATTACHED`, `SESSION_DETACHED`, `LEASE_ACQUIRED`,
+`LEASE_RELEASED`, `FILE_TRANSFER_STARTED`, `FILE_TRANSFER_PROGRESS`, `FILE_TRANSFER_COMPLETED`,
+`FILE_TRANSFER_CANCELLED`, `FILE_TRANSFER_FAILED`, `TERMINAL_COMMAND_STARTED`,
+`TERMINAL_COMMAND_OUTPUT_STARTED`, `TERMINAL_COMMAND_COMPLETED`, and `TERMINAL_COMMAND_FAILED`.
+Every event belonging to one file transfer, including its `file-transfer` lease acquire/release
+events, carries the same `transfer_id`. Terminal-command events carry a non-secret `command_id`; the
+started event includes the original command and bootstrap start cursor, the output-started event
+identifies the first command-output cursor, and completion includes the exit code plus the internal
+completion-marker range. A lease event also includes an `output_cursor` metadata snapshot for the
+bundled attach client's local presentation; it does not change or consume raw Session output.
+`FILE_TRANSFER_CANCELLED` is emitted only after cleanup releases the lease and includes
+`reason: user_cancelled`, last confirmed progress, and `lease_released: true`, so an observing AI
+can distinguish cancellation from transfer failure. A slow observer receives `dropped: true` if its
+cursor predates bounded retention; it cannot block the Session reader or writer. Important errors:
+missing/unknown Session, Session not open, invalid limit or timeout, timeout without cursor,
+cancellation, deadline, EOF, or event-buffer failure.
 
 ## `terminal_wait_file_transfer`
 
 Purpose: wait through intermediate Session events and return only when the identified file transfer
-completes, is cancelled, or fails and its matching `file-transfer` lease has been released. Use this tool rather than `terminal_wait` for a transfer outcome;
-`terminal_wait` observes raw terminal bytes and a cancellation does not guarantee another byte or
-shell prompt.
+completes, is cancelled, or fails and its matching `file-transfer` lease has been released. Use this
+tool rather than `terminal_wait` for a transfer outcome; `terminal_wait` observes raw terminal bytes
+and a cancellation does not guarantee another byte or shell prompt.
 
 - Required input: `session_id`, `transfer_id`, `cursor`.
 - Optional input: `max_events` (0 means 1024), `timeout_ms`.
-- Result: `state` (`completed`, `cancelled`, or `failed`), `transfer_id`, `lease_released: true`, the terminal `event`, `next`, and
-  `dropped`. Every completed transfer also returns top-level `source_path`, `requested_path`,
-  `resolved_path`, and `renamed`; regular files additionally return `sha256`. `resolved_path` is
-  the authoritative saved path after collision handling.
+- Result: `state` (`completed`, `cancelled`, or `failed`), `transfer_id`, `lease_released: true`,
+  the terminal `event`, `next`, and `dropped`. Every completed transfer also returns top-level
+  `source_path`, `requested_path`, `resolved_path`, and `renamed`; regular files additionally return
+  `sha256`. `resolved_path` is the authoritative saved path after collision handling.
 
 The three path fields have direction-independent meanings:
 
@@ -281,8 +358,8 @@ A successful send whose requested name already exists returns the resolved name 
 {"state":"completed","transfer_id":"FT-123","lease_released":true,"source_path":"app.bin","requested_path":"/tmp/cterm/mcp-files/app.bin","resolved_path":"/tmp/cterm/mcp-files/app_1.bin","renamed":true,"sha256":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef","event":{"type":"FILE_TRANSFER_COMPLETED","metadata":{"transfer_id":"FT-123","source_path":"app.bin","requested_path":"/tmp/cterm/mcp-files/app.bin","resolved_path":"/tmp/cterm/mcp-files/app_1.bin","renamed":true,"sha256":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"}},"next":14,"dropped":false}
 ```
 
-Clients should always use the top-level `resolved_path` for subsequent operations on the saved
-file. Completed receive results expose the same fields and use `resolved_path` for the actual local
+Clients should always use the top-level `resolved_path` for subsequent operations on the saved file.
+Completed receive results expose the same fields and use `resolved_path` for the actual local
 destination. Cancellation and failure results do not promote path fields to the top level.
 
 This is a breaking event-schema replacement with no compatibility aliases. File-transfer events no
@@ -294,23 +371,37 @@ Progress, attachment, and unrelated lifecycle events are consumed internally. Co
 events occur before lease release, so the Tool retains the matching terminal event and waits for the
 matching `LEASE_RELEASED`; cancellation already follows release. `next` points immediately after the
 later event required to establish both outcome and release. Once the Tool returns, a subsequent
-ordinary Session write does not race the completed transfer's lease. `dropped` is true if any part of
-the inspected range was no longer retained. Important errors: missing/null cursor, missing/empty
+ordinary Session write does not race the completed transfer's lease. `dropped` is true if any part
+of the inspected range was no longer retained. Important errors: missing/null cursor, missing/empty
 `transfer_id`, malformed completed-event path metadata, missing/unknown Session, Session not open,
 invalid limit or timeout, cancellation, deadline, EOF, or event-buffer failure.
 
 ## Attachment and file-transfer reporting tools
 
-`terminal_session_attach` and `terminal_session_detach` record a CLI attachment lifecycle event. They require `session_id` and accept an optional `actor`; they neither acquire a lease nor write or close a Session. The bundled CLI calls them while opening and closing an MCP attachment.
+`terminal_session_attach` and `terminal_session_detach` record a CLI attachment lifecycle event.
+They require `session_id` and accept an optional `actor`; they neither acquire a lease nor write or
+close a Session. The bundled CLI calls them while opening and closing an MCP attachment.
 
-`terminal_report_file_transfer` is the bundled CLI's status bridge to the host-owned event stream. It requires `session_id`, the active lease's opaque `owner`, its `transfer_id`, and `type` (`FILE_TRANSFER_STARTED`, `FILE_TRANSFER_PROGRESS`, `FILE_TRANSFER_COMPLETED`, or `FILE_TRANSFER_FAILED`); it accepts optional `actor` and JSON-compatible `metadata`. The Host rejects a missing lease, non-owner reporter, or mismatched transfer ID. It never writes terminal bytes. Both directions use `source_path` for the origin and `requested_path` for the requested destination. Completion is rejected unless non-empty string `source_path`, `requested_path`, and `resolved_path` plus boolean `renamed` are present; a regular file also records `sha256`. File-transfer events do not use `local_path` or `remote_path`. `FILE_TRANSFER_CANCELLED` is Host-generated after a confirmed cross-process cancellation releases its lease and cannot be forged through this reporting tool. AI clients can inspect all state through `terminal_session_events` or wait for one terminal outcome through `terminal_wait_file_transfer`; they should not treat report calls as a substitute for the existing file protocol or lease tools.
+`terminal_report_file_transfer` is the bundled CLI's status bridge to the host-owned event stream.
+It requires `session_id`, the active lease's opaque `owner`, its `transfer_id`, and `type`
+(`FILE_TRANSFER_STARTED`, `FILE_TRANSFER_PROGRESS`, `FILE_TRANSFER_COMPLETED`, or
+`FILE_TRANSFER_FAILED`); it accepts optional `actor` and JSON-compatible `metadata`. The Host
+rejects a missing lease, non-owner reporter, or mismatched transfer ID. It never writes terminal
+bytes. Both directions use `source_path` for the origin and `requested_path` for the requested
+destination. Completion is rejected unless non-empty string `source_path`, `requested_path`, and
+`resolved_path` plus boolean `renamed` are present; a regular file also records `sha256`.
+File-transfer events do not use `local_path` or `remote_path`. `FILE_TRANSFER_CANCELLED` is
+Host-generated after a confirmed cross-process cancellation releases its lease and cannot be forged
+through this reporting tool. AI clients can inspect all state through `terminal_session_events` or
+wait for one terminal outcome through `terminal_wait_file_transfer`; they should not treat report
+calls as a substitute for the existing file protocol or lease tools.
 
 Bundled CLI progress metadata carries `sent` or `received`, `total`, `percent`, and best-effort
 `speed`. A failed event retains those last confirmed progress values. User-confirmed cancellation
-uses the stable `reason` value `user_cancelled`. A successful regular-file
-completion additionally carries full lowercase `local_sha256` and `remote_sha256` values; because
-completion follows verification, they match. Directory completion uses the same fields for the
-verified tar-stream digest.
+uses the stable `reason` value `user_cancelled`. A successful regular-file completion additionally
+carries full lowercase `local_sha256` and `remote_sha256` values; because completion follows
+verification, they match. Directory completion uses the same fields for the verified tar-stream
+digest.
 
 ## `terminal_exec`
 
@@ -331,26 +422,26 @@ the command or ChannelTerm's bootstrap to Bash history.
 
 The command must be one non-empty UTF-8 line of at most 64 KiB and cannot contain control
 characters. ChannelTerm acquires a `terminal` lease, checks retained write activity for unsubmitted
-interactive input, hides the echoed internal bootstrap through cursor metadata, and runs the
-command in a non-interactive child Bash without profile or rc files. The bundled attachment renders the original command once
-in its local `AI` block; raw command output remains in the Session between `output_start` and
-`output_end`. Internal wrapper writes use the `system` actor and do not create a second Agent
-activity block.
+interactive input, hides the echoed internal bootstrap through cursor metadata, and runs the command
+in a non-interactive child Bash without profile or rc files. The bundled attachment renders the
+original command once in its local `AI` block; raw command output remains in the Session between
+`output_start` and `output_end`. Internal wrapper writes use the `system` actor and do not create a
+second Agent activity block.
 
-The parent prompt must be interactive Bash so it can delete the current bootstrap history entry.
-The child cannot persist `cd`, `export`, aliases, shell functions, or other state into the human
-shell or a later `terminal_exec` call. Use one compound command when state must be shared within a
-call. Interactive/full-screen programs, password prompts, arbitrary key input, multiline scripts,
-and deliberately persistent background jobs must use an explicitly managed raw-terminal workflow
+The parent prompt must be interactive Bash so it can delete the current bootstrap history entry. The
+child cannot persist `cd`, `export`, aliases, shell functions, or other state into the human shell
+or a later `terminal_exec` call. Use one compound command when state must be shared within a call.
+Interactive/full-screen programs, password prompts, arbitrary key input, multiline scripts, and
+deliberately persistent background jobs must use an explicitly managed raw-terminal workflow
 instead.
 
 The lease blocks other ChannelTerm writers until completion and is renewed internally; callers do
 not use the public lease tools for `terminal_exec`. If retained activity indicates a partial human
-or Agent input line, the call fails before writing any bootstrap bytes. ChannelTerm cannot
-portably prove that an arbitrary terminal is showing a shell prompt, so clients must call this tool
-only at a known idle prompt. Cancellation or timeout sends Ctrl+C, waits up to five seconds for
-remote echo restoration, then releases the lease. If restoration cannot be confirmed, the Host
-closes the Session instead of returning it in an unknown TTY state.
+or Agent input line, the call fails before writing any bootstrap bytes. ChannelTerm cannot portably
+prove that an arbitrary terminal is showing a shell prompt, so clients must call this tool only at a
+known idle prompt. Cancellation or timeout sends Ctrl+C, waits up to five seconds for remote echo
+restoration, then releases the lease. If restoration cannot be confirmed, the Host closes the
+Session instead of returning it in an unknown TTY state.
 
 Important errors: empty, multiline, control-character, invalid UTF-8, or oversized command;
 unknown/non-open Session; active lease; pending interactive input; non-Bash parent; timeout or MCP
@@ -399,9 +490,9 @@ Purpose: acquire one exclusive application-level writer lease for an active Sess
 - Required input: `session_id`, caller-generated opaque `owner`, and `type` (`terminal`,
   `file-transfer`, or reserved `debug`).
 - Optional input: none.
-- Result: canonical `session_id`, `type`, UTC `created_at`, UTC `expires_at`, and `state` (`active`).
-  A `file-transfer` lease additionally returns its non-secret `transfer_id`. The owner capability is
-  not echoed.
+- Result: canonical `session_id`, `type`, UTC `created_at`, UTC `expires_at`, and `state`
+  (`active`). A `file-transfer` lease additionally returns its non-secret `transfer_id`. The owner
+  capability is not echoed.
 
 ```json
 {"session_id":"SER-1","owner":"file-transfer-opaque-capability","type":"file-transfer"}
@@ -462,7 +553,9 @@ Purpose: write through an active lease without changing the stable `terminal_wri
 - Optional input: `encoding` and `actor`, with the same semantics as `terminal_write`.
 - Result: `bytes_written`.
 
-The owner must exactly match the active lease for this Session. The same 1 MiB decoded-payload limit and encoding validation as `terminal_write` apply. This tool exists for multi-step operations such as the CLI file transfer; normal terminal clients should continue to use `terminal_write`.
+The owner must exactly match the active lease for this Session. The same 1 MiB decoded-payload limit
+and encoding validation as `terminal_write` apply. This tool exists for multi-step operations such
+as the CLI file transfer; normal terminal clients should continue to use `terminal_write`.
 
 ## `terminal_release_lease`
 
@@ -472,7 +565,8 @@ Purpose: release an exclusive Session lease after its operation completes or fai
 - Optional input: none.
 - Result: `released: true`.
 
-Release is idempotent when no lease remains, but a different owner receives an ownership error. Closing a Session also discards its lease state.
+Release is idempotent when no lease remains, but a different owner receives an ownership error.
+Closing a Session also discards its lease state.
 
 ## `terminal_close`
 
@@ -490,4 +584,7 @@ Purpose: remove one Session from the Manager, close its Transport, and release t
 {"session_id":"0123456789abcdef0123456789abcdef","session_ref":"SER-1","closed":true}
 ```
 
-Important errors: missing, unknown, or already removed Session; cancellation before invocation; transport close failure. Safety: this is a lifecycle-destructive operation for every attached client. Detach a single CLI by closing its MCP client instead when the shared Session must remain open.
+Important errors: missing, unknown, or already removed Session; cancellation before invocation;
+transport close failure. Safety: this is a lifecycle-destructive operation for every attached
+client. Detach a single CLI by closing its MCP client instead when the shared Session must remain
+open.

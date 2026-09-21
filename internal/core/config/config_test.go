@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -126,8 +127,12 @@ func TestLoadOrCreateHTTPAuthTokenPersistsOwnerOnlyCredential(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if permissions := info.Mode().Perm(); permissions != 0o600 {
-		t.Errorf("token permissions = %o, want 600", permissions)
+	// Windows reports synthesized mode bits; access there is controlled by the
+	// ACL inherited from the per-user configuration directory.
+	if runtime.GOOS != "windows" {
+		if permissions := info.Mode().Perm(); permissions != 0o600 {
+			t.Errorf("token permissions = %o, want 600", permissions)
+		}
 	}
 }
 

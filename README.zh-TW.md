@@ -99,8 +99,10 @@ channelterm init --mcp
 `http://127.0.0.1:37099/mcp`。AI 可以列出、讀取及操作 `SER-1`；在已知閒置的 Bash 提示字元
 應優先使用 `terminal_exec`，原始按鍵與互動程式則使用 `terminal_write`。
 
-HTTP Host 需要 Bearer token，預設僅監聽回環位址。內建 CLI 會讀取本機使用者 token；請勿
-將沒有 TLS 與額外網路存取控制保護的端點直接暴露到不受信任的網路。
+HTTP Host 需要 Bearer token，預設僅監聽回環位址。內建 CLI 會讀取本機使用者 token；它也可以
+[監聽受信任的區域網路](docs/getting-started/mcp-server.md#listen-on-a-lan)，遠端用戶端必須使用 Host
+可連線的區域網路位址，並透過 `Authorization` 標頭傳送相同的 token。請勿將沒有 TLS 與額外
+網路存取控制保護的端點直接暴露到不受信任的網路。
 
 ## 檔案傳輸
 
@@ -112,12 +114,16 @@ channelterm file receive /tmp/log.txt ./log.txt --session SER-1
 channelterm file send ./build/release /tmp/release --session SER-1
 ```
 
+傳送時省略遠端目標路徑，檔案或目錄會預設儲存至 `/tmp/cterm/mcp-files/`；互動快捷鍵預設
+使用 `/tmp/cterm/user-files/`。ChannelTerm 會依需要建立目錄，並為同名目標選擇 `_1`、`_2`
+等不覆寫既有內容的名稱。
+
 目標端必須是具備所需標準命令的 Linux Shell。詳細前提、覆寫保護、取消與 SHA-256 驗證規則
 請參閱[檔案傳輸流程](docs/getting-started/file-transfer.md)。
 
 ## 安裝與建置
 
-ChannelTerm 需要 [`go.mod`](go.mod) 宣告的 Go 版本。請在儲存庫根目錄建置：
+ChannelTerm 需要 Go 1.25 或更新版本。請使用目前仍受支援的修補版本，然後在儲存庫根目錄建置：
 
 ```bash
 git clone https://github.com/akira-init1/ChannelTerm.git
@@ -127,6 +133,33 @@ go build ./cmd/channelterm
 
 支援的桌面目標為 Windows、Linux、macOS 的 amd64/arm64。詳見
 [從原始碼建置](docs/getting-started/build.md)與[建置及測試](docs/development/building-and-testing.md)。
+
+## 設定
+
+ChannelTerm 將本機檔案儲存在各平台的使用者設定目錄中：
+
+| 平台 | 預設目錄 |
+| --- | --- |
+| Windows | `%AppData%\channelterm\` |
+| Linux | `$XDG_CONFIG_HOME/channelterm/`；未設定時為 `~/.config/channelterm/` |
+| macOS | `~/Library/Application Support/channelterm/` |
+
+`config.toml` 儲存使用者維護的序列埠 Profile 與連線原則；`state.json` 是 ChannelTerm 自動維護的
+裝置身分狀態；`http-auth-token` 是 MCP HTTP 用戶端的驗證密鑰，請勿分享或提交。
+
+```powershell
+# 儲存並重複使用序列埠 Profile。
+channelterm serial --port COM8 --baud 115200 --save board
+channelterm serial --profile board
+
+# 本次操作使用另一個 config.toml。
+channelterm serial --config ./channelterm.toml --profile board
+```
+
+常用參數包括 `--profile`、`--save`、`--config`、`--port` 與 `--baud`；MCP Host 也支援
+`--connection-policy ask|auto|deny`。`--config` 只會替換所選的 `config.toml`，不會移動預設的
+`state.json` 或 `http-auth-token`。完整欄位、優先順序、驗證與持久化行為請參閱
+[序列埠 Profile](docs/getting-started/serial-profiles.md)與[設定參考](docs/reference/configuration.md)。
 
 ## 文件
 

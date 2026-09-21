@@ -22,7 +22,9 @@ Application.ReadSession
       `--> MCP cursor --> utf8 / hex / base64 result
 ```
 
-One Session goroutine is the only continuous reader of a Channel. Consumers copy bounded chunks by independent absolute cursor. Slow consumers cannot block the Channel reader; they receive `dropped: true` if overwritten output passes their cursor.
+One Session goroutine is the only continuous reader of a Channel. Consumers copy bounded chunks by
+independent absolute cursor. Slow consumers cannot block the Channel reader; they receive
+`dropped: true` if overwritten output passes their cursor.
 
 ## Terminal input
 
@@ -48,7 +50,18 @@ Ctrl+] local controller       size preflight, then decode
                        serial device
 ```
 
-`Ctrl+C` is ordinary remote data in the normal CLI raw-input path. While the Host reports an active `file-transfer` lease, it instead opens a default-No local cancellation confirmation in any bundled attachment. The transfer owner blocks at its next safe boundary while the Host keeps the lease; a negative answer resumes it, while a positive answer stops it before the next block and waits for lease release. A locally confirmed cancellation also cancels an outstanding protocol-marker read; raw-block cleanup uses an independent context so it can restore the remote TTY before release. `Ctrl+]` commands remain local. Prompt timestamps are per-CLI presentation state and are inserted only before recognized shell prompts after Session reads, so they never enter the Ring Buffer or MCP cursor path. Session serializes each complete write, including short-write retries, so concurrent payload bytes do not interleave. This does not coordinate writer intent: Session provides no writer ownership, exclusive lease, transaction, priority, arbitration, or shell-state coordination. Activity records actor and confirmed bytes but actor metadata is not sent to the device.
+`Ctrl+C` is ordinary remote data in the normal CLI raw-input path. While the Host reports an active
+`file-transfer` lease, it instead opens a default-No local cancellation confirmation in any bundled
+attachment. The transfer owner blocks at its next safe boundary while the Host keeps the lease; a
+negative answer resumes it, while a positive answer stops it before the next block and waits for
+lease release. A locally confirmed cancellation also cancels an outstanding protocol-marker read;
+raw-block cleanup uses an independent context so it can restore the remote TTY before release.
+`Ctrl+]` commands remain local. Prompt timestamps are per-CLI presentation state and are inserted
+only before recognized shell prompts after Session reads, so they never enter the Ring Buffer or MCP
+cursor path. Session serializes each complete write, including short-write retries, so concurrent
+payload bytes do not interleave. This does not coordinate writer intent: Session provides no writer
+ownership, exclusive lease, transaction, priority, arbitration, or shell-state coordination.
+Activity records actor and confirmed bytes but actor metadata is not sent to the device.
 
 ## Session events
 
@@ -63,7 +76,11 @@ Manager / CLI attachment / Application lease / CLI file transfer
         CLI events JSON Lines       MCP terminal_session_events
 ```
 
-Events are structured state, not terminal bytes. Each observer advances its own event cursor; a slow observer can lose only old retained events (`dropped: true`) and never blocks the serial reader, Session writer, or another observer. File-transfer reporting traverses the existing MCP attachment only to publish status on the host-owned Session; payload I/O remains on the existing raw read/write path.
+Events are structured state, not terminal bytes. Each observer advances its own event cursor; a slow
+observer can lose only old retained events (`dropped: true`) and never blocks the serial reader,
+Session writer, or another observer. File-transfer reporting traverses the existing MCP attachment
+only to publish status on the host-owned Session; payload I/O remains on the existing raw read/write
+path.
 
 ## Serial open and reuse
 
@@ -85,7 +102,8 @@ Session Manager.GetOrCreate(transport, endpoint)
                                       --> optional wake --> Manager registration
 ```
 
-Concurrent opens for the same exact endpoint wait on one in-progress open. Failed and closed Sessions do not permanently reserve the endpoint.
+Concurrent opens for the same exact endpoint wait on one in-progress open. Failed and closed
+Sessions do not permanently reserve the endpoint.
 
 ## Device discovery
 
@@ -106,7 +124,9 @@ Device Registry scan comparison
                     ask / connect / deny / none
 ```
 
-The first successful scan is a baseline and emits no appearance events. A transient later scan failure preserves the last known presence state. Discovery and policy evaluation never open a Transport; a client remains responsible for an approved explicit open.
+The first successful scan is a baseline and emits no appearance events. A transient later scan
+failure preserves the last known presence state. Discovery and policy evaluation never open a
+Transport; a client remains responsible for an approved explicit open.
 
 ## Shared HTTP attachment
 

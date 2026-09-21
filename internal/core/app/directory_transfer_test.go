@@ -23,10 +23,7 @@ func TestDirectoryPlanStreamsNestedFilesIncludingDotfiles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("makeDirectoryPlan() error = %v", err)
 	}
-	data, err := io.ReadAll(plan.stream())
-	if err != nil {
-		t.Fatalf("read tar stream: %v", err)
-	}
+	data := readDirectoryPlan(t, plan)
 	if int64(len(data)) != plan.size {
 		t.Errorf("tar stream size = %d, want counted %d", len(data), plan.size)
 	}
@@ -47,10 +44,7 @@ func TestDirectoryPlanAllowsEmptyDirectory(t *testing.T) {
 	if plan.size == 0 {
 		t.Fatal("empty directory tar size is zero, want tar end blocks")
 	}
-	data, err := io.ReadAll(plan.stream())
-	if err != nil {
-		t.Fatal(err)
-	}
+	data := readDirectoryPlan(t, plan)
 	if len(readDirectoryTestTar(t, data)) != 0 {
 		t.Error("empty directory tar has entries")
 	}
@@ -190,10 +184,7 @@ func TestReceiveDirectoryExtractsTarStream(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	archive, err := io.ReadAll(plan.stream())
-	if err != nil {
-		t.Fatal(err)
-	}
+	archive := readDirectoryPlan(t, plan)
 	terminal := newFileTransferTestSession(archive)
 	destination := t.TempDir()
 	result, err := ReceiveDirectory(context.Background(), terminal, "/var/log/myapp", destination, nil)
@@ -226,10 +217,7 @@ func TestDirectoryTransferRejectsChecksumMismatch(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	archive, err := io.ReadAll(plan.stream())
-	if err != nil {
-		t.Fatal(err)
-	}
+	archive := readDirectoryPlan(t, plan)
 	receiveTerminal := newFileTransferTestSession(archive)
 	receiveTerminal.badMetadataHash = true
 	if _, err := ReceiveDirectory(context.Background(), receiveTerminal, "/tmp/release", t.TempDir(), nil); !errors.Is(err, ErrFileTransferChecksumMismatch) {
@@ -244,10 +232,7 @@ func TestReceiveDirectoryCancellationStopsAfterOneBoundedBlock(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	archive, err := io.ReadAll(plan.stream())
-	if err != nil {
-		t.Fatal(err)
-	}
+	archive := readDirectoryPlan(t, plan)
 	terminal := newFileTransferTestSession(archive)
 	progressCalls := 0
 	_, err = ReceiveDirectory(context.Background(), terminal, "/var/log/release", t.TempDir(), func(int64, int64) error {
@@ -269,10 +254,7 @@ func TestReceiveDirectoryObservesSessionCancellationWhileDraining(t *testing.T) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	archive, err := io.ReadAll(plan.stream())
-	if err != nil {
-		t.Fatal(err)
-	}
+	archive := readDirectoryPlan(t, plan)
 	cancellation := &fileTransferTestCancellation{}
 	terminal := &cancelableFileTransferSession{fileTransferTestSession: newFileTransferTestSession(archive), cancellation: cancellation}
 	progressCalls := 0
@@ -383,6 +365,17 @@ func mustWriteDirectoryTestFile(t *testing.T, path string, data []byte) {
 	if err := os.WriteFile(path, data, 0o644); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func readDirectoryPlan(t *testing.T, plan directoryPlan) []byte {
+	t.Helper()
+	stream := plan.stream()
+	data, readErr := io.ReadAll(stream)
+	closeErr := stream.Close()
+	if err := errors.Join(readErr, closeErr); err != nil {
+		t.Fatalf("read tar stream: %v", err)
+	}
+	return data
 }
 
 func readDirectoryTestTar(t *testing.T, data []byte) map[string][]byte {

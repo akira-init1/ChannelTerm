@@ -25,6 +25,10 @@ func TestServerListsAndUsesTerminalTools(t *testing.T) {
 	defer func() { _ = manager.Close() }()
 	client, closeClient := connectTestClient(t, registry)
 	defer closeClient()
+	initialized := client.InitializeResult()
+	if initialized == nil || initialized.ServerInfo == nil || initialized.ServerInfo.Version != "test" {
+		t.Fatalf("InitializeResult server info = %#v, want injected test version", initialized)
+	}
 
 	listed, err := client.ListTools(context.Background(), nil)
 	if err != nil {
@@ -484,7 +488,7 @@ func TestRunClientDisconnectKeepsSessionOwnedByManager(t *testing.T) {
 	defer func() { _ = manager.Close() }()
 	serverTransport, clientTransport := protocol.NewInMemoryTransports()
 	runDone := make(chan error, 1)
-	go func() { runDone <- Run(context.Background(), registry, serverTransport) }()
+	go func() { runDone <- Run(context.Background(), registry, "test", serverTransport) }()
 
 	client := protocol.NewClient(&protocol.Implementation{Name: "test-client", Version: "1.0"}, nil)
 	clientSession, err := client.Connect(context.Background(), clientTransport, nil)
@@ -583,7 +587,7 @@ func (s *mutableDeviceScanner) set(endpoints []device.Endpoint) {
 
 func connectTestClient(t *testing.T, registry *tool.Registry) (*protocol.ClientSession, func()) {
 	t.Helper()
-	server, err := NewServer(registry)
+	server, err := NewServer(registry, "test")
 	if err != nil {
 		t.Fatalf("NewServer() error = %v", err)
 	}
@@ -608,7 +612,7 @@ func connectTestClient(t *testing.T, registry *tool.Registry) (*protocol.ClientS
 // official Streamable HTTP client, exercising the complete network protocol.
 func connectHTTPTestClient(t *testing.T, registry *tool.Registry) (*protocol.ClientSession, func()) {
 	t.Helper()
-	handler, err := NewStreamableHTTPHandler(registry)
+	handler, err := NewStreamableHTTPHandler(registry, "test")
 	if err != nil {
 		t.Fatalf("NewStreamableHTTPHandler() error = %v", err)
 	}

@@ -895,7 +895,7 @@ func TestAttachInputDispatcherFileMenuSingleKeyChoices(t *testing.T) {
 		want  string
 	}{
 		{name: "send", input: []byte("\x1dfsa.bin\n\x1b"), want: "Select: s\r\nLocal path: a.bin\r\nRemote path [/tmp/cterm/user-files/a.bin]:"},
-		{name: "receive", input: []byte("\x1dfr/var/log/app.log\n\x1b"), want: "Select: r\r\nRemote path: /var/log/app.log\r\nLocal path [./app.log]:"},
+		{name: "receive", input: []byte("\x1dfr/var/log/app.log\n\x1b"), want: "Select: r\r\nRemote path: /var/log/app.log\r\nLocal path [" + defaultLocalTransferPath("/var/log/app.log") + "]:"},
 		{name: "escape", input: []byte{0x1d, 'f', 0x1b}, want: "File transfer cancelled"},
 	}
 	for _, tt := range tests {
