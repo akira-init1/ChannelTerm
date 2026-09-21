@@ -1,0 +1,174 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build and publish release
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - name: Validate release tag
+        id: release
+        shell: bash
+        run: |
+          set -euo pipefail
+          source ./scripts/release.sh
+
+          tag="${GITHUB_REF_NAME}"
+          version="${tag#v}"
+          if [[ "${tag}" == "${version}" ]] || ! is_semver "${version}"; then
+            printf 'release tag must be v followed by a SemVer version: %s\n' "${tag}" >&2
+            exit 1
+          fi
+
+          printf 'tag=%s\n' "${tag}" >> "${GITHUB_OUTPUT}"
+          printf 'version=%s\n' "${version}" >> "${GITHUB_OUTPUT}"
+
+      - name: Test release commit
+        run: |
+          go test ./...
+          go vet ./...
+
+      - name: Build all release targets
+        env:
+          CHANNELTERM_VERSION: ${{ steps.release.outputs.version }}
+        run: ./scripts/build.sh
+
+      - name: Verify embedded version
+        env:
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t version_lines < <(./dist/channelterm-linux-amd64 --version)
+          if [[ "${#version_lines[@]}" -ne 5 ||
+                "${version_lines[0]}" != "channelterm ${RELEASE_VERSION}" ||
+                "${version_lines[4]}" != "platform: linux/amd64" ]]; then
+            printf 'built binary has unexpected version metadata:\n' >&2
+            printf '  %s\n' "${version_lines[@]}" >&2
+            exit 1
+          fi
+
+      - name: Package and verify release assets
+        env:
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          package_zip() {
+            local source_name="$1"
+            local archive_name="$2"
+            local staging
+            staging="$(mktemp -d)"
+            install -m 0755 "dist/${source_name}" "${staging}/channelterm.exe"
+            (
+              cd "${staging}"
+              python3 -m zipfile -c "${GITHUB_WORKSPACE}/dist/${archive_name}" channelterm.exe
+            )
+          }
+
+          package_tar() {
+            local source_name="$1"
+            local archive_name="$2"
+            local staging
+            staging="$(mktemp -d)"
+            install -m 0755 "dist/${source_name}" "${staging}/channelterm"
+            tar -C "${staging}" -czf "dist/${archive_name}" channelterm
+          }
+
+          archives=(
+            "channelterm_${RELEASE_VERSION}_windows_amd64.zip"
+            "channelterm_${RELEASE_VERSION}_windows_arm64.zip"
+            "channelterm_${RELEASE_VERSION}_linux_amd64.tar.gz"
+            "channelterm_${RELEASE_VERSION}_linux_arm64.tar.gz"
+            "channelterm_${RELEASE_VERSION}_darwin_amd64.tar.gz"
+            "channelterm_${RELEASE_VERSION}_darwin_arm64.tar.gz"
+          )
+
+          package_zip channelterm-windows-amd64.exe "${archives[0]}"
+          package_zip channelterm-windows-arm64.exe "${archives[1]}"
+          package_tar channelterm-linux-amd64 "${archives[2]}"
+          package_tar channelterm-linux-arm64 "${archives[3]}"
+          package_tar channelterm-darwin-amd64 "${archives[4]}"
+          package_tar channelterm-darwin-arm64 "${archives[5]}"
+
+          python3 - "dist/${archives[0]}" "dist/${archives[1]}" <<'PY'
+          import sys
+          import zipfile
+
+          for archive_path in sys.argv[1:]:
+              with zipfile.ZipFile(archive_path) as archive:
+                  if archive.namelist() != ["channelterm.exe"]:
+                      raise SystemExit(f"unexpected ZIP contents in {archive_path}: {archive.namelist()}")
+          PY
+          for archive_name in "${archives[@]:2}"; do
+            [[ "$(tar -tzf "dist/${archive_name}")" == "channelterm" ]]
+          done
+
+          (
+            cd dist
+            sha256sum -- "${archives[@]}" | LC_ALL=C sort -k2 > SHA256SUMS
+            [[ "$(wc -l < SHA256SUMS)" -eq 6 ]]
+            sha256sum --check SHA256SUMS
+          )
+
+      - name: Create or update GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          assets=(
+            "dist/channelterm_${RELEASE_VERSION}_windows_amd64.zip"
+            "dist/channelterm_${RELEASE_VERSION}_windows_arm64.zip"
+            "dist/channelterm_${RELEASE_VERSION}_linux_amd64.tar.gz"
+            "dist/channelterm_${RELEASE_VERSION}_linux_arm64.tar.gz"
+            "dist/channelterm_${RELEASE_VERSION}_darwin_amd64.tar.gz"
+            "dist/channelterm_${RELEASE_VERSION}_darwin_arm64.tar.gz"
+            "dist/SHA256SUMS"
+          )
+
+          if gh release view "${RELEASE_TAG}" >/dev/null 2>&1; then
+            gh release edit "${RELEASE_TAG}" --draft
+          else
+            gh release create "${RELEASE_TAG}" \
+              --draft \
+              --verify-tag \
+              --generate-notes \
+              --title "ChannelTerm ${RELEASE_TAG}"
+          fi
+
+          gh release upload "${RELEASE_TAG}" "${assets[@]}" --clobber
+
+          remote_assets="$(gh release view "${RELEASE_TAG}" --json assets --jq '.assets[].name')"
+          for asset_path in "${assets[@]}"; do
+            asset_name="${asset_path##*/}"
+            if ! grep -Fxq "${asset_name}" <<< "${remote_assets}"; then
+              printf 'uploaded release asset is missing: %s\n' "${asset_name}" >&2
+              exit 1
+            fi
+          done
+
+          gh release edit "${RELEASE_TAG}" --draft=false

@@ -73,6 +73,19 @@ stable Go release, and runs formatting, `go vet`, the race detector, all six cro
 `govulncheck`. The Windows job also validates `scripts/build.ps1` and its version injection. A
 release candidate should not be tagged until every job passes.
 
+`.github/workflows/release.yml` runs only when a tag matching `v*` is pushed. It validates that the
+tag is `v` followed by a SemVer version, strips the `v` for the embedded CLI version, tests and
+cross-builds with `CGO_ENABLED=0`, and packages all six supported targets. Windows archives are ZIP
+files containing `channelterm.exe`; Linux and macOS archives are tarballs containing `channelterm`.
+The workflow writes `SHA256SUMS` for those six archives, verifies the archive contents, checksums,
+and injected version, and then creates or updates the GitHub Release for the same tag. Ordinary
+branch pushes and pull requests cannot run this release workflow.
+
+Release publishing uses the GitHub CLI and the workflow's `contents: write` permission. The Release
+is kept as a draft while assets are uploaded and checked, and is published only after all seven
+expected assets are present. A failed build, package, checksum, upload, or remote asset check
+therefore cannot publish a new incomplete Release.
+
 ## Tagged release verification
 
 On Linux, from a clean final commit, create an annotated tag, run the release verifier, inspect the
@@ -89,7 +102,8 @@ requires a SemVer 2.0 version and rejects leading-zero core identifiers, malform
 identifiers, a dirty worktree, or a missing/mismatched/lightweight tag. It runs tests, vet, and the
 race detector; rebuilds all six targets with version and provenance metadata; verifies all five
 metadata fields in the native Linux binary; and writes `dist/SHA256SUMS`. It does not publish the
-tag or artifacts.
+tag or artifacts. After this local verification succeeds, pushing the `vVERSION` tag starts the
+GitHub Release workflow described above.
 
 ## Evidence boundaries
 

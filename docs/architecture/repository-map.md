@@ -9,7 +9,8 @@ The public repository currently has the following durable structure:
 ChannelTerm/
 |-- .github/
 |   `-- workflows/
-|       `-- ci.yml                      Test, race, vet, vulnerability, and cross-build gates
+|       |-- ci.yml                      Test, race, vet, vulnerability, and cross-build gates
+|       `-- release.yml                 Tagged cross-build, packaging, checksums, and GitHub Release
 |-- cmd/
 |   `-- channelterm/
 |       `-- main.go                 Process entry point and composition root
@@ -55,8 +56,9 @@ outside `internal/`; consumers use the executable's CLI and MCP boundaries.
 
 The main ownership distinctions are deliberate:
 
-- **Automation:** `.github/workflows` enforces hosted repository checks. `scripts` owns local build
-  and release verification without publishing releases.
+- **Automation:** `.github/workflows` enforces hosted repository checks and publishes verified tag
+  builds through GitHub Releases. `scripts` owns local build and release verification without
+  publishing releases.
 - **Adapter:** `cmd/channelterm`, `internal/cli`, and `internal/mcp` own process composition and
   external protocol or presentation concerns. `internal/init/mcp` owns local MCP-client
   configuration discovery and installation. These packages may depend inward; Core may not depend on
