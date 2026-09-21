@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: minimum-go
+            os: ubuntu-latest
+            go: 1.25.x
+          - name: linux
+            os: ubuntu-latest
+            go: stable
+          - name: windows
+            os: windows-latest
+            go: stable
+          - name: macos
+            os: macos-latest
+            go: stable
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: ${{ matrix.go }}
+          cache-dependency-path: go.sum
+      - run: go test ./...
+      - name: Validate PowerShell release build
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          CHANNELTERM_VERSION: 0.0.0-ci
+        run: |
+          ./scripts/build.ps1
+          $actual = & ./dist/channelterm-windows-amd64.exe version
+          if ($actual -ne 'channelterm 0.0.0-ci') {
+            throw "unexpected version output: $actual"
+          }
+
+  quality:
+    name: Quality and cross-build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: stable
+          cache-dependency-path: go.sum
+      - name: Check formatting
+        shell: bash
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [[ -n "${unformatted}" ]]; then
+            printf 'gofmt required for:\n%s\n' "${unformatted}"
+            exit 1
+          fi
+      - run: git diff --check
+      - run: go vet ./...
+      - run: go test -race ./...
+      - run: ./scripts/build.sh
+      - run: go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...

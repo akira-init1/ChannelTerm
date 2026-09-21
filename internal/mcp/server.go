@@ -25,21 +25,26 @@ var (
 	ErrRequiredCursor = errors.New("cursor is required for wait tools")
 )
 
-// NewServer creates an MCP Server backed by registry.
+// NewServer creates an MCP Server backed by registry and reports version in
+// protocol implementation metadata. An empty version is reported as devel.
 //
 // The returned Server has no ownership of registry or of the Sessions reached
 // through it. In particular, disconnecting an MCP client only closes the MCP
 // connection; the embedding application decides when shared Sessions close.
-func NewServer(registry *tool.Registry) (*protocol.Server, error) {
+func NewServer(registry *tool.Registry, version string) (*protocol.Server, error) {
 	adapter, err := newAdapter(registry)
 	if err != nil {
 		return nil, err
+	}
+	version = strings.TrimSpace(version)
+	if version == "" {
+		version = "devel"
 	}
 	server := protocol.NewServer(&protocol.Implementation{
 		Name:        "channelterm",
 		Title:       "ChannelTerm",
 		Description: "Operate active ChannelTerm terminal sessions and inspect local devices.",
-		Version:     "0.1.0",
+		Version:     version,
 	}, &protocol.ServerOptions{Capabilities: &protocol.ServerCapabilities{Tools: &protocol.ToolCapabilities{}}})
 	for _, exposed := range adapter.exposed {
 		exposed := exposed
@@ -49,14 +54,14 @@ func NewServer(registry *tool.Registry) (*protocol.Server, error) {
 }
 
 // NewStreamableHTTPHandler creates a stateless Streamable HTTP handler backed
-// by registry.
+// by registry and reporting version in MCP implementation metadata.
 //
 // The handler returns the same MCP Server for every request, so HTTP and stdio
 // expose the identical Tool Registry. Stateless mode is required for current
 // MCP HTTP clients and makes an interrupted request release only its temporary
 // protocol session; it never closes Registry-owned terminal Sessions.
-func NewStreamableHTTPHandler(registry *tool.Registry) (http.Handler, error) {
-	server, err := NewServer(registry)
+func NewStreamableHTTPHandler(registry *tool.Registry, version string) (http.Handler, error) {
+	server, err := NewServer(registry, version)
 	if err != nil {
 		return nil, err
 	}
@@ -150,12 +155,13 @@ func repairCancellationNotificationMetadata(next http.Handler) http.Handler {
 }
 
 // Run serves one MCP client over transport until it disconnects or ctx ends.
+// version is exposed through MCP implementation metadata.
 //
 // A normal client disconnect and context cancellation are successful shutdowns.
 // Run deliberately does not close registry or its Sessions, because both can be
 // shared with CLI or future GUI callers outside this protocol adapter.
-func Run(ctx context.Context, registry *tool.Registry, transport protocol.Transport) error {
-	server, err := NewServer(registry)
+func Run(ctx context.Context, registry *tool.Registry, version string, transport protocol.Transport) error {
+	server, err := NewServer(registry, version)
 	if err != nil {
 		return err
 	}

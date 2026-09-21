@@ -25,8 +25,9 @@ channelterm [options] [command]
 ```
 
 With no arguments, ChannelTerm prints top-level usage and exits successfully. `help`, `--help`,
-and `-h` do the same. `version` and `--version` print `channelterm 0.1.0`. An unknown command
-returns an error and the process exits with status 1.
+and `-h` do the same. `version` and `--version` print `channelterm VERSION`. Ordinary source builds
+use `devel`; tagged release artifacts use the injected release version. An unknown command returns
+an error and the process exits with status 1.
 
 The top-level help currently lists `attach`, `file`, `init`, `list`, `mcp`, `serial`, `help`,
 and `version`.

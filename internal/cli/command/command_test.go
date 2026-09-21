@@ -87,8 +87,8 @@ func TestRunPrintsVersion(t *testing.T) {
 		if err := run(args, &output); err != nil {
 			t.Fatalf("run(%q) error = %v", args, err)
 		}
-		if got := output.String(); got != "channelterm "+version+"\n" {
-			t.Errorf("run(%q) output = %q, want version", args, got)
+		if got := output.String(); got != "channelterm devel\n" {
+			t.Errorf("run(%q) output = %q, want development version", args, got)
 		}
 	}
 }

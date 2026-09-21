@@ -121,7 +121,7 @@ channelterm file send ./build/release /tmp/release --session SER-1
 
 ## インストールとビルド
 
-ChannelTerm には [`go.mod`](go.mod) で指定された Go バージョンが必要です。
+ChannelTerm には Go 1.25 以降が必要です。現在サポートされているパッチリリースを使用してください。
 
 ```bash
 git clone https://github.com/akira-init1/ChannelTerm.git

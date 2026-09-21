@@ -6,6 +6,9 @@ The public repository currently has the following durable structure:
 
 ```text
 ChannelTerm/
+|-- .github/
+|   `-- workflows/
+|       `-- ci.yml                      Test, race, vet, vulnerability, and cross-build gates
 |-- cmd/
 |   `-- channelterm/
 |       `-- main.go                 Process entry point and composition root
@@ -33,7 +36,8 @@ ChannelTerm/
 |       `-- terminal/               Terminal tool names, schemas, and translation
 |-- scripts/
 |   |-- build.ps1                   Six-target build from PowerShell
-|   `-- build.sh                    Six-target build from Linux/Bash
+|   |-- build.sh                    Six-target build from Linux/Bash
+|   `-- release.sh                  Clean tagged release verification and checksums
 |-- docs/                           Public English technical documentation
 |-- .gitattributes                  Cross-platform text line-ending policy
 |-- .gitignore                      Local/build/generated-state ignore policy
@@ -49,6 +53,7 @@ Tests use `*_test.go` beside the packages they exercise. The repository does not
 
 The main ownership distinctions are deliberate:
 
+- **Automation:** `.github/workflows` enforces hosted repository checks. `scripts` owns local build and release verification without publishing releases.
 - **Adapter:** `cmd/channelterm`, `internal/cli`, and `internal/mcp` own process composition and external protocol or presentation concerns. `internal/init/mcp` owns local MCP-client configuration discovery and installation. These packages may depend inward; Core may not depend on them.
 - **Application:** `internal/core/app` orchestrates adapter-neutral use cases without owning process lifetime or presentation.
 - **Core services:** `internal/core/channel`, `session`, `config`, `connectionpolicy`, `device`, and `tool` own their protocol-neutral responsibilities. Channel owns established stream I/O and lifecycle; Session owns sharing, retained bytes, activity, and write serialization above it. `config` keeps connection profiles, discovery policy, and user preferences separate despite sharing one TOML file.

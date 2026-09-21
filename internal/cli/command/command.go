@@ -69,8 +69,9 @@ type cliSession interface {
 // opening so CLI behavior can be tested without a device.
 type serialSessionFactory func(serialtransport.Config) (cliSession, error)
 
-// version identifies this CLI build in the version command output.
-const version = "0.1.0"
+// version identifies this CLI build in CLI and MCP metadata. Release builds
+// replace the development value through the Go linker's -X flag.
+var version = "devel"
 
 const (
 	defaultMCPListen            = "127.0.0.1:37099"
@@ -449,7 +450,7 @@ func runMCP(ctx context.Context, args []string, output io.Writer) (err error) {
 		return err
 	}
 	if selectedTransport == "stdio" {
-		return mcp.Run(ctx, registry, &protocol.StdioTransport{})
+		return mcp.Run(ctx, registry, version, &protocol.StdioTransport{})
 	}
 	token, err := loadHTTPAuthToken()
 	if err != nil {
@@ -497,7 +498,7 @@ func runMCPHTTP(ctx context.Context, registry *tool.Registry, listen, path, toke
 	if err != nil {
 		return fmt.Errorf("listen for MCP Streamable HTTP on %q: %w", listen, err)
 	}
-	handler, err := mcp.NewStreamableHTTPHandler(registry)
+	handler, err := mcp.NewStreamableHTTPHandler(registry, version)
 	if err != nil {
 		closeErr := listener.Close()
 		if closeErr != nil {

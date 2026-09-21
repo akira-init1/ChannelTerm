@@ -117,7 +117,7 @@ channelterm file send ./build/release /tmp/release --session SER-1
 
 ## 安装与构建
 
-ChannelTerm 需要 [`go.mod`](go.mod) 声明的 Go 版本。在仓库根目录构建：
+ChannelTerm 需要 Go 1.25 或更高版本。请使用当前仍受支持的补丁版本，然后在仓库根目录构建：
 
 ```bash
 git clone https://github.com/akira-init1/ChannelTerm.git

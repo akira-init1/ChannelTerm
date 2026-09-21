@@ -120,7 +120,7 @@ SHA-256 검증 규칙은 [파일 전송 워크플로](docs/getting-started/file-
 
 ## 설치 및 빌드
 
-ChannelTerm에는 [`go.mod`](go.mod)에 선언된 Go 버전이 필요합니다.
+ChannelTerm에는 Go 1.25 이상이 필요합니다. 현재 지원되는 패치 릴리스를 사용하십시오.
 
 ```bash
 git clone https://github.com/akira-init1/ChannelTerm.git

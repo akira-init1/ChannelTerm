@@ -9,6 +9,7 @@ set -euo pipefail
 
 readonly repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
 readonly dist_dir="${repo_root}/dist"
+readonly version_symbol="github.com/akira-init1/ChannelTerm/internal/cli/command.version"
 
 readonly -a targets=(
   "windows amd64 channelterm-windows-amd64.exe"
@@ -20,6 +21,11 @@ readonly -a targets=(
 )
 
 declare -A previous_hashes=()
+build_flags=()
+
+if [[ -n "${CHANNELTERM_VERSION:-}" ]]; then
+  build_flags=(-ldflags "-X ${version_symbol}=${CHANNELTERM_VERSION}")
+fi
 
 require_command() {
   local command_name="$1"
@@ -68,7 +74,7 @@ cd -- "${repo_root}"
 for target in "${targets[@]}"; do
   read -r goos goarch artifact_name <<< "${target}"
   printf 'Building %s %s...\n' "${goos}" "${goarch}"
-  CGO_ENABLED=0 GOOS="${goos}" GOARCH="${goarch}" go build -o "${dist_dir}/${artifact_name}" ./cmd/channelterm
+  CGO_ENABLED=0 GOOS="${goos}" GOARCH="${goarch}" go build "${build_flags[@]}" -o "${dist_dir}/${artifact_name}" ./cmd/channelterm
 done
 
 printf 'New artifacts:\n'

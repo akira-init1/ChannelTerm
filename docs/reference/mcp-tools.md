@@ -2,6 +2,9 @@
 
 The MCP adapter exposes terminal, command execution, discovery, lease, activity, file-transfer, and structured Session-event tools. It also provides cursor-required wait tools for raw output, activity, device events, and file-transfer terminal results.
 
+The MCP initialization response reports the same ChannelTerm build version as `channelterm version`.
+Ordinary source builds report `devel`; tagged release artifacts report their injected release version.
+
 Successful calls return both structured content and an equivalent JSON text content item. Recoverable tool failures return an MCP tool result with `isError: true` and text beginning `<tool-name> failed:`. Structured inputs decoded by the terminal adapter reject unknown fields.
 
 Streamable HTTP requests require `Authorization: Bearer <token>`. An automatically started,

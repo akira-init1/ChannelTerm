@@ -8,6 +8,7 @@ For a normal Go change, format every changed Go file, then run the repository ch
 gofmt -w <changed-go-files>
 go test ./...
 go vet ./...
+go test -race ./...
 ```
 
 Documentation-only changes do not require formatting unchanged Go files but still require repository tests and vet before completion.
@@ -51,6 +52,38 @@ darwin/amd64   darwin/arm64
 ```
 
 The PowerShell script reports size, timestamp, and SHA-256 for each artifact. The Bash script additionally requires `stat`, `sha256sum`, and `awk`. Do not keep unrelated files only in `dist/` when running either script.
+
+Ordinary source builds report version `devel`. Set `CHANNELTERM_VERSION` to inject one version into
+both CLI output and MCP server metadata:
+
+```bash
+CHANNELTERM_VERSION=0.1.0 ./scripts/build.sh
+```
+
+## Continuous integration
+
+`.github/workflows/ci.yml` runs on pushes, pull requests, and manual dispatch. It verifies the
+Go 1.25 release line declared by `go.mod`, tests natively on Linux, Windows, and macOS with the current
+stable Go release, and runs formatting, `go vet`, the race detector, all six cross-builds, and
+`govulncheck`. The Windows job also validates `scripts/build.ps1` and its version injection. A
+release candidate should not be tagged until every job passes.
+
+## Tagged release verification
+
+On Linux, from a clean final commit, create an annotated tag, run the release verifier, inspect the
+artifacts, and only then push the tag:
+
+```bash
+git tag -s v0.1.0 -m "ChannelTerm v0.1.0"
+./scripts/release.sh 0.1.0
+git push origin v0.1.0
+```
+
+Use `git tag -a` instead of `git tag -s` only when signing is unavailable. `scripts/release.sh`
+rejects a dirty worktree, a missing/mismatched/lightweight tag, and an invalid version. It runs
+tests, vet, and the race detector; rebuilds all six targets with the release version injected;
+verifies the native Linux binary's version output; and writes `dist/SHA256SUMS`. It does not publish
+the tag or artifacts.
 
 ## Evidence boundaries
 

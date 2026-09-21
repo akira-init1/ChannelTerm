@@ -2,6 +2,7 @@ $ErrorActionPreference = "Stop"
 
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $distDir = Join-Path $repoRoot "dist"
+$versionSymbol = "github.com/akira-init1/ChannelTerm/internal/cli/command.version"
 $artifacts = @(
     [PSCustomObject]@{ Name = "channelterm-windows-amd64.exe"; GOOS = "windows"; GOARCH = "amd64" },
     [PSCustomObject]@{ Name = "channelterm-windows-arm64.exe"; GOOS = "windows"; GOARCH = "arm64" },
@@ -72,11 +73,16 @@ Push-Location -LiteralPath $repoRoot
 try {
     $env:CGO_ENABLED = "0"
 
+    $buildArguments = @("build")
+    if (-not [string]::IsNullOrWhiteSpace($env:CHANNELTERM_VERSION)) {
+        $buildArguments += @("-ldflags", "-X $versionSymbol=$($env:CHANNELTERM_VERSION)")
+    }
+
     foreach ($artifact in $artifacts) {
         Write-Host "Building $($artifact.GOOS) $($artifact.GOARCH)..."
         $env:GOOS = $artifact.GOOS
         $env:GOARCH = $artifact.GOARCH
-        & go build -o (Join-Path $distDir $artifact.Name) ./cmd/channelterm
+        & go @buildArguments -o (Join-Path $distDir $artifact.Name) ./cmd/channelterm
         if ($LASTEXITCODE -ne 0) {
             throw "go build failed for $($artifact.Name)"
         }

@@ -218,7 +218,7 @@ Shared Session references such as `SER-1` are valid only within the owning host 
 
 ## Installation
 
-ChannelTerm currently requires the Go version declared in [`go.mod`](go.mod) (Go 1.25.0 at the time of writing). Build the native executable from the repository root:
+ChannelTerm requires Go 1.25 or newer. Use a currently supported patched Go toolchain, then build the native executable from the repository root:
 
 ```bash
 git clone https://github.com/akira-init1/ChannelTerm.git
