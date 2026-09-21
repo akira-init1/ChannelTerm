@@ -19,9 +19,12 @@ The `serial` command opens a private connection owned by the current process:
 channelterm serial --port COM8 --baud 115200
 ```
 
-The conventional defaults are 115200 baud, 8 data bits, no parity, one stop bit, and no flow control. Confirm all settings against the actual device. A normal connection sends no bytes during startup.
+The conventional defaults are 115200 baud, 8 data bits, no parity, one stop bit, and no flow
+control. Confirm all settings against the actual device. A normal connection sends no bytes during
+startup.
 
-The `connect` command resolves a target printed by `list` and then opens the same kind of private connection:
+The `connect` command resolves a target printed by `list` and then opens the same kind of private
+connection:
 
 ```powershell
 channelterm connect COM8 --baud 115200
@@ -33,18 +36,28 @@ channelterm connect COM8 --baud 115200
 
 The CLI puts an interactive terminal into raw mode and restores it when the command exits.
 
-On Windows Console hosts, navigation keys are sent as standard VT sequences: for example, Up is `ESC [ A`, Down is `ESC [ B`, Right is `ESC [ C`, Left is `ESC [ D`, Home is `ESC [ H`, and End is `ESC [ F`.
+On Windows Console hosts, navigation keys are sent as standard VT sequences: for example, Up is
+`ESC [ A`, Down is `ESC [ B`, Right is `ESC [ C`, Left is `ESC [ D`, Home is `ESC [ H`, and End is
+`ESC [ F`.
 
 - `Ctrl+C` is sent to the remote terminal as byte `0x03`; it does not stop ChannelTerm.
-- Press `Ctrl+]` to enter local escape mode; ChannelTerm displays the available escape commands locally.
+- Press `Ctrl+]` to enter local escape mode; ChannelTerm displays the available escape commands
+  locally.
 - `Ctrl+] q` exits the local terminal client.
 - `Ctrl+] ?` displays local escape help.
 - `Ctrl+] ]` sends a literal `Ctrl+]` byte (`0x1d`) to the remote terminal.
-- `Ctrl+] t` toggles local-only `[HH:MM:SS]` timestamps before recognized shell prompts. It is off by default and does not timestamp ordinary output or change Session data.
-- `Ctrl+] f` opens the local file-transfer menu. Send defaults to `/tmp/cterm/user-files/<local-basename>` on the board and creates that hierarchy when needed; receive defaults to `./<remote-basename>` on the PC. See [file transfer](file-transfer.md) for overwrite and cancellation behavior.
-- `Ctrl+] Esc` cancels local escape mode without sending a byte to the remote terminal, reports `[ChannelTerm] Escape cancelled` locally, and returns subsequent input to normal remote forwarding.
+- `Ctrl+] t` toggles local-only `[HH:MM:SS]` timestamps before recognized shell prompts. It is off
+  by default and does not timestamp ordinary output or change Session data.
+- `Ctrl+] f` opens the local file-transfer menu. Send defaults to
+  `/tmp/cterm/user-files/<local-basename>` on the board and creates that hierarchy when needed;
+  receive defaults to `./<remote-basename>` on the PC. See [file transfer](file-transfer.md) for
+  overwrite and cancellation behavior.
+- `Ctrl+] Esc` cancels local escape mode without sending a byte to the remote terminal, reports
+  `[ChannelTerm] Escape cancelled` locally, and returns subsequent input to normal remote
+  forwarding.
 
-Use `--wake` only when a known, already-running shell is idle without a prompt. It sends exactly one carriage return after a new connection succeeds. It is not enabled by default.
+Use `--wake` only when a known, already-running shell is idle without a prompt. It sends exactly one
+carriage return after a new connection succeeds. It is not enabled by default.
 
 ## Local highlighting
 
@@ -68,6 +81,10 @@ Highlighting is presentation-only. Session buffers and MCP reads keep the origin
 
 ## Current serial constraints
 
-`data-bits` accepts 5, 6, 7, or 8; parity accepts `none`, `odd`, `even`, `mark`, or `space`; stop bits accept `1`, `1.5`, or `2`. The schema also accepts flow control values `none`, `software`, and `hardware`, but the current cross-platform backend only implements `none`; the other values fail before opening the port.
+`data-bits` accepts 5, 6, 7, or 8; parity accepts `none`, `odd`, `even`, `mark`, or `space`; stop
+bits accept `1`, `1.5`, or `2`. The schema also accepts flow control values `none`, `software`, and
+`hardware`, but the current cross-platform backend only implements `none`; the other values fail
+before opening the port.
 
-Physical serial connections do not support terminal resize operations. See the [CLI reference](../reference/cli.md) and [Transport module](../modules/transport.md) for details.
+Physical serial connections do not support terminal resize operations. See the
+[CLI reference](../reference/cli.md) and [Transport module](../modules/transport.md) for details.

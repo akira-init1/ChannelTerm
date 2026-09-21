@@ -132,6 +132,35 @@ go build ./cmd/channelterm
 [소스에서 빌드](docs/getting-started/build.md)와
 [빌드 및 테스트](docs/development/building-and-testing.md)를 참고하십시오.
 
+## 설정
+
+ChannelTerm은 로컬 파일을 각 플랫폼의 사용자 설정 디렉터리에 저장합니다.
+
+| 플랫폼 | 기본 디렉터리 |
+| --- | --- |
+| Windows | `%AppData%\channelterm\` |
+| Linux | `$XDG_CONFIG_HOME/channelterm/`, 설정되지 않은 경우 `~/.config/channelterm/` |
+| macOS | `~/Library/Application Support/channelterm/` |
+
+`config.toml`에는 사용자가 관리하는 시리얼 Profile과 연결 정책이 저장됩니다. `state.json`은
+ChannelTerm이 관리하는 장치 식별 상태입니다. `http-auth-token`은 MCP HTTP 클라이언트 인증에
+사용되는 비밀 정보이므로 공유하거나 커밋하지 마십시오.
+
+```powershell
+# 시리얼 Profile을 저장하고 다시 사용합니다.
+channelterm serial --port COM8 --baud 115200 --save board
+channelterm serial --profile board
+
+# 이 작업에서 다른 config.toml을 사용합니다.
+channelterm serial --config ./channelterm.toml --profile board
+```
+
+주요 옵션은 `--profile`, `--save`, `--config`, `--port`, `--baud`입니다. MCP Host는
+`--connection-policy ask|auto|deny`도 지원합니다. `--config`는 선택한 `config.toml`만 변경하며
+기본 `state.json`이나 `http-auth-token`은 이동하지 않습니다. 전체 필드, 우선순위, 검증 및 영속화
+동작은 [시리얼 Profile](docs/getting-started/serial-profiles.md)과
+[설정 레퍼런스](docs/reference/configuration.md)를 참고하십시오.
+
 ## 문서
 
 - [문서 색인](docs/README.md)

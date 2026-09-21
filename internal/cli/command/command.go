@@ -83,7 +83,7 @@ var (
 const (
 	defaultMCPListen            = "127.0.0.1:37099"
 	defaultMCPPath              = "/mcp"
-	mcpTransportDocsURL         = "https://modelcontextprotocol.io/specification/2025-11-25/basic/transports"
+	mcpTransportDocsURL         = "https://modelcontextprotocol.io/specification/latest/basic/transports"
 	httpAuthTokenEnvVar         = "CHANNELTERM_HTTP_AUTH_TOKEN"
 	httpHostLifetimeHeader      = "X-ChannelTerm-Host-Lifetime"
 	httpHostLifetimeAttachment  = "attachment"

@@ -228,6 +228,35 @@ go build ./cmd/channelterm
 
 See [Build from source](docs/getting-started/build.md) for the supported platforms and [Building and testing](docs/development/building-and-testing.md) for repository checks and cross-build scripts.
 
+## Configuration
+
+ChannelTerm stores its local files under the platform user-configuration directory:
+
+| Platform | Default directory |
+| --- | --- |
+| Windows | `%AppData%\channelterm\` |
+| Linux | `$XDG_CONFIG_HOME/channelterm/`, or `~/.config/channelterm/` when unset |
+| macOS | `~/Library/Application Support/channelterm/` |
+
+`config.toml` contains user-owned serial profiles and connection policy. `state.json` is
+ChannelTerm-managed device identity state. `http-auth-token` is the secret used to authenticate MCP
+HTTP clients; do not share or commit it.
+
+```powershell
+# Save and reuse a serial profile.
+channelterm serial --port COM8 --baud 115200 --save board
+channelterm serial --profile board
+
+# Select a different config.toml for this operation.
+channelterm serial --config ./channelterm.toml --profile board
+```
+
+Common options are `--profile`, `--save`, `--config`, `--port`, and `--baud`; the MCP Host also
+accepts `--connection-policy ask|auto|deny`. `--config` changes only the selected `config.toml`, not
+the default `state.json` or `http-auth-token`. See [Serial profiles](docs/getting-started/serial-profiles.md)
+and the [configuration reference](docs/reference/configuration.md) for complete fields, precedence,
+validation, and persistence behavior.
+
 ## Documentation
 
 - [Documentation index](docs/README.md)

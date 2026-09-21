@@ -16,12 +16,12 @@ local environment):
 channelterm devel
 commit:   unknown
 built:    unknown
-go:       go1.25.1
+go:       GO_VERSION
 platform: linux/amd64
 ```
 
-Tagged release artifacts receive their version through the documented release script. Build a
-native development executable with:
+Tagged release artifacts receive their version through the documented release script. Build a native
+development executable with:
 
 ```powershell
 go build ./cmd/channelterm
@@ -34,7 +34,8 @@ go test ./...
 go vet ./...
 ```
 
-The repository also includes scripts that rebuild `dist/` for the six supported desktop targets with `CGO_ENABLED=0`:
+The repository also includes scripts that rebuild `dist/` for the six supported desktop targets with
+`CGO_ENABLED=0`:
 
 - PowerShell: `./scripts/build.ps1`
 - Bash on Linux: `./scripts/build.sh`
@@ -46,6 +47,8 @@ Set `CHANNELTERM_VERSION` only when intentionally producing versioned artifacts.
 `./scripts/release.sh VERSION` from a clean annotated `vVERSION` tag; it runs the release checks and
 creates `dist/SHA256SUMS` without publishing anything.
 
-The targets are Windows, Linux, and macOS on `amd64` and `arm64`. Cross-compilation proves that the code builds for a target; it does not prove native console behavior or communication with a physical serial device.
+The targets are Windows, Linux, and macOS on `amd64` and `arm64`. Cross-compilation proves that the
+code builds for a target; it does not prove native console behavior or communication with a physical
+serial device.
 
 See [Building and testing](../development/building-and-testing.md) for the full development checks.

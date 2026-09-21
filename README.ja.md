@@ -133,6 +133,35 @@ go build ./cmd/channelterm
 [ソースからのビルド](docs/getting-started/build.md)および
 [ビルドとテスト](docs/development/building-and-testing.md)を参照してください。
 
+## 設定
+
+ChannelTerm はローカルファイルを各プラットフォームのユーザー設定ディレクトリに保存します。
+
+| プラットフォーム | 既定のディレクトリ |
+| --- | --- |
+| Windows | `%AppData%\channelterm\` |
+| Linux | `$XDG_CONFIG_HOME/channelterm/`、未設定の場合は `~/.config/channelterm/` |
+| macOS | `~/Library/Application Support/channelterm/` |
+
+`config.toml` にはユーザー管理のシリアル Profile と接続ポリシーが保存されます。`state.json` は
+ChannelTerm が管理するデバイス識別状態です。`http-auth-token` は MCP HTTP クライアントの認証に
+使用する秘密情報なので、共有したりコミットしたりしないでください。
+
+```powershell
+# シリアル Profile を保存して再利用します。
+channelterm serial --port COM8 --baud 115200 --save board
+channelterm serial --profile board
+
+# この操作で別の config.toml を使用します。
+channelterm serial --config ./channelterm.toml --profile board
+```
+
+主なオプションは `--profile`、`--save`、`--config`、`--port`、`--baud` です。MCP Host は
+`--connection-policy ask|auto|deny` にも対応します。`--config` が切り替えるのは選択した
+`config.toml` だけで、既定の `state.json` や `http-auth-token` は移動しません。全フィールド、
+優先順位、検証、永続化の動作については[シリアル Profile](docs/getting-started/serial-profiles.md)と
+[設定リファレンス](docs/reference/configuration.md)を参照してください。
+
 ## ドキュメント
 
 - [ドキュメント索引](docs/README.md)

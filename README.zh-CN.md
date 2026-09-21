@@ -128,6 +128,33 @@ go build ./cmd/channelterm
 支持的桌面目标为 Windows、Linux、macOS 的 amd64/arm64。详见
 [从源码构建](docs/getting-started/build.md)和[构建与测试](docs/development/building-and-testing.md)。
 
+## 配置
+
+ChannelTerm 将本地文件保存在各平台的用户配置目录中：
+
+| 平台 | 默认目录 |
+| --- | --- |
+| Windows | `%AppData%\channelterm\` |
+| Linux | `$XDG_CONFIG_HOME/channelterm/`；未设置时为 `~/.config/channelterm/` |
+| macOS | `~/Library/Application Support/channelterm/` |
+
+`config.toml` 保存用户维护的串口 Profile 和连接策略；`state.json` 是 ChannelTerm 自动维护的
+设备身份状态；`http-auth-token` 是 MCP HTTP 客户端的认证密钥，请勿分享或提交。
+
+```powershell
+# 保存并复用串口 Profile。
+channelterm serial --port COM8 --baud 115200 --save board
+channelterm serial --profile board
+
+# 本次操作使用另一个 config.toml。
+channelterm serial --config ./channelterm.toml --profile board
+```
+
+常用参数包括 `--profile`、`--save`、`--config`、`--port` 和 `--baud`；MCP Host 还支持
+`--connection-policy ask|auto|deny`。`--config` 只替换所选的 `config.toml`，不会移动默认的
+`state.json` 或 `http-auth-token`。完整字段、优先级、校验和持久化行为见
+[串口 Profile](docs/getting-started/serial-profiles.md)和[配置参考](docs/reference/configuration.md)。
+
 ## 文档
 
 - [文档索引](docs/README.md)

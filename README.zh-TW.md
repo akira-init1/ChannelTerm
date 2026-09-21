@@ -128,6 +128,33 @@ go build ./cmd/channelterm
 支援的桌面目標為 Windows、Linux、macOS 的 amd64/arm64。詳見
 [從原始碼建置](docs/getting-started/build.md)與[建置及測試](docs/development/building-and-testing.md)。
 
+## 設定
+
+ChannelTerm 將本機檔案儲存在各平台的使用者設定目錄中：
+
+| 平台 | 預設目錄 |
+| --- | --- |
+| Windows | `%AppData%\channelterm\` |
+| Linux | `$XDG_CONFIG_HOME/channelterm/`；未設定時為 `~/.config/channelterm/` |
+| macOS | `~/Library/Application Support/channelterm/` |
+
+`config.toml` 儲存使用者維護的序列埠 Profile 與連線原則；`state.json` 是 ChannelTerm 自動維護的
+裝置身分狀態；`http-auth-token` 是 MCP HTTP 用戶端的驗證密鑰，請勿分享或提交。
+
+```powershell
+# 儲存並重複使用序列埠 Profile。
+channelterm serial --port COM8 --baud 115200 --save board
+channelterm serial --profile board
+
+# 本次操作使用另一個 config.toml。
+channelterm serial --config ./channelterm.toml --profile board
+```
+
+常用參數包括 `--profile`、`--save`、`--config`、`--port` 與 `--baud`；MCP Host 也支援
+`--connection-policy ask|auto|deny`。`--config` 只會替換所選的 `config.toml`，不會移動預設的
+`state.json` 或 `http-auth-token`。完整欄位、優先順序、驗證與持久化行為請參閱
+[序列埠 Profile](docs/getting-started/serial-profiles.md)與[設定參考](docs/reference/configuration.md)。
+
 ## 文件
 
 - [文件索引](docs/README.md)

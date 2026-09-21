@@ -1,6 +1,7 @@
 # Repository Map
 
-This document is the sole canonical detailed source/package tree and ownership map. Summaries elsewhere should link here instead of duplicating it.
+This document is the sole canonical detailed source/package tree and ownership map. Summaries
+elsewhere should link here instead of duplicating it.
 
 The public repository currently has the following durable structure:
 
@@ -49,14 +50,27 @@ ChannelTerm/
 `-- go.sum
 ```
 
-Tests use `*_test.go` beside the packages they exercise. The repository does not expose packages outside `internal/`; consumers use the executable's CLI and MCP boundaries.
+Tests use `*_test.go` beside the packages they exercise. The repository does not expose packages
+outside `internal/`; consumers use the executable's CLI and MCP boundaries.
 
 The main ownership distinctions are deliberate:
 
-- **Automation:** `.github/workflows` enforces hosted repository checks. `scripts` owns local build and release verification without publishing releases.
-- **Adapter:** `cmd/channelterm`, `internal/cli`, and `internal/mcp` own process composition and external protocol or presentation concerns. `internal/init/mcp` owns local MCP-client configuration discovery and installation. These packages may depend inward; Core may not depend on them.
-- **Application:** `internal/core/app` orchestrates adapter-neutral use cases without owning process lifetime or presentation.
-- **Core services:** `internal/core/channel`, `session`, `config`, `connectionpolicy`, `device`, and `tool` own their protocol-neutral responsibilities. Channel owns established stream I/O and lifecycle; Session owns sharing, retained bytes, activity, and write serialization above it. `config` keeps connection profiles, discovery policy, and user preferences separate despite sharing one TOML file.
-- **Transport:** `internal/core/transport` defines protocol-specific Channel establishment. `internal/core/transport/serial` owns serial connection setup and discovery; its opened port is transferred to a Channel.
+- **Automation:** `.github/workflows` enforces hosted repository checks. `scripts` owns local build
+  and release verification without publishing releases.
+- **Adapter:** `cmd/channelterm`, `internal/cli`, and `internal/mcp` own process composition and
+  external protocol or presentation concerns. `internal/init/mcp` owns local MCP-client
+  configuration discovery and installation. These packages may depend inward; Core may not depend on
+  them.
+- **Application:** `internal/core/app` orchestrates adapter-neutral use cases without owning process
+  lifetime or presentation.
+- **Core services:** `internal/core/channel`, `session`, `config`, `connectionpolicy`, `device`, and
+  `tool` own their protocol-neutral responsibilities. Channel owns established stream I/O and
+  lifecycle; Session owns sharing, retained bytes, activity, and write serialization above it.
+  `config` keeps connection profiles, discovery policy, and user preferences separate despite
+  sharing one TOML file.
+- **Transport:** `internal/core/transport` defines protocol-specific Channel establishment.
+  `internal/core/transport/serial` owns serial connection setup and discovery; its opened port is
+  transferred to a Channel.
 
-Update this map when a top-level directory or `internal` package is added, removed, moved, or assigned a materially different stable responsibility.
+Update this map when a top-level directory or `internal` package is added, removed, moved, or
+assigned a materially different stable responsibility.
