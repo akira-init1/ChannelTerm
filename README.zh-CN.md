@@ -99,8 +99,10 @@ channelterm init --mcp
 `http://127.0.0.1:37099/mcp`。AI 可以列出、读取和操作 `SER-1`；在已知空闲的 Bash 提示符
 上应优先使用 `terminal_exec`，原始按键和交互程序使用 `terminal_write`。
 
-HTTP Host 需要 Bearer token，默认只监听回环地址。内置 CLI 会读取本机用户 token；不要把
-未经 TLS 和额外网络访问控制保护的端点直接暴露到不可信网络。
+HTTP Host 需要 Bearer token，默认只监听回环地址。内置 CLI 会读取本机用户 token；它也可以
+[监听受信任的局域网](docs/getting-started/mcp-server.md#listen-on-a-lan)，远程客户端必须使用 Host
+可达的局域网地址，并通过 `Authorization` 请求头发送相同的 token。不要把未经 TLS 和额外网络
+访问控制保护的端点直接暴露到不可信网络。
 
 ## 文件传输
 
@@ -111,6 +113,10 @@ channelterm file send firmware.bin --session SER-1
 channelterm file receive /tmp/log.txt ./log.txt --session SER-1
 channelterm file send ./build/release /tmp/release --session SER-1
 ```
+
+发送时省略远端目标路径，文件或目录会默认保存到 `/tmp/cterm/mcp-files/`；交互快捷键默认
+使用 `/tmp/cterm/user-files/`。ChannelTerm 会按需创建目录，并为同名目标选择 `_1`、`_2`
+等不覆盖现有内容的名称。
 
 目标端必须是具备所需标准命令的 Linux Shell。具体前提、覆盖保护、取消和 SHA-256 校验规则
 见[文件传输流程](docs/getting-started/file-transfer.md)。

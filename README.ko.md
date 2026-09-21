@@ -102,8 +102,10 @@ HTTP를 선택하면 지원되는 Codex, Claude Code, OpenCode 또는 Zoo Code �
 대화형 프로그램에는 `terminal_write`를 사용합니다.
 
 HTTP Host에는 Bearer token이 필요하며 기본적으로 루프백 주소에서만 수신합니다. 내장 CLI는 로컬
-사용자 token을 자동으로 읽습니다. TLS와 추가 네트워크 접근 제어 없이 신뢰할 수 없는 네트워크에
-엔드포인트를 직접 노출하지 마십시오.
+사용자 token을 자동으로 읽습니다. [신뢰할 수 있는 LAN에서 수신](docs/getting-started/mcp-server.md#listen-on-a-lan)할
+수도 있지만, 원격 클라이언트는 Host의 연결 가능한 LAN 주소를 사용하고 `Authorization` 헤더로 같은
+token을 보내야 합니다. TLS와 별도의 네트워크 접근 제어 없이 신뢰할 수 없는 네트워크에 엔드포인트를
+직접 노출하지 마십시오.
 
 ## 파일 전송
 
@@ -114,6 +116,11 @@ channelterm file send firmware.bin --session SER-1
 channelterm file receive /tmp/log.txt ./log.txt --session SER-1
 channelterm file send ./build/release /tmp/release --session SER-1
 ```
+
+전송할 때 원격 대상 경로를 생략하면 파일이나 디렉터리는 기본적으로
+`/tmp/cterm/mcp-files/`에 저장됩니다. 대화형 단축키는 `/tmp/cterm/user-files/`를
+사용합니다. ChannelTerm은 필요한 디렉터리를 만들고, 같은 이름의 대상이 있으면 기존 내용을
+덮어쓰지 않도록 `_1`, `_2` 등의 이름을 선택합니다.
 
 대상은 필요한 표준 명령을 갖춘 Linux Shell이어야 합니다. 요구 사항, 덮어쓰기 방지, 취소 및
 SHA-256 검증 규칙은 [파일 전송 워크플로](docs/getting-started/file-transfer.md)를 참고하십시오.

@@ -166,7 +166,11 @@ shared or committed.
 
 Press `Ctrl+]` to enter local escape mode. ChannelTerm displays the available escape commands locally. `Ctrl+] f` starts a guided file/directory send/receive flow on the current attachment, with `/tmp/cterm/user-files/<basename>` and `./<basename>` defaults and non-overwriting `_1`, `_2` selection. `Ctrl+] t` is off by default and prepends local `[HH:MM:SS]` timestamps only to conservatively recognized shell prompts; it does not change shared Session or MCP output.
 
-The HTTP server requires a per-user Bearer token and defaults to a loopback-only listener. Built-in CLI clients use the local token automatically. Remote MCP clients must send the same token through the `Authorization` header; do not expose the endpoint without TLS and separate network access controls.
+The HTTP server requires a per-user Bearer token and defaults to a loopback-only listener. Built-in
+CLI clients use the local token automatically. It can also [listen on a trusted
+LAN](docs/getting-started/mcp-server.md#listen-on-a-lan); remote clients must use the Host's reachable
+address and send the same token through the `Authorization` header. Do not expose the endpoint
+without TLS and separate network access controls.
 
 ## What It Enables
 

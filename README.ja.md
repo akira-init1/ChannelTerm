@@ -102,8 +102,10 @@ HTTP を選ぶと、対応する Codex、Claude Code、OpenCode、Zoo Code ク�
 対話型プログラムには `terminal_write` を使用します。
 
 HTTP Host は Bearer token を必要とし、既定ではループバックだけを待ち受けます。組み込み CLI
-はローカルユーザーの token を自動的に読み取ります。TLS と追加のネットワークアクセス制御なしで
-信頼できないネットワークへ公開しないでください。
+はローカルユーザーの token を自動的に読み取ります。[信頼できる LAN で待ち受ける](docs/getting-started/mcp-server.md#listen-on-a-lan)
+こともできますが、リモートクライアントは Host の到達可能な LAN アドレスを使用し、
+`Authorization` ヘッダーで同じ token を送信する必要があります。TLS と追加のネットワークアクセス
+制御なしで信頼できないネットワークへ公開しないでください。
 
 ## ファイル転送
 
@@ -114,6 +116,11 @@ channelterm file send firmware.bin --session SER-1
 channelterm file receive /tmp/log.txt ./log.txt --session SER-1
 channelterm file send ./build/release /tmp/release --session SER-1
 ```
+
+送信時にリモートの宛先を省略すると、ファイルまたはディレクトリは既定で
+`/tmp/cterm/mcp-files/` に保存されます。対話型ショートカットは
+`/tmp/cterm/user-files/` を使用します。ChannelTerm は必要なディレクトリを作成し、同名の
+宛先がある場合は既存内容を上書きしないよう `_1`、`_2` などの名前を選びます。
 
 ターゲット側は必要な標準コマンドを備えた Linux Shell である必要があります。前提条件、上書き
 保護、キャンセル、SHA-256 検証については[ファイル転送ワークフロー](docs/getting-started/file-transfer.md)

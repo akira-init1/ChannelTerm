@@ -72,6 +72,22 @@ channelterm mcp --transport http --listen 127.0.0.1:12345 --path /terminal
 The path must begin with `/`. `attach` automatically starts a host only for the exact default local
 endpoint. For a different endpoint, start the host explicitly.
 
+### Listen on a LAN
+
+The HTTP Host can accept clients from a trusted LAN. Prefer binding the Host's specific LAN address
+instead of every interface. For a machine whose LAN address is `192.168.1.20`, run:
+
+```powershell
+channelterm mcp --transport http --listen 192.168.1.20:37099
+```
+
+Configure clients with `http://192.168.1.20:37099/mcp`. To listen on every IPv4 interface, use
+`--listen 0.0.0.0:37099`; `0.0.0.0` is only a bind address, so clients must still use the Host's
+reachable LAN address. Allow the selected TCP port through the Host firewall only for trusted source
+networks, and provide the same Bearer token to remote clients through their secret or header
+configuration. ChannelTerm does not provide TLS, so use TLS termination and separate network access
+controls before traffic crosses an untrusted network.
+
 An automatically started Host includes `X-ChannelTerm-Host-Lifetime: attachment` on every
 authenticated response. Bundled attachments and file commands use that signal to warn every client,
 including clients that join later, that the Host and its Sessions stop with the owning attachment. A
