@@ -11,6 +11,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -69,9 +70,15 @@ type cliSession interface {
 // opening so CLI behavior can be tested without a device.
 type serialSessionFactory func(serialtransport.Config) (cliSession, error)
 
-// version identifies this CLI build in CLI and MCP metadata. Release builds
-// replace the development value through the Go linker's -X flag.
-var version = "devel"
+var (
+	// version identifies this CLI build in CLI and MCP metadata. Release builds
+	// replace the development value through the Go linker's -X flag.
+	version = "devel"
+	// buildCommit and buildTime record binary provenance when a repository build
+	// script supplies them. Direct Go builds retain explicit unknown values.
+	buildCommit = "unknown"
+	buildTime   = "unknown"
+)
 
 const (
 	defaultMCPListen            = "127.0.0.1:37099"
@@ -164,6 +171,7 @@ func runWithDependenciesWithInterrupts(ctx context.Context, args []string, input
 	help := flags.Bool("help", false, "show help and exit")
 	shortHelp := flags.Bool("h", false, "show help and exit")
 	showVersion := flags.Bool("version", false, "print version and exit")
+	shortVersion := flags.Bool("v", false, "print version and exit")
 
 	if len(args) == 1 && args[0] == "help" {
 		flags.Usage()
@@ -182,7 +190,7 @@ func runWithDependenciesWithInterrupts(ctx context.Context, args []string, input
 	if flags.NArg() > 0 {
 		return fmt.Errorf("unknown command %q", flags.Arg(0))
 	}
-	if *showVersion {
+	if *showVersion || *shortVersion {
 		printVersion(output)
 		return nil
 	}
@@ -1044,9 +1052,14 @@ func writeDisconnectStatusWriter(writeLocal func([]byte) error, lastOutputEndedL
 	return writeLocal([]byte("Disconnected.\r\n"))
 }
 
-// printVersion emits the stable CLI version format used by scripts and users.
+// printVersion emits version and build provenance in a stable line-oriented
+// format used by scripts and users.
 func printVersion(output io.Writer) {
 	fmt.Fprintf(output, "channelterm %s\n", version)
+	fmt.Fprintf(output, "commit:   %s\n", buildCommit)
+	fmt.Fprintf(output, "built:    %s\n", buildTime)
+	fmt.Fprintf(output, "go:       %s\n", runtime.Version())
+	fmt.Fprintf(output, "platform: %s/%s\n", runtime.GOOS, runtime.GOARCH)
 }
 
 // newCLISerialApplication adapts the CLI's injectable Session factory to the

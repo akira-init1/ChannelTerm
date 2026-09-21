@@ -3,6 +3,22 @@ $ErrorActionPreference = "Stop"
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $distDir = Join-Path $repoRoot "dist"
 $versionSymbol = "github.com/akira-init1/ChannelTerm/internal/cli/command.version"
+$commitSymbol = "github.com/akira-init1/ChannelTerm/internal/cli/command.buildCommit"
+$timeSymbol = "github.com/akira-init1/ChannelTerm/internal/cli/command.buildTime"
+$buildVersion = if ([string]::IsNullOrWhiteSpace($env:CHANNELTERM_VERSION)) { "devel" } else { $env:CHANNELTERM_VERSION.Trim() }
+$buildCommit = "unknown"
+$gitCommand = Get-Command git -ErrorAction SilentlyContinue
+if ($null -ne $gitCommand) {
+    $candidateCommit = & git -C $repoRoot rev-parse --short=12 HEAD 2>$null
+    if ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace($candidateCommit)) {
+        $buildCommit = $candidateCommit.Trim()
+        $dirtyState = & git -C $repoRoot status --porcelain --untracked-files=normal
+        if ($LASTEXITCODE -eq 0 -and $null -ne $dirtyState) {
+            $buildCommit += "-dirty"
+        }
+    }
+}
+$buildTime = [DateTimeOffset]::UtcNow.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", [Globalization.CultureInfo]::InvariantCulture)
 $artifacts = @(
     [PSCustomObject]@{ Name = "channelterm-windows-amd64.exe"; GOOS = "windows"; GOARCH = "amd64" },
     [PSCustomObject]@{ Name = "channelterm-windows-arm64.exe"; GOOS = "windows"; GOARCH = "arm64" },
@@ -73,10 +89,8 @@ Push-Location -LiteralPath $repoRoot
 try {
     $env:CGO_ENABLED = "0"
 
-    $buildArguments = @("build")
-    if (-not [string]::IsNullOrWhiteSpace($env:CHANNELTERM_VERSION)) {
-        $buildArguments += @("-ldflags", "-X $versionSymbol=$($env:CHANNELTERM_VERSION)")
-    }
+    $linkerFlags = "-X $versionSymbol=$buildVersion -X $commitSymbol=$buildCommit -X $timeSymbol=$buildTime"
+    $buildArguments = @("build", "-ldflags", $linkerFlags)
 
     foreach ($artifact in $artifacts) {
         Write-Host "Building $($artifact.GOOS) $($artifact.GOARCH)..."

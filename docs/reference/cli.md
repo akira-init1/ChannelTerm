@@ -25,9 +25,21 @@ channelterm [options] [command]
 ```
 
 With no arguments, ChannelTerm prints top-level usage and exits successfully. `help`, `--help`,
-and `-h` do the same. `version` and `--version` print `channelterm VERSION`. Ordinary source builds
-use `devel`; tagged release artifacts use the injected release version. An unknown command returns
-an error and the process exits with status 1.
+and `-h` do the same. `version`, `--version`, and `-v` print the same five-line build identity:
+
+```text
+channelterm VERSION
+commit:   COMMIT
+built:    TIMESTAMP
+go:       GO_VERSION
+platform: GOOS/GOARCH
+```
+
+Ordinary direct Go builds use version `devel` and report `unknown` for commit and build time. The
+repository build scripts inject the current 12-character Git commit (with `-dirty` when applicable)
+and a UTC RFC 3339 build timestamp. Tagged release artifacts use the injected release version. Go
+version and target platform come from the compiled binary. An unknown command returns an error and
+the process exits with status 1.
 
 The top-level help currently lists `attach`, `file`, `init`, `list`, `mcp`, `serial`, `help`,
 and `version`.

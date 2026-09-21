@@ -51,10 +51,12 @@ linux/amd64    linux/arm64
 darwin/amd64   darwin/arm64
 ```
 
-The PowerShell script reports size, timestamp, and SHA-256 for each artifact. The Bash script additionally requires `stat`, `sha256sum`, and `awk`. Do not keep unrelated files only in `dist/` when running either script.
+The PowerShell script reports size, timestamp, and SHA-256 for each artifact. The Bash script additionally requires `stat`, `sha256sum`, `awk`, and `date`. Do not keep unrelated files only in `dist/` when running either script.
 
-Ordinary source builds report version `devel`. Set `CHANNELTERM_VERSION` to inject one version into
-both CLI output and MCP server metadata:
+Direct Go builds report version `devel` with unknown commit and build time. Both repository build
+scripts inject the current 12-character Git commit and one UTC RFC 3339 timestamp into all six
+artifacts; a dirty worktree adds `-dirty` to the commit. Set `CHANNELTERM_VERSION` to inject one
+version into both CLI output and MCP server metadata:
 
 ```bash
 CHANNELTERM_VERSION=0.1.0 ./scripts/build.sh
@@ -81,9 +83,9 @@ git push origin v0.1.0
 
 Use `git tag -a` instead of `git tag -s` only when signing is unavailable. `scripts/release.sh`
 rejects a dirty worktree, a missing/mismatched/lightweight tag, and an invalid version. It runs
-tests, vet, and the race detector; rebuilds all six targets with the release version injected;
-verifies the native Linux binary's version output; and writes `dist/SHA256SUMS`. It does not publish
-the tag or artifacts.
+tests, vet, and the race detector; rebuilds all six targets with version and provenance metadata;
+verifies all five metadata fields in the native Linux binary; and writes `dist/SHA256SUMS`. It does
+not publish the tag or artifacts.
 
 ## Evidence boundaries
 

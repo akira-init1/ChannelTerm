@@ -10,6 +10,8 @@ set -euo pipefail
 readonly repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
 readonly dist_dir="${repo_root}/dist"
 readonly version_symbol="github.com/akira-init1/ChannelTerm/internal/cli/command.version"
+readonly commit_symbol="github.com/akira-init1/ChannelTerm/internal/cli/command.buildCommit"
+readonly time_symbol="github.com/akira-init1/ChannelTerm/internal/cli/command.buildTime"
 
 readonly -a targets=(
   "windows amd64 channelterm-windows-amd64.exe"
@@ -21,11 +23,7 @@ readonly -a targets=(
 )
 
 declare -A previous_hashes=()
-build_flags=()
-
-if [[ -n "${CHANNELTERM_VERSION:-}" ]]; then
-  build_flags=(-ldflags "-X ${version_symbol}=${CHANNELTERM_VERSION}")
-fi
+readonly build_version="${CHANNELTERM_VERSION:-devel}"
 
 require_command() {
   local command_name="$1"
@@ -36,9 +34,20 @@ require_command() {
   fi
 }
 
-for required_command in go stat sha256sum awk; do
+for required_command in go stat sha256sum awk date; do
   require_command "${required_command}"
 done
+
+build_commit="unknown"
+if command -v git >/dev/null 2>&1 && git -C "${repo_root}" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  build_commit="$(git -C "${repo_root}" rev-parse --short=12 HEAD)"
+  if [[ -n "$(git -C "${repo_root}" status --porcelain --untracked-files=normal)" ]]; then
+    build_commit="${build_commit}-dirty"
+  fi
+fi
+readonly build_commit
+readonly build_time="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+readonly -a build_flags=(-ldflags "-X ${version_symbol}=${build_version} -X ${commit_symbol}=${build_commit} -X ${time_symbol}=${build_time}")
 
 show_artifact_info() {
   local artifact_name="$1"

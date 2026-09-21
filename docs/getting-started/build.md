@@ -9,10 +9,15 @@ go run ./cmd/channelterm --help
 go run ./cmd/channelterm version
 ```
 
-An ordinary source build prints:
+An ordinary direct source build prints output in this form (Go version and platform depend on the
+local environment):
 
 ```text
 channelterm devel
+commit:   unknown
+built:    unknown
+go:       go1.25.1
+platform: linux/amd64
 ```
 
 Tagged release artifacts receive their version through the documented release script. Build a
@@ -33,6 +38,9 @@ The repository also includes scripts that rebuild `dist/` for the six supported 
 
 - PowerShell: `./scripts/build.ps1`
 - Bash on Linux: `./scripts/build.sh`
+
+Both scripts inject the current 12-character Git commit and one UTC RFC 3339 build timestamp into
+every artifact. A commit is suffixed with `-dirty` when tracked or untracked worktree changes exist.
 
 Set `CHANNELTERM_VERSION` only when intentionally producing versioned artifacts. Maintainers use
 `./scripts/release.sh VERSION` from a clean annotated `vVERSION` tag; it runs the release checks and

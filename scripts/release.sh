@@ -44,8 +44,17 @@ if [[ ! -x "${host_binary}" ]]; then
   printf 'cannot verify release version for unsupported Linux host architecture %s\n' "${host_arch}" >&2
   exit 1
 fi
-if [[ "$("${host_binary}" version)" != "channelterm ${version}" ]]; then
-  printf 'built binary does not report channelterm %s\n' "${version}" >&2
+mapfile -t version_lines < <("${host_binary}" version)
+readonly expected_commit="$(git -C "${repo_root}" rev-parse --short=12 HEAD)"
+readonly expected_go="$(go env GOVERSION)"
+if [[ "${#version_lines[@]}" -ne 5 ||
+      "${version_lines[0]}" != "channelterm ${version}" ||
+      "${version_lines[1]}" != "commit:   ${expected_commit}" ||
+      ! "${version_lines[2]}" =~ ^built:[[:space:]]{4}[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$ ||
+      "${version_lines[3]}" != "go:       ${expected_go}" ||
+      "${version_lines[4]}" != "platform: linux/${host_arch}" ]]; then
+  printf 'built binary has unexpected version metadata:\n' >&2
+  printf '  %s\n' "${version_lines[@]}" >&2
   exit 1
 fi
 

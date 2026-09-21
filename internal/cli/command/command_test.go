@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -82,13 +84,14 @@ func TestRunHelpDescribesSharedHumanAndAIAccess(t *testing.T) {
 }
 
 func TestRunPrintsVersion(t *testing.T) {
-	for _, args := range [][]string{{"version"}, {"--version"}} {
+	want := fmt.Sprintf("channelterm devel\ncommit:   unknown\nbuilt:    unknown\ngo:       %s\nplatform: %s/%s\n", runtime.Version(), runtime.GOOS, runtime.GOARCH)
+	for _, args := range [][]string{{"version"}, {"--version"}, {"-v"}} {
 		var output bytes.Buffer
 		if err := run(args, &output); err != nil {
 			t.Fatalf("run(%q) error = %v", args, err)
 		}
-		if got := output.String(); got != "channelterm devel\n" {
-			t.Errorf("run(%q) output = %q, want development version", args, got)
+		if got := output.String(); got != want {
+			t.Errorf("run(%q) output = %q, want %q", args, got, want)
 		}
 	}
 }
