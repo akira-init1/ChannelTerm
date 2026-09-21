@@ -2,12 +2,25 @@
 
 # Build one immutable, tagged ChannelTerm release and write its checksums.
 
+readonly semver_core_identifier='(0|[1-9][0-9]*)'
+readonly semver_prerelease_identifier='(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)'
+readonly semver_pattern="^${semver_core_identifier}\\.${semver_core_identifier}\\.${semver_core_identifier}(-${semver_prerelease_identifier}(\\.${semver_prerelease_identifier})*)?(\\+[0-9A-Za-z-]+(\\.[0-9A-Za-z-]+)*)?$"
+
+is_semver() {
+  local candidate="$1"
+  [[ "${candidate}" =~ ${semver_pattern} ]]
+}
+
+if [[ "${BASH_SOURCE[0]}" != "$0" ]]; then
+  return 0
+fi
+
 set -euo pipefail
 
 readonly repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
 readonly version="${1:-}"
 
-if [[ ! "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+if ! is_semver "${version}"; then
   printf 'usage: %s VERSION (for example 0.1.0 or 0.1.0-rc.1)\n' "$0" >&2
   exit 2
 fi

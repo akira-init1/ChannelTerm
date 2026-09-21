@@ -82,10 +82,11 @@ git push origin v0.1.0
 ```
 
 Use `git tag -a` instead of `git tag -s` only when signing is unavailable. `scripts/release.sh`
-rejects a dirty worktree, a missing/mismatched/lightweight tag, and an invalid version. It runs
-tests, vet, and the race detector; rebuilds all six targets with version and provenance metadata;
-verifies all five metadata fields in the native Linux binary; and writes `dist/SHA256SUMS`. It does
-not publish the tag or artifacts.
+requires a SemVer 2.0 version and rejects leading-zero core identifiers, malformed prerelease/build
+identifiers, a dirty worktree, or a missing/mismatched/lightweight tag. It runs tests, vet, and the
+race detector; rebuilds all six targets with version and provenance metadata; verifies all five
+metadata fields in the native Linux binary; and writes `dist/SHA256SUMS`. It does not publish the
+tag or artifacts.
 
 ## Evidence boundaries
 

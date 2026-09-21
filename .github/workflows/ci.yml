@@ -76,6 +76,21 @@ jobs:
             exit 1
           fi
       - run: git diff --check
+      - name: Check release version validation
+        shell: bash
+        run: |
+          source ./scripts/release.sh
+          valid=(0.1.0 1.2.3-rc.1 1.2.3-alpha.beta 1.2.3+build.5 1.2.3-rc.1+build.5)
+          invalid=(01.2.3 1.02.3 1.2.03 1.2.3-01 1.2.3- 1.2.3+ 1.2.3..rc 1.2.3-.. 1.2.3_rc v1.2.3 1.2)
+          for candidate in "${valid[@]}"; do
+            is_semver "${candidate}" || { printf 'valid SemVer rejected: %s\n' "${candidate}"; exit 1; }
+          done
+          for candidate in "${invalid[@]}"; do
+            if is_semver "${candidate}"; then
+              printf 'invalid SemVer accepted: %s\n' "${candidate}"
+              exit 1
+            fi
+          done
       - run: go vet ./...
       - run: go test -race ./...
       - run: ./scripts/build.sh
