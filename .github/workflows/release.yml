@@ -101,8 +101,8 @@ jobs:
             "channelterm_${RELEASE_VERSION}_windows_arm64.zip"
             "channelterm_${RELEASE_VERSION}_linux_amd64.tar.gz"
             "channelterm_${RELEASE_VERSION}_linux_arm64.tar.gz"
-            "channelterm_${RELEASE_VERSION}_darwin_amd64.tar.gz"
-            "channelterm_${RELEASE_VERSION}_darwin_arm64.tar.gz"
+            "channelterm_${RELEASE_VERSION}_macos_amd64.tar.gz"
+            "channelterm_${RELEASE_VERSION}_macos_arm64.tar.gz"
           )
 
           package_zip channelterm-windows-amd64.exe "${archives[0]}"
@@ -145,9 +145,13 @@ jobs:
             "dist/channelterm_${RELEASE_VERSION}_windows_arm64.zip"
             "dist/channelterm_${RELEASE_VERSION}_linux_amd64.tar.gz"
             "dist/channelterm_${RELEASE_VERSION}_linux_arm64.tar.gz"
-            "dist/channelterm_${RELEASE_VERSION}_darwin_amd64.tar.gz"
-            "dist/channelterm_${RELEASE_VERSION}_darwin_arm64.tar.gz"
+            "dist/channelterm_${RELEASE_VERSION}_macos_amd64.tar.gz"
+            "dist/channelterm_${RELEASE_VERSION}_macos_arm64.tar.gz"
             "dist/SHA256SUMS"
+          )
+          legacy_assets=(
+            "channelterm_${RELEASE_VERSION}_darwin_amd64.tar.gz"
+            "channelterm_${RELEASE_VERSION}_darwin_arm64.tar.gz"
           )
 
           if gh release view "${RELEASE_TAG}" >/dev/null 2>&1; then
@@ -160,6 +164,13 @@ jobs:
               --title "ChannelTerm ${RELEASE_TAG}"
           fi
 
+          existing_assets="$(gh release view "${RELEASE_TAG}" --json assets --jq '.assets[].name')"
+          for asset_name in "${legacy_assets[@]}"; do
+            if grep -Fxq "${asset_name}" <<< "${existing_assets}"; then
+              gh release delete-asset "${RELEASE_TAG}" "${asset_name}" --yes
+            fi
+          done
+
           gh release upload "${RELEASE_TAG}" "${assets[@]}" --clobber
 
           remote_assets="$(gh release view "${RELEASE_TAG}" --json assets --jq '.assets[].name')"
@@ -167,6 +178,12 @@ jobs:
             asset_name="${asset_path##*/}"
             if ! grep -Fxq "${asset_name}" <<< "${remote_assets}"; then
               printf 'uploaded release asset is missing: %s\n' "${asset_name}" >&2
+              exit 1
+            fi
+          done
+          for asset_name in "${legacy_assets[@]}"; do
+            if grep -Fxq "${asset_name}" <<< "${remote_assets}"; then
+              printf 'legacy release asset was not removed: %s\n' "${asset_name}" >&2
               exit 1
             fi
           done

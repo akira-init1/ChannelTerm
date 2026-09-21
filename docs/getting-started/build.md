@@ -51,6 +51,7 @@ publishes them only after every expected asset is present.
 
 The targets are Windows, Linux, and macOS on `amd64` and `arm64`. Cross-compilation proves that the
 code builds for a target; it does not prove native console behavior or communication with a physical
-serial device.
+serial device. Go and the intermediate build artifacts identify macOS as `darwin`, while published
+release archive filenames use the more recognizable `macos` label.
 
 See [Building and testing](../development/building-and-testing.md) for the full development checks.

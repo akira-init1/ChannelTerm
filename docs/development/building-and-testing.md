@@ -77,6 +77,9 @@ release candidate should not be tagged until every job passes.
 tag is `v` followed by a SemVer version, strips the `v` for the embedded CLI version, tests and
 cross-builds with `CGO_ENABLED=0`, and packages all six supported targets. Windows archives are ZIP
 files containing `channelterm.exe`; Linux and macOS archives are tarballs containing `channelterm`.
+Public macOS archives use `macos` in their filenames, such as
+`channelterm_0.1.0_macos_arm64.tar.gz`; the underlying Go build target and intermediate artifact
+names retain the toolchain's `darwin` identifier.
 The workflow writes `SHA256SUMS` for those six archives, verifies the archive contents, checksums,
 and injected version, and then creates or updates the GitHub Release for the same tag. Ordinary
 branch pushes and pull requests cannot run this release workflow.
