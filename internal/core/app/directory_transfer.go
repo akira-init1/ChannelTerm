@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 var (
@@ -176,12 +177,40 @@ func (p directoryPlan) writeTo(destination io.Writer) (err error) {
 	return nil
 }
 
-func (p directoryPlan) stream() io.Reader {
+// directoryTarStream owns the producer goroutine behind one tar stream. Close
+// unblocks a producer after cancellation and waits until its current source
+// file has been closed before the transfer returns to its caller.
+type directoryTarStream struct {
+	reader *io.PipeReader
+	done   chan struct{}
+
+	closeOnce   sync.Once
+	producerErr error
+	closeErr    error
+}
+
+func (s *directoryTarStream) Read(data []byte) (int, error) {
+	return s.reader.Read(data)
+}
+
+func (s *directoryTarStream) Close() error {
+	s.closeOnce.Do(func() {
+		readerErr := s.reader.Close()
+		<-s.done
+		s.closeErr = errors.Join(readerErr, s.producerErr)
+	})
+	return s.closeErr
+}
+
+func (p directoryPlan) stream() *directoryTarStream {
 	reader, writer := io.Pipe()
+	stream := &directoryTarStream{reader: reader, done: make(chan struct{})}
 	go func() {
-		writer.CloseWithError(p.writeTo(writer))
+		stream.producerErr = p.writeTo(writer)
+		_ = writer.CloseWithError(stream.producerErr)
+		close(stream.done)
 	}()
-	return reader
+	return stream
 }
 
 type countingWriter struct{ size int64 }
@@ -267,9 +296,16 @@ func SendDirectory(ctx context.Context, terminal FileTransferSession, source, re
 		return DirectoryTransferResult{}, errors.Join(err, cleanupErr)
 	}
 	hash := sha256.New()
-	if err := copyDirectoryStream(ctx, protocol, io.TeeReader(plan.stream(), hash), plan.size, quotedArchive, progress); err != nil {
+	stream := plan.stream()
+	copyErr := copyDirectoryStream(ctx, protocol, io.TeeReader(stream, hash), plan.size, quotedArchive, progress)
+	streamErr := stream.Close()
+	if copyErr != nil {
 		cleanupErr := protocol.cleanupDirectory(quotedArchive, quotedStage)
-		return DirectoryTransferResult{}, errors.Join(err, cleanupErr)
+		return DirectoryTransferResult{}, errors.Join(copyErr, cleanupErr)
+	}
+	if streamErr != nil {
+		cleanupErr := protocol.cleanupDirectory(quotedArchive, quotedStage)
+		return DirectoryTransferResult{}, errors.Join(fmt.Errorf("stream local directory: %w", streamErr), cleanupErr)
 	}
 	localDigest := hex.EncodeToString(hash.Sum(nil))
 	if err := protocol.command(ctx, directorySendFinishCommand(protocol.token, quotedPath, quotedStage, quotedArchive, plan.size, localDigest)); err != nil {

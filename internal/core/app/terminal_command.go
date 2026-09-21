@@ -243,7 +243,7 @@ func newTerminalCommandToken() (string, error) {
 func terminalCommandBootstrap(command, token string) string {
 	quotedCommand := quoteTerminalCommand(command)
 	quotedToken := quoteSplitTerminalCommandToken(token)
-	return "if [ -n \"$BASH_VERSION\" ];then history -d \"$HISTCMD\";(ct_done=0;ct_finish(){ [ \"$ct_done\" = 1 ]&&return;ct_done=1;stty echo;printf '\\035\\034%s:%s\\034\\035' " + quotedToken + " \"$1\";};trap 'ct_finish 130' 1 2 15;trap 'ct_finish $?' 0;stty -echo;printf '\\036\\037%s\\037\\036' " + quotedToken + ";\"$BASH\" --noprofile --norc -c " + quotedCommand + ";ct_rc=$?;ct_finish \"$ct_rc\";trap - 0 1 2 15);else printf '\\035\\034%s:UNSUPPORTED\\034\\035' " + quotedToken + ";fi"
+	return "if [ -n \"$BASH_VERSION\" ];then " + bashDeleteCurrentHistoryEntry + ";(ct_done=0;ct_finish(){ [ \"$ct_done\" = 1 ]&&return;ct_done=1;stty echo;printf '\\035\\034%s:%s\\034\\035' " + quotedToken + " \"$1\";};trap 'ct_finish 130' 1 2 15;trap 'ct_finish $?' 0;stty -echo;printf '\\036\\037%s\\037\\036' " + quotedToken + ";\"$BASH\" --noprofile --norc -c " + quotedCommand + ";ct_rc=$?;ct_finish \"$ct_rc\";trap - 0 1 2 15);else printf '\\035\\034%s:UNSUPPORTED\\034\\035' " + quotedToken + ";fi"
 }
 
 func quoteTerminalCommand(value string) string {

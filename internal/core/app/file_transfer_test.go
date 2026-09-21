@@ -133,7 +133,7 @@ func TestFileTransferShellCommandsBoundIdleLifetime(t *testing.T) {
 	if len(fileTransferShellBootstrapCommand) > 192 {
 		t.Errorf("file-transfer shell bootstrap is not a short recognizable entry: %s", fileTransferShellBootstrapCommand)
 	}
-	for _, required := range []string{"$BASH_VERSION", "history -d \"$HISTCMD\"", "stty -echo", "printf '\\036\\037'", "CTERM_FT=1", "stty echo", "printf '\\035\\034'"} {
+	for _, required := range []string{"$BASH_VERSION", bashDeleteCurrentHistoryEntry, "stty -echo", "printf '\\036\\037'", "CTERM_FT=1", "stty echo", "printf '\\035\\034'"} {
 		if !strings.Contains(fileTransferShellBootstrapCommand, required) {
 			t.Errorf("file-transfer shell bootstrap missing %q: %s", required, fileTransferShellBootstrapCommand)
 		}
