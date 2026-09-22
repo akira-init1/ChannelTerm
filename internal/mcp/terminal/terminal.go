@@ -32,6 +32,7 @@ import (
 const (
 	maxWaitTimeout                = 24 * time.Hour
 	defaultTerminalCommandTimeout = 30 * time.Second
+	activeSessionIDDescription    = "Active Session ID or short reference."
 )
 
 var (
@@ -585,7 +586,7 @@ func (*readTool) InputSchema() tool.InputSchema {
 	return tool.InputSchema{
 		Type: "object",
 		Properties: map[string]tool.InputProperty{
-			"session_id": {Type: "string", Description: "Session ID or short reference returned by terminal_open_serial."},
+			"session_id": {Type: "string", Description: activeSessionIDDescription},
 			"cursor":     {Type: "integer", Description: "Optional next output cursor; when set, wait for newer output."},
 			"max_bytes":  {Type: "integer", Description: "Maximum number of output bytes to return."},
 			"encoding":   {Type: "string", Description: "Output representation: utf8, hex, or base64.", Enum: []string{"utf8", "hex", "base64"}},
@@ -654,7 +655,7 @@ func (*readActivityTool) InputSchema() tool.InputSchema {
 	return tool.InputSchema{
 		Type: "object",
 		Properties: map[string]tool.InputProperty{
-			"session_id": {Type: "string", Description: "Session ID or short reference returned by terminal_open_serial."},
+			"session_id": {Type: "string", Description: activeSessionIDDescription},
 			"cursor":     {Type: "integer", Description: "Optional next activity cursor; when set, wait for newer events."},
 			"max_events": {Type: "integer", Description: "Maximum number of activity events to return."},
 			"timeout_ms": {Type: "integer", Description: "Optional wait timeout in milliseconds when cursor is supplied; maximum 86400000."},
@@ -734,7 +735,7 @@ func (*readSessionEventsTool) Description() string {
 // InputSchema describes bounded Session-event reads and optional cursor waiting.
 func (*readSessionEventsTool) InputSchema() tool.InputSchema {
 	return tool.InputSchema{Type: "object", Properties: map[string]tool.InputProperty{
-		"session_id": {Type: "string", Description: "Session ID or short reference returned by terminal_open_serial."},
+		"session_id": {Type: "string", Description: activeSessionIDDescription},
 		"cursor":     {Type: "integer", Description: "Optional next event cursor; when set, wait for newer events."},
 		"max_events": {Type: "integer", Description: "Maximum number of Session events to return."},
 		"timeout_ms": {Type: "integer", Description: "Optional wait timeout in milliseconds when cursor is supplied; maximum 86400000."},
@@ -792,7 +793,7 @@ func (*waitFileTransferTool) Description() string {
 // InputSchema describes a Session event cursor and an optional bounded wait.
 func (*waitFileTransferTool) InputSchema() tool.InputSchema {
 	return tool.InputSchema{Type: "object", Properties: map[string]tool.InputProperty{
-		"session_id":  {Type: "string", Description: "Session ID or short reference returned by terminal_open_serial."},
+		"session_id":  {Type: "string", Description: activeSessionIDDescription},
 		"transfer_id": {Type: "string", Description: "Transfer ID published by FILE_TRANSFER_STARTED and the file-transfer lease events."},
 		"cursor":      {Type: "integer", Description: "Next Session event cursor captured before or during the transfer."},
 		"max_events":  {Type: "integer", Description: "Maximum number of Session events inspected per read."},
@@ -948,7 +949,7 @@ func (*attachSessionTool) Description() string {
 // InputSchema describes the attached Session and optional display actor.
 func (*attachSessionTool) InputSchema() tool.InputSchema {
 	return tool.InputSchema{Type: "object", Properties: map[string]tool.InputProperty{
-		"session_id": {Type: "string", Description: "Session ID or short reference."},
+		"session_id": {Type: "string", Description: activeSessionIDDescription},
 		"actor":      {Type: "string", Description: "Optional adapter actor label; defaults to system."},
 	}, Required: []string{"session_id"}}
 }
@@ -1007,7 +1008,7 @@ func (*reportFileTransferTool) Description() string {
 // InputSchema describes a file-transfer status event and JSON metadata.
 func (*reportFileTransferTool) InputSchema() tool.InputSchema {
 	return tool.InputSchema{Type: "object", Properties: map[string]tool.InputProperty{
-		"session_id":  {Type: "string", Description: "Session ID or short reference."},
+		"session_id":  {Type: "string", Description: activeSessionIDDescription},
 		"owner":       {Type: "string", Description: "Opaque owner capability of the active file-transfer lease."},
 		"transfer_id": {Type: "string", Description: "Transfer ID returned when the file-transfer lease was acquired."},
 		"type":        {Type: "string", Description: "File-transfer event type.", Enum: []string{string(session.EventFileTransferStarted), string(session.EventFileTransferProgress), string(session.EventFileTransferCompleted), string(session.EventFileTransferFailed)}},
@@ -1055,7 +1056,7 @@ func (*executeCommandTool) InputSchema() tool.InputSchema {
 	return tool.InputSchema{
 		Type: "object",
 		Properties: map[string]tool.InputProperty{
-			"session_id": {Type: "string", Description: "Session ID or short reference returned by terminal_open_serial."},
+			"session_id": {Type: "string", Description: activeSessionIDDescription},
 			"command":    {Type: "string", Description: "One printable command line; control characters and embedded newlines are rejected."},
 			"timeout_ms": {Type: "integer", Description: "Optional total execution timeout in milliseconds; default 30000, maximum 86400000."},
 		},
@@ -1104,7 +1105,7 @@ func (*writeTool) InputSchema() tool.InputSchema {
 	return tool.InputSchema{
 		Type: "object",
 		Properties: map[string]tool.InputProperty{
-			"session_id": {Type: "string", Description: "Session ID or short reference returned by terminal_open_serial."},
+			"session_id": {Type: "string", Description: activeSessionIDDescription},
 			"data":       {Type: "string", Description: "Payload to send without adding a line ending; decoded payload must not exceed 1 MiB."},
 			"encoding":   {Type: "string", Description: "Payload representation: utf8 (default), hex, or base64.", Enum: []string{"utf8", "hex", "base64"}},
 			"actor":      {Type: "string", Description: "Internal operation source: user, agent, or system.", Enum: []string{string(session.ActorUser), string(session.ActorAgent), string(session.ActorSystem)}},
@@ -1201,7 +1202,7 @@ func (*acquireLeaseTool) Description() string {
 // InputSchema describes the target, opaque owner capability, and lease type.
 func (*acquireLeaseTool) InputSchema() tool.InputSchema {
 	return tool.InputSchema{Type: "object", Properties: map[string]tool.InputProperty{
-		"session_id": {Type: "string", Description: "Session ID or short reference."},
+		"session_id": {Type: "string", Description: activeSessionIDDescription},
 		"owner":      {Type: "string", Description: "Opaque caller-generated lease owner capability."},
 		"type":       {Type: "string", Description: "Exclusive operation type.", Enum: []string{string(app.LeaseTypeTerminal), string(app.LeaseTypeFileTransfer), string(app.LeaseTypeDebug)}},
 	}, Required: []string{"session_id", "owner", "type"}}
@@ -1237,7 +1238,7 @@ func (*renewLeaseTool) Description() string {
 // InputSchema describes the target and opaque owner capability.
 func (*renewLeaseTool) InputSchema() tool.InputSchema {
 	return tool.InputSchema{Type: "object", Properties: map[string]tool.InputProperty{
-		"session_id": {Type: "string", Description: "Session ID or short reference."},
+		"session_id": {Type: "string", Description: activeSessionIDDescription},
 		"owner":      {Type: "string", Description: "Opaque caller-generated lease owner capability."},
 	}, Required: []string{"session_id", "owner"}}
 }
@@ -1273,7 +1274,7 @@ func (*beginFileTransferCancelTool) Description() string {
 // InputSchema describes the observed Session.
 func (*beginFileTransferCancelTool) InputSchema() tool.InputSchema {
 	return tool.InputSchema{Type: "object", Properties: map[string]tool.InputProperty{
-		"session_id": {Type: "string", Description: "Session ID or short reference."},
+		"session_id": {Type: "string", Description: activeSessionIDDescription},
 	}, Required: []string{"session_id"}}
 }
 
@@ -1308,7 +1309,7 @@ func (*resolveFileTransferCancelTool) Description() string {
 // InputSchema describes the request ID and explicit confirmation answer.
 func (*resolveFileTransferCancelTool) InputSchema() tool.InputSchema {
 	return tool.InputSchema{Type: "object", Properties: map[string]tool.InputProperty{
-		"session_id": {Type: "string", Description: "Session ID or short reference."},
+		"session_id": {Type: "string", Description: activeSessionIDDescription},
 		"request_id": {Type: "string", Description: "Request ID returned by terminal_begin_file_transfer_cancel."},
 		"cancel":     {Type: "boolean", Description: "True only for an explicit y/Y answer."},
 	}, Required: []string{"session_id", "request_id", "cancel"}}
@@ -1342,7 +1343,7 @@ func (*fileTransferCheckpointTool) Description() string {
 // InputSchema describes the Session and its opaque lease capability.
 func (*fileTransferCheckpointTool) InputSchema() tool.InputSchema {
 	return tool.InputSchema{Type: "object", Properties: map[string]tool.InputProperty{
-		"session_id": {Type: "string", Description: "Session ID or short reference."},
+		"session_id": {Type: "string", Description: activeSessionIDDescription},
 		"owner":      {Type: "string", Description: "Opaque owner capability for the active file-transfer lease."},
 	}, Required: []string{"session_id", "owner"}}
 }
@@ -1374,7 +1375,7 @@ func (*releaseLeaseTool) Description() string {
 // InputSchema describes the target and opaque owner capability.
 func (*releaseLeaseTool) InputSchema() tool.InputSchema {
 	return tool.InputSchema{Type: "object", Properties: map[string]tool.InputProperty{
-		"session_id": {Type: "string", Description: "Session ID or short reference."},
+		"session_id": {Type: "string", Description: activeSessionIDDescription},
 		"owner":      {Type: "string", Description: "Opaque caller-generated lease owner capability."},
 	}, Required: []string{"session_id", "owner"}}
 }
@@ -1409,7 +1410,7 @@ func (*closeTool) InputSchema() tool.InputSchema {
 	return tool.InputSchema{
 		Type: "object",
 		Properties: map[string]tool.InputProperty{
-			"session_id": {Type: "string", Description: "ID returned by terminal_open_serial."},
+			"session_id": {Type: "string", Description: activeSessionIDDescription},
 		},
 		Required: []string{"session_id"},
 	}

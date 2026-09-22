@@ -56,6 +56,27 @@ func TestToolAssemblySeparatesSerialAndSessionOperations(t *testing.T) {
 	}
 }
 
+func TestSessionToolSchemasUseTransportNeutralSessionIDDescription(t *testing.T) {
+	application, err := app.New(app.Dependencies{Manager: session.NewManager()})
+	if err != nil {
+		t.Fatalf("app.New() error = %v", err)
+	}
+	checked := 0
+	for _, candidate := range sessionToolsForApplication(application) {
+		property, ok := candidate.InputSchema().Properties["session_id"]
+		if !ok {
+			continue
+		}
+		checked++
+		if property.Description != activeSessionIDDescription {
+			t.Errorf("%s session_id description = %q, want %q", candidate.Name(), property.Description, activeSessionIDDescription)
+		}
+	}
+	if checked == 0 {
+		t.Fatal("no Session-addressed tool schemas were checked")
+	}
+}
+
 func TestOpenSerialCreatesRegisteredSessionAndReturnsID(t *testing.T) {
 	manager := session.NewManager()
 	var gotConfig serialtransport.Config

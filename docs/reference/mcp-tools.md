@@ -32,8 +32,9 @@ not change tool schemas or result objects.
   the returned `next`, but treat older data as lost.
 
 Session-addressed tools accept either an opaque `session_id` or a current short Session reference
-such as `SER-1` in the property named `session_id`. Labels and `device_id` values are not Session
-addresses.
+such as `SER-1` in the property named `session_id`. Their schemas describe this transport-neutral
+input as an active Session ID or short reference; it is not limited to Sessions opened by
+`terminal_open_serial`. Labels and `device_id` values are not Session addresses.
 
 ## `terminal_list_serial_ports`
 
