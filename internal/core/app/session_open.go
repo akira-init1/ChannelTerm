@@ -20,6 +20,11 @@ var ErrSessionIDExhausted = errors.New("could not allocate a unique session ID")
 // successful candidate is transferred to the shared Manager.
 type ConnectedSession interface {
 	session.Session
+	// Connect establishes the candidate's Transport and starts its Session I/O.
+	//
+	// ctx controls cancellation and deadlines for protocol-specific connection
+	// work. The opening service retains ownership after success until Manager
+	// registration, and remains responsible for closing the candidate on error.
 	Connect(context.Context) error
 }
 

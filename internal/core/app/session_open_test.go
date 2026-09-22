@@ -9,6 +9,8 @@ import (
 	"github.com/akira-init1/ChannelTerm/internal/core/session"
 )
 
+// TestAllocateSessionIDSkipsManagerOwnedCollision verifies that allocation
+// retries an ID already registered with the shared Manager.
 func TestAllocateSessionIDSkipsManagerOwnedCollision(t *testing.T) {
 	manager := session.NewManager()
 	if err := manager.Register(newFakeConnectedSession("existing")); err != nil {
@@ -25,6 +27,8 @@ func TestAllocateSessionIDSkipsManagerOwnedCollision(t *testing.T) {
 	}
 }
 
+// TestAllocateSessionIDReportsExhaustedCollisions verifies that repeated
+// collisions stop at the bounded attempt count with a semantic error.
 func TestAllocateSessionIDReportsExhaustedCollisions(t *testing.T) {
 	manager := session.NewManager()
 	if err := manager.Register(newFakeConnectedSession("existing")); err != nil {
@@ -40,6 +44,8 @@ func TestAllocateSessionIDReportsExhaustedCollisions(t *testing.T) {
 	}
 }
 
+// TestCloseSessionCandidateJoinsCleanupFailure verifies that callers retain
+// both the primary opening failure and a candidate cleanup failure.
 func TestCloseSessionCandidateJoinsCleanupFailure(t *testing.T) {
 	primary := errors.New("connect failed")
 	cleanup := errors.New("close failed")

@@ -24,8 +24,8 @@ const (
 )
 
 var (
-	// ErrNilApplicationManager is returned when Application cannot own serial
-	// use cases because no Session Manager was supplied.
+	// ErrNilApplicationManager is returned when Application cannot provide
+	// Session use cases because no Session Manager was supplied.
 	ErrNilApplicationManager = errors.New("application session manager must not be nil")
 	// ErrNilDeviceRegistry is returned when a device use case is requested
 	// without the optional discovery dependency configured.

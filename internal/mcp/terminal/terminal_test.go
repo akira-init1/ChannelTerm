@@ -26,6 +26,8 @@ import (
 	serialtransport "github.com/akira-init1/ChannelTerm/internal/core/transport/serial"
 )
 
+// TestToolAssemblySeparatesSerialAndSessionOperations verifies that endpoint
+// opening remains distinct from transport-neutral Session operations.
 func TestToolAssemblySeparatesSerialAndSessionOperations(t *testing.T) {
 	application, err := app.New(app.Dependencies{Manager: session.NewManager()})
 	if err != nil {
@@ -56,6 +58,8 @@ func TestToolAssemblySeparatesSerialAndSessionOperations(t *testing.T) {
 	}
 }
 
+// TestSessionToolSchemasUseTransportNeutralSessionIDDescription verifies that
+// shared tool schemas do not imply that only serial opens produce Sessions.
 func TestSessionToolSchemasUseTransportNeutralSessionIDDescription(t *testing.T) {
 	application, err := app.New(app.Dependencies{Manager: session.NewManager()})
 	if err != nil {
