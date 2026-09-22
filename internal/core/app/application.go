@@ -61,6 +61,7 @@ type Dependencies struct {
 // owns no terminal presentation, protocol schema, stdin/stdout, or process
 // lifetime; the Composition Root owns the supplied Manager and Registry.
 type Application struct {
+	manager         *session.Manager
 	serial          *SerialService
 	leases          *leaseCoordinator
 	devices         *device.Registry
@@ -93,6 +94,7 @@ func New(dependencies Dependencies) (*Application, error) {
 		listPorts = serialtransport.ListPorts
 	}
 	application := &Application{
+		manager:         dependencies.Manager,
 		serial:          serial,
 		leases:          newLeaseCoordinator(),
 		devices:         dependencies.Devices,
@@ -119,10 +121,10 @@ func (a *Application) OpenSerial(ctx context.Context, request OpenSerialRequest)
 // ListSessions returns a point-in-time snapshot of Application-managed
 // Sessions without exposing their Transport implementations.
 func (a *Application) ListSessions() []session.SessionInfo {
-	if a == nil || a.serial == nil {
+	if a == nil || a.manager == nil {
 		return nil
 	}
-	return a.serial.ListSessions()
+	return a.manager.ListInfo()
 }
 
 // ReadSession returns retained terminal output or waits for output after the
@@ -445,7 +447,7 @@ func (a *Application) publishExpiredLease(lease SessionLease, abortSession bool)
 // clearing its recovering lease state. Session.Close interrupts the write that
 // still holds the lease gate, after which remove can acquire that gate safely.
 func (a *Application) closeSessionAfterExpiredWrite(sessionID string) {
-	_, _ = a.serial.CloseSession(sessionID)
+	_, _ = a.removeAndCloseSession(sessionID)
 	a.leases.remove(sessionID)
 }
 
@@ -514,7 +516,7 @@ func (a *Application) CloseSession(identifier string) (session.SessionInfo, erro
 		if info.ID != identifier && info.Metadata.Reference != identifier {
 			continue
 		}
-		closed, closeErr := a.serial.CloseSession(identifier)
+		closed, closeErr := a.removeAndCloseSession(identifier)
 		if !closed {
 			return session.SessionInfo{}, ErrSessionNotFound
 		}
@@ -705,14 +707,28 @@ func (a *Application) ResolveSerialTarget(ctx context.Context, target string) (s
 
 // session resolves one Manager-owned Session without transferring ownership.
 func (a *Application) session(identifier string) (session.Session, error) {
-	if a == nil || a.serial == nil {
+	if a == nil || a.manager == nil {
 		return nil, ErrNilApplicationManager
 	}
-	terminal, ok := a.serial.GetSession(strings.TrimSpace(identifier))
+	terminal, ok := a.manager.Get(strings.TrimSpace(identifier))
 	if !ok {
 		return nil, ErrSessionNotFound
 	}
 	return terminal, nil
+}
+
+// removeAndCloseSession transfers one Session out of Manager ownership before
+// closing its Channel. Transport-specific services open Sessions but do not
+// own transport-neutral lookup or cleanup after registration.
+func (a *Application) removeAndCloseSession(identifier string) (bool, error) {
+	if a == nil || a.manager == nil {
+		return false, ErrNilApplicationManager
+	}
+	terminal, ok := a.manager.Remove(strings.TrimSpace(identifier))
+	if !ok {
+		return false, nil
+	}
+	return true, terminal.Close()
 }
 
 // activeSessionState identifies lifecycles that still own an endpoint and

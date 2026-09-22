@@ -5,7 +5,9 @@ structured values and do not reproduce Session, configuration, or connection lif
 
 `Application` is constructed with a required `*session.Manager`. A Device Registry is optional until
 a device or decision use case is called. The caller owns both long-lived resources: constructing or
-discarding an `Application` does not start or close the Registry or close the Manager.
+discarding an `Application` does not start or close the Registry or close the Manager. Application
+retains the Manager directly for transport-neutral Session lookup, listing, and removal;
+Transport-specific services use that same Manager only to register successfully opened Sessions.
 
 ## Use cases
 
@@ -161,9 +163,9 @@ five-second-bounded request. This releases an in-flight Host write and prevents 
 state from retaining the Session or lease. Recovery timeout errors are joined with the original
 failure. Independent readers continue to see raw output, including received file bytes.
 
-`CloseSession` first resolves and snapshots Session metadata, removes the Session from Manager
-ownership through `SerialService`, closes it, and returns the pre-close information for adapter
-results.
+`CloseSession` first resolves and snapshots Session metadata, removes the Session directly from
+Manager ownership, closes it, and returns the pre-close information for adapter results. This
+lifecycle path is independent of the Transport service that originally opened the Session.
 
 ## Boundary rules
 

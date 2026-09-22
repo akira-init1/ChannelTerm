@@ -206,45 +206,6 @@ func (s *SerialService) OpenSerial(ctx context.Context, request OpenSerialReques
 	return OpenSerialResult{Info: info, Profile: profile, Reused: !created}, nil
 }
 
-// ListSessions returns the current Manager snapshot without exposing transports.
-func (s *SerialService) ListSessions() []session.SessionInfo {
-	if s == nil || s.manager == nil {
-		return nil
-	}
-	return s.manager.ListInfo()
-}
-
-// GetSession returns a Manager-owned Session by opaque ID or short reference.
-func (s *SerialService) GetSession(identifier string) (session.Session, bool) {
-	if s == nil || s.manager == nil {
-		return nil, false
-	}
-	return s.manager.Get(identifier)
-}
-
-// Reference returns the short Manager-assigned reference for identifier.
-func (s *SerialService) Reference(identifier string) (string, bool) {
-	if s == nil || s.manager == nil {
-		return "", false
-	}
-	return s.manager.Reference(identifier)
-}
-
-// CloseSession removes and closes one Manager-owned Session.
-//
-// identifier can be an opaque Session ID or its Manager-assigned short
-// reference. The false result means no such managed Session existed.
-func (s *SerialService) CloseSession(identifier string) (bool, error) {
-	if s == nil || s.manager == nil {
-		return false, ErrNilSessionManager
-	}
-	terminal, ok := s.manager.Remove(identifier)
-	if !ok {
-		return false, nil
-	}
-	return true, terminal.Close()
-}
-
 // createConnectedSerialSession keeps failed candidates outside Manager ownership.
 func (s *SerialService) createConnectedSerialSession(ctx context.Context, profile config.SerialProfile, serialConfig serialtransport.Config) (session.Session, error) {
 	for range maxOpenAttempts {
