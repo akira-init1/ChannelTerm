@@ -26,6 +26,36 @@ import (
 	serialtransport "github.com/akira-init1/ChannelTerm/internal/core/transport/serial"
 )
 
+func TestToolAssemblySeparatesSerialAndSessionOperations(t *testing.T) {
+	application, err := app.New(app.Dependencies{Manager: session.NewManager()})
+	if err != nil {
+		t.Fatalf("app.New() error = %v", err)
+	}
+	toolNames := func(tools []tool.Tool) []string {
+		names := make([]string, 0, len(tools))
+		for _, registered := range tools {
+			names = append(names, registered.Name())
+		}
+		return names
+	}
+
+	serialNames := toolNames(serialToolsForApplication(application))
+	if !reflect.DeepEqual(serialNames, []string{"terminal_open_serial", "terminal_list_serial_ports"}) {
+		t.Fatalf("serial tool names = %v, want only serial endpoint operations", serialNames)
+	}
+	sessionNames := toolNames(sessionToolsForApplication(application))
+	for _, name := range []string{"terminal_list_sessions", "terminal_read", "terminal_write", "terminal_close"} {
+		if !slices.Contains(sessionNames, name) {
+			t.Errorf("Session tool names %v do not contain %q", sessionNames, name)
+		}
+	}
+	for _, name := range serialNames {
+		if slices.Contains(sessionNames, name) {
+			t.Errorf("Session tool names unexpectedly contain serial operation %q", name)
+		}
+	}
+}
+
 func TestOpenSerialCreatesRegisteredSessionAndReturnsID(t *testing.T) {
 	manager := session.NewManager()
 	var gotConfig serialtransport.Config

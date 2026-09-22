@@ -1,8 +1,8 @@
 // Package terminal exposes Session operations as protocol-neutral Tools.
 //
-// Serial tools translate structured Tool input to application use cases. They
-// retain no transport objects or lifecycle orchestration; the shared Session
-// Manager remains the owner of active sessions through internal/core/app.
+// Transport-specific open tools and transport-neutral Session tools translate
+// structured input to application use cases. They retain no transport objects
+// or lifecycle orchestration; internal/core/app owns access to active Sessions.
 package terminal
 
 import (
@@ -35,7 +35,7 @@ const (
 )
 
 var (
-	// ErrNilSessionManager is returned when serial tools have no Session owner.
+	// ErrNilSessionManager is returned when terminal tools have no Session owner.
 	ErrNilSessionManager = app.ErrNilSessionManager
 	// ErrSessionIDRequired is returned when a session operation omits its ID.
 	ErrSessionIDRequired = errors.New("session_id is required")
@@ -67,18 +67,20 @@ var (
 	ErrInvalidSessionLabel = errors.New("session label must not contain control characters")
 )
 
-// NewSerialTools creates the terminal tools backed by manager.
+// NewSerialTools creates the serial-open and shared Session tools backed by manager.
 //
 // The returned tools use the standard ChannelTerm configuration path and
 // normal Serial Transport construction. manager owns every Session after a
 // successful terminal_open_serial call and should be closed during application
-// shutdown to release any remaining terminal resources.
+// shutdown to release any remaining terminal resources. The constructor name
+// is retained for existing internal callers; transport-neutral Session tools
+// are assembled independently from the serial-open tools.
 func NewSerialTools(manager *session.Manager) ([]tool.Tool, error) {
 	application, err := app.New(app.Dependencies{Manager: manager})
 	if err != nil {
 		return nil, err
 	}
-	return serialToolsForApplication(application), nil
+	return terminalToolsForApplication(application), nil
 }
 
 // NewDeviceTools creates read-only device discovery tools backed by registry.
@@ -126,7 +128,7 @@ func NewTools(application *app.Application) ([]tool.Tool, error) {
 	if application == nil {
 		return nil, app.ErrNilApplicationManager
 	}
-	tools := serialToolsForApplication(application)
+	tools := terminalToolsForApplication(application)
 	tools = append(tools, newDeviceTools(application)...)
 	tools = append(tools, newConnectionDecisionTools(application)...)
 	return tools, nil
@@ -136,15 +138,19 @@ type connectableSession = app.ConnectedSession
 type serialSessionFactory = app.SerialSessionFactory
 type serialPortLister func() ([]serialtransport.Port, error)
 
-// serialTools contains construction dependencies shared by Session-addressed
-// terminal tools. It exists to make tests use fakes without making runtime
-// dependency injection part of the public Tool API.
+// serialTools contains the Application dependency for serial endpoint tools.
 type serialTools struct {
 	application *app.Application
 }
 
+// sessionTools contains the Application dependency for transport-neutral
+// operations on Sessions already owned by the shared Manager.
+type sessionTools struct {
+	application *app.Application
+}
+
 // deviceTools holds the independent Device Registry dependency for discovery
-// tools. Keeping it separate from serialTools preserves the boundary between
+// tools. Keeping it separate from Session tools preserves the boundary between
 // endpoint presence and explicit terminal Session creation.
 type deviceTools struct {
 	application *app.Application
@@ -164,7 +170,12 @@ func newSerialTools(manager *session.Manager, serviceDependencies app.SerialDepe
 	if err != nil {
 		return nil, err
 	}
-	return serialToolsForApplication(application), nil
+	return terminalToolsForApplication(application), nil
+}
+
+func terminalToolsForApplication(application *app.Application) []tool.Tool {
+	tools := serialToolsForApplication(application)
+	return append(tools, sessionToolsForApplication(application)...)
 }
 
 func serialToolsForApplication(application *app.Application) []tool.Tool {
@@ -174,24 +185,32 @@ func serialToolsForApplication(application *app.Application) []tool.Tool {
 	return []tool.Tool{
 		&openSerialTool{serialTools: dependencies},
 		&listSerialPortsTool{serialTools: dependencies},
-		&listSessionsTool{serialTools: dependencies},
-		&readTool{serialTools: dependencies},
-		&readActivityTool{serialTools: dependencies},
-		&readSessionEventsTool{serialTools: dependencies},
-		&waitFileTransferTool{serialTools: dependencies},
-		&attachSessionTool{serialTools: dependencies},
-		&detachSessionTool{serialTools: dependencies},
-		&reportFileTransferTool{serialTools: dependencies},
-		&executeCommandTool{serialTools: dependencies},
-		&writeTool{serialTools: dependencies},
-		&writeLeasedTool{serialTools: dependencies},
-		&acquireLeaseTool{serialTools: dependencies},
-		&renewLeaseTool{serialTools: dependencies},
-		&beginFileTransferCancelTool{serialTools: dependencies},
-		&resolveFileTransferCancelTool{serialTools: dependencies},
-		&fileTransferCheckpointTool{serialTools: dependencies},
-		&releaseLeaseTool{serialTools: dependencies},
-		&closeTool{serialTools: dependencies},
+	}
+}
+
+func sessionToolsForApplication(application *app.Application) []tool.Tool {
+	dependencies := &sessionTools{
+		application: application,
+	}
+	return []tool.Tool{
+		&listSessionsTool{sessionTools: dependencies},
+		&readTool{sessionTools: dependencies},
+		&readActivityTool{sessionTools: dependencies},
+		&readSessionEventsTool{sessionTools: dependencies},
+		&waitFileTransferTool{sessionTools: dependencies},
+		&attachSessionTool{sessionTools: dependencies},
+		&detachSessionTool{sessionTools: dependencies},
+		&reportFileTransferTool{sessionTools: dependencies},
+		&executeCommandTool{sessionTools: dependencies},
+		&writeTool{sessionTools: dependencies},
+		&writeLeasedTool{sessionTools: dependencies},
+		&acquireLeaseTool{sessionTools: dependencies},
+		&renewLeaseTool{sessionTools: dependencies},
+		&beginFileTransferCancelTool{sessionTools: dependencies},
+		&resolveFileTransferCancelTool{sessionTools: dependencies},
+		&fileTransferCheckpointTool{sessionTools: dependencies},
+		&releaseLeaseTool{sessionTools: dependencies},
+		&closeTool{sessionTools: dependencies},
 	}
 }
 
@@ -513,7 +532,7 @@ func (t *openSerialTool) Call(ctx context.Context, input json.RawMessage) (tool.
 	return tool.Result{"session_id": opened.Info.ID, "session_ref": opened.Info.Metadata.Reference, "reused": opened.Reused}, nil
 }
 
-type listSessionsTool struct{ *serialTools }
+type listSessionsTool struct{ *sessionTools }
 
 // Name returns the stable terminal_list_sessions Tool identifier.
 func (*listSessionsTool) Name() string { return "terminal_list_sessions" }
@@ -551,7 +570,7 @@ func (t *listSessionsTool) Call(ctx context.Context, _ json.RawMessage) (tool.Re
 	return tool.Result{"sessions": result}, nil
 }
 
-type readTool struct{ *serialTools }
+type readTool struct{ *sessionTools }
 
 // Name returns the stable terminal_read Tool identifier.
 func (*readTool) Name() string { return "terminal_read" }
@@ -620,7 +639,7 @@ func (t *readTool) Call(ctx context.Context, input json.RawMessage) (tool.Result
 	}, nil
 }
 
-type readActivityTool struct{ *serialTools }
+type readActivityTool struct{ *sessionTools }
 
 // Name returns the stable terminal_read_activity Tool identifier.
 func (*readActivityTool) Name() string { return "terminal_read_activity" }
@@ -702,7 +721,7 @@ func encodeActivityEvents(events []session.SessionEvent) []activityEventResult {
 
 // readSessionEventsTool exposes structured Session lifecycle and operation
 // events without reading terminal output or changing a write/activity cursor.
-type readSessionEventsTool struct{ *serialTools }
+type readSessionEventsTool struct{ *sessionTools }
 
 // Name returns the stable terminal_session_events Tool identifier.
 func (*readSessionEventsTool) Name() string { return "terminal_session_events" }
@@ -760,7 +779,7 @@ func (t *readSessionEventsTool) Call(ctx context.Context, input json.RawMessage)
 // observed transfer reaches one unambiguous terminal state. It reads only the
 // structured Session event stream and never waits for a shell prompt or raw
 // terminal byte that might not be emitted after cancellation.
-type waitFileTransferTool struct{ *serialTools }
+type waitFileTransferTool struct{ *sessionTools }
 
 // Name returns the stable terminal_wait_file_transfer Tool identifier.
 func (*waitFileTransferTool) Name() string { return "terminal_wait_file_transfer" }
@@ -916,7 +935,7 @@ func fileTransferTerminalState(typ session.EventType) (string, bool) {
 
 // attachSessionTool records one CLI attachment without changing the shared
 // Session lifecycle or terminal byte stream.
-type attachSessionTool struct{ *serialTools }
+type attachSessionTool struct{ *sessionTools }
 
 // Name returns the stable terminal_session_attach Tool identifier.
 func (*attachSessionTool) Name() string { return "terminal_session_attach" }
@@ -947,7 +966,7 @@ func (t *attachSessionTool) Call(ctx context.Context, input json.RawMessage) (to
 }
 
 // detachSessionTool records one CLI detachment without closing the Session.
-type detachSessionTool struct{ *serialTools }
+type detachSessionTool struct{ *sessionTools }
 
 // Name returns the stable terminal_session_detach Tool identifier.
 func (*detachSessionTool) Name() string { return "terminal_session_detach" }
@@ -975,7 +994,7 @@ func (t *detachSessionTool) Call(ctx context.Context, input json.RawMessage) (to
 // reportFileTransferTool is the CLI-to-host bridge for file-transfer events.
 // File payload I/O stays on the existing terminal tools; this tool only emits
 // structured status that observers can read through terminal_session_events.
-type reportFileTransferTool struct{ *serialTools }
+type reportFileTransferTool struct{ *sessionTools }
 
 // Name returns the stable terminal_report_file_transfer Tool identifier.
 func (*reportFileTransferTool) Name() string { return "terminal_report_file_transfer" }
@@ -1018,9 +1037,9 @@ func encodeSessionEvents(events []session.Event) []sessionEventResult {
 	return encoded
 }
 
-type writeTool struct{ *serialTools }
+type writeTool struct{ *sessionTools }
 
-type executeCommandTool struct{ *serialTools }
+type executeCommandTool struct{ *sessionTools }
 
 // Name returns the stable terminal_exec Tool identifier.
 func (*executeCommandTool) Name() string { return "terminal_exec" }
@@ -1124,7 +1143,7 @@ func (t *writeTool) Call(ctx context.Context, input json.RawMessage) (tool.Resul
 
 // writeLeasedTool writes through a caller-owned lease without extending the
 // stable terminal_write input schema used by existing MCP clients.
-type writeLeasedTool struct{ *serialTools }
+type writeLeasedTool struct{ *sessionTools }
 
 // Name returns the lease-aware terminal write Tool identifier.
 func (*writeLeasedTool) Name() string { return "terminal_write_leased" }
@@ -1169,7 +1188,7 @@ func (t *writeLeasedTool) Call(ctx context.Context, input json.RawMessage) (tool
 }
 
 // acquireLeaseTool creates an exclusive application-level Session lease.
-type acquireLeaseTool struct{ *serialTools }
+type acquireLeaseTool struct{ *sessionTools }
 
 // Name returns the stable lease-acquisition Tool identifier.
 func (*acquireLeaseTool) Name() string { return "terminal_acquire_lease" }
@@ -1205,7 +1224,7 @@ func (t *acquireLeaseTool) Call(ctx context.Context, input json.RawMessage) (too
 }
 
 // renewLeaseTool extends a caller-owned lease before its Host-side TTL elapses.
-type renewLeaseTool struct{ *serialTools }
+type renewLeaseTool struct{ *sessionTools }
 
 // Name returns the stable lease-renewal Tool identifier.
 func (*renewLeaseTool) Name() string { return "terminal_renew_lease" }
@@ -1241,7 +1260,7 @@ func (t *renewLeaseTool) Call(ctx context.Context, input json.RawMessage) (tool.
 
 // beginFileTransferCancelTool opens the user confirmation state for the
 // active file-transfer lease without affecting ordinary terminal Sessions.
-type beginFileTransferCancelTool struct{ *serialTools }
+type beginFileTransferCancelTool struct{ *sessionTools }
 
 // Name returns the stable cancellation-begin Tool identifier.
 func (*beginFileTransferCancelTool) Name() string { return "terminal_begin_file_transfer_cancel" }
@@ -1276,7 +1295,7 @@ func (t *beginFileTransferCancelTool) Call(ctx context.Context, input json.RawMe
 }
 
 // resolveFileTransferCancelTool applies one confirmation answer.
-type resolveFileTransferCancelTool struct{ *serialTools }
+type resolveFileTransferCancelTool struct{ *sessionTools }
 
 // Name returns the stable cancellation-resolution Tool identifier.
 func (*resolveFileTransferCancelTool) Name() string { return "terminal_resolve_file_transfer_cancel" }
@@ -1310,7 +1329,7 @@ func (t *resolveFileTransferCancelTool) Call(ctx context.Context, input json.Raw
 
 // fileTransferCheckpointTool blocks the lease owner only while a local user is
 // deciding whether to cancel at a safe protocol boundary.
-type fileTransferCheckpointTool struct{ *serialTools }
+type fileTransferCheckpointTool struct{ *sessionTools }
 
 // Name returns the stable transfer checkpoint Tool identifier.
 func (*fileTransferCheckpointTool) Name() string { return "terminal_file_transfer_checkpoint" }
@@ -1342,7 +1361,7 @@ func (t *fileTransferCheckpointTool) Call(ctx context.Context, input json.RawMes
 }
 
 // releaseLeaseTool releases a caller-owned exclusive Session lease.
-type releaseLeaseTool struct{ *serialTools }
+type releaseLeaseTool struct{ *sessionTools }
 
 // Name returns the stable lease-release Tool identifier.
 func (*releaseLeaseTool) Name() string { return "terminal_release_lease" }
@@ -1375,7 +1394,7 @@ func (t *releaseLeaseTool) Call(ctx context.Context, input json.RawMessage) (too
 	return tool.Result{"released": true}, nil
 }
 
-type closeTool struct{ *serialTools }
+type closeTool struct{ *sessionTools }
 
 // Name returns the stable terminal_close Tool identifier.
 func (*closeTool) Name() string { return "terminal_close" }
