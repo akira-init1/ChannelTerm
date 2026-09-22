@@ -7,7 +7,8 @@ structured values and do not reproduce Session, configuration, or connection lif
 a device or decision use case is called. The caller owns both long-lived resources: constructing or
 discarding an `Application` does not start or close the Registry or close the Manager. Application
 retains the Manager directly for transport-neutral Session lookup, listing, and removal;
-Transport-specific services use that same Manager only to register successfully opened Sessions.
+Transport-specific services use that same Manager to coordinate endpoint open/reuse and transfer
+successfully connected Sessions into Manager ownership.
 
 ## Use cases
 

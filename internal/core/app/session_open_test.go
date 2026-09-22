@@ -44,6 +44,31 @@ func TestAllocateSessionIDReportsExhaustedCollisions(t *testing.T) {
 	}
 }
 
+// TestAllocateSessionIDPropagatesContextAndGeneratorErrors verifies that a
+// cancelled allocation does no generator work and that generator failures
+// retain their semantic cause with application context.
+func TestAllocateSessionIDPropagatesContextAndGeneratorErrors(t *testing.T) {
+	manager := session.NewManager()
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	called := false
+	_, err := allocateSessionID(ctx, manager, func() (string, error) {
+		called = true
+		return "unused", nil
+	})
+	if !errors.Is(err, context.Canceled) || called {
+		t.Fatalf("cancelled allocateSessionID() = %v, generator called=%t; want context.Canceled without generation", err, called)
+	}
+
+	generationErr := errors.New("random source unavailable")
+	_, err = allocateSessionID(context.Background(), manager, func() (string, error) {
+		return "", generationErr
+	})
+	if !errors.Is(err, generationErr) || !strings.Contains(err.Error(), "generate session ID") {
+		t.Fatalf("generator allocateSessionID() error = %v, want wrapped generation failure", err)
+	}
+}
+
 // TestCloseSessionCandidateJoinsCleanupFailure verifies that callers retain
 // both the primary opening failure and a candidate cleanup failure.
 func TestCloseSessionCandidateJoinsCleanupFailure(t *testing.T) {
