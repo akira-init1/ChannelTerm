@@ -40,7 +40,8 @@ implemented use cases.
 `internal/core/app.Application` is the adapter-neutral use-case boundary. It coordinates profile
 resolution, serial Session open/reuse, Session reads/writes/close, serial and profile discovery,
 Device Registry reads, and connection decisions. It returns structured Core values and never formats
-CLI or MCP output.
+CLI or MCP output. Application retains the shared Session Manager directly for transport-neutral
+Session operations; `SerialService` is limited to serial configuration and open/reuse orchestration.
 
 The core service boundary contains:
 

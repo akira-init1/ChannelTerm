@@ -1,8 +1,8 @@
 // Package terminal exposes Session operations as protocol-neutral Tools.
 //
-// Serial tools translate structured Tool input to application use cases. They
-// retain no transport objects or lifecycle orchestration; the shared Session
-// Manager remains the owner of active sessions through internal/core/app.
+// Transport-specific open tools and transport-neutral Session tools translate
+// structured input to application use cases. They retain no transport objects
+// or lifecycle orchestration; internal/core/app owns access to active Sessions.
 package terminal
 
 import (
@@ -32,10 +32,11 @@ import (
 const (
 	maxWaitTimeout                = 24 * time.Hour
 	defaultTerminalCommandTimeout = 30 * time.Second
+	activeSessionIDDescription    = "Active Session ID or short reference."
 )
 
 var (
-	// ErrNilSessionManager is returned when serial tools have no Session owner.
+	// ErrNilSessionManager is returned when terminal tools have no Session owner.
 	ErrNilSessionManager = app.ErrNilSessionManager
 	// ErrSessionIDRequired is returned when a session operation omits its ID.
 	ErrSessionIDRequired = errors.New("session_id is required")
@@ -67,18 +68,20 @@ var (
 	ErrInvalidSessionLabel = errors.New("session label must not contain control characters")
 )
 
-// NewSerialTools creates the terminal tools backed by manager.
+// NewSerialTools creates the serial-open and shared Session tools backed by manager.
 //
 // The returned tools use the standard ChannelTerm configuration path and
 // normal Serial Transport construction. manager owns every Session after a
 // successful terminal_open_serial call and should be closed during application
-// shutdown to release any remaining terminal resources.
+// shutdown to release any remaining terminal resources. The constructor name
+// is retained for existing internal callers; transport-neutral Session tools
+// are assembled independently from the serial-open tools.
 func NewSerialTools(manager *session.Manager) ([]tool.Tool, error) {
 	application, err := app.New(app.Dependencies{Manager: manager})
 	if err != nil {
 		return nil, err
 	}
-	return serialToolsForApplication(application), nil
+	return terminalToolsForApplication(application), nil
 }
 
 // NewDeviceTools creates read-only device discovery tools backed by registry.
@@ -126,7 +129,7 @@ func NewTools(application *app.Application) ([]tool.Tool, error) {
 	if application == nil {
 		return nil, app.ErrNilApplicationManager
 	}
-	tools := serialToolsForApplication(application)
+	tools := terminalToolsForApplication(application)
 	tools = append(tools, newDeviceTools(application)...)
 	tools = append(tools, newConnectionDecisionTools(application)...)
 	return tools, nil
@@ -136,15 +139,19 @@ type connectableSession = app.ConnectedSession
 type serialSessionFactory = app.SerialSessionFactory
 type serialPortLister func() ([]serialtransport.Port, error)
 
-// serialTools contains construction dependencies shared by Session-addressed
-// terminal tools. It exists to make tests use fakes without making runtime
-// dependency injection part of the public Tool API.
+// serialTools contains the Application dependency for serial endpoint tools.
 type serialTools struct {
 	application *app.Application
 }
 
+// sessionTools contains the Application dependency for transport-neutral
+// operations on Sessions already owned by the shared Manager.
+type sessionTools struct {
+	application *app.Application
+}
+
 // deviceTools holds the independent Device Registry dependency for discovery
-// tools. Keeping it separate from serialTools preserves the boundary between
+// tools. Keeping it separate from Session tools preserves the boundary between
 // endpoint presence and explicit terminal Session creation.
 type deviceTools struct {
 	application *app.Application
@@ -164,7 +171,12 @@ func newSerialTools(manager *session.Manager, serviceDependencies app.SerialDepe
 	if err != nil {
 		return nil, err
 	}
-	return serialToolsForApplication(application), nil
+	return terminalToolsForApplication(application), nil
+}
+
+func terminalToolsForApplication(application *app.Application) []tool.Tool {
+	tools := serialToolsForApplication(application)
+	return append(tools, sessionToolsForApplication(application)...)
 }
 
 func serialToolsForApplication(application *app.Application) []tool.Tool {
@@ -174,24 +186,32 @@ func serialToolsForApplication(application *app.Application) []tool.Tool {
 	return []tool.Tool{
 		&openSerialTool{serialTools: dependencies},
 		&listSerialPortsTool{serialTools: dependencies},
-		&listSessionsTool{serialTools: dependencies},
-		&readTool{serialTools: dependencies},
-		&readActivityTool{serialTools: dependencies},
-		&readSessionEventsTool{serialTools: dependencies},
-		&waitFileTransferTool{serialTools: dependencies},
-		&attachSessionTool{serialTools: dependencies},
-		&detachSessionTool{serialTools: dependencies},
-		&reportFileTransferTool{serialTools: dependencies},
-		&executeCommandTool{serialTools: dependencies},
-		&writeTool{serialTools: dependencies},
-		&writeLeasedTool{serialTools: dependencies},
-		&acquireLeaseTool{serialTools: dependencies},
-		&renewLeaseTool{serialTools: dependencies},
-		&beginFileTransferCancelTool{serialTools: dependencies},
-		&resolveFileTransferCancelTool{serialTools: dependencies},
-		&fileTransferCheckpointTool{serialTools: dependencies},
-		&releaseLeaseTool{serialTools: dependencies},
-		&closeTool{serialTools: dependencies},
+	}
+}
+
+func sessionToolsForApplication(application *app.Application) []tool.Tool {
+	dependencies := &sessionTools{
+		application: application,
+	}
+	return []tool.Tool{
+		&listSessionsTool{sessionTools: dependencies},
+		&readTool{sessionTools: dependencies},
+		&readActivityTool{sessionTools: dependencies},
+		&readSessionEventsTool{sessionTools: dependencies},
+		&waitFileTransferTool{sessionTools: dependencies},
+		&attachSessionTool{sessionTools: dependencies},
+		&detachSessionTool{sessionTools: dependencies},
+		&reportFileTransferTool{sessionTools: dependencies},
+		&executeCommandTool{sessionTools: dependencies},
+		&writeTool{sessionTools: dependencies},
+		&writeLeasedTool{sessionTools: dependencies},
+		&acquireLeaseTool{sessionTools: dependencies},
+		&renewLeaseTool{sessionTools: dependencies},
+		&beginFileTransferCancelTool{sessionTools: dependencies},
+		&resolveFileTransferCancelTool{sessionTools: dependencies},
+		&fileTransferCheckpointTool{sessionTools: dependencies},
+		&releaseLeaseTool{sessionTools: dependencies},
+		&closeTool{sessionTools: dependencies},
 	}
 }
 
@@ -513,7 +533,7 @@ func (t *openSerialTool) Call(ctx context.Context, input json.RawMessage) (tool.
 	return tool.Result{"session_id": opened.Info.ID, "session_ref": opened.Info.Metadata.Reference, "reused": opened.Reused}, nil
 }
 
-type listSessionsTool struct{ *serialTools }
+type listSessionsTool struct{ *sessionTools }
 
 // Name returns the stable terminal_list_sessions Tool identifier.
 func (*listSessionsTool) Name() string { return "terminal_list_sessions" }
@@ -551,7 +571,7 @@ func (t *listSessionsTool) Call(ctx context.Context, _ json.RawMessage) (tool.Re
 	return tool.Result{"sessions": result}, nil
 }
 
-type readTool struct{ *serialTools }
+type readTool struct{ *sessionTools }
 
 // Name returns the stable terminal_read Tool identifier.
 func (*readTool) Name() string { return "terminal_read" }
@@ -566,7 +586,7 @@ func (*readTool) InputSchema() tool.InputSchema {
 	return tool.InputSchema{
 		Type: "object",
 		Properties: map[string]tool.InputProperty{
-			"session_id": {Type: "string", Description: "Session ID or short reference returned by terminal_open_serial."},
+			"session_id": {Type: "string", Description: activeSessionIDDescription},
 			"cursor":     {Type: "integer", Description: "Optional next output cursor; when set, wait for newer output."},
 			"max_bytes":  {Type: "integer", Description: "Maximum number of output bytes to return."},
 			"encoding":   {Type: "string", Description: "Output representation: utf8, hex, or base64.", Enum: []string{"utf8", "hex", "base64"}},
@@ -620,7 +640,7 @@ func (t *readTool) Call(ctx context.Context, input json.RawMessage) (tool.Result
 	}, nil
 }
 
-type readActivityTool struct{ *serialTools }
+type readActivityTool struct{ *sessionTools }
 
 // Name returns the stable terminal_read_activity Tool identifier.
 func (*readActivityTool) Name() string { return "terminal_read_activity" }
@@ -635,7 +655,7 @@ func (*readActivityTool) InputSchema() tool.InputSchema {
 	return tool.InputSchema{
 		Type: "object",
 		Properties: map[string]tool.InputProperty{
-			"session_id": {Type: "string", Description: "Session ID or short reference returned by terminal_open_serial."},
+			"session_id": {Type: "string", Description: activeSessionIDDescription},
 			"cursor":     {Type: "integer", Description: "Optional next activity cursor; when set, wait for newer events."},
 			"max_events": {Type: "integer", Description: "Maximum number of activity events to return."},
 			"timeout_ms": {Type: "integer", Description: "Optional wait timeout in milliseconds when cursor is supplied; maximum 86400000."},
@@ -702,7 +722,7 @@ func encodeActivityEvents(events []session.SessionEvent) []activityEventResult {
 
 // readSessionEventsTool exposes structured Session lifecycle and operation
 // events without reading terminal output or changing a write/activity cursor.
-type readSessionEventsTool struct{ *serialTools }
+type readSessionEventsTool struct{ *sessionTools }
 
 // Name returns the stable terminal_session_events Tool identifier.
 func (*readSessionEventsTool) Name() string { return "terminal_session_events" }
@@ -715,7 +735,7 @@ func (*readSessionEventsTool) Description() string {
 // InputSchema describes bounded Session-event reads and optional cursor waiting.
 func (*readSessionEventsTool) InputSchema() tool.InputSchema {
 	return tool.InputSchema{Type: "object", Properties: map[string]tool.InputProperty{
-		"session_id": {Type: "string", Description: "Session ID or short reference returned by terminal_open_serial."},
+		"session_id": {Type: "string", Description: activeSessionIDDescription},
 		"cursor":     {Type: "integer", Description: "Optional next event cursor; when set, wait for newer events."},
 		"max_events": {Type: "integer", Description: "Maximum number of Session events to return."},
 		"timeout_ms": {Type: "integer", Description: "Optional wait timeout in milliseconds when cursor is supplied; maximum 86400000."},
@@ -760,7 +780,7 @@ func (t *readSessionEventsTool) Call(ctx context.Context, input json.RawMessage)
 // observed transfer reaches one unambiguous terminal state. It reads only the
 // structured Session event stream and never waits for a shell prompt or raw
 // terminal byte that might not be emitted after cancellation.
-type waitFileTransferTool struct{ *serialTools }
+type waitFileTransferTool struct{ *sessionTools }
 
 // Name returns the stable terminal_wait_file_transfer Tool identifier.
 func (*waitFileTransferTool) Name() string { return "terminal_wait_file_transfer" }
@@ -773,7 +793,7 @@ func (*waitFileTransferTool) Description() string {
 // InputSchema describes a Session event cursor and an optional bounded wait.
 func (*waitFileTransferTool) InputSchema() tool.InputSchema {
 	return tool.InputSchema{Type: "object", Properties: map[string]tool.InputProperty{
-		"session_id":  {Type: "string", Description: "Session ID or short reference returned by terminal_open_serial."},
+		"session_id":  {Type: "string", Description: activeSessionIDDescription},
 		"transfer_id": {Type: "string", Description: "Transfer ID published by FILE_TRANSFER_STARTED and the file-transfer lease events."},
 		"cursor":      {Type: "integer", Description: "Next Session event cursor captured before or during the transfer."},
 		"max_events":  {Type: "integer", Description: "Maximum number of Session events inspected per read."},
@@ -916,7 +936,7 @@ func fileTransferTerminalState(typ session.EventType) (string, bool) {
 
 // attachSessionTool records one CLI attachment without changing the shared
 // Session lifecycle or terminal byte stream.
-type attachSessionTool struct{ *serialTools }
+type attachSessionTool struct{ *sessionTools }
 
 // Name returns the stable terminal_session_attach Tool identifier.
 func (*attachSessionTool) Name() string { return "terminal_session_attach" }
@@ -929,7 +949,7 @@ func (*attachSessionTool) Description() string {
 // InputSchema describes the attached Session and optional display actor.
 func (*attachSessionTool) InputSchema() tool.InputSchema {
 	return tool.InputSchema{Type: "object", Properties: map[string]tool.InputProperty{
-		"session_id": {Type: "string", Description: "Session ID or short reference."},
+		"session_id": {Type: "string", Description: activeSessionIDDescription},
 		"actor":      {Type: "string", Description: "Optional adapter actor label; defaults to system."},
 	}, Required: []string{"session_id"}}
 }
@@ -947,7 +967,7 @@ func (t *attachSessionTool) Call(ctx context.Context, input json.RawMessage) (to
 }
 
 // detachSessionTool records one CLI detachment without closing the Session.
-type detachSessionTool struct{ *serialTools }
+type detachSessionTool struct{ *sessionTools }
 
 // Name returns the stable terminal_session_detach Tool identifier.
 func (*detachSessionTool) Name() string { return "terminal_session_detach" }
@@ -975,7 +995,7 @@ func (t *detachSessionTool) Call(ctx context.Context, input json.RawMessage) (to
 // reportFileTransferTool is the CLI-to-host bridge for file-transfer events.
 // File payload I/O stays on the existing terminal tools; this tool only emits
 // structured status that observers can read through terminal_session_events.
-type reportFileTransferTool struct{ *serialTools }
+type reportFileTransferTool struct{ *sessionTools }
 
 // Name returns the stable terminal_report_file_transfer Tool identifier.
 func (*reportFileTransferTool) Name() string { return "terminal_report_file_transfer" }
@@ -988,7 +1008,7 @@ func (*reportFileTransferTool) Description() string {
 // InputSchema describes a file-transfer status event and JSON metadata.
 func (*reportFileTransferTool) InputSchema() tool.InputSchema {
 	return tool.InputSchema{Type: "object", Properties: map[string]tool.InputProperty{
-		"session_id":  {Type: "string", Description: "Session ID or short reference."},
+		"session_id":  {Type: "string", Description: activeSessionIDDescription},
 		"owner":       {Type: "string", Description: "Opaque owner capability of the active file-transfer lease."},
 		"transfer_id": {Type: "string", Description: "Transfer ID returned when the file-transfer lease was acquired."},
 		"type":        {Type: "string", Description: "File-transfer event type.", Enum: []string{string(session.EventFileTransferStarted), string(session.EventFileTransferProgress), string(session.EventFileTransferCompleted), string(session.EventFileTransferFailed)}},
@@ -1018,9 +1038,9 @@ func encodeSessionEvents(events []session.Event) []sessionEventResult {
 	return encoded
 }
 
-type writeTool struct{ *serialTools }
+type writeTool struct{ *sessionTools }
 
-type executeCommandTool struct{ *serialTools }
+type executeCommandTool struct{ *sessionTools }
 
 // Name returns the stable terminal_exec Tool identifier.
 func (*executeCommandTool) Name() string { return "terminal_exec" }
@@ -1036,7 +1056,7 @@ func (*executeCommandTool) InputSchema() tool.InputSchema {
 	return tool.InputSchema{
 		Type: "object",
 		Properties: map[string]tool.InputProperty{
-			"session_id": {Type: "string", Description: "Session ID or short reference returned by terminal_open_serial."},
+			"session_id": {Type: "string", Description: activeSessionIDDescription},
 			"command":    {Type: "string", Description: "One printable command line; control characters and embedded newlines are rejected."},
 			"timeout_ms": {Type: "integer", Description: "Optional total execution timeout in milliseconds; default 30000, maximum 86400000."},
 		},
@@ -1085,7 +1105,7 @@ func (*writeTool) InputSchema() tool.InputSchema {
 	return tool.InputSchema{
 		Type: "object",
 		Properties: map[string]tool.InputProperty{
-			"session_id": {Type: "string", Description: "Session ID or short reference returned by terminal_open_serial."},
+			"session_id": {Type: "string", Description: activeSessionIDDescription},
 			"data":       {Type: "string", Description: "Payload to send without adding a line ending; decoded payload must not exceed 1 MiB."},
 			"encoding":   {Type: "string", Description: "Payload representation: utf8 (default), hex, or base64.", Enum: []string{"utf8", "hex", "base64"}},
 			"actor":      {Type: "string", Description: "Internal operation source: user, agent, or system.", Enum: []string{string(session.ActorUser), string(session.ActorAgent), string(session.ActorSystem)}},
@@ -1124,7 +1144,7 @@ func (t *writeTool) Call(ctx context.Context, input json.RawMessage) (tool.Resul
 
 // writeLeasedTool writes through a caller-owned lease without extending the
 // stable terminal_write input schema used by existing MCP clients.
-type writeLeasedTool struct{ *serialTools }
+type writeLeasedTool struct{ *sessionTools }
 
 // Name returns the lease-aware terminal write Tool identifier.
 func (*writeLeasedTool) Name() string { return "terminal_write_leased" }
@@ -1169,7 +1189,7 @@ func (t *writeLeasedTool) Call(ctx context.Context, input json.RawMessage) (tool
 }
 
 // acquireLeaseTool creates an exclusive application-level Session lease.
-type acquireLeaseTool struct{ *serialTools }
+type acquireLeaseTool struct{ *sessionTools }
 
 // Name returns the stable lease-acquisition Tool identifier.
 func (*acquireLeaseTool) Name() string { return "terminal_acquire_lease" }
@@ -1182,7 +1202,7 @@ func (*acquireLeaseTool) Description() string {
 // InputSchema describes the target, opaque owner capability, and lease type.
 func (*acquireLeaseTool) InputSchema() tool.InputSchema {
 	return tool.InputSchema{Type: "object", Properties: map[string]tool.InputProperty{
-		"session_id": {Type: "string", Description: "Session ID or short reference."},
+		"session_id": {Type: "string", Description: activeSessionIDDescription},
 		"owner":      {Type: "string", Description: "Opaque caller-generated lease owner capability."},
 		"type":       {Type: "string", Description: "Exclusive operation type.", Enum: []string{string(app.LeaseTypeTerminal), string(app.LeaseTypeFileTransfer), string(app.LeaseTypeDebug)}},
 	}, Required: []string{"session_id", "owner", "type"}}
@@ -1205,7 +1225,7 @@ func (t *acquireLeaseTool) Call(ctx context.Context, input json.RawMessage) (too
 }
 
 // renewLeaseTool extends a caller-owned lease before its Host-side TTL elapses.
-type renewLeaseTool struct{ *serialTools }
+type renewLeaseTool struct{ *sessionTools }
 
 // Name returns the stable lease-renewal Tool identifier.
 func (*renewLeaseTool) Name() string { return "terminal_renew_lease" }
@@ -1218,7 +1238,7 @@ func (*renewLeaseTool) Description() string {
 // InputSchema describes the target and opaque owner capability.
 func (*renewLeaseTool) InputSchema() tool.InputSchema {
 	return tool.InputSchema{Type: "object", Properties: map[string]tool.InputProperty{
-		"session_id": {Type: "string", Description: "Session ID or short reference."},
+		"session_id": {Type: "string", Description: activeSessionIDDescription},
 		"owner":      {Type: "string", Description: "Opaque caller-generated lease owner capability."},
 	}, Required: []string{"session_id", "owner"}}
 }
@@ -1241,7 +1261,7 @@ func (t *renewLeaseTool) Call(ctx context.Context, input json.RawMessage) (tool.
 
 // beginFileTransferCancelTool opens the user confirmation state for the
 // active file-transfer lease without affecting ordinary terminal Sessions.
-type beginFileTransferCancelTool struct{ *serialTools }
+type beginFileTransferCancelTool struct{ *sessionTools }
 
 // Name returns the stable cancellation-begin Tool identifier.
 func (*beginFileTransferCancelTool) Name() string { return "terminal_begin_file_transfer_cancel" }
@@ -1254,7 +1274,7 @@ func (*beginFileTransferCancelTool) Description() string {
 // InputSchema describes the observed Session.
 func (*beginFileTransferCancelTool) InputSchema() tool.InputSchema {
 	return tool.InputSchema{Type: "object", Properties: map[string]tool.InputProperty{
-		"session_id": {Type: "string", Description: "Session ID or short reference."},
+		"session_id": {Type: "string", Description: activeSessionIDDescription},
 	}, Required: []string{"session_id"}}
 }
 
@@ -1276,7 +1296,7 @@ func (t *beginFileTransferCancelTool) Call(ctx context.Context, input json.RawMe
 }
 
 // resolveFileTransferCancelTool applies one confirmation answer.
-type resolveFileTransferCancelTool struct{ *serialTools }
+type resolveFileTransferCancelTool struct{ *sessionTools }
 
 // Name returns the stable cancellation-resolution Tool identifier.
 func (*resolveFileTransferCancelTool) Name() string { return "terminal_resolve_file_transfer_cancel" }
@@ -1289,7 +1309,7 @@ func (*resolveFileTransferCancelTool) Description() string {
 // InputSchema describes the request ID and explicit confirmation answer.
 func (*resolveFileTransferCancelTool) InputSchema() tool.InputSchema {
 	return tool.InputSchema{Type: "object", Properties: map[string]tool.InputProperty{
-		"session_id": {Type: "string", Description: "Session ID or short reference."},
+		"session_id": {Type: "string", Description: activeSessionIDDescription},
 		"request_id": {Type: "string", Description: "Request ID returned by terminal_begin_file_transfer_cancel."},
 		"cancel":     {Type: "boolean", Description: "True only for an explicit y/Y answer."},
 	}, Required: []string{"session_id", "request_id", "cancel"}}
@@ -1310,7 +1330,7 @@ func (t *resolveFileTransferCancelTool) Call(ctx context.Context, input json.Raw
 
 // fileTransferCheckpointTool blocks the lease owner only while a local user is
 // deciding whether to cancel at a safe protocol boundary.
-type fileTransferCheckpointTool struct{ *serialTools }
+type fileTransferCheckpointTool struct{ *sessionTools }
 
 // Name returns the stable transfer checkpoint Tool identifier.
 func (*fileTransferCheckpointTool) Name() string { return "terminal_file_transfer_checkpoint" }
@@ -1323,7 +1343,7 @@ func (*fileTransferCheckpointTool) Description() string {
 // InputSchema describes the Session and its opaque lease capability.
 func (*fileTransferCheckpointTool) InputSchema() tool.InputSchema {
 	return tool.InputSchema{Type: "object", Properties: map[string]tool.InputProperty{
-		"session_id": {Type: "string", Description: "Session ID or short reference."},
+		"session_id": {Type: "string", Description: activeSessionIDDescription},
 		"owner":      {Type: "string", Description: "Opaque owner capability for the active file-transfer lease."},
 	}, Required: []string{"session_id", "owner"}}
 }
@@ -1342,7 +1362,7 @@ func (t *fileTransferCheckpointTool) Call(ctx context.Context, input json.RawMes
 }
 
 // releaseLeaseTool releases a caller-owned exclusive Session lease.
-type releaseLeaseTool struct{ *serialTools }
+type releaseLeaseTool struct{ *sessionTools }
 
 // Name returns the stable lease-release Tool identifier.
 func (*releaseLeaseTool) Name() string { return "terminal_release_lease" }
@@ -1355,7 +1375,7 @@ func (*releaseLeaseTool) Description() string {
 // InputSchema describes the target and opaque owner capability.
 func (*releaseLeaseTool) InputSchema() tool.InputSchema {
 	return tool.InputSchema{Type: "object", Properties: map[string]tool.InputProperty{
-		"session_id": {Type: "string", Description: "Session ID or short reference."},
+		"session_id": {Type: "string", Description: activeSessionIDDescription},
 		"owner":      {Type: "string", Description: "Opaque caller-generated lease owner capability."},
 	}, Required: []string{"session_id", "owner"}}
 }
@@ -1375,7 +1395,7 @@ func (t *releaseLeaseTool) Call(ctx context.Context, input json.RawMessage) (too
 	return tool.Result{"released": true}, nil
 }
 
-type closeTool struct{ *serialTools }
+type closeTool struct{ *sessionTools }
 
 // Name returns the stable terminal_close Tool identifier.
 func (*closeTool) Name() string { return "terminal_close" }
@@ -1390,7 +1410,7 @@ func (*closeTool) InputSchema() tool.InputSchema {
 	return tool.InputSchema{
 		Type: "object",
 		Properties: map[string]tool.InputProperty{
-			"session_id": {Type: "string", Description: "ID returned by terminal_open_serial."},
+			"session_id": {Type: "string", Description: activeSessionIDDescription},
 		},
 		Required: []string{"session_id"},
 	}

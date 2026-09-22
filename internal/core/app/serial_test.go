@@ -59,11 +59,11 @@ func TestOpenSerialCreatesRegistersAndReusesSession(t *testing.T) {
 	if !terminal.connected || string(terminal.writtenData()) != "\r" {
 		t.Errorf("connected=%t wake=%q, want connected with one carriage return", terminal.connected, terminal.writtenData())
 	}
-	if closed, err := service.CloseSession(first.Info.ID); err != nil || !closed {
-		t.Fatalf("CloseSession() = %t, %v, want true, nil", closed, err)
+	if err := manager.Close(); err != nil {
+		t.Fatalf("Manager.Close() error = %v", err)
 	}
 	if !terminal.closed {
-		t.Error("CloseSession() did not close the Manager-owned Session")
+		t.Error("Manager.Close() did not close the Manager-owned Session")
 	}
 }
 
@@ -106,8 +106,36 @@ func TestOpenSerialIgnoresPreferences(t *testing.T) {
 	}) {
 		t.Errorf("OpenSerial() profile/config = %+v/%+v, want COM13 serial profile defaults", result.Profile, got)
 	}
-	if _, err := service.CloseSession(result.Info.ID); err != nil {
-		t.Fatalf("CloseSession() error = %v", err)
+	if err := manager.Close(); err != nil {
+		t.Fatalf("Manager.Close() error = %v", err)
+	}
+}
+
+// TestApplicationOwnsTransportNeutralSessionLifecycle verifies that generic
+// Session operations do not depend on the SerialService that opened serial
+// endpoints. Future Transport services can register with the same Manager and
+// receive the existing Application lifecycle behavior.
+func TestApplicationOwnsTransportNeutralSessionLifecycle(t *testing.T) {
+	manager := session.NewManager()
+	application, err := New(Dependencies{Manager: manager})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	terminal := newFakeConnectedSession("ssh-session")
+	if err := manager.RegisterWithMetadata(terminal, session.SessionMetadata{Transport: "ssh", Endpoint: "board.example:22"}); err != nil {
+		t.Fatalf("RegisterWithMetadata() error = %v", err)
+	}
+
+	listed := application.ListSessions()
+	if len(listed) != 1 || listed[0].Metadata.Reference != "SSH-1" || listed[0].Metadata.Transport != "ssh" {
+		t.Fatalf("ListSessions() = %#v, want one SSH Session", listed)
+	}
+	if written, err := application.WriteSession(context.Background(), "SSH-1", session.WriteRequest{Actor: session.ActorUser, Data: []byte("status\n")}); err != nil || written != 7 {
+		t.Fatalf("WriteSession() = %d, %v, want 7, nil", written, err)
+	}
+	closed, err := application.CloseSession("SSH-1")
+	if err != nil || closed.ID != "ssh-session" || !terminal.closed {
+		t.Fatalf("CloseSession() = %#v, %v, closed=%t", closed, err, terminal.closed)
 	}
 }
 

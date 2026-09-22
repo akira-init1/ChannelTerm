@@ -290,7 +290,7 @@ func (a *Application) recoverTerminalCommand(terminal session.Session, owner, co
 		interruptErr = waitErr
 	}
 	a.publishTerminalCommandFailed(terminal, commandID, errors.Join(cause, interruptErr), 0, 0)
-	_, closeErr := a.serial.CloseSession(terminal.ID())
+	_, closeErr := a.removeAndCloseSession(terminal.ID())
 	a.leases.remove(terminal.ID())
 	return result, errors.Join(cause, fmt.Errorf("terminal command recovery failed; Session closed: %w", interruptErr), closeErr)
 }
