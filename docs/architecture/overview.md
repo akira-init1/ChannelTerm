@@ -26,6 +26,12 @@ MCP Adapter -> Tool Registry --+--> internal/core/app.Application
 streams to `internal/cli/command`. The CLI owns argument syntax, status text, raw console mode,
 escape commands, highlighting, HTTP host setup, and MCP client attachment.
 
+`internal/install` is an adapter-side operating-system integration boundary. It installs the
+currently running executable for one user, owns the `cterm` command alias and any PATH entry it
+adds, and records that ownership in a platform-local manifest. It reuses `internal/core/config` to
+initialize or purge known configuration files, but it does not define configuration semantics and
+does not participate in terminal runtime data flow.
+
 `internal/mcp` converts the protocol-neutral Tool Registry to MCP stdio or Streamable HTTP. MCP
 transport disconnects do not own Session lifecycle. `internal/mcp/terminal` owns public tool names,
 JSON-shaped schemas, encoding, and result translation; it calls `internal/core/app.Application` for
