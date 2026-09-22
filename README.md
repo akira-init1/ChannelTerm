@@ -228,9 +228,17 @@ ChannelTerm requires Go 1.25 or newer. Use a currently supported patched Go tool
 git clone https://github.com/akira-init1/ChannelTerm.git
 cd ChannelTerm
 go build ./cmd/channelterm
+./channelterm install
 ```
 
-See [Build from source](docs/getting-started/build.md) for the supported platforms and [Building and testing](docs/development/building-and-testing.md) for repository checks and cross-build scripts.
+`install` copies the running binary into the current user's standard program location, creates the
+`channelterm` and `cterm` commands, adds that location to the user PATH only when necessary, and
+initializes a missing minimal configuration. Open a new terminal when it reports a PATH change.
+`channelterm uninstall` removes the installer-owned commands and PATH change while preserving user
+data; `channelterm uninstall --purge` requires explicit confirmation before deleting configuration,
+device state, and the local HTTP credential.
+
+See [Build and install from source](docs/getting-started/build.md) for the supported platforms and [Building and testing](docs/development/building-and-testing.md) for repository checks and cross-build scripts.
 
 ## Configuration
 

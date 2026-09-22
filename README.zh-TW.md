@@ -129,10 +129,16 @@ ChannelTerm 需要 Go 1.25 或更新版本。請使用目前仍受支援的修�
 git clone https://github.com/akira-init1/ChannelTerm.git
 cd ChannelTerm
 go build ./cmd/channelterm
+./channelterm install
 ```
 
+`install` 會將目前執行的二進位檔複製到目前使用者的標準程式目錄，建立 `channelterm` 與 `cterm`
+命令，只在需要時將該目錄加入使用者 PATH，並在缺少設定時初始化最小設定。若命令提示 PATH 已變更，
+請開啟新的終端機。`channelterm uninstall` 會刪除安裝器管理的命令與 PATH 變更，但保留使用者資料；
+`channelterm uninstall --purge` 必須明確確認後才會刪除設定、裝置狀態與本機 HTTP 驗證資訊。
+
 支援的桌面目標為 Windows、Linux、macOS 的 amd64/arm64。詳見
-[從原始碼建置](docs/getting-started/build.md)與[建置及測試](docs/development/building-and-testing.md)。
+[從原始碼建置並安裝](docs/getting-started/build.md)與[建置及測試](docs/development/building-and-testing.md)。
 
 ## 設定
 
