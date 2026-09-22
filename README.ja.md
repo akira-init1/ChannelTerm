@@ -1,4 +1,4 @@
-[English](README.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | 日本語 | [한국어](README.ko.md)
+[English](README.md) | [Deutsch](README.de.md) | [Español](README.es.md) | [Français](README.fr.md) | 日本語 | [한국어](README.ko.md) | [Русский](README.ru.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md)
 
 # ChannelTerm
 
@@ -27,27 +27,28 @@ AI が端末を置き換えるのではありません。AI がデバイスを�
 Telnet は将来の方向性であり、現在の機能ではありません。ChannelTerm 自体に AI は内蔵されて
 おらず、MCP を通して実際の端末 Session を外部 AI クライアントへ提供します。
 
-## クイックスタート：1 つのシリアル Session を共有する
+## クイックスタート：1 コマンド、1 端末
 
-個々の CLI が切断した後も Session を維持するには、専用の Host を先に起動します。
-
-端末 1 — ローカル Host を起動：
-
-```bash
-channelterm mcp --transport http
-```
-
-次の行が表示されれば準備完了です。その後、出力がないのは正常です。
-
-```text
-MCP Streamable HTTP listening on http://127.0.0.1:37099/mcp
-```
-
-端末 2 — OS ネイティブのシリアルターゲットを一覧し、開いて接続：
+実行中の MCP サーバーを必要とせず、OS ネイティブのシリアルターゲットを一覧できます。
 
 ```bash
 channelterm list --kind device --transport serial --no-mcp
+```
 
+`COM50` などのネイティブターゲットが既知なら、この検出手順は省略できます。
+
+AI クライアントを Session に参加させる場合は、接続前に対応クライアントを一度だけ設定します。
+
+```bash
+channelterm init --mcp
+```
+
+HTTP を選ぶか、Enter を押して既定の HTTP を使用します。設定にはローカル Bearer 認証情報が
+含まれます。AI クライアントが変更をすぐに読み込まない場合は再読み込みまたは再起動してください。
+
+次に、現在のプラットフォームに対応するコマンドを 1 つだけ実行します。
+
+```bash
 # Windows
 channelterm attach COM8 --baud 115200 --label board
 
@@ -58,29 +59,46 @@ channelterm attach /dev/ttyUSB0 --baud 115200 --label board
 channelterm attach /dev/cu.usbserial-110 --baud 115200 --label board
 ```
 
-使用中のプラットフォームに対応するコマンドだけを実行してください。`--label board` は任意の
-表示名であり、識別子ではありません。`channelterm attach board` では接続できません。
+この 1 つの `attach` コマンドがシリアルデバイスを開き、現在の端末を接続します。既定の
+エンドポイントで互換 Host が動作していない場合は、一時的なローカル HTTP MCP Session Host も
+自動的に起動します。代表的な起動出力は次のとおりです。
 
-端末 3 — 別の人または別の端末から同じ Session に接続：
-
-```bash
-channelterm list --kind session
-channelterm attach SER-1
+```text
+Shared Session created: SER-1 (0123456789abcdef0123456789abcdef)
+[ChannelTerm] Temporary Session Host started; it and all shared Sessions stop when this attachment exits. Run 'channelterm mcp --transport http' separately for a persistent Host.
 ```
 
-各アタッチメントは独立した読み取りカーソルを持ちますが、同じデバイスの生出力を受信します。
-`Ctrl+] q` で共有 Session を閉じずに現在の CLI だけを切断できます。Host とすべての Session を
-終了するときだけ、端末 1 で `Ctrl+C` を押してください。
+このクイックパスでは、MCP サーバー用の別端末は不要です。アタッチメントが動作している間、設定済み
+HTTP MCP クライアントは `http://127.0.0.1:37099/mcp` を使用して同じ `SER-1` を操作できます。
+作成元のアタッチメントが終了すると、一時 Host とそのすべての Session も停止します。Session を
+現在の端末から独立して維持する必要がある場合だけ、永続 Host を別に実行します。
 
-1 つの端末ですぐに使う場合は、`channelterm attach COM8` または OS ネイティブの `/dev/...`
-ターゲットを直接実行できます。この場合は一時 Host が自動起動しますが、作成元のアタッチメント
-が終了すると Host とすべての Session も停止します。共有用途では専用 Host を推奨します。
+`--label board` は任意の表示名であり、識別子ではありません。他のクライアントは `SER-1` または
+完全な Session ID を使用します。
+
+### よく使うワークフロー
+
+| 目的 | コマンド |
+| --- | --- |
+| 共有シリアル Session を開き、一時 Host を自動起動 | `channelterm attach COM8 --baud 115200` |
+| 対応 AI クライアントに共有 HTTP Host を設定 | `channelterm init --mcp` |
+| Host と Session を独立して維持 | `channelterm mcp --transport http` |
+| 既存 Session を一覧または接続 | `channelterm list --kind session` の後に `channelterm attach SER-1` |
+| MCP 共有なしのプライベート接続を開く | `channelterm attach COM8 --private --baud 115200` |
+| 構造化 Session アクティビティを監視 | `channelterm events SER-1` |
+| 現在の共有アタッチメントでガイド付きファイル転送を開く | `Ctrl+]` を押してから `f` を押す |
+| 共有 Session でファイルを送受信 | `channelterm file send firmware.bin --session SER-1` または `channelterm file receive /tmp/log.txt ./log.txt --session SER-1` |
+
+永続 Host は独立した長時間実行プロセスです。
+`MCP Streamable HTTP listening on http://127.0.0.1:37099/mcp` が表示された後、他の Shell や設定済み
+AI クライアントが Session を作成または接続できます。準備完了後に出力がないのは正常です。Host と
+そのすべての Session を終了するときは `Ctrl+C` を押します。
 
 ## 操作キー
 
 ```text
 Ctrl+C      リモート端末へ 0x03 を送信
-Ctrl+] q    共有 Session を閉じずに現在の CLI を切断
+Ctrl+] q    現在の CLI を終了（一時 Host の所有者なら Host も停止）
 Ctrl+] ?    ローカルのエスケープヘルプを表示
 Ctrl+] ]    Ctrl+] バイトをリモートへ送信
 Ctrl+] t    ローカルのシェルプロンプト時刻表示を切り替え
@@ -109,7 +127,9 @@ HTTP Host は Bearer token を必要とし、既定ではループバックだ�
 
 ## ファイル転送
 
-共有 Session を通してファイルやディレクトリを送受信できます。
+共有 Session を通してファイルやディレクトリを送受信できます。実行中の共有 `attach` で
+`Ctrl+]` を押してから `f` を押すと、ガイド付き送受信メニューが開きます。同じ操作は
+コマンドからも実行できます。
 
 ```bash
 channelterm file send firmware.bin --session SER-1
@@ -144,8 +164,18 @@ go build ./cmd/channelterm
 保持します。`channelterm uninstall --purge` は明示的な確認後にのみ設定、デバイス状態、ローカルの
 HTTP 認証情報を削除します。
 
+既定の保存先は次のとおりです。インストーラーは実行後にも実際のパスを表示します。
+
+| プラットフォーム | コマンドディレクトリ | インストール記録 | 既定の設定 |
+| --- | --- | --- | --- |
+| Windows | `%LOCALAPPDATA%\Programs\ChannelTerm\bin` | `%LOCALAPPDATA%\ChannelTerm\install.json` | `%APPDATA%\channelterm\config.toml` |
+| Linux | `~/.local/bin` | `$XDG_STATE_HOME/channelterm/install.json`、未設定の場合は `~/.local/state/channelterm/install.json` | `$XDG_CONFIG_HOME/channelterm/config.toml`、未設定の場合は `~/.config/channelterm/config.toml` |
+| macOS | `~/.local/bin` | `~/Library/Application Support/channelterm/install.json` | `~/Library/Application Support/channelterm/config.toml` |
+
 対応デスクトップターゲットは Windows、Linux、macOS の amd64/arm64 です。詳細は
-[ソースからのビルドとインストール](docs/getting-started/build.md)および
+[ソースからのビルドとインストール](docs/getting-started/build.md)、
+[`install` / `uninstall` の完全な契約](docs/reference/cli.md#install-and-uninstall)、
+[設定パス](docs/reference/configuration.md)、および
 [ビルドとテスト](docs/development/building-and-testing.md)を参照してください。
 
 ## 設定

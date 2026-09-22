@@ -1,4 +1,4 @@
-[English](README.md) | 简体中文 | [繁體中文](README.zh-TW.md) | [日本語](README.ja.md) | [한국어](README.ko.md)
+[English](README.md) | [Deutsch](README.de.md) | [Español](README.es.md) | [Français](README.fr.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Русский](README.ru.md) | 简体中文 | [繁體中文](README.zh-TW.md)
 
 # ChannelTerm
 
@@ -26,27 +26,28 @@ ChannelTerm 让人类和 AI 共享同一个硬件终端 Session。它不会替�
 不是当前功能。ChannelTerm 本身也不是内置 AI；它通过 MCP 把真实终端 Session 提供给外部
 AI 客户端。
 
-## 快速开始：共享一个串口 Session
+## 快速开始：一条命令，一个终端
 
-如果希望某个 CLI 退出后 Session 仍然存在，请先单独启动持久 Host。
-
-终端 1——启动本机 Host：
-
-```bash
-channelterm mcp --transport http
-```
-
-出现下面一行表示已经就绪，之后保持安静是正常现象：
-
-```text
-MCP Streamable HTTP listening on http://127.0.0.1:37099/mcp
-```
-
-终端 2——列出原生串口目标，然后打开并接入：
+先列出原生串口目标；此操作不要求 MCP 服务器已经运行：
 
 ```bash
 channelterm list --kind device --transport serial --no-mcp
+```
 
+如果已经知道 `COM50` 这样的原生目标，可以跳过这一步。
+
+如果需要 AI 客户端加入 Session，请在接入前为受支持的客户端执行一次配置：
+
+```bash
+channelterm init --mcp
+```
+
+选择 HTTP，或直接按回车采用默认的 HTTP。配置中包含本机 Bearer 凭据；如果 AI 客户端没有立即
+读取新配置，请重新加载或重启客户端。
+
+然后只执行当前平台对应的一条命令：
+
+```bash
 # Windows
 channelterm attach COM8 --baud 115200 --label board
 
@@ -57,29 +58,44 @@ channelterm attach /dev/ttyUSB0 --baud 115200 --label board
 channelterm attach /dev/cu.usbserial-110 --baud 115200 --label board
 ```
 
-只需执行当前平台对应的一条命令。`--label board` 是可选显示名称，不是标识符，不能用
-`channelterm attach board` 接入。
+这一条 `attach` 命令会打开串口并让当前终端接入。如果默认端点没有兼容的 Host，它还会自动
+启动一个临时的本机 HTTP MCP Session Host。典型输出如下：
 
-终端 3——其他人或另一个终端接入同一 Session：
-
-```bash
-channelterm list --kind session
-channelterm attach SER-1
+```text
+Shared Session created: SER-1 (0123456789abcdef0123456789abcdef)
+[ChannelTerm] Temporary Session Host started; it and all shared Sessions stop when this attachment exits. Run 'channelterm mcp --transport http' separately for a persistent Host.
 ```
 
-每个附件都有独立的读取游标，但看到的是同一个设备的原始输出。按 `Ctrl+] q` 只退出当前
-CLI，不关闭共享 Session。只有在需要关闭 Host 及其全部 Session 时，才在终端 1 按
-`Ctrl+C`。
+快速使用时不需要另外打开一个终端运行 MCP 服务器。只要这个附件保持运行，已配置的 HTTP MCP
+客户端就能通过 `http://127.0.0.1:37099/mcp` 操作同一个 `SER-1`。创建临时 Host 的附件退出后，
+该 Host 及其全部 Session 都会停止。只有当 Session 必须独立于当前终端继续存在时，才需要单独
+运行持久 Host。
 
-快速单终端使用时，可以直接执行 `channelterm attach COM8` 或原生 `/dev/...` 目标，程序会
-自动启动临时 Host。但创建该 Host 的附件退出后，Host 和全部 Session 都会停止，因此多人
-共享时推荐使用上面的持久 Host 流程。
+`--label board` 只是可选显示名称，不是标识符。其他客户端应使用 `SER-1` 或完整 Session ID。
+
+### 常用玩法
+
+| 目标 | 命令 |
+| --- | --- |
+| 打开共享串口 Session，并自动启动临时 Host | `channelterm attach COM8 --baud 115200` |
+| 为受支持的 AI 客户端配置共享 HTTP Host | `channelterm init --mcp` |
+| 让 Host 和 Session 独立持续运行 | `channelterm mcp --transport http` |
+| 列出或加入已有 Session | `channelterm list --kind session`，然后执行 `channelterm attach SER-1` |
+| 打开不通过 MCP 共享的私有串口 | `channelterm attach COM8 --private --baud 115200` |
+| 观察结构化 Session 活动 | `channelterm events SER-1` |
+| 在当前共享附件中打开引导式文件传输菜单 | 先按 `Ctrl+]`，再按 `f` |
+| 通过共享 Session 发送或接收文件 | `channelterm file send firmware.bin --session SER-1` 或 `channelterm file receive /tmp/log.txt ./log.txt --session SER-1` |
+
+持久 Host 是一个单独长期运行的进程。它显示
+`MCP Streamable HTTP listening on http://127.0.0.1:37099/mcp` 后，其他 Shell 和已配置的 AI
+客户端就可以创建或加入 Session。就绪提示之后没有输出是正常现象；需要关闭 Host 及其全部
+Session 时按 `Ctrl+C`。
 
 ## 交互按键
 
 ```text
 Ctrl+C      向远端终端发送 0x03
-Ctrl+] q    退出当前 CLI，但不关闭共享 Session
+Ctrl+] q    退出当前 CLI；若它拥有临时 Host，该 Host 也会停止
 Ctrl+] ?    显示本地转义帮助
 Ctrl+] ]    向远端发送字面量 Ctrl+]
 Ctrl+] t    开关本地 Shell 提示符时间戳
@@ -106,7 +122,8 @@ HTTP Host 需要 Bearer token，默认只监听回环地址。内置 CLI 会读�
 
 ## 文件传输
 
-共享 Session 可以发送或接收文件和目录：
+共享 Session 可以发送或接收文件和目录。在正在运行的共享 `attach` 中，先按 `Ctrl+]`，再按 `f`，
+即可打开引导式发送/接收菜单；同样的操作也可以通过命令完成：
 
 ```bash
 channelterm file send firmware.bin --session SER-1
@@ -137,8 +154,18 @@ go build ./cmd/channelterm
 请打开新终端。`channelterm uninstall` 会删除安装器管理的命令和 PATH 修改，但保留用户数据；
 `channelterm uninstall --purge` 必须明确确认后才会删除配置、设备状态和本地 HTTP 认证信息。
 
+默认位置如下；安装器每次运行后也会打印实际路径：
+
+| 平台 | 命令目录 | 安装记录 | 默认配置 |
+| --- | --- | --- | --- |
+| Windows | `%LOCALAPPDATA%\Programs\ChannelTerm\bin` | `%LOCALAPPDATA%\ChannelTerm\install.json` | `%APPDATA%\channelterm\config.toml` |
+| Linux | `~/.local/bin` | `$XDG_STATE_HOME/channelterm/install.json`；未设置时为 `~/.local/state/channelterm/install.json` | `$XDG_CONFIG_HOME/channelterm/config.toml`；未设置时为 `~/.config/channelterm/config.toml` |
+| macOS | `~/.local/bin` | `~/Library/Application Support/channelterm/install.json` | `~/Library/Application Support/channelterm/config.toml` |
+
 支持的桌面目标为 Windows、Linux、macOS 的 amd64/arm64。详见
-[从源码构建并安装](docs/getting-started/build.md)和[构建与测试](docs/development/building-and-testing.md)。
+[从源码构建并安装](docs/getting-started/build.md)、
+[`install` / `uninstall` 完整契约](docs/reference/cli.md#install-and-uninstall)、
+[配置位置](docs/reference/configuration.md)和[构建与测试](docs/development/building-and-testing.md)。
 
 ## 配置
 

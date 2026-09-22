@@ -1,4 +1,4 @@
-[English](README.md) | [简体中文](README.zh-CN.md) | 繁體中文 | [日本語](README.ja.md) | [한국어](README.ko.md)
+[English](README.md) | [Deutsch](README.de.md) | [Español](README.es.md) | [Français](README.fr.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Русский](README.ru.md) | [简体中文](README.zh-CN.md) | 繁體中文
 
 # ChannelTerm
 
@@ -26,27 +26,28 @@ ChannelTerm 讓人類與 AI 共用同一個硬體終端 Session。AI 不會取�
 不是目前功能。ChannelTerm 本身也不是內建 AI；它透過 MCP 將真實終端 Session 提供給外部
 AI 用戶端。
 
-## 快速開始：共用一個序列埠 Session
+## 快速開始：一條命令，一個終端機
 
-若希望個別 CLI 離開後 Session 仍持續存在，請先獨立啟動持久 Host。
-
-終端 1——啟動本機 Host：
-
-```bash
-channelterm mcp --transport http
-```
-
-出現下列訊息即代表已就緒，之後沒有輸出是正常現象：
-
-```text
-MCP Streamable HTTP listening on http://127.0.0.1:37099/mcp
-```
-
-終端 2——列出原生序列埠目標，然後開啟並連入：
+先列出原生序列埠目標；此操作不要求 MCP 伺服器已在執行：
 
 ```bash
 channelterm list --kind device --transport serial --no-mcp
+```
 
+如果已經知道 `COM50` 這類原生目標，可以略過此步驟。
+
+若需要 AI 用戶端加入 Session，請在連入前為支援的用戶端執行一次設定：
+
+```bash
+channelterm init --mcp
+```
+
+選擇 HTTP，或直接按 Enter 採用預設的 HTTP。設定包含本機 Bearer 憑證；若 AI 用戶端沒有立即
+讀取新設定，請重新載入或啟動用戶端。
+
+接著只執行目前平台對應的一條命令：
+
+```bash
 # Windows
 channelterm attach COM8 --baud 115200 --label board
 
@@ -57,29 +58,44 @@ channelterm attach /dev/ttyUSB0 --baud 115200 --label board
 channelterm attach /dev/cu.usbserial-110 --baud 115200 --label board
 ```
 
-只需執行目前平台對應的命令。`--label board` 是選用的顯示名稱，不是識別碼，不能使用
-`channelterm attach board` 連入。
+這一條 `attach` 命令會開啟序列埠並讓目前終端機連入。如果預設端點沒有相容的 Host，它也會
+自動啟動暫時的本機 HTTP MCP Session Host。典型輸出如下：
 
-終端 3——其他人或另一個終端連入同一 Session：
-
-```bash
-channelterm list --kind session
-channelterm attach SER-1
+```text
+Shared Session created: SER-1 (0123456789abcdef0123456789abcdef)
+[ChannelTerm] Temporary Session Host started; it and all shared Sessions stop when this attachment exits. Run 'channelterm mcp --transport http' separately for a persistent Host.
 ```
 
-每個附件都有獨立的讀取游標，但看到的是同一裝置的原始輸出。按 `Ctrl+] q` 只會離開目前
-CLI，不會關閉共享 Session。只有需要關閉 Host 及其所有 Session 時，才在終端 1 按
-`Ctrl+C`。
+快速使用時不必另外開一個終端機執行 MCP 伺服器。只要此附件保持執行，已設定的 HTTP MCP 用戶端
+即可透過 `http://127.0.0.1:37099/mcp` 操作同一個 `SER-1`。建立暫時 Host 的附件離開後，該 Host
+與其所有 Session 都會停止。只有 Session 必須獨立於目前終端機持續存在時，才需要另外執行持久
+Host。
 
-若只需要快速單終端操作，可直接執行 `channelterm attach COM8` 或原生 `/dev/...` 目標，
-程式會自動啟動臨時 Host。但建立該 Host 的附件離開後，Host 與所有 Session 都會停止，
-因此多人共用時建議使用上述持久 Host 流程。
+`--label board` 只是選用顯示名稱，不是識別碼。其他用戶端應使用 `SER-1` 或完整 Session ID。
+
+### 常用方式
+
+| 目標 | 命令 |
+| --- | --- |
+| 開啟共用序列埠 Session，並自動啟動暫時 Host | `channelterm attach COM8 --baud 115200` |
+| 為支援的 AI 用戶端設定共用 HTTP Host | `channelterm init --mcp` |
+| 讓 Host 與 Session 獨立持續執行 | `channelterm mcp --transport http` |
+| 列出或加入既有 Session | `channelterm list --kind session`，接著執行 `channelterm attach SER-1` |
+| 開啟不透過 MCP 共用的私有序列埠 | `channelterm attach COM8 --private --baud 115200` |
+| 觀察結構化 Session 活動 | `channelterm events SER-1` |
+| 在目前共用附件中開啟引導式檔案傳輸選單 | 先按 `Ctrl+]`，再按 `f` |
+| 透過共用 Session 傳送或接收檔案 | `channelterm file send firmware.bin --session SER-1` 或 `channelterm file receive /tmp/log.txt ./log.txt --session SER-1` |
+
+持久 Host 是獨立且長時間執行的程序。它顯示
+`MCP Streamable HTTP listening on http://127.0.0.1:37099/mcp` 後，其他 Shell 與已設定的 AI
+用戶端即可建立或加入 Session。就緒訊息之後沒有輸出是正常現象；需要關閉 Host 及其所有
+Session 時按 `Ctrl+C`。
 
 ## 互動按鍵
 
 ```text
 Ctrl+C      將 0x03 傳送到遠端終端
-Ctrl+] q    離開目前 CLI，但不關閉共享 Session
+Ctrl+] q    離開目前 CLI；若它擁有暫時 Host，該 Host 也會停止
 Ctrl+] ?    顯示本機跳脫說明
 Ctrl+] ]    將字面 Ctrl+] 傳送到遠端
 Ctrl+] t    切換本機 Shell 提示字元時間戳
@@ -106,7 +122,8 @@ HTTP Host 需要 Bearer token，預設僅監聽回環位址。內建 CLI 會讀�
 
 ## 檔案傳輸
 
-共享 Session 可以傳送或接收檔案與目錄：
+共享 Session 可以傳送或接收檔案與目錄。在執行中的共用 `attach` 內，先按 `Ctrl+]`，再按 `f`，
+即可開啟引導式傳送/接收選單；相同操作也能透過命令完成：
 
 ```bash
 channelterm file send firmware.bin --session SER-1
@@ -137,8 +154,18 @@ go build ./cmd/channelterm
 請開啟新的終端機。`channelterm uninstall` 會刪除安裝器管理的命令與 PATH 變更，但保留使用者資料；
 `channelterm uninstall --purge` 必須明確確認後才會刪除設定、裝置狀態與本機 HTTP 驗證資訊。
 
+預設位置如下；安裝器每次執行後也會顯示實際路徑：
+
+| 平台 | 命令目錄 | 安裝記錄 | 預設設定 |
+| --- | --- | --- | --- |
+| Windows | `%LOCALAPPDATA%\Programs\ChannelTerm\bin` | `%LOCALAPPDATA%\ChannelTerm\install.json` | `%APPDATA%\channelterm\config.toml` |
+| Linux | `~/.local/bin` | `$XDG_STATE_HOME/channelterm/install.json`；未設定時為 `~/.local/state/channelterm/install.json` | `$XDG_CONFIG_HOME/channelterm/config.toml`；未設定時為 `~/.config/channelterm/config.toml` |
+| macOS | `~/.local/bin` | `~/Library/Application Support/channelterm/install.json` | `~/Library/Application Support/channelterm/config.toml` |
+
 支援的桌面目標為 Windows、Linux、macOS 的 amd64/arm64。詳見
-[從原始碼建置並安裝](docs/getting-started/build.md)與[建置及測試](docs/development/building-and-testing.md)。
+[從原始碼建置並安裝](docs/getting-started/build.md)、
+[`install` / `uninstall` 完整契約](docs/reference/cli.md#install-and-uninstall)、
+[設定位置](docs/reference/configuration.md)與[建置及測試](docs/development/building-and-testing.md)。
 
 ## 設定
 

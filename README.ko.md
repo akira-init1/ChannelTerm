@@ -1,4 +1,4 @@
-[English](README.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [日本語](README.ja.md) | 한국어
+[English](README.md) | [Deutsch](README.de.md) | [Español](README.es.md) | [Français](README.fr.md) | [日本語](README.ja.md) | 한국어 | [Русский](README.ru.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md)
 
 # ChannelTerm
 
@@ -27,27 +27,28 @@ ChannelTerm은 사람과 AI가 하나의 하드웨어 터미널 Session을 공�
 방향이며 현재 기능이 아닙니다. ChannelTerm 자체에 AI가 내장된 것도 아닙니다. MCP를 통해 실제
 터미널 Session을 외부 AI 클라이언트에 제공합니다.
 
-## 빠른 시작: 하나의 시리얼 Session 공유
+## 빠른 시작: 명령 하나, 터미널 하나
 
-개별 CLI가 종료된 뒤에도 Session을 유지하려면 전용 Host를 먼저 실행합니다.
-
-터미널 1 — 로컬 Host 시작:
-
-```bash
-channelterm mcp --transport http
-```
-
-다음 줄이 출력되면 준비가 끝난 것입니다. 이후 출력이 없는 것은 정상입니다.
-
-```text
-MCP Streamable HTTP listening on http://127.0.0.1:37099/mcp
-```
-
-터미널 2 — 운영체제의 시리얼 대상을 확인한 뒤 열고 연결:
+실행 중인 MCP 서버 없이 운영체제의 시리얼 대상을 먼저 확인합니다.
 
 ```bash
 channelterm list --kind device --transport serial --no-mcp
+```
 
+`COM50`과 같은 기본 대상 이름을 이미 알고 있다면 이 검색 단계는 생략할 수 있습니다.
+
+AI 클라이언트가 Session에 참여해야 한다면 연결하기 전에 지원되는 클라이언트를 한 번 설정합니다.
+
+```bash
+channelterm init --mcp
+```
+
+HTTP를 선택하거나 Enter를 눌러 기본 HTTP를 사용합니다. 설정에는 로컬 Bearer 인증 정보가 포함됩니다.
+AI 클라이언트가 변경 사항을 즉시 읽지 않으면 다시 로드하거나 재시작하십시오.
+
+그다음 현재 플랫폼에 맞는 명령 하나만 실행합니다.
+
+```bash
 # Windows
 channelterm attach COM8 --baud 115200 --label board
 
@@ -58,29 +59,46 @@ channelterm attach /dev/ttyUSB0 --baud 115200 --label board
 channelterm attach /dev/cu.usbserial-110 --baud 115200 --label board
 ```
 
-현재 플랫폼에 맞는 명령 하나만 실행하면 됩니다. `--label board`는 선택적인 표시 이름이며
-식별자가 아닙니다. `channelterm attach board`로는 연결할 수 없습니다.
+이 `attach` 명령 하나가 시리얼 장치를 열고 현재 터미널을 연결합니다. 기본 엔드포인트에서 호환되는
+Host가 실행 중이 아니면 임시 로컬 HTTP MCP Session Host도 자동으로 시작합니다. 일반적인 시작
+출력은 다음과 같습니다.
 
-터미널 3 — 다른 사용자 또는 다른 터미널에서 같은 Session 연결:
-
-```bash
-channelterm list --kind session
-channelterm attach SER-1
+```text
+Shared Session created: SER-1 (0123456789abcdef0123456789abcdef)
+[ChannelTerm] Temporary Session Host started; it and all shared Sessions stop when this attachment exits. Run 'channelterm mcp --transport http' separately for a persistent Host.
 ```
 
-각 연결은 독립적인 읽기 커서를 가지지만 동일한 장치의 원시 출력을 받습니다. `Ctrl+] q`를 누르면
-공유 Session을 닫지 않고 현재 CLI만 분리됩니다. Host와 모든 Session을 닫을 때만 터미널 1에서
-`Ctrl+C`를 누르십시오.
+이 빠른 경로에는 MCP 서버용 별도 터미널이 필요하지 않습니다. 연결이 유지되는 동안 설정된 HTTP MCP
+클라이언트는 `http://127.0.0.1:37099/mcp`를 사용하여 같은 `SER-1`을 조작할 수 있습니다. 생성한
+연결이 종료되면 임시 Host와 그 Host가 소유한 모든 Session도 중지됩니다. Session이 현재 터미널과
+독립적으로 유지되어야 할 때만 영구 Host를 별도로 실행합니다.
 
-한 터미널에서 빠르게 사용할 때는 `channelterm attach COM8` 또는 운영체제의 `/dev/...` 대상을
-직접 실행할 수 있습니다. 이 경우 임시 Host가 자동으로 시작되지만, 이를 만든 연결이 종료되면 Host와
-모든 Session도 중지됩니다. 공유 작업에는 전용 Host 방식을 권장합니다.
+`--label board`는 선택적인 표시 이름이지 식별자가 아닙니다. 다른 클라이언트는 `SER-1` 또는 전체
+Session ID를 사용해야 합니다.
+
+### 자주 쓰는 워크플로
+
+| 목적 | 명령 |
+| --- | --- |
+| 공유 시리얼 Session을 열고 임시 Host 자동 시작 | `channelterm attach COM8 --baud 115200` |
+| 지원되는 AI 클라이언트에 공유 HTTP Host 설정 | `channelterm init --mcp` |
+| Host와 Session을 독립적으로 계속 실행 | `channelterm mcp --transport http` |
+| 기존 Session 목록 확인 또는 연결 | `channelterm list --kind session` 실행 후 `channelterm attach SER-1` |
+| MCP 공유 없는 비공개 시리얼 연결 열기 | `channelterm attach COM8 --private --baud 115200` |
+| 구조화된 Session 활동 관찰 | `channelterm events SER-1` |
+| 현재 공유 연결에서 안내식 파일 전송 메뉴 열기 | `Ctrl+]`를 누른 다음 `f` 누르기 |
+| 공유 Session으로 파일 송수신 | `channelterm file send firmware.bin --session SER-1` 또는 `channelterm file receive /tmp/log.txt ./log.txt --session SER-1` |
+
+영구 Host는 독립적으로 장시간 실행되는 프로세스입니다.
+`MCP Streamable HTTP listening on http://127.0.0.1:37099/mcp`가 표시된 뒤 다른 Shell과 설정된 AI
+클라이언트가 Session을 만들거나 연결할 수 있습니다. 준비 메시지 이후 출력이 없는 것은 정상입니다.
+Host와 모든 Session을 닫을 때 `Ctrl+C`를 누르십시오.
 
 ## 대화형 키
 
 ```text
 Ctrl+C      원격 터미널에 0x03 전송
-Ctrl+] q    공유 Session을 닫지 않고 현재 CLI 분리
+Ctrl+] q    현재 CLI 종료(소유한 임시 Host가 있으면 Host도 중지)
 Ctrl+] ?    로컬 이스케이프 도움말 표시
 Ctrl+] ]    원격으로 Ctrl+] 바이트 전송
 Ctrl+] t    로컬 셸 프롬프트 타임스탬프 전환
@@ -109,7 +127,9 @@ token을 보내야 합니다. TLS와 별도의 네트워크 접근 제어 없이
 
 ## 파일 전송
 
-공유 Session을 통해 파일과 디렉터리를 보내거나 받을 수 있습니다.
+공유 Session을 통해 파일과 디렉터리를 보내거나 받을 수 있습니다. 실행 중인 공유 `attach`에서
+`Ctrl+]`를 누른 다음 `f`를 누르면 안내식 송수신 메뉴가 열립니다. 같은 작업은 명령으로도
+실행할 수 있습니다.
 
 ```bash
 channelterm file send firmware.bin --session SER-1
@@ -143,8 +163,18 @@ go build ./cmd/channelterm
 `channelterm uninstall --purge`는 명시적으로 확인한 뒤에만 설정, 장치 상태 및 로컬 HTTP 인증 정보를
 삭제합니다.
 
+기본 위치는 다음과 같습니다. 설치 프로그램은 실행 후 실제 경로도 출력합니다.
+
+| 플랫폼 | 명령 디렉터리 | 설치 기록 | 기본 설정 |
+| --- | --- | --- | --- |
+| Windows | `%LOCALAPPDATA%\Programs\ChannelTerm\bin` | `%LOCALAPPDATA%\ChannelTerm\install.json` | `%APPDATA%\channelterm\config.toml` |
+| Linux | `~/.local/bin` | `$XDG_STATE_HOME/channelterm/install.json`, 설정되지 않은 경우 `~/.local/state/channelterm/install.json` | `$XDG_CONFIG_HOME/channelterm/config.toml`, 설정되지 않은 경우 `~/.config/channelterm/config.toml` |
+| macOS | `~/.local/bin` | `~/Library/Application Support/channelterm/install.json` | `~/Library/Application Support/channelterm/config.toml` |
+
 지원되는 데스크톱 대상은 Windows, Linux, macOS의 amd64/arm64입니다. 자세한 내용은
-[소스에서 빌드 및 설치](docs/getting-started/build.md)와
+[소스에서 빌드 및 설치](docs/getting-started/build.md),
+[`install` / `uninstall` 전체 계약](docs/reference/cli.md#install-and-uninstall),
+[설정 경로](docs/reference/configuration.md)와
 [빌드 및 테스트](docs/development/building-and-testing.md)를 참고하십시오.
 
 ## 설정

@@ -1,4 +1,4 @@
-[English](README.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [日本語](README.ja.md) | [한국어](README.ko.md)
+[English](README.md) | [Deutsch](README.de.md) | [Español](README.es.md) | [Français](README.fr.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Русский](README.ru.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md)
 
 # ChannelTerm
 
@@ -24,24 +24,28 @@ AI does not replace your terminal. It joins it: the AI can read and operate the 
 
 ChannelTerm currently implements serial communication on Windows, Linux, and macOS. It is not a built-in AI; it exposes real terminal Sessions to human CLI clients and external AI clients through MCP.
 
-## Quick Start: Share One Serial Session
+## Quick Start: One Command, One Terminal
 
-For a Session that survives individual CLI attachments, keep a dedicated Host running.
-
-Terminal 1 — start the persistent local Host:
-
-```bash
-channelterm mcp --transport http
-```
-
-Readiness is confirmed by `MCP Streamable HTTP listening on http://127.0.0.1:37099/mcp`.
-Silence after that line is normal.
-
-Terminal 2 — list native serial targets, then open and attach to one:
+List native serial targets without requiring a running MCP server:
 
 ```bash
 channelterm list --kind device --transport serial --no-mcp
+```
 
+Skip this discovery step when the native target, such as `COM50`, is already known.
+
+If an AI client should join the Session, configure a supported client once before attaching:
+
+```bash
+channelterm init --mcp
+```
+
+Choose HTTP, or press Enter for the HTTP default. The configuration includes the local Bearer
+credential. Reload the AI client if it does not pick up configuration changes immediately.
+
+Then run the command for the current platform:
+
+```bash
 # Windows
 channelterm attach COM8 --baud 115200 --label board
 
@@ -52,29 +56,46 @@ channelterm attach /dev/ttyUSB0 --baud 115200 --label board
 channelterm attach /dev/cu.usbserial-110 --baud 115200 --label board
 ```
 
-Use only the command for the current platform. `--label board` is an optional display name; it is
-not an identifier and cannot replace a Session reference.
+That single `attach` command opens the serial device and attaches the current terminal. When no
+compatible Host is already running at the default endpoint, it also starts a temporary local HTTP
+MCP Session Host automatically. Typical startup output is:
 
-Terminal 3 — another human CLI lists and joins the existing Session:
-
-```bash
-channelterm list --kind session
-channelterm attach SER-1
+```text
+Shared Session created: SER-1 (0123456789abcdef0123456789abcdef)
+[ChannelTerm] Temporary Session Host started; it and all shared Sessions stop when this attachment exits. Run 'channelterm mcp --transport http' separately for a persistent Host.
 ```
 
-Every attachment receives the same raw device output through an independent cursor. Press
-`Ctrl+] q` to detach one CLI without closing the shared Session. Stop Terminal 1 with `Ctrl+C` only
-when the Host and all of its Sessions should close.
+No separate MCP-server terminal is required for this quick path. While the attachment remains open,
+a configured HTTP MCP client can use `http://127.0.0.1:37099/mcp` and operate the same `SER-1`.
+The temporary Host and every Session it owns stop when the creating attachment exits; use a
+persistent Host only when Sessions must outlive that terminal.
 
-For a quick single-terminal workflow, `channelterm attach COM8` (or a native `/dev/...` target)
-can start a temporary Host automatically. That Host and its Sessions stop when the creating
-attachment exits, so the dedicated Host above is the recommended shared workflow.
+`--label board` is an optional display name, not an identifier. Use `SER-1` or the opaque Session ID
+when another client needs to refer to the Session.
+
+### Common workflows
+
+| Goal | Command |
+| --- | --- |
+| Open a shared serial Session and auto-start a temporary Host | `channelterm attach COM8 --baud 115200` |
+| Configure a supported AI client for the shared HTTP Host | `channelterm init --mcp` |
+| Keep the Host and Sessions alive independently | `channelterm mcp --transport http` |
+| List or join an existing Session | `channelterm list --kind session` then `channelterm attach SER-1` |
+| Open a private serial connection with no MCP sharing | `channelterm attach COM8 --private --baud 115200` |
+| Watch structured Session activity | `channelterm events SER-1` |
+| Open the guided file-transfer menu in the current shared attachment | Press `Ctrl+]`, then press `f` |
+| Send or receive through a shared Session | `channelterm file send firmware.bin --session SER-1` or `channelterm file receive /tmp/log.txt ./log.txt --session SER-1` |
+
+A persistent Host is a separate long-running process. After it reports
+`MCP Streamable HTTP listening on http://127.0.0.1:37099/mcp`, other shells and configured AI clients
+can create or join Sessions. Silence after the readiness line is normal; stop the Host with
+`Ctrl+C` when all of its Sessions should close.
 
 While attached:
 
 ```text
 Ctrl+C      Send 0x03 to the remote terminal
-Ctrl+] q    Detach this CLI without closing the shared Session
+Ctrl+] q    Leave this CLI; an attachment-owned temporary Host also stops
 Ctrl+] ?    Show local escape help
 Ctrl+] ]    Send a literal Ctrl+] byte
 Ctrl+] t    Toggle local shell-prompt timestamps
@@ -139,7 +160,7 @@ The result is a hardware-debugging workflow where AI actions stay observable and
 
 ## AI, Files, and Local Controls
 
-That shared serial Session can also transfer regular files and directories without an AI client or a separately installed board-side transfer agent. Directories use standard tar and acknowledged, cancellation-friendly chunks:
+That shared serial Session can also transfer regular files and directories without an AI client or a separately installed board-side transfer agent. In an active shared `attach`, press `Ctrl+]` and then `f` to open the guided send/receive menu. Directories use standard tar and acknowledged, cancellation-friendly chunks; the same operations are available as commands:
 
 ```bash
 channelterm file send firmware.bin --session SER-1
@@ -238,7 +259,18 @@ initializes a missing minimal configuration. Open a new terminal when it reports
 data; `channelterm uninstall --purge` requires explicit confirmation before deleting configuration,
 device state, and the local HTTP credential.
 
-See [Build and install from source](docs/getting-started/build.md) for the supported platforms and [Building and testing](docs/development/building-and-testing.md) for repository checks and cross-build scripts.
+Default locations are summarized here; the installer prints the effective paths after every run:
+
+| Platform | Commands | Installation record | Default configuration |
+| --- | --- | --- | --- |
+| Windows | `%LOCALAPPDATA%\Programs\ChannelTerm\bin` | `%LOCALAPPDATA%\ChannelTerm\install.json` | `%APPDATA%\channelterm\config.toml` |
+| Linux | `~/.local/bin` | `$XDG_STATE_HOME/channelterm/install.json`, or `~/.local/state/channelterm/install.json` | `$XDG_CONFIG_HOME/channelterm/config.toml`, or `~/.config/channelterm/config.toml` |
+| macOS | `~/.local/bin` | `~/Library/Application Support/channelterm/install.json` | `~/Library/Application Support/channelterm/config.toml` |
+
+See [Build and install from source](docs/getting-started/build.md), the exact
+[`install` / `uninstall` contract](docs/reference/cli.md#install-and-uninstall), and
+[configuration locations](docs/reference/configuration.md). Repository checks and cross-build
+scripts are covered by [Building and testing](docs/development/building-and-testing.md).
 
 ## Configuration
 

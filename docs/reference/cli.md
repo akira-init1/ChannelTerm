@@ -79,13 +79,13 @@ installation manifest is never silently overwritten. `--adopt` accepts an existi
 only when its SHA-256 matches the running binary, or an existing short-command link only when it
 already resolves to the standard installed command. Directories and unrelated files are rejected.
 
-The ownership manifest is stored at:
+The default installation locations are:
 
-| Platform | Installation manifest |
-| --- | --- |
-| Windows | `%LOCALAPPDATA%\ChannelTerm\install.json` |
-| Linux | `$XDG_STATE_HOME/channelterm/install.json`, or `~/.local/state/channelterm/install.json` |
-| macOS | `~/Library/Application Support/channelterm/install.json` |
+| Platform | Full command | Short command | Installation manifest | Default configuration |
+| --- | --- | --- | --- | --- |
+| Windows | `%LOCALAPPDATA%\Programs\ChannelTerm\bin\channelterm.exe` | `%LOCALAPPDATA%\Programs\ChannelTerm\bin\cterm.exe` | `%LOCALAPPDATA%\ChannelTerm\install.json` | `%APPDATA%\channelterm\config.toml` |
+| Linux | `~/.local/bin/channelterm` | `~/.local/bin/cterm` | `$XDG_STATE_HOME/channelterm/install.json`, or `~/.local/state/channelterm/install.json` | `$XDG_CONFIG_HOME/channelterm/config.toml`, or `~/.config/channelterm/config.toml` |
+| macOS | `~/.local/bin/channelterm` | `~/.local/bin/cterm` | `~/Library/Application Support/channelterm/install.json` | `~/Library/Application Support/channelterm/config.toml` |
 
 The manifest records build provenance, expected command paths, the installed SHA-256, alias kind,
 and only the PATH change made by ChannelTerm. Paths loaded from it must still match the platform's

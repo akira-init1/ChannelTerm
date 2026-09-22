@@ -10,6 +10,10 @@ for command-line flags and defaults, the running program's `--help` output remai
 - [繁體中文 README](../README.zh-TW.md)
 - [日本語 README](../README.ja.md)
 - [한국어 README](../README.ko.md)
+- [Français README](../README.fr.md)
+- [Deutsch README](../README.de.md)
+- [Español README](../README.es.md)
+- [Русский README](../README.ru.md)
 
 ## Getting Started
 
