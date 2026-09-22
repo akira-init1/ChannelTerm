@@ -6,8 +6,6 @@ package app
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -21,24 +19,12 @@ import (
 const (
 	serialTransportName = "serial"
 	wakeByte            = 0x0D
-	maxOpenAttempts     = 4
 )
 
 var (
 	// ErrNilSessionManager is returned when a SerialService has no Session owner.
 	ErrNilSessionManager = errors.New("session manager must not be nil")
-	// ErrSessionIDExhausted is returned only when generated Session IDs collide repeatedly.
-	ErrSessionIDExhausted = errors.New("could not allocate a unique session ID")
 )
-
-// ConnectedSession is a Session candidate that can establish its transport.
-//
-// SerialService transfers a successfully connected instance to its Manager.
-// A failed candidate remains owned by SerialService and is closed before OpenSerial returns.
-type ConnectedSession interface {
-	session.Session
-	Connect(context.Context) error
-}
 
 // SerialSessionFactory creates one unconnected serial Session for an ID.
 type SerialSessionFactory func(string, serialtransport.Config) (ConnectedSession, error)
@@ -59,7 +45,6 @@ type configPathResolver func() (string, error)
 type configLoader func(string) (config.File, error)
 type configSaver func(string, config.File) error
 type configUpdater func(string, func(*config.File) error) error
-type sessionIDGenerator func() (string, error)
 
 // SerialService owns serial connection use cases over one shared Session Manager.
 //
@@ -208,35 +193,26 @@ func (s *SerialService) OpenSerial(ctx context.Context, request OpenSerialReques
 
 // createConnectedSerialSession keeps failed candidates outside Manager ownership.
 func (s *SerialService) createConnectedSerialSession(ctx context.Context, profile config.SerialProfile, serialConfig serialtransport.Config) (session.Session, error) {
-	for range maxOpenAttempts {
-		if err := ctx.Err(); err != nil {
-			return nil, err
-		}
-		id, err := s.newSessionID()
-		if err != nil {
-			return nil, fmt.Errorf("generate session ID: %w", err)
-		}
-		if _, exists := s.manager.Get(id); exists {
-			continue
-		}
-		terminal, err := s.newSession(id, serialConfig)
-		if err != nil {
-			return nil, fmt.Errorf("create serial session: %w", err)
-		}
-		if err := terminal.Connect(ctx); err != nil {
-			return nil, closeCandidate(fmt.Errorf("connect serial port %q: %w", profile.Port, err), terminal)
-		}
-		if err := ctx.Err(); err != nil {
-			return nil, closeCandidate(err, terminal)
-		}
-		if profile.Wake {
-			if err := writeAll(ctx, terminal, session.WriteRequest{Actor: session.ActorSystem, Data: []byte{wakeByte}}); err != nil {
-				return nil, closeCandidate(fmt.Errorf("wake serial session %q: %w", id, err), terminal)
-			}
-		}
-		return terminal, nil
+	id, err := allocateSessionID(ctx, s.manager, s.newSessionID)
+	if err != nil {
+		return nil, err
 	}
-	return nil, ErrSessionIDExhausted
+	terminal, err := s.newSession(id, serialConfig)
+	if err != nil {
+		return nil, fmt.Errorf("create serial session: %w", err)
+	}
+	if err := terminal.Connect(ctx); err != nil {
+		return nil, closeSessionCandidate(fmt.Errorf("connect serial port %q: %w", profile.Port, err), terminal, "serial session")
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, closeSessionCandidate(err, terminal, "serial session")
+	}
+	if profile.Wake {
+		if err := writeAll(ctx, terminal, session.WriteRequest{Actor: session.ActorSystem, Data: []byte{wakeByte}}); err != nil {
+			return nil, closeSessionCandidate(fmt.Errorf("wake serial session %q: %w", id, err), terminal, "serial session")
+		}
+	}
+	return terminal, nil
 }
 
 // serialProfileToTransportConfig converts configuration storage values at the
@@ -259,23 +235,6 @@ func newSerialSession(id string, configuration serialtransport.Config) (Connecte
 		return nil, err
 	}
 	return session.New(id, transport)
-}
-
-// newSessionID produces an opaque random identifier for Manager lookup.
-func newSessionID() (string, error) {
-	var bytes [16]byte
-	if _, err := rand.Read(bytes[:]); err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(bytes[:]), nil
-}
-
-// closeCandidate preserves an opening failure while releasing unregistered resources.
-func closeCandidate(primary error, terminal ConnectedSession) error {
-	if err := terminal.Close(); err != nil {
-		return errors.Join(primary, fmt.Errorf("close incomplete serial session: %w", err))
-	}
-	return primary
 }
 
 // writeAll retries short writes so the opt-in wake byte follows Session's
