@@ -22,6 +22,7 @@ ChannelTerm/
 |   |   `-- terminalinput/          Raw console setup and restoration
 |   |-- init/
 |   |   `-- mcp/                    MCP client discovery, rendering, and safe config installation
+|   |-- install/                    Per-user executable install/uninstall, aliases, PATH, manifest
 |   |-- core/
 |   |   |-- app/                    Adapter-neutral application use cases
 |   |   |-- channel/                Established stream contract and lifecycle
@@ -61,8 +62,9 @@ The main ownership distinctions are deliberate:
   publishing releases.
 - **Adapter:** `cmd/channelterm`, `internal/cli`, and `internal/mcp` own process composition and
   external protocol or presentation concerns. `internal/init/mcp` owns local MCP-client
-  configuration discovery and installation. These packages may depend inward; Core may not depend on
-  them.
+  configuration discovery and installation. `internal/install` owns per-user executable placement,
+  short-command aliases, PATH changes, and the installation ownership manifest. These packages may
+  depend inward; Core may not depend on them.
 - **Application:** `internal/core/app` orchestrates adapter-neutral use cases without owning process
   lifetime or presentation.
 - **Core services:** `internal/core/channel`, `session`, `config`, `connectionpolicy`, `device`, and

@@ -1,4 +1,4 @@
-# Build from Source
+# Build and Install from Source
 
 ChannelTerm requires Go 1.25 or newer. Use a currently supported patched Go toolchain for production
 and release builds. Run commands from the repository root.
@@ -26,6 +26,43 @@ development executable with:
 ```powershell
 go build ./cmd/channelterm
 ```
+
+Install that executable for the current user without administrator privileges:
+
+```powershell
+./channelterm install
+```
+
+The command copies the running executable to the platform's per-user program location, creates both
+the `channelterm` and `cterm` commands, adds the command directory to the current-user PATH only when
+needed, and creates the minimal default `config.toml` only when it is absent. Open a new terminal if
+the command reports that PATH changed.
+
+On Linux and macOS the short command is a symbolic link to the single installed binary. On Windows
+the two `.exe` files are synchronized copies because creating symbolic links is not reliably
+available to an unelevated process. Rerunning a newer downloaded executable with `install` updates
+an installer-owned installation. An older semantic version is rejected unless
+`--allow-downgrade` is explicit. Existing command files without an installation manifest are never
+overwritten; `--adopt` accepts them only when their checksum matches the running binary.
+
+Ordinary uninstall removes installed commands, an installer-added PATH entry, and installation
+state while preserving user data:
+
+```powershell
+channelterm uninstall
+```
+
+Destructive removal requires an explicit confirmation, or `--yes` for intentional automation:
+
+```powershell
+channelterm uninstall --purge
+channelterm uninstall --purge --yes
+```
+
+`--purge` removes the known default `config.toml`, `state.json`, and `http-auth-token` files but
+does not edit third-party MCP client configurations or delete unknown files from the configuration
+directory. On Windows a temporary helper finishes deleting the running installed executable after
+the uninstall command exits.
 
 Before relying on a local build, run:
 

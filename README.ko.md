@@ -133,10 +133,18 @@ ChannelTerm에는 Go 1.25 이상이 필요합니다. 현재 지원되는 패치 
 git clone https://github.com/akira-init1/ChannelTerm.git
 cd ChannelTerm
 go build ./cmd/channelterm
+./channelterm install
 ```
 
+`install`은 현재 실행 중인 바이너리를 현재 사용자의 표준 프로그램 위치로 복사하고 `channelterm`과
+`cterm` 명령을 만듭니다. 필요한 경우에만 해당 위치를 사용자 PATH에 추가하며, 설정이 없으면 최소
+설정을 초기화합니다. PATH 변경이 보고되면 새 터미널을 여십시오. `channelterm uninstall`은 설치
+프로그램이 소유한 명령과 PATH 변경을 제거하지만 사용자 데이터는 보존합니다.
+`channelterm uninstall --purge`는 명시적으로 확인한 뒤에만 설정, 장치 상태 및 로컬 HTTP 인증 정보를
+삭제합니다.
+
 지원되는 데스크톱 대상은 Windows, Linux, macOS의 amd64/arm64입니다. 자세한 내용은
-[소스에서 빌드](docs/getting-started/build.md)와
+[소스에서 빌드 및 설치](docs/getting-started/build.md)와
 [빌드 및 테스트](docs/development/building-and-testing.md)를 참고하십시오.
 
 ## 설정
