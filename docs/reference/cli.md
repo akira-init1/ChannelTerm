@@ -9,9 +9,11 @@ channelterm attach --help
 channelterm events --help
 channelterm file --help
 channelterm init --help
+channelterm install --help
 channelterm list --help
 channelterm mcp --help
 channelterm serial --help
+channelterm uninstall --help
 ```
 
 The current parser also implements `channelterm connect --help`, although `connect` is not listed in
@@ -42,8 +44,65 @@ and a UTC RFC 3339 build timestamp. Tagged release artifacts use the injected re
 version and target platform come from the compiled binary. An unknown command returns an error and
 the process exits with status 1.
 
-The top-level help currently lists `attach`, `events`, `file`, `init`, `list`, `mcp`, `serial`,
-`help`, and `version`.
+The top-level help currently lists `attach`, `events`, `file`, `init`, `install`, `list`, `mcp`,
+`serial`, `uninstall`, `help`, and `version`.
+
+## `install` and `uninstall`
+
+Purpose: install, update, or remove ChannelTerm for the current user without requiring an
+administrator account.
+
+```text
+channelterm install [--no-path] [--adopt] [--allow-downgrade]
+channelterm uninstall [--purge [--yes]]
+```
+
+`install` copies the currently running executable; it does not download a release. Linux and macOS
+install one executable at `~/.local/bin/channelterm` and a relative symbolic link
+`~/.local/bin/cterm -> channelterm`. Windows installs synchronized executable copies under
+`%LOCALAPPDATA%\Programs\ChannelTerm\bin`. The command initializes the default `config.toml` through
+the same config package used by runtime commands. A missing file receives the minimal template, an
+existing valid file remains unchanged, and malformed configuration stops installation before the
+program files are changed.
+
+The installer adds only the command directory to the current-user PATH, and only when it is absent.
+Linux and macOS write a visibly delimited block to the active shell's user startup file; fish uses a
+dedicated `conf.d/channelterm.fish`. Windows updates the current-user `Path` value and broadcasts an
+environment-change notification. Existing processes retain their old environment, so a new terminal
+may be required. `--no-path` skips PATH management. Uninstall removes a PATH entry or shell block
+only when the installation manifest proves ChannelTerm added it and the recorded block is unchanged.
+
+Before updating, the installer verifies its recorded binary SHA-256. Valid three-component semantic
+versions are compared: a downgrade requires `--allow-downgrade`; development, custom, and prerelease
+version strings are treated as unordered and may be reinstalled. A file that exists without an
+installation manifest is never silently overwritten. `--adopt` accepts an existing regular command
+only when its SHA-256 matches the running binary, or an existing short-command link only when it
+already resolves to the standard installed command. Directories and unrelated files are rejected.
+
+The ownership manifest is stored at:
+
+| Platform | Installation manifest |
+| --- | --- |
+| Windows | `%LOCALAPPDATA%\ChannelTerm\install.json` |
+| Linux | `$XDG_STATE_HOME/channelterm/install.json`, or `~/.local/state/channelterm/install.json` |
+| macOS | `~/Library/Application Support/channelterm/install.json` |
+
+The manifest records build provenance, expected command paths, the installed SHA-256, alias kind,
+and only the PATH change made by ChannelTerm. Paths loaded from it must still match the platform's
+standard layout before any deletion occurs.
+
+Ordinary `uninstall` removes the two commands, the installer-owned PATH change, and `install.json`;
+it preserves `config.toml`, `state.json`, and `http-auth-token`. `--purge` additionally removes those
+known default files and their lock files after the user answers `y` or `Y` to the `[y/N]` prompt.
+`n`, an empty answer, and all other input cancel the purge. `--yes` supplies confirmation for
+automation and is invalid without `--purge`. Purge does not recursively remove
+unknown files and never edits Codex, Claude Code, OpenCode, or Zoo Code MCP configuration. Windows
+uses a temporary helper to remove whichever installed `.exe` is running after the parent exits.
+
+Important errors include an unowned or modified destination, a modified installer-owned binary or
+alias, a newer installed release without `--allow-downgrade`, malformed existing configuration, an
+unsafe manifest path, inability to modify PATH, and an absent or malformed installation manifest
+during uninstall.
 
 ## `init`
 

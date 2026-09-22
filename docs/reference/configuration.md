@@ -15,10 +15,19 @@ The default directory is the platform directory returned by Go's `os.UserConfigD
 
 CLI and MCP serial opens use `LoadOrCreate`, which creates a minimal `config.toml` with owner-only
 file permissions where the platform honors them. `channelterm list` treats a missing configuration
-file as an empty profile list and does not create it.
+file as an empty profile list and does not create it. `channelterm install` also calls the same
+`LoadOrCreate` implementation: it creates a missing minimal file, preserves an existing valid file,
+and reports malformed configuration without resetting it.
 
 `--config` and MCP `config_path` select an alternate TOML path for that operation. They do not move
 the default `state.json` or `http-auth-token`.
+
+`channelterm uninstall` preserves all three files. `channelterm uninstall --purge` explicitly
+removes the default `config.toml`, `state.json`, `http-auth-token`, and their known adjacent lock
+files after confirmation. It never recursively removes unknown files from the configuration
+directory and does not edit third-party MCP client configurations. The separate `install.json`
+ownership manifest is installer state rather than user configuration; see the
+[CLI reference](cli.md#install-and-uninstall) for its platform paths.
 
 `http-auth-token` is generated from 32 random bytes and stored with owner-only permissions where the
 platform honors them. The first HTTP Host, built-in HTTP client, or HTTP selection in

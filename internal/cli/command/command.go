@@ -110,6 +110,11 @@ func runWithDependencies(ctx context.Context, args []string, input io.Reader, ou
 }
 
 func runWithDependenciesWithInterrupts(ctx context.Context, args []string, input io.Reader, output io.Writer, newSession serialSessionFactory, newAttach attachSessionFactory, interrupts <-chan os.Signal) error {
+	// The private cleanup command must run before normal CLI setup. A temporary
+	// Windows helper invokes it after the installed parent executable exits.
+	if len(args) > 0 && args[0] == "__uninstall-cleanup" {
+		return runDeferredUninstallCleanup(args[1:])
+	}
 	if interrupts != nil && (len(args) == 0 || args[0] != "attach") {
 		var stop context.CancelFunc
 		ctx, stop = context.WithCancel(ctx)
@@ -146,6 +151,12 @@ func runWithDependenciesWithInterrupts(ctx context.Context, args []string, input
 	if len(args) > 0 && args[0] == "init" {
 		return runInit(args[1:], input, output)
 	}
+	if len(args) > 0 && args[0] == "install" {
+		return runInstall(args[1:], output)
+	}
+	if len(args) > 0 && args[0] == "uninstall" {
+		return runUninstall(args[1:], input, output)
+	}
 
 	flags := flag.NewFlagSet("channelterm", flag.ContinueOnError)
 	flags.SetOutput(output)
@@ -160,9 +171,11 @@ func runWithDependenciesWithInterrupts(ctx context.Context, args []string, input
 		fmt.Fprintln(output, "  file    Send or receive a file through a shared Session")
 		fmt.Fprintln(output, "  help    Show this help message")
 		fmt.Fprintln(output, "  init    Configure supported MCP clients")
+		fmt.Fprintln(output, "  install Install ChannelTerm for the current user")
 		fmt.Fprintln(output, "  list    List local devices, saved profiles, and MCP sessions")
 		fmt.Fprintln(output, "  mcp     Start the Session Host MCP server")
 		fmt.Fprintln(output, "  serial  Connect to a serial port")
+		fmt.Fprintln(output, "  uninstall Remove the current-user ChannelTerm installation")
 		fmt.Fprintln(output, "  version Show the version")
 		fmt.Fprintln(output)
 		fmt.Fprintln(output, "Options:")

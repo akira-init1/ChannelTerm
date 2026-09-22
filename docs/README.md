@@ -13,7 +13,7 @@ for command-line flags and defaults, the running program's `--help` output remai
 
 ## Getting Started
 
-- [Build from source](getting-started/build.md)
+- [Build and install from source](getting-started/build.md)
 - [Use the serial terminal](getting-started/serial-terminal.md)
 - [Create and use serial profiles](getting-started/serial-profiles.md)
 - [Share a Session](getting-started/shared-session.md)
