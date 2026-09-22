@@ -96,6 +96,7 @@ func removeInstalledFiles(binaryPath, aliasPath string) (bool, error) {
 	if err := os.Remove(binaryPath); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return false, fmt.Errorf("remove installed executable %q: %w", binaryPath, err)
 	}
+	removeEmptyWindowsProgramDirectories(binaryPath)
 	return false, nil
 }
 
@@ -115,8 +116,7 @@ func RunDeferredCleanup(parentID uint32, binaryPath, aliasPath, helperPath strin
 	if err := os.Remove(aliasPath); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return fmt.Errorf("remove short command %q: %w", aliasPath, err)
 	}
-	_ = os.Remove(filepath.Dir(binaryPath))
-	_ = os.Remove(filepath.Dir(filepath.Dir(binaryPath)))
+	removeEmptyWindowsProgramDirectories(binaryPath)
 
 	// cmd.exe runs after this helper exits. The helper paths are passed through
 	// environment variables so command metacharacters in user directory names
@@ -128,6 +128,15 @@ func RunDeferredCleanup(parentID uint32, binaryPath, aliasPath, helperPath strin
 	}
 	_ = cleanup.Process.Release()
 	return nil
+}
+
+// removeEmptyWindowsProgramDirectories removes the dedicated bin and
+// ChannelTerm program directories after their command files are gone. The
+// empty-directory walk stops immediately when it encounters unknown content,
+// so uninstall never recursively removes user-owned files.
+func removeEmptyWindowsProgramDirectories(binaryPath string) {
+	programDirectory := filepath.Dir(filepath.Dir(binaryPath))
+	removeEmptyParents(binaryPath, programDirectory)
 }
 
 // parseDeferredCleanupArgs accepts only the rigid argument shape emitted by

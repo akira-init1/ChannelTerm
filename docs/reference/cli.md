@@ -97,7 +97,9 @@ known default files and their lock files after the user answers `y` or `Y` to th
 `n`, an empty answer, and all other input cancel the purge. `--yes` supplies confirmation for
 automation and is invalid without `--purge`. Purge does not recursively remove
 unknown files and never edits Codex, Claude Code, OpenCode, or Zoo Code MCP configuration. Windows
-uses a temporary helper to remove whichever installed `.exe` is running after the parent exits.
+uses a temporary helper to remove whichever installed `.exe` is running after the parent exits. It
+also removes the dedicated `bin` and `ChannelTerm` program directories when they become empty;
+unknown contents prevent directory removal and are preserved.
 
 Important errors include an unowned or modified destination, a modified installer-owned binary or
 alias, a newer installed release without `--allow-downgrade`, malformed existing configuration, an
