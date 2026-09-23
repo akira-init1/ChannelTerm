@@ -35,6 +35,38 @@ authorization or safety enforcement:
 - `terminal_release_lease` reports `idempotentHint: true`; releasing an already absent lease succeeds
   without another state change.
 
+Every advertised tool has a human-readable top-level `title` for tool pickers, approval dialogs,
+and logs. The `terminal_*` name remains the stable machine-readable compatibility key.
+
+| Tool name | Display title |
+| --- | --- |
+| `terminal_list_sessions` | List Terminal Sessions |
+| `terminal_read` | Read Terminal Output |
+| `terminal_read_activity` | Read Session Activity |
+| `terminal_session_events` | Read Session Events |
+| `terminal_wait_file_transfer` | Wait for File Transfer Result |
+| `terminal_session_attach` | Attach to Terminal Session |
+| `terminal_session_detach` | Detach from Terminal Session |
+| `terminal_report_file_transfer` | Report File Transfer Event |
+| `terminal_exec` | Execute Terminal Command |
+| `terminal_write` | Write Raw Terminal Input |
+| `terminal_write_leased` | Write Leased Terminal Input |
+| `terminal_acquire_lease` | Acquire Session Lease |
+| `terminal_renew_lease` | Renew Session Lease |
+| `terminal_begin_file_transfer_cancel` | Begin File Transfer Cancellation |
+| `terminal_resolve_file_transfer_cancel` | Resolve File Transfer Cancellation |
+| `terminal_file_transfer_checkpoint` | Check File Transfer Control |
+| `terminal_release_lease` | Release Session Lease |
+| `terminal_wait` | Wait for Terminal Output |
+| `terminal_wait_activity` | Wait for Session Activity |
+| `terminal_open_serial` | Open Serial Session |
+| `terminal_list_serial_ports` | List Serial Ports |
+| `terminal_list_devices` | List Discovered Devices |
+| `terminal_read_device_events` | Read Device Events |
+| `terminal_wait_device_event` | Wait for Device Event |
+| `terminal_get_connection_decision` | Get Connection Decision |
+| `terminal_close` | Close Terminal Session |
+
 Streamable HTTP requests require `Authorization: Bearer <token>`. An automatically started,
 attachment-owned Host returns `X-ChannelTerm-Host-Lifetime: attachment` on every authenticated MCP
 response so clients can distinguish it from a separately started persistent Host. The header does
