@@ -6,11 +6,11 @@ activity, device events, and file-transfer terminal results.
 
 The MCP initialization response reports the same ChannelTerm build version as `channelterm version`.
 Ordinary source builds report `devel`; tagged release artifacts report their injected release
-version. Its server instructions tell clients that users may call ChannelTerm `cterm`, distinguish
-single non-interactive Bash commands from raw or interactive writes, select the matching output or
-file-transfer wait tool, apply the discovery connection decision before a discovery-driven open,
-obtain explicit approval for an `ask` decision, treat Session close as shared-client destructive,
-and reserve lease and file-transfer control tools for managed multi-step operations.
+version. Its server instructions tell clients that users may refer to ChannelTerm as `cterm`,
+distinguish single non-interactive Bash commands from raw or interactive writes, select the matching
+output or file-transfer wait tool, apply the discovery connection decision before a discovery-driven
+open, obtain explicit approval for an `ask` decision, treat Session close as shared-client
+destructive, and reserve lease and file-transfer control tools for managed multi-step operations.
 
 Successful calls return both structured content and an equivalent JSON text content item.
 Recoverable tool failures return an MCP tool result with `isError: true` and text beginning
