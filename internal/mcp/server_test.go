@@ -100,6 +100,34 @@ func TestServerListsAndUsesTerminalTools(t *testing.T) {
 		"terminal_wait_device_event":            "events",
 		"terminal_get_connection_decision":      "action",
 	}
+	wantTitle := map[string]string{
+		"terminal_close":                        "Close Terminal Session",
+		"terminal_list_serial_ports":            "List Serial Ports",
+		"terminal_list_sessions":                "List Terminal Sessions",
+		"terminal_open_serial":                  "Open Serial Session",
+		"terminal_read":                         "Read Terminal Output",
+		"terminal_read_activity":                "Read Session Activity",
+		"terminal_session_events":               "Read Session Events",
+		"terminal_wait_file_transfer":           "Wait for File Transfer Result",
+		"terminal_session_attach":               "Attach to Terminal Session",
+		"terminal_session_detach":               "Detach from Terminal Session",
+		"terminal_report_file_transfer":         "Report File Transfer Event",
+		"terminal_wait":                         "Wait for Terminal Output",
+		"terminal_wait_activity":                "Wait for Session Activity",
+		"terminal_exec":                         "Execute Terminal Command",
+		"terminal_write":                        "Write Raw Terminal Input",
+		"terminal_write_leased":                 "Write Leased Terminal Input",
+		"terminal_acquire_lease":                "Acquire Session Lease",
+		"terminal_renew_lease":                  "Renew Session Lease",
+		"terminal_release_lease":                "Release Session Lease",
+		"terminal_begin_file_transfer_cancel":   "Begin File Transfer Cancellation",
+		"terminal_resolve_file_transfer_cancel": "Resolve File Transfer Cancellation",
+		"terminal_file_transfer_checkpoint":     "Check File Transfer Control",
+		"terminal_list_devices":                 "List Discovered Devices",
+		"terminal_read_device_events":           "Read Device Events",
+		"terminal_wait_device_event":            "Wait for Device Event",
+		"terminal_get_connection_decision":      "Get Connection Decision",
+	}
 	readOnlyAnnotations := map[string]bool{
 		"terminal_list_sessions": true, "terminal_read": true, "terminal_read_activity": true,
 		"terminal_session_events": true, "terminal_wait_file_transfer": true,
@@ -119,6 +147,7 @@ func TestServerListsAndUsesTerminalTools(t *testing.T) {
 	if len(listed.Tools) != len(want) {
 		t.Fatalf("tools count = %d, want %d", len(listed.Tools), len(want))
 	}
+	seenTitles := make(map[string]string, len(listed.Tools))
 	for _, registered := range listed.Tools {
 		if !want[registered.Name] {
 			t.Errorf("unexpected MCP tool %q", registered.Name)
@@ -131,6 +160,13 @@ func TestServerListsAndUsesTerminalTools(t *testing.T) {
 		}
 		assertOutputSchema(t, registered, wantOutputProperty[registered.Name])
 		assertToolAnnotations(t, registered, readOnlyAnnotations[registered.Name], destructiveAnnotations[registered.Name], openWorldAnnotations[registered.Name], registered.Name == "terminal_release_lease")
+		if registered.Title != wantTitle[registered.Name] {
+			t.Errorf("%s title = %q, want %q", registered.Name, registered.Title, wantTitle[registered.Name])
+		}
+		if previous, duplicate := seenTitles[registered.Title]; duplicate {
+			t.Errorf("%s and %s share title %q", previous, registered.Name, registered.Title)
+		}
+		seenTitles[registered.Title] = registered.Name
 	}
 	sessions := callTool(t, client, "terminal_list_sessions", map[string]any{})
 	if sessions.IsError || !strings.Contains(resultText(t, sessions), "board") {

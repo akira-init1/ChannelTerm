@@ -55,6 +55,7 @@ func NewServer(registry *tool.Registry, version string) (*protocol.Server, error
 		exposed := exposed
 		server.AddTool(&protocol.Tool{
 			Name:         exposed.name,
+			Title:        exposed.title,
 			Description:  exposed.description,
 			InputSchema:  exposed.schema,
 			OutputSchema: exposed.outputSchema,
@@ -196,6 +197,7 @@ type adapter struct {
 
 type exposedTool struct {
 	name          string
+	title         string
 	target        string
 	description   string
 	schema        tool.InputSchema
@@ -349,6 +351,11 @@ func newAdapter(registry *tool.Registry) (*adapter, error) {
 			return nil, fmt.Errorf("required MCP annotations %q are not registered", exposed[index].name)
 		}
 		exposed[index].annotations = annotations
+		title, ok := terminalToolTitle(exposed[index].name)
+		if !ok {
+			return nil, fmt.Errorf("required MCP title %q is not registered", exposed[index].name)
+		}
+		exposed[index].title = title
 	}
 	return &adapter{registry: registry, exposed: exposed}, nil
 }
