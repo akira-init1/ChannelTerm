@@ -31,6 +31,7 @@ func TestServerInstructionsCoverRoutingAndSafety(t *testing.T) {
 		"terminal_exec",
 		"terminal_write",
 		"terminal_wait_file_transfer",
+		"For discovered devices",
 		"terminal_get_connection_decision",
 		"ask requires approval",
 		"terminal_close closes the Session for all clients",
