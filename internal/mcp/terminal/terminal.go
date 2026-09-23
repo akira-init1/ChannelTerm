@@ -279,7 +279,7 @@ func (*readDeviceEventsTool) Name() string { return "terminal_read_device_events
 
 // Description explains that cursor reads wait for discovery transitions.
 func (*readDeviceEventsTool) Description() string {
-	return "Read retained device appearance and disappearance events, or wait for events after a supplied cursor. After an appeared event, call terminal_get_connection_decision before opening a serial session."
+	return "Read retained device appearance and disappearance events immediately when cursor is omitted; use terminal_wait_device_event to wait after a known cursor. After an appeared event, call terminal_get_connection_decision before opening a serial session."
 }
 
 // InputSchema describes bounded device-event reads and optional cursor waiting.
@@ -578,7 +578,7 @@ func (*readTool) Name() string { return "terminal_read" }
 
 // Description explains that cursor reads can wait for future terminal output.
 func (*readTool) Description() string {
-	return "Read retained terminal output, or wait for output after a supplied cursor."
+	return "Read retained terminal output immediately when cursor is omitted; use terminal_wait to wait for new bytes after a known cursor."
 }
 
 // InputSchema describes a session ID and optional cursor-based read controls.
@@ -647,7 +647,7 @@ func (*readActivityTool) Name() string { return "terminal_read_activity" }
 
 // Description explains that activity events are separate from terminal output.
 func (*readActivityTool) Description() string {
-	return "Read retained Session activity events, or wait for events after an activity cursor."
+	return "Read retained Session activity immediately when cursor is omitted; use terminal_wait_activity to wait for events after a known activity cursor."
 }
 
 // InputSchema describes a Session ID and bounded activity-event read controls.
@@ -974,7 +974,7 @@ func (*detachSessionTool) Name() string { return "terminal_session_detach" }
 
 // Description explains that this marks an adapter detachment only.
 func (*detachSessionTool) Description() string {
-	return "Record one client detachment on the Session event stream without closing the shared Session."
+	return "Record one client detachment on the Session event stream without closing it for other clients; use terminal_close only to close the shared Session for everyone."
 }
 
 // InputSchema describes the detached Session and optional display actor.
@@ -1097,7 +1097,7 @@ func (*writeTool) Name() string { return "terminal_write" }
 
 // Description explains that the Tool sends lossless byte input to an active terminal session.
 func (*writeTool) Description() string {
-	return "Write raw UTF-8, hexadecimal, or base64 bytes to an active terminal session; shell lines follow target history, so use terminal_exec for an idle Bash command."
+	return "Write raw UTF-8, hexadecimal, or base64 bytes for keys or interactive programs; shell lines follow target history, so use terminal_exec for one command at an idle Bash prompt."
 }
 
 // InputSchema describes the session ID and text payload required for a write.
@@ -1151,7 +1151,7 @@ func (*writeLeasedTool) Name() string { return "terminal_write_leased" }
 
 // Description explains that the Tool is only for an active exclusive lease.
 func (*writeLeasedTool) Description() string {
-	return "Write bytes through an active Session lease owned by this operation."
+	return "Write raw bytes through an active Session lease owned by a managed multi-step operation; normal terminal input must use terminal_write."
 }
 
 // InputSchema describes the normal write payload plus its lease owner capability.
@@ -1402,7 +1402,7 @@ func (*closeTool) Name() string { return "terminal_close" }
 
 // Description explains that the Tool closes and unregisters an active Session.
 func (*closeTool) Description() string {
-	return "Close an active terminal session and release its transport."
+	return "Close the shared terminal Session for every attached client and release its transport; use terminal_session_detach to record only one client's departure without closing it."
 }
 
 // InputSchema describes the session ID required to close a Session.
