@@ -53,7 +53,12 @@ func NewServer(registry *tool.Registry, version string) (*protocol.Server, error
 	})
 	for _, exposed := range adapter.exposed {
 		exposed := exposed
-		server.AddTool(&protocol.Tool{Name: exposed.name, Description: exposed.description, InputSchema: exposed.schema}, adapter.handler(exposed))
+		server.AddTool(&protocol.Tool{
+			Name:         exposed.name,
+			Description:  exposed.description,
+			InputSchema:  exposed.schema,
+			OutputSchema: exposed.outputSchema,
+		}, adapter.handler(exposed))
 	}
 	return server, nil
 }
@@ -193,6 +198,7 @@ type exposedTool struct {
 	target        string
 	description   string
 	schema        tool.InputSchema
+	outputSchema  jsonSchema
 	requireCursor bool
 }
 
@@ -302,7 +308,7 @@ func newAdapter(registry *tool.Registry) (*adapter, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &adapter{registry: registry, exposed: []exposedTool{
+	exposed := []exposedTool{
 		{name: "terminal_list_sessions", target: list.Name(), description: "List active terminal sessions and their lifecycle states.", schema: list.InputSchema()},
 		{name: "terminal_read", target: read.Name(), description: read.Description(), schema: read.InputSchema()},
 		{name: "terminal_read_activity", target: readActivity.Name(), description: readActivity.Description(), schema: readActivity.InputSchema()},
@@ -329,7 +335,15 @@ func newAdapter(registry *tool.Registry) (*adapter, error) {
 		{name: "terminal_wait_device_event", target: readDeviceEvents.Name(), description: "Wait for a device appearance or disappearance event after cursor. After appeared, call terminal_get_connection_decision before terminal_open_serial.", schema: waitSchema(readDeviceEvents.InputSchema()), requireCursor: true},
 		{name: "terminal_get_connection_decision", target: connectionDecision.Name(), description: connectionDecision.Description(), schema: connectionDecision.InputSchema()},
 		{name: "terminal_close", target: closeTool.Name(), description: closeTool.Description(), schema: closeTool.InputSchema()},
-	}}, nil
+	}
+	for index := range exposed {
+		outputSchema, ok := terminalOutputSchema(exposed[index].name)
+		if !ok {
+			return nil, fmt.Errorf("required MCP output schema %q is not registered", exposed[index].name)
+		}
+		exposed[index].outputSchema = outputSchema
+	}
+	return &adapter{registry: registry, exposed: exposed}, nil
 }
 
 // waitSchema adds cursor to the required fields without changing the Tool's

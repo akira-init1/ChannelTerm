@@ -37,7 +37,9 @@ terminal_wait_file_transfer  -> terminal_wait_file_transfer
 ```
 
 The MCP adapter reports Tool errors as recoverable error results and supplies successful structured
-content plus JSON text. It owns MCP-facing compatibility: public names, descriptions, exposed
-schemas, and result translation. The Core Registry remains protocol-neutral.
+content plus JSON text. It attaches an output schema to every public MCP name, including the wait
+aliases, without adding MCP-specific schema requirements to the protocol-neutral Core Tool
+interface. It owns MCP-facing compatibility: public names, descriptions, exposed schemas, and
+result translation. The Core Registry remains protocol-neutral.
 
 See [MCP tools](../reference/mcp-tools.md) for the actual public surface.

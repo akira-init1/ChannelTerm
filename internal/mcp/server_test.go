@@ -2,10 +2,12 @@ package mcp
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"sync"
 	"testing"
@@ -18,6 +20,7 @@ import (
 	"github.com/akira-init1/ChannelTerm/internal/core/session"
 	"github.com/akira-init1/ChannelTerm/internal/core/tool"
 	"github.com/akira-init1/ChannelTerm/internal/mcp/terminal"
+	"github.com/google/jsonschema-go/jsonschema"
 	protocol "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -69,6 +72,34 @@ func TestServerListsAndUsesTerminalTools(t *testing.T) {
 		"terminal_begin_file_transfer_cancel": true, "terminal_resolve_file_transfer_cancel": true, "terminal_file_transfer_checkpoint": true,
 		"terminal_list_devices": true, "terminal_read_device_events": true, "terminal_wait_device_event": true, "terminal_get_connection_decision": true,
 	}
+	wantOutputProperty := map[string]string{
+		"terminal_close":                        "closed",
+		"terminal_list_serial_ports":            "ports",
+		"terminal_list_sessions":                "sessions",
+		"terminal_open_serial":                  "session_id",
+		"terminal_read":                         "data",
+		"terminal_read_activity":                "events",
+		"terminal_session_events":               "events",
+		"terminal_wait_file_transfer":           "state",
+		"terminal_session_attach":               "attached",
+		"terminal_session_detach":               "detached",
+		"terminal_report_file_transfer":         "published",
+		"terminal_wait":                         "data",
+		"terminal_wait_activity":                "events",
+		"terminal_exec":                         "command_id",
+		"terminal_write":                        "bytes_written",
+		"terminal_write_leased":                 "bytes_written",
+		"terminal_acquire_lease":                "expires_at",
+		"terminal_renew_lease":                  "expires_at",
+		"terminal_release_lease":                "released",
+		"terminal_begin_file_transfer_cancel":   "request_id",
+		"terminal_resolve_file_transfer_cancel": "percent",
+		"terminal_file_transfer_checkpoint":     "action",
+		"terminal_list_devices":                 "devices",
+		"terminal_read_device_events":           "events",
+		"terminal_wait_device_event":            "events",
+		"terminal_get_connection_decision":      "action",
+	}
 	if len(listed.Tools) != len(want) {
 		t.Fatalf("tools count = %d, want %d", len(listed.Tools), len(want))
 	}
@@ -82,6 +113,7 @@ func TestServerListsAndUsesTerminalTools(t *testing.T) {
 		if registered.Name == "terminal_wait" && !strings.Contains(registered.Description, "terminal_wait_file_transfer") {
 			t.Errorf("terminal_wait description = %q, want file-transfer wait guidance", registered.Description)
 		}
+		assertOutputSchema(t, registered, wantOutputProperty[registered.Name])
 	}
 	sessions := callTool(t, client, "terminal_list_sessions", map[string]any{})
 	if sessions.IsError || !strings.Contains(resultText(t, sessions), "board") {
@@ -102,6 +134,65 @@ func TestServerListsAndUsesTerminalTools(t *testing.T) {
 	}
 	if got := string(device.writtenData()); got != "uname -a\n" {
 		t.Errorf("written data = %q, want uname command", got)
+	}
+}
+
+func assertOutputSchema(t *testing.T, registered *protocol.Tool, expectedProperty string) {
+	t.Helper()
+	resolveOutputSchema(t, registered.Name, registered.OutputSchema)
+	schema, ok := registered.OutputSchema.(map[string]any)
+	if !ok {
+		t.Errorf("%s output schema = %#v, want JSON object schema", registered.Name, registered.OutputSchema)
+		return
+	}
+	if schema["type"] != "object" {
+		t.Errorf("%s output schema type = %#v, want object", registered.Name, schema["type"])
+	}
+	properties, ok := schema["properties"].(map[string]any)
+	if !ok {
+		t.Errorf("%s output schema properties = %#v, want object", registered.Name, schema["properties"])
+		return
+	}
+	if _, ok := properties[expectedProperty]; !ok {
+		t.Errorf("%s output schema properties = %#v, want %q", registered.Name, properties, expectedProperty)
+	}
+	if !schemaListContains(schema["required"], expectedProperty) {
+		t.Errorf("%s output schema required = %#v, want %q", registered.Name, schema["required"], expectedProperty)
+	}
+}
+
+func schemaListContains(value any, expected string) bool {
+	switch values := value.(type) {
+	case []any:
+		for _, value := range values {
+			if value == expected {
+				return true
+			}
+		}
+	case []string:
+		for _, value := range values {
+			if value == expected {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func TestTerminalOutputSchemaAliasesMatch(t *testing.T) {
+	for _, names := range [][2]string{
+		{"terminal_read", "terminal_wait"},
+		{"terminal_read_activity", "terminal_wait_activity"},
+		{"terminal_read_device_events", "terminal_wait_device_event"},
+	} {
+		left, leftOK := terminalOutputSchema(names[0])
+		right, rightOK := terminalOutputSchema(names[1])
+		if !leftOK || !rightOK {
+			t.Fatalf("terminalOutputSchema(%q, %q) registered = %t, %t; want both", names[0], names[1], leftOK, rightOK)
+		}
+		if !reflect.DeepEqual(left, right) {
+			t.Errorf("output schemas for %q and %q differ", names[0], names[1])
+		}
 	}
 }
 
@@ -179,6 +270,7 @@ func TestStreamableHTTPWaitCancellationKeepsClientUsable(t *testing.T) {
 		if result.IsError || resultString(t, result, "data") != "\nlogin: " {
 			t.Errorf("terminal_wait result = %#v, want new terminal output", result)
 		}
+		assertStructuredResultMatchesOutputSchema(t, "terminal_wait", result)
 	case <-time.After(time.Second):
 		t.Fatal("terminal_wait did not return after new HTTP output")
 	}
@@ -205,6 +297,7 @@ func TestStreamableHTTPWaitCancellationKeepsClientUsable(t *testing.T) {
 	if err != nil || write.IsError {
 		t.Fatalf("terminal_write after cancelled wait = %#v, %v; want success on the same client", write, err)
 	}
+	assertStructuredResultMatchesOutputSchema(t, "terminal_write", write)
 	if got := string(device.writtenData()); got != "still connected\n" {
 		t.Errorf("device input = %q, want connection to remain usable", got)
 	}
@@ -251,6 +344,7 @@ func TestStreamableHTTPWaitFileTransferReturnsCancellationResult(t *testing.T) {
 		if result.err != nil || result.result == nil || result.result.IsError {
 			t.Fatalf("terminal_wait_file_transfer result = %#v, %v", result.result, result.err)
 		}
+		assertStructuredResultMatchesOutputSchema(t, "terminal_wait_file_transfer", result.result)
 		if state := resultString(t, result.result, "state"); state != "cancelled" {
 			t.Fatalf("terminal_wait_file_transfer state = %q, want cancelled", state)
 		}
@@ -291,6 +385,7 @@ func TestStreamableHTTPWaitFileTransferReturnsResolvedSendPath(t *testing.T) {
 	if err != nil || result == nil || result.IsError {
 		t.Fatalf("terminal_wait_file_transfer result = %#v, %v", result, err)
 	}
+	assertStructuredResultMatchesOutputSchema(t, "terminal_wait_file_transfer", result)
 	structured := result.StructuredContent.(map[string]any)
 	if structured["state"] != "completed" || structured["transfer_id"] != "FT-send" || structured["lease_released"] != true || structured["source_path"] != "app.bin" || structured["requested_path"] != "/tmp/cterm/mcp-files/app.bin" || structured["resolved_path"] != "/tmp/cterm/mcp-files/app_1.bin" || structured["renamed"] != true || structured["sha256"] != "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef" {
 		t.Fatalf("terminal_wait_file_transfer structured result = %#v", structured)
@@ -368,6 +463,7 @@ func TestServerWaitReturnsNewOutputAndSupportsTimeout(t *testing.T) {
 		if result.IsError || resultString(t, result, "data") != "\nlogin: " {
 			t.Errorf("terminal_wait result = %#v, want new terminal output", result)
 		}
+		assertStructuredResultMatchesOutputSchema(t, "terminal_wait", result)
 	case <-time.After(time.Second):
 		t.Fatal("terminal_wait did not return after new output")
 	}
@@ -410,6 +506,7 @@ func TestServerWaitActivityReturnsUserWrite(t *testing.T) {
 	case err := <-returnError:
 		t.Fatalf("terminal_wait_activity error = %v", err)
 	case result := <-returned:
+		assertStructuredResultMatchesOutputSchema(t, "terminal_wait_activity", result)
 		text := resultText(t, result)
 		if result.IsError || !strings.Contains(text, `"actor":"user"`) || !strings.Contains(text, `"operation":"write"`) || !strings.Contains(text, `"data":"bHM="`) {
 			t.Errorf("terminal_wait_activity result = %#v, want user write event for ls", result)
@@ -470,6 +567,7 @@ func TestServerWaitDeviceEventDoesNotCreateSession(t *testing.T) {
 	case err := <-returnedError:
 		t.Fatalf("terminal_wait_device_event error = %v", err)
 	case result := <-returned:
+		assertStructuredResultMatchesOutputSchema(t, "terminal_wait_device_event", result)
 		text := resultText(t, result)
 		if result.IsError || !strings.Contains(text, `"type":"appeared"`) || !strings.Contains(text, `"transport":"serial"`) || !strings.Contains(text, `"endpoint":"COM11"`) {
 			t.Errorf("terminal_wait_device_event result = %#v, want COM11 appeared", result)
@@ -663,7 +761,40 @@ func callTool(t *testing.T, client *protocol.ClientSession, name string, argumen
 	if err != nil {
 		t.Fatalf("%s CallTool() error = %v", name, err)
 	}
+	assertStructuredResultMatchesOutputSchema(t, name, result)
 	return result
+}
+
+func assertStructuredResultMatchesOutputSchema(t *testing.T, name string, result *protocol.CallToolResult) {
+	t.Helper()
+	if result == nil || result.IsError {
+		return
+	}
+	schema, ok := terminalOutputSchema(name)
+	if !ok {
+		t.Fatalf("terminalOutputSchema(%q) is not registered", name)
+	}
+	resolved := resolveOutputSchema(t, name, schema)
+	if err := resolved.Validate(result.StructuredContent); err != nil {
+		t.Errorf("%s structured result does not match output schema: %v\nresult: %#v", name, err, result.StructuredContent)
+	}
+}
+
+func resolveOutputSchema(t *testing.T, name string, schema any) *jsonschema.Resolved {
+	t.Helper()
+	encoded, err := json.Marshal(schema)
+	if err != nil {
+		t.Fatalf("marshal %s output schema: %v", name, err)
+	}
+	var parsed jsonschema.Schema
+	if err := json.Unmarshal(encoded, &parsed); err != nil {
+		t.Fatalf("decode %s output schema: %v", name, err)
+	}
+	resolved, err := parsed.Resolve(nil)
+	if err != nil {
+		t.Fatalf("resolve %s output schema: %v", name, err)
+	}
+	return resolved
 }
 
 func resultString(t *testing.T, result *protocol.CallToolResult, key string) string {

@@ -12,7 +12,10 @@ output or file-transfer wait tool, apply the discovery connection decision befor
 open, obtain explicit approval for an `ask` decision, treat Session close as shared-client
 destructive, and reserve lease and file-transfer control tools for managed multi-step operations.
 
-Successful calls return both structured content and an equivalent JSON text content item.
+Every tool advertised by `tools/list` includes an `outputSchema` for its structured result. Required
+properties are present on every successful result; optional properties describe conditional data,
+such as connection-decision reasons, active leases, and completed file-transfer paths. Successful
+calls return both schema-matching structured content and an equivalent JSON text content item.
 Recoverable tool failures return an MCP tool result with `isError: true` and text beginning
 `<tool-name> failed:`. Structured inputs decoded by the terminal adapter reject unknown fields.
 
