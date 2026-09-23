@@ -29,6 +29,9 @@ func TestServerListsAndUsesTerminalTools(t *testing.T) {
 	if initialized == nil || initialized.ServerInfo == nil || initialized.ServerInfo.Version != "test" {
 		t.Fatalf("InitializeResult server info = %#v, want injected test version", initialized)
 	}
+	if initialized.Instructions != serverInstructions {
+		t.Errorf("InitializeResult instructions = %q, want %q", initialized.Instructions, serverInstructions)
+	}
 
 	listed, err := client.ListTools(context.Background(), nil)
 	if err != nil {
