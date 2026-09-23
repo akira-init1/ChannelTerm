@@ -58,6 +58,7 @@ func NewServer(registry *tool.Registry, version string) (*protocol.Server, error
 			Description:  exposed.description,
 			InputSchema:  exposed.schema,
 			OutputSchema: exposed.outputSchema,
+			Annotations:  exposed.annotations,
 		}, adapter.handler(exposed))
 	}
 	return server, nil
@@ -199,6 +200,7 @@ type exposedTool struct {
 	description   string
 	schema        tool.InputSchema
 	outputSchema  jsonSchema
+	annotations   *protocol.ToolAnnotations
 	requireCursor bool
 }
 
@@ -342,6 +344,11 @@ func newAdapter(registry *tool.Registry) (*adapter, error) {
 			return nil, fmt.Errorf("required MCP output schema %q is not registered", exposed[index].name)
 		}
 		exposed[index].outputSchema = outputSchema
+		annotations, ok := terminalToolAnnotations(exposed[index].name)
+		if !ok {
+			return nil, fmt.Errorf("required MCP annotations %q are not registered", exposed[index].name)
+		}
+		exposed[index].annotations = annotations
 	}
 	return &adapter{registry: registry, exposed: exposed}, nil
 }
