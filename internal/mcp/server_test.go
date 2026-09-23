@@ -10,6 +10,7 @@ import (
 	"sync"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"github.com/akira-init1/ChannelTerm/internal/core/channel"
 	"github.com/akira-init1/ChannelTerm/internal/core/connectionpolicy"
@@ -19,6 +20,27 @@ import (
 	"github.com/akira-init1/ChannelTerm/internal/mcp/terminal"
 	protocol "github.com/modelcontextprotocol/go-sdk/mcp"
 )
+
+func TestServerInstructionsCoverRoutingAndSafety(t *testing.T) {
+	if characters := utf8.RuneCountInString(serverInstructions); characters > 512 {
+		t.Errorf("serverInstructions length = %d characters, want no more than 512", characters)
+	}
+	for _, required := range []string{
+		"cterm means ChannelTerm",
+		"terminal_list_sessions",
+		"terminal_exec",
+		"terminal_write",
+		"terminal_wait_file_transfer",
+		"terminal_get_connection_decision",
+		"ask requires approval",
+		"terminal_close closes the Session for all clients",
+		"Lease and file-transfer controls are not for normal use",
+	} {
+		if !strings.Contains(serverInstructions, required) {
+			t.Errorf("serverInstructions = %q, want guidance containing %q", serverInstructions, required)
+		}
+	}
+}
 
 func TestServerListsAndUsesTerminalTools(t *testing.T) {
 	manager, registry, device := newTestRegistry(t)

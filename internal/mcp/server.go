@@ -25,13 +25,7 @@ var (
 	ErrRequiredCursor = errors.New("cursor is required for wait tools")
 )
 
-const serverInstructions = `ChannelTerm may also be called "cterm"; treat both names as the same system.
-If the active Session is unknown, call terminal_list_sessions.
-Use terminal_exec only for one non-interactive command at a known idle Bash prompt; use terminal_write for raw keys, interactive programs, or binary data.
-Use terminal_wait for terminal bytes and terminal_wait_file_transfer for transfer outcomes.
-After a device appears, call terminal_get_connection_decision before a discovery-driven open; action ask requires explicit user approval.
-terminal_close affects every client attached to the shared Session.
-Lease and file-transfer control tools are only for managed multi-step operations.`
+const serverInstructions = `cterm means ChannelTerm. If Session is unknown, call terminal_list_sessions. Use terminal_exec for a non-interactive command at a known idle Bash prompt; use terminal_write for raw, interactive, or binary input. Use terminal_wait for output and terminal_wait_file_transfer for transfer results. After device appearance, call terminal_get_connection_decision before opening; action ask requires approval. terminal_close closes the Session for all clients. Lease and file-transfer controls are not for normal use.`
 
 // NewServer creates an MCP Server backed by registry and reports version in
 // protocol implementation metadata. An empty version is reported as devel.
