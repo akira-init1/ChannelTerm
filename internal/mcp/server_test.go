@@ -100,6 +100,22 @@ func TestServerListsAndUsesTerminalTools(t *testing.T) {
 		"terminal_wait_device_event":            "events",
 		"terminal_get_connection_decision":      "action",
 	}
+	readOnlyAnnotations := map[string]bool{
+		"terminal_list_sessions": true, "terminal_read": true, "terminal_read_activity": true,
+		"terminal_session_events": true, "terminal_wait_file_transfer": true,
+		"terminal_wait": true, "terminal_wait_activity": true,
+		"terminal_file_transfer_checkpoint": true, "terminal_list_serial_ports": true,
+		"terminal_list_devices": true, "terminal_read_device_events": true,
+		"terminal_wait_device_event": true, "terminal_get_connection_decision": true,
+	}
+	destructiveAnnotations := map[string]bool{
+		"terminal_open_serial": true, "terminal_exec": true, "terminal_write": true, "terminal_write_leased": true,
+		"terminal_resolve_file_transfer_cancel": true, "terminal_release_lease": true,
+		"terminal_close": true,
+	}
+	openWorldAnnotations := map[string]bool{
+		"terminal_open_serial": true, "terminal_exec": true, "terminal_write": true, "terminal_write_leased": true,
+	}
 	if len(listed.Tools) != len(want) {
 		t.Fatalf("tools count = %d, want %d", len(listed.Tools), len(want))
 	}
@@ -114,6 +130,7 @@ func TestServerListsAndUsesTerminalTools(t *testing.T) {
 			t.Errorf("terminal_wait description = %q, want file-transfer wait guidance", registered.Description)
 		}
 		assertOutputSchema(t, registered, wantOutputProperty[registered.Name])
+		assertToolAnnotations(t, registered, readOnlyAnnotations[registered.Name], destructiveAnnotations[registered.Name], openWorldAnnotations[registered.Name], registered.Name == "terminal_release_lease")
 	}
 	sessions := callTool(t, client, "terminal_list_sessions", map[string]any{})
 	if sessions.IsError || !strings.Contains(resultText(t, sessions), "board") {
@@ -134,6 +151,31 @@ func TestServerListsAndUsesTerminalTools(t *testing.T) {
 	}
 	if got := string(device.writtenData()); got != "uname -a\n" {
 		t.Errorf("written data = %q, want uname command", got)
+	}
+}
+
+func assertToolAnnotations(t *testing.T, registered *protocol.Tool, readOnly, destructive, openWorld, idempotent bool) {
+	t.Helper()
+	annotations := registered.Annotations
+	if annotations == nil {
+		t.Errorf("%s annotations = nil", registered.Name)
+		return
+	}
+	if annotations.ReadOnlyHint != readOnly {
+		t.Errorf("%s readOnlyHint = %t, want %t", registered.Name, annotations.ReadOnlyHint, readOnly)
+	}
+	if readOnly {
+		if annotations.DestructiveHint != nil {
+			t.Errorf("%s destructiveHint = %t, want omitted for read-only tool", registered.Name, *annotations.DestructiveHint)
+		}
+	} else if annotations.DestructiveHint == nil || *annotations.DestructiveHint != destructive {
+		t.Errorf("%s destructiveHint = %v, want %t", registered.Name, annotations.DestructiveHint, destructive)
+	}
+	if annotations.OpenWorldHint == nil || *annotations.OpenWorldHint != openWorld {
+		t.Errorf("%s openWorldHint = %v, want %t", registered.Name, annotations.OpenWorldHint, openWorld)
+	}
+	if annotations.IdempotentHint != idempotent {
+		t.Errorf("%s idempotentHint = %t, want %t", registered.Name, annotations.IdempotentHint, idempotent)
 	}
 }
 
