@@ -69,6 +69,34 @@ func TestServerListsAndUsesTerminalTools(t *testing.T) {
 		"terminal_begin_file_transfer_cancel": true, "terminal_resolve_file_transfer_cancel": true, "terminal_file_transfer_checkpoint": true,
 		"terminal_list_devices": true, "terminal_read_device_events": true, "terminal_wait_device_event": true, "terminal_get_connection_decision": true,
 	}
+	wantOutputProperty := map[string]string{
+		"terminal_close":                        "closed",
+		"terminal_list_serial_ports":            "ports",
+		"terminal_list_sessions":                "sessions",
+		"terminal_open_serial":                  "session_id",
+		"terminal_read":                         "data",
+		"terminal_read_activity":                "events",
+		"terminal_session_events":               "events",
+		"terminal_wait_file_transfer":           "state",
+		"terminal_session_attach":               "attached",
+		"terminal_session_detach":               "detached",
+		"terminal_report_file_transfer":         "published",
+		"terminal_wait":                         "data",
+		"terminal_wait_activity":                "events",
+		"terminal_exec":                         "command_id",
+		"terminal_write":                        "bytes_written",
+		"terminal_write_leased":                 "bytes_written",
+		"terminal_acquire_lease":                "expires_at",
+		"terminal_renew_lease":                  "expires_at",
+		"terminal_release_lease":                "released",
+		"terminal_begin_file_transfer_cancel":   "request_id",
+		"terminal_resolve_file_transfer_cancel": "percent",
+		"terminal_file_transfer_checkpoint":     "action",
+		"terminal_list_devices":                 "devices",
+		"terminal_read_device_events":           "events",
+		"terminal_wait_device_event":            "events",
+		"terminal_get_connection_decision":      "action",
+	}
 	if len(listed.Tools) != len(want) {
 		t.Fatalf("tools count = %d, want %d", len(listed.Tools), len(want))
 	}
@@ -82,6 +110,7 @@ func TestServerListsAndUsesTerminalTools(t *testing.T) {
 		if registered.Name == "terminal_wait" && !strings.Contains(registered.Description, "terminal_wait_file_transfer") {
 			t.Errorf("terminal_wait description = %q, want file-transfer wait guidance", registered.Description)
 		}
+		assertOutputSchema(t, registered, wantOutputProperty[registered.Name])
 	}
 	sessions := callTool(t, client, "terminal_list_sessions", map[string]any{})
 	if sessions.IsError || !strings.Contains(resultText(t, sessions), "board") {
@@ -103,6 +132,47 @@ func TestServerListsAndUsesTerminalTools(t *testing.T) {
 	if got := string(device.writtenData()); got != "uname -a\n" {
 		t.Errorf("written data = %q, want uname command", got)
 	}
+}
+
+func assertOutputSchema(t *testing.T, registered *protocol.Tool, expectedProperty string) {
+	t.Helper()
+	schema, ok := registered.OutputSchema.(map[string]any)
+	if !ok {
+		t.Errorf("%s output schema = %#v, want JSON object schema", registered.Name, registered.OutputSchema)
+		return
+	}
+	if schema["type"] != "object" {
+		t.Errorf("%s output schema type = %#v, want object", registered.Name, schema["type"])
+	}
+	properties, ok := schema["properties"].(map[string]any)
+	if !ok {
+		t.Errorf("%s output schema properties = %#v, want object", registered.Name, schema["properties"])
+		return
+	}
+	if _, ok := properties[expectedProperty]; !ok {
+		t.Errorf("%s output schema properties = %#v, want %q", registered.Name, properties, expectedProperty)
+	}
+	if !schemaListContains(schema["required"], expectedProperty) {
+		t.Errorf("%s output schema required = %#v, want %q", registered.Name, schema["required"], expectedProperty)
+	}
+}
+
+func schemaListContains(value any, expected string) bool {
+	switch values := value.(type) {
+	case []any:
+		for _, value := range values {
+			if value == expected {
+				return true
+			}
+		}
+	case []string:
+		for _, value := range values {
+			if value == expected {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func TestStreamableHTTPServerListsAndUsesTerminalTools(t *testing.T) {
