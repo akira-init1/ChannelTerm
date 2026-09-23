@@ -19,6 +19,22 @@ calls return both schema-matching structured content and an equivalent JSON text
 Recoverable tool failures return an MCP tool result with `isError: true` and text beginning
 `<tool-name> failed:`. Structured inputs decoded by the terminal adapter reject unknown fields.
 
+Every advertised tool also includes MCP behavioral annotations. These are planning hints, not
+authorization or safety enforcement:
+
+- `readOnlyHint: true` applies to listing, reading, waiting, connection-decision, and file-transfer
+  checkpoint tools because they only observe retained or managed state.
+- `destructiveHint: true` applies to serial open, terminal command/write tools, transfer cancellation
+  resolution, lease release, and Session close. Other state-changing tools explicitly report it as
+  `false`. Serial open is conservative because it can save configuration and opening or waking a
+  physical endpoint can have target-specific effects.
+- `openWorldHint: false` applies to tools confined to ChannelTerm-managed Sessions, discovery state,
+  and leases. `terminal_open_serial`, `terminal_exec`, `terminal_write`, and
+  `terminal_write_leased` report `true` because they can interact with a physical target or arbitrary
+  terminal behavior beyond ChannelTerm's managed state.
+- `terminal_release_lease` reports `idempotentHint: true`; releasing an already absent lease succeeds
+  without another state change.
+
 Streamable HTTP requests require `Authorization: Bearer <token>`. An automatically started,
 attachment-owned Host returns `X-ChannelTerm-Host-Lifetime: attachment` on every authenticated MCP
 response so clients can distinguish it from a separately started persistent Host. The header does
