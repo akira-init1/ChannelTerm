@@ -29,11 +29,26 @@ ChannelTerm은 사람과 AI가 하나의 하드웨어 터미널 Session을 공�
 
 ## 빠른 시작: 명령 하나, 터미널 하나
 
-실행 중인 MCP 서버 없이 운영체제의 시리얼 대상을 먼저 확인합니다.
+감지된 시리얼 장치, 저장된 Profile, 그리고 기본 HTTP Host를 사용할 수 있을 때 그 안의 Session을
+나열합니다.
 
 ```bash
-channelterm list --kind device --transport serial --no-mcp
+channelterm list
 ```
+
+Host가 실행 중일 필요는 없습니다. 연결할 수 없으면 `list`는 MCP를 offline으로 표시하면서 로컬
+장치와 Profile은 계속 보여 줍니다.
+
+| 자주 쓰는 옵션 | 효과 |
+| --- | --- |
+| `--kind device`, `profile`, `session` | 선택한 종류만 표시합니다. 쉼표로 여러 값을 지정할 수 있습니다. |
+| `--transport serial` | 시리얼 결과만 표시합니다. |
+| `--no-mcp` | MCP Host 조회를 건너뛰고 로컬 소스만 표시합니다. |
+| `--long`, `-l` | 표에 전체 불투명 Session ID를 포함합니다. |
+| `--json` | 스크립트용 구조화 JSON을 출력합니다. |
+| `--endpoint URL` | 기본값이 아닌 HTTP Host에서 Session을 조회합니다. |
+
+전체 옵션 계약은 [CLI 참조](docs/reference/cli.md#list)를 확인하십시오.
 
 `COM50`과 같은 기본 대상 이름을 이미 알고 있다면 이 검색 단계는 생략할 수 있습니다.
 
@@ -118,6 +133,19 @@ HTTP를 선택하면 지원되는 Codex, Claude Code, OpenCode 또는 Zoo Code �
 엔드포인트 `http://127.0.0.1:37099/mcp`를 사용합니다. AI는 `SER-1`을 나열하고 읽고 조작할 수
 있습니다. 유휴 상태임을 알고 있는 Bash 프롬프트에서는 `terminal_exec`를 우선 사용하고, 원시 키와
 대화형 프로그램에는 `terminal_write`를 사용합니다.
+
+재사용 가능한 워크플로 지침을 사용하려면 Agent Skills 호환 클라이언트에 번들
+[`cterm-debug` Agent Skill](docs/getting-started/mcp-server.md#install-the-bundled-agent-skill)을
+설치하십시오. `channelterm init --mcp`는 MCP 클라이언트를 구성하지만 Skill은 설치하지 않습니다.
+
+AI가 공유 Session을 직접 만들 수도 있습니다. 먼저 `channelterm init --mcp`를 한 번 실행하고 HTTP를
+선택해 클라이언트를 설정하십시오. 그런 다음 `channelterm mcp --transport http`로 포그라운드 영구
+Host를 시작하고 정확한 시리얼 대상과 통신 설정을 AI에 제공하십시오. AI는 포트를 나열하고
+`terminal_open_serial`을 호출한 다음 생성된 `SER-N`을 보고할 수 있으며, 사람은
+`channelterm attach SER-N`으로 참여할 수 있습니다. Host만 시작해서는 포트가 열리지 않습니다. 검색
+정책이 `ask`이면 명시적 승인이 필요합니다. `auto`는 `connect`를 반환하지만 AI는 여전히
+`terminal_open_serial`을 호출해야 하며, Host가 포트를 자동으로 열지는 않습니다. Host는 일반적으로
+`Ctrl+C`로 중지하며, 이때 Host가 소유한 Sessions도 닫힙니다.
 
 HTTP Host에는 Bearer token이 필요하며 기본적으로 루프백 주소에서만 수신합니다. 내장 CLI는 로컬
 사용자 token을 자동으로 읽습니다. [신뢰할 수 있는 LAN에서 수신](docs/getting-started/mcp-server.md#listen-on-a-lan)할

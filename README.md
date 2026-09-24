@@ -26,11 +26,26 @@ ChannelTerm currently implements serial communication on Windows, Linux, and mac
 
 ## Quick Start: One Command, One Terminal
 
-List native serial targets without requiring a running MCP server:
+List detected serial devices, saved profiles, and Sessions from the default HTTP Host when it is
+available:
 
 ```bash
-channelterm list --kind device --transport serial --no-mcp
+channelterm list
 ```
+
+A running Host is optional. When it is unavailable, `list` reports MCP as offline and still shows
+local devices and profiles.
+
+| Common option | Effect |
+| --- | --- |
+| `--kind device`, `profile`, or `session` | Show only the selected result kinds; comma-separated values are accepted. |
+| `--transport serial` | Show only serial results. |
+| `--no-mcp` | Skip the MCP Host query and show only local sources. |
+| `--long`, `-l` | Include full opaque Session IDs in the table. |
+| `--json` | Emit structured JSON for scripts. |
+| `--endpoint URL` | Query Sessions from a non-default HTTP Host. |
+
+See the [CLI reference](docs/reference/cli.md#list) for the complete option contract.
 
 Skip this discovery step when the native target, such as `COM50`, is already known.
 
@@ -106,6 +121,20 @@ Ctrl+] Esc  Cancel local escape mode
 To add a supported AI client to the same Host, run `channelterm init --mcp`, select HTTP, and let
 the client list or operate `SER-1`. See [MCP Server](docs/getting-started/mcp-server.md) for the
 authentication and client workflow.
+
+For reusable workflow guidance, install the bundled
+[`cterm-debug` Agent Skill](docs/getting-started/mcp-server.md#install-the-bundled-agent-skill)
+in an Agent Skills-compatible client. `channelterm init --mcp` configures MCP clients but does not
+install the Skill.
+
+An AI can also create the shared Session. First run `channelterm init --mcp` once and select HTTP to
+configure the client. Then start the persistent foreground Host with
+`channelterm mcp --transport http` and give the AI the exact serial target and settings. It can list
+ports, call `terminal_open_serial`, and report the resulting `SER-N` reference so a human can join
+it. Starting the Host alone never opens a port; a discovery-policy action of `ask` still requires
+explicit approval. `auto` returns `connect`, but the AI must still call `terminal_open_serial`; the
+Host never opens a port automatically. Stop the Host normally with `Ctrl+C`; this closes the
+Sessions it owns.
 
 ## A Shared Terminal in Practice
 

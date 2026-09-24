@@ -29,11 +29,26 @@ il expose de vraies Sessions de terminal à des clients IA externes via MCP.
 
 ## Démarrage rapide : une commande, un terminal
 
-Listez les cibles série natives sans exiger qu’un serveur MCP soit déjà actif :
+Listez les périphériques série détectés, les Profile enregistrés et, lorsque le Host HTTP par défaut
+est disponible, ses Sessions :
 
 ```bash
-channelterm list --kind device --transport serial --no-mcp
+channelterm list
 ```
+
+Le Host n’a pas besoin d’être actif. S’il est inaccessible, `list` signale MCP comme offline tout en
+continuant d’afficher les périphériques et Profile locaux.
+
+| Option courante | Effet |
+| --- | --- |
+| `--kind device`, `profile` ou `session` | Afficher uniquement les types choisis ; plusieurs valeurs peuvent être séparées par des virgules. |
+| `--transport serial` | Afficher uniquement les résultats série. |
+| `--no-mcp` | Ignorer la requête au Host MCP et n’afficher que les sources locales. |
+| `--long`, `-l` | Ajouter les ID opaques complets des Sessions au tableau. |
+| `--json` | Produire du JSON structuré pour les scripts. |
+| `--endpoint URL` | Interroger les Sessions d’un Host HTTP non standard. |
+
+Consultez la [référence CLI](docs/reference/cli.md#list) pour le contrat complet des options.
 
 Ignorez cette étape si vous connaissez déjà la cible native, par exemple `COM50`.
 
@@ -121,6 +136,21 @@ Après avoir choisi HTTP, les clients Codex, Claude Code, OpenCode ou Zoo Code p
 le point de terminaison partagé local `http://127.0.0.1:37099/mcp`. L’IA peut lister, lire et piloter
 `SER-1`. À une invite Bash dont l’inactivité est connue, préférez `terminal_exec` ; utilisez
 `terminal_write` pour les touches brutes et les programmes interactifs.
+
+Pour bénéficier d’un workflow guidé réutilisable, installez l’
+[Agent Skill `cterm-debug`](docs/getting-started/mcp-server.md#install-the-bundled-agent-skill)
+inclus dans un client compatible avec Agent Skills. `channelterm init --mcp` configure les clients
+MCP, mais n’installe pas le Skill.
+
+L’IA peut aussi créer elle-même la Session partagée. Exécutez d’abord une fois
+`channelterm init --mcp` et choisissez HTTP pour configurer le client. Démarrez ensuite le Host
+persistant au premier plan avec `channelterm mcp --transport http`, puis indiquez à l’IA la cible
+série et les paramètres exacts. Elle peut lister les ports, appeler `terminal_open_serial` et
+communiquer la référence `SER-N` obtenue afin qu’un humain la rejoigne avec
+`channelterm attach SER-N`. Le simple démarrage du Host n’ouvre aucun port : une décision `ask`
+exige toujours une approbation explicite. `auto` renvoie `connect`, mais l’IA doit encore appeler
+`terminal_open_serial` ; le Host n’ouvre jamais un port automatiquement. Arrêtez normalement le
+Host avec `Ctrl+C` ; cela ferme les Sessions qu’il possède.
 
 Le Host HTTP exige un token Bearer et n’écoute par défaut que sur l’interface de bouclage. Les CLI
 intégrés lisent automatiquement le token de l’utilisateur local. Le Host peut aussi

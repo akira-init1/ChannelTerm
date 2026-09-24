@@ -42,7 +42,7 @@ ChannelTerm/
 |   |-- build.sh                    Six-target build from Linux/Bash
 |   `-- release.sh                  Clean tagged release verification and checksums
 |-- skills/
-|   `-- channelterm-debug/          Shared serial-debugging workflow for AI clients
+|   `-- cterm-debug/                Shared serial-debugging workflow for AI clients
 |-- docs/                           Public English technical documentation
 |-- .gitattributes                  Cross-platform text line-ending policy
 |-- .gitignore                      Local/build/generated-state ignore policy

@@ -28,11 +28,25 @@ AI 用戶端。
 
 ## 快速開始：一條命令，一個終端機
 
-先列出原生序列埠目標；此操作不要求 MCP 伺服器已在執行：
+列出偵測到的序列埠裝置、已儲存的 Profile，以及預設 HTTP Host 可用時其中的 Session：
 
 ```bash
-channelterm list --kind device --transport serial --no-mcp
+channelterm list
 ```
+
+Host 不必處於執行狀態。若無法連線，`list` 會將 MCP 回報為 offline，同時繼續顯示本機裝置與
+Profile。
+
+| 常用參數 | 作用 |
+| --- | --- |
+| `--kind device`、`profile` 或 `session` | 只顯示指定類型；可用逗號組合多個值。 |
+| `--transport serial` | 只顯示序列埠結果。 |
+| `--no-mcp` | 略過 MCP Host 查詢，只顯示本機來源。 |
+| `--long`、`-l` | 在表格中顯示完整的不透明 Session ID。 |
+| `--json` | 輸出供指令稿處理的結構化 JSON。 |
+| `--endpoint URL` | 從非預設 HTTP Host 查詢 Session。 |
+
+完整參數契約請參閱 [CLI 參考](docs/reference/cli.md#list)。
 
 如果已經知道 `COM50` 這類原生目標，可以略過此步驟。
 
@@ -114,6 +128,17 @@ channelterm init --mcp
 選擇 HTTP 後，支援的 Codex、Claude Code、OpenCode 或 Zoo Code 用戶端會使用本機共享端點
 `http://127.0.0.1:37099/mcp`。AI 可以列出、讀取及操作 `SER-1`；在已知閒置的 Bash 提示字元
 應優先使用 `terminal_exec`，原始按鍵與互動程式則使用 `terminal_write`。
+
+若要取得可重複使用的工作流程指引，請在支援 Agent Skills 的客戶端中安裝儲存庫內附的
+[`cterm-debug` Agent Skill](docs/getting-started/mcp-server.md#install-the-bundled-agent-skill)。
+`channelterm init --mcp` 只會設定 MCP 客戶端，不會安裝 Skill。
+
+AI 也可以自行建立共用 Session。先執行一次 `channelterm init --mcp` 並選擇 HTTP 來設定用戶端，
+接著執行 `channelterm mcp --transport http` 啟動前景持久 Host，再向 AI 提供正確的序列埠目標與
+通訊參數。AI 可以列出序列埠、呼叫 `terminal_open_serial`，再回報產生的 `SER-N`，供人類執行
+`channelterm attach SER-N` 加入。僅啟動 Host 不會開啟任何序列埠；探索策略傳回 `ask` 時仍須
+使用者明確核准。`auto` 傳回 `connect`，但 AI 仍須呼叫 `terminal_open_serial`；Host 永遠不會
+自動開啟序列埠。正常使用 `Ctrl+C` 停止 Host；停止時會關閉它擁有的 Sessions。
 
 HTTP Host 需要 Bearer token，預設僅監聽回環位址。內建 CLI 會讀取本機使用者 token；它也可以
 [監聽受信任的區域網路](docs/getting-started/mcp-server.md#listen-on-a-lan)，遠端用戶端必須使用 Host

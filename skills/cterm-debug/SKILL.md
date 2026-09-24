@@ -1,5 +1,5 @@
 ---
-name: channelterm-debug
+name: cterm-debug
 description: Operate ChannelTerm (cterm) shared serial Sessions for MCU and embedded-Linux diagnosis. Use when a user wants to inspect boot logs, interact with a UART or serial console, run a command at a known idle Bash prompt, or let a human and AI share one device Session. Do not use for JTAG, SWD, GDB, or an unrelated local shell.
 ---
 
@@ -10,10 +10,11 @@ Treat `cterm` as an alias for ChannelTerm. Use ChannelTerm's MCP tools to work t
 ## Establish the Session
 
 1. Call `terminal_list_sessions` when no active Session is known. Reuse the user's intended Session instead of opening the same endpoint independently.
-2. If an explicit native serial target must be opened, obtain the actual port and communication settings. Never guess the baud rate, data bits, parity, stop bits, flow control, wiring, or voltage level.
-3. For an endpoint learned from a device-appearance event, call `terminal_get_connection_decision` before `terminal_open_serial`. An `ask` action requires explicit user approval; respect `deny` for discovery-driven opens.
-4. Leave `wake` disabled unless the target is known to be at an idle interactive prompt and sending one carriage return is intended. Opening an unknown bootloader or MCU must not send probe input automatically.
-5. Record the returned opaque `session_id` and short reference such as `SER-1`. A label, `device_id`, or native port is not a Session identifier.
+2. Distinguish the two ownership paths. When a human has already opened a shared attachment, reuse that Session. When the AI is asked to create the Session through HTTP, the user first configures the client with `channelterm init --mcp` and then starts the persistent Host with `channelterm mcp --transport http`; after the Host is available, call `terminal_list_serial_ports` and open the explicitly selected endpoint. Starting an MCP Host alone does not open a serial port.
+3. If an explicit native serial target must be opened, obtain the actual port and communication settings. Never guess the baud rate, data bits, parity, stop bits, flow control, wiring, or voltage level.
+4. For an endpoint learned from a device-appearance event, call `terminal_get_connection_decision` before `terminal_open_serial`. An `ask` action requires explicit user approval; respect `deny` for discovery-driven opens. A `connect` action permits the client-controlled open but does not open the endpoint by itself.
+5. Leave `wake` disabled unless the target is known to be at an idle interactive prompt and sending one carriage return is intended. Opening an unknown bootloader or MCU must not send probe input automatically.
+6. Record the returned opaque `session_id` and short reference such as `SER-1`. A label, `device_id`, or native port is not a Session identifier. Report the reference so a human can join it with `channelterm attach SER-1`.
 
 ## Observe Before Writing
 
@@ -34,6 +35,7 @@ Treat `cterm` as an alias for ChannelTerm. Use ChannelTerm's MCP tools to work t
 
 - Assume other clients may be attached to the same Session. A complete write payload is serialized, but ordinary writers do not receive semantic shell ownership.
 - Prefer leaving the Session open after diagnosis. `terminal_session_detach` removes one client attachment; `terminal_close` closes the shared Session for every client and requires clear user intent.
+- Do not stop a persistent HTTP Host unless the user asks to end it. The normal foreground-process exit is `Ctrl+C`; stopping it closes the Sessions owned by that Host.
 - Use `terminal_wait_file_transfer` only for a transfer identified by `transfer_id`; ordinary terminal output waits do not report transfer completion.
 - File and directory transfer requires an idle POSIX-style shell and target-side utilities. It is not a generic bare-MCU firmware flashing mechanism.
 

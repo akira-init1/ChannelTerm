@@ -29,11 +29,26 @@ Telnet は将来の方向性であり、現在の機能ではありません。C
 
 ## クイックスタート：1 コマンド、1 端末
 
-実行中の MCP サーバーを必要とせず、OS ネイティブのシリアルターゲットを一覧できます。
+検出されたシリアルデバイス、保存済み Profile、および既定の HTTP Host が利用可能な場合はその
+Session を一覧します。
 
 ```bash
-channelterm list --kind device --transport serial --no-mcp
+channelterm list
 ```
+
+Host は実行中でなくてもかまいません。接続できない場合、`list` は MCP を offline と報告し、
+ローカルのデバイスと Profile は引き続き表示します。
+
+| よく使うオプション | 効果 |
+| --- | --- |
+| `--kind device`、`profile`、`session` | 指定した種類だけを表示します。カンマ区切りで複数指定できます。 |
+| `--transport serial` | シリアルの結果だけを表示します。 |
+| `--no-mcp` | MCP Host への問い合わせを省略し、ローカル情報だけを表示します。 |
+| `--long`、`-l` | 表に完全な不透明 Session ID を追加します。 |
+| `--json` | スクリプト向けの構造化 JSON を出力します。 |
+| `--endpoint URL` | 既定以外の HTTP Host から Session を問い合わせます。 |
+
+完全なオプション仕様は [CLI リファレンス](docs/reference/cli.md#list)を参照してください。
 
 `COM50` などのネイティブターゲットが既知なら、この検出手順は省略できます。
 
@@ -118,6 +133,20 @@ HTTP を選ぶと、対応する Codex、Claude Code、OpenCode、Zoo Code ク�
 エンドポイント `http://127.0.0.1:37099/mcp` を使用します。AI は `SER-1` を一覧、読み取り、操作
 できます。既知のアイドル状態の Bash プロンプトでは `terminal_exec` を優先し、生キー入力や
 対話型プログラムには `terminal_write` を使用します。
+
+再利用可能なワークフローガイダンスを利用するには、Agent Skills 対応クライアントに同梱の
+[`cterm-debug` Agent Skill](docs/getting-started/mcp-server.md#install-the-bundled-agent-skill)を
+インストールしてください。`channelterm init --mcp` は MCP クライアントを設定しますが、
+Skill はインストールしません。
+
+AI 自身が共有 Session を作成することもできます。まず `channelterm init --mcp` を一度実行して
+HTTP を選び、クライアントを設定します。次に `channelterm mcp --transport http` でフォアグラウンド
+の永続 Host を起動し、正確なシリアルターゲットと通信設定を AI に渡します。AI はポートを一覧し、
+`terminal_open_serial` を呼び出し、生成された `SER-N` を報告できるため、人間は
+`channelterm attach SER-N` で参加できます。Host の起動だけではポートは開きません。検出ポリシー
+が `ask` の場合は明示的な承認が必要です。`auto` は `connect` を返しますが、AI は引き続き
+`terminal_open_serial` を呼び出す必要があり、Host がポートを自動的に開くことはありません。
+Host は通常 `Ctrl+C` で停止し、その際に Host が所有する Sessions も閉じます。
 
 HTTP Host は Bearer token を必要とし、既定ではループバックだけを待ち受けます。組み込み CLI
 はローカルユーザーの token を自動的に読み取ります。[信頼できる LAN で待ち受ける](docs/getting-started/mcp-server.md#listen-on-a-lan)

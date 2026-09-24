@@ -1,7 +1,7 @@
 interface:
   display_name: "ChannelTerm Debug"
   short_description: "Shared serial debugging for humans and AI"
-  default_prompt: "Use $channelterm-debug to inspect and safely operate a ChannelTerm serial Session."
+  default_prompt: "Use $cterm-debug to inspect and safely operate a ChannelTerm serial Session."
 dependencies:
   tools:
     - type: "mcp"

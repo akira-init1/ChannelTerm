@@ -30,11 +30,26 @@ es stellt externen KI-Clients echte Terminal-Sessions über MCP bereit.
 
 ## Schnellstart: ein Befehl, ein Terminal
 
-Listen Sie native serielle Ziele auf, ohne dass bereits ein MCP-Server laufen muss:
+Listen Sie erkannte serielle Geräte, gespeicherte Profile und bei verfügbarem Standard-HTTP-Host
+dessen Sessions auf:
 
 ```bash
-channelterm list --kind device --transport serial --no-mcp
+channelterm list
 ```
+
+Der Host muss nicht laufen. Ist er nicht erreichbar, meldet `list` MCP als offline und zeigt lokale
+Geräte und Profile weiterhin an.
+
+| Häufige Option | Wirkung |
+| --- | --- |
+| `--kind device`, `profile` oder `session` | Nur die ausgewählten Arten anzeigen; mehrere Werte können kommasepariert angegeben werden. |
+| `--transport serial` | Nur serielle Ergebnisse anzeigen. |
+| `--no-mcp` | Die Abfrage des MCP-Hosts überspringen und nur lokale Quellen anzeigen. |
+| `--long`, `-l` | Vollständige undurchsichtige Session-IDs in die Tabelle aufnehmen. |
+| `--json` | Strukturiertes JSON für Skripte ausgeben. |
+| `--endpoint URL` | Sessions von einem anderen HTTP-Host abfragen. |
+
+Den vollständigen Optionsvertrag finden Sie in der [CLI-Referenz](docs/reference/cli.md#list).
 
 Überspringen Sie diesen Schritt, wenn das native Ziel, zum Beispiel `COM50`, bereits bekannt ist.
 
@@ -121,6 +136,21 @@ Nach Auswahl von HTTP verwenden unterstützte Codex-, Claude-Code-, OpenCode- od
 den lokalen gemeinsamen Endpunkt `http://127.0.0.1:37099/mcp`. Die KI kann `SER-1` auflisten, lesen
 und bedienen. Verwenden Sie an einem nachweislich inaktiven Bash-Prompt bevorzugt `terminal_exec`;
 für rohe Tasten und interaktive Programme ist `terminal_write` vorgesehen.
+
+Installieren Sie für wiederverwendbare Workflow-Anleitungen den mitgelieferten
+[`cterm-debug` Agent Skill](docs/getting-started/mcp-server.md#install-the-bundled-agent-skill)
+in einem Agent-Skills-kompatiblen Client. `channelterm init --mcp` konfiguriert MCP-Clients,
+installiert den Skill jedoch nicht.
+
+Die KI kann die gemeinsame Session auch selbst erstellen. Führen Sie zuerst einmal
+`channelterm init --mcp` aus und wählen Sie HTTP, um den Client zu konfigurieren. Starten Sie danach
+mit `channelterm mcp --transport http` den dauerhaften Host im Vordergrund und geben Sie der KI das
+genaue serielle Ziel sowie die Kommunikationsparameter. Sie kann Ports auflisten,
+`terminal_open_serial` aufrufen und die erzeugte Referenz `SER-N` melden, damit ein Mensch mit
+`channelterm attach SER-N` beitreten kann. Das Starten des Hosts allein öffnet keinen Port: `ask`
+erfordert weiterhin eine ausdrückliche Genehmigung. `auto` liefert `connect`, aber die KI muss
+weiterhin `terminal_open_serial` aufrufen; der Host öffnet niemals automatisch einen Port. Beenden
+Sie den Host normalerweise mit `Ctrl+C`; dabei werden die von ihm verwalteten Sessions geschlossen.
 
 Der HTTP-Host benötigt ein Bearer-Token und lauscht standardmäßig nur auf der Loopback-Adresse. Die
 integrierten CLI-Clients lesen das lokale Benutzertoken automatisch. Der Host kann auch

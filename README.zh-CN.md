@@ -28,11 +28,25 @@ AI 客户端。
 
 ## 快速开始：一条命令，一个终端
 
-先列出原生串口目标；此操作不要求 MCP 服务器已经运行：
+列出检测到的串口设备、已保存的 Profile，以及默认 HTTP Host 可用时其中的 Session：
 
 ```bash
-channelterm list --kind device --transport serial --no-mcp
+channelterm list
 ```
+
+Host 不必处于运行状态。如果无法连接，`list` 会将 MCP 报告为 offline，同时继续显示本机设备和
+Profile。
+
+| 常用参数 | 作用 |
+| --- | --- |
+| `--kind device`、`profile` 或 `session` | 只显示指定类型；可以使用逗号组合多个值。 |
+| `--transport serial` | 只显示串口结果。 |
+| `--no-mcp` | 跳过 MCP Host 查询，只显示本机来源。 |
+| `--long`、`-l` | 在表格中显示完整的不透明 Session ID。 |
+| `--json` | 输出供脚本处理的结构化 JSON。 |
+| `--endpoint URL` | 从非默认 HTTP Host 查询 Session。 |
+
+完整参数契约见 [CLI 参考](docs/reference/cli.md#list)。
 
 如果已经知道 `COM50` 这样的原生目标，可以跳过这一步。
 
@@ -114,6 +128,17 @@ channelterm init --mcp
 选择 HTTP 后，受支持的 Codex、Claude Code、OpenCode 或 Zoo Code 客户端会使用本机共享端点
 `http://127.0.0.1:37099/mcp`。AI 可以列出、读取和操作 `SER-1`；在已知空闲的 Bash 提示符
 上应优先使用 `terminal_exec`，原始按键和交互程序使用 `terminal_write`。
+
+如需获得可复用的工作流指导，请在支持 Agent Skills 的客户端中安装仓库内置的
+[`cterm-debug` Agent Skill](docs/getting-started/mcp-server.md#install-the-bundled-agent-skill)。
+`channelterm init --mcp` 只配置 MCP 客户端，不会安装 Skill。
+
+AI 也可以自己创建共享 Session。先运行一次 `channelterm init --mcp` 并选择 HTTP 来配置客户端，
+然后运行 `channelterm mcp --transport http` 启动前台持久 Host，再向 AI 提供准确的串口目标与通信
+参数。AI 可以列出串口、调用 `terminal_open_serial`，再报告生成的 `SER-N`，供人类执行
+`channelterm attach SER-N` 加入。仅启动 Host 不会打开任何串口；发现策略返回 `ask` 时仍需用户
+明确批准。`auto` 返回 `connect`，但 AI 仍须调用 `terminal_open_serial`；Host 永远不会自动打开
+串口。正常使用 `Ctrl+C` 停止 Host；停止时会关闭它拥有的 Sessions。
 
 HTTP Host 需要 Bearer token，默认只监听回环地址。内置 CLI 会读取本机用户 token；它也可以
 [监听受信任的局域网](docs/getting-started/mcp-server.md#listen-on-a-lan)，远程客户端必须使用 Host

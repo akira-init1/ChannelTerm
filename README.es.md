@@ -30,11 +30,26 @@ Sessions de terminal reales a clientes de IA externos mediante MCP.
 
 ## Inicio rápido: un comando, un terminal
 
-Enumera los destinos serie nativos sin requerir que ya exista un servidor MCP en ejecución:
+Enumera los dispositivos serie detectados, los Profile guardados y, cuando esté disponible el Host
+HTTP predeterminado, sus Sessions:
 
 ```bash
-channelterm list --kind device --transport serial --no-mcp
+channelterm list
 ```
+
+No es necesario que el Host esté en ejecución. Si no está disponible, `list` informa que MCP está
+offline y sigue mostrando los dispositivos y Profile locales.
+
+| Opción habitual | Efecto |
+| --- | --- |
+| `--kind device`, `profile` o `session` | Mostrar solo los tipos seleccionados; se aceptan varios valores separados por comas. |
+| `--transport serial` | Mostrar solo resultados serie. |
+| `--no-mcp` | Omitir la consulta al Host MCP y mostrar solo fuentes locales. |
+| `--long`, `-l` | Incluir los ID opacos completos de las Sessions en la tabla. |
+| `--json` | Emitir JSON estructurado para scripts. |
+| `--endpoint URL` | Consultar Sessions de un Host HTTP no predeterminado. |
+
+Consulta la [referencia de CLI](docs/reference/cli.md#list) para ver el contrato completo de opciones.
 
 Omite este paso si ya conoces el destino nativo, por ejemplo `COM50`.
 
@@ -120,6 +135,21 @@ Al elegir HTTP, los clientes compatibles de Codex, Claude Code, OpenCode o Zoo C
 endpoint compartido local `http://127.0.0.1:37099/mcp`. La IA puede enumerar, leer y operar `SER-1`.
 En un prompt de Bash que se sabe inactivo, usa preferentemente `terminal_exec`; utiliza
 `terminal_write` para teclas sin procesar y programas interactivos.
+
+Para obtener una guía de flujo reutilizable, instala el
+[Agent Skill `cterm-debug`](docs/getting-started/mcp-server.md#install-the-bundled-agent-skill)
+incluido en un cliente compatible con Agent Skills. `channelterm init --mcp` configura clientes
+MCP, pero no instala el Skill.
+
+La IA también puede crear por sí misma la Session compartida. Ejecuta primero una vez
+`channelterm init --mcp` y elige HTTP para configurar el cliente. Después inicia el Host persistente
+en primer plano con `channelterm mcp --transport http` y proporciona a la IA el destino serie y los
+parámetros exactos. Puede enumerar los puertos, llamar a `terminal_open_serial` e informar de la
+referencia `SER-N` resultante para que una persona se una con `channelterm attach SER-N`. Iniciar el
+Host por sí solo no abre ningún puerto: una decisión `ask` sigue requiriendo aprobación explícita,
+mientras que `auto` devuelve `connect`, pero la IA todavía debe llamar a `terminal_open_serial`; el
+Host nunca abre un puerto automáticamente. Detén normalmente el Host con `Ctrl+C`; al hacerlo se
+cierran las Sessions que posee.
 
 El Host HTTP exige un token Bearer y solo escucha en loopback de forma predeterminada. Los clientes
 CLI integrados leen automáticamente el token del usuario local. También puede
