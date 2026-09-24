@@ -28,6 +28,32 @@ Code, OpenCode, or Zoo Code. Do not share, log, or commit HTTP output. Selecting
 `http-auth-token` on first use when necessary. Append `codex`, `claude`, `opencode`, or `zoo` to
 display only one client's selected configuration.
 
+## Install the bundled Codex Skill
+
+The repository includes `skills/channelterm-debug`, which teaches Codex when and how to combine
+ChannelTerm's MCP tools for shared MCU and embedded-Linux serial diagnosis. It recognizes `cterm`
+as an alias for ChannelTerm and records important boundaries such as using raw writes for bare MCUs
+and reserving `terminal_exec` for a known idle Bash prompt.
+
+`channelterm init --mcp` configures the MCP server but does not install the Skill. From a repository
+checkout, install it for the current user on Linux or macOS with:
+
+```bash
+mkdir -p ~/.codex/skills
+cp -R skills/channelterm-debug ~/.codex/skills/
+```
+
+On Windows PowerShell, run:
+
+```powershell
+New-Item -ItemType Directory -Force "$HOME\.codex\skills"
+Copy-Item -Recurse -Force skills\channelterm-debug "$HOME\.codex\skills\"
+```
+
+Restart or reload Codex after installation. Automatic selection remains enabled, and the Skill can
+also be requested explicitly with `$channelterm-debug`. Installing the Skill adds workflow guidance;
+it does not install ChannelTerm or configure the MCP connection.
+
 ## Stdio
 
 ```powershell

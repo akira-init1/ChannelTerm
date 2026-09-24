@@ -41,6 +41,8 @@ ChannelTerm/
 |   |-- build.ps1                   Six-target build from PowerShell
 |   |-- build.sh                    Six-target build from Linux/Bash
 |   `-- release.sh                  Clean tagged release verification and checksums
+|-- skills/
+|   `-- channelterm-debug/          Shared serial-debugging workflow for AI clients
 |-- docs/                           Public English technical documentation
 |-- .gitattributes                  Cross-platform text line-ending policy
 |-- .gitignore                      Local/build/generated-state ignore policy
@@ -60,6 +62,9 @@ The main ownership distinctions are deliberate:
 - **Automation:** `.github/workflows` enforces hosted repository checks and publishes verified tag
   builds through GitHub Releases. `scripts` owns local build and release verification without
   publishing releases.
+- **Agent workflows:** `skills` packages reusable instructions for selecting and sequencing the
+  existing ChannelTerm CLI and MCP interfaces. Skills do not own product behavior or protocol
+  schemas.
 - **Adapter:** `cmd/channelterm`, `internal/cli`, and `internal/mcp` own process composition and
   external protocol or presentation concerns. `internal/init/mcp` owns local MCP-client
   configuration discovery and installation. `internal/install` owns per-user executable placement,
