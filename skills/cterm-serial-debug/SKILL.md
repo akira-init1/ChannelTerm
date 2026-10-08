@@ -36,6 +36,7 @@ Treat `cterm` as an alias for ChannelTerm. Use ChannelTerm's MCP tools to work t
 
 - Assume other clients may be attached to the same Session. A complete write payload is serialized, but ordinary writers do not receive semantic shell ownership.
 - Prefer leaving the Session open after diagnosis. `terminal_session_detach` only records a client departure on the Session event stream. The client must stop its own attachment I/O through its exit or detach action; calling the tool does not disconnect it. `terminal_close` closes the shared Session for every client and requires clear user intent.
+- Before advising a CLI attachment to exit, check whether it created a temporary Host. Exiting that creating attachment also stops the Host and closes all of its Sessions, even if other clients remain attached. Keep it open while those Sessions are needed. Use a separately started persistent HTTP Host from the outset when Sessions must outlive CLI attachments.
 - Do not stop a persistent HTTP Host unless the user asks to end it. The normal foreground-process exit is `Ctrl+C`; stopping it closes the Sessions owned by that Host.
 - Use `terminal_wait_file_transfer` only for a transfer identified by `transfer_id`; ordinary terminal output waits do not report transfer completion.
 - File and directory transfer requires an idle POSIX-style shell and target-side utilities. It is not a generic bare-MCU firmware flashing mechanism.
