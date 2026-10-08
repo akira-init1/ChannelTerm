@@ -25,6 +25,11 @@ for command-line flags and defaults, the running program's `--help` output remai
 - [Run the MCP server](getting-started/mcp-server.md)
 - [Troubleshoot common failures](getting-started/troubleshooting.md)
 
+## Agent Skills
+
+- [ChannelTerm Serial Debug Skill](../skills/cterm-serial-debug/SKILL.md) — shared MCU and embedded-Linux
+  serial-debugging workflow for ChannelTerm/cterm
+
 ## Reference
 
 - [CLI reference](reference/cli.md)

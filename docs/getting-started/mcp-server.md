@@ -28,6 +28,35 @@ Code, OpenCode, or Zoo Code. Do not share, log, or commit HTTP output. Selecting
 `http-auth-token` on first use when necessary. Append `codex`, `claude`, `opencode`, or `zoo` to
 display only one client's selected configuration.
 
+## Install the bundled Agent Skill
+
+The repository includes `skills/cterm-serial-debug`, an Agent Skills-compatible workflow
+that teaches an agent when and how to combine ChannelTerm's MCP tools for shared MCU and
+embedded-Linux serial diagnosis. It recognizes `cterm` as an alias for ChannelTerm and records
+important boundaries such as using raw writes for bare MCUs and reserving `terminal_exec` for a known idle Bash prompt.
+
+The portable workflow lives in `SKILL.md`. If an agent supports Agent Skills, copy the complete
+`skills/cterm-serial-debug` directory into that client's documented user-level or project-level
+Skill directory, then restart or reload the client. Common user-level locations include:
+
+| Client | Skill directory | Direct use |
+| ------ | --------------- | ---------- |
+| Codex | `~/.agents/skills/cterm-serial-debug` | `$cterm-serial-debug` |
+| Claude Code | `~/.claude/skills/cterm-serial-debug` | `/cterm-serial-debug` |
+| OpenCode | `~/.config/opencode/skills/cterm-serial-debug` | Ask the agent to use `cterm-serial-debug`; it loads the native `skill` tool |
+
+OpenCode also discovers Claude-compatible `~/.claude/skills` and agent-compatible
+`~/.agents/skills` directories. For any other Agent Skills-compatible client, follow that client's
+documented discovery locations and invocation syntax.
+
+The optional `agents/openai.yaml` file supplies OpenAI-specific display, invocation, and MCP
+dependency metadata. It is not part of the portable Agent Skills contract, and Claude Code and
+OpenCode do not require matching vendor YAML files; they discover the name, description, and
+workflow from `SKILL.md`.
+
+`channelterm init --mcp` configures supported MCP clients but does not install the Skill. Installing
+the Skill adds workflow guidance; it does not install ChannelTerm or configure the MCP connection.
+
 ## Stdio
 
 ```powershell

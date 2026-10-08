@@ -29,6 +29,7 @@ This file records stable ownership boundaries, not a duplicate source tree. The 
 | Area | Stable responsibility |
 | ---- | --------------------- |
 | `.github/workflows/` | Hosted continuous-integration gates |
+| `skills/` | Bundled AI workflows for operating ChannelTerm's public interfaces |
 | `cmd/channelterm/` | Process entry point and dependency composition |
 | `internal/cli/` | CLI commands, local presentation, interactive input, and OS terminal adaptation |
 | `internal/init/mcp/` | Supported MCP-client discovery plus client-configuration rendering and safe installation |
@@ -90,6 +91,7 @@ Place code according to architectural responsibility, not according to the featu
 | MCP terminal tool schema/translation      | `internal/mcp/terminal/`          | independent Session/Transport implementation         |
 | Build/release helper scripts              | `scripts/`                        | product behavior                                     |
 | Hosted CI checks                          | `.github/workflows/`              | product behavior, release publication                |
+| Reusable AI workflow around public tools  | `skills/`                         | product logic, MCP schemas, duplicated reference docs |
 
 For a cross-cutting feature, split the implementation across the existing layers instead of creating a catch-all package such as `internal/features/`, `internal/common/`, or `internal/utils/`.
 
