@@ -41,7 +41,7 @@ Skill directory, then restart or reload the client. Common user-level locations 
 
 | Client | Skill directory | Direct use |
 | ------ | --------------- | ---------- |
-| Codex | `~/.codex/skills/cterm-serial-debug` | `$cterm-serial-debug` |
+| Codex | `~/.agents/skills/cterm-serial-debug` | `$cterm-serial-debug` |
 | Claude Code | `~/.claude/skills/cterm-serial-debug` | `/cterm-serial-debug` |
 | OpenCode | `~/.config/opencode/skills/cterm-serial-debug` | Ask the agent to use `cterm-serial-debug`; it loads the native `skill` tool |
 

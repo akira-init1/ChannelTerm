@@ -14,7 +14,8 @@ Treat `cterm` as an alias for ChannelTerm. Use ChannelTerm's MCP tools to work t
 3. If an explicit native serial target must be opened, obtain the actual port and communication settings. Never guess the baud rate, data bits, parity, stop bits, flow control, wiring, or voltage level.
 4. For an endpoint learned from a device-appearance event, call `terminal_get_connection_decision` before `terminal_open_serial`. An `ask` action requires explicit user approval; respect `deny` for discovery-driven opens. A `connect` action permits the client-controlled open but does not open the endpoint by itself.
 5. Leave `wake` disabled unless the target is known to be at an idle interactive prompt and sending one carriage return is intended. Opening an unknown bootloader or MCU must not send probe input automatically.
-6. Record the returned opaque `session_id` and short reference such as `SER-1`. A label, `device_id`, or native port is not a Session identifier. Report the reference so a human can join it with `channelterm attach SER-1`.
+6. Record the returned opaque `session_id` and short reference such as `SER-1` together with the owning MCP connection. Session references are local to that Host. A label, `device_id`, or native port is not a Session identifier.
+7. For an HTTP Session, confirm its Host URL before giving a human a join command. Use `channelterm attach SER-1 --endpoint <HOST_URL>`, substituting the actual reference and reachable URL. Omit `--endpoint` only for the default HTTP Host. A stdio Session belongs to its own server process and cannot be joined with `channelterm attach`; use a shared HTTP Host when human CLI access is required.
 
 ## Observe Before Writing
 
@@ -34,7 +35,7 @@ Treat `cterm` as an alias for ChannelTerm. Use ChannelTerm's MCP tools to work t
 ## Preserve Shared Ownership
 
 - Assume other clients may be attached to the same Session. A complete write payload is serialized, but ordinary writers do not receive semantic shell ownership.
-- Prefer leaving the Session open after diagnosis. `terminal_session_detach` removes one client attachment; `terminal_close` closes the shared Session for every client and requires clear user intent.
+- Prefer leaving the Session open after diagnosis. `terminal_session_detach` only records a client departure on the Session event stream. The client must stop its own attachment I/O through its exit or detach action; calling the tool does not disconnect it. `terminal_close` closes the shared Session for every client and requires clear user intent.
 - Do not stop a persistent HTTP Host unless the user asks to end it. The normal foreground-process exit is `Ctrl+C`; stopping it closes the Sessions owned by that Host.
 - Use `terminal_wait_file_transfer` only for a transfer identified by `transfer_id`; ordinary terminal output waits do not report transfer completion.
 - File and directory transfer requires an idle POSIX-style shell and target-side utilities. It is not a generic bare-MCU firmware flashing mechanism.
