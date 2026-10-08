@@ -27,7 +27,7 @@ for command-line flags and defaults, the running program's `--help` output remai
 
 ## Agent Skills
 
-- [ChannelTerm Debug Skill](../skills/channelterm-debug/SKILL.md) — shared MCU and embedded-Linux
+- [ChannelTerm Serial Debug Skill](../skills/cterm-serial-debug/SKILL.md) — shared MCU and embedded-Linux
   serial-debugging workflow for ChannelTerm/cterm
 
 ## Reference
