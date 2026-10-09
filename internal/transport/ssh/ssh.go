@@ -198,7 +198,12 @@ func (t *Transport) Connect(ctx context.Context) (_ channel.Channel, err error) 
 		_ = stream.Close()
 		return nil, err
 	}
-	return channel.NewStream(stream)
+	base, err := channel.NewStream(stream)
+	if err != nil {
+		_ = stream.Close()
+		return nil, err
+	}
+	return &shellChannel{Stream: base, shell: shell}, nil
 }
 
 // shellStream owns the SSH client and the two output-copy workers managed by
@@ -229,4 +234,36 @@ func (s *shellStream) Close() error {
 		return nil
 	}
 	return err
+}
+
+// shellChannel adds the optional terminal capability to the generic lifecycle
+// wrapper. The live backend session remains private to this Transport package.
+type shellChannel struct {
+	*channel.Stream
+	shell *gossh.Session
+}
+
+var _ channel.Resizer = (*shellChannel)(nil)
+
+// Resize sends a window-change request on the existing interactive shell.
+// Dimensions are character columns then rows; the backend takes rows first.
+// No lifecycle lock is held across network I/O, so Close can interrupt a resize
+// blocked by a disconnected or unresponsive peer. Concurrent Close may make an
+// already-started request fail with an SSH I/O error.
+func (s *shellChannel) Resize(cols, rows uint16) error {
+	if cols == 0 || rows == 0 {
+		return errors.New("SSH PTY dimensions must be between 1 and 65535")
+	}
+	if s.State() != channel.StateOpen {
+		return channel.ErrNotOpen
+	}
+	if err := s.shell.WindowChange(int(rows), int(cols)); err != nil {
+		return fmt.Errorf("resize SSH PTY: %w", err)
+	}
+	// The request has no server acknowledgement. Do not report success if
+	// local closure interrupted its write but the backend returned nil.
+	if s.State() != channel.StateOpen {
+		return channel.ErrNotOpen
+	}
+	return nil
 }
