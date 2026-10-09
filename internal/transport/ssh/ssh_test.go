@@ -26,9 +26,10 @@ import (
 )
 
 type testServer struct {
-	config   Config
-	requests chan *gossh.Request
-	seen     chan string
+	config     Config
+	requests   chan *gossh.Request
+	seen       chan string
+	disconnect func(reset bool)
 }
 
 // startTestServer speaks actual SSH over loopback using fresh ephemeral keys.
@@ -46,7 +47,7 @@ func startTestServer(t *testing.T, behavior string) *testServer {
 	portNumber, _ := strconv.Atoi(port)
 	s := &testServer{
 		config:   Config{User: "test-user", Host: host, Port: portNumber, PrivateKeyPath: identity, KnownHostsPath: testKnownHosts(t, listener.Addr().String(), hostKey.PublicKey()), Timeout: 3 * time.Second},
-		requests: make(chan *gossh.Request, 16), seen: make(chan string, 16),
+		requests: make(chan *gossh.Request, 64), seen: make(chan string, 64),
 	}
 	serverConfig := &gossh.ServerConfig{PublicKeyCallback: func(metadata gossh.ConnMetadata, key gossh.PublicKey) (*gossh.Permissions, error) {
 		if metadata.User() != "test-user" || !bytes.Equal(key.Marshal(), clientKey.PublicKey().Marshal()) {
@@ -58,6 +59,16 @@ func startTestServer(t *testing.T, behavior string) *testServer {
 	var workers sync.WaitGroup
 	var mu sync.Mutex
 	var connections []net.Conn
+	s.disconnect = func(reset bool) {
+		mu.Lock()
+		defer mu.Unlock()
+		for _, conn := range connections {
+			if reset {
+				_ = conn.(*net.TCPConn).SetLinger(0)
+			}
+			_ = conn.Close()
+		}
+	}
 	accepted := make(chan struct{})
 	go func() {
 		defer close(accepted)

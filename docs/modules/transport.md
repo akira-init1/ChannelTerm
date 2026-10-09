@@ -101,6 +101,11 @@ only continuous Channel reader and retained terminal history. Concurrent readers
 cursors, not SSH readers. Close releases the socket and pipes before joining output workers, so
 remote flow control cannot prevent shutdown. The existing Channel wrapper makes Close repeatable.
 Remote shell EOF or a connection failure reaches the existing Session lifecycle/reaping path.
+FIN/EOF and TCP-reset tests verify that blocked readers end and Manager closes/unregisters the
+Session. Reconnection creates a fresh Channel; the Transport neither reconnects automatically
+nor replays writes. A silent packet blackhole does not impose a new post-connect deadline:
+Close still releases blocked I/O, while setup timeout does not limit an established shell.
+Repeated-close tests also check for retained SSH workers after server and Channel cleanup.
 
 Each Connect can establish an independent Channel. Sharing and reuse instead happen in
 `Application.OpenSSH`, keyed by exact username, host, and port. This release does not implement

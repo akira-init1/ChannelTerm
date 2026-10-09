@@ -116,8 +116,9 @@ GitHub Release workflow described above.
   adapters.
 - SSH transport and CLI tests start loopback SSH servers with ephemeral keys. They confirm
   authentication, PTY/shell requests, cancellation, cleanup, and shared Session access through the
-  existing HTTP tools, including separate CLI processes. They do not prove OpenSSH/WSL2
-  interoperability or native terminal behavior.
+  existing HTTP tools, including separate CLI processes. These generated-key servers do not
+  prove OpenSSH interoperability. The separate opt-in local suite below runs actual OpenSSH
+  and Linux PTYs and reports unsupported runtime resizing explicitly.
 - `go vet` performs static analysis; it is not a runtime test.
 - A cross-build confirms compilation only.
 - Native console raw-mode behavior must be checked on the target OS.
@@ -127,3 +128,40 @@ GitHub Release workflow described above.
 
 Report exact commands and results. Do not claim real hardware, another OS, or external MCP client
 verification based only on unit tests or cross-compilation.
+
+## Local OpenSSH integration tests
+
+On Linux/WSL2, `bash scripts/test-ssh-local.sh` runs the real OpenSSH suite with race detection.
+It requires a non-root user, OpenSSH server (`sshd`) and `ssh-keygen`, Python 3, Vim, htop, and Go.
+Use `CHANNELTERM_TEST_SSHD=/absolute/path/to/sshd` and
+`CHANNELTERM_TEST_HTOP=/absolute/path/to/htop` when those binaries are not on PATH. Extracted
+binaries can use a caller-supplied `LD_LIBRARY_PATH`; the isolated test shell receives that path.
+The script does not install packages, configure the system SSH service, or use personal keys.
+
+The script creates and destroys a dedicated localhost server and invokes:
+
+```bash
+CHANNELTERM_TEST_OPENSSH_CONFIG=/path/to/test-config.json \
+  go test -race ./internal/cli/command -run '^TestOpenSSH' -count=1 -v
+```
+
+The temporary JSON contains `user`, `host` (a loopback IP), `port`, `identity`, `known_hosts`,
+and `htop` paths. Only use this opt-in with a dedicated local test server running as the current
+user: tests write a temporary Vim file and one test terminates its own SSH connection's server
+process. The packet-drop relay requires a dedicated unhashed `[host]:port` host-key entry.
+The script creates these inputs, uses a clean Bash shell, disables forwarding and passwords,
+and permits only its generated client key. It disables server `StrictModes` for that temporary
+credential location; it does not bypass ChannelTerm host-key verification.
+
+Without `CHANNELTERM_TEST_OPENSSH_CONFIG`, ordinary `go test ./...` skips these external-server
+tests and continues to run self-contained loopback unit tests. Test fixture keys never enter the
+repository. Logs and temporary credentials are removed by the runner when it exits; on failure,
+server diagnostics are printed before cleanup.
+
+The real suite checks initial PTY negotiation, Vim and htop interaction, Ctrl+C, local escape,
+owner/observer shutdown, terminal restoration, server connection termination, explicit reopening,
+and packet dropping after setup. The resize characterization test passes only when it observes
+the documented current limitation; it is **not** evidence of runtime resize support. See the
+[SSH workflow](../getting-started/ssh-terminal.md#current-validation-limits-and-recovery) for the
+remaining lifecycle and recovery boundaries. No native Windows/macOS or physical network-failure
+claim follows from this localhost suite.

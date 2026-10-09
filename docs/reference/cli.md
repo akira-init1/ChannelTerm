@@ -260,6 +260,9 @@ closes its Sessions and listener. In a secondary `attach`, `Ctrl+] q` detaches o
 Ctrl+C cancels initial setup; after attachment it is ordinary input to the remote PTY, using
 existing attach controls. Remote shell closure/disconnection follows the existing Session read
 error path and ends the foreground command with a diagnostic. Terminal raw mode is restored.
+There is no dedicated `SESSION_CLOSED` notification; attachment output/event reads end through
+existing error handling. There is no automatic reconnect or post-connect SSH liveness timeout;
+`--timeout` only bounds setup. Start a new `ssh` command after a detected disconnection.
 A Host can be write-controlled by clients holding its token; keep the token private.
 
 Important errors include invalid destinations/options, missing or encrypted keys, unknown/changed

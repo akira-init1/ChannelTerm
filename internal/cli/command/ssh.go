@@ -186,7 +186,7 @@ func runSSH(ctx context.Context, args []string, input io.Reader, output io.Write
 		stopServer()
 		err = errors.Join(err, closeErr, <-serverDone)
 	}()
-	return runAttachSessionWithInterrupts(hostCtx, []string{
+	return runAttachSessionWithInputEnd(hostCtx, []string{
 		"--endpoint", endpoint, "--highlight=" + strconv.FormatBool(*highlight), opened.Info.ID,
-	}, input, output, newMCPAttachSession, attachInterrupts)
+	}, input, output, newMCPAttachSession, attachInterrupts, stopHost)
 }

@@ -148,7 +148,15 @@ func runAttachSession(ctx context.Context, args []string, input io.Reader, outpu
 	return runAttachSessionWithInterrupts(ctx, args, input, output, newAttach, nil)
 }
 
-func runAttachSessionWithInterrupts(ctx context.Context, args []string, input io.Reader, output io.Writer, newAttach attachSessionFactory, interrupts <-chan os.Signal) (err error) {
+func runAttachSessionWithInterrupts(ctx context.Context, args []string, input io.Reader, output io.Writer, newAttach attachSessionFactory, interrupts <-chan os.Signal) error {
+	return runAttachSessionWithInputEnd(ctx, args, input, output, newAttach, interrupts, nil)
+}
+
+// runAttachSessionWithInputEnd lets a foreground Host owner close its lifetime
+// when local input ends. Ordinary attachments pass nil and retain their existing
+// behavior. The callback runs after input dispatch finishes, preserving the last
+// payload before EOF rather than cancelling while its bytes are still pending.
+func runAttachSessionWithInputEnd(ctx context.Context, args []string, input io.Reader, output io.Writer, newAttach attachSessionFactory, interrupts <-chan os.Signal, onInputEnd func()) (err error) {
 	flags := flag.NewFlagSet("attach", flag.ContinueOnError)
 	flags.SetOutput(output)
 	endpoint := flags.String("endpoint", defaultMCPEndpoint, "MCP Streamable HTTP endpoint")
@@ -283,7 +291,12 @@ func runAttachSessionWithInterrupts(ctx context.Context, args []string, input io
 	if owner, ok := attached.(localFileTransferPresentation); ok {
 		owner.setFileTransferPresentation(presentation)
 	}
-	go forwardAttachInputWithPresentation(attachCtx, input, attached, writeLocalOutput, writeLocalStatus, togglePromptTimestamps, cancel, interrupts)
+	go func() {
+		if onInputEnd != nil {
+			defer onInputEnd()
+		}
+		forwardAttachInputWithPresentation(attachCtx, input, attached, writeLocalOutput, writeLocalStatus, togglePromptTimestamps, cancel, interrupts)
+	}()
 	events, hasEvents := attached.(attachEventSession)
 	if hasEvents {
 		eventChunk, eventErr := events.ReadRecentEvents(session.DefaultEventBufferCapacity)

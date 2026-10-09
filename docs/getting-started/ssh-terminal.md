@@ -74,7 +74,7 @@ can each have `SSH-1`. A ready, idle Host/shell can remain silent until input or
 the printed endpoint plus a successful `list` confirms readiness.
 
 Ctrl+C cancels initial connection setup. Once attached, it is sent to the remote PTY. Use `Ctrl+] q`
-to exit locally. In the owning `ssh` terminal this closes the Host and all its Sessions; in another
+to exit locally. Input EOF also closes the owning `ssh` command. In that terminal, exit closes the Host and all its Sessions; in another
 `attach` terminal it detaches only that client. Remote shell exit/disconnection ends the Session,
 causes an existing read-path diagnostic, and restores local terminal mode. Stopping the owner does
 not leave a background SSH connection.
@@ -89,6 +89,56 @@ fixed by disabling checks. An occupied sharing port is independent of the remote
 
 Automated tests use generated keys and loopback SSH servers, check rejected keys/PTY/shell requests,
 cancel every setup stage, interrupt blocked I/O on close, and connect multiple Session clients.
-A native Linux/WSL2 acceptance check additionally requires your actual SSH server and credentials:
-open the first command, run `uname -a`, attach from a second terminal, verify matching output,
-detach the second client, then exit the owner and confirm the Host listener has stopped.
+They also cover server EOF, TCP reset, a silent network blackhole, explicit reconnection, blocked
+output/event readers, owner input EOF, and worker cleanup after repeated connection lifetimes.
+
+## Test this machine against itself
+
+Linux and WSL2 can run both sides on `127.0.0.1`. With Go, Python 3, OpenSSH server/client tools,
+Vim, and htop available, run as your regular user from the repository root:
+
+```bash
+bash scripts/test-ssh-local.sh
+```
+
+The script creates private temporary keys, a trust file derived from its own host public key,
+and a dedicated loopback server on an available port. It does not modify your SSH configuration,
+authorized keys, or system service. It runs the CLI in real Linux PTYs, uses a clean interactive
+Bash shell, disables shell history, and removes the test server and temporary keys on exit.
+Its test-only server disables directory-mode checking to allow credentials under a temporary
+path; public-key authentication and ChannelTerm's host-key verification remain enabled.
+See [building and testing](../development/building-and-testing.md#local-openssh-integration-tests)
+for prerequisite overrides and the explicit test opt-in.
+
+The automated real-server checks exercise shell startup, initial PTY dimensions, Vim edit/save,
+htop screen entry/exit, Ctrl+C, owner and observer termination, termios restoration, a server
+connection process terminating, explicit reconnection, and a local relay dropping SSH packets.
+They do not provide visual certification of every terminal emulator or interactive application.
+
+## Current validation limits and recovery
+
+- **Runtime resize remains unsupported.** The real test changes a local window from 36 rows by
+  100 columns to 43 by 132 and confirms that remote `stty size` stays `36 100`. A passing
+  characterization test records that limitation; it does not satisfy a resize-support acceptance
+  criterion. Select the initial dimensions before starting full-screen programs.
+- **Closure is delivered through the read path.** Pending output/event readers terminate when
+  the owner or remote connection ends. There is no dedicated `SESSION_CLOSED` event or guarantee
+  of a final structured notification before the Host stops. Secondary attachments report a read
+  error and restore local terminal mode; normal remote shell exit currently uses that error path too.
+- **Recovery is explicit.** A closed or reset connection is reaped by the existing Manager.
+  Start `channelterm ssh` again to open a new shell and reattach to its printed reference.
+  Commands, terminal state, and output cursors are not replayed into the new connection.
+- **Silent network loss has no SSH liveness deadline.** `--timeout` bounds setup only. An established
+  shell can wait until TCP reports failure or the owner exits. The relay test covers local escape
+  while idle or after a small write; the Transport test separately verifies that Close releases a
+  blocked socket write. These do not guarantee local escape remains responsive during a saturated
+  write. On Linux/WSL2, terminate the owning process with SIGTERM if it cannot process local input.
+- **Worker checks have a defined boundary.** Repeated-close tests inspect SSH, Session, Manager,
+  and CLI worker stacks after caller-owned test input is closed. An arbitrary blocked `io.Reader`
+  cannot be cancelled by context alone; it may retain its input pump until its owner releases it.
+  Exiting the CLI process releases that process's remaining input worker.
+
+Localhost testing verifies real OpenSSH and Linux PTY behavior, including on WSL2. It does not
+verify Windows/macOS native console behavior, a LAN firewall, NAT, physical link loss, or another
+SSH server implementation. Repeat the shared-shell workflow with the real remote address for
+those deployment boundaries.
