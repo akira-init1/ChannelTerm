@@ -76,7 +76,10 @@ func TestRunHelpDescribesSharedHumanAndAIAccess(t *testing.T) {
 	if !strings.Contains(got, "A shared terminal-session core for human and AI access.") {
 		t.Errorf("run(--help) output = %q, want shared human and AI access description", got)
 	}
-	for _, unsupported := range []string{"SSH", "Telnet"} {
+	if !strings.Contains(got, "ssh     Open and share an SSH interactive shell") {
+		t.Errorf("help is missing the SSH command: %s", got)
+	}
+	for _, unsupported := range []string{"Telnet"} {
 		if strings.Contains(got, unsupported) {
 			t.Errorf("run(--help) output = %q, must not claim %s support", got, unsupported)
 		}

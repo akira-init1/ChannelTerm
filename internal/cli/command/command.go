@@ -42,7 +42,7 @@ func Run(ctx context.Context, args []string, input io.Reader, stdout, stderr io.
 }
 
 // RunWithInterrupts routes one CLI invocation while treating process-level
-// Console interruptions as local interactive input when attach is active.
+// Console interruptions as local interactive input when attach or ssh is active.
 // Other commands retain normal process-cancellation semantics for interrupts.
 func RunWithInterrupts(ctx context.Context, args []string, input io.Reader, stdout, stderr io.Writer, interrupts <-chan os.Signal) error {
 	_ = stderr
@@ -115,7 +115,7 @@ func runWithDependenciesWithInterrupts(ctx context.Context, args []string, input
 	if len(args) > 0 && args[0] == "__uninstall-cleanup" {
 		return runDeferredUninstallCleanup(args[1:])
 	}
-	if interrupts != nil && (len(args) == 0 || args[0] != "attach") {
+	if interrupts != nil && (len(args) == 0 || (args[0] != "attach" && args[0] != "ssh")) {
 		var stop context.CancelFunc
 		ctx, stop = context.WithCancel(ctx)
 		defer stop()
@@ -129,6 +129,9 @@ func runWithDependenciesWithInterrupts(ctx context.Context, args []string, input
 	}
 	if len(args) > 0 && args[0] == "serial" {
 		return runSerial(ctx, args[1:], input, output, newSession)
+	}
+	if len(args) > 0 && args[0] == "ssh" {
+		return runSSH(ctx, args[1:], input, output, interrupts)
 	}
 	if len(args) > 0 && args[0] == "connect" {
 		return runApplicationConnect(ctx, args[1:], input, output, newSession)
@@ -175,6 +178,7 @@ func runWithDependenciesWithInterrupts(ctx context.Context, args []string, input
 		fmt.Fprintln(output, "  list    List local devices, saved profiles, and MCP sessions")
 		fmt.Fprintln(output, "  mcp     Start the Session Host MCP server")
 		fmt.Fprintln(output, "  serial  Connect to a serial port")
+		fmt.Fprintln(output, "  ssh     Open and share an SSH interactive shell")
 		fmt.Fprintln(output, "  uninstall Remove the current-user ChannelTerm installation")
 		fmt.Fprintln(output, "  version Show the version")
 		fmt.Fprintln(output)
@@ -519,6 +523,15 @@ func runMCPHTTP(ctx context.Context, registry *tool.Registry, listen, path, toke
 	if err != nil {
 		return fmt.Errorf("listen for MCP Streamable HTTP on %q: %w", listen, err)
 	}
+	return serveMCPHTTP(ctx, registry, listener, path, token, temporaryHost, stderr, false)
+}
+
+// serveMCPHTTP takes ownership of a bound listener. SSH reserves its local
+// sharing endpoint before opening a remote shell, then reuses this Host path.
+// closeOnCancel is used by a foreground SSH owner after closing its Sessions:
+// remaining client connections have no live Session to finish and are closed
+// immediately. Standalone MCP Hosts retain their graceful shutdown behavior.
+func serveMCPHTTP(ctx context.Context, registry *tool.Registry, listener net.Listener, path, token string, temporaryHost bool, stderr io.Writer, closeOnCancel bool) error {
 	handler, err := mcp.NewStreamableHTTPHandler(registry, version)
 	if err != nil {
 		closeErr := listener.Close()
@@ -544,6 +557,10 @@ func runMCPHTTP(ctx context.Context, registry *tool.Registry, listen, path, toke
 	go func() {
 		select {
 		case <-ctx.Done():
+			if closeOnCancel {
+				shutdownDone <- server.Close()
+				return
+			}
 			shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			shutdownErr := server.Shutdown(shutdownCtx)
 			cancel()
@@ -612,7 +629,7 @@ func isLoopbackListen(listen string) bool {
 }
 
 // newMCPRegistry registers the existing terminal Tools once for an MCP process.
-// Session and Serial construction remain entirely inside the terminal Tool set.
+// It shares the supplied Manager; protocol-specific opening remains in Application.
 func newMCPRegistry(manager *session.Manager, devices *device.Registry) (*tool.Registry, error) {
 	return newMCPRegistryWithPolicy(manager, devices, connectionpolicy.Default)
 }
