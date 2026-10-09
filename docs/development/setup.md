@@ -1,6 +1,6 @@
 # Development Setup
 
-Install Go 1.25 or newer, using a currently supported patched toolchain for ordinary development,
+Install Go 1.26 or newer, using a currently supported patched toolchain for ordinary development,
 and clone the repository on Windows, Linux, or macOS. The canonical Go module path is
 `github.com/akira-init1/ChannelTerm`. The supported desktop architectures are `amd64` and `arm64`.
 

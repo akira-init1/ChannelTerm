@@ -180,7 +180,7 @@ requisitos, la protección contra sobrescritura, la cancelación y la verificaci
 
 ## Instalación y compilación
 
-ChannelTerm requiere Go 1.25 o posterior. Usa una versión con parches que siga siendo compatible y
+ChannelTerm requiere Go 1.26 o posterior. Usa una versión con parches que siga siendo compatible y
 compila desde la raíz del repositorio:
 
 ```bash

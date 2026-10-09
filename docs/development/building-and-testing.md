@@ -68,7 +68,7 @@ CHANNELTERM_VERSION=0.1.0 ./scripts/build.sh
 ## Continuous integration
 
 `.github/workflows/ci.yml` runs on pushes, pull requests, and manual dispatch. It verifies the Go
-1.25 release line declared by `go.mod`, tests natively on Linux, Windows, and macOS with the current
+1.26 release line declared by `go.mod`, tests natively on Linux, Windows, and macOS with the current
 stable Go release, and runs formatting, `go vet`, the race detector, all six cross-builds, and
 `govulncheck`. The Windows job also validates `scripts/build.ps1` and its version injection. A
 release candidate should not be tagged until every job passes.

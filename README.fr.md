@@ -182,7 +182,7 @@ l’écrasement, l’annulation et la vérification SHA-256.
 
 ## Installation et compilation
 
-ChannelTerm nécessite Go 1.25 ou une version ultérieure. Utilisez une version corrigée encore prise
+ChannelTerm nécessite Go 1.26 ou une version ultérieure. Utilisez une version corrigée encore prise
 en charge, puis compilez depuis la racine du dépôt :
 
 ```bash

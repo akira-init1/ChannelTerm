@@ -1,6 +1,6 @@
 # Build and Install from Source
 
-ChannelTerm requires Go 1.25 or newer. Use a currently supported patched Go toolchain for production
+ChannelTerm requires Go 1.26 or newer. Use a currently supported patched Go toolchain for production
 and release builds. Run commands from the repository root.
 
 ```powershell

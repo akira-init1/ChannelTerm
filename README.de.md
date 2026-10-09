@@ -182,7 +182,7 @@ Das Ziel muss eine Linux-Shell mit den erforderlichen Standardbefehlen sein. Vor
 
 ## Installation und Build
 
-ChannelTerm benötigt Go 1.25 oder neuer. Verwenden Sie eine aktuell unterstützte Patch-Version und
+ChannelTerm benötigt Go 1.26 oder neuer. Verwenden Sie eine aktuell unterstützte Patch-Version und
 erstellen Sie das Programm im Stammverzeichnis des Repositorys:
 
 ```bash
