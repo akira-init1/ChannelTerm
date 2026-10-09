@@ -106,7 +106,7 @@ cd -- "${repo_root}"
 printf 'Testing real localhost OpenSSH, Linux PTYs, Vim and htop (including race detection).\n'
 if CHANNELTERM_TEST_OPENSSH_CONFIG="${ssh_test_dir}/config.json" \
   go test -race ./internal/cli/command -run '^TestOpenSSH' -count=1 -v; then
-  printf 'Local integration checks passed. Review the logged unsupported-resize limitation.\n'
+  printf 'Local integration checks passed, including owner-controlled PTY resizing.\n'
 else
   cat "${ssh_test_dir}/sshd.log" >&2
   exit 1

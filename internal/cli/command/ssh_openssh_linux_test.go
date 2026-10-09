@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -182,7 +183,7 @@ func (p *sshPTYProcess) ready() string {
 func sshTestQuote(value string) string { return "'" + strings.ReplaceAll(value, "'", "'\"'\"'") + "'" }
 
 // TestOpenSSHPTYInteractivePrograms verifies the real shell, dimensions, Vim
-// edit/save, htop screen entry/exit, remote Ctrl+C, and local raw-mode recovery.
+// resize/edit/save, htop redraw after resize, remote Ctrl+C, and raw-mode recovery.
 func TestOpenSSHPTYInteractivePrograms(t *testing.T) {
 	config := loadOpenSSHTestConfig(t)
 	t.Setenv(httpAuthTokenEnvVar, "local-openssh-integration-token")
@@ -194,6 +195,22 @@ func TestOpenSSHPTYInteractivePrograms(t *testing.T) {
 	start := len(owner.output.String())
 	owner.write("vim -Nu NONE -i NONE -n " + sshTestQuote(file) + "\r")
 	owner.wait(start, "\x1b[?1049h")
+	startResize := len(owner.output.String())
+	owner.resize(132, 43)
+	owner.waitCursorRow(startResize, 42)
+	vimSize := filepath.Join(t.TempDir(), "vim-size.txt")
+	owner.write(":call writefile([printf('%d %d', &lines, &columns)], '" + vimSize + "')\r")
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		data, err := os.ReadFile(vimSize)
+		if err == nil && string(data) == "43 132\n" {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("Vim dimensions = %q, %v; want 43 132", data, err)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
 	owner.write("iCHANNELTERM_VIM_EDIT\x1b:wq\r")
 	owner.wait(start, "\x1b[?1049l")
 	data, err := os.ReadFile(file)
@@ -207,8 +224,12 @@ func TestOpenSSHPTYInteractivePrograms(t *testing.T) {
 	owner.write(sshTestQuote(config.Htop) + " -C\r")
 	owner.wait(start, "\x1b[?1049h")
 	owner.wait(start, "Help")
+	startResize = len(owner.output.String())
+	owner.resize(119, 51)
+	owner.waitCursorRow(startResize, 51)
 	owner.write("q")
 	owner.wait(start, "\x1b[?1049l")
+	owner.expectSize(119, 51)
 	owner.write("printf '\\n__CT_SLEEP__\\n'; sleep 30\r")
 	owner.wait(0, "\r\n__CT_SLEEP__\r\n")
 	owner.write("\x03")
@@ -248,31 +269,96 @@ func TestOpenSSHRemoteExitRestoresTerminal(t *testing.T) {
 	t.Setenv(httpAuthTokenEnvVar, "local-openssh-integration-token")
 	owner := startSSHPTYProcess(t, config.args())
 	owner.ready()
+	owner.resize(132, 43)
+	owner.expectSize(132, 43)
 	owner.write("exit\r")
+	owner.resize(120, 40)
 	owner.waitExit(false)
 	owner.wait(0, "read attached session output")
 }
 
-// TestOpenSSHPTYKeepsInitialSize records the current unsupported-resize
-// boundary with a real local window change and a remote stty observation.
-// Initial PTY negotiation must not be mistaken for runtime resize support.
-func TestOpenSSHPTYKeepsInitialSize(t *testing.T) {
+// TestOpenSSHPTYResize follows successive owner sizes while a differently
+// sized secondary attachment cannot take over the remote PTY dimensions.
+func TestOpenSSHPTYResize(t *testing.T) {
 	config := loadOpenSSHTestConfig(t)
 	t.Setenv(httpAuthTokenEnvVar, "local-openssh-integration-token")
 	owner := startSSHPTYProcess(t, config.args())
-	owner.ready()
-	if err := unix.IoctlSetWinsize(int(owner.slave.Fd()), unix.TIOCSWINSZ, &unix.Winsize{Col: 132, Row: 43}); err != nil {
-		t.Fatal(err)
+	endpoint := owner.ready()
+	owner.expectSize(100, 36)
+	observer := startSSHPTYProcess(t, []string{"attach", "SSH-1", "--endpoint", endpoint, "--highlight=false"})
+	observer.wait(0, "__CT_READY__")
+	for _, size := range [][2]uint16{{132, 43}, {80, 24}, {155, 50}, {100, 36}} {
+		owner.resize(size[0], size[1])
+		owner.expectSize(size[0], size[1])
+		observer.resize(size[0]+10, size[1]+5)
+		// Give an incorrectly installed secondary watcher time to contend.
+		time.Sleep(300 * time.Millisecond)
+		owner.expectSize(size[0], size[1])
 	}
-	cols, rows, err := term.GetSize(int(owner.slave.Fd()))
-	if err != nil || cols != 132 || rows != 43 {
-		t.Fatalf("local window change = %dx%d, %v", cols, rows, err)
+	// Rapid notifications may coalesce, but the final size must arrive.
+	for cols := uint16(110); cols <= 140; cols++ {
+		owner.resize(cols, 44)
 	}
-	owner.write("stty size\r")
-	owner.wait(0, "\r\n36 100\r\n")
-	t.Log("known limitation: local PTY is 43x132, remote PTY remains 36x100; no window-change forwarding")
+	owner.expectSize(140, 44)
+	owner.resize(0, 0)
+	time.Sleep(100 * time.Millisecond)
+	owner.expectSize(140, 44)
+	owner.resize(132, 43)
+	owner.expectSize(132, 43)
 	owner.write("\x1dq")
 	owner.waitExit(true)
+	observer.waitExit(false)
+}
+
+// TestOpenSSHExplicitInitialSize preserves initial flag overrides until the
+// owner actually changes size; subsequent updates use both local dimensions.
+func TestOpenSSHExplicitInitialSize(t *testing.T) {
+	config := loadOpenSSHTestConfig(t)
+	t.Setenv(httpAuthTokenEnvVar, "local-openssh-integration-token")
+	owner := startSSHPTYProcess(t, append(config.args(), "--cols", "83", "--rows", "25"))
+	owner.ready()
+	owner.expectSize(83, 25)
+	owner.resize(132, 43)
+	owner.expectSize(132, 43)
+	owner.write("\x1dq")
+	owner.waitExit(true)
+}
+
+// waitCursorRow requires the full-screen application to redraw in the newly
+// available row. Merely receiving a remote stty result would not prove
+// that the running application handled SIGWINCH.
+func (p *sshPTYProcess) waitCursorRow(after, row int) {
+	p.t.Helper()
+	cursor := regexp.MustCompile(fmt.Sprintf("\x1b\\[%d(;[0-9]+)?[Hfd]", row))
+	deadline := time.Now().Add(8 * time.Second)
+	for time.Now().Before(deadline) {
+		if cursor.MatchString(p.output.String()[after:]) {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	p.t.Fatalf("application did not redraw row %d after resize; output=%q", row, p.output.String()[after:])
+}
+
+func (p *sshPTYProcess) resize(cols, rows uint16) {
+	p.t.Helper()
+	if err := unix.IoctlSetWinsize(int(p.slave.Fd()), unix.TIOCSWINSZ, &unix.Winsize{Col: cols, Row: rows}); err != nil {
+		p.t.Fatal(err)
+	}
+	width, height, err := term.GetSize(int(p.slave.Fd()))
+	if err != nil || width != int(cols) || height != int(rows) {
+		p.t.Fatalf("local window = %dx%d, %v; want %dx%d", width, height, err, cols, rows)
+	}
+}
+
+func (p *sshPTYProcess) expectSize(cols, rows uint16) {
+	p.t.Helper()
+	start := len(p.output.String())
+	// Resize delivery is asynchronous. Poll the actual remote PTY with a bounded
+	// shell loop, and require its measured dimensions, never a local log message.
+	p.write(fmt.Sprintf("for i in {1..60}; do s=$(stty size); if [ \"$s\" = '%d %d' ]; then printf '\\n__CT_SIZE__%%s\\n' \"$s\"; break; fi; sleep .05; done\r", rows, cols))
+	p.wait(start, fmt.Sprintf("\r\n__CT_SIZE__%d %d\r\n", rows, cols))
+	p.t.Logf("remote stty size confirmed: %d %d", rows, cols)
 }
 
 // TestOpenSSHServerDisconnectEndsAttachments terminates only the sshd child
@@ -284,7 +370,10 @@ func TestOpenSSHServerDisconnectEndsAttachments(t *testing.T) {
 	endpoint := owner.ready()
 	observer := startSSHPTYProcess(t, []string{"attach", "SSH-1", "--endpoint", endpoint, "--highlight=false"})
 	observer.wait(0, "__CT_READY__")
+	owner.resize(132, 43)
+	owner.expectSize(132, 43)
 	owner.write("kill -TERM \"$PPID\"\r")
+	owner.resize(120, 40)
 	owner.waitExit(false)
 	observer.waitExit(false)
 	owner.wait(0, "read attached session output")
@@ -367,6 +456,7 @@ func TestOpenSSHNetworkBlackholeCanExitLocally(t *testing.T) {
 	owner.ready()
 	<-connected
 	dropped.Store(true)
+	owner.resize(132, 43)
 	start := len(owner.output.String())
 	owner.write("printf '\\n__CT_SHOULD_NOT_ARRIVE__\\n'\r")
 	select {

@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/akira-init1/ChannelTerm/internal/cli/terminalinput"
 	"github.com/akira-init1/ChannelTerm/internal/core/app"
 	"github.com/akira-init1/ChannelTerm/internal/core/session"
 	sshtransport "github.com/akira-init1/ChannelTerm/internal/transport/ssh"
@@ -43,7 +44,8 @@ func runSSH(ctx context.Context, args []string, input io.Reader, output io.Write
 		fmt.Fprintln(output, "In another terminal: channelterm attach SSH-1")
 		fmt.Fprintln(output, "The foreground SSH command owns the Host; Ctrl+] q closes it and its Sessions.")
 		fmt.Fprintln(output, "Trust the server key in known_hosts before connecting. Passwords, encrypted keys,")
-		fmt.Fprintln(output, "ssh-agent, ssh_config, resizing, SSH exec, and SFTP are not supported.")
+		fmt.Fprintln(output, "ssh-agent, ssh_config, SSH exec, and SFTP are not supported.")
+		fmt.Fprintln(output, "The owning terminal controls PTY resizing; secondary attachments do not resize it.")
 		flags.PrintDefaults()
 	}
 	// Match target-first attach syntax while retaining standard flag-first use.
@@ -88,15 +90,22 @@ func runSSH(ctx context.Context, args []string, input io.Reader, output io.Write
 			*hosts = filepath.Join(home, ".ssh", "known_hosts")
 		}
 	}
-	if file, ok := output.(*os.File); ok {
-		if cols, lines, err := term.GetSize(int(file.Fd())); err == nil {
-			if *columns == 0 {
-				*columns = cols
-			}
-			if *rows == 0 {
-				*rows = lines
-			}
+	// Prefer the displayed terminal, then the input terminal when output is
+	// redirected. Pipes and buffers retain explicit dimensions or defaults.
+	var terminal *os.File
+	var initialSize terminalinput.Size
+	for _, candidate := range []any{output, input} {
+		if file, ok := candidate.(*os.File); ok && term.IsTerminal(int(file.Fd())) {
+			terminal = file
+			initialSize, _ = terminalinput.ReadSize(file)
+			break
 		}
+	}
+	if *columns == 0 {
+		*columns = int(initialSize.Columns)
+	}
+	if *rows == 0 {
+		*rows = int(initialSize.Rows)
 	}
 	configuration := sshtransport.Config{
 		User: user, Host: host, Port: *port, PrivateKeyPath: *identity, KnownHostsPath: *hosts,
@@ -166,6 +175,33 @@ func runSSH(ctx context.Context, args []string, input io.Reader, output io.Write
 	if err != nil {
 		return err
 	}
+	// Only the foreground owner installs a watcher. Ordinary attachments have
+	// no resize path, preventing competing windows from changing the shared PTY.
+	resizeCtx, stopResize := context.WithCancel(hostCtx)
+	resizeDone := make(chan error, 1)
+	if terminal == nil {
+		resizeDone <- nil
+	} else {
+		go func() {
+			resizeErr := terminalinput.WatchSize(resizeCtx, terminal, initialSize, func(cols, rows uint16) error {
+				return application.ResizeSession(opened.Info.ID, cols, rows)
+			})
+			if resizeCtx.Err() != nil {
+				resizeErr = nil
+			}
+			resizeDone <- resizeErr
+			if resizeErr != nil {
+				stopHost()
+			}
+		}()
+	}
+	defer func() {
+		stopResize()
+		// A request can block in a socket write. Close the owned Channel before
+		// joining the watcher, including on failures before the HTTP Host starts.
+		closeErr := manager.Close()
+		err = errors.Join(err, closeErr, <-resizeDone)
+	}()
 	endpoint := httpEndpoint(listener.Addr().String(), defaultMCPPath)
 	if _, err := fmt.Fprintf(output, "SSH Session %s (%s)\nShared Host: %s (Bearer authentication required)\nAttach: channelterm attach %s --endpoint %s\nCtrl+] q closes this Host and its Sessions.\n", opened.Info.Metadata.Reference, opened.Info.Metadata.Endpoint, endpoint, opened.Info.Metadata.Reference, endpoint); err != nil {
 		return err
@@ -182,6 +218,7 @@ func runSSH(ctx context.Context, args []string, input io.Reader, output io.Write
 	defer func() {
 		// Release Session readers/writers before closing the Host's remaining
 		// client connections. No shared resource outlives this foreground owner.
+		stopResize()
 		closeErr := manager.Close()
 		stopServer()
 		err = errors.Join(err, closeErr, <-serverDone)
