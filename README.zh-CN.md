@@ -22,9 +22,21 @@ ChannelTerm 让人类和 AI 共享同一个硬件终端 Session。它不会替�
     channelterm attach          读取和写入工具
 ```
 
-目前只实现了 Windows、Linux 和 macOS 上的串口 Transport。SSH 和 Telnet 是未来方向，
-不是当前功能。ChannelTerm 本身也不是内置 AI；它通过 MCP 把真实终端 Session 提供给外部
-AI 客户端。
+ChannelTerm 支持 Windows、Linux 和 macOS 上的串口通信与 SSH PTY shell。它本身不内置 AI，而是通过 MCP 将真实终端 Session 提供给人类和外部 AI 客户端。
+
+## 共享 SSH shell
+
+准备已授权的未加密私钥，并在 `known_hosts` 中保存已核验的服务器主机密钥：
+
+```bash
+# 终端 1：打开 shell，在远端提示符下运行 uname -a。
+channelterm ssh user@192.168.1.50
+
+# 终端 2：查看并使用同一个 shell。
+channelterm attach SSH-1
+```
+
+保持第一个命令运行；退出它会关闭该 Host 及其 Session。默认本机共享端口必须空闲；如已占用，可用 `--listen` 指定另一个 Host，并使用输出中的 attach endpoint。私钥路径、主机校验、端口和当前限制见 [SSH 使用流程](docs/getting-started/ssh-terminal.md)。
 
 ## 快速开始：一条命令，一个终端
 
@@ -223,6 +235,7 @@ channelterm serial --config ./channelterm.toml --profile board
 
 - [文档索引](docs/README.md)
 - [串口终端流程](docs/getting-started/serial-terminal.md)
+- [SSH shell 使用流程](docs/getting-started/ssh-terminal.md)
 - [共享 Session](docs/getting-started/shared-session.md)
 - [MCP Server](docs/getting-started/mcp-server.md)
 - [CLI 参考](docs/reference/cli.md)

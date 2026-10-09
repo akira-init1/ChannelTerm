@@ -105,6 +105,36 @@ Session Manager.GetOrCreate(transport, endpoint)
 Concurrent opens for the same exact endpoint wait on one in-progress open. Failed and closed
 Sessions do not permanently reserve the endpoint.
 
+## SSH open and sharing
+
+```text
+channelterm ssh USER@HOST
+          |
+          +--> CLI resolves key/trust paths, validates config via Transport, reserves loopback listener
+          v
+Application.OpenSSH -> Manager.GetOrCreate(ssh, user@host:port)
+          |
+          v
+SSH Transport: private key/trust loading -> TCP -> authentication -> PTY -> shell
+          |
+          v
+channel.Stream (SSH stdin + merged stdout/stderr, SSH resource cleanup)
+          |
+          v
+existing Session reader / buffers / cursors / serialized writes
+          |
+          +--> foreground CLI attachment
+          `--> other attachments via existing authenticated HTTP Host tools
+```
+
+Key parsing, host-key verification, and all SSH-library objects stay inside SSH Transport;
+Application and CLI exchange ordinary settings and paths. Channel and Session remain library-neutral.
+
+The foreground SSH command owns the Manager and Host. Exiting that command closes its Sessions;
+closing a secondary attachment only detaches that client. The default sharing listener is
+`127.0.0.1:37099`; an occupied listener fails before connecting to SSH. `--listen` can select a
+separate loopback Host. SSH does not add discovery, saved profiles, or MCP opening tools.
+
 ## Device discovery
 
 ```text

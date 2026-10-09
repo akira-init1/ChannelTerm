@@ -23,9 +23,21 @@ voyez ses actions, saisissez directement des commandes et intervenez si nécessa
       channelterm attach         outils de lecture/écriture
 ```
 
-ChannelTerm implémente actuellement la communication série sous Windows, Linux et macOS. SSH et
-Telnet sont des orientations futures, pas des fonctions actuelles. ChannelTerm n’intègre pas d’IA ;
-il expose de vraies Sessions de terminal à des clients IA externes via MCP.
+ChannelTerm prend en charge la communication série et les shells SSH avec PTY sous Windows, Linux et macOS. Il n’intègre pas d’IA ; il expose de vraies Sessions de terminal aux utilisateurs et aux clients IA externes via MCP.
+
+## Shell SSH partagé
+
+Avec une clé privée autorisée non chiffrée et une entrée de serveur vérifiée dans `known_hosts` :
+
+```bash
+# Terminal 1 : ouvrir le shell, puis y exécuter uname -a.
+channelterm ssh user@192.168.1.50
+
+# Terminal 2 : observer et utiliser le même shell.
+channelterm attach SSH-1
+```
+
+Gardez la première commande ouverte : sa fermeture arrête ce Host et ses Sessions. Le port local par défaut doit être libre ; utilisez `--listen` et le point de connexion attach affiché pour un autre Host. Le [guide SSH](docs/getting-started/ssh-terminal.md) décrit les chemins des clés, la vérification du serveur, les ports et les limites actuelles.
 
 ## Démarrage rapide : une commande, un terminal
 
@@ -249,6 +261,7 @@ sélectionné, pas les fichiers `state.json` ou `http-auth-token` par défaut. C
 
 - [Index de la documentation](docs/README.md)
 - [Utiliser le terminal série](docs/getting-started/serial-terminal.md)
+- [Utiliser un shell SSH](docs/getting-started/ssh-terminal.md)
 - [Partager une Session](docs/getting-started/shared-session.md)
 - [Transférer des fichiers](docs/getting-started/file-transfer.md)
 - [Serveur MCP](docs/getting-started/mcp-server.md)

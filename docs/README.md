@@ -6,6 +6,7 @@ for command-line flags and defaults, the running program's `--help` output remai
 ## Project Entry Points
 
 - [English README](../README.md) — canonical public landing page
+- [Third-party redistribution notices](../THIRD_PARTY_NOTICES)
 - [简体中文 README](../README.zh-CN.md)
 - [繁體中文 README](../README.zh-TW.md)
 - [日本語 README](../README.ja.md)
@@ -19,6 +20,7 @@ for command-line flags and defaults, the running program's `--help` output remai
 
 - [Build and install from source](getting-started/build.md)
 - [Use the serial terminal](getting-started/serial-terminal.md)
+- [Use and share an SSH shell](getting-started/ssh-terminal.md)
 - [Create and use serial profiles](getting-started/serial-profiles.md)
 - [Share a Session](getting-started/shared-session.md)
 - [Transfer files over a serial Session](getting-started/file-transfer.md)
@@ -47,7 +49,7 @@ for command-line flags and defaults, the running program's `--help` output remai
 
 - [Application](modules/application.md)
 - [Session](modules/session.md)
-- [Channel, Transport, and Serial](modules/transport.md)
+- [Channel and Transports (serial and SSH)](modules/transport.md)
 - [Buffers and cursors](modules/buffer.md)
 - [Device Registry](modules/device-registry.md)
 - [Connection Policy](modules/connection-policy.md)

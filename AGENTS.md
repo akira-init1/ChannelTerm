@@ -8,7 +8,7 @@ The goal is not to maximize the amount of code changed. The goal is to keep Chan
 
 ChannelTerm is shared terminal-session infrastructure for human and AI access to terminal-like transports.
 
-The current implementation is serial-first and is primarily focused on hardware, embedded-system, and terminal debugging. The Core is transport-neutral: serial is the only current concrete Transport, while other transports such as SSH or Telnet are future directions rather than implemented features.
+The current implementation is serial-first and is primarily focused on hardware, embedded-system, and terminal debugging. The Core is transport-neutral: serial and SSH PTY shells are concrete Transports; Telnet remains a future direction.
 
 When repository information disagrees, use this order of authority:
 
@@ -41,7 +41,8 @@ This file records stable ownership boundaries, not a duplicate source tree. The 
 | `internal/core/device/` | Device discovery and state registry abstractions |
 | `internal/core/connectionpolicy/` | Connection and Session-reuse policy decisions |
 | `internal/core/tool/` | Protocol-neutral tool contracts and registry |
-| `internal/core/transport/` | Transport contract and concrete Transport implementations |
+| `internal/core/transport/` | Transport contract and the existing Serial implementation |
+| `internal/transport/ssh/` | Concrete SSH connection setup and backend-private stream adaptation |
 | `internal/mcp/` | MCP hosting, schemas, and translation to application use cases |
 | `scripts/` | Build and repository automation |
 | `docs/` | Public, durable technical documentation |
@@ -87,6 +88,7 @@ Place code according to architectural responsibility, not according to the featu
 | Protocol-neutral tool abstraction         | `internal/core/tool/`             | MCP-specific schemas                                 |
 | Transport interface                       | `internal/core/transport/`        | terminal history, UI logic                           |
 | Serial implementation/discovery           | `internal/core/transport/serial/` | Session history, CLI presentation                    |
+| SSH authentication, PTY, and shell setup    | `internal/transport/ssh/`    | Session history, CLI presentation                    |
 | MCP server/transport hosting              | `internal/mcp/`                   | core business rules                                  |
 | MCP terminal tool schema/translation      | `internal/mcp/terminal/`          | independent Session/Transport implementation         |
 | Build/release helper scripts              | `scripts/`                        | product behavior                                     |
@@ -140,7 +142,7 @@ Mandatory rules:
 - Session output must remain raw. Presentation transformations such as highlighting belong outside Session.
 - Session IDs are opaque identifiers. Short references such as `SER-1` are convenience references and are not interchangeable with opaque Session IDs.
 - Native targets such as `COM8` or `/dev/ttyUSB0` identify serial endpoints, not live Session IDs.
-- CLI `TARGET` is a transport-neutral role. Serial is the only implemented target grammar; future Transport grammars must remain unambiguous with `<TRANSPORT>-<N>` Session references and be documented before use.
+- CLI `TARGET` is a transport-neutral role. `attach` and `connect` accept native serial targets; `ssh` accepts `USER@HOST`. Transport grammars must remain unambiguous with `<TRANSPORT>-<N>` Session references and be documented before use.
 - Interfaces should be small and close to their consumers.
 - Keep implementation under `internal/` unless a stable external Go API is intentionally designed and reviewed.
 - Avoid global mutable state when dependency injection or an owned long-lived object is appropriate.

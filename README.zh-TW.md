@@ -22,9 +22,21 @@ ChannelTerm 讓人類與 AI 共用同一個硬體終端 Session。AI 不會取�
     channelterm attach          讀取與寫入工具
 ```
 
-目前僅實作 Windows、Linux 與 macOS 上的序列埠 Transport。SSH 與 Telnet 是未來方向，
-不是目前功能。ChannelTerm 本身也不是內建 AI；它透過 MCP 將真實終端 Session 提供給外部
-AI 用戶端。
+ChannelTerm 支援 Windows、Linux 與 macOS 上的序列埠通訊與 SSH PTY shell。它本身不內建 AI，而是透過 MCP 將真實終端 Session 提供給人類及外部 AI 用戶端。
+
+## 共用 SSH shell
+
+準備已授權的未加密私鑰，並在 `known_hosts` 中儲存已核驗的伺服器主機金鑰：
+
+```bash
+# 終端機 1：開啟 shell，在遠端提示符下執行 uname -a。
+channelterm ssh user@192.168.1.50
+
+# 終端機 2：查看並使用同一個 shell。
+channelterm attach SSH-1
+```
+
+保持第一個命令執行；結束它會關閉該 Host 及其 Session。預設本機共用連接埠必須閒置；若已占用，可用 `--listen` 指定另一個 Host，並使用輸出中的 attach endpoint。私鑰路徑、主機驗證、連接埠與目前限制見 [SSH 使用流程](docs/getting-started/ssh-terminal.md)。
 
 ## 快速開始：一條命令，一個終端機
 
@@ -223,6 +235,7 @@ channelterm serial --config ./channelterm.toml --profile board
 
 - [文件索引](docs/README.md)
 - [序列埠終端流程](docs/getting-started/serial-terminal.md)
+- [SSH shell 使用流程](docs/getting-started/ssh-terminal.md)
 - [共享 Session](docs/getting-started/shared-session.md)
 - [MCP Server](docs/getting-started/mcp-server.md)
 - [CLI 參考](docs/reference/cli.md)

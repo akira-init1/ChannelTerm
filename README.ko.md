@@ -23,9 +23,21 @@ ChannelTerm은 사람과 AI가 하나의 하드웨어 터미널 Session을 공�
        channelterm attach             읽기/쓰기 도구
 ```
 
-현재 구현된 Transport는 Windows, Linux, macOS의 시리얼 통신뿐입니다. SSH와 Telnet은 향후
-방향이며 현재 기능이 아닙니다. ChannelTerm 자체에 AI가 내장된 것도 아닙니다. MCP를 통해 실제
-터미널 Session을 외부 AI 클라이언트에 제공합니다.
+ChannelTerm은 Windows, Linux, macOS에서 시리얼 통신과 SSH PTY 셸을 지원합니다. AI를 내장하지 않으며, MCP를 통해 실제 터미널 Session을 사용자와 외부 AI 클라이언트에 제공합니다.
+
+## SSH 셸 공유
+
+인증이 허용된 암호화되지 않은 개인 키와 `known_hosts`의 검증된 서버 항목이 필요합니다.
+
+```bash
+# 터미널 1: 셸을 열고 해당 프롬프트에서 uname -a를 실행합니다.
+channelterm ssh user@192.168.1.50
+
+# 터미널 2: 같은 셸의 출력을 보고 사용합니다.
+channelterm attach SSH-1
+```
+
+첫 번째 명령을 계속 실행해 두세요. 종료하면 이 Host와 Session도 닫힙니다. 기본 로컬 공유 포트가 사용 중이면 `--listen`과 출력된 attach 엔드포인트로 별도 Host를 사용하세요. 키 경로, 호스트 검증, 포트 및 현재 제한은 [SSH 워크플로](docs/getting-started/ssh-terminal.md)를 참조하세요.
 
 ## 빠른 시작: 명령 하나, 터미널 하나
 
@@ -238,6 +250,7 @@ channelterm serial --config ./channelterm.toml --profile board
 
 - [문서 색인](docs/README.md)
 - [시리얼 터미널 워크플로](docs/getting-started/serial-terminal.md)
+- [SSH 셸 워크플로](docs/getting-started/ssh-terminal.md)
 - [공유 Session](docs/getting-started/shared-session.md)
 - [MCP Server](docs/getting-started/mcp-server.md)
 - [CLI 레퍼런스](docs/reference/cli.md)

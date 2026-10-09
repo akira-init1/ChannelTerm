@@ -23,9 +23,21 @@ ChannelTerm позволяет человеку и ИИ совместно ис�
                  channelterm attach       инструменты чтения/записи
 ```
 
-Сейчас ChannelTerm поддерживает последовательное соединение в Windows, Linux и macOS. SSH и Telnet —
-возможные будущие направления, а не реализованные функции. В ChannelTerm нет встроенного ИИ; через
-MCP он предоставляет внешним ИИ-клиентам реальные терминальные Sessions.
+ChannelTerm поддерживает последовательное соединение и SSH-оболочки с PTY в Windows, Linux и macOS. Встроенного ИИ нет: через MCP реальные терминальные Sessions доступны людям и внешним ИИ-клиентам.
+
+## Общая SSH-оболочка
+
+Нужны авторизованный незашифрованный закрытый ключ и проверенная запись сервера в `known_hosts`:
+
+```bash
+# Терминал 1: открыть оболочку, затем выполнить в ней uname -a.
+channelterm ssh user@192.168.1.50
+
+# Терминал 2: наблюдать и использовать ту же оболочку.
+channelterm attach SSH-1
+```
+
+Оставьте первую команду работающей: при её завершении этот Host и его Sessions закрываются. Локальный порт по умолчанию должен быть свободен; для отдельного Host используйте `--listen` и показанный адрес attach. Пути ключей, проверка сервера, порты и текущие ограничения описаны в [руководстве SSH](docs/getting-started/ssh-terminal.md).
 
 ## Быстрый старт: одна команда, один терминал
 
@@ -246,6 +258,7 @@ channelterm serial --config ./channelterm.toml --profile board
 
 - [Индекс документации](docs/README.md)
 - [Работа с последовательным терминалом](docs/getting-started/serial-terminal.md)
+- [Работа с SSH-оболочкой](docs/getting-started/ssh-terminal.md)
 - [Совместное использование Session](docs/getting-started/shared-session.md)
 - [Передача файлов](docs/getting-started/file-transfer.md)
 - [MCP-сервер](docs/getting-started/mcp-server.md)

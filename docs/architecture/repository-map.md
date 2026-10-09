@@ -33,7 +33,9 @@ ChannelTerm/
 |   |   |-- tool/                   Protocol-neutral Tool and Registry
 |   |   `-- transport/
 |   |       |-- transport.go        Protocol-specific Channel establishment
-|   |       `-- serial/              Serial implementation, discovery, metadata
+|   |       `-- serial/             Serial implementation, discovery, metadata
+|   |-- transport/
+|   |   `-- ssh/                    Backend-private SSH authentication and PTY shell Channels
 |   `-- mcp/
 |       |-- server.go               MCP server and stdio/HTTP adaptation
 |       `-- terminal/               Terminal tool names, schemas, and translation
@@ -50,6 +52,7 @@ ChannelTerm/
 |-- CLAUDE.md                       Repository-specific assistant context
 |-- README.md                       Public landing page
 |-- LICENSE                         Apache License 2.0
+|-- THIRD_PARTY_NOTICES              Required SSH dependency redistribution notice
 |-- go.mod
 `-- go.sum
 ```
@@ -79,7 +82,13 @@ The main ownership distinctions are deliberate:
   sharing one TOML file.
 - **Transport:** `internal/core/transport` defines protocol-specific Channel establishment.
   `internal/core/transport/serial` owns serial connection setup and discovery; its opened port is
-  transferred to a Channel.
+  transferred to a Channel. `internal/transport/ssh` owns credential-file parsing, host-key
+  verification, authentication, and PTY/shell setup, then transfers the stream to a Channel.
+  Its configuration exposes ordinary settings and paths; SSH-library types stay private to the
+  implementation, outside the generic Channel, Session, Application, and CLI contracts.
+  The concrete SSH package is outside `internal/core`; it implements the Core Transport contract
+  and returns Core Channels. Application composes it using library-independent configuration,
+  following the same opening responsibility as Serial without moving existing Serial code.
 
 Update this map when a top-level directory or `internal` package is added, removed, moved, or
 assigned a materially different stable responsibility.

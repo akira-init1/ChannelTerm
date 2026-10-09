@@ -16,7 +16,7 @@ MCP Adapter -> Tool Registry --+--> internal/core/app.Application
                          |         ^                      |
                          |         |               Connection Policy
                          v         |
-                  Serial Transport |
+                  Transport        |
                          |         |
                          v         |
                       Channel -----+
@@ -38,7 +38,7 @@ JSON-shaped schemas, encoding, and result translation; it calls `internal/core/a
 implemented use cases.
 
 `internal/core/app.Application` is the adapter-neutral use-case boundary. It coordinates profile
-resolution, serial Session open/reuse, Session reads/writes/close, serial and profile discovery,
+resolution, serial and SSH Session open/reuse, Session reads/writes/close, serial and profile discovery,
 Device Registry reads, and connection decisions. It returns structured Core values and never formats
 CLI or MCP output. Application retains the shared Session Manager directly for transport-neutral
 Session operations; `SerialService` is limited to serial configuration and open/reuse orchestration.
@@ -54,8 +54,13 @@ The core service boundary contains:
 - `config`: connection profiles, discovery policy, user preferences, TOML persistence, and managed
   state paths. Preferences are adapter-local and never enter Session or Transport configuration.
 - `transport`: protocol-specific Channel establishment.
-- `transport/serial`: the current concrete Transport, which opens serial-backed Channels, plus
-  serial enumeration.
+- `transport/serial`: opens serial-backed Channels and enumerates local serial endpoints.
+
+The concrete SSH implementation lives in `internal/transport/ssh`, outside `internal/core`.
+It owns key/trust-file parsing, authentication, and PTY interactive shell Channels. Application
+composes it through plain configuration and the Core Transport contract; `golang.org/x/crypto/ssh`
+types remain private to the implementation. Established I/O crosses only the existing Channel
+interface, so Channel and Session are independent of the SSH backend.
 
 Dependency direction is one way: Core packages do not import CLI or MCP packages. A Transport
 establishes a protocol connection and transfers the live resource to a Channel. A Channel owns
@@ -77,8 +82,9 @@ operations such as terminal command execution and file transfer.
 
 ## Current implementation boundaries
 
-Serial is the only concrete Transport. Stream Channel categories such as file, debug/JTAG, and
-remote network are representable through the same Channel contract but are not implemented. The
+Serial and SSH PTY shells are concrete Transports. SSH is opened by the CLI and shared through
+the existing authenticated HTTP Host and Session tools; no SSH-specific MCP tool is added.
+Stream Channel categories such as file and debug/JTAG are representable but not implemented. The
 repository has no public Go SDK, GUI/TUI adapter, or persistent terminal log. Session lifecycle and
 file-transfer state are available through the bounded Session Event Stream; it is not a Channel
 multiplexer or a persistent event log.
@@ -86,7 +92,7 @@ multiplexer or a persistent event log.
 ## Future direction
 
 The Channel boundary permits future debug/JTAG or remote-network streams without adding protocol
-assumptions to Session. SSH, Telnet, OpenOCD, and a dedicated file Transport/Channel remain
+assumptions to Session. SSH exec/SFTP, Telnet, OpenOCD, and a dedicated file Transport/Channel remain
 architectural directions, not current features or commitments. The current CLI file transfer is an
 application-layer Linux shell protocol carried over an existing serial Session; it is not another
 Transport.

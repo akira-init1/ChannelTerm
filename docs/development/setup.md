@@ -18,8 +18,13 @@ go run ./cmd/channelterm --help
 ```
 
 The project uses Go modules. Its direct dependencies provide MCP, TOML, serial access,
-operating-system support, and terminal raw mode. Serial unit tests use fakes and do not require
-physical hardware or external services.
+operating-system support, terminal raw mode, and SSH. Serial unit tests use fakes; SSH tests use
+loopback test servers and generated ephemeral keys. They require no physical hardware, installed
+sshd, personal credentials, or external services. SSH uses the BSD-licensed `golang.org/x/crypto`
+module. The minimum Go version is 1.26 so the SSH dependency includes current security fixes;
+its module requirements also select newer `x/sys` and `x/term`. Update older Go installations
+before building this release; the six supported desktop targets and CGO-free builds are unchanged.
+The required redistribution notice is in [THIRD_PARTY_NOTICES](../../THIRD_PARTY_NOTICES).
 
 For ordinary development, inspect the worktree before editing. If the current branch is `main` or
 `master` and the task requires repository changes, create and switch to a focused task branch unless

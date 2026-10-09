@@ -22,6 +22,7 @@ go run ./cmd/channelterm attach --help
 go run ./cmd/channelterm list --help
 go run ./cmd/channelterm mcp --help
 go run ./cmd/channelterm serial --help
+go run ./cmd/channelterm ssh --help
 ```
 
 Run the Session buffer benchmarks without unit tests with:
@@ -77,6 +78,7 @@ release candidate should not be tagged until every job passes.
 tag is `v` followed by a SemVer version, strips the `v` for the embedded CLI version, tests and
 cross-builds with `CGO_ENABLED=0`, and packages all six supported targets. Windows archives are ZIP
 files containing `channelterm.exe`; Linux and macOS archives are tarballs containing `channelterm`.
+All archives also include `THIRD_PARTY_NOTICES` for the SSH dependency.
 Public macOS archives use `macos` in their filenames, such as
 `channelterm_0.1.0_macos_arm64.tar.gz`; the underlying Go build target and intermediate artifact
 names retain the toolchain's `darwin` identifier.
@@ -112,6 +114,10 @@ GitHub Release workflow described above.
 
 - Unit tests confirm fake-backed package behavior, error semantics, cancellation, buffering, and
   adapters.
+- SSH transport and CLI tests start loopback SSH servers with ephemeral keys. They confirm
+  authentication, PTY/shell requests, cancellation, cleanup, and shared Session access through the
+  existing HTTP tools, including separate CLI processes. They do not prove OpenSSH/WSL2
+  interoperability or native terminal behavior.
 - `go vet` performs static analysis; it is not a runtime test.
 - A cross-build confirms compilation only.
 - Native console raw-mode behavior must be checked on the target OS.

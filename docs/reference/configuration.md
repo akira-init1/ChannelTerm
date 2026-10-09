@@ -141,3 +141,10 @@ State updates use a temporary file in the destination directory followed by rena
 malformed records, and unsupported versions are returned as errors without silently replacing the
 original file. Version 1 does not implement cross-process file locking; one Core process should own
 a given state file.
+
+## SSH CLI settings
+
+SSH connections use explicit CLI options and do not add TOML fields or saved profiles. The CLI
+reads a private key and `known_hosts` from the user's `.ssh` directory unless paths are supplied.
+Its sharing Host reuses the existing `http-auth-token` and environment override. Credentials and
+SSH settings are not persisted. See the [CLI reference](cli.md#ssh).

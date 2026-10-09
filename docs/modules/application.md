@@ -15,6 +15,8 @@ successfully connected Sessions into Manager ownership.
 - `OpenSerial`: load or create configuration, resolve a profile, apply explicit overrides,
   optionally save through a locked read-modify-write transaction, connect or reuse a Session,
   optionally write one wake carriage return, and return Manager-owned metadata.
+- `OpenSSH`: validate explicit SSH settings, connect or reuse a PTY shell Session, and return
+  Manager-owned metadata without reading or writing connection profiles.
 - `ListSessions`, `ReadSession`, `ReadSessionActivity`, `ReadSessionEvents`, `AttachSession`,
   `DetachSession`, `WriteSession`, `ExecuteTerminalCommand`, `AcquireLease`, `RenewLease`,
   `ReleaseLease`, `LeaseStatus`, `BeginFileTransferCancel`, `ResolveFileTransferCancel`,
@@ -49,6 +51,24 @@ the original profile, label, and Transport configuration.
 
 Generated Session IDs use 16 random bytes encoded as hex. ID generation is retried a bounded number
 of times if it collides with an existing registration.
+
+## SSH open invariants
+
+`OpenSSH` reuses the same Manager and candidate-cleanup helpers as serial opens. Its endpoint key
+is the exact `user@host:port` (IPv6 is bracketed), paired with transport `ssh`. Different users or
+ports create independent Sessions. Reuse preserves the first connection's credentials, label,
+and PTY dimensions; it does not authenticate again or resize the shell. No DNS alias or hostname
+case normalization is implied. Metadata contains no key, password, or signer.
+
+`OpenSSHRequest.Config` carries library-independent settings and credential file paths. Application
+asks the SSH Transport constructor to validate and load them; it does not construct or receive
+third-party SSH signers, clients, sessions, or callbacks. Generic Session I/O still sees only the
+existing Channel contract.
+
+A candidate connects before registration. Failed or cancelled candidates are closed, and failed
+opens do not reserve the endpoint. Successful SSH Sessions use opaque random IDs and `SSH-N`
+references from the existing Manager. There are no changes to Session or generic read/write/close
+ownership. See the [SSH workflow](../getting-started/ssh-terminal.md) for CLI Host lifetime.
 
 ## Read and write behavior
 

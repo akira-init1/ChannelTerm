@@ -13,6 +13,7 @@ channelterm install --help
 channelterm list --help
 channelterm mcp --help
 channelterm serial --help
+channelterm ssh --help
 channelterm uninstall --help
 ```
 
@@ -45,7 +46,7 @@ version and target platform come from the compiled binary. An unknown command re
 the process exits with status 1.
 
 The top-level help currently lists `attach`, `events`, `file`, `init`, `install`, `list`, `mcp`,
-`serial`, `uninstall`, `help`, and `version`.
+`serial`, `ssh`, `uninstall`, `help`, and `version`.
 
 ## `install` and `uninstall`
 
@@ -225,6 +226,46 @@ serial values, a busy/missing/inaccessible port, an invalid Boolean highlight va
 positional arguments, raw-console setup failure, and I/O or close errors. Saving happens before the
 physical open, so a saved profile may remain after an open failure.
 
+## `ssh`
+
+Purpose: open an SSH PTY interactive shell in a foreground, loopback-only Session Host.
+
+```bash
+channelterm ssh USER@HOST [options]
+channelterm ssh user@host.example --identity /path/to/private-key --port 2222
+channelterm attach SSH-1
+```
+
+Private-key authentication requires an unencrypted key and a trusted entry in `known_hosts`.
+The default identity is `~/.ssh/id_ed25519`, falling back to `~/.ssh/id_rsa` only when the first
+file is absent. The default trust file is `~/.ssh/known_hosts`. Unknown or changed keys fail;
+there is no automatic trust or insecure bypass. See `ssh --help` for explicit paths, SSH port,
+PTY type/dimensions, setup timeout, label, highlighting, and local sharing address options.
+`-i` aliases `--identity`; `-p` aliases `--port`. Flags may precede or follow the destination.
+
+The SSH port defaults to 22. A ten-second timeout bounds TCP, handshake/authentication, channel
+opening, PTY, and shell requests. The PTY defaults to `xterm-256color` with the local output
+terminal's size, falling back to 80 columns by 24 rows. It is not resized after connection.
+The command does not read SSH profiles or save credentials into ChannelTerm configuration.
+Passwords, encrypted private keys, ssh-agent, ssh_config, SSH exec, and SFTP are not supported.
+
+The Host uses the existing Bearer-token authentication and defaults to `127.0.0.1:37099/mcp`.
+`--listen` accepts only a loopback IP and port. An occupied port fails before SSH connection;
+this command cannot add SSH Sessions to a separately running Host. Choose another loopback port
+and pass the printed `--endpoint` to `attach` and `list` in that case. SSH does not add MCP tools.
+Existing generic Session tools provide access to the already-open shell.
+
+The foreground command owns the Host and Manager. `Ctrl+] q`, input EOF, or process cancellation
+closes its Sessions and listener. In a secondary `attach`, `Ctrl+] q` detaches only that client.
+Ctrl+C cancels initial setup; after attachment it is ordinary input to the remote PTY, using
+existing attach controls. Remote shell closure/disconnection follows the existing Session read
+error path and ends the foreground command with a diagnostic. Terminal raw mode is restored.
+A Host can be write-controlled by clients holding its token; keep the token private.
+
+Important errors include invalid destinations/options, missing or encrypted keys, unknown/changed
+host keys, authentication failure, connection timeout/refusal, rejected PTY/shell requests, and an
+occupied sharing address. See the [SSH terminal workflow](../getting-started/ssh-terminal.md).
+
 ## `connect`
 
 Purpose: resolve a current native serial target from discovery and open it as a private Session.
@@ -256,9 +297,9 @@ privacy flag, to a local private serial target.
 channelterm attach TARGET_OR_SESSION [options]
 ```
 
-`TARGET` is reserved as the transport-neutral destination position. Only native serial targets are
-implemented today. Future SSH or Telnet support may add its own explicitly documented target form;
-the current CLI does not accept SSH or Telnet destinations. See
+`TARGET` is reserved as the transport-neutral destination position. Native serial targets can be
+opened here; SSH destinations are opened by `ssh USER@HOST`, after which `attach SSH-1` joins
+the resulting Session. Telnet destinations are not supported. See
 [Identifiers and References](identifiers.md#transport-extension-boundary).
 
 The normal target-first forms are:

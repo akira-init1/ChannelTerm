@@ -23,9 +23,21 @@ AI が端末を置き換えるのではありません。AI がデバイスを�
       channelterm attach             読み書きツール
 ```
 
-現在実装されている Transport は、Windows、Linux、macOS のシリアル通信だけです。SSH と
-Telnet は将来の方向性であり、現在の機能ではありません。ChannelTerm 自体に AI は内蔵されて
-おらず、MCP を通して実際の端末 Session を外部 AI クライアントへ提供します。
+ChannelTerm は Windows、Linux、macOS でシリアル通信と SSH PTY シェルをサポートします。AI は内蔵せず、実際の端末 Session を人間と外部 AI クライアントに MCP 経由で提供します。
+
+## SSH シェルの共有
+
+認証を許可された暗号化されていない秘密鍵と、`known_hosts` 内の検証済みサーバーエントリを用意します。
+
+```bash
+# 端末 1：シェルを開き、そのプロンプトで uname -a を実行します。
+channelterm ssh user@192.168.1.50
+
+# 端末 2：同じシェルの出力を確認し、操作します。
+channelterm attach SSH-1
+```
+
+最初のコマンドを実行したままにしてください。終了すると、この Host と Session も閉じます。既定のローカル共有ポートが使用中の場合は、`--listen` と表示された attach エンドポイントで別の Host を使います。鍵のパス、ホスト検証、ポート、現在の制限は [SSH ワークフロー](docs/getting-started/ssh-terminal.md)を参照してください。
 
 ## クイックスタート：1 コマンド、1 端末
 
@@ -240,6 +252,7 @@ channelterm serial --config ./channelterm.toml --profile board
 
 - [ドキュメント索引](docs/README.md)
 - [シリアル端末ワークフロー](docs/getting-started/serial-terminal.md)
+- [SSH シェルワークフロー](docs/getting-started/ssh-terminal.md)
 - [共有 Session](docs/getting-started/shared-session.md)
 - [MCP Server](docs/getting-started/mcp-server.md)
 - [CLI リファレンス](docs/reference/cli.md)

@@ -1,12 +1,12 @@
 # Shared Sessions
 
-An HTTP MCP process can act as a local Session Host. It owns the physical serial connection while
+An HTTP MCP process can act as a local Session Host. It owns the underlying connection while
 CLI windows and MCP Clients use independent cursors over the same Session. When `attach` starts the
 default local Host automatically, that Host is stopped when the initiating `attach` process exits. A
 manually started Host remains available until it is stopped explicitly.
 
 ```text
-Physical serial endpoint -> Serial Transport -> Channel -> Session -> Client / Attachment
+Endpoint -> Serial or SSH Transport -> Channel -> Session -> Client / Attachment
 ```
 
 ## Create or join by target
@@ -114,3 +114,16 @@ timing are documented in [Application Module](../modules/application.md).
 
 See [Identifiers](../reference/identifiers.md) before passing serial targets, Session references, or
 `session_id` values between commands.
+
+## Shared SSH shell
+
+`channelterm ssh user@host.example` opens an SSH PTY shell and hosts it as `SSH-1` by default.
+Another terminal can run `channelterm attach SSH-1` and observe the same retained output using
+an independent cursor. `channelterm list --transport ssh` lists the active Session.
+The foreground `ssh` command owns this Host: keep it open while other attachments use the shell.
+Exiting a secondary attachment does not close the shell; exiting the owner stops its entire Host.
+
+SSH uses private-key authentication and verified host keys. It cannot open a new SSH connection
+inside a separately started Host; choose a distinct loopback `--listen` address if one is already
+running. Follow the [SSH terminal workflow](ssh-terminal.md) for prerequisites, alternate ports,
+and safe shutdown. The Session read/write model is unchanged.

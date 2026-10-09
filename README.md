@@ -22,7 +22,21 @@ AI does not replace your terminal. It joins it: the AI can read and operate the 
                  `--- same Session -'
 ```
 
-ChannelTerm currently implements serial communication on Windows, Linux, and macOS. It is not a built-in AI; it exposes real terminal Sessions to human CLI clients and external AI clients through MCP.
+ChannelTerm currently implements serial communication and SSH PTY shells on Windows, Linux, and macOS. It is not a built-in AI; it exposes real terminal Sessions to human CLI clients and external AI clients through MCP.
+
+## Shared SSH shell
+
+With an authorized unencrypted private key and a verified server entry in `known_hosts`:
+
+```bash
+# Terminal 1: open the shell; then run uname -a at its prompt.
+channelterm ssh user@192.168.1.50
+
+# Terminal 2: observe and use the same shell.
+channelterm attach SSH-1
+```
+
+Keep the first command running: exiting it closes this Host and its Sessions. The default local sharing port must be free; use `--listen` and the printed attach endpoint for a separate Host. See the [SSH workflow](docs/getting-started/ssh-terminal.md) for key paths, host verification, ports, and current limits.
 
 ## Quick Start: One Command, One Terminal
 
@@ -334,6 +348,7 @@ validation, and persistence behavior.
 
 - [Documentation index](docs/README.md)
 - [Serial terminal workflow](docs/getting-started/serial-terminal.md)
+- [SSH shell workflow](docs/getting-started/ssh-terminal.md)
 - [Shared Session workflow](docs/getting-started/shared-session.md)
 - [File-transfer workflow](docs/getting-started/file-transfer.md)
 - [MCP server workflow](docs/getting-started/mcp-server.md)
@@ -346,7 +361,7 @@ For exact command flags and defaults, the running program's `--help` output is a
 
 ## Roadmap
 
-Serial is the only concrete Transport implemented today. The transport-neutral Core leaves room for future SSH or Telnet Transports and stronger multi-writer coordination, but these are directions rather than implemented features or release commitments.
+Serial and SSH PTY shells are implemented Transports. SSH exec/SFTP, Telnet, and stronger multi-writer coordination remain future directions rather than implemented features or release commitments.
 
 ChannelTerm does not currently implement GDB, JTAG/OpenOCD, virtual serial devices, a built-in AI, or multi-agent orchestration. File transfer is intentionally a small Linux-shell protocol rather than a general transfer agent.
 

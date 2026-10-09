@@ -1,4 +1,4 @@
-# Channel, Transport, and Serial Modules
+# Channel and Transport Modules
 
 ## Channel contract
 
@@ -38,7 +38,7 @@ complete write payloads at the byte boundary, and retains output.
 
 ## Serial implementation
 
-`internal/core/transport/serial` is the only current concrete Transport. It uses `go.bug.st/serial`
+`internal/core/transport/serial` uses `go.bug.st/serial`
 to enumerate and open operating-system endpoints.
 
 Validated configuration includes port, positive baud rate, 5-8 data bits, supported parity,
@@ -70,11 +70,47 @@ Open failures retain the driver error while adding a diagnostic category for mis
 permission denial, busy port, or unknown failure. Windows access-denied errors are categorized as
 likely busy; Linux/macOS permission errors include access guidance.
 
+## SSH implementation
+
+`internal/transport/ssh` keeps `golang.org/x/crypto/ssh` private to its implementation,
+just as Serial hides its driver. Its exported `Config` contains ordinary values: username, host,
+port, private-key and `known_hosts` paths, connection timeout, and PTY settings. Defaults are
+port 22, a ten-second setup timeout, `xterm-256color`, and 80 columns by 24 rows.
+
+`New` validates settings, reads and parses the unencrypted private key, and loads the trusted
+host-key database without opening a network connection. Missing or malformed files fail before
+connection. The Transport retains a private snapshot; changed files require a new Transport.
+The CLI resolves default paths but does not parse SSH keys or construct SSH-library objects.
+Host verification is mandatory; callers cannot inject a callback that disables it.
+
+Backend client, signer, SSH session, and host-key callback types never appear in exported
+configuration or method signatures. `Connect` returns only the existing `channel.Channel` contract.
+Channel and Session do not depend on the SSH library, so replacing the backend stays within the
+SSH Transport implementation without changing their contracts.
+
+`Connect` owns TCP dialing, SSH authentication, opening a session channel, requesting a PTY,
+and requesting an interactive shell. The caller's context and configured timeout cover all these
+stages. Cancellation closes the socket to interrupt operations that lack context parameters.
+Every failure releases the socket and any output pipes. After a successful handoff, cancelling
+the setup context does not close the established Channel.
+
+The returned `channel.Stream` delegates `Read`, `Write`, and `Close` to a private SSH stream.
+Reads merge stdout and stderr through an unbuffered pipe; there is no cross-stream ordering
+promise, though ordinary PTY output uses stdout. Writes go to SSH stdin. Session still owns the
+only continuous Channel reader and retained terminal history. Concurrent readers use Session
+cursors, not SSH readers. Close releases the socket and pipes before joining output workers, so
+remote flow control cannot prevent shutdown. The existing Channel wrapper makes Close repeatable.
+Remote shell EOF or a connection failure reaches the existing Session lifecycle/reaping path.
+
+Each Connect can establish an independent Channel. Sharing and reuse instead happen in
+`Application.OpenSSH`, keyed by exact username, host, and port. This release does not implement
+Channel resizing, password authentication, encrypted private keys, ssh-agent, ssh_config, jump
+hosts, SSH exec, or SFTP.
+
 ## Current implementation boundary
 
-Serial is the only concrete Transport and serial-backed Channel in the current repository. There is
-no dedicated file-transfer Transport, debug/JTAG Transport, remote-network Transport, PTY Transport,
-Android implementation, or iOS implementation.
+Serial and SSH PTY shells are the concrete Transports. There is no dedicated file-transfer
+Transport, debug/JTAG Transport, local PTY Transport, Android implementation, or iOS implementation.
 
 Future Transport directions and the distinction between current and planned behavior are recorded in
 the [Architecture Overview](../architecture/overview.md). The current CLI file transfer remains an

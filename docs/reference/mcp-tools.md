@@ -89,7 +89,9 @@ not change tool schemas or result objects.
 Session-addressed tools accept either an opaque `session_id` or a current short Session reference
 such as `SER-1` in the property named `session_id`. Their schemas describe this transport-neutral
 input as an active Session ID or short reference. These tools are transport-neutral once a Session
-is active; `terminal_open_serial` is currently the only MCP tool that creates a Session. Labels and
+is active; `terminal_open_serial` is currently the only MCP tool that creates a Session.
+The CLI `ssh` command can host SSH Sessions accessible through the existing generic Session
+tools, including `SSH-N` references. There is no MCP tool for opening SSH connections. Labels and
 `device_id` values are not Session addresses.
 
 ## `terminal_list_serial_ports`
