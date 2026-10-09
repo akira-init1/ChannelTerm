@@ -244,8 +244,15 @@ PTY type/dimensions, setup timeout, label, highlighting, and local sharing addre
 `-i` aliases `--identity`; `-p` aliases `--port`. Flags may precede or follow the destination.
 
 The SSH port defaults to 22. A ten-second timeout bounds TCP, handshake/authentication, channel
-opening, PTY, and shell requests. The PTY defaults to `xterm-256color` with the local output
-terminal's size, falling back to 80 columns by 24 rows. It is not resized after connection.
+opening, PTY, and shell requests. The PTY defaults to `xterm-256color`. Initial dimensions use
+`--cols`/`--rows` when supplied, otherwise the owner's output terminal (or input terminal when
+output is redirected), with an 80-column by 24-row fallback if size querying is unavailable.
+Only the foreground `ssh` terminal controls subsequent PTY resizing; secondary `attach` windows
+do not send size requests. Explicit dimensions apply initially and remain until the owner's
+local size changes, at which point both dimensions follow that terminal. Without a local terminal,
+the dimensions stay fixed. Linux/macOS use `SIGWINCH`; Windows queries the visible console window
+every 250 ms without consuming keyboard events. Duplicate, zero, invalid, or unavailable local
+measurements are ignored. Shutdown cancels the watcher and closes its SSH I/O before joining it.
 The command does not read SSH profiles or save credentials into ChannelTerm configuration.
 Passwords, encrypted private keys, ssh-agent, ssh_config, SSH exec, and SFTP are not supported.
 

@@ -118,7 +118,7 @@ Application.OpenSSH -> Manager.GetOrCreate(ssh, user@host:port)
 SSH Transport: private key/trust loading -> TCP -> authentication -> PTY -> shell
           |
           v
-channel.Stream (SSH stdin + merged stdout/stderr, SSH resource cleanup)
+private SSH Channel (channel.Stream lifecycle + optional channel.Resizer)
           |
           v
 existing Session reader / buffers / cursors / serialized writes
@@ -134,6 +134,23 @@ The foreground SSH command owns the Manager and Host. Exiting that command close
 closing a secondary attachment only detaches that client. The default sharing listener is
 `127.0.0.1:37099`; an occupied listener fails before connecting to SSH. `--listen` can select a
 separate loopback Host. SSH does not add discovery, saved profiles, or MCP opening tools.
+
+The size-control path is separate from shared terminal bytes:
+
+```text
+owner's local terminal (Linux/macOS SIGWINCH; Windows 250 ms size polling)
+    -> CLI terminalinput watcher (latest valid changed dimensions)
+    -> Application.ResizeSession(id, cols, rows)
+    -> Session.Resize(cols, rows)
+    -> optional channel.Resizer on the private SSH Channel
+    -> existing backend shell.WindowChange(rows, cols)
+    -> remote PTY / foreground application's window-change notification
+```
+
+Only the foreground SSH command installs this watcher; attaching never grants resize authority.
+A startup recheck catches changes during connection setup. Cleanup cancels notifications, closes
+SSH I/O to release any blocked request, then joins the watcher and unregisters its signal/timer.
+The Channel and Session base interfaces, shared byte path, and MCP tools are unchanged.
 
 ## Device discovery
 

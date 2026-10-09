@@ -18,7 +18,7 @@ successfully connected Sessions into Manager ownership.
 - `OpenSSH`: validate explicit SSH settings, connect or reuse a PTY shell Session, and return
   Manager-owned metadata without reading or writing connection profiles.
 - `ListSessions`, `ReadSession`, `ReadSessionActivity`, `ReadSessionEvents`, `AttachSession`,
-  `DetachSession`, `WriteSession`, `ExecuteTerminalCommand`, `AcquireLease`, `RenewLease`,
+  `DetachSession`, `WriteSession`, `ResizeSession`, `ExecuteTerminalCommand`, `AcquireLease`, `RenewLease`,
   `ReleaseLease`, `LeaseStatus`, `BeginFileTransferCancel`, `ResolveFileTransferCancel`,
   `FileTransferCheckpoint`, and `CloseSession`: operate by opaque Session ID or short Session
   reference.
@@ -37,6 +37,15 @@ successfully connected Sessions into Manager ownership.
 - `ListDevices`, `ReadDeviceEvents`: expose Registry snapshots and cursor streams.
 - `ConnectionDecision`: combine exact device presence, exact active Session metadata, and policy
   without changing state.
+
+## Terminal resizing
+
+`ResizeSession(identifier, cols, rows)` resolves a managed Session and delegates to its existing
+optional Channel capability. Lookup, lifecycle, unsupported-capability, and Transport errors
+remain visible to the caller. It does not change Session lifecycle or write-lease semantics.
+Adapters own size authority: currently only the foreground SSH CLI installs a local size watcher;
+secondary attachments and MCP have no resize operation. The application API carries character
+dimensions only, never an OS terminal descriptor, signal, or SSH-library object.
 
 ## Serial open invariants
 

@@ -49,10 +49,22 @@ Run `list` before attaching or from a third terminal. Both clients see the same 
 bytes and future output. Writes are serialized by the existing Session, but this does not
 coordinate concurrent commands or remote shell state.
 
-PTY dimensions initially come from the owner's local output terminal, with an 80-by-24 fallback.
-Use `--cols` and `--rows` to set them explicitly and `--term` to set the terminal type. Resizing an
-attachment does not resize the remote PTY in this release. The default setup timeout is ten seconds;
-`--timeout 30s` covers dialing, authentication, PTY, and shell requests only.
+The foreground `ssh` terminal controls the remote PTY size. Initial dimensions come from its
+output terminal, or its input terminal when output is redirected, with an 80-by-24 fallback when
+size querying is unavailable. `--cols` and `--rows` override the initial dimensions; after the
+owner's window changes, both dimensions follow the local terminal. Use `--term` for terminal type.
+Secondary `attach` windows share output but never resize the remote PTY, even if they are larger
+or smaller. There is no size-control handoff. With no local terminal, dimensions stay fixed.
+
+Linux/macOS detect changes through `SIGWINCH`; Windows queries the visible console window every
+250 ms. Resizing the owner from 36 rows by 100 columns to 43 by 132 should make remote `stty size`
+print `43 132`. Vim and htop can redraw on the same running shell without reconnecting. Adjust
+only the owner's window when checking this behavior; differently sized attachments may wrap or
+clip the shared full-screen output. See the [CLI reference](../reference/cli.md#ssh) for precise
+size validation and shutdown behavior.
+
+The default setup timeout is ten seconds; `--timeout 30s` covers dialing, authentication, PTY,
+and shell requests only.
 
 ## Host lifetime and other listeners
 
@@ -87,6 +99,11 @@ the `SSH Session` status. Verify reachability and authentication with your exist
 An unknown or changed host key requires fingerprint verification before updating trust; it is not
 fixed by disabling checks. An occupied sharing port is independent of the remote SSH port.
 
+For a size mismatch, record the client OS/terminal, whether the resized window is the owning
+`ssh` command or a secondary `attach`, any initial dimension flags, and both local and remote
+`stty size` results on Linux/macOS. On Windows, record the visible console rows/columns instead.
+Include the failing real-server test output when available; do not include private keys or tokens.
+
 Automated tests use generated keys and loopback SSH servers, check rejected keys/PTY/shell requests,
 cancel every setup stage, interrupt blocked I/O on close, and connect multiple Session clients.
 They also cover server EOF, TCP reset, a silent network blackhole, explicit reconnection, blocked
@@ -110,17 +127,15 @@ path; public-key authentication and ChannelTerm's host-key verification remain e
 See [building and testing](../development/building-and-testing.md#local-openssh-integration-tests)
 for prerequisite overrides and the explicit test opt-in.
 
-The automated real-server checks exercise shell startup, initial PTY dimensions, Vim edit/save,
+The automated real-server checks require matching initial and changed PTY dimensions, successive
+and rapid owner changes, unchanged dimensions after secondary-window changes, Vim's own updated
+`lines`/`columns` and edit/save, and htop redraw at the new height. They also exercise shell startup,
 htop screen entry/exit, Ctrl+C, owner and observer termination, termios restoration, a server
 connection process terminating, explicit reconnection, and a local relay dropping SSH packets.
 They do not provide visual certification of every terminal emulator or interactive application.
 
 ## Current validation limits and recovery
 
-- **Runtime resize remains unsupported.** The real test changes a local window from 36 rows by
-  100 columns to 43 by 132 and confirms that remote `stty size` stays `36 100`. A passing
-  characterization test records that limitation; it does not satisfy a resize-support acceptance
-  criterion. Select the initial dimensions before starting full-screen programs.
 - **Closure is delivered through the read path.** Pending output/event readers terminate when
   the owner or remote connection ends. There is no dedicated `SESSION_CLOSED` event or guarantee
   of a final structured notification before the Host stops. Secondary attachments report a read

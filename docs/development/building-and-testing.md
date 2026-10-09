@@ -118,7 +118,7 @@ GitHub Release workflow described above.
   authentication, PTY/shell requests, cancellation, cleanup, and shared Session access through the
   existing HTTP tools, including separate CLI processes. These generated-key servers do not
   prove OpenSSH interoperability. The separate opt-in local suite below runs actual OpenSSH
-  and Linux PTYs and reports unsupported runtime resizing explicitly.
+  and Linux PTYs and requires runtime dimension synchronization and full-screen redraw.
 - `go vet` performs static analysis; it is not a runtime test.
 - A cross-build confirms compilation only.
 - Native console raw-mode behavior must be checked on the target OS.
@@ -160,8 +160,12 @@ server diagnostics are printed before cleanup.
 
 The real suite checks initial PTY negotiation, Vim and htop interaction, Ctrl+C, local escape,
 owner/observer shutdown, terminal restoration, server connection termination, explicit reopening,
-and packet dropping after setup. The resize characterization test passes only when it observes
-the documented current limitation; it is **not** evidence of runtime resize support. See the
+and packet dropping after setup. Resize tests require remote `stty size` to follow the owner
+from `36 100` to `43 132` and through successive/burst changes. They verify that secondary
+attachments do not compete, initial flag overrides persist until a local change, zero dimensions
+are ignored, Vim reports updated dimensions, and htop redraws at the new height. The unit suite
+also covers invalid sizes, watcher cancellation, concurrent Resize/Close, and a blocked resize
+released by Close. See the
 [SSH workflow](../getting-started/ssh-terminal.md#current-validation-limits-and-recovery) for the
 remaining lifecycle and recovery boundaries. No native Windows/macOS or physical network-failure
 claim follows from this localhost suite.

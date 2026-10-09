@@ -19,7 +19,7 @@ ChannelTerm/
 |   |   |-- command/                Commands, flags, local output, host/client wiring
 |   |   |-- highlight/              Presentation-only ANSI highlighting
 |   |   |-- interactive/            Ctrl+] local escape state machine
-|   |   `-- terminalinput/          Raw console setup and restoration
+|   |   `-- terminalinput/          Raw console setup, restoration, and terminal-size observation
 |   |-- init/
 |   |   `-- mcp/                    MCP client discovery, rendering, and safe config installation
 |   |-- install/                    Per-user executable install/uninstall, aliases, PATH, manifest
@@ -83,7 +83,8 @@ The main ownership distinctions are deliberate:
 - **Transport:** `internal/core/transport` defines protocol-specific Channel establishment.
   `internal/core/transport/serial` owns serial connection setup and discovery; its opened port is
   transferred to a Channel. `internal/transport/ssh` owns credential-file parsing, host-key
-  verification, authentication, and PTY/shell setup, then transfers the stream to a Channel.
+  verification, authentication, and PTY/shell setup, then transfers the stream to a Channel with
+  optional resizing on the same shell.
   Its configuration exposes ordinary settings and paths; SSH-library types stay private to the
   implementation, outside the generic Channel, Session, Application, and CLI contracts.
   The concrete SSH package is outside `internal/core`; it implements the Core Transport contract

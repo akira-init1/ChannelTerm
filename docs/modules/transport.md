@@ -94,7 +94,8 @@ stages. Cancellation closes the socket to interrupt operations that lack context
 Every failure releases the socket and any output pipes. After a successful handoff, cancelling
 the setup context does not close the established Channel.
 
-The returned `channel.Stream` delegates `Read`, `Write`, and `Close` to a private SSH stream.
+The returned private SSH Channel embeds `channel.Stream`, which delegates `Read`, `Write`, and
+`Close` to a private SSH stream. It also implements the existing optional `channel.Resizer`.
 Reads merge stdout and stderr through an unbuffered pipe; there is no cross-stream ordering
 promise, though ordinary PTY output uses stdout. Writes go to SSH stdin. Session still owns the
 only continuous Channel reader and retained terminal history. Concurrent readers use Session
@@ -107,9 +108,18 @@ nor replays writes. A silent packet blackhole does not impose a new post-connect
 Close still releases blocked I/O, while setup timeout does not limit an established shell.
 Repeated-close tests also check for retained SSH workers after server and Channel cleanup.
 
+`Resize(cols, rows)` accepts nonzero character dimensions up to 65535 and calls the existing
+backend shell's `WindowChange(rows, cols)`. It never opens another SSH session, shell, or connection.
+Requests use SSH `window-change` without a server acknowledgement, so success means local request
+submission, not proof that the server applied the dimensions. A closed/closing Channel returns
+`channel.ErrNotOpen`; concurrent closure can also produce an SSH I/O error. No lifecycle lock is
+held during the network operation: closing the Channel releases a blocked Resize. A caller that
+owns a resize worker must cancel its notifications, close the Channel, and then join the worker.
+The CLI's owner-only control policy is described in the [SSH workflow](../getting-started/ssh-terminal.md).
+
 Each Connect can establish an independent Channel. Sharing and reuse instead happen in
 `Application.OpenSSH`, keyed by exact username, host, and port. This release does not implement
-Channel resizing, password authentication, encrypted private keys, ssh-agent, ssh_config, jump
+password authentication, encrypted private keys, ssh-agent, ssh_config, jump
 hosts, SSH exec, or SFTP.
 
 ## Current implementation boundary
