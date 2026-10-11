@@ -20,6 +20,12 @@ import (
 )
 
 func fileServer(t *testing.T, stall bool) sshtransport.Config {
+	return fileServerWithHandler(t, stall, nil)
+}
+
+// fileServerWithHandler allows filesystem-backed or wire-level fixtures while
+// retaining the same generated credentials and loopback-only SSH lifecycle.
+func fileServerWithHandler(t *testing.T, stall bool, serve func(gossh.Channel)) sshtransport.Config {
 	t.Helper()
 	config := sshTestConfig(t)
 	key, err := os.ReadFile(config.PrivateKeyPath)
@@ -85,6 +91,11 @@ func fileServer(t *testing.T, stall bool) sshtransport.Config {
 							return
 						}
 						_ = req.Reply(true, nil)
+						if serve != nil {
+							serve(ch)
+							_ = ch.Close()
+							break
+						}
 						sftpServer := sftp.NewRequestServer(ch, handlers)
 						_ = sftpServer.Serve()
 						_ = sftpServer.Close()

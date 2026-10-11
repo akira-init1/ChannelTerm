@@ -23,8 +23,13 @@ type FileInfo struct {
 	Modified time.Time   `json:"modified"`
 }
 
-func fileInfo(info fs.FileInfo) FileInfo {
-	return FileInfo{Name: info.Name(), Size: info.Size(), Mode: info.Mode(), Modified: info.ModTime()}
+// fileInfo rejects uint64 wire sizes that overflow the backend's int64 view
+// before an application can open or truncate a local destination using them.
+func fileInfo(info fs.FileInfo) (FileInfo, error) {
+	if info.Size() < 0 {
+		return FileInfo{}, fmt.Errorf("invalid SFTP file size for %q", info.Name())
+	}
+	return FileInfo{Name: info.Name(), Size: info.Size(), Mode: info.Mode(), Modified: info.ModTime()}, nil
 }
 
 // Files owns a dedicated SSH connection for file operations, never a PTY or
@@ -115,7 +120,11 @@ func (f *Files) List(path string) ([]FileInfo, error) {
 	}
 	result := make([]FileInfo, 0, len(infos))
 	for _, info := range infos {
-		result = append(result, fileInfo(info))
+		entry, err := fileInfo(info)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, entry)
 	}
 	return result, nil
 }
@@ -129,7 +138,7 @@ func (f *Files) Stat(path string) (FileInfo, error) {
 	if err != nil {
 		return FileInfo{}, err
 	}
-	return fileInfo(info), nil
+	return fileInfo(info)
 }
 
 // Mkdir creates exactly one remote directory; its parent must already exist.

@@ -152,6 +152,13 @@ it closes the dedicated SSH connection to interrupt subsystem negotiation, reads
 SFTP protocol types remain private. The exported surface uses file metadata, streams, filesystem
 sources, and validated transfer entries. Application owns actual local destination creation.
 
+SFTP attribute decoding rejects an extended-attribute count that cannot fit in the received packet
+before allocating its array. A trusted SSH host key authenticates the peer; it does not make malformed
+file-protocol metadata safe. Loopback wire tests cover this allocation boundary independently of
+dependency vulnerability-database coverage.
+Remote file sizes that overflow the signed size representation are rejected at metadata conversion,
+before Application opens a download destination; malformed metadata cannot trigger local truncation.
+
 SCP control records are limited to 4096 bytes; malformed mode/size, traversal or unexpected root names,
 duplicate paths, unsupported records, excessive depth, and truncated payloads abort the connection.
 Remote paths are single-quoted, with no glob or tilde expansion. A no-overwrite upload adds a remote
