@@ -225,6 +225,8 @@ channelterm sftp user@192.168.1.50 rmdir /tmp/my-transfer
 Replace the user and address with your actual server. `ls` defaults to `.` when no path is supplied.
 Paths containing spaces must be quoted. Relative remote paths use the server's starting directory;
 there is no wildcard or tilde expansion. Missing parent directories are not created automatically.
+Remote `..` components are resolved by the server, including when a preceding component is a
+symlink; appended child names do not change that interpretation.
 
 For directories, explicitly add `--recursive` (`-r`). Legacy SCP has the same put/get command shape:
 
@@ -247,6 +249,11 @@ leave partial files and directories; with overwrite enabled a previous file can 
 Inspect the target before retrying. There is no resume, rollback, automatic reconnect, or atomic
 tree replacement. SSH protects transport integrity; these commands do not compute a separate
 end-to-end file digest or promise remote disk durability.
+
+SFTP payload copying currently uses sequential 32 KiB reads/writes. Throughput can be limited by
+network round-trip time even when link bandwidth is high; parallel request pipelining is not a
+current guarantee. Test representative file sizes and network latency before treating this workflow
+as a bulk synchronization tool.
 
 Only regular files and directories are uploaded. SFTP downloads reject symlinks and special entries.
 Legacy SCP may follow remote symlinks according to the server's scp behavior; received names still

@@ -95,6 +95,10 @@ file or merging a directory tree requires explicit opt-in. This is not transacti
 disk-full errors, or disconnects may leave partial files and directories, including a truncated
 previous file when overwrite was selected. No automatic retry/reconnect or rollback is performed.
 
+Remote child paths preserve the caller's literal parent path. In particular, the application does
+not lexically collapse `symlink/..` when appending an upload basename or descending into an SFTP
+directory. Only the server can resolve its filesystem's symlinks correctly.
+
 Downloads use `os.Root` to confine remote-selected descendants within the caller-selected local
 destination parent. Remote names cannot contain separators, drive/stream syntax, control characters,
 Windows device aliases, or trailing spaces/dots. Duplicate names (case-insensitive for portability),

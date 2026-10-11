@@ -231,7 +231,7 @@ func uploadSFTP(ctx context.Context, client *sshtransport.Files, r SSHFilesReque
 	name := filepath.Base(absolute)
 	destination := r.Remote
 	if info, err := client.Stat(destination); err == nil && info.Mode.IsDir() {
-		destination = path.Join(destination, name)
+		destination = sshRemoteChild(destination, name)
 	} else if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return err
 	}
@@ -397,7 +397,7 @@ func downloadSSH(ctx context.Context, client *sshtransport.Files, r SSHFilesRequ
 				if !sshtransport.ValidFileName(child.Name) {
 					return errors.New("unsafe remote directory entry")
 				}
-				if err := walk(path.Join(remote, child.Name), path.Join(relative, child.Name), depth+1); err != nil {
+				if err := walk(sshRemoteChild(remote, child.Name), path.Join(relative, child.Name), depth+1); err != nil {
 					return err
 				}
 			}
@@ -414,4 +414,11 @@ func downloadSSH(ctx context.Context, client *sshtransport.Files, r SSHFilesRequ
 		return receive(entry, file)
 	}
 	return walk(r.Remote, base, 0)
+}
+
+// sshRemoteChild appends a validated basename without interpreting the remote
+// filesystem. Cleaning parent/.. locally changes symlink traversal semantics
+// and can redirect transfers away from the caller's literal remote path.
+func sshRemoteChild(parent, name string) string {
+	return strings.TrimRight(parent, "/") + "/" + name
 }
