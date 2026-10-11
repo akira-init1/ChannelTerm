@@ -157,9 +157,15 @@ func TestHostTrustRejectionDoesNotRequestPassword(t *testing.T) {
 				case "cancel":
 					return false, context.Canceled
 				case "write-failure":
-					// A lock path that is a directory fails on every supported OS.
-					if err := os.Mkdir(server.config.KnownHostsPath+".lock", 0700); err != nil {
-						t.Error(err)
+					// Directory locks are valid on macOS, so a directory at the
+					// lock path is not a portable failure fixture. Replace the
+					// trust destination after New has loaded its snapshot: no
+					// supported OS can append a host-key record to a directory.
+					if err := os.Remove(server.config.KnownHostsPath); err != nil {
+						return false, err
+					}
+					if err := os.Mkdir(server.config.KnownHostsPath, 0700); err != nil {
+						return false, err
 					}
 					return true, nil
 				case "concurrent-change":
@@ -185,7 +191,17 @@ func TestHostTrustRejectionDoesNotRequestPassword(t *testing.T) {
 			if (mode == "changed" || mode == "revoked") && confirmCalls != 0 {
 				t.Fatal("prompted to replace an existing key")
 			}
-			after, _ := os.ReadFile(server.config.KnownHostsPath)
+			if mode == "write-failure" {
+				info, err := os.Stat(server.config.KnownHostsPath)
+				if err != nil || !info.IsDir() || confirmCalls != 1 {
+					t.Fatalf("unwritable trust destination changed: %v, confirmations=%d", err, confirmCalls)
+				}
+				return
+			}
+			after, readErr := os.ReadFile(server.config.KnownHostsPath)
+			if readErr != nil {
+				t.Fatal(readErr)
+			}
 			if !bytes.Equal(after, data) {
 				t.Fatal("trust file modified on rejection")
 			}
