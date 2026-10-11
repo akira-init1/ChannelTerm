@@ -154,24 +154,41 @@ func (d *scpDiagnostic) Write(data []byte) (int, error) {
 // Source must be a confined filesystem; symlink/special entries are rejected.
 // overwrite=false adds a remote existence guard, not an atomic reservation.
 func (f *Files) UploadSCP(source fs.FS, name, destination string, recursive, overwrite bool, progress func(string, int64, int64) error) (files, totalBytes int64, err error) {
+	command, err := scpUploadCommand(name, destination, recursive, overwrite)
+	if err != nil {
+		return 0, 0, err
+	}
+	return f.uploadSCP(source, name, recursive, progress, command)
+}
+
+// scpUploadCommand keeps the existence guard and the remote sink invocation
+// together so both refer to the same destination chosen by the caller.
+func scpUploadCommand(name, destination string, recursive, overwrite bool) (string, error) {
 	if !ValidFileName(name) {
-		return 0, 0, errors.New("invalid SCP source basename")
+		return "", errors.New("invalid SCP source basename")
 	}
 	quoted, err := scpPath(destination)
 	if err != nil {
-		return 0, 0, err
+		return "", err
 	}
 	command := "scp -t -- " + quoted
 	if recursive {
 		command = "scp -r -t -- " + quoted
 	}
 	if !overwrite {
-		child, err := scpPath(path.Join(destination, name))
+		// Preserve dot components: resolving symlink/.. is a server filesystem
+		// operation. Lexical cleaning here can inspect a different directory
+		// than the literal path passed to scp and bypass overwrite protection.
+		child, err := scpPath(strings.TrimRight(destination, "/") + "/" + name)
 		if err != nil {
-			return 0, 0, err
+			return "", err
 		}
 		command = "if { test -d " + quoted + " && { test -e " + child + " || test -L " + child + "; }; } || { ! test -d " + quoted + " && { test -e " + quoted + " || test -L " + quoted + "; }; }; then printf '\\001destination exists\\n'; exit 1; fi; exec " + command
 	}
+	return command, nil
+}
+
+func (f *Files) uploadSCP(source fs.FS, name string, recursive bool, progress func(string, int64, int64) error, command string) (files, totalBytes int64, err error) {
 	err = f.runSCP(command, func(reader *bufio.Reader, writer io.Writer) error {
 		if err := scpAck(reader); err != nil {
 			return err
