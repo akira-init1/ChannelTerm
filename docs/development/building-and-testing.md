@@ -14,6 +14,29 @@ go test -race ./...
 Documentation-only changes do not require formatting unchanged Go files but still require repository
 tests and vet before completion.
 
+### Repeated native testing on Windows
+
+For repeated local Windows runs, use the stable-path runner instead of starting a new temporary
+test executable on every invocation:
+
+```powershell
+./scripts/test-windows.ps1
+./scripts/test-windows.ps1 -Packages ./internal/transport/ssh -Run '^TestHostTrust' -Count 3
+```
+
+The runner compiles each selected test package with `go test -c` under the ignored
+`bin/tests/windows-<arch>/<import-path>/tests.exe` tree, then runs it from its source directory.
+Paths remain stable between runs, including helper subprocesses created by tests. The default is
+one uncached run with the standard ten-minute test timeout. `-Race` additionally requires the same
+Windows C compiler/CGO setup as ordinary `go test -race`. Cross-compilation overrides are rejected
+because this runner executes native Windows binaries. Avoid concurrent runs sharing this output tree.
+
+Windows Firewall identifies traditional program rules by executable path. Go's temporary build/test
+paths can therefore trigger repeated access prompts. A stable path can reuse an existing decision,
+although the first run or managed security policies can still prompt. This script does not create
+firewall exceptions, disable protection, or expand network listeners. Network unit fixtures listen
+on loopback only. CI and Linux/macOS can continue using the ordinary `go test` commands above.
+
 Useful command-surface checks are:
 
 ```powershell

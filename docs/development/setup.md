@@ -41,6 +41,14 @@ implementation, tests, documentation, and follow-up fixes together instead of cr
 branch for a small addition to the same goal. Default-branch changes go through a pull request;
 normal development must not push directly to `main` or `master`.
 
+On Windows, build runnable debug binaries to a fixed path, for example
+`go build -o ./bin/channelterm.exe ./cmd/channelterm`, and launch that binary for network workflows.
+Repeated `go run` executions may use different temporary executable paths and cause repeated
+Windows Firewall prompts. For native package tests, use the
+[stable-path test runner](building-and-testing.md#repeated-native-testing-on-windows).
+Keep loopback-only defaults; changing firewall policy or exposing the Host to a LAN is not required
+for ordinary local development.
+
 Do not discard unrelated worktree changes. Keep implementation under the existing `internal`
 ownership boundary unless a public Go API is intentionally designed and reviewed.
 

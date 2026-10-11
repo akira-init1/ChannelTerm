@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -168,8 +169,13 @@ func TestRunMCPHTTPShutsDownOnContextCancellation(t *testing.T) {
 	if !strings.Contains(stderr.String(), "MCP Streamable HTTP listening on http://127.0.0.1:") || !strings.Contains(stderr.String(), "/mcp") {
 		t.Errorf("HTTP startup output = %q, want listening endpoint", stderr.String())
 	}
+	if strings.Contains(stderr.String(), "Warning: MCP server is exposed") {
+		t.Fatal("loopback listener reported network exposure")
+	}
 }
 
+// TestRunMCPHTTPWarnsWhenNetworkExposed tests the warning without binding any
+// real non-loopback socket, which would unnecessarily trigger host firewalls.
 func TestRunMCPHTTPWarnsWhenNetworkExposed(t *testing.T) {
 	manager := session.NewManager()
 	defer func() { _ = manager.Close() }()
@@ -180,8 +186,10 @@ func TestRunMCPHTTPWarnsWhenNetworkExposed(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	var stderr bytes.Buffer
-	if err := runMCPHTTP(ctx, registry, "0.0.0.0:0", "/mcp", "test-token", false, &stderr); err != nil {
-		t.Fatalf("runMCPHTTP() error = %v", err)
+	listener := &networkWarningListener{closed: make(chan struct{})}
+	defer listener.Close()
+	if err := serveMCPHTTP(ctx, registry, listener, "/mcp", "test-token", false, &stderr, false); err != nil {
+		t.Fatalf("serveMCPHTTP() error = %v", err)
 	}
 	for _, warning := range []string{
 		"Warning: MCP server is exposed to the network.",
@@ -192,6 +200,30 @@ func TestRunMCPHTTPWarnsWhenNetworkExposed(t *testing.T) {
 			t.Errorf("network startup output = %q, want %q", stderr.String(), warning)
 		}
 	}
+}
+
+// networkWarningListener models an exposed address without opening a port.
+// The real server shutdown path closes it and releases an outstanding Accept.
+type networkWarningListener struct {
+	closed chan struct{}
+	once   sync.Once
+}
+
+// Accept waits for shutdown; this warning-only fixture never receives traffic.
+func (l *networkWarningListener) Accept() (net.Conn, error) {
+	<-l.closed
+	return nil, net.ErrClosed
+}
+
+// Close releases Accept and permits repeated server/deferred cleanup.
+func (l *networkWarningListener) Close() error {
+	l.once.Do(func() { close(l.closed) })
+	return nil
+}
+
+// Addr supplies only the address used to choose and format the warning.
+func (l *networkWarningListener) Addr() net.Addr {
+	return &net.TCPAddr{IP: net.IPv4zero, Port: 37099}
 }
 
 func TestMCPHTTPBearerAuthentication(t *testing.T) {
