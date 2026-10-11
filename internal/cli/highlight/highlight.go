@@ -85,6 +85,9 @@ func (r *Renderer) Write(p []byte) (int, error) {
 
 		escape := bytes.IndexByte(p, '\x1b')
 		if escape < 0 {
+			for _, value := range p {
+				r.vt.feed(value)
+			}
 			r.pending = append(r.pending, p...)
 			if err := r.drain(); err != nil {
 				return 0, err
@@ -94,6 +97,11 @@ func (r *Renderer) Write(p []byte) (int, error) {
 
 		// Preserve all remote bytes from the escape onward. Complete safe lines
 		// before it may still be highlighted; any incomplete prefix is emitted raw.
+		// Track plain text too: a later SGR reset inside a colored prompt is not
+		// a fresh line boundary, and its suffix/echo must remain byte-transparent.
+		for _, value := range p[:escape] {
+			r.vt.feed(value)
+		}
 		r.pending = append(r.pending, p[:escape]...)
 		if err := r.drain(); err != nil {
 			return 0, err
@@ -152,6 +160,8 @@ func (r *Renderer) Flush() error {
 		r.pending = nil
 	}
 	r.rawUntilNewline = false
+	// Local status output establishes a new prompt presentation boundary.
+	r.vt.lineHasText = false
 	return nil
 }
 

@@ -682,6 +682,46 @@ func TestRendererKeepsAlternateScreenRawUntilExit(t *testing.T) {
 	}
 }
 
+// TestRendererColoredPromptEchoIsImmediate protects interactive SSH shells:
+// an SGR reset inside a prompt must not buffer its suffix or later key echoes.
+func TestRendererColoredPromptEchoIsImmediate(t *testing.T) {
+	for _, prompt := range []string{
+		"\x1b[32muser@host\x1b[0m:\x1b[34m~\x1b[0m$ ",
+		"user@\x1b[32mhost\x1b[0m:~$ ",
+		"\x1b[?2004h\x1b[32muser@host\x1b[0m:~$ ",
+		"\x1b[32muser@host\x1b[0m\x1b]0;title\x07:~$ ",
+	} {
+		for split := 0; split <= len(prompt); split++ {
+			var output bytes.Buffer
+			renderer := New(&output)
+			for _, part := range []string{prompt[:split], prompt[split:]} {
+				if _, err := renderer.Write([]byte(part)); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if output.String() != prompt {
+				t.Fatalf("split %d: prompt withheld: got %q want %q", split, output.String(), prompt)
+			}
+			want := prompt
+			for _, echo := range []string{"l", "s", "\b \b", "s"} {
+				if _, err := renderer.Write([]byte(echo)); err != nil {
+					t.Fatal(err)
+				}
+				want += echo
+				if output.String() != want {
+					t.Fatalf("split %d: echo withheld before Enter: got %q want %q", split, output.String(), want)
+				}
+			}
+			if _, err := renderer.Write([]byte("\r\nerror after command\n")); err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Contains(output.Bytes()[len(want):], []byte(styleError+"error"+styleReset)) {
+				t.Fatal("highlighting did not resume after newline")
+			}
+		}
+	}
+}
+
 func TestRendererColorProfilesDegradeOrDisableStyles(t *testing.T) {
 	tests := []struct {
 		name            string
