@@ -24,6 +24,21 @@ ChannelTerm 讓人類與 AI 共用同一個硬體終端 Session。AI 不會取�
 
 ChannelTerm 支援 Windows、Linux 與 macOS 上的序列埠通訊與 SSH PTY shell。它本身不內建 AI，而是透過 MCP 將真實終端 Session 提供給人類及外部 AI 用戶端。
 
+## 透過 SSH 傳輸檔案
+
+使用 SFTP 傳輸及管理遠端檔案，或使用傳統 SCP 連線至相容的 POSIX 伺服器：
+
+```bash
+channelterm sftp user@192.168.1.50 ls /tmp
+channelterm sftp user@192.168.1.50 put ./firmware.bin /tmp/firmware.bin
+channelterm sftp user@192.168.1.50 get /tmp/log.txt ./log.txt
+channelterm scp user@192.168.1.50 put ./release /tmp/release --recursive
+```
+
+這些命令沿用 SSH 的金鑰/密碼驗證與主機核驗，使用獨立連線，不占用終端 Session。
+覆寫現有檔案需要 `--overwrite`。目錄規則、取消行為及協定限制請見
+[檔案傳輸](docs/getting-started/file-transfer.md#sftp-and-scp-over-ssh)。
+
 ## 共用 SSH shell
 
 使用已授權的未加密私鑰，或依提示輸入密碼（不儲存）。首次連線至未知伺服器時，核驗顯示的指紋後輸入

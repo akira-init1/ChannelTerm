@@ -156,4 +156,6 @@ are separate from ChannelTerm TOML. No client key pair is generated or copied au
 The sharing Host reuses the existing `http-auth-token` and environment override. Login passwords
 are entered without echo and used only for authentication; they are never written to config,
 trust records, or Session metadata. No password CLI argument or environment variable is supported.
-Connection settings are not persisted. See the [CLI reference](cli.md#ssh).
+Connection settings are not persisted. The `sftp` and `scp` commands use the same credential paths
+and interactive callbacks without adding TOML fields. Their dedicated connections do not need the
+HTTP Host's token or listener. See the [CLI reference](cli.md#ssh).

@@ -35,7 +35,7 @@ ChannelTerm/
 |   |       |-- transport.go        Protocol-specific Channel establishment
 |   |       `-- serial/             Serial implementation, discovery, metadata
 |   |-- transport/
-|   |   `-- ssh/                    Backend-private SSH authentication and PTY shell Channels
+|   |   `-- ssh/                    SSH authentication, PTY shell Channels, dedicated SFTP/SCP clients
 |   `-- mcp/
 |       |-- server.go               MCP server and stdio/HTTP adaptation
 |       `-- terminal/               Terminal tool names, schemas, and translation
@@ -84,7 +84,9 @@ The main ownership distinctions are deliberate:
   `internal/core/transport/serial` owns serial connection setup and discovery; its opened port is
   transferred to a Channel. `internal/transport/ssh` owns credential-file parsing, host-key
   verification/persistence, authentication, and PTY/shell setup, then transfers the stream to a Channel with
-  optional resizing on the same shell.
+  optional resizing on the same shell. Dedicated file clients use the same authenticated setup but
+  own independent SSH connections and SFTP subsystem/SCP exec channels. They do not become terminal
+  Channels or Sessions. Application owns local file selection, copying, and destination containment.
   Its configuration exposes ordinary settings, paths, and context-aware adapter interaction callbacks;
   SSH-library types stay private to the
   implementation, outside the generic Channel, Session, Application, and CLI contracts.

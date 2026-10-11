@@ -26,6 +26,22 @@ sehen, selbst Eingaben machen und bei Bedarf eingreifen.
 
 ChannelTerm unterstützt serielle Kommunikation und SSH-Shells mit PTY unter Windows, Linux und macOS. ChannelTerm enthält keine eigene KI; es stellt echte Terminal-Sessions für Menschen und externe KI-Clients über MCP bereit.
 
+## Dateien über SSH übertragen
+
+Nutzen Sie SFTP für Dateiübertragung und entfernte Dateiverwaltung oder das klassische SCP für kompatible POSIX-Server:
+
+```bash
+channelterm sftp user@192.168.1.50 ls /tmp
+channelterm sftp user@192.168.1.50 put ./firmware.bin /tmp/firmware.bin
+channelterm sftp user@192.168.1.50 get /tmp/log.txt ./log.txt
+channelterm scp user@192.168.1.50 put ./release /tmp/release --recursive
+```
+
+Diese Befehle verwenden dieselbe Schlüssel-/Passwortauthentifizierung und Hostprüfung wie SSH,
+jedoch eine von Terminal-Sessions unabhängige Verbindung. Das Ersetzen vorhandener Dateien erfordert
+`--overwrite`. Verzeichnisregeln, Abbruch und Grenzen beschreibt die
+[Dateiübertragung](docs/getting-started/file-transfer.md#sftp-and-scp-over-ssh).
+
 ## Gemeinsame SSH-Shell
 
 Verbinden Sie sich mit einem autorisierten unverschlüsselten privaten Schlüssel oder geben Sie auf

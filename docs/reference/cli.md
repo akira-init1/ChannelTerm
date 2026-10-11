@@ -46,7 +46,7 @@ version and target platform come from the compiled binary. An unknown command re
 the process exits with status 1.
 
 The top-level help currently lists `attach`, `events`, `file`, `init`, `install`, `list`, `mcp`,
-`serial`, `ssh`, `uninstall`, `help`, and `version`.
+`serial`, `ssh`, `sftp`, `scp`, `uninstall`, `help`, and `version`.
 
 ## `install` and `uninstall`
 
@@ -267,8 +267,9 @@ the dimensions stay fixed. Linux/macOS use `SIGWINCH`; Windows queries the visib
 every 250 ms without consuming keyboard events. Duplicate, zero, invalid, or unavailable local
 measurements are ignored. Shutdown cancels the watcher and closes its SSH I/O before joining it.
 The command does not read SSH profiles or save credentials into ChannelTerm configuration.
-Encrypted private keys, ssh-agent, ssh_config, keyboard-interactive authentication, SSH exec, and
-SFTP are not supported. A server offering only keyboard-interactive requires a different client.
+Encrypted private keys, ssh-agent, ssh_config, keyboard-interactive authentication, and arbitrary
+SSH exec are not supported. Dedicated file operations use `sftp` or `scp`, described below.
+A server offering only keyboard-interactive requires a different client.
 
 The Host uses the existing Bearer-token authentication and defaults to `127.0.0.1:37099/mcp`.
 `--listen` accepts only a loopback IP and port. An occupied port fails before SSH connection;
@@ -289,6 +290,46 @@ A Host can be write-controlled by clients holding its token; keep the token priv
 Important errors include invalid destinations/options, missing or encrypted keys, unknown/changed
 host keys, authentication failure, connection timeout/refusal, rejected PTY/shell requests, and an
 occupied sharing address. See the [SSH terminal workflow](../getting-started/ssh-terminal.md).
+
+## `sftp` and `scp`
+
+Purpose: operate on remote files through a dedicated authenticated SSH connection. These are
+ChannelTerm subcommands, not drop-in replacements for the OpenSSH programs' argument syntax.
+
+```bash
+channelterm sftp user@host.example ls /tmp
+channelterm sftp user@host.example put ./firmware.bin /tmp/firmware.bin
+channelterm sftp user@host.example get /tmp/log.txt ./log.txt
+channelterm scp user@host.example put ./release /tmp/release --recursive
+```
+
+SFTP operations are `put LOCAL REMOTE`, `get REMOTE LOCAL`, `ls [REMOTE]` (default `.`), `stat REMOTE`,
+`mkdir REMOTE`, `rename OLD NEW`, `rm REMOTE`, and `rmdir REMOTE`. SCP supports `put` and `get` only,
+using the legacy protocol with a remote POSIX `scp` executable. SFTP requires the server's `sftp`
+subsystem. There is no local external-program dependency, rsync integration, remote-to-remote copy,
+interactive SFTP REPL, or automatic protocol fallback.
+
+Authentication, default identity/trust paths, password prompts, and first-host confirmation are the
+same as `ssh`. Options may appear before or after positional arguments; `--` ends flag recognition.
+Use `--help` for actual flags. `--recursive` (`-r`) is mandatory for directories and does not enable
+recursive deletion. Existing destination directories receive the source basename; otherwise the
+destination is the exact new path. Parent directories must exist. Paths are literal: no glob or
+`~` expansion. The explicit direction/path arguments avoid ambiguity with Windows drive letters.
+
+Existing destinations fail unless `--overwrite` is set. SFTP rename replacement requires the POSIX
+rename extension; unsupported servers return an error without deleting the target. `rm` rejects a
+directory observed during validation; `rmdir` accepts only an empty directory. No recursive removal
+command is provided. CLI listing rows contain mode, size, RFC3339 modification time, and a quoted name.
+
+`--timeout` bounds network setup, excluding interactive input. `--operation-timeout` bounds the
+entire operation including prompts; zero (default) leaves it unbounded. Ctrl+C cancels, closes the
+file connection, and restores any active prompt. Cancellation or errors can leave partial files.
+SCP's remote no-overwrite guard is not atomic against concurrent remote writers. See the
+[file-transfer workflow](../getting-started/file-transfer.md#sftp-and-scp-over-ssh) for containment,
+symlink, metadata, and interrupted-transfer limits.
+
+No shared Session, MCP listener, discovery record, or stored profile is created. A concurrent
+terminal Session remains independent, and these operations are not exposed as new MCP tools.
 
 ## `connect`
 

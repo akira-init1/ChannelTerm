@@ -57,7 +57,8 @@ The core service boundary contains:
 - `transport/serial`: opens serial-backed Channels and enumerates local serial endpoints.
 
 The concrete SSH implementation lives in `internal/transport/ssh`, outside `internal/core`.
-It owns key/trust-file parsing, verified trust persistence, authentication, and PTY interactive shell Channels. Application
+It owns key/trust-file parsing, verified trust persistence, authentication, PTY interactive shell
+Channels, and dedicated SFTP/SCP file clients. Application
 composes it through plain configuration and the Core Transport contract; `golang.org/x/crypto/ssh`
 types remain private to the implementation. Context-aware callbacks carry password input and explicit
 unknown-host approval from adapters; Core never performs CLI or GUI interaction. Established I/O crosses only the existing Channel
@@ -93,7 +94,7 @@ multiplexer or a persistent event log.
 ## Future direction
 
 The Channel boundary permits future debug/JTAG or remote-network streams without adding protocol
-assumptions to Session. SSH exec/SFTP, Telnet, OpenOCD, and a dedicated file Transport/Channel remain
+assumptions to Session. Arbitrary SSH exec, Telnet, OpenOCD, and a dedicated file Transport/Channel remain
 architectural directions, not current features or commitments. The current CLI file transfer is an
 application-layer Linux shell protocol carried over an existing serial Session; it is not another
 Transport.

@@ -133,6 +133,9 @@ func runWithDependenciesWithInterrupts(ctx context.Context, args []string, input
 	if len(args) > 0 && args[0] == "ssh" {
 		return runSSH(ctx, args[1:], input, output, interrupts)
 	}
+	if len(args) > 0 && (args[0] == "sftp" || args[0] == "scp") {
+		return runSSHFiles(ctx, args[0], args[1:], input, output, app.RunSSHFiles)
+	}
 	if len(args) > 0 && args[0] == "connect" {
 		return runApplicationConnect(ctx, args[1:], input, output, newSession)
 	}
@@ -179,6 +182,8 @@ func runWithDependenciesWithInterrupts(ctx context.Context, args []string, input
 		fmt.Fprintln(output, "  mcp     Start the Session Host MCP server")
 		fmt.Fprintln(output, "  serial  Connect to a serial port")
 		fmt.Fprintln(output, "  ssh     Open and share an SSH interactive shell")
+		fmt.Fprintln(output, "  sftp    Transfer files and manage remote files over SFTP")
+		fmt.Fprintln(output, "  scp     Transfer files using the legacy SCP protocol")
 		fmt.Fprintln(output, "  uninstall Remove the current-user ChannelTerm installation")
 		fmt.Fprintln(output, "  version Show the version")
 		fmt.Fprintln(output)

@@ -138,6 +138,20 @@ closing a secondary attachment only detaches that client. The default sharing li
 `127.0.0.1:37099`; an occupied listener fails before connecting to SSH. `--listen` can select a
 separate loopback Host. SSH does not add discovery, saved profiles, or MCP opening tools.
 
+Dedicated file operations follow a separate path:
+
+```text
+CLI sftp/scp -> app.RunSSHFiles -> SSH Transport.OpenFiles
+  -> authenticated dedicated connection -> SFTP subsystem or legacy SCP exec
+  -> application-owned local files / remote file operations -> connection close
+```
+
+These operations do not create a terminal Session, require a PTY, open a local MCP listener, acquire
+a Session write lease, or insert file bytes into terminal history. Authentication callbacks and host
+trust are shared with the terminal connection implementation. The operation context remains active
+throughout file I/O; cancelling it closes only that file connection. A future GUI can use the same
+application use case without a terminal attachment.
+
 The size-control path is separate from shared terminal bytes:
 
 ```text

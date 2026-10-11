@@ -121,6 +121,11 @@ func startTestServer(t *testing.T, behavior string) *testServer {
 					for req := range requests {
 						s.requests <- req
 						s.seen <- req.Type
+						if strings.HasPrefix(behavior, "scp-") && req.Type == "exec" {
+							_ = req.Reply(true, nil)
+							runSCPFixture(t, ch, behavior)
+							return
+						}
 						if behavior == "stall-"+req.Type {
 							_ = server.Wait()
 							return

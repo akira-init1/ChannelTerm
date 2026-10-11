@@ -148,6 +148,22 @@ func (t *Transport) Endpoint() string {
 // After success, ctx no longer controls the Channel: only Channel.Close owns
 // its lifetime. Concurrent Connect calls require concurrency-safe callbacks.
 func (t *Transport) Connect(ctx context.Context) (_ channel.Channel, err error) {
+	var stream channel.Channel
+	_, err = t.open(ctx, func(client *gossh.Client) error {
+		stream, err = openShell(client, t.config)
+		return err
+	})
+	if err != nil && stream != nil {
+		_ = stream.Close()
+		stream = nil
+	}
+	return stream, err
+}
+
+// open keeps authentication and bounded setup common to PTY and file clients.
+// start must release its own non-socket resources on failure. The successful
+// caller owns the client and decides whether ctx also bounds its live lifetime.
+func (t *Transport) open(ctx context.Context, start func(*gossh.Client) error) (_ *gossh.Client, err error) {
 	budget := newSetupBudget(ctx, t.config.Timeout)
 	defer budget.cancel(nil)
 	defer budget.pause()
@@ -225,6 +241,20 @@ func (t *Transport) Connect(ctx context.Context) (_ channel.Channel, err error) 
 		return nil, fmt.Errorf("SSH handshake: %w", err)
 	}
 	client := gossh.NewClient(sshConn, channels, requests)
+	if err := start(client); err != nil {
+		return nil, err
+	}
+	if !stop() {
+		<-cancelDone
+	}
+	stopped = true
+	if setup.Err() != nil {
+		return nil, context.Cause(setup)
+	}
+	return client, nil
+}
+
+func openShell(client *gossh.Client, config Config) (_ channel.Channel, err error) {
 	shell, err := client.NewSession()
 	if err != nil {
 		return nil, fmt.Errorf("open SSH shell channel: %w", err)
@@ -241,7 +271,7 @@ func (t *Transport) Connect(ctx context.Context) (_ channel.Channel, err error) 
 			_ = writer.Close()
 		}
 	}()
-	if err := shell.RequestPty(t.config.Term, t.config.Rows, t.config.Columns, gossh.TerminalModes{
+	if err := shell.RequestPty(config.Term, config.Rows, config.Columns, gossh.TerminalModes{
 		gossh.ECHO: 1, gossh.TTY_OP_ISPEED: 38400, gossh.TTY_OP_OSPEED: 38400,
 	}); err != nil {
 		return nil, fmt.Errorf("request SSH PTY: %w", err)
@@ -254,14 +284,6 @@ func (t *Transport) Connect(ctx context.Context) (_ channel.Channel, err error) 
 		defer close(stream.done)
 		_ = writer.CloseWithError(shell.Wait())
 	}()
-	if !stop() {
-		<-cancelDone
-	}
-	stopped = true
-	if err := setup.Err(); err != nil {
-		_ = stream.Close()
-		return nil, err
-	}
 	base, err := channel.NewStream(stream)
 	if err != nil {
 		_ = stream.Close()

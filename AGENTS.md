@@ -42,7 +42,7 @@ This file records stable ownership boundaries, not a duplicate source tree. The 
 | `internal/core/connectionpolicy/` | Connection and Session-reuse policy decisions |
 | `internal/core/tool/` | Protocol-neutral tool contracts and registry |
 | `internal/core/transport/` | Transport contract and the existing Serial implementation |
-| `internal/transport/ssh/` | Concrete SSH connection setup and backend-private stream adaptation |
+| `internal/transport/ssh/` | Concrete SSH connection setup, backend-private stream adaptation, and dedicated SFTP/SCP clients |
 | `internal/mcp/` | MCP hosting, schemas, and translation to application use cases |
 | `scripts/` | Build and repository automation |
 | `docs/` | Public, durable technical documentation |
@@ -88,7 +88,7 @@ Place code according to architectural responsibility, not according to the featu
 | Protocol-neutral tool abstraction         | `internal/core/tool/`             | MCP-specific schemas                                 |
 | Transport interface                       | `internal/core/transport/`        | terminal history, UI logic                           |
 | Serial implementation/discovery           | `internal/core/transport/serial/` | Session history, CLI presentation                    |
-| SSH authentication, PTY, and shell setup    | `internal/transport/ssh/`    | Session history, CLI presentation                    |
+| SSH authentication, PTY/shell setup, and SFTP/SCP protocol operations | `internal/transport/ssh/` | Session history, CLI presentation |
 | MCP server/transport hosting              | `internal/mcp/`                   | core business rules                                  |
 | MCP terminal tool schema/translation      | `internal/mcp/terminal/`          | independent Session/Transport implementation         |
 | Build/release helper scripts              | `scripts/`                        | product behavior                                     |

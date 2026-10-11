@@ -136,7 +136,32 @@ The CLI's owner-only control policy is described in the [SSH workflow](../gettin
 Each Connect can establish an independent Channel. Sharing and reuse instead happen in
 `Application.OpenSSH`, keyed by exact username, host, and port. This release does not implement
 encrypted private keys, ssh-agent, ssh_config, keyboard-interactive authentication, jump
-hosts, SSH exec, or SFTP.
+hosts, or arbitrary SSH exec.
+
+### Dedicated file clients
+
+`OpenFiles(ctx, "sftp"|"scp")` reuses the same private authenticated setup as `Connect`, then returns
+an owned `Files` client instead of a terminal Channel. SFTP requests the `sftp` subsystem with no PTY.
+SCP opens a non-PTY exec channel for a fixed, quoted `scp -t` or `scp -f` invocation on a POSIX server.
+It is the legacy SCP wire protocol, not a wrapper around the local OpenSSH executable. Neither path
+requires a local `ssh`, `scp`, or `sftp` executable; the client build remains `CGO_ENABLED=0` portable.
+
+Unlike a terminal Channel, the file client's opening context owns its complete lifetime. Cancelling
+it closes the dedicated SSH connection to interrupt subsystem negotiation, reads, writes, or waits.
+`Close` is idempotent and may run concurrently with I/O; other operations are caller-serialized.
+SFTP protocol types remain private. The exported surface uses file metadata, streams, filesystem
+sources, and validated transfer entries. Application owns actual local destination creation.
+
+SCP control records are limited to 4096 bytes; malformed mode/size, traversal or unexpected root names,
+duplicate paths, unsupported records, excessive depth, and truncated payloads abort the connection.
+Remote paths are single-quoted, with no glob or tilde expansion. A no-overwrite upload adds a remote
+existence check; the legacy protocol cannot make that check atomic against concurrent remote writers.
+Prefer SFTP for stronger exclusive file-creation behavior. A server's normal channel EOF after the
+last download acknowledgement is accepted only when framing completed and the SSH exit status succeeds.
+
+SFTP rename replacement requires the server's POSIX rename extension. There is no destructive
+delete-then-rename fallback. SFTP create-without-overwrite uses exclusive creation. Filesystem
+preflight checks do not constitute locking against unrelated local or remote writers.
 
 ## Current implementation boundary
 
@@ -144,5 +169,6 @@ Serial and SSH PTY shells are the concrete Transports. There is no dedicated fil
 Transport, debug/JTAG Transport, local PTY Transport, Android implementation, or iOS implementation.
 
 Future Transport directions and the distinction between current and planned behavior are recorded in
-the [Architecture Overview](../architecture/overview.md). The current CLI file transfer remains an
-Application-layer protocol over an existing serial Session; it is not another Transport.
+the [Architecture Overview](../architecture/overview.md). The `file send/receive` workflow remains an
+Application-layer protocol over an existing Session. Dedicated `sftp/scp` operations use the SSH
+backend's file client; neither workflow adds a generic file Transport or terminal Channel.

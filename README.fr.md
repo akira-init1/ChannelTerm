@@ -25,6 +25,22 @@ voyez ses actions, saisissez directement des commandes et intervenez si nécessa
 
 ChannelTerm prend en charge la communication série et les shells SSH avec PTY sous Windows, Linux et macOS. Il n’intègre pas d’IA ; il expose de vraies Sessions de terminal aux utilisateurs et aux clients IA externes via MCP.
 
+## Fichiers via SSH
+
+Utilisez SFTP pour transférer et gérer les fichiers distants, ou SCP classique avec les serveurs POSIX compatibles :
+
+```bash
+channelterm sftp user@192.168.1.50 ls /tmp
+channelterm sftp user@192.168.1.50 put ./firmware.bin /tmp/firmware.bin
+channelterm sftp user@192.168.1.50 get /tmp/log.txt ./log.txt
+channelterm scp user@192.168.1.50 put ./release /tmp/release --recursive
+```
+
+Ces commandes réutilisent l'authentification par clé/mot de passe et la vérification des hôtes SSH,
+sur une connexion indépendante des Sessions de terminal. Le remplacement de fichiers nécessite
+`--overwrite`. Voir [transfert de fichiers](docs/getting-started/file-transfer.md#sftp-and-scp-over-ssh)
+pour les règles des répertoires, l'annulation et les limites.
+
 ## Shell SSH partagé
 
 Connectez-vous avec une clé privée autorisée non chiffrée ou saisissez votre mot de passe à la demande

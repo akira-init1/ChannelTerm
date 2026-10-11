@@ -25,6 +25,21 @@ ChannelTerm은 사람과 AI가 하나의 하드웨어 터미널 Session을 공�
 
 ChannelTerm은 Windows, Linux, macOS에서 시리얼 통신과 SSH PTY 셸을 지원합니다. AI를 내장하지 않으며, MCP를 통해 실제 터미널 Session을 사용자와 외부 AI 클라이언트에 제공합니다.
 
+## SSH 파일 전송
+
+SFTP로 파일을 전송하고 원격 파일을 관리할 수 있으며, 호환되는 POSIX 서버에서는 기존 SCP도 사용할 수 있습니다.
+
+```bash
+channelterm sftp user@192.168.1.50 ls /tmp
+channelterm sftp user@192.168.1.50 put ./firmware.bin /tmp/firmware.bin
+channelterm sftp user@192.168.1.50 get /tmp/log.txt ./log.txt
+channelterm scp user@192.168.1.50 put ./release /tmp/release --recursive
+```
+
+SSH와 동일한 키/비밀번호 인증 및 호스트 검증을 사용하며, 터미널 Session과 독립된 연결로 동작합니다.
+기존 파일을 덮어쓰려면 `--overwrite`가 필요합니다. 디렉터리 처리, 취소 동작과 제한은
+[파일 전송](docs/getting-started/file-transfer.md#sftp-and-scp-over-ssh)을 참조하세요.
+
 ## SSH 셸 공유
 
 인증이 허용된 암호화되지 않은 개인 키를 사용하거나 요청 시 비밀번호를 입력하세요(저장되지 않습니다).

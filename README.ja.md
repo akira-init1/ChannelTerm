@@ -25,6 +25,21 @@ AI が端末を置き換えるのではありません。AI がデバイスを�
 
 ChannelTerm は Windows、Linux、macOS でシリアル通信と SSH PTY シェルをサポートします。AI は内蔵せず、実際の端末 Session を人間と外部 AI クライアントに MCP 経由で提供します。
 
+## SSH 経由のファイル転送
+
+SFTP でファイル転送とリモートファイル管理を行えます。対応する POSIX サーバーでは従来の SCP も使用できます。
+
+```bash
+channelterm sftp user@192.168.1.50 ls /tmp
+channelterm sftp user@192.168.1.50 put ./firmware.bin /tmp/firmware.bin
+channelterm sftp user@192.168.1.50 get /tmp/log.txt ./log.txt
+channelterm scp user@192.168.1.50 put ./release /tmp/release --recursive
+```
+
+SSH と同じ鍵・パスワード認証とホスト検証を使い、端末 Session とは独立した接続で動作します。
+既存ファイルの上書きには `--overwrite` が必要です。ディレクトリの扱い、キャンセル、制限は
+[ファイル転送](docs/getting-started/file-transfer.md#sftp-and-scp-over-ssh)を参照してください。
+
 ## SSH シェルの共有
 
 認証を許可された暗号化されていない秘密鍵を使用するか、要求されたらパスワードを入力します（保存されません）。

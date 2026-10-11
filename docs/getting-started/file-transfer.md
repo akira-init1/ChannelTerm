@@ -1,4 +1,7 @@
-# File Transfer over a Serial Session
+# File Transfer
+
+This guide covers the existing shared-terminal transfer workflow below and
+[dedicated SFTP/SCP connections](#sftp-and-scp-over-ssh).
 
 ChannelTerm can stream a regular file or a directory through an existing shared Session without an
 AI client or a separately installed board-side transfer program. The board side remains an ordinary
@@ -200,3 +203,64 @@ it is not a canonical content hash that remains stable across separate tar creat
 The current implementation does not provide resume, compression, zip, incremental synchronization,
 sparse-file preservation, permissions/ownership preservation, symlink or hard-link handling,
 per-chunk checksums, coordination with writers that bypass the Host, or non-Linux shell support.
+
+## SFTP and SCP over SSH
+
+Use these commands for a server with an SFTP subsystem or a POSIX shell and legacy `scp` executable.
+The client runs on Windows, Linux, and macOS without requiring local OpenSSH programs. Each command
+authenticates a separate connection with the same password/key and host-trust rules as
+[SSH terminal login](ssh-terminal.md#prerequisites). No shared terminal Session is needed.
+
+```powershell
+channelterm sftp user@192.168.1.50 ls /tmp
+channelterm sftp user@192.168.1.50 mkdir /tmp/my-transfer
+channelterm sftp user@192.168.1.50 put .\firmware.bin /tmp/my-transfer/firmware.bin
+channelterm sftp user@192.168.1.50 get /tmp/my-transfer/firmware.bin .\download.bin
+channelterm sftp user@192.168.1.50 stat /tmp/my-transfer/firmware.bin
+channelterm sftp user@192.168.1.50 rename /tmp/my-transfer/firmware.bin /tmp/my-transfer/old.bin
+channelterm sftp user@192.168.1.50 rm /tmp/my-transfer/old.bin
+channelterm sftp user@192.168.1.50 rmdir /tmp/my-transfer
+```
+
+Replace the user and address with your actual server. `ls` defaults to `.` when no path is supplied.
+Paths containing spaces must be quoted. Relative remote paths use the server's starting directory;
+there is no wildcard or tilde expansion. Missing parent directories are not created automatically.
+
+For directories, explicitly add `--recursive` (`-r`). Legacy SCP has the same put/get command shape:
+
+```powershell
+channelterm sftp user@192.168.1.50 put .\release /tmp/release --recursive
+channelterm scp user@192.168.1.50 get /tmp/release .\received-release --recursive
+```
+
+If the destination already names a directory, the source basename is appended. Existing files or
+tree entries are rejected by default; choose `--overwrite` to replace files or merge directories.
+SCP is explicitly the legacy wire protocol, whereas current OpenSSH `scp` normally uses SFTP.
+Use SFTP unless the server requires legacy SCP. SCP's remote existence guard is not atomic against
+unrelated writers. SFTP has exclusive file creation, but preflight type checks still do not lock
+the filesystem against other processes. Avoid concurrent changes to source/destination trees.
+
+Ctrl+C cancels the file connection without closing any independently running terminal Session.
+`--operation-timeout 2m` provides an overall deadline, including authentication prompts. The ordinary
+`--timeout` applies only to setup, excluding prompt wait time. Interrupted or failed transfers can
+leave partial files and directories; with overwrite enabled a previous file can be truncated.
+Inspect the target before retrying. There is no resume, rollback, automatic reconnect, or atomic
+tree replacement. SSH protects transport integrity; these commands do not compute a separate
+end-to-end file digest or promise remote disk durability.
+
+Only regular files and directories are uploaded. SFTP downloads reject symlinks and special entries.
+Legacy SCP may follow remote symlinks according to the server's scp behavior; received names still
+undergo local containment checks. Downloads reject traversal, unsafe Windows aliases, case-insensitive
+duplicates, more than 100,000 entries, and nesting beyond 128 components. Local files/directories
+are created with 0600/0700 modes subject to the operating system. Ownership, timestamps, ACLs,
+sparse-file layout, and full permission preservation are not transfer contracts.
+
+For acceptance testing, use a new disposable directory: round-trip binary and empty files, names
+with spaces/Unicode, and a nested tree; compare hashes of the local source and download. Verify
+that existing-target writes fail without overwrite, missing sources fail, nonempty `rmdir` fails,
+and Ctrl+C interrupts an active operation. Record the client version, protocol, exact error, and
+whether authentication or transfer failed; never record passwords or private-key contents.
+
+These commands do not add MCP tools or persistent connection profiles. Future GUI adapters can use
+the same application operation and authentication callbacks. rsync, FTP/FTPS, an interactive SFTP
+REPL, and remote-to-remote copies are not implemented.

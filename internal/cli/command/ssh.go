@@ -8,7 +8,6 @@ import (
 	"io"
 	"net"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -45,7 +44,8 @@ func runSSH(ctx context.Context, args []string, input io.Reader, output io.Write
 		fmt.Fprintln(output, "The foreground SSH command owns the Host; Ctrl+] q closes it and its Sessions.")
 		fmt.Fprintln(output, "Unknown host keys require confirmation before saving to known_hosts; changed keys are rejected.")
 		fmt.Fprintln(output, "Interactive terminals can enter a password (not saved). Encrypted keys, ssh-agent,")
-		fmt.Fprintln(output, "ssh_config, keyboard-interactive authentication, SSH exec, and SFTP are not supported.")
+		fmt.Fprintln(output, "ssh_config, keyboard-interactive authentication, and arbitrary SSH exec are not supported.")
+		fmt.Fprintln(output, "Use the sftp or scp command for dedicated SSH file operations.")
 		fmt.Fprintln(output, "The owning terminal controls PTY resizing; secondary attachments do not resize it.")
 		flags.PrintDefaults()
 	}
@@ -76,24 +76,6 @@ func runSSH(ctx context.Context, args []string, input io.Reader, output io.Write
 	if splitErr != nil || net.ParseIP(bindHost) == nil || !net.ParseIP(bindHost).IsLoopback() {
 		return errors.New("SSH sharing --listen must be a loopback IP and port, for example 127.0.0.1:37099")
 	}
-	if *identity == "" || *hosts == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return fmt.Errorf("resolve SSH configuration directory: %w", err)
-		}
-		if *identity == "" {
-			for _, name := range []string{"id_ed25519", "id_rsa"} {
-				candidate := filepath.Join(home, ".ssh", name)
-				if _, err := os.Stat(candidate); !errors.Is(err, os.ErrNotExist) {
-					*identity = candidate
-					break
-				}
-			}
-		}
-		if *hosts == "" {
-			*hosts = filepath.Join(home, ".ssh", "known_hosts")
-		}
-	}
 	// Prefer the displayed terminal, then the input terminal when output is
 	// redirected. Pipes and buffers retain explicit dimensions or defaults.
 	var terminal *os.File
@@ -115,12 +97,8 @@ func runSSH(ctx context.Context, args []string, input io.Reader, output io.Write
 		User: user, Host: host, Port: *port, PrivateKeyPath: *identity, KnownHostsPath: *hosts,
 		Term: *terminalType, Columns: *columns, Rows: *rows, Timeout: *timeout,
 	}
-	if file, ok := input.(*os.File); ok && term.IsTerminal(int(file.Fd())) {
-		interaction := sshInteraction{input: file, output: output, destination: user + "@" + host}
-		configuration.Password = interaction.password
-		configuration.ConfirmHostKey = interaction.confirmHostKey
-	} else if *identity == "" {
-		return errors.New("no default SSH private key found; password login requires a terminal on stdin, or specify --identity PATH")
+	if err := configureSSHAuthentication(&configuration, input, output); err != nil {
+		return err
 	}
 	if _, err := sshtransport.New(configuration); err != nil {
 		return err

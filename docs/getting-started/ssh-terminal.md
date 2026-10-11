@@ -1,8 +1,9 @@
 # SSH Terminal
 
 SSH opens one interactive PTY shell and shares its ChannelTerm Session through the existing local
-HTTP Host. The foreground `ssh` command owns that Host. This workflow does not add SSH exec,
-SFTP, or a different file-transfer implementation.
+HTTP Host. The foreground `ssh` command owns that Host. For dedicated SFTP or legacy SCP operations,
+use the [file-transfer workflow](file-transfer.md#sftp-and-scp-over-ssh); those connections do not share
+the terminal Session or insert protocol bytes into its history. Arbitrary SSH exec is not exposed.
 
 ## Prerequisites
 

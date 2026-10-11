@@ -120,6 +120,9 @@ GitHub Release workflow described above.
   prove OpenSSH interoperability. The separate opt-in local suite below runs actual OpenSSH
   and Linux PTYs and requires runtime dimension synchronization and full-screen redraw.
 - `go vet` performs static analysis; it is not a runtime test.
+- SFTP tests exchange real protocol packets with an in-memory filesystem over an ephemeral-key
+  loopback SSH server. SCP tests cover framing, binary payloads, normal peer EOF, cancellation,
+  and hostile record/path rejection. These are separate from real OpenSSH/server validation.
 - A cross-build confirms compilation only.
 - Native console raw-mode behavior must be checked on the target OS.
 - Serial behavior must be checked with a real device and its known settings.

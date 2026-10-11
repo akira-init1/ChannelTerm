@@ -17,6 +17,9 @@ successfully connected Sessions into Manager ownership.
   optionally write one wake carriage return, and return Manager-owned metadata.
 - `OpenSSH`: validate explicit SSH settings, connect or reuse a PTY shell Session, and return
   Manager-owned metadata without reading or writing connection profiles.
+- `RunSSHFiles`: run SFTP management or SFTP/SCP copying on a dedicated connection without a
+  Manager or shared Session. Own local file handles, recursive traversal, overwrite decisions,
+  cancellation, progress callbacks, and structured results for adapters.
 - `ListSessions`, `ReadSession`, `ReadSessionActivity`, `ReadSessionEvents`, `AttachSession`,
   `DetachSession`, `WriteSession`, `ResizeSession`, `ExecuteTerminalCommand`, `AcquireLease`, `RenewLease`,
   `ReleaseLease`, `LeaseStatus`, `BeginFileTransferCancel`, `ResolveFileTransferCancel`,
@@ -81,6 +84,29 @@ references from the existing Manager. There are no changes to Session or generic
 ownership. See the [SSH workflow](../getting-started/ssh-terminal.md) for CLI Host lifetime.
 
 ## Read and write behavior
+
+### Dedicated SSH file operations
+
+`RunSSHFiles` validates requests and preflights upload trees before connecting. Only regular files
+and directories are uploaded; source symlinks and special files fail. Directory copies require
+`Recursive`. An existing destination directory receives the source basename. Missing destination
+parents are not implicitly created. `Overwrite` is false by default; replacing a same-type regular
+file or merging a directory tree requires explicit opt-in. This is not transactional: cancellation,
+disk-full errors, or disconnects may leave partial files and directories, including a truncated
+previous file when overwrite was selected. No automatic retry/reconnect or rollback is performed.
+
+Downloads use `os.Root` to confine remote-selected descendants within the caller-selected local
+destination parent. Remote names cannot contain separators, drive/stream syntax, control characters,
+Windows device aliases, or trailing spaces/dots. Duplicate names (case-insensitive for portability),
+more than 100,000 entries, or depth beyond 128 fail. Existing local symlinks and type changes are
+rejected. SFTP does not follow remote source symlinks; legacy SCP cannot identify server-side symlink
+expansion, but its received entries are still confined and validated. Local creation modes are
+0600 for files and 0700 for directories, subject to OS semantics; metadata preservation is not promised.
+
+Progress counts per-file bytes accepted by the stream, not durable remote storage. `Files`/`Bytes`
+results count copied files and payload bytes; failures return an error and may include partial counts.
+The file client is always closed. No Session events, cursors, MCP schemas, or writer leases change.
+See [file transfer](../getting-started/file-transfer.md#sftp-and-scp-over-ssh) for user-visible limits.
 
 `WriteSession` and `WriteSessionWithLease` reject a payload larger than 1 MiB before Session lookup
 or lease acquisition. This application-layer limit applies to decoded bytes regardless of the

@@ -24,6 +24,22 @@ AI does not replace your terminal. It joins it: the AI can read and operate the 
 
 ChannelTerm currently implements serial communication and SSH PTY shells on Windows, Linux, and macOS. It is not a built-in AI; it exposes real terminal Sessions to human CLI clients and external AI clients through MCP.
 
+## Files over SSH
+
+Use SFTP for file transfer and remote file management, or legacy SCP for compatible POSIX servers:
+
+```bash
+channelterm sftp user@192.168.1.50 ls /tmp
+channelterm sftp user@192.168.1.50 put ./firmware.bin /tmp/firmware.bin
+channelterm sftp user@192.168.1.50 get /tmp/log.txt ./log.txt
+channelterm scp user@192.168.1.50 put ./release /tmp/release --recursive
+```
+
+These commands use the same key/password authentication and host verification as SSH, with a
+dedicated connection independent of terminal Sessions. Replacing existing files requires
+`--overwrite`. See [file transfer](docs/getting-started/file-transfer.md#sftp-and-scp-over-ssh)
+for directory semantics, cancellation, and protocol limits.
+
 ## Shared SSH shell
 
 Connect using an authorized unencrypted private key or enter your password when prompted (it is not
@@ -363,7 +379,7 @@ For exact command flags and defaults, the running program's `--help` output is a
 
 ## Roadmap
 
-Serial and SSH PTY shells are implemented Transports. SSH exec/SFTP, Telnet, and stronger multi-writer coordination remain future directions rather than implemented features or release commitments.
+Serial and SSH PTY shells are implemented Transports; dedicated SFTP and legacy SCP file clients are also available. Arbitrary SSH exec, Telnet, and stronger multi-writer coordination remain future directions rather than implemented features or release commitments.
 
 ChannelTerm does not currently implement GDB, JTAG/OpenOCD, virtual serial devices, a built-in AI, or multi-agent orchestration. File transfer is intentionally a small Linux-shell protocol rather than a general transfer agent.
 

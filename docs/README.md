@@ -23,7 +23,7 @@ for command-line flags and defaults, the running program's `--help` output remai
 - [Use and share an SSH shell](getting-started/ssh-terminal.md)
 - [Create and use serial profiles](getting-started/serial-profiles.md)
 - [Share a Session](getting-started/shared-session.md)
-- [Transfer files over a serial Session](getting-started/file-transfer.md)
+- [Transfer files over a shared Session or SFTP/SCP](getting-started/file-transfer.md)
 - [Run the MCP server](getting-started/mcp-server.md)
 - [Troubleshoot common failures](getting-started/troubleshooting.md)
 

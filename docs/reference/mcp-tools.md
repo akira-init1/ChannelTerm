@@ -94,6 +94,9 @@ The CLI `ssh` command can host SSH Sessions accessible through the existing gene
 tools, including `SSH-N` references. There is no MCP tool for opening SSH connections. Labels and
 `device_id` values are not Session addresses.
 
+Dedicated `sftp`/`scp` CLI operations do not create terminal Sessions and are not new MCP tools.
+They use independent authenticated file connections rather than `terminal_write` protocol bytes.
+
 ## `terminal_list_serial_ports`
 
 Purpose: enumerate serial endpoints currently reported by the operating system without opening them.
