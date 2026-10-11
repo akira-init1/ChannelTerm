@@ -28,6 +28,10 @@ import (
 // sshCommandServer supplies one real SSH handshake with an in-memory shell.
 // No test invokes a system shell, requires sshd, or uses personal credentials.
 func sshCommandServer(t *testing.T) (args []string, closed <-chan struct{}) {
+	return sshCommandServerWithPassword(t, false)
+}
+
+func sshCommandServerWithPassword(t *testing.T, password bool) (args []string, closed <-chan struct{}) {
 	t.Helper()
 	_, privateKey, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
@@ -61,6 +65,14 @@ func sshCommandServer(t *testing.T) (args []string, closed <-chan struct{}) {
 		return nil, nil
 	}}
 	serverConfig.AddHostKey(signer)
+	if password {
+		serverConfig.PasswordCallback = func(meta gossh.ConnMetadata, value []byte) (*gossh.Permissions, error) {
+			if meta.User() == "test-user" && string(value) == "fixture-password" {
+				return nil, nil
+			}
+			return nil, errors.New("test password rejected")
+		}
+	}
 	serverCtx, stop := context.WithCancel(context.Background())
 	go func() {
 		defer close(done)

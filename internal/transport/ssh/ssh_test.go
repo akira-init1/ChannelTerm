@@ -56,6 +56,15 @@ func startTestServer(t *testing.T, behavior string) *testServer {
 		return nil, nil
 	}}
 	serverConfig.AddHostKey(hostKey)
+	if behavior == "password" {
+		serverConfig.RekeyThreshold = 1024
+		serverConfig.PasswordCallback = func(meta gossh.ConnMetadata, password []byte) (*gossh.Permissions, error) {
+			if meta.User() != "test-user" || string(password) != "fixture-password" {
+				return nil, errors.New("test password rejected")
+			}
+			return nil, nil
+		}
+	}
 	var workers sync.WaitGroup
 	var mu sync.Mutex
 	var connections []net.Conn

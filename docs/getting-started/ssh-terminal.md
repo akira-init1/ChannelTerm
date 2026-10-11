@@ -7,15 +7,25 @@ SFTP, or a different file-transfer implementation.
 ## Prerequisites
 
 Use a running SSH server on Linux, WSL2, or another SSH-capable host, its actual reachable address
-and SSH port, a valid username, and an authorized unencrypted private key. ChannelTerm defaults to
-`~/.ssh/id_ed25519` and falls back to `~/.ssh/id_rsa` if the first file is missing. It does not use
-ssh-agent, encrypted keys, passwords, or `~/.ssh/config`.
+and SSH port, a valid username, and either a login password or an authorized unencrypted private
+key. ChannelTerm tries `~/.ssh/id_ed25519`, then `~/.ssh/id_rsa` if the first file is missing.
+When neither exists, it can prompt for a password. If a key is rejected and the server offers
+password authentication, it also prompts. Passwords are not echoed or saved. Existing invalid or
+encrypted keys still produce an error. It does not use ssh-agent, encrypted keys, keyboard-interactive
+authentication, or `~/.ssh/config`.
 
-Verify the server's host-key fingerprint through a trusted source and establish the corresponding
-entry in `~/.ssh/known_hosts`, for example by connecting once with OpenSSH after verifying its
-fingerprint. Never trust the result of a network scan alone. Unknown or changed keys are rejected.
+On first connection, verify the displayed server fingerprint through a trusted source, then enter
+`yes` to save its public key in `~/.ssh/known_hosts`. This is server identity, not a saved password
+or generated client private key. Windows uses the user's `.ssh` directory just like Linux/macOS.
+Existing OpenSSH trust records work without another prompt. Changed or revoked keys are rejected;
+they are never automatically replaced. Never trust the result of a network scan alone.
 Use `--known-hosts PATH` for a separate trust database; nondefault ports use OpenSSH's
 `[host]:port` entry form. No host-key verification bypass is provided.
+
+Prompts require a real terminal on stdin. Piped/scripted connections require an authorized key
+and an already-trusted server. Cancel a prompt with Ctrl+C, Ctrl+D, or Ctrl+Z. The original console
+mode is restored on success and failure. Authentication allows up to three password attempts,
+subject to the server's own limits. Connection profiles and remembered passwords are not added.
 
 ## Open and share a shell
 
@@ -64,7 +74,8 @@ clip the shared full-screen output. See the [CLI reference](../reference/cli.md#
 size validation and shutdown behavior.
 
 The default setup timeout is ten seconds; `--timeout 30s` covers dialing, authentication, PTY,
-and shell requests only.
+and shell network requests only. Time answering trust/password prompts does not consume this
+budget. Cancellation remains active while waiting for input.
 
 ## Host lifetime and other listeners
 

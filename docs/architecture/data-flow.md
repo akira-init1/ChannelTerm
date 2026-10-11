@@ -128,7 +128,10 @@ existing Session reader / buffers / cursors / serialized writes
 ```
 
 Key parsing, host-key verification, and all SSH-library objects stay inside SSH Transport;
-Application and CLI exchange ordinary settings and paths. Channel and Session remain library-neutral.
+Application and CLI exchange ordinary settings, paths, and context-aware interaction callbacks.
+Transport verifies host identity and persists explicitly approved unknown keys; CLI handles fingerprint
+confirmation and hidden password entry through cancellable local-console adapters. A future GUI can
+provide those callbacks without terminal I/O. Channel and Session remain library-neutral.
 
 The foreground SSH command owns the Manager and Host. Exiting that command closes its Sessions;
 closing a secondary attachment only detaches that client. The default sharing listener is

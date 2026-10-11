@@ -69,7 +69,8 @@ ports create independent Sessions. Reuse preserves the first connection's creden
 and PTY dimensions; it does not authenticate again or resize the shell. No DNS alias or hostname
 case normalization is implied. Metadata contains no key, password, or signer.
 
-`OpenSSHRequest.Config` carries library-independent settings and credential file paths. Application
+`OpenSSHRequest.Config` carries library-independent settings, credential file paths, and optional
+context-aware password/unknown-host confirmation callbacks supplied by the adapter. Application
 asks the SSH Transport constructor to validate and load them; it does not construct or receive
 third-party SSH signers, clients, sessions, or callbacks. Generic Session I/O still sees only the
 existing Channel contract.

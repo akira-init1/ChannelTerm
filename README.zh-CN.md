@@ -26,7 +26,8 @@ ChannelTerm 支持 Windows、Linux 和 macOS 上的串口通信与 SSH PTY shell
 
 ## 共享 SSH shell
 
-准备已授权的未加密私钥，并在 `known_hosts` 中保存已核验的服务器主机密钥：
+使用已授权的未加密私钥，或按提示输入密码（不保存）。首次连接未知服务器时，核验显示的指纹后输入
+`yes`，将服务器公钥保存到 `~/.ssh/known_hosts`；已知服务器的密钥发生变化时拒绝连接。交互提示需要真实终端：
 
 ```bash
 # 终端 1：打开 shell，在远端提示符下运行 uname -a。

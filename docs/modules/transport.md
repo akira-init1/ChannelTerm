@@ -74,14 +74,28 @@ likely busy; Linux/macOS permission errors include access guidance.
 
 `internal/transport/ssh` keeps `golang.org/x/crypto/ssh` private to its implementation,
 just as Serial hides its driver. Its exported `Config` contains ordinary values: username, host,
-port, private-key and `known_hosts` paths, connection timeout, and PTY settings. Defaults are
+port, optional private-key and required `known_hosts` paths, connection timeout, PTY settings, and
+context-aware password/unknown-host confirmation callbacks. Defaults are
 port 22, a ten-second setup timeout, `xterm-256color`, and 80 columns by 24 rows.
 
-`New` validates settings, reads and parses the unencrypted private key, and loads the trusted
-host-key database without opening a network connection. Missing or malformed files fail before
-connection. The Transport retains a private snapshot; changed files require a new Transport.
-The CLI resolves default paths but does not parse SSH keys or construct SSH-library objects.
-Host verification is mandatory; callers cannot inject a callback that disables it.
+`New` validates settings, parses a selected unencrypted private key, and loads the trusted host-key
+database without networking. A key or password provider is required. A missing trust file is allowed
+only with a confirmation provider; malformed files and explicitly selected missing keys fail. The
+Transport retains a credential/trust snapshot; changed files require a new Transport.
+
+Transport always verifies the server before password authentication. It asks the adapter to confirm
+only an unknown key, passing a plain `HostKey` value containing address, algorithm, and SHA256
+fingerprint. Changed/revoked keys never reach confirmation. An approved unknown key is rechecked
+under a cancellable interprocess file lock and appended to the OpenSSH trust database before
+authentication continues. Persistence errors abort setup. Verified identity is pinned to the live
+connection for rekeying without prompts after setup. Adapters cannot replace key material or bypass
+verification. The CLI owns presentation; future GUI adapters can supply the same callbacks.
+
+Authentication tries a configured key before an optional password provider. Password authentication
+has at most three attempts. Callback-owned byte buffers transfer to Transport and are cleared after
+conversion to the backend's string API; Go/backend string copies cannot be guaranteed erased.
+Passwords are not persisted, logged, or added to Session metadata. Callbacks must honor their context
+and return promptly after cancellation. No keyboard-interactive provider is installed.
 
 Backend client, signer, SSH session, and host-key callback types never appear in exported
 configuration or method signatures. `Connect` returns only the existing `channel.Channel` contract.
@@ -90,7 +104,9 @@ SSH Transport implementation without changing their contracts.
 
 `Connect` owns TCP dialing, SSH authentication, opening a session channel, requesting a PTY,
 and requesting an interactive shell. The caller's context and configured timeout cover all these
-stages. Cancellation closes the socket to interrupt operations that lack context parameters.
+stages, except that the network-time budget pauses during interaction callbacks. The caller's
+cancellation/deadline is never paused. Callbacks run synchronously without detached prompt workers.
+Cancellation closes the socket to interrupt operations that lack context parameters.
 Every failure releases the socket and any output pipes. After a successful handoff, cancelling
 the setup context does not close the established Channel.
 
@@ -119,7 +135,7 @@ The CLI's owner-only control policy is described in the [SSH workflow](../gettin
 
 Each Connect can establish an independent Channel. Sharing and reuse instead happen in
 `Application.OpenSSH`, keyed by exact username, host, and port. This release does not implement
-password authentication, encrypted private keys, ssh-agent, ssh_config, jump
+encrypted private keys, ssh-agent, ssh_config, keyboard-interactive authentication, jump
 hosts, SSH exec, or SFTP.
 
 ## Current implementation boundary

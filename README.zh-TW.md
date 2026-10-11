@@ -26,7 +26,8 @@ ChannelTerm 支援 Windows、Linux 與 macOS 上的序列埠通訊與 SSH PTY sh
 
 ## 共用 SSH shell
 
-準備已授權的未加密私鑰，並在 `known_hosts` 中儲存已核驗的伺服器主機金鑰：
+使用已授權的未加密私鑰，或依提示輸入密碼（不儲存）。首次連線至未知伺服器時，核驗顯示的指紋後輸入
+`yes`，將伺服器公鑰儲存至 `~/.ssh/known_hosts`；已知伺服器的金鑰發生變更時拒絕連線。互動提示需要實際終端機：
 
 ```bash
 # 終端機 1：開啟 shell，在遠端提示符下執行 uname -a。

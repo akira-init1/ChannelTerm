@@ -131,6 +131,17 @@ verification based only on unit tests or cross-compilation.
 
 ## Local OpenSSH integration tests
 
+Ordinary package tests also verify password fallback/retry, explicit first-host trust persistence,
+rejected changed/revoked keys, cancellation, and concurrent trust writes using ephemeral credentials.
+On Linux, `go test ./internal/cli/command -run '^TestSSHInteractiveAuthentication$'` drives the real CLI
+through PTYs against a generated-key loopback server, including hidden password input and termios
+restoration. It does not require sshd. On Windows,
+`go test ./internal/cli/terminalinput -run '^TestPromptWindowsConsole$'`
+launches an isolated hidden console to check Unicode input, hidden
+passwords, cancellation, and console-mode restoration without altering the user's console.
+The opt-in real OpenSSH suite below remains key-authenticated; password-only remote-server acceptance
+and native macOS console interaction still need their own deployment validation.
+
 On Linux/WSL2, `bash scripts/test-ssh-local.sh` runs the real OpenSSH suite with race detection.
 It requires a non-root user, OpenSSH server (`sshd`) and `ssh-keygen`, Python 3, Vim, htop, and Go.
 Use `CHANNELTERM_TEST_SSHD=/absolute/path/to/sshd` and

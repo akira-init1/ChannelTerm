@@ -28,7 +28,10 @@ ChannelTerm admite comunicación serie y shells SSH con PTY en Windows, Linux y 
 
 ## Shell SSH compartida
 
-Con una clave privada autorizada sin cifrar y una entrada verificada del servidor en `known_hosts`:
+Conéctate con una clave privada autorizada sin cifrar o introduce tu contraseña cuando se solicite
+(no se guarda). Para un servidor desconocido, verifica la huella mostrada y escribe `yes` para
+guardar su clave pública en `~/.ssh/known_hosts`; las claves cambiadas se rechazan.
+Las solicitudes requieren un terminal interactivo:
 
 ```bash
 # Terminal 1: abrir la shell y ejecutar uname -a en ella.

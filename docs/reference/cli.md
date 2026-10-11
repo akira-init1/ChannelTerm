@@ -236,15 +236,28 @@ channelterm ssh user@host.example --identity /path/to/private-key --port 2222
 channelterm attach SSH-1
 ```
 
-Private-key authentication requires an unencrypted key and a trusted entry in `known_hosts`.
-The default identity is `~/.ssh/id_ed25519`, falling back to `~/.ssh/id_rsa` only when the first
-file is absent. The default trust file is `~/.ssh/known_hosts`. Unknown or changed keys fail;
-there is no automatic trust or insecure bypass. See `ssh --help` for explicit paths, SSH port,
+Authentication tries an unencrypted private key first, then prompts for a password if the server
+offers password authentication. The default identity is `~/.ssh/id_ed25519`, falling back to
+`~/.ssh/id_rsa` when the first file is absent. If neither exists, interactive password login is
+still available. An explicitly selected missing key, or an existing unreadable/malformed/encrypted
+key, fails rather than silently ignoring a configuration error. Password input is hidden, retried
+up to three times (the server may disconnect earlier), and never saved or placed in Session metadata.
+
+The default trust file is `~/.ssh/known_hosts`, shared with OpenSSH on Windows, Linux, and macOS.
+An unknown key displays its algorithm and SHA256 fingerprint. Only the exact answer `yes` after
+trimming surrounding whitespace approves saving it; any other answer rejects it. Verify the
+fingerprint through a trusted source before approving. Changed or revoked keys are always rejected
+without a replacement prompt. A save failure aborts the connection before password authentication.
+Only an actual terminal on stdin enables prompts; redirected input requires an authorized private
+key and pretrusted host. There is no password flag/environment variable or insecure host-key bypass.
+Ctrl+C, Ctrl+D/Ctrl+Z, or cancellation aborts a prompt and restores terminal mode.
+See `ssh --help` for explicit paths, SSH port,
 PTY type/dimensions, setup timeout, label, highlighting, and local sharing address options.
 `-i` aliases `--identity`; `-p` aliases `--port`. Flags may precede or follow the destination.
 
 The SSH port defaults to 22. A ten-second timeout bounds TCP, handshake/authentication, channel
-opening, PTY, and shell requests. The PTY defaults to `xterm-256color`. Initial dimensions use
+opening, PTY, and shell requests. Time spent answering trust/password prompts is excluded; caller
+cancellation and deadlines remain active. The PTY defaults to `xterm-256color`. Initial dimensions use
 `--cols`/`--rows` when supplied, otherwise the owner's output terminal (or input terminal when
 output is redirected), with an 80-column by 24-row fallback if size querying is unavailable.
 Only the foreground `ssh` terminal controls subsequent PTY resizing; secondary `attach` windows
@@ -254,7 +267,8 @@ the dimensions stay fixed. Linux/macOS use `SIGWINCH`; Windows queries the visib
 every 250 ms without consuming keyboard events. Duplicate, zero, invalid, or unavailable local
 measurements are ignored. Shutdown cancels the watcher and closes its SSH I/O before joining it.
 The command does not read SSH profiles or save credentials into ChannelTerm configuration.
-Passwords, encrypted private keys, ssh-agent, ssh_config, SSH exec, and SFTP are not supported.
+Encrypted private keys, ssh-agent, ssh_config, keyboard-interactive authentication, SSH exec, and
+SFTP are not supported. A server offering only keyboard-interactive requires a different client.
 
 The Host uses the existing Bearer-token authentication and defaults to `127.0.0.1:37099/mcp`.
 `--listen` accepts only a loopback IP and port. An occupied port fails before SSH connection;

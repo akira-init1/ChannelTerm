@@ -28,7 +28,10 @@ ChannelTerm unterstützt serielle Kommunikation und SSH-Shells mit PTY unter Win
 
 ## Gemeinsame SSH-Shell
 
-Mit einem autorisierten unverschlüsselten privaten Schlüssel und einem verifizierten Servereintrag in `known_hosts`:
+Verbinden Sie sich mit einem autorisierten unverschlüsselten privaten Schlüssel oder geben Sie auf
+Nachfrage Ihr Passwort ein (es wird nicht gespeichert). Prüfen Sie bei einem unbekannten Server den
+angezeigten Fingerabdruck und geben Sie `yes` ein, um seinen öffentlichen Schlüssel in
+`~/.ssh/known_hosts` zu speichern; geänderte Schlüssel werden abgelehnt. Die Abfragen benötigen ein interaktives Terminal:
 
 ```bash
 # Terminal 1: Shell öffnen, dann dort uname -a ausführen.

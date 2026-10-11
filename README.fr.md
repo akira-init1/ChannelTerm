@@ -27,7 +27,10 @@ ChannelTerm prend en charge la communication série et les shells SSH avec PTY s
 
 ## Shell SSH partagé
 
-Avec une clé privée autorisée non chiffrée et une entrée de serveur vérifiée dans `known_hosts` :
+Connectez-vous avec une clé privée autorisée non chiffrée ou saisissez votre mot de passe à la demande
+(il n'est pas enregistré). Pour un serveur inconnu, vérifiez l'empreinte affichée et saisissez `yes`
+pour enregistrer sa clé publique dans `~/.ssh/known_hosts` ; les clés modifiées sont refusées.
+Ces invites nécessitent un terminal interactif :
 
 ```bash
 # Terminal 1 : ouvrir le shell, puis y exécuter uname -a.

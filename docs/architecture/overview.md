@@ -57,9 +57,10 @@ The core service boundary contains:
 - `transport/serial`: opens serial-backed Channels and enumerates local serial endpoints.
 
 The concrete SSH implementation lives in `internal/transport/ssh`, outside `internal/core`.
-It owns key/trust-file parsing, authentication, and PTY interactive shell Channels. Application
+It owns key/trust-file parsing, verified trust persistence, authentication, and PTY interactive shell Channels. Application
 composes it through plain configuration and the Core Transport contract; `golang.org/x/crypto/ssh`
-types remain private to the implementation. Established I/O crosses only the existing Channel
+types remain private to the implementation. Context-aware callbacks carry password input and explicit
+unknown-host approval from adapters; Core never performs CLI or GUI interaction. Established I/O crosses only the existing Channel
 interface, so Channel and Session are independent of the SSH backend.
 
 Dependency direction is one way: Core packages do not import CLI or MCP packages. A Transport

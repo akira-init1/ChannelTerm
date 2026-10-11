@@ -123,7 +123,7 @@ an independent cursor. `channelterm list --transport ssh` lists the active Sessi
 The foreground `ssh` command owns this Host: keep it open while other attachments use the shell.
 Exiting a secondary attachment does not close the shell; exiting the owner stops its entire Host.
 
-SSH uses private-key authentication and verified host keys. It cannot open a new SSH connection
+SSH uses private-key or interactive password authentication and verified host keys. It cannot open a new SSH connection
 inside a separately started Host; choose a distinct loopback `--listen` address if one is already
 running. Follow the [SSH terminal workflow](ssh-terminal.md) for prerequisites, alternate ports,
 and safe shutdown. The Session read/write model is unchanged.

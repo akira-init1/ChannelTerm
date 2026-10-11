@@ -34,17 +34,18 @@ func runSSH(ctx context.Context, args []string, input io.Reader, output io.Write
 	terminalType := flags.String("term", "xterm-256color", "remote PTY terminal type")
 	columns := flags.Int("cols", 0, "initial PTY columns (default local terminal size, or 80)")
 	rows := flags.Int("rows", 0, "initial PTY rows (default local terminal size, or 24)")
-	timeout := flags.Duration("timeout", 10*time.Second, "timeout for TCP, authentication, PTY, and shell setup")
+	timeout := flags.Duration("timeout", 10*time.Second, "network setup timeout, excluding time spent answering prompts")
 	listen := flags.String("listen", defaultMCPListen, "local sharing address; must use a loopback IP")
 	label := flags.String("label", "", "display-only Session label")
 	highlight := flags.Bool("highlight", true, "apply semantic colors to plain terminal text")
 	flags.Usage = func() {
 		fmt.Fprintln(output, "Usage: channelterm ssh USER@HOST [options]")
-		fmt.Fprintln(output, "Open a private-key-authenticated PTY shell and share it as SSH-1.")
+		fmt.Fprintln(output, "Open a key- or password-authenticated PTY shell and share it as SSH-1.")
 		fmt.Fprintln(output, "In another terminal: channelterm attach SSH-1")
 		fmt.Fprintln(output, "The foreground SSH command owns the Host; Ctrl+] q closes it and its Sessions.")
-		fmt.Fprintln(output, "Trust the server key in known_hosts before connecting. Passwords, encrypted keys,")
-		fmt.Fprintln(output, "ssh-agent, ssh_config, SSH exec, and SFTP are not supported.")
+		fmt.Fprintln(output, "Unknown host keys require confirmation before saving to known_hosts; changed keys are rejected.")
+		fmt.Fprintln(output, "Interactive terminals can enter a password (not saved). Encrypted keys, ssh-agent,")
+		fmt.Fprintln(output, "ssh_config, keyboard-interactive authentication, SSH exec, and SFTP are not supported.")
 		fmt.Fprintln(output, "The owning terminal controls PTY resizing; secondary attachments do not resize it.")
 		flags.PrintDefaults()
 	}
@@ -81,9 +82,12 @@ func runSSH(ctx context.Context, args []string, input io.Reader, output io.Write
 			return fmt.Errorf("resolve SSH configuration directory: %w", err)
 		}
 		if *identity == "" {
-			*identity = filepath.Join(home, ".ssh", "id_ed25519")
-			if _, err := os.Stat(*identity); errors.Is(err, os.ErrNotExist) {
-				*identity = filepath.Join(home, ".ssh", "id_rsa")
+			for _, name := range []string{"id_ed25519", "id_rsa"} {
+				candidate := filepath.Join(home, ".ssh", name)
+				if _, err := os.Stat(candidate); !errors.Is(err, os.ErrNotExist) {
+					*identity = candidate
+					break
+				}
 			}
 		}
 		if *hosts == "" {
@@ -110,6 +114,13 @@ func runSSH(ctx context.Context, args []string, input io.Reader, output io.Write
 	configuration := sshtransport.Config{
 		User: user, Host: host, Port: *port, PrivateKeyPath: *identity, KnownHostsPath: *hosts,
 		Term: *terminalType, Columns: *columns, Rows: *rows, Timeout: *timeout,
+	}
+	if file, ok := input.(*os.File); ok && term.IsTerminal(int(file.Fd())) {
+		interaction := sshInteraction{input: file, output: output, destination: user + "@" + host}
+		configuration.Password = interaction.password
+		configuration.ConfirmHostKey = interaction.confirmHostKey
+	} else if *identity == "" {
+		return errors.New("no default SSH private key found; password login requires a terminal on stdin, or specify --identity PATH")
 	}
 	if _, err := sshtransport.New(configuration); err != nil {
 		return err

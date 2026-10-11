@@ -26,7 +26,9 @@ ChannelTerm currently implements serial communication and SSH PTY shells on Wind
 
 ## Shared SSH shell
 
-With an authorized unencrypted private key and a verified server entry in `known_hosts`:
+Connect using an authorized unencrypted private key or enter your password when prompted (it is not
+saved). For an unknown server, verify its displayed fingerprint and enter `yes` to save its public
+key in `~/.ssh/known_hosts`; changed keys are rejected. Prompts require an interactive terminal:
 
 ```bash
 # Terminal 1: open the shell; then run uname -a at its prompt.

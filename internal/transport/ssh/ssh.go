@@ -1,8 +1,9 @@
-// Package ssh establishes private-key-authenticated SSH PTY shell Channels.
+// Package ssh establishes authenticated SSH PTY shell Channels.
 // Session, rather than Transport, owns output history and shared access.
 package ssh
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -20,8 +21,8 @@ import (
 )
 
 // Config describes one SSH shell connection using library-independent values.
-// PrivateKeyPath identifies an unencrypted private key; KnownHostsPath identifies
-// the trusted OpenSSH host-key database. Both paths are required. Zero Port,
+// PrivateKeyPath optionally identifies an unencrypted private key; KnownHostsPath
+// identifies the required OpenSSH host-key database. Zero Port,
 // Timeout, Term, Columns, and Rows select 22, 10 seconds, xterm-256color, 80, and
 // 24 respectively. Configuration is not persisted by this package.
 type Config struct {
@@ -34,6 +35,19 @@ type Config struct {
 	Term           string
 	Columns        int
 	Rows           int
+
+	// Password supplies a fresh password only when the server offers password
+	// authentication and any configured key did not succeed. Up to three attempts
+	// are made. Ownership of the returned bytes transfers to Transport, which
+	// clears them after conversion for the backend. Passwords are never persisted.
+	// The callback must honor ctx cancellation and must not read shared shell input.
+	Password func(ctx context.Context) ([]byte, error)
+
+	// ConfirmHostKey may approve an unknown server key for persistence. It is
+	// never called for changed or revoked keys. Nil means strict rejection.
+	// The callback must honor ctx; adapters own presentation. Network setup time
+	// excludes callbacks, but the caller's cancellation/deadline still applies.
+	ConfirmHostKey func(ctx context.Context, key HostKey) (bool, error)
 }
 
 // Transport retains validated connection settings, never a live stream.
@@ -52,7 +66,8 @@ var _ transport.Transport = (*Transport)(nil)
 // New validates config and loads authentication and host trust without opening
 // a network connection. It retains a private snapshot of the parsed credentials;
 // callers exchange only paths and settings, never backend-specific objects.
-// Changes to either file require constructing a new Transport.
+// Changes to either file require constructing a new Transport. A missing trust
+// file is allowed only with an explicit unknown-host confirmation provider.
 func New(config Config) (*Transport, error) {
 	if config.User == "" || strings.ContainsAny(config.User, "@ \t\r\n\x00") {
 		return nil, errors.New("SSH username must be nonempty and contain no whitespace or @")
@@ -69,8 +84,11 @@ func New(config Config) (*Transport, error) {
 	if config.Port < 1 || config.Port > 65535 {
 		return nil, errors.New("SSH port must be between 1 and 65535")
 	}
-	if config.PrivateKeyPath == "" || config.KnownHostsPath == "" {
-		return nil, errors.New("SSH requires private-key and known_hosts paths")
+	if config.PrivateKeyPath == "" && config.Password == nil {
+		return nil, errors.New("SSH requires a private key or an interactive password provider")
+	}
+	if config.KnownHostsPath == "" {
+		return nil, errors.New("SSH requires a known_hosts path")
 	}
 	if config.Timeout == 0 {
 		config.Timeout = 10 * time.Second
@@ -93,16 +111,22 @@ func New(config Config) (*Transport, error) {
 	if config.Columns < 1 || config.Columns > 65535 || config.Rows < 1 || config.Rows > 65535 {
 		return nil, errors.New("SSH PTY dimensions must be between 1 and 65535")
 	}
-	key, err := os.ReadFile(config.PrivateKeyPath)
-	if err != nil {
-		return nil, fmt.Errorf("read SSH identity: %w", err)
-	}
-	signer, err := gossh.ParsePrivateKey(key)
-	clear(key)
-	if err != nil {
-		return nil, fmt.Errorf("parse SSH identity (an unencrypted private key is required): %w", err)
+	var signer gossh.Signer
+	if config.PrivateKeyPath != "" {
+		key, err := os.ReadFile(config.PrivateKeyPath)
+		if err != nil {
+			return nil, fmt.Errorf("read SSH identity: %w", err)
+		}
+		signer, err = gossh.ParsePrivateKey(key)
+		clear(key)
+		if err != nil {
+			return nil, fmt.Errorf("parse SSH identity (an unencrypted private key is required): %w", err)
+		}
 	}
 	verifyHostKey, err := knownhosts.New(config.KnownHostsPath)
+	if errors.Is(err, os.ErrNotExist) && config.ConfirmHostKey != nil {
+		verifyHostKey, err = knownhosts.New()
+	}
 	if err != nil {
 		return nil, fmt.Errorf("load SSH known_hosts: %w", err)
 	}
@@ -119,18 +143,24 @@ func (t *Transport) Endpoint() string {
 }
 
 // Connect authenticates, requests a PTY, and starts an interactive shell.
-// ctx and Config.Timeout bound the entire setup, including handshake and SSH
-// requests. Cancellation releases every partial resource. After success, ctx
-// no longer controls the Channel: only Channel.Close owns its lifetime.
+// ctx bounds setup; Config.Timeout bounds network work, excluding time spent
+// in interaction callbacks. Cancellation releases every partial resource.
+// After success, ctx no longer controls the Channel: only Channel.Close owns
+// its lifetime. Concurrent Connect calls require concurrency-safe callbacks.
 func (t *Transport) Connect(ctx context.Context) (_ channel.Channel, err error) {
-	setup, cancel := context.WithTimeout(ctx, t.config.Timeout)
-	defer cancel()
+	budget := newSetupBudget(ctx, t.config.Timeout)
+	defer budget.cancel(nil)
+	defer budget.pause()
+	setup := budget.ctx
 	if err := setup.Err(); err != nil {
-		return nil, err
+		return nil, context.Cause(setup)
 	}
 	address := net.JoinHostPort(t.config.Host, strconv.Itoa(t.config.Port))
 	conn, err := t.dial(setup, "tcp", address)
 	if err != nil {
+		if setup.Err() != nil {
+			err = errors.Join(context.Cause(setup), err)
+		}
 		return nil, fmt.Errorf("dial SSH %s: %w", address, err)
 	}
 	// Closing the socket interrupts handshake, channel opening, PTY, and shell
@@ -149,13 +179,47 @@ func (t *Transport) Connect(ctx context.Context) (_ channel.Channel, err error) 
 		if err != nil {
 			_ = conn.Close()
 			if setup.Err() != nil {
-				err = errors.Join(setup.Err(), err)
+				err = errors.Join(context.Cause(setup), err)
 			}
 		}
 	}()
+	var auth []gossh.AuthMethod
+	if t.signer != nil {
+		auth = append(auth, gossh.PublicKeys(t.signer))
+	}
+	if t.config.Password != nil {
+		auth = append(auth, gossh.RetryableAuthMethod(gossh.PasswordCallback(func() (string, error) {
+			budget.pause()
+			defer budget.resume()
+			if err := setup.Err(); err != nil {
+				return "", context.Cause(setup)
+			}
+			password, err := t.config.Password(setup)
+			defer clear(password)
+			if setup.Err() != nil {
+				return "", context.Cause(setup)
+			}
+			return string(password), err
+		}), 3))
+	}
+	// Rekeying can occur after setup context ownership has ended. Pin the
+	// verified server identity to this connection so it never prompts again.
+	var establishedKey []byte
 	sshConn, channels, requests, err := gossh.NewClientConn(conn, address, &gossh.ClientConfig{
-		User: t.config.User, Auth: []gossh.AuthMethod{gossh.PublicKeys(t.signer)},
-		HostKeyCallback: t.verifyHostKey,
+		User: t.config.User, Auth: auth,
+		HostKeyCallback: func(host string, remote net.Addr, key gossh.PublicKey) error {
+			if establishedKey != nil {
+				if !bytes.Equal(establishedKey, key.Marshal()) {
+					return errors.New("SSH host key changed during rekey")
+				}
+				return nil
+			}
+			if err := t.checkHostKey(setup, budget, host, remote, key); err != nil {
+				return err
+			}
+			establishedKey = key.Marshal()
+			return nil
+		},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("SSH handshake: %w", err)

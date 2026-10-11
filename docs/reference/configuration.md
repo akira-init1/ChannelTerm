@@ -145,6 +145,15 @@ a given state file.
 ## SSH CLI settings
 
 SSH connections use explicit CLI options and do not add TOML fields or saved profiles. The CLI
-reads a private key and `known_hosts` from the user's `.ssh` directory unless paths are supplied.
-Its sharing Host reuses the existing `http-auth-token` and environment override. Credentials and
-SSH settings are not persisted. See the [CLI reference](cli.md#ssh).
+reads an optional private key and `known_hosts` from the user's `.ssh` directory unless paths are
+supplied. Interactive confirmation of an unknown server appends its public key to that trust file,
+creating the parent directory/file if needed (0700/0600 creation modes on Unix; Windows uses inherited
+ACLs). Existing records, permissions, comments, and hashed entries are preserved. Writers coordinate
+through a sibling `.lock` file and recheck trust after confirmation. This lock coordinates ChannelTerm
+writers; unrelated SSH clients do not necessarily honor it. Trust files use the OpenSSH format and
+are separate from ChannelTerm TOML. No client key pair is generated or copied automatically.
+
+The sharing Host reuses the existing `http-auth-token` and environment override. Login passwords
+are entered without echo and used only for authentication; they are never written to config,
+trust records, or Session metadata. No password CLI argument or environment variable is supported.
+Connection settings are not persisted. See the [CLI reference](cli.md#ssh).
