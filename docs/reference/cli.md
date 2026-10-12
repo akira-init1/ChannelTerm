@@ -246,6 +246,8 @@ public key; legacy encrypted PEM keys require unlocking to discover it. Passphra
 after host verification, hidden, retried up to three times, and never saved. Cancellation aborts
 setup rather than falling back to another authentication method. Password input is hidden, retried
 up to three times (the server may disconnect earlier), and never saved or placed in Session metadata.
+Candidates are prepared only when their turn is reached, including legacy encrypted PEM keys.
+Server policy and the backend's 64 authentication-method-attempt limit can stop a long candidate list.
 
 The default trust file is `~/.ssh/known_hosts`, shared with OpenSSH on Windows, Linux, and macOS.
 An unknown key displays its algorithm and SHA256 fingerprint. Only the exact answer `yes` after

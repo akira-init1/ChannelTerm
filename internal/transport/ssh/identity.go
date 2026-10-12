@@ -51,14 +51,26 @@ func loadIdentities(config Config) ([]identity, error) {
 	return identities, nil
 }
 
-func (t *Transport) connectionSigners(ctx context.Context, budget *setupBudget) ([]gossh.Signer, error) {
+func (t *Transport) connectionSigners(ctx context.Context, budget *setupBudget, candidates []identity) (_ []gossh.Signer, err error) {
+	// A callback error is a local abort, not a server's key rejection. The
+	// backend may otherwise try another authentication method after errors.
+	defer func() {
+		if err != nil {
+			budget.cancel(err)
+		}
+	}()
 	var signers []gossh.Signer
-	for _, key := range t.identities {
+	for _, key := range candidates {
 		if key.signer != nil {
 			signers = append(signers, key.signer)
 			continue
 		}
-		unlock := func() (gossh.Signer, error) {
+		unlock := func() (_ gossh.Signer, err error) {
+			defer func() {
+				if err != nil {
+					budget.cancel(err)
+				}
+			}()
 			if t.config.KeyPassphrase == nil {
 				return nil, stageError("identity", fmt.Errorf("encrypted SSH identity %q requires a passphrase provider or interactive terminal", key.path))
 			}

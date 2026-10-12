@@ -91,6 +91,10 @@ so a connection-local lazy signer prompts only after server acceptance; legacy e
 must be unlocked to discover that portion. RSA SHA-2 negotiation is preserved. Decrypted signers
 are connection-local, never cached on Transport or persisted. Rejected candidates advance in order;
 configuration/decryption errors abort instead of silently skipping an identity.
+Candidates are prepared one at a time, so an unused legacy PEM key cannot prompt before an earlier
+key succeeds. A local passphrase error cancels setup even when the server also offers password
+authentication. Server rejection still permits the next candidate or password fallback. The backend
+bounds the total authentication-method attempts to 64; the server may impose a smaller limit.
 
 Transport always verifies the server before password authentication. It asks the adapter to confirm
 only an unknown key, passing a plain `HostKey` value containing address, algorithm, and SHA256

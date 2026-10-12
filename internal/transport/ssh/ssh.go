@@ -10,6 +10,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -216,7 +217,7 @@ func (t *Transport) open(ctx context.Context, start func(*liveClient) error) (_ 
 		}
 		if err != nil {
 			_ = conn.Close()
-			if setup.Err() != nil {
+			if setup.Err() != nil && !errors.Is(err, context.Cause(setup)) {
 				var staged *StageError
 				if errors.As(err, &staged) {
 					err = &StageError{Stage: staged.Stage, Err: errors.Join(context.Cause(setup), staged.Err)}
@@ -227,11 +228,7 @@ func (t *Transport) open(ctx context.Context, start func(*liveClient) error) (_ 
 		}
 	}()
 	var auth []gossh.AuthMethod
-	if len(t.identities) != 0 {
-		auth = append(auth, gossh.PublicKeysCallback(func() ([]gossh.Signer, error) {
-			return t.connectionSigners(setup, budget)
-		}))
-	}
+	nextIdentity := 0
 	if t.config.Password != nil {
 		auth = append(auth, gossh.RetryableAuthMethod(gossh.PasswordCallback(func() (string, error) {
 			budget.pause()
@@ -252,6 +249,21 @@ func (t *Transport) open(ctx context.Context, start func(*liveClient) error) (_ 
 	var establishedKey []byte
 	sshConn, channels, requests, err := gossh.NewClientConn(conn, address, &gossh.ClientConfig{
 		User: t.config.User, Auth: auth,
+		// Select one identity at a time after the server offers public-key
+		// authentication. In particular, unused legacy PEM candidates must not
+		// prompt before an earlier key succeeds. Local callback errors cancel
+		// the setup budget and abort rather than falling back to a password.
+		AuthCallback: func(state *gossh.ClientAuthContext) (gossh.AuthMethod, error) {
+			if setup.Err() != nil {
+				return nil, context.Cause(setup)
+			}
+			if nextIdentity < len(t.identities) && slices.Contains(state.AllowedMethods, "publickey") {
+				candidate := t.identities[nextIdentity : nextIdentity+1]
+				nextIdentity++
+				return gossh.PublicKeysCallback(func() ([]gossh.Signer, error) { return t.connectionSigners(setup, budget, candidate) }), nil
+			}
+			return nil, nil
+		},
 		HostKeyCallback: func(host string, remote net.Addr, key gossh.PublicKey) error {
 			if establishedKey != nil {
 				if !bytes.Equal(establishedKey, key.Marshal()) {

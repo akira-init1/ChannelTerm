@@ -187,7 +187,7 @@ func TestEncryptedRSAIdentityPreservesSHA2(t *testing.T) {
 		}
 		transport := &Transport{config: config, identities: identities}
 		budget := newSetupBudget(context.Background(), time.Second)
-		signers, err := transport.connectionSigners(budget.ctx, budget)
+		signers, err := transport.connectionSigners(budget.ctx, budget, transport.identities)
 		if err != nil {
 			budget.cancel(nil)
 			t.Fatal(err)
