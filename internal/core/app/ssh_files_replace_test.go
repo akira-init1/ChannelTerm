@@ -39,7 +39,12 @@ func TestSFTPSafeReplacement(t *testing.T) {
 	write(source, payload)
 	r.Overwrite, r.SafeReplace = true, true
 	interrupted := errors.New("fixture copy interrupted")
-	r.Progress = func(string, int64, int64) error { return interrupted }
+	r.Progress = func(_ string, n, _ int64) error {
+		if n > 0 {
+			return interrupted
+		}
+		return nil
+	}
 	if _, err := RunSSHFiles(context.Background(), r); !errors.Is(err, interrupted) {
 		t.Fatalf("interrupted put: %v", err)
 	}
@@ -65,7 +70,12 @@ func TestSFTPSafeReplacement(t *testing.T) {
 		t.Fatal(err)
 	}
 	get.Overwrite, get.SafeReplace = true, true
-	get.Progress = func(string, int64, int64) error { return interrupted }
+	get.Progress = func(_ string, n, _ int64) error {
+		if n > 0 {
+			return interrupted
+		}
+		return nil
+	}
 	if _, err := RunSSHFiles(context.Background(), get); !errors.Is(err, interrupted) {
 		t.Fatalf("interrupted get: %v", err)
 	}
@@ -129,7 +139,15 @@ func TestSafeUploadFailurePreservesCommittedFile(t *testing.T) {
 			}
 			r.Overwrite, r.SafeReplace = true, true
 			if mode == "disconnect" {
-				r.Progress = func(string, int64, int64) error { mu.Lock(); stop := disconnect; mu.Unlock(); stop(); return nil }
+				r.Progress = func(_ string, n, _ int64) error {
+					if n > 0 {
+						mu.Lock()
+						stop := disconnect
+						mu.Unlock()
+						stop()
+					}
+					return nil
+				}
 			}
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
@@ -265,7 +283,12 @@ func TestSafeReplacementCancellation(t *testing.T) {
 			}
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			r.Progress = func(string, int64, int64) error { cancel(); return nil }
+			r.Progress = func(_ string, n, _ int64) error {
+				if n > 0 {
+					cancel()
+				}
+				return nil
+			}
 			if _, err := RunSSHFiles(ctx, r); !errors.Is(err, context.Canceled) {
 				t.Fatalf("cancelled copy=%v", err)
 			}

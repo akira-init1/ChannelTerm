@@ -340,6 +340,16 @@ rename extension; unsupported servers return an error without deleting the targe
 directory observed during validation; `rmdir` accepts only an empty directory. No recursive removal
 command is provided. CLI listing rows contain mode, size, RFC3339 modification time, and a quoted name.
 
+For `put`/`get`, an ANSI-capable output terminal displays the same 20-cell ASCII progress format as
+serial file transfers: current file, completed-file count, percentage, bytes, average payload speed,
+and ETA. Payload updates are limited to five per second per file; file boundaries and completion
+always render. Directory percentages and ETA describe the current file, not the whole tree.
+Final 100% is withheld until that file finishes; byte progress alone does not promise remote disk
+durability. Empty files are included. The display says `Ctrl+C cancels`; cancellation has no extra
+confirmation. Failed/cancelled operations end the progress line and report completed files and
+partial bytes with destination-recovery guidance. Redirected output has no dynamic progress or ANSI
+and keeps the existing completion/error output. Management operations have no progress bar.
+
 `--timeout` bounds network setup, excluding interactive input. `--operation-timeout` bounds the
 entire operation including prompts; zero (default) leaves it unbounded. Ctrl+C cancels, closes the
 file connection, and restores any active prompt. Cancellation or errors can leave partial files.

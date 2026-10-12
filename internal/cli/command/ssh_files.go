@@ -6,14 +6,26 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/akira-init1/ChannelTerm/internal/core/app"
 	sshtransport "github.com/akira-init1/ChannelTerm/internal/transport/ssh"
+	"golang.org/x/term"
 )
 
 func runSSHFiles(ctx context.Context, protocol string, args []string, input io.Reader, output io.Writer, run func(context.Context, app.SSHFilesRequest) (app.SSHFilesResult, error)) error {
+	interactive := false
+	if file, ok := output.(*os.File); ok && term.IsTerminal(int(file.Fd())) {
+		interactive = enableANSIOutput(file)
+	}
+	return runSSHFilesWithProgress(ctx, protocol, args, input, output, run, interactive)
+}
+
+// runSSHFilesWithProgress keeps terminal detection outside the command logic
+// so both interactive and redirected presentation can be tested without a TTY.
+func runSSHFilesWithProgress(ctx context.Context, protocol string, args []string, input io.Reader, output io.Writer, run func(context.Context, app.SSHFilesRequest) (app.SSHFilesResult, error), interactive bool) error {
 	flags := flag.NewFlagSet(protocol, flag.ContinueOnError)
 	flags.SetOutput(output)
 	port := flags.Int("port", 22, "SSH server port")
@@ -45,6 +57,7 @@ func runSSHFiles(ctx context.Context, protocol string, args []string, input io.R
 			fmt.Fprintln(output, "Uses legacy SCP with a remote POSIX scp command, not modern OpenSSH's SFTP default.")
 		}
 		fmt.Fprintln(output, "Dedicated SSH connection: no PTY, shared Session, or MCP listener. Ctrl+C cancels.")
+		fmt.Fprintln(output, "Terminal output shows per-file progress, speed and ETA; redirected output omits the progress bar.")
 		fmt.Fprintln(output, "Paths are literal; no glob or ~ expansion. Existing destination directories receive the source basename.")
 		fmt.Fprintln(output, "Passwords are not saved. Unknown host keys require confirmation; changed keys are rejected.")
 		flags.PrintDefaults()
@@ -121,7 +134,15 @@ func runSSHFiles(ctx context.Context, protocol string, args []string, input io.R
 		ctx, cancel = context.WithTimeout(ctx, *operationTimeout)
 		defer cancel()
 	}
+	var progress *sshFileProgress
+	if interactive && (r.Operation == "put" || r.Operation == "get") {
+		progress = &sshFileProgress{output: output, now: time.Now, request: r}
+		r.Progress = progress.Report
+	}
 	result, err := run(ctx, r)
+	if progress != nil {
+		return errors.Join(err, progress.Finish(result, err))
+	}
 	if err != nil {
 		return err
 	}

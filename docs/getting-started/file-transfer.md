@@ -275,6 +275,23 @@ network round-trip time even when link bandwidth is high; parallel request pipel
 current guarantee. Test representative file sizes and network latency before treating this workflow
 as a bulk synchronization tool.
 
+In an interactive output terminal, SFTP/SCP put/get uses the serial transfer bar style, for example
+(illustrative values):
+
+```text
+SFTP put: Ctrl+C cancels.
+File 1: "firmware.bin" (0 completed)
+[##########----------] 50.0%  4 MiB / 8 MiB  2 MiB/s  ETA 2s
+```
+
+The bar refreshes in place at most five times per second during each file's payload. File boundaries
+and the final frame always display. For recursive copies, the percentage, speed and ETA belong to
+the current file, while the completed-file count advances across the tree. Empty files also finish
+at 100%. Success is shown only after closing/acknowledging/replacing the file, not merely after its
+last payload byte. Ctrl+C still cancels immediately without a confirmation menu. Failure/cancellation
+prints the partial counts and explains possible partial or temporary files. Redirected output omits
+the animated bar and preserves the existing simple completion/error messages.
+
 Only regular files and directories are uploaded. SFTP downloads reject symlinks and special entries.
 Legacy SCP may follow remote symlinks according to the server's scp behavior; received names still
 undergo local containment checks. Downloads reject traversal, unsafe Windows aliases, case-insensitive

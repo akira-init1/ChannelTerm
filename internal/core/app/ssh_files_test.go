@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -215,7 +216,12 @@ func TestFileConnectionCancellationAndClose(t *testing.T) {
 // sizes without writing beyond the declared source size.
 func TestSSHFileCopyCancellationPreservesError(t *testing.T) {
 	var output bytes.Buffer
-	r := SSHFilesRequest{Progress: func(string, int64, int64) error { return context.Canceled }}
+	r := SSHFilesRequest{Progress: func(_ string, n, _ int64) error {
+		if n > 0 {
+			return context.Canceled
+		}
+		return nil
+	}}
 	if _, err := copySSHFile(context.Background(), &output, bytes.NewReader([]byte("abc")), "fixture", 3, r); !errors.Is(err, context.Canceled) {
 		t.Fatal(err)
 	}
@@ -225,6 +231,33 @@ func TestSSHFileCopyCancellationPreservesError(t *testing.T) {
 	}
 	if _, err := copySSHFile(context.Background(), io.Discard, bytes.NewReader(nil), "fixture", 1, SSHFilesRequest{}); err == nil {
 		t.Fatal("truncated file not rejected")
+	}
+}
+
+// TestSSHFileProgressStartsBeforePayload covers empty files and cancellation
+// from the initial callback before any payload is written.
+func TestSSHFileProgressStartsBeforePayload(t *testing.T) {
+	for _, payload := range []string{"", "abc"} {
+		var output bytes.Buffer
+		var reports []int64
+		r := SSHFilesRequest{Progress: func(name string, n, total int64) error {
+			if name != "fixture" || total != int64(len(payload)) {
+				t.Fatal("incorrect file progress metadata")
+			}
+			reports = append(reports, n)
+			return nil
+		}}
+		if _, err := copySSHFile(context.Background(), &output, strings.NewReader(payload), "fixture", int64(len(payload)), r); err != nil {
+			t.Fatal(err)
+		}
+		if len(reports) == 0 || reports[0] != 0 || reports[len(reports)-1] != int64(len(payload)) {
+			t.Fatalf("progress=%v", reports)
+		}
+	}
+	var output bytes.Buffer
+	_, err := copySSHFile(context.Background(), &output, strings.NewReader("abc"), "fixture", 3, SSHFilesRequest{Progress: func(string, int64, int64) error { return context.Canceled }})
+	if !errors.Is(err, context.Canceled) || output.Len() != 0 {
+		t.Fatal("initial progress cancellation wrote payload", err)
 	}
 }
 

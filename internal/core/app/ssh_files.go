@@ -20,6 +20,7 @@ import (
 // Recursive enables directory transfer, not recursive deletion. Overwrite must
 // be explicitly enabled for replacement. Progress is per file and may cancel by
 // returning an error. Passwords are supplied through Config callbacks only.
+// Each regular file reports (name, 0, size) before payload, including empty files.
 type SSHFilesRequest struct {
 	Config    sshtransport.Config
 	Protocol  string
@@ -181,6 +182,14 @@ func validateUploadTree(ctx context.Context, local string, recursive bool) error
 func copySSHFile(ctx context.Context, dst io.Writer, src io.Reader, name string, size int64, r SSHFilesRequest) (int64, error) {
 	if size < 0 {
 		return 0, errors.New("invalid negative file size")
+	}
+	if err := ctx.Err(); err != nil {
+		return 0, err
+	}
+	if r.Progress != nil {
+		if err := r.Progress(name, 0, size); err != nil {
+			return 0, err
+		}
 	}
 	var copied int64
 	buffer := make([]byte, 32*1024)

@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"strings"
 	"testing"
@@ -61,16 +62,20 @@ func runSCPFixture(t *testing.T, ch gossh.Channel, behavior string) {
 		if !ack() {
 			return
 		}
-	} else if behavior == "scp-upload" {
+	} else if behavior == "scp-upload" || behavior == "scp-upload-empty" {
+		want := []byte{'A', 0, 'B'}
+		if behavior == "scp-upload-empty" {
+			want = nil
+		}
 		_, _ = ch.Write([]byte{0})
 		line, err := reader.ReadString('\n')
-		if err != nil || line != "C0644 3 fixture.bin\n" {
+		if err != nil || line != fmt.Sprintf("C0644 %d fixture.bin\n", len(want)) {
 			t.Errorf("fixture header=%q %v", line, err)
 			return
 		}
 		_, _ = ch.Write([]byte{0})
-		payload := make([]byte, 4)
-		if _, err := io.ReadFull(reader, payload); err != nil || !bytes.Equal(payload, []byte{'A', 0, 'B', 0}) {
+		payload := make([]byte, len(want)+1)
+		if _, err := io.ReadFull(reader, payload); err != nil || !bytes.Equal(payload, append(want, 0)) {
 			t.Errorf("fixture payload=%v %v", payload, err)
 			return
 		}
@@ -87,7 +92,7 @@ func runSCPFixture(t *testing.T, ch gossh.Channel, behavior string) {
 // TestSCPConnectionCompletion protects binary transfers and normal peer-initiated
 // EOF after the final download acknowledgement, which must not report failure.
 func TestSCPConnectionCompletion(t *testing.T) {
-	for _, mode := range []string{"scp-upload", "scp-download"} {
+	for _, mode := range []string{"scp-upload", "scp-upload-empty", "scp-download"} {
 		t.Run(mode, func(t *testing.T) {
 			server := startTestServer(t, mode)
 			transport, err := New(server.config)
@@ -101,11 +106,25 @@ func TestSCPConnectionCompletion(t *testing.T) {
 				t.Fatal(err)
 			}
 			defer client.Close()
-			if mode == "scp-upload" {
-				source := fstest.MapFS{"fixture.bin": &fstest.MapFile{Data: []byte{'A', 0, 'B'}, Mode: 0644}}
-				files, n, err := client.UploadSCP(source, "fixture.bin", "/tmp/fixture.bin", false, false, nil)
-				if err != nil || files != 1 || n != 3 {
+			if strings.HasPrefix(mode, "scp-upload") {
+				data := []byte{'A', 0, 'B'}
+				if mode == "scp-upload-empty" {
+					data = nil
+				}
+				source := fstest.MapFS{"fixture.bin": &fstest.MapFile{Data: data, Mode: 0644}}
+				var reports []int64
+				files, n, err := client.UploadSCP(source, "fixture.bin", "/tmp/fixture.bin", false, false, func(name string, n, total int64) error {
+					if name != "fixture.bin" || total != int64(len(data)) {
+						t.Error("incorrect progress metadata")
+					}
+					reports = append(reports, n)
+					return nil
+				})
+				if err != nil || files != 1 || n != int64(len(data)) {
 					t.Fatalf("upload=%d %d %v", files, n, err)
+				}
+				if len(reports) == 0 || reports[0] != 0 || reports[len(reports)-1] != int64(len(data)) {
+					t.Fatalf("progress=%v", reports)
 				}
 			} else {
 				var output bytes.Buffer

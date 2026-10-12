@@ -159,6 +159,8 @@ func (d *scpDiagnostic) Write(data []byte) (int, error) {
 // protocol and a remote POSIX scp command. Names are literal, not shell globs.
 // Source must be a confined filesystem; symlink/special entries are rejected.
 // overwrite=false adds a remote existence guard, not an atomic reservation.
+// Progress reports zero bytes before each file, including an empty file; an
+// error aborts transfer. Payload progress precedes the final acknowledgement.
 func (f *Files) UploadSCP(source fs.FS, name, destination string, recursive, overwrite bool, progress func(string, int64, int64) error) (files, totalBytes int64, err error) {
 	command, err := scpUploadCommand(name, destination, recursive, overwrite)
 	if err != nil {
@@ -257,6 +259,11 @@ func (f *Files) uploadSCP(source fs.FS, name string, recursive bool, progress fu
 				return err
 			}
 			counter := &scpProgressWriter{writer: writer, name: current, size: info.Size(), progress: progress}
+			if progress != nil {
+				if err := progress(current, 0, info.Size()); err != nil {
+					return err
+				}
+			}
 			n, err := io.CopyN(counter, file, info.Size())
 			totalBytes += n
 			if err != nil {

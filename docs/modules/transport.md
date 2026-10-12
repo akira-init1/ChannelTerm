@@ -191,6 +191,9 @@ Remote paths are single-quoted, with no glob or tilde expansion. A no-overwrite 
 existence check; the legacy protocol cannot make that check atomic against concurrent remote writers.
 Prefer SFTP for stronger exclusive file-creation behavior. A server's normal channel EOF after the
 last download acknowledgement is accepted only when framing completed and the SSH exit status succeeds.
+SCP upload progress starts at zero for each regular file, including empty files, then reports bytes
+accepted by the stream. A callback error aborts the connection. The final SCP acknowledgement still
+determines file completion; progress is not a disk-durability or success notification.
 
 SFTP rename replacement requires the server's POSIX rename extension. There is no destructive
 delete-then-rename fallback. SFTP create-without-overwrite uses exclusive creation. Filesystem
