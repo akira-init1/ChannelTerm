@@ -34,8 +34,14 @@ func ValidFileName(name string) bool {
 	if base == "CON" || base == "PRN" || base == "AUX" || base == "NUL" || base == "CONIN$" || base == "CONOUT$" {
 		return false
 	}
-	if len(base) == 4 && (strings.HasPrefix(base, "COM") || strings.HasPrefix(base, "LPT")) && base[3] >= '0' && base[3] <= '9' {
-		return false
+	if strings.HasPrefix(base, "COM") || strings.HasPrefix(base, "LPT") {
+		digit := base[3:]
+		// Win32 also treats the Latin-1 superscript digits as device suffixes,
+		// including when a filename extension is present. Validate on every OS
+		// so a tree accepted on Linux remains portable to Windows.
+		if len(digit) == 1 && digit[0] >= '0' && digit[0] <= '9' || digit == "¹" || digit == "²" || digit == "³" {
+			return false
+		}
 	}
 	return true
 }

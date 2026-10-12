@@ -194,7 +194,7 @@ func TestReceiveSCPTree(t *testing.T) {
 
 // TestSCPNamesAndQuoting rejects local aliases and quotes remote shell metacharacters.
 func TestSCPNamesAndQuoting(t *testing.T) {
-	for _, name := range []string{"..", "a/b", "a\\b", "C:x", "NUL", "con.txt", "COM1", "x.", "x ", "x\n", "a*b"} {
+	for _, name := range []string{"..", "a/b", "a\\b", "C:x", "NUL", "con.txt", "COM1", "COM¹", "com².txt", "COM³.bin", "LPT¹", "lpt².log", "LPT³", "x.", "x ", "x\n", "a*b"} {
 		if ValidFileName(name) {
 			t.Errorf("accepted %q", name)
 		}
