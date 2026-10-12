@@ -8,11 +8,14 @@ the terminal Session or insert protocol bytes into its history. Arbitrary SSH ex
 ## Prerequisites
 
 Use a running SSH server on Linux, WSL2, or another SSH-capable host, its actual reachable address
-and SSH port, a valid username, and either a login password or an authorized unencrypted private
-key. ChannelTerm tries `~/.ssh/id_ed25519`, then `~/.ssh/id_rsa` if the first file is missing.
+and SSH port, a valid username, and either a login password or an authorized private
+key. ChannelTerm tries existing `~/.ssh/id_ed25519` and `~/.ssh/id_rsa` keys in that order.
 When neither exists, it can prompt for a password. If a key is rejected and the server offers
 password authentication, it also prompts. Passwords are not echoed or saved. Existing invalid or
-encrypted keys still produce an error. It does not use ssh-agent, encrypted keys, keyboard-interactive
+malformed keys still produce an error. Encrypted keys prompt for a passphrase after host verification;
+it is hidden, never saved, and allows up to three attempts. Repeat `--identity PATH` (or `-i PATH`)
+to supply an ordered list instead of default discovery. A missing or invalid selected key fails;
+server rejection of a valid key proceeds to the next candidate. It does not use ssh-agent, keyboard-interactive
 authentication, or `~/.ssh/config`.
 
 On first connection, verify the displayed server fingerprint through a trusted source, then enter
@@ -167,11 +170,13 @@ They do not provide visual certification of every terminal emulator or interacti
   Start `channelterm ssh` again to open a new shell and reattach to its printed reference.
   Commands, terminal state, and output cursors are not replayed into the new connection.
 - **Silent network loss needs explicit limits.** `--timeout` bounds setup only. Without keepalive,
-  a shell can wait until TCP reports failure or the owner exits. The relay test covers local escape
-  while idle or after a small write; the Transport test separately verifies that Close releases a
-  blocked socket write. These do not guarantee local escape remains responsive during a saturated
-  write. Enable `--write-timeout` to bound that wait; heartbeat replies alone do not mean the remote
-  shell is consuming input. On Linux/WSL2, SIGTERM can also terminate the owning process.
+  a shell can wait until TCP reports failure or the owner exits. The owner processes local escapes
+  independently of its ordered remote write worker: `Ctrl+] q` closes the owned connection and joins
+  that worker even when a write is blocked, without requiring `--write-timeout`. Exit discards queued,
+  unsent input; it is never replayed. The queue holds at most 256 input batches (up to 4 KiB each);
+  overflow reports an error and closes the connection. Use SFTP for bulk data rather than huge pastes.
+  Heartbeat replies alone do not mean the remote shell is consuming input. Ordinary secondary
+  attachments retain their existing synchronous write behavior and cannot close the owner's Session.
 - **Worker checks have a defined boundary.** Repeated-close tests inspect SSH, Session, Manager,
   and CLI worker stacks after caller-owned test input is closed. An arbitrary blocked `io.Reader`
   cannot be cancelled by context alone; it may retain its input pump until its owner releases it.

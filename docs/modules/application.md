@@ -120,6 +120,9 @@ expansion, but its received entries are still confined and validated. Local crea
 Progress counts per-file bytes accepted by the stream, not durable remote storage. `Files`/`Bytes`
 results count copied files and payload bytes; failures return an error and may include partial counts.
 The file client is always closed. No Session events, cursors, MCP schemas, or writer leases change.
+SSH file-operation errors carry a `StageError` identifying transfer failure; connection and
+authentication errors retain their Transport stage. Wrapping preserves `errors.Is` cancellation,
+deadline, and filesystem identities. No secret input is included in these diagnostics.
 See [file transfer](../getting-started/file-transfer.md#sftp-and-scp-over-ssh) for user-visible limits.
 
 `WriteSession` and `WriteSessionWithLease` reject a payload larger than 1 MiB before Session lookup

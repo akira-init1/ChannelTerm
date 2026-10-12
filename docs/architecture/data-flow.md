@@ -28,6 +28,12 @@ independent absolute cursor. Slow consumers cannot block the Channel reader; the
 
 ## Terminal input
 
+The foreground SSH owner inserts one bounded, ordered CLI write worker between its local input
+controller and the existing MCP/Application write path. Local quit cancels the owner and closes
+its Manager to release a blocked Channel write, then joins the worker before restoring terminal
+state. File shortcuts wait for earlier queued input. Ordinary attachments remain synchronous;
+Session still owns write serialization and no Core contract depends on this presentation choice.
+
 ```text
 CLI raw input                 MCP JSON input
       |                            |

@@ -44,8 +44,8 @@ jedoch eine von Terminal-Sessions unabhängige Verbindung. Das Ersetzen vorhande
 
 ## Gemeinsame SSH-Shell
 
-Verbinden Sie sich mit einem autorisierten unverschlüsselten privaten Schlüssel oder geben Sie auf
-Nachfrage Ihr Passwort ein (es wird nicht gespeichert). Prüfen Sie bei einem unbekannten Server den
+Verbinden Sie sich mit einem autorisierten privaten Schlüssel (verschlüsselte Schlüssel fragen nach einer Passphrase) oder geben Sie auf
+Nachfrage Ihr Passwort ein (beides wird nicht gespeichert). Prüfen Sie bei einem unbekannten Server den
 angezeigten Fingerabdruck und geben Sie `yes` ein, um seinen öffentlichen Schlüssel in
 `~/.ssh/known_hosts` zu speichern; geänderte Schlüssel werden abgelehnt. Die Abfragen benötigen ein interaktives Terminal:
 

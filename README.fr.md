@@ -43,8 +43,8 @@ pour les règles des répertoires, l'annulation et les limites.
 
 ## Shell SSH partagé
 
-Connectez-vous avec une clé privée autorisée non chiffrée ou saisissez votre mot de passe à la demande
-(il n'est pas enregistré). Pour un serveur inconnu, vérifiez l'empreinte affichée et saisissez `yes`
+Connectez-vous avec une clé privée autorisée (une phrase secrète est demandée pour les clés chiffrées) ou saisissez votre mot de passe à la demande
+(aucun des deux n'est enregistré). Pour un serveur inconnu, vérifiez l'empreinte affichée et saisissez `yes`
 pour enregistrer sa clé publique dans `~/.ssh/known_hosts` ; les clés modifiées sont refusées.
 Ces invites nécessitent un terminal interactif :
 

@@ -23,6 +23,7 @@ func TestSSHFilesCLIParsing(t *testing.T) {
 		args := []string{"user@[::1]", "put", `C:\fixture\a b.bin`, "/tmp/a b.bin", "--port", "2222", "--identity", "fixture-key", "--known-hosts", "fixture-hosts", "-r", "--overwrite"}
 		var output bytes.Buffer
 		args = append(args, "--keepalive-interval", "10s", "--keepalive-count", "2")
+		args = append(args, "-i", "second-fixture-key")
 		if protocol == "sftp" {
 			args = append(args, "--safe-replace")
 		}
@@ -34,6 +35,9 @@ func TestSSHFilesCLIParsing(t *testing.T) {
 		}
 		if !strings.Contains(output.String(), "completed") {
 			t.Fatal("no completion")
+		}
+		if got.Config.PrivateKeyPath != "fixture-key" || len(got.Config.PrivateKeyPaths) != 1 || got.Config.PrivateKeyPaths[0] != "second-fixture-key" {
+			t.Fatal("explicit identity order lost")
 		}
 		if got.Config.KeepAliveInterval != 10*time.Second || got.Config.KeepAliveCountMax != 2 || got.SafeReplace != (protocol == "sftp") {
 			t.Fatalf("missing safety options: %+v", got)

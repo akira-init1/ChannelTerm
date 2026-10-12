@@ -18,8 +18,9 @@ func runSSHFiles(ctx context.Context, protocol string, args []string, input io.R
 	flags.SetOutput(output)
 	port := flags.Int("port", 22, "SSH server port")
 	flags.IntVar(port, "p", 22, "alias for --port")
-	identity := flags.String("identity", "", "unencrypted private key; otherwise default key or interactive password")
-	flags.StringVar(identity, "i", "", "alias for --identity")
+	var identities identityFlags
+	flags.Var(&identities, "identity", "private key; repeat for ordered candidates; defaults try id_ed25519 then id_rsa")
+	flags.Var(&identities, "i", "alias for --identity; repeatable")
 	trusted := flags.String("known-hosts", "", "OpenSSH trust file (default ~/.ssh/known_hosts)")
 	setupTimeout := flags.Duration("timeout", 10*time.Second, "network setup budget excluding interactive prompts")
 	operationTimeout := flags.Duration("operation-timeout", 0, "overall operation deadline including prompts (0 disables)")
@@ -76,7 +77,8 @@ func runSSHFiles(ctx context.Context, protocol string, args []string, input io.R
 	if *port < 1 || *port > 65535 || *setupTimeout <= 0 || *operationTimeout < 0 || *keepAlive < 0 || *keepAliveCount < 1 || *keepAlive > time.Duration(1<<63-1)/time.Duration(*keepAliveCount) {
 		return errors.New("invalid SSH port or timeout")
 	}
-	r := app.SSHFilesRequest{Config: sshtransport.Config{User: user, Host: host, Port: *port, PrivateKeyPath: *identity, KnownHostsPath: *trusted, Timeout: *setupTimeout}, Protocol: protocol, Operation: positional[1], Recursive: *recursive, Overwrite: *overwrite}
+	r := app.SSHFilesRequest{Config: sshtransport.Config{User: user, Host: host, Port: *port, KnownHostsPath: *trusted, Timeout: *setupTimeout}, Protocol: protocol, Operation: positional[1], Recursive: *recursive, Overwrite: *overwrite}
+	identities.configure(&r.Config)
 	r.Config.KeepAliveInterval, r.Config.KeepAliveCountMax = *keepAlive, *keepAliveCount
 	r.SafeReplace = *safeReplace
 	paths := positional[2:]

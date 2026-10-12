@@ -216,8 +216,12 @@ func runAttachSessionWithInputEnd(ctx context.Context, args []string, input io.R
 	attachCtx, cancel := context.WithCancel(ctx)
 	var activityWait sync.WaitGroup
 	var eventWait sync.WaitGroup
+	var ownerInputDone chan struct{}
 	defer func() {
 		cancel()
+		if ownerInputDone != nil {
+			<-ownerInputDone
+		}
 		activityWait.Wait()
 		eventWait.Wait()
 	}()
@@ -291,12 +295,15 @@ func runAttachSessionWithInputEnd(ctx context.Context, args []string, input io.R
 	if owner, ok := attached.(localFileTransferPresentation); ok {
 		owner.setFileTransferPresentation(presentation)
 	}
-	go func() {
-		if onInputEnd != nil {
-			defer onInputEnd()
-		}
-		forwardAttachInputWithPresentation(attachCtx, input, attached, writeLocalOutput, writeLocalStatus, togglePromptTimestamps, cancel, interrupts)
-	}()
+	if onInputEnd != nil {
+		ownerInputDone = make(chan struct{})
+		go func() {
+			defer close(ownerInputDone)
+			forwardSSHOwnerInput(attachCtx, input, attached, writeLocalOutput, writeLocalStatus, togglePromptTimestamps, cancel, interrupts, onInputEnd)
+		}()
+	} else {
+		go forwardAttachInputWithPresentation(attachCtx, input, attached, writeLocalOutput, writeLocalStatus, togglePromptTimestamps, cancel, interrupts)
+	}
 	events, hasEvents := attached.(attachEventSession)
 	if hasEvents {
 		eventChunk, eventErr := events.ReadRecentEvents(session.DefaultEventBufferCapacity)

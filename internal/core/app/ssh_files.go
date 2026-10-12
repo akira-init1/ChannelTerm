@@ -139,7 +139,7 @@ func runSSHFiles(ctx context.Context, client *sshtransport.Files, r SSHFilesRequ
 		err = downloadSSH(ctx, client, r, &result)
 	}
 	if err != nil {
-		return result, fmt.Errorf("%s %s: %w", r.Protocol, r.Operation, err)
+		return result, &sshtransport.StageError{Stage: "transfer", Err: fmt.Errorf("%s %s: %w", r.Protocol, r.Operation, err)}
 	}
 	sort.Slice(result.Entries, func(i, j int) bool { return result.Entries[i].Name < result.Entries[j].Name })
 	return result, nil

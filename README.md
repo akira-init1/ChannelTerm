@@ -42,8 +42,9 @@ for directory semantics, cancellation, and protocol limits.
 
 ## Shared SSH shell
 
-Connect using an authorized unencrypted private key or enter your password when prompted (it is not
-saved). For an unknown server, verify its displayed fingerprint and enter `yes` to save its public
+Connect using an authorized private key (encrypted keys prompt for a passphrase) or enter your
+login password when prompted. Passwords and key passphrases are not saved. For an unknown server,
+verify its displayed fingerprint and enter `yes` to save its public
 key in `~/.ssh/known_hosts`; changed keys are rejected. Prompts require an interactive terminal:
 
 ```bash

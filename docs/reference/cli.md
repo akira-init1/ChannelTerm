@@ -236,11 +236,15 @@ channelterm ssh user@host.example --identity /path/to/private-key --port 2222
 channelterm attach SSH-1
 ```
 
-Authentication tries an unencrypted private key first, then prompts for a password if the server
-offers password authentication. The default identity is `~/.ssh/id_ed25519`, falling back to
-`~/.ssh/id_rsa` when the first file is absent. If neither exists, interactive password login is
-still available. An explicitly selected missing key, or an existing unreadable/malformed/encrypted
-key, fails rather than silently ignoring a configuration error. Password input is hidden, retried
+Authentication tries existing default keys `~/.ssh/id_ed25519` then `~/.ssh/id_rsa`, then prompts
+for a password if the server offers password authentication. Repeating `--identity`/`-i` replaces
+default discovery with that ordered list; repeated identical paths are tried once. If neither
+default exists, interactive password login is still available. A selected missing, unreadable,
+or malformed key fails rather than silently ignoring a configuration error. Encrypted keys require
+an interactive passphrase provider. OpenSSH encrypted keys prompt only if the server accepts their
+public key; legacy encrypted PEM keys require unlocking to discover it. Passphrases are requested
+after host verification, hidden, retried up to three times, and never saved. Cancellation aborts
+setup rather than falling back to another authentication method. Password input is hidden, retried
 up to three times (the server may disconnect earlier), and never saved or placed in Session metadata.
 
 The default trust file is `~/.ssh/known_hosts`, shared with OpenSSH on Windows, Linux, and macOS.
@@ -267,7 +271,7 @@ the dimensions stay fixed. Linux/macOS use `SIGWINCH`; Windows queries the visib
 every 250 ms without consuming keyboard events. Duplicate, zero, invalid, or unavailable local
 measurements are ignored. Shutdown cancels the watcher and closes its SSH I/O before joining it.
 The command does not read SSH profiles or save credentials into ChannelTerm configuration.
-Encrypted private keys, ssh-agent, ssh_config, keyboard-interactive authentication, and arbitrary
+ssh-agent, ssh_config, keyboard-interactive authentication, and arbitrary
 SSH exec are not supported. Dedicated file operations use `sftp` or `scp`, described below.
 A server offering only keyboard-interactive requires a different client.
 
@@ -289,13 +293,20 @@ defaults to 3 and must be positive: each probe waits at most interval times coun
 including a negative reply. Only one probe is outstanding, and the first starts after one interval.
 An unanswered probe closes the connection. `--write-timeout` bounds each shell write and resize
 (default 0, disabled), including remote flow control; expiry closes the connection without replay.
-Local escape processing can wait for an in-flight write, so enable a write timeout to bound that
-wait. Start a new `ssh` command after a detected disconnection.
+The owning terminal processes local escape independently of its remote write worker. `Ctrl+] q`
+closes the owned connection and joins that worker even during blocked writes, without a timeout.
+At most 256 batches of up to 4 KiB are queued in order. Overflow explicitly closes the connection;
+exit discards unsent input and never replays it. File shortcuts wait for earlier queued writes
+in their cancellable worker before starting. Secondary attachments keep their existing behavior.
+Start a new `ssh` command after a detected disconnection.
 A Host can be write-controlled by clients holding its token; keep the token private.
 
-Important errors include invalid destinations/options, missing or encrypted keys, unknown/changed
+Important errors include invalid destinations/options, missing or malformed keys, unknown/changed
 host keys, authentication failure, connection timeout/refusal, rejected PTY/shell requests, and an
 occupied sharing address. See the [SSH terminal workflow](../getting-started/ssh-terminal.md).
+SSH diagnostics label identity loading, DNS, TCP connection, host-key verification, authentication,
+handshake, shell/subsystem setup, transfer, and liveness failures. Cancellation and timeout retain
+their underlying error identity. Diagnostics never include entered passwords or passphrases.
 
 ## `sftp` and `scp`
 

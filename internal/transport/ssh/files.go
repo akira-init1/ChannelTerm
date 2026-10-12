@@ -61,7 +61,7 @@ func (t *Transport) OpenFiles(ctx context.Context, protocol string) (*Files, err
 		var err error
 		f.sftp, err = sftp.NewClient(client.Client)
 		if err != nil {
-			return fmt.Errorf("start SFTP subsystem: %w", err)
+			return stageError("subsystem", fmt.Errorf("start SFTP subsystem: %w", err))
 		}
 		return nil
 	})

@@ -44,8 +44,8 @@ para las reglas de directorios, cancelación y límites.
 
 ## Shell SSH compartida
 
-Conéctate con una clave privada autorizada sin cifrar o introduce tu contraseña cuando se solicite
-(no se guarda). Para un servidor desconocido, verifica la huella mostrada y escribe `yes` para
+Conéctate con una clave privada autorizada (las claves cifradas solicitan una frase de contraseña) o introduce tu contraseña cuando se solicite
+(ninguna se guarda). Para un servidor desconocido, verifica la huella mostrada y escribe `yes` para
 guardar su clave pública en `~/.ssh/known_hosts`; las claves cambiadas se rechazan.
 Las solicitudes requieren un terminal interactivo:
 

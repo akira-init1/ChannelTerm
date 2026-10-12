@@ -27,8 +27,9 @@ func runSSH(ctx context.Context, args []string, input io.Reader, output io.Write
 	flags.SetOutput(output)
 	port := flags.Int("port", 22, "SSH server port")
 	flags.IntVar(port, "p", 22, "alias for --port")
-	identity := flags.String("identity", "", "unencrypted private key (default ~/.ssh/id_ed25519, then id_rsa)")
-	flags.StringVar(identity, "i", "", "alias for --identity")
+	var identities identityFlags
+	flags.Var(&identities, "identity", "private key; repeat to try in order (default ~/.ssh/id_ed25519, then id_rsa)")
+	flags.Var(&identities, "i", "alias for --identity; repeatable")
 	hosts := flags.String("known-hosts", "", "trusted host keys (default ~/.ssh/known_hosts)")
 	terminalType := flags.String("term", "xterm-256color", "remote PTY terminal type")
 	columns := flags.Int("cols", 0, "initial PTY columns (default local terminal size, or 80)")
@@ -46,7 +47,7 @@ func runSSH(ctx context.Context, args []string, input io.Reader, output io.Write
 		fmt.Fprintln(output, "In another terminal: channelterm attach SSH-1")
 		fmt.Fprintln(output, "The foreground SSH command owns the Host; Ctrl+] q closes it and its Sessions.")
 		fmt.Fprintln(output, "Unknown host keys require confirmation before saving to known_hosts; changed keys are rejected.")
-		fmt.Fprintln(output, "Interactive terminals can enter a password (not saved). Encrypted keys, ssh-agent,")
+		fmt.Fprintln(output, "Interactive terminals can enter passwords and private-key passphrases (not saved). ssh-agent,")
 		fmt.Fprintln(output, "ssh_config, keyboard-interactive authentication, and arbitrary SSH exec are not supported.")
 		fmt.Fprintln(output, "Use the sftp or scp command for dedicated SSH file operations.")
 		fmt.Fprintln(output, "The owning terminal controls PTY resizing; secondary attachments do not resize it.")
@@ -100,10 +101,11 @@ func runSSH(ctx context.Context, args []string, input io.Reader, output io.Write
 		*rows = int(initialSize.Rows)
 	}
 	configuration := sshtransport.Config{
-		User: user, Host: host, Port: *port, PrivateKeyPath: *identity, KnownHostsPath: *hosts,
+		User: user, Host: host, Port: *port, KnownHostsPath: *hosts,
 		Term: *terminalType, Columns: *columns, Rows: *rows, Timeout: *timeout,
 		KeepAliveInterval: *keepAlive, KeepAliveCountMax: *keepAliveCount, WriteTimeout: *writeTimeout,
 	}
+	identities.configure(&configuration)
 	if err := configureSSHAuthentication(&configuration, input, output); err != nil {
 		return err
 	}
@@ -221,5 +223,20 @@ func runSSH(ctx context.Context, args []string, input io.Reader, output io.Write
 	}()
 	return runAttachSessionWithInputEnd(hostCtx, []string{
 		"--endpoint", endpoint, "--highlight=" + strconv.FormatBool(*highlight), opened.Info.ID,
-	}, input, output, newMCPAttachSession, attachInterrupts, stopHost)
+	}, input, output, newSSHOwnerAttachment, attachInterrupts, func() { stopHost(); _ = manager.Close() })
+}
+
+// sshOwnerAttachment releases the local MCP client after its owning Manager
+// closes all Sessions. A detach RPC at that point would address a removed Session.
+// Embedding the concrete adapter preserves its optional event/transfer interfaces.
+type sshOwnerAttachment struct{ *mcpAttachSession }
+
+// Close releases only the client; the foreground command owns Session shutdown.
+func (s *sshOwnerAttachment) Close() error { return s.client.Close() }
+func newSSHOwnerAttachment(ctx context.Context, endpoint, id string) (attachSession, error) {
+	attached, err := newMCPAttachSession(ctx, endpoint, id)
+	if err != nil {
+		return nil, err
+	}
+	return &sshOwnerAttachment{attached.(*mcpAttachSession)}, nil
 }

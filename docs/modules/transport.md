@@ -78,10 +78,19 @@ port, optional private-key and required `known_hosts` paths, connection timeout,
 context-aware password/unknown-host confirmation callbacks. Defaults are
 port 22, a ten-second setup timeout, `xterm-256color`, and 80 columns by 24 rows.
 
-`New` validates settings, parses a selected unencrypted private key, and loads the trusted host-key
+`New` validates settings, snapshots selected private keys, and loads the trusted host-key
 database without networking. A key or password provider is required. A missing trust file is allowed
 only with a confirmation provider; malformed files and explicitly selected missing keys fail. The
 Transport retains a credential/trust snapshot; changed files require a new Transport.
+
+`PrivateKeyPath` precedes ordered `PrivateKeyPaths`; duplicate path strings are ignored. Unencrypted
+keys are parsed at construction; encrypted bytes remain encrypted until authentication after host
+verification. `KeyPassphrase` is cancellable, pauses the setup network budget, and allows three
+incorrect-passphrase attempts. Returned buffers are cleared. OpenSSH keys expose a public portion,
+so a connection-local lazy signer prompts only after server acceptance; legacy encrypted PEM keys
+must be unlocked to discover that portion. RSA SHA-2 negotiation is preserved. Decrypted signers
+are connection-local, never cached on Transport or persisted. Rejected candidates advance in order;
+configuration/decryption errors abort instead of silently skipping an identity.
 
 Transport always verifies the server before password authentication. It asks the adapter to confirm
 only an unknown key, passing a plain `HostKey` value containing address, algorithm, and SHA256
@@ -143,8 +152,13 @@ The CLI's owner-only control policy is described in the [SSH workflow](../gettin
 
 Each Connect can establish an independent Channel. Sharing and reuse instead happen in
 `Application.OpenSSH`, keyed by exact username, host, and port. This release does not implement
-encrypted private keys, ssh-agent, ssh_config, keyboard-interactive authentication, jump
+ssh-agent, ssh_config, keyboard-interactive authentication, jump
 hosts, or arbitrary SSH exec.
+
+`StageError` identifies identity, DNS, connection, host-key, authentication, handshake, shell,
+subsystem, transfer, or liveness failure while unwrapping the original cause. Backend-specific
+authentication rejection detection stays inside Transport. Watchdog failures do not masquerade as
+normal EOF in the Session read path. No credentials are added to diagnostics.
 
 ### Dedicated file clients
 

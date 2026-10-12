@@ -9,9 +9,11 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
+	"github.com/pkg/sftp"
 	gossh "golang.org/x/crypto/ssh"
 )
 
@@ -90,6 +92,71 @@ func TestSFTPSafeReplacement(t *testing.T) {
 	}
 }
 
+type rejectReplacement struct{ sftp.FileCmder }
+
+// PosixRename simulates a server that advertises the extension but refuses it.
+func (rejectReplacement) PosixRename(*sftp.Request) error { return os.ErrPermission }
+
+func TestSafeUploadFailurePreservesCommittedFile(t *testing.T) {
+	for _, mode := range []string{"disconnect", "rename-refused"} {
+		t.Run(mode, func(t *testing.T) {
+			handlers := sftp.InMemHandler()
+			if mode == "rename-refused" {
+				handlers.FileCmd = rejectReplacement{handlers.FileCmd}
+			}
+			var mu sync.Mutex
+			var disconnect func()
+			config := fileServerWithHandler(t, false, func(ch gossh.Channel) {
+				mu.Lock()
+				disconnect = func() { _ = ch.Close() }
+				mu.Unlock()
+				server := sftp.NewRequestServer(ch, handlers)
+				_ = server.Serve()
+				_ = server.Close()
+			})
+			dir := t.TempDir()
+			local := filepath.Join(dir, "source")
+			old := []byte("original committed bytes")
+			if err := os.WriteFile(local, old, 0600); err != nil {
+				t.Fatal(err)
+			}
+			r := SSHFilesRequest{Config: config, Protocol: "sftp", Operation: "put", Local: local, Remote: "/target"}
+			if _, err := RunSSHFiles(context.Background(), r); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(local, bytes.Repeat([]byte("new"), 50000), 0600); err != nil {
+				t.Fatal(err)
+			}
+			r.Overwrite, r.SafeReplace = true, true
+			if mode == "disconnect" {
+				r.Progress = func(string, int64, int64) error { mu.Lock(); stop := disconnect; mu.Unlock(); stop(); return nil }
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			_, err := RunSSHFiles(ctx, r)
+			if err == nil || errors.Is(err, context.DeadlineExceeded) {
+				t.Fatalf("failure=%v", err)
+			}
+			if mode == "disconnect" && !strings.Contains(err.Error(), "temporary remote file may remain") {
+				t.Fatal("missing staging cleanup diagnostic", err)
+			}
+			destination := filepath.Join(dir, "download")
+			if _, err := RunSSHFiles(context.Background(), SSHFilesRequest{Config: config, Protocol: "sftp", Operation: "get", Remote: "/target", Local: destination}); err != nil {
+				t.Fatal(err)
+			}
+			if got, err := os.ReadFile(destination); err != nil || !bytes.Equal(got, old) {
+				t.Fatalf("old target damaged: %q %v", got, err)
+			}
+			if mode == "rename-refused" {
+				listed, err := RunSSHFiles(context.Background(), SSHFilesRequest{Config: config, Protocol: "sftp", Operation: "ls", Remote: "/"})
+				if err != nil || len(listed.Entries) != 1 {
+					t.Fatal("failed rename leaked staging file", err)
+				}
+			}
+		})
+	}
+}
+
 func TestSafeReplacementValidation(t *testing.T) {
 	for _, r := range []SSHFilesRequest{
 		{Protocol: "scp", Operation: "put", Overwrite: true, SafeReplace: true},
@@ -159,5 +226,66 @@ func TestSafeDownloadRenameFailurePreservesDestination(t *testing.T) {
 	}
 	if result.Files != 0 {
 		t.Fatal("failed rename counted as committed")
+	}
+}
+
+// TestSafeReplacementCancellation covers real context cancellation, not only
+// a progress error. A cancelled upload may retain its uniquely named staging
+// file, but neither direction may truncate the previously committed target.
+func TestSafeReplacementCancellation(t *testing.T) {
+	for _, direction := range []string{"put", "get"} {
+		t.Run(direction, func(t *testing.T) {
+			config := fileServer(t, false)
+			dir := t.TempDir()
+			local := filepath.Join(dir, "source")
+			old := []byte("original")
+			if err := os.WriteFile(local, old, 0600); err != nil {
+				t.Fatal(err)
+			}
+			seed := SSHFilesRequest{Config: config, Protocol: "sftp", Operation: "put", Local: local, Remote: "/target"}
+			if _, err := RunSSHFiles(context.Background(), seed); err != nil {
+				t.Fatal(err)
+			}
+			payload := bytes.Repeat([]byte("new"), 50000)
+			if err := os.WriteFile(local, payload, 0600); err != nil {
+				t.Fatal(err)
+			}
+			r := seed
+			r.Overwrite, r.SafeReplace = true, true
+			destination := filepath.Join(dir, "download")
+			if direction == "get" {
+				seed.Overwrite = true
+				if _, err := RunSSHFiles(context.Background(), seed); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(destination, old, 0600); err != nil {
+					t.Fatal(err)
+				}
+				r.Operation, r.Local = "get", destination
+			}
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			r.Progress = func(string, int64, int64) error { cancel(); return nil }
+			if _, err := RunSSHFiles(ctx, r); !errors.Is(err, context.Canceled) {
+				t.Fatalf("cancelled copy=%v", err)
+			}
+			if direction == "put" {
+				if _, err := RunSSHFiles(context.Background(), SSHFilesRequest{Config: config, Protocol: "sftp", Operation: "get", Local: destination, Remote: "/target"}); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if got, err := os.ReadFile(destination); err != nil || !bytes.Equal(got, old) {
+				t.Fatalf("committed destination changed: %q %v", got, err)
+			}
+			entries, err := os.ReadDir(dir)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, entry := range entries {
+				if strings.HasPrefix(entry.Name(), ".channelterm-") {
+					t.Fatal("local staging file leaked")
+				}
+			}
+		})
 	}
 }
