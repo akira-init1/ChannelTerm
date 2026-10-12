@@ -23,9 +23,12 @@ func runSSHFiles(ctx context.Context, protocol string, args []string, input io.R
 	trusted := flags.String("known-hosts", "", "OpenSSH trust file (default ~/.ssh/known_hosts)")
 	setupTimeout := flags.Duration("timeout", 10*time.Second, "network setup budget excluding interactive prompts")
 	operationTimeout := flags.Duration("operation-timeout", 0, "overall operation deadline including prompts (0 disables)")
+	keepAlive := flags.Duration("keepalive-interval", 0, "SSH liveness probe interval after setup (0 disables)")
+	keepAliveCount := flags.Int("keepalive-count", 3, "maximum response wait in keepalive intervals")
 	recursive := flags.Bool("recursive", false, "copy directories recursively; symlink uploads are rejected")
 	flags.BoolVar(recursive, "r", false, "alias for --recursive")
 	overwrite := flags.Bool("overwrite", false, "allow replacing existing files (failed transfers can leave partial files)")
+	safeReplace := flags.Bool("safe-replace", false, "stage each SFTP file before replacement; requires --overwrite (upload needs POSIX rename)")
 	flags.Usage = func() {
 		fmt.Fprintf(output, "Usage: channelterm %s USER@HOST OPERATION [paths] [options]\n", protocol)
 		fmt.Fprintln(output, "  put LOCAL REMOTE     Upload a file or directory")
@@ -70,10 +73,12 @@ func runSSHFiles(ctx context.Context, protocol string, args []string, input io.R
 	if strings.HasPrefix(host, "[") && strings.HasSuffix(host, "]") {
 		host = host[1 : len(host)-1]
 	}
-	if *port < 1 || *port > 65535 || *setupTimeout <= 0 || *operationTimeout < 0 {
+	if *port < 1 || *port > 65535 || *setupTimeout <= 0 || *operationTimeout < 0 || *keepAlive < 0 || *keepAliveCount < 1 || *keepAlive > time.Duration(1<<63-1)/time.Duration(*keepAliveCount) {
 		return errors.New("invalid SSH port or timeout")
 	}
 	r := app.SSHFilesRequest{Config: sshtransport.Config{User: user, Host: host, Port: *port, PrivateKeyPath: *identity, KnownHostsPath: *trusted, Timeout: *setupTimeout}, Protocol: protocol, Operation: positional[1], Recursive: *recursive, Overwrite: *overwrite}
+	r.Config.KeepAliveInterval, r.Config.KeepAliveCountMax = *keepAlive, *keepAliveCount
+	r.SafeReplace = *safeReplace
 	paths := positional[2:]
 	if r.Operation == "ls" && len(paths) == 0 {
 		paths = []string{"."}
@@ -102,6 +107,9 @@ func runSSHFiles(ctx context.Context, protocol string, args []string, input io.R
 	}
 	if *recursive && r.Operation != "put" && r.Operation != "get" {
 		return errors.New("--recursive applies only to put/get, not deletion")
+	}
+	if *safeReplace && (protocol != "sftp" || !*overwrite || r.Operation != "put" && r.Operation != "get") {
+		return errors.New("--safe-replace requires sftp put/get and --overwrite")
 	}
 	if err := configureSSHAuthentication(&r.Config, input, output); err != nil {
 		return err

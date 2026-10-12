@@ -6,6 +6,7 @@ import (
 	"io"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/akira-init1/ChannelTerm/internal/core/app"
 )
@@ -21,6 +22,10 @@ func TestSSHFilesCLIParsing(t *testing.T) {
 		}
 		args := []string{"user@[::1]", "put", `C:\fixture\a b.bin`, "/tmp/a b.bin", "--port", "2222", "--identity", "fixture-key", "--known-hosts", "fixture-hosts", "-r", "--overwrite"}
 		var output bytes.Buffer
+		args = append(args, "--keepalive-interval", "10s", "--keepalive-count", "2")
+		if protocol == "sftp" {
+			args = append(args, "--safe-replace")
+		}
 		if err := runSSHFiles(context.Background(), protocol, args, strings.NewReader(""), &output, run); err != nil {
 			t.Fatal(err)
 		}
@@ -29,6 +34,9 @@ func TestSSHFilesCLIParsing(t *testing.T) {
 		}
 		if !strings.Contains(output.String(), "completed") {
 			t.Fatal("no completion")
+		}
+		if got.Config.KeepAliveInterval != 10*time.Second || got.Config.KeepAliveCountMax != 2 || got.SafeReplace != (protocol == "sftp") {
+			t.Fatalf("missing safety options: %+v", got)
 		}
 	}
 }
@@ -40,6 +48,10 @@ func TestSSHFilesCLIValidation(t *testing.T) {
 		{"host", "ls"}, {"user@host", "put", "only-one"}, {"user@host", "rm", "/tmp/x", "-r"},
 		{"user@host", "ls", "--port", "0"}, {"user@host", "ls", "--operation-timeout", "-1s"},
 		{"user@host", "ls", "--unknown"}, {"user@host", "ls", "--identity"},
+		{"user@host", "ls", "--keepalive-count", "0"},
+		{"user@host", "ls", "--keepalive-interval", "-1s"},
+		{"user@host", "put", "local", "remote", "--safe-replace"},
+		{"user@host", "ls", "--safe-replace", "--overwrite"},
 	} {
 		err := runSSHFiles(context.Background(), "sftp", args, strings.NewReader(""), io.Discard, func(context.Context, app.SSHFilesRequest) (app.SSHFilesResult, error) {
 			t.Fatal("invalid command dispatched")

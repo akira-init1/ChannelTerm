@@ -90,6 +90,7 @@ func TestRepeatedChannelCloseReleasesWorkers(t *testing.T) {
 	before := sshWorkerStacks()
 	t.Run("connections", func(t *testing.T) {
 		server := startTestServer(t, "")
+		server.config.KeepAliveInterval = 20 * time.Millisecond
 		for range 8 {
 			stream := connectTestChannel(t, server.config)
 			readExactly(t, stream, "ready> ")
@@ -115,7 +116,7 @@ func sshWorkerStacks() []string {
 	buffer = buffer[:runtime.Stack(buffer, true)]
 	var found []string
 	for _, stack := range strings.Split(string(buffer), "\n\n") {
-		if strings.Contains(stack, "golang.org/x/crypto/ssh.") || strings.Contains(stack, "/internal/transport/ssh.(*Transport).Connect.func") {
+		if strings.Contains(stack, "golang.org/x/crypto/ssh.") || strings.Contains(stack, "/internal/transport/ssh.(*Transport).Connect.func") || strings.Contains(stack, "/internal/transport/ssh.(*liveClient).") {
 			found = append(found, stack)
 		}
 	}

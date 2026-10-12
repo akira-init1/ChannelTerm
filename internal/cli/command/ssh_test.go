@@ -149,6 +149,7 @@ func waitSSHOutput(t *testing.T, output *lockedBuffer, expected string) string {
 func TestSSHCommandSharesShellWithAttach(t *testing.T) {
 	t.Setenv(httpAuthTokenEnvVar, "test-ssh-host-token")
 	args, closed := sshCommandServer(t)
+	args = append(args, "--keepalive-interval", "50ms", "--keepalive-count", "3", "--write-timeout", "2s")
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	input, writer := io.Pipe()
@@ -252,6 +253,9 @@ func TestSSHCommandHelpAndValidation(t *testing.T) {
 		{[]string{"user@host", "extra"}, "exactly one"},
 		{[]string{"user@host", "--port", "0"}, "port"},
 		{[]string{"user@host", "--timeout", "0s"}, "timeout"},
+		{[]string{"user@host", "--keepalive-interval", "-1s"}, "keepalive"},
+		{[]string{"user@host", "--keepalive-count", "0"}, "keepalive"},
+		{[]string{"user@host", "--write-timeout", "-1s"}, "timeout"},
 		{[]string{"user@host", "--listen", "0.0.0.0:1234"}, "loopback"},
 		{[]string{"user@host", "--listen", "localhost:1234"}, "loopback"},
 		{[]string{"user@host", "--identity", filepath.Join(t.TempDir(), "missing")}, "read SSH identity"},

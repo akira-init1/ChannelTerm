@@ -29,7 +29,11 @@ type SSHFilesRequest struct {
 	Target    string
 	Recursive bool
 	Overwrite bool
-	Progress  func(name string, transferred, total int64) error
+	// SafeReplace stages each SFTP file beside its destination, then renames
+	// it after a complete copy. It requires Overwrite and never makes a whole
+	// directory transactional. Remote upload requires POSIX rename support.
+	SafeReplace bool
+	Progress    func(name string, transferred, total int64) error
 }
 
 // SSHFilesResult returns remote entries or successfully copied file/byte counts.
@@ -41,8 +45,9 @@ type SSHFilesResult struct {
 }
 
 // RunSSHFiles owns one operation's dedicated connection and local file handles.
-// Cancellation interrupts the SSH connection and leaves any already-written
-// files/directories in place; this is not a transactional tree copy. It does not
+// Cancellation interrupts the SSH connection. Direct copies can leave partial
+// destinations; SafeReplace instead attempts to remove uncommitted staging
+// files. Neither mode is a transactional tree copy. It does not
 // acquire a terminal lease or register a Session and is reusable by non-CLI adapters.
 func RunSSHFiles(ctx context.Context, request SSHFilesRequest) (result SSHFilesResult, err error) {
 	if err := validateSSHFiles(request); err != nil {
@@ -71,6 +76,9 @@ func RunSSHFiles(ctx context.Context, request SSHFilesRequest) (result SSHFilesR
 }
 
 func validateSSHFiles(r SSHFilesRequest) error {
+	if r.SafeReplace && (r.Protocol != "sftp" || !r.Overwrite || r.Operation != "put" && r.Operation != "get") {
+		return errors.New("safe replacement requires SFTP put/get and explicit overwrite")
+	}
 	if r.Protocol != "sftp" && r.Protocol != "scp" {
 		return errors.New("protocol must be sftp or scp")
 	}
@@ -219,6 +227,11 @@ func copySSHFile(ctx context.Context, dst io.Writer, src io.Reader, name string,
 }
 
 func uploadSFTP(ctx context.Context, client *sshtransport.Files, r SSHFilesRequest, result *SSHFilesResult) error {
+	if r.SafeReplace {
+		if err := client.RequirePOSIXRename(); err != nil {
+			return err
+		}
+	}
 	absolute, err := filepath.Abs(r.Local)
 	if err != nil {
 		return err
@@ -277,6 +290,9 @@ func uploadSFTP(ctx context.Context, client *sshtransport.Files, r SSHFilesReque
 			return err
 		}
 		defer source.Close()
+		if r.SafeReplace {
+			return replaceSFTPUpload(ctx, client, source, target, current, info.Size(), r, result)
+		}
 		sink, err := client.Create(target, r.Overwrite)
 		if err != nil {
 			return err
@@ -352,6 +368,9 @@ func downloadSSH(ctx context.Context, client *sshtransport.Files, r SSHFilesRequ
 		}
 		if !entry.Mode.IsRegular() {
 			return errors.New("download supports only regular files and directories")
+		}
+		if r.SafeReplace {
+			return replaceSFTPDownload(ctx, root, source, local, entry.Path, entry.Size, r, result)
 		}
 		flags := os.O_WRONLY | os.O_CREATE | os.O_EXCL
 		if r.Overwrite {

@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/pkg/sftp"
-	gossh "golang.org/x/crypto/ssh"
 )
 
 // FileInfo describes a remote entry without exposing SSH/SFTP backend types.
@@ -37,7 +36,7 @@ func fileInfo(info fs.FileInfo) (FileInfo, error) {
 // to interrupt blocked I/O; cancellation of the opening context also closes the
 // connection. Call Close even after cancellation to join owned client workers.
 type Files struct {
-	client *gossh.Client
+	client *liveClient
 	sftp   *sftp.Client
 	ctx    context.Context
 	stop   func() bool
@@ -55,12 +54,12 @@ func (t *Transport) OpenFiles(ctx context.Context, protocol string) (*Files, err
 		return nil, errors.New("file protocol must be sftp or scp")
 	}
 	f := &Files{ctx: ctx, done: make(chan struct{})}
-	client, err := t.open(ctx, func(client *gossh.Client) error {
+	client, err := t.open(ctx, func(client *liveClient) error {
 		if protocol == "scp" {
 			return nil
 		}
 		var err error
-		f.sftp, err = sftp.NewClient(client)
+		f.sftp, err = sftp.NewClient(client.Client)
 		if err != nil {
 			return fmt.Errorf("start SFTP subsystem: %w", err)
 		}
@@ -95,6 +94,7 @@ func (f *Files) Close() error {
 		if errors.Is(f.err, net.ErrClosed) || errors.Is(f.err, io.EOF) {
 			f.err = nil
 		}
+		f.err = errors.Join(f.err, f.client.failure())
 	})
 	return f.err
 }
@@ -159,6 +159,18 @@ func (f *Files) Rename(oldPath, newPath string, overwrite bool) error {
 		return f.sftp.PosixRename(oldPath, newPath)
 	}
 	return f.sftp.Rename(oldPath, newPath)
+}
+
+// RequirePOSIXRename checks for the server extension needed to replace a
+// remote file without a delete-first fallback. Call before staging an upload.
+func (f *Files) RequirePOSIXRename() error {
+	if err := f.requireSFTP(); err != nil {
+		return err
+	}
+	if version, ok := f.sftp.HasExtension("posix-rename@openssh.com"); !ok || version != "1" {
+		return errors.New("safe upload replacement requires the SFTP POSIX rename extension")
+	}
+	return nil
 }
 
 // Remove removes a file/symlink, or an empty directory when directory is true.

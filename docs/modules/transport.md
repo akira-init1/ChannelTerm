@@ -120,8 +120,16 @@ remote flow control cannot prevent shutdown. The existing Channel wrapper makes 
 Remote shell EOF or a connection failure reaches the existing Session lifecycle/reaping path.
 FIN/EOF and TCP-reset tests verify that blocked readers end and Manager closes/unregisters the
 Session. Reconnection creates a fresh Channel; the Transport neither reconnects automatically
-nor replays writes. A silent packet blackhole does not impose a new post-connect deadline:
-Close still releases blocked I/O, while setup timeout does not limit an established shell.
+nor replays writes. Setup timeout does not limit an established shell. Optional
+`KeepAliveInterval` probes run after successful setup, on shell and dedicated file connections.
+Zero disables probes. `KeepAliveCountMax` defaults to 3; one outstanding authenticated global
+request has a response deadline of interval times count. Negative replies also prove liveness.
+The first probe is sent after one interval; subsequent probes never overlap. Expiry records
+`ErrKeepAliveTimeout` and closes the socket. Close joins the probe and supervisor workers.
+Optional `WriteTimeout` bounds each shell Write/Resize, including SSH channel flow control;
+zero disables it. Expiry records `ErrWriteTimeout` and closes the entire connection because a
+partial write cannot be safely replayed. It does not impose a deadline on file payload operations;
+those use their owning context. Timer callbacks are joined before a write returns.
 Repeated-close tests also check for retained SSH workers after server and Channel cleanup.
 
 `Resize(cols, rows)` accepts nonzero character dimensions up to 65535 and calls the existing
@@ -169,6 +177,7 @@ last download acknowledgement is accepted only when framing completed and the SS
 SFTP rename replacement requires the server's POSIX rename extension. There is no destructive
 delete-then-rename fallback. SFTP create-without-overwrite uses exclusive creation. Filesystem
 preflight checks do not constitute locking against unrelated local or remote writers.
+`RequirePOSIXRename` checks the advertised extension before Application stages a safe upload.
 
 ## Current implementation boundary
 

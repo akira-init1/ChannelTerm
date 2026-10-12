@@ -283,8 +283,14 @@ Ctrl+C cancels initial setup; after attachment it is ordinary input to the remot
 existing attach controls. Remote shell closure/disconnection follows the existing Session read
 error path and ends the foreground command with a diagnostic. Terminal raw mode is restored.
 There is no dedicated `SESSION_CLOSED` notification; attachment output/event reads end through
-existing error handling. There is no automatic reconnect or post-connect SSH liveness timeout;
-`--timeout` only bounds setup. Start a new `ssh` command after a detected disconnection.
+existing error handling. There is no automatic reconnect; `--timeout` only bounds setup.
+`--keepalive-interval` enables post-setup SSH probes (default 0, disabled). `--keepalive-count`
+defaults to 3 and must be positive: each probe waits at most interval times count for a reply,
+including a negative reply. Only one probe is outstanding, and the first starts after one interval.
+An unanswered probe closes the connection. `--write-timeout` bounds each shell write and resize
+(default 0, disabled), including remote flow control; expiry closes the connection without replay.
+Local escape processing can wait for an in-flight write, so enable a write timeout to bound that
+wait. Start a new `ssh` command after a detected disconnection.
 A Host can be write-controlled by clients holding its token; keep the token private.
 
 Important errors include invalid destinations/options, missing or encrypted keys, unknown/changed
@@ -324,6 +330,15 @@ command is provided. CLI listing rows contain mode, size, RFC3339 modification t
 `--timeout` bounds network setup, excluding interactive input. `--operation-timeout` bounds the
 entire operation including prompts; zero (default) leaves it unbounded. Ctrl+C cancels, closes the
 file connection, and restores any active prompt. Cancellation or errors can leave partial files.
+`--keepalive-interval` and `--keepalive-count` have the same post-setup semantics as `ssh`;
+they do not replace the overall operation deadline when an alive server stalls file requests.
+`--safe-replace` requires SFTP `put`/`get` with `--overwrite`. It stages each file beside the
+destination and replaces that name after copying and closing successfully. Upload requires the
+server's POSIX rename extension and fails before staging if unavailable. Download syncs the
+temporary file before replacement; local rename guarantees depend on the OS/filesystem.
+There is no delete-first fallback, whole-tree transaction, attribute preservation, or remote
+disk-durability guarantee. A disconnect can leave a remote temporary file; the error reports its
+path. Successful earlier files remain replaced if a later file fails. See the workflow for details.
 SCP's remote no-overwrite guard is not atomic against concurrent remote writers. See the
 [file-transfer workflow](../getting-started/file-transfer.md#sftp-and-scp-over-ssh) for containment,
 symlink, metadata, and interrupted-transfer limits.

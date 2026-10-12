@@ -78,6 +78,17 @@ The default setup timeout is ten seconds; `--timeout 30s` covers dialing, authen
 and shell network requests only. Time answering trust/password prompts does not consume this
 budget. Cancellation remains active while waiting for input.
 
+For connections where network loss must be detected promptly, enable explicit limits:
+
+```bash
+channelterm ssh user@192.168.1.50 --keepalive-interval 10s --keepalive-count 3 --write-timeout 15s
+```
+
+An unanswered probe closes the connection after its 30-second response window; the first probe
+starts ten seconds after setup. A shell write or resize taking more than 15 seconds also closes
+the connection, including when the remote process stops consuming input. Both features are off
+by default. No input is replayed, and reconnection still requires a new command.
+
 ## Host lifetime and other listeners
 
 The default Host listens only on `127.0.0.1:37099/mcp` and requires the existing ChannelTerm Bearer
@@ -155,11 +166,12 @@ They do not provide visual certification of every terminal emulator or interacti
 - **Recovery is explicit.** A closed or reset connection is reaped by the existing Manager.
   Start `channelterm ssh` again to open a new shell and reattach to its printed reference.
   Commands, terminal state, and output cursors are not replayed into the new connection.
-- **Silent network loss has no SSH liveness deadline.** `--timeout` bounds setup only. An established
-  shell can wait until TCP reports failure or the owner exits. The relay test covers local escape
+- **Silent network loss needs explicit limits.** `--timeout` bounds setup only. Without keepalive,
+  a shell can wait until TCP reports failure or the owner exits. The relay test covers local escape
   while idle or after a small write; the Transport test separately verifies that Close releases a
   blocked socket write. These do not guarantee local escape remains responsive during a saturated
-  write. On Linux/WSL2, terminate the owning process with SIGTERM if it cannot process local input.
+  write. Enable `--write-timeout` to bound that wait; heartbeat replies alone do not mean the remote
+  shell is consuming input. On Linux/WSL2, SIGTERM can also terminate the owning process.
 - **Worker checks have a defined boundary.** Repeated-close tests inspect SSH, Session, Manager,
   and CLI worker stacks after caller-owned test input is closed. An arbitrary blocked `io.Reader`
   cannot be cancelled by context alone; it may retain its input pump until its owner releases it.

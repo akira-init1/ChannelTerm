@@ -36,6 +36,15 @@ type Config struct {
 	Columns        int
 	Rows           int
 
+	// KeepAliveInterval enables periodic authenticated probes after setup.
+	// Zero disables probes. KeepAliveCountMax defaults to 3 and bounds the
+	// response wait to interval * count; negative replies count as responses.
+	KeepAliveInterval time.Duration
+	KeepAliveCountMax int
+	// WriteTimeout bounds each shell Write and Resize, including flow control.
+	// Zero disables it. Expiry closes the connection; input is never replayed.
+	WriteTimeout time.Duration
+
 	// Password supplies a fresh password only when the server offers password
 	// authentication and any configured key did not succeed. Up to three attempts
 	// are made. Ownership of the returned bytes transfers to Transport, which
@@ -96,6 +105,12 @@ func New(config Config) (*Transport, error) {
 	if config.Timeout < 0 {
 		return nil, errors.New("SSH connection timeout must be positive")
 	}
+	if config.KeepAliveCountMax == 0 {
+		config.KeepAliveCountMax = 3
+	}
+	if config.KeepAliveInterval < 0 || config.WriteTimeout < 0 || config.KeepAliveCountMax < 1 || config.KeepAliveInterval > time.Duration(1<<63-1)/time.Duration(config.KeepAliveCountMax) {
+		return nil, errors.New("invalid SSH keepalive interval, count, or write timeout")
+	}
 	if config.Term == "" {
 		config.Term = "xterm-256color"
 	}
@@ -149,7 +164,7 @@ func (t *Transport) Endpoint() string {
 // its lifetime. Concurrent Connect calls require concurrency-safe callbacks.
 func (t *Transport) Connect(ctx context.Context) (_ channel.Channel, err error) {
 	var stream channel.Channel
-	_, err = t.open(ctx, func(client *gossh.Client) error {
+	_, err = t.open(ctx, func(client *liveClient) error {
 		stream, err = openShell(client, t.config)
 		return err
 	})
@@ -163,7 +178,7 @@ func (t *Transport) Connect(ctx context.Context) (_ channel.Channel, err error) 
 // open keeps authentication and bounded setup common to PTY and file clients.
 // start must release its own non-socket resources on failure. The successful
 // caller owns the client and decides whether ctx also bounds its live lifetime.
-func (t *Transport) open(ctx context.Context, start func(*gossh.Client) error) (_ *gossh.Client, err error) {
+func (t *Transport) open(ctx context.Context, start func(*liveClient) error) (_ *liveClient, err error) {
 	budget := newSetupBudget(ctx, t.config.Timeout)
 	defer budget.cancel(nil)
 	defer budget.pause()
@@ -240,7 +255,12 @@ func (t *Transport) open(ctx context.Context, start func(*gossh.Client) error) (
 	if err != nil {
 		return nil, fmt.Errorf("SSH handshake: %w", err)
 	}
-	client := gossh.NewClient(sshConn, channels, requests)
+	client := newLiveClient(gossh.NewClient(sshConn, channels, requests), t.config)
+	defer func() {
+		if err != nil {
+			_ = client.Close()
+		}
+	}()
 	if err := start(client); err != nil {
 		return nil, err
 	}
@@ -251,10 +271,11 @@ func (t *Transport) open(ctx context.Context, start func(*gossh.Client) error) (
 	if setup.Err() != nil {
 		return nil, context.Cause(setup)
 	}
+	close(client.ready)
 	return client, nil
 }
 
-func openShell(client *gossh.Client, config Config) (_ channel.Channel, err error) {
+func openShell(client *liveClient, config Config) (_ channel.Channel, err error) {
 	shell, err := client.NewSession()
 	if err != nil {
 		return nil, fmt.Errorf("open SSH shell channel: %w", err)
@@ -279,7 +300,7 @@ func openShell(client *gossh.Client, config Config) (_ channel.Channel, err erro
 	if err := shell.Shell(); err != nil {
 		return nil, fmt.Errorf("start SSH shell: %w", err)
 	}
-	stream := &shellStream{reader: reader, writer: writer, stdin: stdin, client: client, done: make(chan struct{})}
+	stream := &shellStream{reader: reader, writer: writer, stdin: stdin, client: client, done: make(chan struct{}), writeTimeout: config.WriteTimeout}
 	go func() {
 		defer close(stream.done)
 		_ = writer.CloseWithError(shell.Wait())
@@ -289,25 +310,39 @@ func openShell(client *gossh.Client, config Config) (_ channel.Channel, err erro
 		_ = stream.Close()
 		return nil, err
 	}
-	return &shellChannel{Stream: base, shell: shell}, nil
+	return &shellChannel{Stream: base, shell: shell, client: client, writeTimeout: config.WriteTimeout}, nil
 }
 
 // shellStream owns the SSH client and the two output-copy workers managed by
 // ssh.Session. The pipe merges stdout/stderr without retaining terminal history.
 // channel.Stream supplies lifecycle state and exactly-once Close around it.
 type shellStream struct {
-	reader *io.PipeReader
-	writer *io.PipeWriter
-	stdin  io.WriteCloser
-	client *gossh.Client
-	done   chan struct{}
+	reader       *io.PipeReader
+	writer       *io.PipeWriter
+	stdin        io.WriteCloser
+	client       *liveClient
+	writeTimeout time.Duration
+	done         chan struct{}
 }
 
 // Read consumes merged remote output without retaining a history copy.
-func (s *shellStream) Read(p []byte) (int, error) { return s.reader.Read(p) }
+func (s *shellStream) Read(p []byte) (int, error) {
+	n, err := s.reader.Read(p)
+	if err != nil && s.client.failure() != nil {
+		err = errors.Join(err, s.client.failure())
+	}
+	return n, err
+}
 
 // Write sends raw shell input; Session supplies write serialization above it.
-func (s *shellStream) Write(p []byte) (int, error) { return s.stdin.Write(p) }
+func (s *shellStream) Write(p []byte) (n int, err error) {
+	err = s.client.boundWrite(s.writeTimeout, func() error {
+		var writeErr error
+		n, writeErr = s.stdin.Write(p)
+		return writeErr
+	})
+	return n, err
+}
 
 // Close breaks both local pipe backpressure and remote SSH flow control before
 // joining the copy workers. It cannot wait for a cooperative remote shell.
@@ -326,7 +361,9 @@ func (s *shellStream) Close() error {
 // wrapper. The live backend session remains private to this Transport package.
 type shellChannel struct {
 	*channel.Stream
-	shell *gossh.Session
+	shell        *gossh.Session
+	client       *liveClient
+	writeTimeout time.Duration
 }
 
 var _ channel.Resizer = (*shellChannel)(nil)
@@ -343,7 +380,7 @@ func (s *shellChannel) Resize(cols, rows uint16) error {
 	if s.State() != channel.StateOpen {
 		return channel.ErrNotOpen
 	}
-	if err := s.shell.WindowChange(int(rows), int(cols)); err != nil {
+	if err := s.client.boundWrite(s.writeTimeout, func() error { return s.shell.WindowChange(int(rows), int(cols)) }); err != nil {
 		return fmt.Errorf("resize SSH PTY: %w", err)
 	}
 	// The request has no server acknowledgement. Do not report success if

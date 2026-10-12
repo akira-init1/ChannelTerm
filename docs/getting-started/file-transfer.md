@@ -250,6 +250,26 @@ Inspect the target before retrying. There is no resume, rollback, automatic reco
 tree replacement. SSH protects transport integrity; these commands do not compute a separate
 end-to-end file digest or promise remote disk durability.
 
+For SFTP, protect an existing destination during copying with explicit staged replacement:
+
+```bash
+channelterm sftp user@192.168.1.50 put ./firmware.bin /tmp/firmware.bin --overwrite --safe-replace --operation-timeout 2m
+```
+
+This also works for `get` and recursive copies, one file at a time. Each file is copied to a random
+`.channelterm-*.part` sibling and renamed only after a successful copy and close. Upload requires
+the server's POSIX rename extension; unsupported servers fail before staging. Downloads sync the
+temporary file first; atomic visibility depends on the local OS/filesystem. No delete-first
+fallback is used. The destination directory must permit creating and renaming files. Replacement
+creates a new file: previous permissions, ownership, ACLs, and hard-link identity are not preserved.
+There is no whole-tree rollback; earlier completed files remain replaced. On disconnection, a
+remote staging file can remain and its path is reported for inspection. A lost rename response
+can mean the replacement succeeded even though the operation reports an error; inspect before retrying.
+
+`--keepalive-interval 10s --keepalive-count 3` can detect an unresponsive SSH connection. It does
+not detect a stuck file operation on a server that still answers probes; use `--operation-timeout`
+for an overall limit. Both shell and file connections leave keepalive disabled by default.
+
 SFTP payload copying currently uses sequential 32 KiB reads/writes. Throughput can be limited by
 network round-trip time even when link bandwidth is high; parallel request pipelining is not a
 current guarantee. Test representative file sizes and network latency before treating this workflow

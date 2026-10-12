@@ -103,7 +103,14 @@ func startTestServer(t *testing.T, behavior string) *testServer {
 					return
 				}
 				defer server.Close()
-				go gossh.DiscardRequests(requests)
+				if behavior == "ignore-keepalive" {
+					go func() {
+						for range requests {
+						}
+					}()
+				} else {
+					go gossh.DiscardRequests(requests)
+				}
 				for request := range channels {
 					s.seen <- "open"
 					if behavior == "stall-open" {
@@ -345,6 +352,7 @@ func TestConnectCancellationAndDeadlineAtEveryStage(t *testing.T) {
 		for _, deadline := range []bool{false, true} {
 			t.Run(stage+strconv.FormatBool(deadline), func(t *testing.T) {
 				server := startTestServer(t, "stall-"+stage)
+				server.config.KeepAliveInterval = 20 * time.Millisecond
 				if deadline {
 					server.config.Timeout = 200 * time.Millisecond
 				}

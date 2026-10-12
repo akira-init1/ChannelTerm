@@ -34,6 +34,9 @@ func runSSH(ctx context.Context, args []string, input io.Reader, output io.Write
 	columns := flags.Int("cols", 0, "initial PTY columns (default local terminal size, or 80)")
 	rows := flags.Int("rows", 0, "initial PTY rows (default local terminal size, or 24)")
 	timeout := flags.Duration("timeout", 10*time.Second, "network setup timeout, excluding time spent answering prompts")
+	keepAlive := flags.Duration("keepalive-interval", 0, "SSH liveness probe interval after setup (0 disables)")
+	keepAliveCount := flags.Int("keepalive-count", 3, "maximum response wait in keepalive intervals")
+	writeTimeout := flags.Duration("write-timeout", 0, "maximum shell write/resize duration before closing SSH (0 disables)")
 	listen := flags.String("listen", defaultMCPListen, "local sharing address; must use a loopback IP")
 	label := flags.String("label", "", "display-only Session label")
 	highlight := flags.Bool("highlight", true, "apply semantic colors to plain terminal text")
@@ -72,6 +75,9 @@ func runSSH(ctx context.Context, args []string, input io.Reader, output io.Write
 	if *port < 1 || *port > 65535 || *timeout <= 0 {
 		return errors.New("SSH port must be between 1 and 65535 and timeout must be positive")
 	}
+	if *keepAlive < 0 || *keepAliveCount < 1 || *writeTimeout < 0 {
+		return errors.New("invalid SSH keepalive or write timeout")
+	}
 	bindHost, _, splitErr := net.SplitHostPort(*listen)
 	if splitErr != nil || net.ParseIP(bindHost) == nil || !net.ParseIP(bindHost).IsLoopback() {
 		return errors.New("SSH sharing --listen must be a loopback IP and port, for example 127.0.0.1:37099")
@@ -96,6 +102,7 @@ func runSSH(ctx context.Context, args []string, input io.Reader, output io.Write
 	configuration := sshtransport.Config{
 		User: user, Host: host, Port: *port, PrivateKeyPath: *identity, KnownHostsPath: *hosts,
 		Term: *terminalType, Columns: *columns, Rows: *rows, Timeout: *timeout,
+		KeepAliveInterval: *keepAlive, KeepAliveCountMax: *keepAliveCount, WriteTimeout: *writeTimeout,
 	}
 	if err := configureSSHAuthentication(&configuration, input, output); err != nil {
 		return err

@@ -95,6 +95,16 @@ file or merging a directory tree requires explicit opt-in. This is not transacti
 disk-full errors, or disconnects may leave partial files and directories, including a truncated
 previous file when overwrite was selected. No automatic retry/reconnect or rollback is performed.
 
+`SafeReplace` is an opt-in alternative for SFTP put/get with `Overwrite`. Application owns a
+random, exclusively created sibling temporary file and only replaces the destination after a
+complete copy and successful close. Local downloads also sync the temporary file. Uploads require
+the advertised POSIX rename extension before any staging; local replacement follows the OS's
+`os.Root.Rename` semantics. No delete-first fallback is used. Cleanup is attempted on failure;
+an unavailable remote connection can leave a staging file whose path is included in the error.
+This is per-file staging, not a whole-tree transaction or rollback. Replacement creates a new
+file and does not preserve the previous inode's permissions, ownership, ACLs, or hard links.
+`Files` counts completed replacements; `Bytes` can include an incomplete staged copy.
+
 Remote child paths preserve the caller's literal parent path. In particular, the application does
 not lexically collapse `symlink/..` when appending an upload basename or descending into an SFTP
 directory. Only the server can resolve its filesystem's symlinks correctly.
