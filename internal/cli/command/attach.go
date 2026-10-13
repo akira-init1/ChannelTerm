@@ -154,8 +154,8 @@ func runAttachSessionWithInterrupts(ctx context.Context, args []string, input io
 
 // runAttachSessionWithInputEnd lets a foreground Host owner close its lifetime
 // when local input ends. Ordinary attachments pass nil and retain their existing
-// behavior. The callback runs after input dispatch finishes, preserving the last
-// payload before EOF rather than cancelling while its bytes are still pending.
+// behavior. Owner shutdown cancels the remote write worker; input EOF does not
+// drain queued input before the Host and its Sessions are closed.
 func runAttachSessionWithInputEnd(ctx context.Context, args []string, input io.Reader, output io.Writer, newAttach attachSessionFactory, interrupts <-chan os.Signal, onInputEnd func()) (err error) {
 	flags := flag.NewFlagSet("attach", flag.ContinueOnError)
 	flags.SetOutput(output)
