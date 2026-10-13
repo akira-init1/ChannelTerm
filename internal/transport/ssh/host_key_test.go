@@ -10,6 +10,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -17,6 +18,108 @@ import (
 	gossh "golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
 )
+
+// TestUnknownHostPrefersRawKey verifies first-use confirmation when a server
+// also offers an untrusted certificate, for both shell and file connections.
+// Refusal, cancellation, missing interaction, and certificate-only peers must
+// still fail without changing trust; acceptance persists only the raw key.
+func TestUnknownHostPrefersRawKey(t *testing.T) {
+	for _, connection := range []string{"shell", "files"} {
+		for _, mode := range []string{"empty", "missing", "unrelated-authority", "reject", "cancel", "strict", "certificate-only"} {
+			t.Run(connection+"/"+mode, func(t *testing.T) {
+				host, authority := testSigner(t), testSigner(t)
+				certificate := &gossh.Certificate{
+					Key: host.PublicKey(), CertType: gossh.HostCert,
+					ValidPrincipals: []string{"127.0.0.1"}, ValidBefore: gossh.CertTimeInfinity,
+				}
+				if err := certificate.SignCert(rand.Reader, authority); err != nil {
+					t.Fatal(err)
+				}
+				certified, err := gossh.NewCertSigner(certificate, host)
+				if err != nil {
+					t.Fatal(err)
+				}
+				keys := []gossh.Signer{host, certified}
+				if mode == "certificate-only" {
+					keys = []gossh.Signer{certified}
+				}
+				server := startTestServer(t, "", keys...)
+				original := ""
+				if mode == "unrelated-authority" {
+					original = "@cert-authority " + knownhosts.Line([]string{"other.example.test"}, authority.PublicKey()) + "\n"
+				}
+				if err := os.WriteFile(server.config.KnownHostsPath, []byte(original), 0600); err != nil {
+					t.Fatal(err)
+				}
+				if mode == "missing" {
+					if err := os.Remove(server.config.KnownHostsPath); err != nil {
+						t.Fatal(err)
+					}
+				}
+				prompts := 0
+				server.config.ConfirmHostKey = func(_ context.Context, key HostKey) (bool, error) {
+					prompts++
+					if key.Algorithm != host.PublicKey().Type() || key.Fingerprint != gossh.FingerprintSHA256(host.PublicKey()) {
+						t.Errorf("confirmation did not describe the raw host key: %+v", key)
+					}
+					if mode == "cancel" {
+						return false, context.Canceled
+					}
+					return mode != "reject", nil
+				}
+				if mode == "strict" {
+					server.config.ConfirmHostKey = nil
+				}
+				connect := func() error {
+					transport, err := New(server.config)
+					if err != nil {
+						return err
+					}
+					if connection == "files" {
+						files, err := transport.OpenFiles(context.Background(), "scp")
+						if err != nil {
+							return err
+						}
+						return files.Close()
+					}
+					stream, err := transport.Connect(context.Background())
+					if err != nil {
+						return err
+					}
+					return stream.Close()
+				}
+				err = connect()
+				accepted := mode == "empty" || mode == "missing" || mode == "unrelated-authority"
+				wantPrompts := 1
+				if mode == "strict" || mode == "certificate-only" {
+					wantPrompts = 0
+				}
+				if (err == nil) != accepted || prompts != wantPrompts {
+					t.Fatalf("connection error=%v, prompts=%d; want accepted=%v, prompts=%d", err, prompts, accepted, wantPrompts)
+				}
+				if !accepted {
+					var stage *StageError
+					if !errors.As(err, &stage) || stage.Stage != "host-key" {
+						t.Fatalf("lost host-key rejection: %v", err)
+					}
+					if mode == "cancel" && !errors.Is(err, context.Canceled) {
+						t.Fatalf("lost cancellation: %v", err)
+					}
+				} else {
+					address := net.JoinHostPort(server.config.Host, strconv.Itoa(server.config.Port))
+					original += knownhosts.Line([]string{address}, host.PublicKey()) + "\n"
+					if err := connect(); err != nil || prompts != 1 {
+						t.Fatalf("reconnect did not reuse trusted raw key: prompts=%d err=%v", prompts, err)
+					}
+				}
+				stored, readErr := os.ReadFile(server.config.KnownHostsPath)
+				if readErr != nil || string(stored) != original {
+					t.Fatalf("unexpected trust contents: %q, %v", stored, readErr)
+				}
+			})
+		}
+	}
+}
 
 // TestConnectPrefersKnownHostKey covers a server that offers an additional key
 // preferred by the backend, while the existing trusted key remains available.
@@ -100,6 +203,10 @@ func TestConnectPrefersKnownHostKey(t *testing.T) {
 // rules without DNS/network access, including exclusions and port isolation.
 func TestHostKeyPreferenceMatchesTrustRecords(t *testing.T) {
 	key := testSigner(t).PublicKey()
+	unknown, err := knownhosts.New()
+	if err != nil {
+		t.Fatal(err)
+	}
 	for _, tc := range []struct {
 		name, pattern, address string
 		matched                bool
@@ -119,10 +226,11 @@ func TestHostKeyPreferenceMatchesTrustRecords(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			algorithms := preferredHostKeyAlgorithms(verify, nil, tc.address, &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 2222})
+			remote := &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 2222}
+			algorithms := preferredHostKeyAlgorithms(verify, nil, tc.address, remote)
 			if !tc.matched {
-				if algorithms != nil {
-					t.Fatalf("unmatched host changed default algorithms: %v", algorithms)
+				if !slices.Equal(algorithms, preferredHostKeyAlgorithms(unknown, nil, tc.address, remote)) {
+					t.Fatalf("unmatched record influenced host-key preference: %v", algorithms)
 				}
 				return
 			}

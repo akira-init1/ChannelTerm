@@ -254,7 +254,10 @@ An unknown key displays its algorithm and SHA256 fingerprint. Only the exact ans
 trimming surrounding whitespace approves saving it; any other answer rejects it. Verify the
 fingerprint through a trusted source before approving. When a server offers multiple raw host keys,
 SSH, SFTP, and SCP prefer algorithms recorded for that host in `known_hosts`; the selected key is
-still verified. Changed or revoked keys are always rejected without a replacement prompt.
+still verified. Without a matching `@cert-authority` record, raw keys are preferred over certificates,
+including on first connection, so a server offering both can use the normal fingerprint confirmation.
+A certificate-only server requires a trusted matching CA and valid certificate.
+Changed or revoked keys are always rejected without a replacement prompt.
 A save failure aborts the connection before password authentication.
 Only an actual terminal on stdin enables prompts; redirected input requires an authorized private
 key and pretrusted host. There is no password flag/environment variable or insecure host-key bypass.

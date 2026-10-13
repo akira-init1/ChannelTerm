@@ -108,11 +108,13 @@ Shell and dedicated file connections prefer raw host-key algorithms matching the
 `known_hosts` records before other raw algorithms. Matching reuses the verifier's hostname,
 port, hashed-name, wildcard, and exclusion rules; RSA records also select RSA SHA-2 signatures.
 Certificate algorithms retain priority only when a matching `@cert-authority` record exists;
-otherwise trusted raw keys precede certificates as well. Authority markers are cached at
-construction, and a trusted CA's key type does not restrict the certified host's key type.
-Unknown hosts retain backend defaults. This ordering only guides
-negotiation: the selected key or certificate still passes the original verifier, and changed or
-revoked keys cannot trigger a replacement prompt or password authentication.
+otherwise all raw algorithms precede certificates, including for unknown hosts, so a server
+offering both can reach explicit first-use confirmation of its raw key. Authority markers are cached
+at construction, and a trusted CA's key type does not restrict the certified host's key type.
+Certificate-only servers still require a trusted matching CA and valid certificate; they do not
+enter raw-key confirmation. This ordering only guides negotiation: the selected key or certificate
+still passes the original verifier, and changed or revoked keys cannot trigger a replacement prompt
+or password authentication.
 
 Authentication tries a configured key before an optional password provider. Password authentication
 has at most three attempts. Callback-owned byte buffers transfer to Transport and are cleared after

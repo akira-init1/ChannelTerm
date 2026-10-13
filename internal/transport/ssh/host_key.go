@@ -64,8 +64,8 @@ func loadHostKeyAuthorities(path string) (map[int]string, error) {
 // These are negotiation hints only: checkHostKey still validates the real key.
 func preferredHostKeyAlgorithms(verify gossh.HostKeyCallback, authorities map[int]string, host string, remote net.Addr) []string {
 	var mismatch *knownhosts.KeyError
-	if !errors.As(verify(host, remote, hostKeyProbe{}), &mismatch) || len(mismatch.Want) == 0 {
-		return nil // Unknown hosts retain the backend's default negotiation.
+	if !errors.As(verify(host, remote, hostKeyProbe{}), &mismatch) {
+		return nil
 	}
 	trusted := make(map[string]bool)
 	trustedAuthority := false
@@ -77,7 +77,8 @@ func preferredHostKeyAlgorithms(verify gossh.HostKeyCallback, authorities map[in
 		}
 	}
 	// A matching authority can certify any supported host-key type. Without
-	// one, prefer the trusted raw key over an offered but untrusted certificate.
+	// one, prefer raw keys so unknown hosts can reach explicit confirmation
+	// instead of failing certificate validation before the adapter can prompt.
 	algorithms := append(gossh.SupportedAlgorithms().HostKeys, gossh.InsecureAlgorithms().HostKeys...)
 	var certificates, preferred, remaining []string
 	for _, algorithm := range algorithms {
@@ -99,7 +100,7 @@ func preferredHostKeyAlgorithms(verify gossh.HostKeyCallback, authorities map[in
 	if trustedAuthority {
 		return append(append(certificates, preferred...), remaining...)
 	}
-	return append(append(preferred, certificates...), remaining...)
+	return append(append(preferred, remaining...), certificates...)
 }
 
 // hostKeyProbe requests the callback's matching records without supplying a

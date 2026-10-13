@@ -25,6 +25,9 @@ Existing OpenSSH trust records work without another prompt. Changed or revoked k
 they are never automatically replaced. Never trust the result of a network scan alone.
 Use `--known-hosts PATH` for a separate trust database; nondefault ports use OpenSSH's
 `[host]:port` entry form. No host-key verification bypass is provided.
+If a server offers both a raw key and a certificate, first-use confirmation can use its raw key
+when no matching CA is trusted. A certificate-only server requires a trusted CA in `known_hosts`;
+see the [host-trust rules](../reference/cli.md#ssh).
 
 Prompts require a real terminal on stdin. Piped/scripted connections require an authorized key
 and an already-trusted server. Cancel a prompt with Ctrl+C, Ctrl+D, or Ctrl+Z. The original console
