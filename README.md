@@ -163,6 +163,10 @@ For reusable workflow guidance, install the bundled
 in an Agent Skills-compatible client. `channelterm init --mcp` configures MCP clients but does not
 install the Skill.
 
+Starting with v0.2.0, [Releases](https://github.com/akira-init1/ChannelTerm/releases) include
+`channelterm_VERSION_skills.zip`. Extract it and copy the complete `cterm-serial-debug` directory
+as described in the linked Skill installation workflow.
+
 An AI can also create the shared Session. First run `channelterm init --mcp` once and select HTTP to
 configure the client. Then start the persistent foreground Host with
 `channelterm mcp --transport http` and give the AI the exact serial target and settings. It can list
@@ -308,7 +312,13 @@ Shared Session references such as `SER-1` are valid only within the owning host 
 
 ## Installation
 
-ChannelTerm requires Go 1.26 or newer. Use a currently supported patched Go toolchain, then build the native executable from the repository root:
+Download the archive for your operating system and architecture from
+[Releases](https://github.com/akira-init1/ChannelTerm/releases) and verify it against that release's
+`SHA256SUMS`. Extract it, then run `.\channelterm.exe install` on Windows or `./channelterm install`
+on Linux/macOS from the extracted directory. Prebuilt binaries do not require Go.
+
+Building from source requires Go 1.26 or newer. Use a currently supported patched Go toolchain,
+then build the native executable from the repository root:
 
 ```bash
 git clone https://github.com/akira-init1/ChannelTerm.git

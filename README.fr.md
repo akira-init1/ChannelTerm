@@ -176,6 +176,10 @@ Pour bénéficier d’un workflow guidé réutilisable, installez l’
 inclus dans un client compatible avec Agent Skills. `channelterm init --mcp` configure les clients
 MCP, mais n’installe pas le Skill.
 
+À partir de v0.2.0, les [Releases](https://github.com/akira-init1/ChannelTerm/releases) incluent
+`channelterm_VERSION_skills.zip`. Décompressez-le et copiez le répertoire `cterm-serial-debug` complet
+en suivant le guide d’installation du Skill indiqué ci-dessus.
+
 L’IA peut aussi créer elle-même la Session partagée. Exécutez d’abord une fois
 `channelterm init --mcp` et choisissez HTTP pour configurer le client. Démarrez ensuite le Host
 persistant au premier plan avec `channelterm mcp --transport http`, puis indiquez à l’IA la cible
@@ -216,8 +220,14 @@ l’écrasement, l’annulation et la vérification SHA-256.
 
 ## Installation et compilation
 
-ChannelTerm nécessite Go 1.26 ou une version ultérieure. Utilisez une version corrigée encore prise
-en charge, puis compilez depuis la racine du dépôt :
+Téléchargez depuis [Releases](https://github.com/akira-init1/ChannelTerm/releases) l’archive adaptée
+à votre système et à votre architecture, puis vérifiez-la avec le fichier `SHA256SUMS` de la même
+version. Décompressez-la et exécutez `.\channelterm.exe install` sous Windows ou
+`./channelterm install` sous Linux/macOS depuis le répertoire extrait. Les binaires précompilés
+ne nécessitent pas Go.
+
+La compilation depuis les sources nécessite Go 1.26 ou une version ultérieure. Utilisez une version
+corrigée encore prise en charge, puis compilez depuis la racine du dépôt :
 
 ```bash
 git clone https://github.com/akira-init1/ChannelTerm.git

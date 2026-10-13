@@ -176,6 +176,10 @@ Installieren Sie für wiederverwendbare Workflow-Anleitungen den mitgelieferten
 in einem Agent-Skills-kompatiblen Client. `channelterm init --mcp` konfiguriert MCP-Clients,
 installiert den Skill jedoch nicht.
 
+Ab v0.2.0 enthalten die [Releases](https://github.com/akira-init1/ChannelTerm/releases)
+`channelterm_VERSION_skills.zip`. Entpacken Sie das Archiv und kopieren Sie das vollständige
+Verzeichnis `cterm-serial-debug` gemäß der verlinkten Skill-Installationsanleitung.
+
 Die KI kann die gemeinsame Session auch selbst erstellen. Führen Sie zuerst einmal
 `channelterm init --mcp` aus und wählen Sie HTTP, um den Client zu konfigurieren. Starten Sie danach
 mit `channelterm mcp --transport http` den dauerhaften Host im Vordergrund und geben Sie der KI das
@@ -216,8 +220,13 @@ Das Ziel muss eine Linux-Shell mit den erforderlichen Standardbefehlen sein. Vor
 
 ## Installation und Build
 
-ChannelTerm benötigt Go 1.26 oder neuer. Verwenden Sie eine aktuell unterstützte Patch-Version und
-erstellen Sie das Programm im Stammverzeichnis des Repositorys:
+Laden Sie unter [Releases](https://github.com/akira-init1/ChannelTerm/releases) das Archiv für Ihr
+Betriebssystem und Ihre Architektur herunter und prüfen Sie es anhand der `SHA256SUMS` derselben
+Version. Entpacken Sie es und führen Sie im entpackten Verzeichnis `.\channelterm.exe install`
+unter Windows oder `./channelterm install` unter Linux/macOS aus. Fertige Binärdateien benötigen kein Go.
+
+Zum Bauen aus dem Quellcode ist Go 1.26 oder neuer erforderlich. Verwenden Sie eine aktuell
+unterstützte Patch-Version und erstellen Sie das Programm im Stammverzeichnis des Repositorys:
 
 ```bash
 git clone https://github.com/akira-init1/ChannelTerm.git

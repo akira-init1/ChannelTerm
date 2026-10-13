@@ -175,6 +175,10 @@ Para obtener una guía de flujo reutilizable, instala el
 incluido en un cliente compatible con Agent Skills. `channelterm init --mcp` configura clientes
 MCP, pero no instala el Skill.
 
+A partir de v0.2.0, las [Releases](https://github.com/akira-init1/ChannelTerm/releases) incluyen
+`channelterm_VERSION_skills.zip`. Descomprímelo y copia el directorio completo `cterm-serial-debug`
+siguiendo la guía de instalación del Skill enlazada arriba.
+
 La IA también puede crear por sí misma la Session compartida. Ejecuta primero una vez
 `channelterm init --mcp` y elige HTTP para configurar el cliente. Después inicia el Host persistente
 en primer plano con `channelterm mcp --transport http` y proporciona a la IA el destino serie y los
@@ -214,8 +218,13 @@ requisitos, la protección contra sobrescritura, la cancelación y la verificaci
 
 ## Instalación y compilación
 
-ChannelTerm requiere Go 1.26 o posterior. Usa una versión con parches que siga siendo compatible y
-compila desde la raíz del repositorio:
+Descarga de [Releases](https://github.com/akira-init1/ChannelTerm/releases) el archivo para tu sistema
+operativo y arquitectura y verifícalo con `SHA256SUMS` de la misma versión. Descomprímelo y ejecuta
+`.\channelterm.exe install` en Windows o `./channelterm install` en Linux/macOS desde el directorio
+extraído. Los binarios precompilados no requieren Go.
+
+Compilar desde el código fuente requiere Go 1.26 o posterior. Usa una versión con parches que siga
+siendo compatible y compila desde la raíz del repositorio:
 
 ```bash
 git clone https://github.com/akira-init1/ChannelTerm.git

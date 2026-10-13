@@ -163,6 +163,10 @@ channelterm init --mcp
 [`cterm-serial-debug` Agent Skill](docs/getting-started/mcp-server.md#install-the-bundled-agent-skill)。
 `channelterm init --mcp` 只配置 MCP 客户端，不会安装 Skill。
 
+从 v0.2.0 起，[Releases](https://github.com/akira-init1/ChannelTerm/releases) 提供
+`channelterm_VERSION_skills.zip`。解压后，按上述 Skill 安装说明复制完整的
+`cterm-serial-debug` 目录。
+
 AI 也可以自己创建共享 Session。先运行一次 `channelterm init --mcp` 并选择 HTTP 来配置客户端，
 然后运行 `channelterm mcp --transport http` 启动前台持久 Host，再向 AI 提供准确的串口目标与通信
 参数。AI 可以列出串口、调用 `terminal_open_serial`，再报告生成的 `SER-N`，供人类执行
@@ -195,7 +199,12 @@ channelterm file send ./build/release /tmp/release --session SER-1
 
 ## 安装与构建
 
-ChannelTerm 需要 Go 1.26 或更高版本。请使用当前仍受支持的补丁版本，然后在仓库根目录构建：
+从 [Releases](https://github.com/akira-init1/ChannelTerm/releases) 下载与你的操作系统和架构匹配的
+压缩包，并与同一版本的 `SHA256SUMS` 核对。解压后，在解压目录中运行
+`.\channelterm.exe install`（Windows）或 `./channelterm install`（Linux/macOS）。
+使用预编译程序无需安装 Go。
+
+从源码构建需要 Go 1.26 或更高版本。请使用当前仍受支持的补丁版本，然后在仓库根目录构建：
 
 ```bash
 git clone https://github.com/akira-init1/ChannelTerm.git

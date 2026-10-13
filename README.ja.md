@@ -171,6 +171,10 @@ HTTP を選ぶと、対応する Codex、Claude Code、OpenCode、Zoo Code ク�
 インストールしてください。`channelterm init --mcp` は MCP クライアントを設定しますが、
 Skill はインストールしません。
 
+v0.2.0 以降は [Releases](https://github.com/akira-init1/ChannelTerm/releases) から
+`channelterm_VERSION_skills.zip` をダウンロードできます。展開後、上記の Skill インストール手順に
+従って `cterm-serial-debug` ディレクトリ全体をコピーしてください。
+
 AI 自身が共有 Session を作成することもできます。まず `channelterm init --mcp` を一度実行して
 HTTP を選び、クライアントを設定します。次に `channelterm mcp --transport http` でフォアグラウンド
 の永続 Host を起動し、正確なシリアルターゲットと通信設定を AI に渡します。AI はポートを一覧し、
@@ -209,7 +213,13 @@ channelterm file send ./build/release /tmp/release --session SER-1
 
 ## インストールとビルド
 
-ChannelTerm には Go 1.26 以降が必要です。現在サポートされているパッチリリースを使用してください。
+[Releases](https://github.com/akira-init1/ChannelTerm/releases) から OS とアーキテクチャに対応する
+アーカイブをダウンロードし、同じリリースの `SHA256SUMS` と照合してください。展開先のディレクトリで
+Windows は `.\channelterm.exe install`、Linux/macOS は `./channelterm install` を実行します。
+ビルド済みバイナリの使用には Go は不要です。
+
+ソースからのビルドには Go 1.26 以降が必要です。現在サポートされているパッチリリースを使い、
+リポジトリのルートからビルドしてください。
 
 ```bash
 git clone https://github.com/akira-init1/ChannelTerm.git

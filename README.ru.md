@@ -175,6 +175,10 @@ channelterm init --mcp
 в клиенте с поддержкой Agent Skills. `channelterm init --mcp` настраивает MCP-клиенты,
 но не устанавливает Skill.
 
+Начиная с v0.2.0, в [Releases](https://github.com/akira-init1/ChannelTerm/releases) доступен архив
+`channelterm_VERSION_skills.zip`. Распакуйте его и скопируйте весь каталог `cterm-serial-debug`
+согласно инструкции по установке Skill по ссылке выше.
+
 ИИ также может самостоятельно создать общую Session. Сначала один раз выполните
 `channelterm init --mcp` и выберите HTTP, чтобы настроить клиент. Затем запустите постоянный Host на
 переднем плане командой `channelterm mcp --transport http` и передайте ИИ точное имя
@@ -215,8 +219,13 @@ channelterm file send ./build/release /tmp/release --session SER-1
 
 ## Установка и сборка
 
-Для ChannelTerm требуется Go 1.26 или новее. Используйте поддерживаемый выпуск с актуальными
-исправлениями и выполняйте сборку из корня репозитория:
+Скачайте из [Releases](https://github.com/akira-init1/ChannelTerm/releases) архив для вашей ОС и
+архитектуры и проверьте его по `SHA256SUMS` того же выпуска. Распакуйте архив и из полученного
+каталога выполните `.\channelterm.exe install` в Windows или `./channelterm install` в Linux/macOS.
+Для готовых бинарных файлов установка Go не требуется.
+
+Для сборки из исходного кода требуется Go 1.26 или новее. Используйте поддерживаемый выпуск с
+актуальными исправлениями и выполняйте сборку из корня репозитория:
 
 ```bash
 git clone https://github.com/akira-init1/ChannelTerm.git

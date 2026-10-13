@@ -170,6 +170,10 @@ HTTP를 선택하면 지원되는 Codex, Claude Code, OpenCode 또는 Zoo Code �
 [`cterm-serial-debug` Agent Skill](docs/getting-started/mcp-server.md#install-the-bundled-agent-skill)을
 설치하십시오. `channelterm init --mcp`는 MCP 클라이언트를 구성하지만 Skill은 설치하지 않습니다.
 
+v0.2.0부터 [Releases](https://github.com/akira-init1/ChannelTerm/releases)에서
+`channelterm_VERSION_skills.zip`을 제공합니다. 압축을 풀고 위에 링크된 Skill 설치 안내에 따라
+`cterm-serial-debug` 디렉터리 전체를 복사하십시오.
+
 AI가 공유 Session을 직접 만들 수도 있습니다. 먼저 `channelterm init --mcp`를 한 번 실행하고 HTTP를
 선택해 클라이언트를 설정하십시오. 그런 다음 `channelterm mcp --transport http`로 포그라운드 영구
 Host를 시작하고 정확한 시리얼 대상과 통신 설정을 AI에 제공하십시오. AI는 포트를 나열하고
@@ -207,7 +211,13 @@ SHA-256 검증 규칙은 [파일 전송 워크플로](docs/getting-started/file-
 
 ## 설치 및 빌드
 
-ChannelTerm에는 Go 1.26 이상이 필요합니다. 현재 지원되는 패치 릴리스를 사용하십시오.
+[Releases](https://github.com/akira-init1/ChannelTerm/releases)에서 운영체제와 아키텍처에 맞는
+압축 파일을 내려받아 같은 릴리스의 `SHA256SUMS`와 대조하십시오. 압축을 푼 디렉터리에서
+Windows는 `.\channelterm.exe install`, Linux/macOS는 `./channelterm install`을 실행합니다.
+미리 빌드된 바이너리를 사용하는 데는 Go가 필요하지 않습니다.
+
+소스에서 빌드하려면 Go 1.26 이상이 필요합니다. 현재 지원되는 패치 릴리스를 사용하고
+저장소 루트에서 빌드하십시오.
 
 ```bash
 git clone https://github.com/akira-init1/ChannelTerm.git
