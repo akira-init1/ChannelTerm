@@ -35,9 +35,24 @@ that teaches an agent when and how to combine ChannelTerm's MCP tools for shared
 embedded-Linux serial diagnosis. It recognizes `cterm` as an alias for ChannelTerm and records
 important boundaries such as using raw writes for bare MCUs and reserving `terminal_exec` for a known idle Bash prompt.
 
+Starting with v0.2.0, download `channelterm_VERSION_skills.zip` and `SHA256SUMS` from the same
+[GitHub Release](https://github.com/akira-init1/ChannelTerm/releases). Verify the ZIP against its
+entry in `SHA256SUMS`, then extract it. The archive contains the project `LICENSE` and the complete
+skill directories at its root:
+
+```text
+LICENSE
+cterm-serial-debug/
+|-- SKILL.md
+`-- agents/
+    `-- openai.yaml
+```
+
 The portable workflow lives in `SKILL.md`. If an agent supports Agent Skills, copy the complete
-`skills/cterm-serial-debug` directory into that client's documented user-level or project-level
-Skill directory, then restart or reload the client. Common user-level locations include:
+extracted `cterm-serial-debug` directory into that client's documented user-level or project-level
+Skill directory, then restart or reload the client. A source checkout provides the same directory
+under `skills/cterm-serial-debug`. Keep `agents/` when copying the Skill. Common user-level locations
+include:
 
 | Client | Skill directory | Direct use |
 | ------ | --------------- | ---------- |

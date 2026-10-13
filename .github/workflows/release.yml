@@ -105,6 +105,7 @@ jobs:
             "channelterm_${RELEASE_VERSION}_linux_arm64.tar.gz"
             "channelterm_${RELEASE_VERSION}_macos_amd64.tar.gz"
             "channelterm_${RELEASE_VERSION}_macos_arm64.tar.gz"
+            "channelterm_${RELEASE_VERSION}_skills.zip"
           )
 
           package_zip channelterm-windows-amd64.exe "${archives[0]}"
@@ -113,6 +114,30 @@ jobs:
           package_tar channelterm-linux-arm64 "${archives[3]}"
           package_tar channelterm-darwin-amd64 "${archives[4]}"
           package_tar channelterm-darwin-arm64 "${archives[5]}"
+
+          python3 - "dist/${archives[6]}" <<'PY'
+          from pathlib import Path
+          import subprocess
+          import sys
+          import zipfile
+
+          # Include only tracked skills, with each skill directory at the ZIP root.
+          tracked = subprocess.check_output(["git", "ls-files", "-z", "--", "skills/"])
+          files = [Path(name) for name in tracked.decode("utf-8").split("\0") if name]
+          contents = {path.relative_to("skills").as_posix(): path.read_bytes() for path in files}
+          if not any(name.endswith("/SKILL.md") for name in contents):
+              raise SystemExit("skills package must contain at least one SKILL.md")
+          contents["LICENSE"] = Path("LICENSE").read_bytes()
+          with zipfile.ZipFile(sys.argv[1], "w", zipfile.ZIP_DEFLATED) as archive:
+              for name, data in sorted(contents.items()):
+                  archive.writestr(name, data)
+          with zipfile.ZipFile(sys.argv[1]) as archive:
+              if archive.namelist() != sorted(contents):
+                  raise SystemExit("unexpected skills ZIP contents")
+              for name, data in contents.items():
+                  if archive.read(name) != data:
+                      raise SystemExit(f"skills ZIP content mismatch: {name}")
+          PY
 
           python3 - "dist/${archives[0]}" "dist/${archives[1]}" <<'PY'
           import sys
@@ -123,14 +148,14 @@ jobs:
                   if archive.namelist() != ["channelterm.exe", "THIRD_PARTY_NOTICES"]:
                       raise SystemExit(f"unexpected ZIP contents in {archive_path}: {archive.namelist()}")
           PY
-          for archive_name in "${archives[@]:2}"; do
+          for archive_name in "${archives[@]:2:4}"; do
             [[ "$(tar -tzf "dist/${archive_name}")" == $'channelterm\nTHIRD_PARTY_NOTICES' ]]
           done
 
           (
             cd dist
             sha256sum -- "${archives[@]}" | LC_ALL=C sort -k2 > SHA256SUMS
-            [[ "$(wc -l < SHA256SUMS)" -eq 6 ]]
+            [[ "$(wc -l < SHA256SUMS)" -eq "${#archives[@]}" ]]
             sha256sum --check SHA256SUMS
           )
 
@@ -149,6 +174,7 @@ jobs:
             "dist/channelterm_${RELEASE_VERSION}_linux_arm64.tar.gz"
             "dist/channelterm_${RELEASE_VERSION}_macos_amd64.tar.gz"
             "dist/channelterm_${RELEASE_VERSION}_macos_arm64.tar.gz"
+            "dist/channelterm_${RELEASE_VERSION}_skills.zip"
             "dist/SHA256SUMS"
           )
           legacy_assets=(

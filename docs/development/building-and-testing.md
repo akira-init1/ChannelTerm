@@ -101,18 +101,23 @@ release candidate should not be tagged until every job passes.
 tag is `v` followed by a SemVer version, strips the `v` for the embedded CLI version, tests and
 cross-builds with `CGO_ENABLED=0`, and packages all six supported targets. Windows archives are ZIP
 files containing `channelterm.exe`; Linux and macOS archives are tarballs containing `channelterm`.
-All archives also include `THIRD_PARTY_NOTICES` for the SSH dependency.
+All executable archives also include `THIRD_PARTY_NOTICES` for the SSH dependency.
 Public macOS archives use `macos` in their filenames, such as
 `channelterm_0.1.0_macos_arm64.tar.gz`; the underlying Go build target and intermediate artifact
 names retain the toolchain's `darwin` identifier.
-The workflow writes `SHA256SUMS` for those six archives, verifies the archive contents, checksums,
+Starting with v0.2.0, a platform-independent `channelterm_VERSION_skills.zip` contains the tracked
+files under `skills/`, with each skill directory at the archive root, plus the project `LICENSE`.
+The packaging step checks the archive layout and file bytes against the source files. See the
+[Skill installation workflow](../getting-started/mcp-server.md#install-the-bundled-agent-skill)
+for the archive layout and client setup.
+The workflow writes `SHA256SUMS` for all seven archives, verifies the archive contents, checksums,
 and injected version, and then creates or updates the GitHub Release for the same tag. Ordinary
 branch pushes and pull requests cannot run this release workflow.
 
 Release publishing uses the GitHub CLI and the workflow's `contents: write` permission. The Release
-is kept as a draft while assets are uploaded and checked, and is published only after all seven
-expected assets are present. A failed build, package, checksum, upload, or remote asset check
-therefore cannot publish a new incomplete Release.
+is kept as a draft while assets are uploaded and checked, and is published only after all eight
+expected assets (seven archives and `SHA256SUMS`) are present. A failed build, package, checksum,
+upload, or remote asset check therefore cannot publish a new incomplete Release.
 
 ## Tagged release verification
 
