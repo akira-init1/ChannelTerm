@@ -35,9 +35,13 @@ type testServer struct {
 // startTestServer speaks actual SSH over loopback using fresh ephemeral keys.
 // A stage can reject or stall setup, or leave shell input unread for flow-control
 // tests. Cleanup closes every accepted socket before joining server goroutines.
-func startTestServer(t *testing.T, behavior string) *testServer {
+// Optional hostKeys select the server's keys; only the first is initially trusted.
+func startTestServer(t *testing.T, behavior string, hostKeys ...gossh.Signer) *testServer {
 	t.Helper()
 	hostKey := testSigner(t)
+	if len(hostKeys) > 0 {
+		hostKey = hostKeys[0]
+	}
 	clientKey, identity := testIdentity(t)
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -56,6 +60,11 @@ func startTestServer(t *testing.T, behavior string) *testServer {
 		return nil, nil
 	}}
 	serverConfig.AddHostKey(hostKey)
+	if len(hostKeys) > 1 {
+		for _, key := range hostKeys[1:] {
+			serverConfig.AddHostKey(key)
+		}
+	}
 	if behavior == "password" {
 		serverConfig.RekeyThreshold = 1024
 		serverConfig.PasswordCallback = func(meta gossh.ConnMetadata, password []byte) (*gossh.Permissions, error) {

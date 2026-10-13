@@ -104,6 +104,14 @@ authentication continues. Persistence errors abort setup. Verified identity is p
 connection for rekeying without prompts after setup. Adapters cannot replace key material or bypass
 verification. The CLI owns presentation; future GUI adapters can supply the same callbacks.
 
+Shell and dedicated file connections prefer raw host-key algorithms matching the loaded
+`known_hosts` records before other raw algorithms. Matching reuses the verifier's hostname,
+port, hashed-name, wildcard, and exclusion rules; RSA records also select RSA SHA-2 signatures.
+Certificate algorithms retain priority because a trusted CA's key type does not determine the
+certified host's key type. Unknown hosts retain backend defaults. This ordering only guides
+negotiation: the selected key or certificate still passes the original verifier, and changed or
+revoked keys cannot trigger a replacement prompt or password authentication.
+
 Authentication tries a configured key before an optional password provider. Password authentication
 has at most three attempts. Callback-owned byte buffers transfer to Transport and are cleared after
 conversion to the backend's string API; Go/backend string copies cannot be guaranteed erased.

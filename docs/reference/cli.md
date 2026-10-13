@@ -252,8 +252,10 @@ Server policy and the backend's 64 authentication-method-attempt limit can stop 
 The default trust file is `~/.ssh/known_hosts`, shared with OpenSSH on Windows, Linux, and macOS.
 An unknown key displays its algorithm and SHA256 fingerprint. Only the exact answer `yes` after
 trimming surrounding whitespace approves saving it; any other answer rejects it. Verify the
-fingerprint through a trusted source before approving. Changed or revoked keys are always rejected
-without a replacement prompt. A save failure aborts the connection before password authentication.
+fingerprint through a trusted source before approving. When a server offers multiple raw host keys,
+SSH, SFTP, and SCP prefer algorithms recorded for that host in `known_hosts`; the selected key is
+still verified. Changed or revoked keys are always rejected without a replacement prompt.
+A save failure aborts the connection before password authentication.
 Only an actual terminal on stdin enables prompts; redirected input requires an authorized private
 key and pretrusted host. There is no password flag/environment variable or insecure host-key bypass.
 Ctrl+C, Ctrl+D/Ctrl+Z, or cancellation aborts a prompt and restores terminal mode.

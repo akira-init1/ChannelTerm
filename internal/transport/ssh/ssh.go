@@ -249,6 +249,7 @@ func (t *Transport) open(ctx context.Context, start func(*liveClient) error) (_ 
 	var establishedKey []byte
 	sshConn, channels, requests, err := gossh.NewClientConn(conn, address, &gossh.ClientConfig{
 		User: t.config.User, Auth: auth,
+		HostKeyAlgorithms: preferredHostKeyAlgorithms(t.verifyHostKey, address, conn.RemoteAddr()),
 		// Select one identity at a time after the server offers public-key
 		// authentication. In particular, unused legacy PEM candidates must not
 		// prompt before an earlier key succeeds. Local callback errors cancel

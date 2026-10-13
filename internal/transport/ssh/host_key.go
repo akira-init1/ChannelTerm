@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/gofrs/flock"
@@ -27,6 +28,58 @@ type HostKey struct {
 func unknownHostKey(err error) bool {
 	var keyError *knownhosts.KeyError
 	return errors.As(err, &keyError) && len(keyError.Want) == 0
+}
+
+// preferredHostKeyAlgorithms asks the existing trust snapshot for matching
+// records. Its KeyError retains hostname, port, wildcard and hash matching;
+// the empty probe cannot equal a parsed key and never verifies a signature.
+// These are negotiation hints only: checkHostKey still validates the real key.
+func preferredHostKeyAlgorithms(verify gossh.HostKeyCallback, host string, remote net.Addr) []string {
+	var mismatch *knownhosts.KeyError
+	if !errors.As(verify(host, remote, hostKeyProbe{}), &mismatch) || len(mismatch.Want) == 0 {
+		return nil // Unknown hosts retain the backend's default negotiation.
+	}
+	trusted := make(map[string]bool)
+	for _, known := range mismatch.Want {
+		trusted[known.Key.Type()] = true
+	}
+	// Keep certificates ahead of raw keys, as in backend defaults. A matching
+	// @cert-authority record identifies the CA's key type, not the certified
+	// host's key type, so it cannot narrow certificate algorithms safely.
+	algorithms := append(gossh.SupportedAlgorithms().HostKeys, gossh.InsecureAlgorithms().HostKeys...)
+	var certificates, preferred, remaining []string
+	for _, algorithm := range algorithms {
+		keyType := algorithm
+		if algorithm == gossh.KeyAlgoRSASHA256 || algorithm == gossh.KeyAlgoRSASHA512 {
+			keyType = gossh.KeyAlgoRSA
+		}
+		switch {
+		case strings.HasSuffix(algorithm, "-cert-v01@openssh.com"):
+			certificates = append(certificates, algorithm)
+		case trusted[keyType]:
+			preferred = append(preferred, algorithm)
+		default:
+			remaining = append(remaining, algorithm)
+		}
+	}
+	// Retain other algorithms so an unavailable trusted key is still diagnosed
+	// by the same strict verifier as a mismatch, without a replacement prompt.
+	return append(append(certificates, preferred...), remaining...)
+}
+
+// hostKeyProbe requests the callback's matching records without supplying a
+// real key. It is used only for lookup, never as a negotiated server identity.
+type hostKeyProbe struct{}
+
+// Type returns no real SSH algorithm for the lookup-only probe.
+func (hostKeyProbe) Type() string { return "" }
+
+// Marshal cannot match any nonempty, parsed known_hosts key encoding.
+func (hostKeyProbe) Marshal() []byte { return nil }
+
+// Verify rejects every signature; the lookup path must never authenticate.
+func (hostKeyProbe) Verify([]byte, *gossh.Signature) error {
+	return errors.New("host-key lookup probe cannot verify signatures")
 }
 
 func (t *Transport) checkHostKey(ctx context.Context, budget *setupBudget, host string, remote net.Addr, key gossh.PublicKey) error {
