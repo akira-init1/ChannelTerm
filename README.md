@@ -40,6 +40,9 @@ dedicated connection independent of terminal Sessions. Replacing existing files 
 `--overwrite`. See [file transfer](docs/getting-started/file-transfer.md#sftp-and-scp-over-ssh)
 for directory semantics, cancellation, and protocol limits.
 
+Transfers over shared terminal Sessions use a small Linux-shell protocol. Dedicated SSH file
+connections use SFTP or legacy SCP.
+
 ## Shared SSH shell
 
 Connect using an authorized private key (encrypted keys prompt for a passphrase) or enter your
@@ -382,7 +385,7 @@ For exact command flags and defaults, the running program's `--help` output is a
 
 Serial and SSH PTY shells are implemented Transports; dedicated SFTP and legacy SCP file clients are also available. Arbitrary SSH exec, Telnet, and stronger multi-writer coordination remain future directions rather than implemented features or release commitments.
 
-ChannelTerm does not currently implement GDB, JTAG/OpenOCD, virtual serial devices, a built-in AI, or multi-agent orchestration. File transfer is intentionally a small Linux-shell protocol rather than a general transfer agent.
+ChannelTerm does not currently implement GDB, JTAG/OpenOCD, virtual serial devices, a built-in AI, or multi-agent orchestration.
 
 ## License
 

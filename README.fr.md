@@ -41,6 +41,9 @@ sur une connexion indépendante des Sessions de terminal. Le remplacement de fic
 `--overwrite`. Voir [transfert de fichiers](docs/getting-started/file-transfer.md#sftp-and-scp-over-ssh)
 pour les règles des répertoires, l'annulation et les limites.
 
+Les transferts via les Sessions de terminal partagées utilisent un petit protocole de shell Linux.
+Les connexions SSH dédiées aux fichiers utilisent SFTP ou SCP classique.
+
 ## Shell SSH partagé
 
 Connectez-vous avec une clé privée autorisée (une phrase secrète est demandée pour les clés chiffrées) ou saisissez votre mot de passe à la demande

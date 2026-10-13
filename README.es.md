@@ -42,6 +42,9 @@ con una conexión independiente de las Sessions de terminal. Reemplazar archivos
 `--overwrite`. Consulta [transferencia de archivos](docs/getting-started/file-transfer.md#sftp-and-scp-over-ssh)
 para las reglas de directorios, cancelación y límites.
 
+Las transferencias mediante Sessions de terminal compartidas usan un pequeño protocolo de shell Linux.
+Las conexiones SSH dedicadas a archivos usan SFTP o SCP clásico.
+
 ## Shell SSH compartida
 
 Conéctate con una clave privada autorizada (las claves cifradas solicitan una frase de contraseña) o introduce tu contraseña cuando se solicite

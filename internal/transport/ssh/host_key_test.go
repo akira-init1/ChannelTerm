@@ -119,7 +119,7 @@ func TestHostKeyPreferenceMatchesTrustRecords(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			algorithms := preferredHostKeyAlgorithms(verify, tc.address, &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 2222})
+			algorithms := preferredHostKeyAlgorithms(verify, nil, tc.address, &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 2222})
 			if !tc.matched {
 				if algorithms != nil {
 					t.Fatalf("unmatched host changed default algorithms: %v", algorithms)
@@ -238,5 +238,75 @@ func TestHostKeyPreferencePreservesCertificates(t *testing.T) {
 	}
 	if err := stream.Close(); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// TestHostKeyPreferenceDistinguishesRawKeysAndAuthorities covers servers offering
+// both a certificate and its raw key, including a CA with the same key algorithm.
+func TestHostKeyPreferenceDistinguishesRawKeysAndAuthorities(t *testing.T) {
+	for _, trust := range []string{"raw", "hashed-raw", "authority", "hashed-authority", "wildcard-authority", "both"} {
+		t.Run(trust, func(t *testing.T) {
+			host, authority := testSigner(t), testSigner(t)
+			certificate := &gossh.Certificate{
+				Key: host.PublicKey(), CertType: gossh.HostCert,
+				ValidPrincipals: []string{"127.0.0.1"}, ValidBefore: gossh.CertTimeInfinity,
+			}
+			if err := certificate.SignCert(rand.Reader, authority); err != nil {
+				t.Fatal(err)
+			}
+			certified, err := gossh.NewCertSigner(certificate, host)
+			if err != nil {
+				t.Fatal(err)
+			}
+			server := startTestServer(t, "", host, certified)
+			address := net.JoinHostPort(server.config.Host, strconv.Itoa(server.config.Port))
+			rawAddress := address
+			if trust == "hashed-raw" {
+				rawAddress = knownhosts.HashHostname(knownhosts.Normalize(address))
+			}
+			// Unrelated authority records must not promote this host's certificate.
+			records := "# fixture trust\n@cert-authority " + knownhosts.Line([]string{"other.example.test"}, authority.PublicKey()) + "\n"
+			if trust == "raw" || trust == "hashed-raw" || trust == "both" {
+				records += knownhosts.Line([]string{rawAddress}, host.PublicKey()) + "\n"
+			}
+			if strings.Contains(trust, "authority") || trust == "both" {
+				authorityAddress := address
+				if trust == "hashed-authority" {
+					authorityAddress = knownhosts.HashHostname(knownhosts.Normalize(address))
+				} else if trust == "wildcard-authority" {
+					authorityAddress = "[127.*]:" + strconv.Itoa(server.config.Port)
+				}
+				records += "@cert-authority " + knownhosts.Line([]string{authorityAddress}, authority.PublicKey()) + " fixture authority with a multiword comment\n"
+			}
+			if err := os.WriteFile(server.config.KnownHostsPath, []byte(records), 0600); err != nil {
+				t.Fatal(err)
+			}
+			server.config.ConfirmHostKey = func(context.Context, HostKey) (bool, error) {
+				t.Error("known host unexpectedly prompted")
+				return false, nil
+			}
+			transport, err := New(server.config)
+			if err != nil {
+				t.Fatal(err)
+			}
+			// Negotiation must use the loaded snapshot, just like verification.
+			if err := os.Remove(server.config.KnownHostsPath); err != nil {
+				t.Fatal(err)
+			}
+			stream, err := transport.Connect(context.Background())
+			if err != nil {
+				t.Fatalf("server offers a trusted identity: %v", err)
+			}
+			if err := stream.Close(); err != nil {
+				t.Fatal(err)
+			}
+			files, err := transport.OpenFiles(context.Background(), "scp")
+			if err != nil {
+				t.Fatalf("file connection offers a trusted identity: %v", err)
+			}
+			if err := files.Close(); err != nil {
+				t.Fatal(err)
+			}
+		})
 	}
 }

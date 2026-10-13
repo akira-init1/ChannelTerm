@@ -1,7 +1,9 @@
 package ssh
 
 import (
+	"bufio"
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
@@ -30,22 +32,52 @@ func unknownHostKey(err error) bool {
 	return errors.As(err, &keyError) && len(keyError.Want) == 0
 }
 
+// loadHostKeyAuthorities snapshots the marker metadata omitted from KnownKey.
+// Line numbers and key bytes tie hints to matching verifier records, so a CA
+// for another host cannot promote certificates here. Verification remains
+// authoritative even if the file changes between the two construction reads.
+func loadHostKeyAuthorities(path string) (map[int]string, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	authorities := make(map[int]string)
+	scanner := bufio.NewScanner(file)
+	for line := 1; scanner.Scan(); line++ {
+		fields := strings.Fields(scanner.Text())
+		if len(fields) < 4 || fields[0] != "@cert-authority" {
+			continue
+		}
+		key, err := base64.StdEncoding.DecodeString(fields[3])
+		if err != nil {
+			return nil, err
+		}
+		authorities[line] = string(key)
+	}
+	return authorities, scanner.Err()
+}
+
 // preferredHostKeyAlgorithms asks the existing trust snapshot for matching
 // records. Its KeyError retains hostname, port, wildcard and hash matching;
 // the empty probe cannot equal a parsed key and never verifies a signature.
 // These are negotiation hints only: checkHostKey still validates the real key.
-func preferredHostKeyAlgorithms(verify gossh.HostKeyCallback, host string, remote net.Addr) []string {
+func preferredHostKeyAlgorithms(verify gossh.HostKeyCallback, authorities map[int]string, host string, remote net.Addr) []string {
 	var mismatch *knownhosts.KeyError
 	if !errors.As(verify(host, remote, hostKeyProbe{}), &mismatch) || len(mismatch.Want) == 0 {
 		return nil // Unknown hosts retain the backend's default negotiation.
 	}
 	trusted := make(map[string]bool)
+	trustedAuthority := false
 	for _, known := range mismatch.Want {
-		trusted[known.Key.Type()] = true
+		if authorities[known.Line] == string(known.Key.Marshal()) {
+			trustedAuthority = true
+		} else {
+			trusted[known.Key.Type()] = true
+		}
 	}
-	// Keep certificates ahead of raw keys, as in backend defaults. A matching
-	// @cert-authority record identifies the CA's key type, not the certified
-	// host's key type, so it cannot narrow certificate algorithms safely.
+	// A matching authority can certify any supported host-key type. Without
+	// one, prefer the trusted raw key over an offered but untrusted certificate.
 	algorithms := append(gossh.SupportedAlgorithms().HostKeys, gossh.InsecureAlgorithms().HostKeys...)
 	var certificates, preferred, remaining []string
 	for _, algorithm := range algorithms {
@@ -64,7 +96,10 @@ func preferredHostKeyAlgorithms(verify gossh.HostKeyCallback, host string, remot
 	}
 	// Retain other algorithms so an unavailable trusted key is still diagnosed
 	// by the same strict verifier as a mismatch, without a replacement prompt.
-	return append(append(certificates, preferred...), remaining...)
+	if trustedAuthority {
+		return append(append(certificates, preferred...), remaining...)
+	}
+	return append(append(preferred, certificates...), remaining...)
 }
 
 // hostKeyProbe requests the callback's matching records without supplying a

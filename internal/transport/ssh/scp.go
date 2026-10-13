@@ -147,6 +147,7 @@ func (f *Files) runSCP(command string, transfer func(*bufio.Reader, io.Writer) e
 
 type scpDiagnostic struct{ data []byte }
 
+// Write retains a bounded diagnostic while consuming all remote stderr bytes.
 func (d *scpDiagnostic) Write(data []byte) (int, error) {
 	n := len(data)
 	if remaining := 4096 - len(d.data); remaining > 0 {
@@ -293,6 +294,7 @@ type scpProgressWriter struct {
 	progress func(string, int64, int64) error
 }
 
+// Write reports payload bytes without claiming protocol completion.
 func (w *scpProgressWriter) Write(data []byte) (int, error) {
 	n, err := w.writer.Write(data)
 	w.written += int64(n)
@@ -306,27 +308,33 @@ func (w *scpProgressWriter) Write(data []byte) (int, error) {
 // is limited to its declared size and must be fully consumed before returning.
 // Directories have nil readers. The caller owns local destination policy and
 // containment. Duplicate/traversal names, excessive nesting, and extra roots fail.
-func (f *Files) DownloadSCP(source string, recursive bool, receive func(SCPEntry, io.Reader) error) error {
+// files counts regular files only after receive succeeds and both final file
+// acknowledgements succeed. Earlier completed files remain counted on error;
+// the operation still requires successful framing and remote command exit.
+func (f *Files) DownloadSCP(source string, recursive bool, receive func(SCPEntry, io.Reader) error) (files int64, err error) {
 	quoted, err := scpPath(source)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	expected := path.Base(path.Clean(source))
 	if !ValidFileName(expected) {
-		return errors.New("SCP source must name a file or directory")
+		return 0, errors.New("SCP source must name a file or directory")
 	}
 	command := "scp -f -- " + quoted
 	if recursive {
 		command = "scp -r -f -- " + quoted
 	}
-	return f.runSCP(command, func(reader *bufio.Reader, writer io.Writer) error {
-		return receiveSCP(reader, writer, expected, recursive, receive)
+	err = f.runSCP(command, func(reader *bufio.Reader, writer io.Writer) error {
+		var transferErr error
+		files, transferErr = receiveSCP(reader, writer, expected, recursive, receive)
+		return transferErr
 	})
+	return files, err
 }
 
-func receiveSCP(reader *bufio.Reader, writer io.Writer, expected string, recursive bool, receive func(SCPEntry, io.Reader) error) error {
+func receiveSCP(reader *bufio.Reader, writer io.Writer, expected string, recursive bool, receive func(SCPEntry, io.Reader) error) (files int64, err error) {
 	if err := scpOK(writer); err != nil {
-		return err
+		return files, err
 	}
 	var stack []string
 	seen := make(map[string]bool)
@@ -334,90 +342,93 @@ func receiveSCP(reader *bufio.Reader, writer io.Writer, expected string, recursi
 	for {
 		kind, err := reader.ReadByte()
 		if err == io.EOF && rootSeen && len(stack) == 0 {
-			return nil
+			return files, nil
 		}
 		if err != nil {
-			return fmt.Errorf("incomplete SCP transfer: %w", err)
+			return files, fmt.Errorf("incomplete SCP transfer: %w", err)
 		}
 		line, err := scpLine(reader)
 		if err != nil {
-			return err
+			return files, err
 		}
 		if kind == 1 || kind == 2 {
-			return fmt.Errorf("remote SCP error: %q", line)
+			return files, fmt.Errorf("remote SCP error: %q", line)
 		}
 		if kind == 'T' {
 			parts := strings.Fields(line)
 			if len(parts) != 4 {
-				return errors.New("invalid SCP timestamp")
+				return files, errors.New("invalid SCP timestamp")
 			}
 			for _, part := range parts {
 				if n, err := strconv.ParseInt(part, 10, 64); err != nil || n < 0 {
-					return errors.New("invalid SCP timestamp")
+					return files, errors.New("invalid SCP timestamp")
 				}
 			}
 			if err := scpOK(writer); err != nil {
-				return err
+				return files, err
 			}
 			continue
 		}
 		if kind == 'E' {
 			if line != "" || len(stack) == 0 {
-				return errors.New("unmatched SCP directory end")
+				return files, errors.New("unmatched SCP directory end")
 			}
 			stack = stack[:len(stack)-1]
 			if err := scpOK(writer); err != nil {
-				return err
+				return files, err
 			}
 			continue
 		}
 		if kind != 'C' && kind != 'D' {
-			return errors.New("unexpected SCP record")
+			return files, errors.New("unexpected SCP record")
 		}
 		parts := strings.SplitN(line, " ", 3)
 		if len(parts) != 3 || len(parts[0]) != 4 || !ValidFileName(parts[2]) {
-			return errors.New("invalid SCP entry")
+			return files, errors.New("invalid SCP entry")
 		}
 		mode, modeErr := strconv.ParseUint(parts[0], 8, 12)
 		size, sizeErr := strconv.ParseInt(parts[1], 10, 64)
 		if modeErr != nil || sizeErr != nil || size < 0 || kind == 'D' && (size != 0 || !recursive) {
-			return errors.New("invalid SCP size/mode or directory without --recursive")
+			return files, errors.New("invalid SCP size/mode or directory without --recursive")
 		}
 		if len(stack) == 0 {
 			if rootSeen || parts[2] != expected {
-				return errors.New("unexpected SCP root filename")
+				return files, errors.New("unexpected SCP root filename")
 			}
 			rootSeen = true
 		}
 		name := strings.Join(append(append([]string{}, stack...), parts[2]), "/")
 		if seen[name] || len(seen) >= 100000 || len(stack) >= 128 {
-			return errors.New("duplicate SCP entry or tree limit exceeded")
+			return files, errors.New("duplicate SCP entry or tree limit exceeded")
 		}
 		seen[name] = true
 		entry := SCPEntry{Path: name, Size: size, Mode: fs.FileMode(mode) & 0777}
 		if kind == 'D' {
 			entry.Mode |= fs.ModeDir
 			if err := receive(entry, nil); err != nil {
-				return err
+				return files, err
 			}
 			stack = append(stack, parts[2])
 		} else {
 			if err := scpOK(writer); err != nil {
-				return err
+				return files, err
 			}
 			body := &io.LimitedReader{R: reader, N: size}
 			if err := receive(entry, body); err != nil {
-				return err
+				return files, err
 			}
 			if body.N != 0 {
-				return io.ErrUnexpectedEOF
+				return files, io.ErrUnexpectedEOF
 			}
 			if err := scpAck(reader); err != nil {
-				return err
+				return files, err
 			}
 		}
 		if err := scpOK(writer); err != nil {
-			return err
+			return files, err
+		}
+		if kind == 'C' {
+			files++
 		}
 	}
 }

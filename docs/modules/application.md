@@ -119,6 +119,8 @@ expansion, but its received entries are still confined and validated. Local crea
 
 Progress counts per-file bytes accepted by the stream, not durable remote storage. `Files`/`Bytes`
 results count copied files and payload bytes; failures return an error and may include partial counts.
+For SCP downloads, Transport supplies the completed-file count only after local copying and the
+final protocol acknowledgements succeed. Payload bytes from a failed file can still be included.
 Every regular file first reports `(name, 0, size)`, including empty files, before payload copying.
 A callback error aborts the operation. These callbacks do not indicate that close, acknowledgement,
 or safe replacement succeeded; the operation result supplies authoritative completed-file counts.

@@ -24,7 +24,7 @@ func fileServer(t *testing.T, stall bool) sshtransport.Config {
 	return fileServerWithHandler(t, stall, nil)
 }
 
-// fileServerWithHandler allows filesystem-backed or wire-level fixtures while
+// fileServerWithHandler allows SFTP or SCP wire-level fixtures while
 // retaining the same generated credentials and loopback-only SSH lifecycle.
 func fileServerWithHandler(t *testing.T, stall bool, serve func(gossh.Channel)) sshtransport.Config {
 	t.Helper()
@@ -83,7 +83,7 @@ func fileServerWithHandler(t *testing.T, stall bool, serve func(gossh.Channel)) 
 						return
 					}
 					for req := range requests {
-						if req.Type != "subsystem" {
+						if req.Type != "subsystem" && !(req.Type == "exec" && serve != nil) {
 							_ = req.Reply(false, nil)
 							continue
 						}
@@ -109,6 +109,87 @@ func fileServerWithHandler(t *testing.T, stall bool, serve func(gossh.Channel)) 
 	}()
 	t.Cleanup(func() { cancel(); _ = listener.Close(); <-done; workers.Wait() })
 	return config
+}
+
+// TestSCPDownloadCompletionCounts requires both local copying and the remote
+// acknowledgement, retaining earlier completed files when a later file fails.
+func TestSCPDownloadCompletionCounts(t *testing.T) {
+	for _, mode := range []string{"success", "negative-ack", "missing-ack", "partial-tree", "cancelled-ack"} {
+		t.Run(mode, func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			config := fileServerWithHandler(t, false, func(ch gossh.Channel) {
+				ack := func() bool {
+					var b [1]byte
+					_, err := io.ReadFull(ch, b[:])
+					return err == nil && b[0] == 0
+				}
+				if !ack() {
+					return
+				}
+				if mode == "partial-tree" {
+					_, _ = io.WriteString(ch, "D0700 0 fixture.bin\n")
+					if !ack() {
+						return
+					}
+					_, _ = io.WriteString(ch, "C0600 0 completed.bin\n")
+					if !ack() {
+						return
+					}
+					_, _ = ch.Write([]byte{0})
+					if !ack() {
+						return
+					}
+				}
+				_, _ = io.WriteString(ch, "C0600 3 fixture.bin\n")
+				if !ack() {
+					return
+				}
+				_, _ = io.WriteString(ch, "ABC")
+				switch mode {
+				case "success":
+					_, _ = ch.Write([]byte{0})
+					if ack() {
+						_, _ = ch.SendRequest("exit-status", false, gossh.Marshal(struct{ Status uint32 }{0}))
+					}
+				case "negative-ack", "partial-tree":
+					_, _ = io.WriteString(ch, "\x01fixture source read failed\n")
+					_, _ = io.Copy(io.Discard, ch)
+				case "cancelled-ack":
+					_, _ = io.Copy(io.Discard, ch)
+				}
+			})
+			request := SSHFilesRequest{
+				Config: config, Protocol: "scp", Operation: "get", Remote: "/fixture.bin",
+				Local: filepath.Join(t.TempDir(), "download"), Recursive: mode == "partial-tree",
+			}
+			if mode == "cancelled-ack" {
+				request.Progress = func(_ string, n, total int64) error {
+					if n == total {
+						cancel()
+					}
+					return nil
+				}
+			}
+			result, err := RunSSHFiles(ctx, request)
+			if (err == nil) != (mode == "success") {
+				t.Fatalf("download error = %v", err)
+			}
+			if (mode == "negative-ack" || mode == "partial-tree") && !strings.Contains(err.Error(), "fixture source read failed") {
+				t.Fatalf("lost sender error: %v", err)
+			}
+			if mode == "cancelled-ack" && !errors.Is(err, context.Canceled) {
+				t.Fatalf("lost cancellation: %v", err)
+			}
+			wantFiles := int64(0)
+			if mode == "success" || mode == "partial-tree" {
+				wantFiles = 1
+			}
+			if result.Files != wantFiles || result.Bytes != 3 {
+				t.Fatalf("counts = %+v, want %d completed files and 3 bytes; error = %v", result, wantFiles, err)
+			}
+		})
+	}
 }
 
 // TestSFTPFileOperations exercises real SFTP packets through SSH, tree copying,

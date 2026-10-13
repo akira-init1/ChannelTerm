@@ -394,11 +394,16 @@ func downloadSSH(ctx context.Context, client *sshtransport.Files, r SSHFilesRequ
 		if err := errors.Join(copyErr, file.Close()); err != nil {
 			return err
 		}
-		result.Files++
+		if r.Protocol != "scp" {
+			result.Files++
+		}
 		return nil
 	}
 	if r.Protocol == "scp" {
-		return client.DownloadSCP(r.Remote, r.Recursive, receive)
+		// Only Transport can confirm the sender's status and final acknowledgement.
+		// Copying the declared payload alone does not make an SCP file successful.
+		result.Files, err = client.DownloadSCP(r.Remote, r.Recursive, receive)
+		return err
 	}
 	var walk func(string, string, int) error
 	walk = func(remote, relative string, depth int) error {

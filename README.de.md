@@ -42,6 +42,9 @@ jedoch eine von Terminal-Sessions unabhängige Verbindung. Das Ersetzen vorhande
 `--overwrite`. Verzeichnisregeln, Abbruch und Grenzen beschreibt die
 [Dateiübertragung](docs/getting-started/file-transfer.md#sftp-and-scp-over-ssh).
 
+Dateiübertragungen über gemeinsame Terminal-Sessions verwenden ein kleines Linux-Shell-Protokoll.
+Separate SSH-Dateiverbindungen verwenden SFTP oder das klassische SCP.
+
 ## Gemeinsame SSH-Shell
 
 Verbinden Sie sich mit einem autorisierten privaten Schlüssel (verschlüsselte Schlüssel fragen nach einer Passphrase) oder geben Sie auf

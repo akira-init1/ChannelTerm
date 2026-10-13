@@ -107,8 +107,10 @@ verification. The CLI owns presentation; future GUI adapters can supply the same
 Shell and dedicated file connections prefer raw host-key algorithms matching the loaded
 `known_hosts` records before other raw algorithms. Matching reuses the verifier's hostname,
 port, hashed-name, wildcard, and exclusion rules; RSA records also select RSA SHA-2 signatures.
-Certificate algorithms retain priority because a trusted CA's key type does not determine the
-certified host's key type. Unknown hosts retain backend defaults. This ordering only guides
+Certificate algorithms retain priority only when a matching `@cert-authority` record exists;
+otherwise trusted raw keys precede certificates as well. Authority markers are cached at
+construction, and a trusted CA's key type does not restrict the certified host's key type.
+Unknown hosts retain backend defaults. This ordering only guides
 negotiation: the selected key or certificate still passes the original verifier, and changed or
 revoked keys cannot trigger a replacement prompt or password authentication.
 
@@ -202,6 +204,9 @@ last download acknowledgement is accepted only when framing completed and the SS
 SCP upload progress starts at zero for each regular file, including empty files, then reports bytes
 accepted by the stream. A callback error aborts the connection. The final SCP acknowledgement still
 determines file completion; progress is not a disk-durability or success notification.
+`DownloadSCP` returns the number of regular files whose receive callback and final acknowledgements
+succeeded. A sender error, missing acknowledgement, or failed local acknowledgement does not count
+that file. Earlier completed files remain counted if a later entry or remote command exit fails.
 
 SFTP rename replacement requires the server's POSIX rename extension. There is no destructive
 delete-then-rename fallback. SFTP create-without-overwrite uses exclusive creation. Filesystem

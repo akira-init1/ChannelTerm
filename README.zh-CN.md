@@ -39,6 +39,8 @@ channelterm scp user@192.168.1.50 put ./release /tmp/release --recursive
 覆盖已有文件需要 `--overwrite`。目录规则、取消行为和协议限制见
 [文件传输](docs/getting-started/file-transfer.md#sftp-and-scp-over-ssh)。
 
+通过共享终端 Session 传输文件使用轻量的 Linux-shell 协议。独立 SSH 文件连接使用 SFTP 或传统 SCP。
+
 ## 共享 SSH shell
 
 使用已授权的私钥（加密私钥会提示输入口令），或按提示输入登录密码，两者均不保存。首次连接未知服务器时，核验显示的指纹后输入

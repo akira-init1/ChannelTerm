@@ -77,8 +77,9 @@ type Transport struct {
 	dial   func(context.Context, string, string) (net.Conn, error)
 
 	// Backend-specific authentication stays private to this implementation.
-	identities    []identity
-	verifyHostKey gossh.HostKeyCallback
+	identities         []identity
+	verifyHostKey      gossh.HostKeyCallback
+	hostKeyAuthorities map[int]string
 }
 
 var _ transport.Transport = (*Transport)(nil)
@@ -142,7 +143,10 @@ func New(config Config) (*Transport, error) {
 		return nil, err
 	}
 	verifyHostKey, err := knownhosts.New(config.KnownHostsPath)
-	if errors.Is(err, os.ErrNotExist) && config.ConfirmHostKey != nil {
+	var authorities map[int]string
+	if err == nil {
+		authorities, err = loadHostKeyAuthorities(config.KnownHostsPath)
+	} else if errors.Is(err, os.ErrNotExist) && config.ConfirmHostKey != nil {
 		verifyHostKey, err = knownhosts.New()
 	}
 	if err != nil {
@@ -150,7 +154,7 @@ func New(config Config) (*Transport, error) {
 	}
 	return &Transport{
 		config: config, dial: (&net.Dialer{}).DialContext,
-		identities: identities, verifyHostKey: verifyHostKey,
+		identities: identities, verifyHostKey: verifyHostKey, hostKeyAuthorities: authorities,
 	}, nil
 }
 
@@ -249,7 +253,7 @@ func (t *Transport) open(ctx context.Context, start func(*liveClient) error) (_ 
 	var establishedKey []byte
 	sshConn, channels, requests, err := gossh.NewClientConn(conn, address, &gossh.ClientConfig{
 		User: t.config.User, Auth: auth,
-		HostKeyAlgorithms: preferredHostKeyAlgorithms(t.verifyHostKey, address, conn.RemoteAddr()),
+		HostKeyAlgorithms: preferredHostKeyAlgorithms(t.verifyHostKey, t.hostKeyAuthorities, address, conn.RemoteAddr()),
 		// Select one identity at a time after the server offers public-key
 		// authentication. In particular, unused legacy PEM candidates must not
 		// prompt before an earlier key succeeds. Local callback errors cancel

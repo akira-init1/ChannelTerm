@@ -22,7 +22,7 @@ func TestReceiveSCPRejectsUntrustedRecords(t *testing.T) {
 		"C0644 -1 file\n", "C9999 0 file\n", "C0644 9223372036854775808 file\n", "D0755 0 file\n",
 		"C0644 3 file\nab", "E\n", "Tbad\n", "C0644 0 " + strings.Repeat("x", 5000) + "\n", "\x01failure\n",
 	} {
-		err := receiveSCP(bufio.NewReaderSize(strings.NewReader(input), 4096), io.Discard, "file", false, func(entry SCPEntry, r io.Reader) error {
+		_, err := receiveSCP(bufio.NewReaderSize(strings.NewReader(input), 4096), io.Discard, "file", false, func(entry SCPEntry, r io.Reader) error {
 			if entry.Path != "file" {
 				t.Fatalf("unsafe name reached receiver: %q", entry.Path)
 			}
@@ -128,9 +128,9 @@ func TestSCPConnectionCompletion(t *testing.T) {
 				}
 			} else {
 				var output bytes.Buffer
-				err := client.DownloadSCP("/tmp/fixture.bin", false, func(entry SCPEntry, r io.Reader) error { _, err := io.Copy(&output, r); return err })
-				if err != nil || !bytes.Equal(output.Bytes(), []byte{'A', 0, 'B'}) {
-					t.Fatalf("download=%v %v", output.Bytes(), err)
+				files, err := client.DownloadSCP("/tmp/fixture.bin", false, func(entry SCPEntry, r io.Reader) error { _, err := io.Copy(&output, r); return err })
+				if err != nil || files != 1 || !bytes.Equal(output.Bytes(), []byte{'A', 0, 'B'}) {
+					t.Fatalf("download=%d %v %v", files, output.Bytes(), err)
 				}
 			}
 			select {
@@ -162,7 +162,8 @@ func TestSCPBlockedTransferCancellation(t *testing.T) {
 	defer client.Close()
 	done := make(chan error, 1)
 	go func() {
-		done <- client.DownloadSCP("fixture.bin", false, func(SCPEntry, io.Reader) error { return nil })
+		_, err := client.DownloadSCP("fixture.bin", false, func(SCPEntry, io.Reader) error { return nil })
+		done <- err
 	}()
 	select {
 	case <-server.requests:
@@ -186,7 +187,7 @@ func TestReceiveSCPTree(t *testing.T) {
 	wire := "T1 0 2 0\nD0755 0 tree\nC0644 3 data.bin\nA\x00B\x00D0700 0 empty\nE\nE\n"
 	var acks bytes.Buffer
 	var paths []string
-	err := receiveSCP(bufio.NewReader(strings.NewReader(wire)), &acks, "tree", true, func(entry SCPEntry, r io.Reader) error {
+	files, err := receiveSCP(bufio.NewReader(strings.NewReader(wire)), &acks, "tree", true, func(entry SCPEntry, r io.Reader) error {
 		paths = append(paths, entry.Path)
 		if entry.Mode.IsRegular() {
 			data, err := io.ReadAll(r)
@@ -202,13 +203,55 @@ func TestReceiveSCPTree(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Join(paths, ",") != "tree,tree/data.bin,tree/empty" || acks.Len() != 8 {
-		t.Fatalf("paths=%v acks=%d", paths, acks.Len())
+	if strings.Join(paths, ",") != "tree,tree/data.bin,tree/empty" || acks.Len() != 8 || files != 1 {
+		t.Fatalf("paths=%v acks=%d files=%d", paths, acks.Len(), files)
 	}
 	duplicate := "D0755 0 tree\nC0644 0 x\n\x00C0644 0 x\n\x00E\n"
-	if err := receiveSCP(bufio.NewReader(strings.NewReader(duplicate)), io.Discard, "tree", true, func(SCPEntry, io.Reader) error { return nil }); err == nil {
+	if _, err := receiveSCP(bufio.NewReader(strings.NewReader(duplicate)), io.Discard, "tree", true, func(SCPEntry, io.Reader) error { return nil }); err == nil {
 		t.Fatal("duplicate accepted")
 	}
+}
+
+// TestReceiveSCPCountsOnlyAcknowledgedFiles covers sender rejection and failure
+// to send the receiver's final acknowledgement, including empty payloads.
+func TestReceiveSCPCountsOnlyAcknowledgedFiles(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		status   string
+		failAck  int
+		wantFile int64
+	}{
+		{"success", "\x00", 0, 1},
+		{"sender-error", "\x01read failed\n", 0, 0},
+		{"missing-status", "", 0, 0},
+		{"invalid-status", "\x03", 0, 0},
+		{"receiver-error", "\x00", 3, 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			writer := &failingSCPAckWriter{failAt: tc.failAck}
+			files, err := receiveSCP(bufio.NewReader(strings.NewReader("C0600 0 file\n"+tc.status)), writer, "file", false, func(_ SCPEntry, reader io.Reader) error {
+				_, err := io.Copy(io.Discard, reader)
+				return err
+			})
+			if files != tc.wantFile || (err == nil) != (tc.wantFile == 1) {
+				t.Fatalf("completed files = %d, error = %v", files, err)
+			}
+			if tc.failAck != 0 && !errors.Is(err, io.ErrClosedPipe) {
+				t.Fatalf("lost acknowledgement write error: %v", err)
+			}
+		})
+	}
+}
+
+type failingSCPAckWriter struct{ calls, failAt int }
+
+// Write fails at a selected acknowledgement without involving a network peer.
+func (w *failingSCPAckWriter) Write(data []byte) (int, error) {
+	w.calls++
+	if w.calls == w.failAt {
+		return 0, io.ErrClosedPipe
+	}
+	return len(data), nil
 }
 
 // TestSCPNamesAndQuoting rejects local aliases and quotes remote shell metacharacters.

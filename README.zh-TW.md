@@ -39,6 +39,8 @@ channelterm scp user@192.168.1.50 put ./release /tmp/release --recursive
 覆寫現有檔案需要 `--overwrite`。目錄規則、取消行為及協定限制請見
 [檔案傳輸](docs/getting-started/file-transfer.md#sftp-and-scp-over-ssh)。
 
+透過共用終端 Session 傳輸檔案使用輕量的 Linux-shell 協定。獨立 SSH 檔案連線使用 SFTP 或傳統 SCP。
+
 ## 共用 SSH shell
 
 使用已授權的私鑰（加密私鑰會提示輸入口令），或依提示輸入登入密碼，兩者均不儲存。首次連線至未知伺服器時，核驗顯示的指紋後輸入
