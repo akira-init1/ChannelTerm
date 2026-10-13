@@ -148,7 +148,15 @@ func runAttachSession(ctx context.Context, args []string, input io.Reader, outpu
 	return runAttachSessionWithInterrupts(ctx, args, input, output, newAttach, nil)
 }
 
-func runAttachSessionWithInterrupts(ctx context.Context, args []string, input io.Reader, output io.Writer, newAttach attachSessionFactory, interrupts <-chan os.Signal) (err error) {
+func runAttachSessionWithInterrupts(ctx context.Context, args []string, input io.Reader, output io.Writer, newAttach attachSessionFactory, interrupts <-chan os.Signal) error {
+	return runAttachSessionWithInputEnd(ctx, args, input, output, newAttach, interrupts, nil)
+}
+
+// runAttachSessionWithInputEnd lets a foreground Host owner close its lifetime
+// when local input ends. Ordinary attachments pass nil and retain their existing
+// behavior. Owner shutdown cancels the remote write worker; input EOF does not
+// drain queued input before the Host and its Sessions are closed.
+func runAttachSessionWithInputEnd(ctx context.Context, args []string, input io.Reader, output io.Writer, newAttach attachSessionFactory, interrupts <-chan os.Signal, onInputEnd func()) (err error) {
 	flags := flag.NewFlagSet("attach", flag.ContinueOnError)
 	flags.SetOutput(output)
 	endpoint := flags.String("endpoint", defaultMCPEndpoint, "MCP Streamable HTTP endpoint")
@@ -208,8 +216,12 @@ func runAttachSessionWithInterrupts(ctx context.Context, args []string, input io
 	attachCtx, cancel := context.WithCancel(ctx)
 	var activityWait sync.WaitGroup
 	var eventWait sync.WaitGroup
+	var ownerInputDone chan struct{}
 	defer func() {
 		cancel()
+		if ownerInputDone != nil {
+			<-ownerInputDone
+		}
 		activityWait.Wait()
 		eventWait.Wait()
 	}()
@@ -283,7 +295,15 @@ func runAttachSessionWithInterrupts(ctx context.Context, args []string, input io
 	if owner, ok := attached.(localFileTransferPresentation); ok {
 		owner.setFileTransferPresentation(presentation)
 	}
-	go forwardAttachInputWithPresentation(attachCtx, input, attached, writeLocalOutput, writeLocalStatus, togglePromptTimestamps, cancel, interrupts)
+	if onInputEnd != nil {
+		ownerInputDone = make(chan struct{})
+		go func() {
+			defer close(ownerInputDone)
+			forwardSSHOwnerInput(attachCtx, input, attached, writeLocalOutput, writeLocalStatus, togglePromptTimestamps, cancel, interrupts, onInputEnd)
+		}()
+	} else {
+		go forwardAttachInputWithPresentation(attachCtx, input, attached, writeLocalOutput, writeLocalStatus, togglePromptTimestamps, cancel, interrupts)
+	}
 	events, hasEvents := attached.(attachEventSession)
 	if hasEvents {
 		eventChunk, eventErr := events.ReadRecentEvents(session.DefaultEventBufferCapacity)

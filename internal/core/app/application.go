@@ -143,6 +143,19 @@ func (a *Application) ReadSession(ctx context.Context, identifier string, cursor
 	return terminal.ReadOutput(ctx, *cursor, maxBytes)
 }
 
+// ResizeSession forwards character dimensions to a managed Session's optional
+// Channel capability. It returns the existing lookup, lifecycle, or unsupported
+// errors unchanged. Callers own resize authority; this method does not grant a
+// lease or expose resizing through any network adapter. Closing the Session
+// interrupts an in-flight resize when the underlying transport supports it.
+func (a *Application) ResizeSession(identifier string, cols, rows uint16) error {
+	terminal, err := a.session(identifier)
+	if err != nil {
+		return err
+	}
+	return terminal.Resize(cols, rows)
+}
+
 // ReadSessionActivity returns retained operation activity or waits after the
 // supplied cursor. A nil cursor reads the most recent retained events.
 //

@@ -1,4 +1,7 @@
-# File Transfer over a Serial Session
+# File Transfer
+
+This guide covers the existing shared-terminal transfer workflow below and
+[dedicated SFTP/SCP connections](#sftp-and-scp-over-ssh).
 
 ChannelTerm can stream a regular file or a directory through an existing shared Session without an
 AI client or a separately installed board-side transfer program. The board side remains an ordinary
@@ -200,3 +203,131 @@ it is not a canonical content hash that remains stable across separate tar creat
 The current implementation does not provide resume, compression, zip, incremental synchronization,
 sparse-file preservation, permissions/ownership preservation, symlink or hard-link handling,
 per-chunk checksums, coordination with writers that bypass the Host, or non-Linux shell support.
+
+## SFTP and SCP over SSH
+
+Use these commands for a server with an SFTP subsystem or a POSIX shell and legacy `scp` executable.
+The client runs on Windows, Linux, and macOS without requiring local OpenSSH programs. Each command
+authenticates a separate connection with the same password/key and host-trust rules as
+[SSH terminal login](ssh-terminal.md#prerequisites). No shared terminal Session is needed.
+
+```powershell
+channelterm sftp user@192.168.1.50 ls /tmp
+channelterm sftp user@192.168.1.50 mkdir /tmp/my-transfer
+channelterm sftp user@192.168.1.50 put .\firmware.bin /tmp/my-transfer/firmware.bin
+channelterm sftp user@192.168.1.50 get /tmp/my-transfer/firmware.bin .\download.bin
+channelterm sftp user@192.168.1.50 stat /tmp/my-transfer/firmware.bin
+channelterm sftp user@192.168.1.50 rename /tmp/my-transfer/firmware.bin /tmp/my-transfer/old.bin
+channelterm sftp user@192.168.1.50 rm /tmp/my-transfer/old.bin
+channelterm sftp user@192.168.1.50 rmdir /tmp/my-transfer
+```
+
+Replace the user and address with your actual server. `ls` defaults to `.` when no path is supplied.
+Paths containing spaces must be quoted. Relative remote paths use the server's starting directory;
+there is no wildcard or tilde expansion. Missing parent directories are not created automatically.
+Remote `..` components are resolved by the server, including when a preceding component is a
+symlink; appended child names do not change that interpretation.
+
+For directories, explicitly add `--recursive` (`-r`). Legacy SCP has the same put/get command shape:
+
+```powershell
+channelterm sftp user@192.168.1.50 put .\release /tmp/release --recursive
+channelterm scp user@192.168.1.50 get /tmp/release .\received-release --recursive
+```
+
+If the destination already names a directory, the source basename is appended. Existing files or
+tree entries are rejected by default; choose `--overwrite` to replace files or merge directories.
+SCP is explicitly the legacy wire protocol, whereas current OpenSSH `scp` normally uses SFTP.
+Use SFTP unless the server requires legacy SCP. SCP's remote existence guard is not atomic against
+unrelated writers. SFTP has exclusive file creation, but preflight type checks still do not lock
+the filesystem against other processes. Avoid concurrent changes to source/destination trees.
+
+Ctrl+C cancels the file connection without closing any independently running terminal Session.
+`--operation-timeout 2m` provides an overall deadline, including authentication prompts. The ordinary
+`--timeout` applies only to setup, excluding prompt wait time. Interrupted or failed transfers can
+leave partial files and directories; with overwrite enabled a previous file can be truncated.
+Inspect the target before retrying. There is no resume, rollback, automatic reconnect, or atomic
+tree replacement. SSH protects transport integrity. To additionally check file content, opt into
+`--verify=sha256` (the default is `none`):
+
+```powershell
+channelterm sftp user@192.168.1.50 put .\firmware.bin /tmp/firmware.bin --verify=sha256
+channelterm scp user@192.168.1.50 get /tmp/firmware.bin .\download.bin --verify=sha256
+```
+
+Verification applies to every regular file, including empty files and files in recursive copies.
+SFTP uploads hash the source stream and read the closed remote destination back; this requires
+remote read permission and adds a full-file return trip. SFTP downloads hash the incoming stream
+and reread the closed local destination. SFTP-only accounts work without a shell or hash utility.
+SCP runs a fixed remote `sha256sum` command using the same dedicated SSH connection and compares
+it with the local digest. The remote POSIX shell must find `sha256sum` in PATH; this prerequisite
+is checked before transferring anything. Missing tools, read errors, and mismatches fail explicitly.
+
+Both terminal and redirected output show `Verifying SHA-256`, the local and remote digests, and
+`Verify: SHA-256 matched` when equal. The file is counted as completed only after verification and
+any replacement succeed. Ctrl+C and `--operation-timeout` cover checksum work as well. Hashing adds
+I/O and takes time after the payload bar stops advancing. It does not promise physical disk
+durability or lock either file against concurrent writers. Keep source and destination stable.
+Without safe replacement, a verification failure leaves the destination for inspection.
+
+For SFTP, protect an existing destination during copying with explicit staged replacement:
+
+```bash
+channelterm sftp user@192.168.1.50 put ./firmware.bin /tmp/firmware.bin --overwrite --safe-replace --verify=sha256 --operation-timeout 2m
+```
+
+This also works for `get` and recursive copies, one file at a time. Each file is copied to a random
+`.channelterm-*.part` sibling and renamed only after a successful copy, close, and requested
+verification. A checksum failure preserves the old destination and attempts staging cleanup.
+Upload requires
+the server's POSIX rename extension; unsupported servers fail before staging. Downloads sync the
+temporary file first; atomic visibility depends on the local OS/filesystem. No delete-first
+fallback is used. The destination directory must permit creating and renaming files. Replacement
+creates a new file: previous permissions, ownership, ACLs, and hard-link identity are not preserved.
+There is no whole-tree rollback; earlier completed files remain replaced. On disconnection, a
+remote staging file can remain and its path is reported for inspection. A lost rename response
+can mean the replacement succeeded even though the operation reports an error; inspect before retrying.
+
+`--keepalive-interval 10s --keepalive-count 3` can detect an unresponsive SSH connection. It does
+not detect a stuck file operation on a server that still answers probes; use `--operation-timeout`
+for an overall limit. Both shell and file connections leave keepalive disabled by default.
+
+SFTP payload copying currently uses sequential 32 KiB reads/writes. Throughput can be limited by
+network round-trip time even when link bandwidth is high; parallel request pipelining is not a
+current guarantee. Test representative file sizes and network latency before treating this workflow
+as a bulk synchronization tool.
+
+In an interactive output terminal, SFTP/SCP put/get uses the serial transfer bar style, for example
+(illustrative values):
+
+```text
+SFTP put: Ctrl+C cancels.
+File 1: "firmware.bin" (0 completed)
+[##########----------] 50.0%  4 MiB / 8 MiB  2 MiB/s  ETA 2s
+```
+
+The bar refreshes in place at most five times per second during each file's payload. File boundaries
+and the final frame always display. For recursive copies, the percentage, speed and ETA belong to
+the current file, while the completed-file count advances across the tree. Empty files also finish
+at 100%. Success is shown only after closing/acknowledging/verifying/replacing the file, not merely after its
+last payload byte. Ctrl+C still cancels immediately without a confirmation menu. Failure/cancellation
+prints the partial counts and explains possible partial or temporary files. Redirected output omits
+the animated bar; requested verification reports are still printed before completion/error messages.
+
+Only regular files and directories are uploaded. SFTP downloads reject symlinks and special entries.
+Legacy SCP may follow remote symlinks according to the server's scp behavior; received names still
+undergo local containment checks. Downloads reject traversal, unsafe Windows aliases, case-insensitive
+duplicates, more than 100,000 entries, and nesting beyond 128 components. Local files/directories
+are created with 0600/0700 modes subject to the operating system. Ownership, timestamps, ACLs,
+sparse-file layout, and full permission preservation are not transfer contracts.
+
+For acceptance testing, use a new disposable directory: round-trip binary and empty files, names
+with spaces/Unicode, and a nested tree using `--verify=sha256`; compare hashes of the local source
+and download. Also check that a missing remote `sha256sum` rejects verified SCP before copying. Verify
+that existing-target writes fail without overwrite, missing sources fail, nonempty `rmdir` fails,
+and Ctrl+C interrupts an active operation. Record the client version, protocol, exact error, and
+whether authentication or transfer failed; never record passwords or private-key contents.
+
+These commands do not add MCP tools or persistent connection profiles. Future GUI adapters can use
+the same application operation and authentication callbacks. rsync, FTP/FTPS, an interactive SFTP
+REPL, and remote-to-remote copies are not implemented.

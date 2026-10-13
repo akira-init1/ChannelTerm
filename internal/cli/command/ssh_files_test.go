@@ -1,0 +1,77 @@
+package command
+
+import (
+	"bytes"
+	"context"
+	"io"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/akira-init1/ChannelTerm/internal/core/app"
+)
+
+// TestSSHFilesCLIParsing checks target-first, interspersed flags and Windows
+// paths without opening a connection or reading personal credentials.
+func TestSSHFilesCLIParsing(t *testing.T) {
+	for _, protocol := range []string{"sftp", "scp"} {
+		var got app.SSHFilesRequest
+		run := func(ctx context.Context, request app.SSHFilesRequest) (app.SSHFilesResult, error) {
+			got = request
+			return app.SSHFilesResult{}, nil
+		}
+		args := []string{"user@[::1]", "put", `C:\fixture\a b.bin`, "/tmp/a b.bin", "--port", "2222", "--identity", "fixture-key", "--known-hosts", "fixture-hosts", "-r", "--overwrite"}
+		var output bytes.Buffer
+		args = append(args, "--keepalive-interval", "10s", "--keepalive-count", "2")
+		args = append(args, "-i", "second-fixture-key")
+		if protocol == "sftp" {
+			args = append(args, "--safe-replace")
+		}
+		if err := runSSHFiles(context.Background(), protocol, args, strings.NewReader(""), &output, run); err != nil {
+			t.Fatal(err)
+		}
+		if got.Protocol != protocol || got.Config.Host != "::1" || got.Config.Port != 2222 || got.Local != `C:\fixture\a b.bin` || !got.Recursive || !got.Overwrite {
+			t.Fatalf("request=%+v", got)
+		}
+		if !strings.Contains(output.String(), "completed") {
+			t.Fatal("no completion")
+		}
+		if got.Config.PrivateKeyPath != "fixture-key" || len(got.Config.PrivateKeyPaths) != 1 || got.Config.PrivateKeyPaths[0] != "second-fixture-key" {
+			t.Fatal("explicit identity order lost")
+		}
+		if got.Config.KeepAliveInterval != 10*time.Second || got.Config.KeepAliveCountMax != 2 || got.SafeReplace != (protocol == "sftp") {
+			t.Fatalf("missing safety options: %+v", got)
+		}
+	}
+}
+
+// TestSSHFilesCLIValidation protects nonrecursive deletion and rejects malformed
+// commands before authentication or any remote/local filesystem mutation.
+func TestSSHFilesCLIValidation(t *testing.T) {
+	for _, args := range [][]string{
+		{"host", "ls"}, {"user@host", "put", "only-one"}, {"user@host", "rm", "/tmp/x", "-r"},
+		{"user@host", "ls", "--port", "0"}, {"user@host", "ls", "--operation-timeout", "-1s"},
+		{"user@host", "ls", "--unknown"}, {"user@host", "ls", "--identity"},
+		{"user@host", "ls", "--keepalive-count", "0"},
+		{"user@host", "ls", "--keepalive-interval", "-1s"},
+		{"user@host", "put", "local", "remote", "--safe-replace"},
+		{"user@host", "ls", "--safe-replace", "--overwrite"},
+		{"user@host", "ls", "--verify=sha256"},
+		{"user@host", "put", "local", "remote", "--verify=md5"},
+		{"user@host", "put", "local", "remote", "--verify="},
+	} {
+		err := runSSHFiles(context.Background(), "sftp", args, strings.NewReader(""), io.Discard, func(context.Context, app.SSHFilesRequest) (app.SSHFilesResult, error) {
+			t.Fatal("invalid command dispatched")
+			return app.SSHFilesResult{}, nil
+		})
+		if err == nil {
+			t.Errorf("accepted %v", args)
+		}
+	}
+	for _, protocol := range []string{"sftp", "scp"} {
+		var output bytes.Buffer
+		if err := Run(context.Background(), []string{protocol, "--help"}, strings.NewReader(""), &output, io.Discard); err != nil || !strings.Contains(output.String(), "Usage: channelterm "+protocol) {
+			t.Fatalf("help=%s %v", &output, err)
+		}
+	}
+}

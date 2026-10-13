@@ -43,10 +43,11 @@ type vtTracker struct {
 	csiParameters   []byte
 	alternateScreen bool
 	sgrAttributes   uint16
+	lineHasText     bool
 }
 
 // feed consumes one VT byte and reports whether a presentation-neutral
-// sequence just established a safe point for ordinary prompt recognition.
+// sequence at the start of a logical line established a safe point for prompt recognition.
 // Cursor/screen controls deliberately do not produce that signal.
 func (t *vtTracker) feed(value byte) bool {
 	if value == 0x18 || value == 0x1a { // CAN and SUB abort an in-progress sequence.
@@ -59,6 +60,10 @@ func (t *vtTracker) feed(value byte) bool {
 	case vtGround:
 		if value == 0x1b {
 			t.state = vtEscape
+		} else if value == '\n' {
+			t.lineHasText = false
+		} else if value >= 0x20 && value != 0x7f {
+			t.lineHasText = true
 		}
 	case vtEscape:
 		switch value {
@@ -72,6 +77,7 @@ func (t *vtTracker) feed(value byte) bool {
 		case 'c': // RIS resets terminal presentation state.
 			t.alternateScreen = false
 			t.sgrAttributes = 0
+			t.lineHasText = false
 			t.state = vtGround
 			return true
 		case 0x1b:
@@ -92,7 +98,7 @@ func (t *vtTracker) feed(value byte) bool {
 		case value >= 0x40 && value <= 0x7e:
 			promptBoundary := t.finishCSI(value)
 			t.state = vtGround
-			return promptBoundary && t.canResumeHighlighting()
+			return promptBoundary && !t.lineHasText && t.canResumeHighlighting()
 		default:
 			t.state = vtGround
 		}
@@ -100,14 +106,14 @@ func (t *vtTracker) feed(value byte) bool {
 		switch value {
 		case 0x07:
 			t.state = vtGround
-			return t.canResumeHighlighting()
+			return !t.lineHasText && t.canResumeHighlighting()
 		case 0x1b:
 			t.state = vtOSCEscape
 		}
 	case vtOSCEscape:
 		if value == '\\' {
 			t.state = vtGround
-			return t.canResumeHighlighting()
+			return !t.lineHasText && t.canResumeHighlighting()
 		} else if value != 0x1b {
 			t.state = vtOSC
 		}

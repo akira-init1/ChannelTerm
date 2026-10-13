@@ -23,9 +23,41 @@ ChannelTerm은 사람과 AI가 하나의 하드웨어 터미널 Session을 공�
        channelterm attach             읽기/쓰기 도구
 ```
 
-현재 구현된 Transport는 Windows, Linux, macOS의 시리얼 통신뿐입니다. SSH와 Telnet은 향후
-방향이며 현재 기능이 아닙니다. ChannelTerm 자체에 AI가 내장된 것도 아닙니다. MCP를 통해 실제
-터미널 Session을 외부 AI 클라이언트에 제공합니다.
+ChannelTerm은 Windows, Linux, macOS에서 시리얼 통신과 SSH PTY 셸을 지원합니다. AI를 내장하지 않으며, MCP를 통해 실제 터미널 Session을 사용자와 외부 AI 클라이언트에 제공합니다.
+
+## SSH 파일 전송
+
+SFTP로 파일을 전송하고 원격 파일을 관리할 수 있으며, 호환되는 POSIX 서버에서는 기존 SCP도 사용할 수 있습니다.
+
+```bash
+channelterm sftp user@192.168.1.50 ls /tmp
+channelterm sftp user@192.168.1.50 put ./firmware.bin /tmp/firmware.bin
+channelterm sftp user@192.168.1.50 get /tmp/log.txt ./log.txt
+channelterm scp user@192.168.1.50 put ./release /tmp/release --recursive
+```
+
+SSH와 동일한 키/비밀번호 인증 및 호스트 검증을 사용하며, 터미널 Session과 독립된 연결로 동작합니다.
+기존 파일을 덮어쓰려면 `--overwrite`가 필요합니다. 디렉터리 처리, 취소 동작과 제한은
+[파일 전송](docs/getting-started/file-transfer.md#sftp-and-scp-over-ssh)을 참조하세요.
+
+공유 터미널 Session을 통한 파일 전송은 간단한 Linux-shell 프로토콜을 사용합니다.
+독립된 SSH 파일 연결은 SFTP 또는 기존 SCP를 사용합니다.
+
+## SSH 셸 공유
+
+인증이 허용된 개인 키를 사용하거나 요청 시 비밀번호를 입력하세요. 암호화된 개인 키는 암호문구를 요청합니다(둘 다 저장되지 않습니다).
+알 수 없는 서버는 표시된 지문을 확인한 뒤 `yes`를 입력하면 공개 키가 `~/.ssh/known_hosts`에 저장됩니다.
+변경된 서버 키는 거부됩니다. 이러한 입력에는 대화형 터미널이 필요합니다.
+
+```bash
+# 터미널 1: 셸을 열고 해당 프롬프트에서 uname -a를 실행합니다.
+channelterm ssh user@192.168.1.50
+
+# 터미널 2: 같은 셸의 출력을 보고 사용합니다.
+channelterm attach SSH-1
+```
+
+첫 번째 명령을 계속 실행해 두세요. 종료하면 이 Host와 Session도 닫힙니다. 기본 로컬 공유 포트가 사용 중이면 `--listen`과 출력된 attach 엔드포인트로 별도 Host를 사용하세요. 키 경로, 호스트 검증, 포트 및 현재 제한은 [SSH 워크플로](docs/getting-started/ssh-terminal.md)를 참조하세요.
 
 ## 빠른 시작: 명령 하나, 터미널 하나
 
@@ -175,7 +207,7 @@ SHA-256 검증 규칙은 [파일 전송 워크플로](docs/getting-started/file-
 
 ## 설치 및 빌드
 
-ChannelTerm에는 Go 1.25 이상이 필요합니다. 현재 지원되는 패치 릴리스를 사용하십시오.
+ChannelTerm에는 Go 1.26 이상이 필요합니다. 현재 지원되는 패치 릴리스를 사용하십시오.
 
 ```bash
 git clone https://github.com/akira-init1/ChannelTerm.git
@@ -238,6 +270,7 @@ channelterm serial --config ./channelterm.toml --profile board
 
 - [문서 색인](docs/README.md)
 - [시리얼 터미널 워크플로](docs/getting-started/serial-terminal.md)
+- [SSH 셸 워크플로](docs/getting-started/ssh-terminal.md)
 - [공유 Session](docs/getting-started/shared-session.md)
 - [MCP Server](docs/getting-started/mcp-server.md)
 - [CLI 레퍼런스](docs/reference/cli.md)

@@ -23,7 +23,7 @@ jobs:
         include:
           - name: minimum-go
             os: ubuntu-latest
-            go: 1.25.x
+            go: 1.26.x
           - name: linux
             os: ubuntu-latest
             go: stable

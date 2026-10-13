@@ -13,6 +13,7 @@ channelterm install --help
 channelterm list --help
 channelterm mcp --help
 channelterm serial --help
+channelterm ssh --help
 channelterm uninstall --help
 ```
 
@@ -45,7 +46,7 @@ version and target platform come from the compiled binary. An unknown command re
 the process exits with status 1.
 
 The top-level help currently lists `attach`, `events`, `file`, `init`, `install`, `list`, `mcp`,
-`serial`, `uninstall`, `help`, and `version`.
+`serial`, `ssh`, `sftp`, `scp`, `uninstall`, `help`, and `version`.
 
 ## `install` and `uninstall`
 
@@ -225,6 +226,171 @@ serial values, a busy/missing/inaccessible port, an invalid Boolean highlight va
 positional arguments, raw-console setup failure, and I/O or close errors. Saving happens before the
 physical open, so a saved profile may remain after an open failure.
 
+## `ssh`
+
+Purpose: open an SSH PTY interactive shell in a foreground, loopback-only Session Host.
+
+```bash
+channelterm ssh USER@HOST [options]
+channelterm ssh user@host.example --identity /path/to/private-key --port 2222
+channelterm attach SSH-1
+```
+
+Authentication tries existing default keys `~/.ssh/id_ed25519` then `~/.ssh/id_rsa`, then prompts
+for a password if the server offers password authentication. Repeating `--identity`/`-i` replaces
+default discovery with that ordered list; repeated identical paths are tried once. If neither
+default exists, interactive password login is still available. A selected missing, unreadable,
+or malformed key fails rather than silently ignoring a configuration error. Encrypted keys require
+an interactive passphrase provider. OpenSSH encrypted keys prompt only if the server accepts their
+public key; legacy encrypted PEM keys require unlocking to discover it. Passphrases are requested
+after host verification, hidden, retried up to three times, and never saved. Cancellation aborts
+setup rather than falling back to another authentication method. Password input is hidden, retried
+up to three times (the server may disconnect earlier), and never saved or placed in Session metadata.
+Candidates are prepared only when their turn is reached, including legacy encrypted PEM keys.
+Server policy and the backend's 64 authentication-method-attempt limit can stop a long candidate list.
+
+The default trust file is `~/.ssh/known_hosts`, shared with OpenSSH on Windows, Linux, and macOS.
+An unknown key displays its algorithm and SHA256 fingerprint. Only the exact answer `yes` after
+trimming surrounding whitespace approves saving it; any other answer rejects it. Verify the
+fingerprint through a trusted source before approving. When a server offers multiple raw host keys,
+SSH, SFTP, and SCP prefer algorithms recorded for that host in `known_hosts`; the selected key is
+still verified. Without a matching `@cert-authority` record, raw keys are preferred over certificates,
+including on first connection, so a server offering both can use the normal fingerprint confirmation.
+A certificate-only server requires a trusted matching CA and valid certificate.
+Changed or revoked keys are always rejected without a replacement prompt.
+A save failure aborts the connection before password authentication.
+Only an actual terminal on stdin enables prompts; redirected input requires an authorized private
+key and pretrusted host. There is no password flag/environment variable or insecure host-key bypass.
+Ctrl+C, Ctrl+D/Ctrl+Z, or cancellation aborts a prompt and restores terminal mode.
+See `ssh --help` for explicit paths, SSH port,
+PTY type/dimensions, setup timeout, label, highlighting, and local sharing address options.
+`-i` aliases `--identity`; `-p` aliases `--port`. Flags may precede or follow the destination.
+
+The SSH port defaults to 22. A ten-second timeout bounds TCP, handshake/authentication, channel
+opening, PTY, and shell requests. Time spent answering trust/password prompts is excluded; caller
+cancellation and deadlines remain active. The PTY defaults to `xterm-256color`. Initial dimensions use
+`--cols`/`--rows` when supplied, otherwise the owner's output terminal (or input terminal when
+output is redirected), with an 80-column by 24-row fallback if size querying is unavailable.
+Only the foreground `ssh` terminal controls subsequent PTY resizing; secondary `attach` windows
+do not send size requests. Explicit dimensions apply initially and remain until the owner's
+local size changes, at which point both dimensions follow that terminal. Without a local terminal,
+the dimensions stay fixed. Linux/macOS use `SIGWINCH`; Windows queries the visible console window
+every 250 ms without consuming keyboard events. Duplicate, zero, invalid, or unavailable local
+measurements are ignored. Shutdown cancels the watcher and closes its SSH I/O before joining it.
+The command does not read SSH profiles or save credentials into ChannelTerm configuration.
+ssh-agent, ssh_config, keyboard-interactive authentication, and arbitrary
+SSH exec are not supported. Dedicated file operations use `sftp` or `scp`, described below.
+A server offering only keyboard-interactive requires a different client.
+
+The Host uses the existing Bearer-token authentication and defaults to `127.0.0.1:37099/mcp`.
+`--listen` accepts only a loopback IP and port. An occupied port fails before SSH connection;
+this command cannot add SSH Sessions to a separately running Host. Choose another loopback port
+and pass the printed `--endpoint` to `attach` and `list` in that case. SSH does not add MCP tools.
+Existing generic Session tools provide access to the already-open shell.
+
+The foreground command owns the Host and Manager. `Ctrl+] q`, input EOF, or process cancellation
+closes its Sessions and listener. In a secondary `attach`, `Ctrl+] q` detaches only that client.
+Ctrl+C cancels initial setup; after attachment it is ordinary input to the remote PTY, using
+existing attach controls. Remote shell closure/disconnection follows the existing Session read
+error path and ends the foreground command with a diagnostic. Terminal raw mode is restored.
+There is no dedicated `SESSION_CLOSED` notification; attachment output/event reads end through
+existing error handling. There is no automatic reconnect; `--timeout` only bounds setup.
+`--keepalive-interval` enables post-setup SSH probes (default 0, disabled). `--keepalive-count`
+defaults to 3 and must be positive: each probe waits at most interval times count for a reply,
+including a negative reply. Only one probe is outstanding, and the first starts after one interval.
+An unanswered probe closes the connection. `--write-timeout` bounds each shell write and resize
+(default 0, disabled), including remote flow control; expiry closes the connection without replay.
+The owning terminal processes local escape independently of its remote write worker. `Ctrl+] q`
+closes the owned connection and joins that worker even during blocked writes, without a timeout.
+At most 256 batches of up to 4 KiB are queued in order. Overflow explicitly closes the connection;
+exit discards unsent input and never replays it. File shortcuts wait for earlier queued writes
+in their cancellable worker before starting. Secondary attachments keep their existing behavior.
+Start a new `ssh` command after a detected disconnection.
+A Host can be write-controlled by clients holding its token; keep the token private.
+
+Important errors include invalid destinations/options, missing or malformed keys, unknown/changed
+host keys, authentication failure, connection timeout/refusal, rejected PTY/shell requests, and an
+occupied sharing address. See the [SSH terminal workflow](../getting-started/ssh-terminal.md).
+SSH diagnostics label identity loading, DNS, TCP connection, host-key verification, authentication,
+handshake, shell/subsystem setup, transfer, and liveness failures. Cancellation and timeout retain
+their underlying error identity. Diagnostics never include entered passwords or passphrases.
+
+## `sftp` and `scp`
+
+Purpose: operate on remote files through a dedicated authenticated SSH connection. These are
+ChannelTerm subcommands, not drop-in replacements for the OpenSSH programs' argument syntax.
+
+```bash
+channelterm sftp user@host.example ls /tmp
+channelterm sftp user@host.example put ./firmware.bin /tmp/firmware.bin
+channelterm sftp user@host.example get /tmp/log.txt ./log.txt
+channelterm scp user@host.example put ./release /tmp/release --recursive
+```
+
+SFTP operations are `put LOCAL REMOTE`, `get REMOTE LOCAL`, `ls [REMOTE]` (default `.`), `stat REMOTE`,
+`mkdir REMOTE`, `rename OLD NEW`, `rm REMOTE`, and `rmdir REMOTE`. SCP supports `put` and `get` only,
+using the legacy protocol with a remote POSIX `scp` executable. SFTP requires the server's `sftp`
+subsystem. There is no local external-program dependency, rsync integration, remote-to-remote copy,
+interactive SFTP REPL, or automatic protocol fallback.
+
+Authentication, default identity/trust paths, password prompts, and first-host confirmation are the
+same as `ssh`. Options may appear before or after positional arguments; `--` ends flag recognition.
+Use `--help` for actual flags. `--recursive` (`-r`) is mandatory for directories and does not enable
+recursive deletion. Existing destination directories receive the source basename; otherwise the
+destination is the exact new path. Parent directories must exist. Paths are literal: no glob or
+`~` expansion. The explicit direction/path arguments avoid ambiguity with Windows drive letters.
+
+Existing destinations fail unless `--overwrite` is set. SFTP rename replacement requires the POSIX
+rename extension; unsupported servers return an error without deleting the target. `rm` rejects a
+directory observed during validation; `rmdir` accepts only an empty directory. No recursive removal
+command is provided. CLI listing rows contain mode, size, RFC3339 modification time, and a quoted name.
+
+For `put`/`get`, an ANSI-capable output terminal displays the same 20-cell ASCII progress format as
+serial file transfers: current file, completed-file count, percentage, bytes, average payload speed,
+and ETA. Payload updates are limited to five per second per file; file boundaries and completion
+always render. Directory percentages and ETA describe the current file, not the whole tree.
+Final 100% is withheld until that file finishes; byte progress alone does not promise remote disk
+durability. Empty files are included. The display says `Ctrl+C cancels`; cancellation has no extra
+confirmation. Failed/cancelled operations end the progress line and report completed files and
+partial bytes with destination-recovery guidance. Redirected output has no dynamic progress or ANSI
+and keeps the existing completion/error output unless verification is requested. Management
+operations have no progress bar.
+
+`--verify=sha256` enables per-file content verification for SFTP/SCP `put`/`get`, including recursive
+copies and empty files. The default is `--verify=none`; other algorithms and verification on
+management operations are rejected. SFTP hashes the source stream and reopens the closed destination:
+uploads read the whole remote file back over SFTP, and downloads reread the local file. It needs no
+remote shell or hash utility, but verified uploads require remote read permission. SCP requires a
+POSIX shell and `sha256sum` in the remote PATH, checked before transfer. It compares the local digest
+with a fixed remote hash command over the same dedicated SSH connection. There is no silent fallback.
+
+Verification prints a `Verifying SHA-256` phase, then `Local SHA-256`, `Remote SHA-256`, and
+`Verify: SHA-256 matched` in both terminal and redirected output. A mismatch or unreadable/unhashable
+file fails the operation and excludes that file from the completed count. Final 100% also waits for
+verification. Hash matching does not guarantee physical disk durability or a snapshot against
+concurrent source/destination changes. With `--safe-replace`, the staged file is verified before
+rename; a hash match alone does not mean the final rename succeeded. Without staging, a failed
+verification leaves the copied destination for inspection.
+
+`--timeout` bounds network setup, excluding interactive input. `--operation-timeout` bounds the
+entire operation including prompts; zero (default) leaves it unbounded. Ctrl+C cancels, closes the
+file connection, and restores any active prompt. Cancellation or errors can leave partial files.
+`--keepalive-interval` and `--keepalive-count` have the same post-setup semantics as `ssh`;
+they do not replace the overall operation deadline when an alive server stalls file requests.
+`--safe-replace` requires SFTP `put`/`get` with `--overwrite`. It stages each file beside the
+destination and replaces that name after copying and closing successfully. Upload requires the
+server's POSIX rename extension and fails before staging if unavailable. Download syncs the
+temporary file before replacement; local rename guarantees depend on the OS/filesystem.
+There is no delete-first fallback, whole-tree transaction, attribute preservation, or remote
+disk-durability guarantee. A disconnect can leave a remote temporary file; the error reports its
+path. Successful earlier files remain replaced if a later file fails. See the workflow for details.
+SCP's remote no-overwrite guard is not atomic against concurrent remote writers. See the
+[file-transfer workflow](../getting-started/file-transfer.md#sftp-and-scp-over-ssh) for containment,
+symlink, metadata, and interrupted-transfer limits.
+
+No shared Session, MCP listener, discovery record, or stored profile is created. A concurrent
+terminal Session remains independent, and these operations are not exposed as new MCP tools.
+
 ## `connect`
 
 Purpose: resolve a current native serial target from discovery and open it as a private Session.
@@ -256,9 +422,9 @@ privacy flag, to a local private serial target.
 channelterm attach TARGET_OR_SESSION [options]
 ```
 
-`TARGET` is reserved as the transport-neutral destination position. Only native serial targets are
-implemented today. Future SSH or Telnet support may add its own explicitly documented target form;
-the current CLI does not accept SSH or Telnet destinations. See
+`TARGET` is reserved as the transport-neutral destination position. Native serial targets can be
+opened here; SSH destinations are opened by `ssh USER@HOST`, after which `attach SSH-1` joins
+the resulting Session. Telnet destinations are not supported. See
 [Identifiers and References](identifiers.md#transport-extension-boundary).
 
 The normal target-first forms are:

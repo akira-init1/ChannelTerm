@@ -23,9 +23,41 @@ AI が端末を置き換えるのではありません。AI がデバイスを�
       channelterm attach             読み書きツール
 ```
 
-現在実装されている Transport は、Windows、Linux、macOS のシリアル通信だけです。SSH と
-Telnet は将来の方向性であり、現在の機能ではありません。ChannelTerm 自体に AI は内蔵されて
-おらず、MCP を通して実際の端末 Session を外部 AI クライアントへ提供します。
+ChannelTerm は Windows、Linux、macOS でシリアル通信と SSH PTY シェルをサポートします。AI は内蔵せず、実際の端末 Session を人間と外部 AI クライアントに MCP 経由で提供します。
+
+## SSH 経由のファイル転送
+
+SFTP でファイル転送とリモートファイル管理を行えます。対応する POSIX サーバーでは従来の SCP も使用できます。
+
+```bash
+channelterm sftp user@192.168.1.50 ls /tmp
+channelterm sftp user@192.168.1.50 put ./firmware.bin /tmp/firmware.bin
+channelterm sftp user@192.168.1.50 get /tmp/log.txt ./log.txt
+channelterm scp user@192.168.1.50 put ./release /tmp/release --recursive
+```
+
+SSH と同じ鍵・パスワード認証とホスト検証を使い、端末 Session とは独立した接続で動作します。
+既存ファイルの上書きには `--overwrite` が必要です。ディレクトリの扱い、キャンセル、制限は
+[ファイル転送](docs/getting-started/file-transfer.md#sftp-and-scp-over-ssh)を参照してください。
+
+共有端末 Session 経由のファイル転送は小規模な Linux-shell プロトコルを使用します。
+独立した SSH ファイル接続は SFTP または従来の SCP を使用します。
+
+## SSH シェルの共有
+
+認証を許可された秘密鍵を使用するか、要求されたらパスワードを入力します。暗号化された秘密鍵にはパスフレーズが必要です（どちらも保存されません）。
+未知のサーバーでは表示されたフィンガープリントを確認し、`yes` を入力すると公開鍵が `~/.ssh/known_hosts` に保存されます。
+変更されたサーバー鍵は拒否されます。これらの入力には対話型ターミナルが必要です。
+
+```bash
+# 端末 1：シェルを開き、そのプロンプトで uname -a を実行します。
+channelterm ssh user@192.168.1.50
+
+# 端末 2：同じシェルの出力を確認し、操作します。
+channelterm attach SSH-1
+```
+
+最初のコマンドを実行したままにしてください。終了すると、この Host と Session も閉じます。既定のローカル共有ポートが使用中の場合は、`--listen` と表示された attach エンドポイントで別の Host を使います。鍵のパス、ホスト検証、ポート、現在の制限は [SSH ワークフロー](docs/getting-started/ssh-terminal.md)を参照してください。
 
 ## クイックスタート：1 コマンド、1 端末
 
@@ -177,7 +209,7 @@ channelterm file send ./build/release /tmp/release --session SER-1
 
 ## インストールとビルド
 
-ChannelTerm には Go 1.25 以降が必要です。現在サポートされているパッチリリースを使用してください。
+ChannelTerm には Go 1.26 以降が必要です。現在サポートされているパッチリリースを使用してください。
 
 ```bash
 git clone https://github.com/akira-init1/ChannelTerm.git
@@ -240,6 +272,7 @@ channelterm serial --config ./channelterm.toml --profile board
 
 - [ドキュメント索引](docs/README.md)
 - [シリアル端末ワークフロー](docs/getting-started/serial-terminal.md)
+- [SSH シェルワークフロー](docs/getting-started/ssh-terminal.md)
 - [共有 Session](docs/getting-started/shared-session.md)
 - [MCP Server](docs/getting-started/mcp-server.md)
 - [CLI リファレンス](docs/reference/cli.md)

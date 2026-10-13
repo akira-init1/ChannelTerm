@@ -28,6 +28,12 @@ independent absolute cursor. Slow consumers cannot block the Channel reader; the
 
 ## Terminal input
 
+The foreground SSH owner inserts one bounded, ordered CLI write worker between its local input
+controller and the existing MCP/Application write path. Local quit cancels the owner and closes
+its Manager to release a blocked Channel write, then joins the worker before restoring terminal
+state. File shortcuts wait for earlier queued input. Ordinary attachments remain synchronous;
+Session still owns write serialization and no Core contract depends on this presentation choice.
+
 ```text
 CLI raw input                 MCP JSON input
       |                            |
@@ -104,6 +110,77 @@ Session Manager.GetOrCreate(transport, endpoint)
 
 Concurrent opens for the same exact endpoint wait on one in-progress open. Failed and closed
 Sessions do not permanently reserve the endpoint.
+
+## SSH open and sharing
+
+```text
+channelterm ssh USER@HOST
+          |
+          +--> CLI resolves key/trust paths, validates config via Transport, reserves loopback listener
+          v
+Application.OpenSSH -> Manager.GetOrCreate(ssh, user@host:port)
+          |
+          v
+SSH Transport: private key/trust loading -> TCP -> authentication -> PTY -> shell
+          |
+          v
+private SSH Channel (channel.Stream lifecycle + optional channel.Resizer)
+          |
+          v
+existing Session reader / buffers / cursors / serialized writes
+          |
+          +--> foreground CLI attachment
+          `--> other attachments via existing authenticated HTTP Host tools
+```
+
+Key parsing, host-key verification, and all SSH-library objects stay inside SSH Transport;
+Application and CLI exchange ordinary settings, paths, and context-aware interaction callbacks.
+Transport verifies host identity and persists explicitly approved unknown keys; CLI handles fingerprint
+confirmation and hidden password entry through cancellable local-console adapters. A future GUI can
+provide those callbacks without terminal I/O. Channel and Session remain library-neutral.
+
+The foreground SSH command owns the Manager and Host. Exiting that command closes its Sessions;
+closing a secondary attachment only detaches that client. The default sharing listener is
+`127.0.0.1:37099`; an occupied listener fails before connecting to SSH. `--listen` can select a
+separate loopback Host. SSH does not add discovery, saved profiles, or MCP opening tools.
+
+Dedicated file operations follow a separate path:
+
+```text
+CLI sftp/scp -> app.RunSSHFiles -> SSH Transport.OpenFiles
+  -> authenticated dedicated connection -> SFTP subsystem or legacy SCP exec
+  -> application-owned local files / remote file operations -> connection close
+```
+
+These operations do not create a terminal Session, require a PTY, open a local MCP listener, acquire
+a Session write lease, or insert file bytes into terminal history. Authentication callbacks and host
+trust are shared with the terminal connection implementation. The operation context remains active
+throughout file I/O; cancelling it closes only that file connection. A future GUI can use the same
+application use case without a terminal attachment.
+
+With optional SHA-256 verification, Application compares the source digest with a reread of the
+closed destination before counting a file or committing an SFTP safe replacement. SFTP readback
+uses its existing subsystem. SCP uses fixed checksum exec channels on the same dedicated SSH
+connection after each file's protocol acknowledgement; its hash utility is checked before copying.
+The operation context also covers verification. See [Application Module](../modules/application.md#dedicated-ssh-file-operations)
+for digest callbacks, completion counts, and mutation limits.
+
+The size-control path is separate from shared terminal bytes:
+
+```text
+owner's local terminal (Linux/macOS SIGWINCH; Windows 250 ms size polling)
+    -> CLI terminalinput watcher (latest valid changed dimensions)
+    -> Application.ResizeSession(id, cols, rows)
+    -> Session.Resize(cols, rows)
+    -> optional channel.Resizer on the private SSH Channel
+    -> existing backend shell.WindowChange(rows, cols)
+    -> remote PTY / foreground application's window-change notification
+```
+
+Only the foreground SSH command installs this watcher; attaching never grants resize authority.
+A startup recheck catches changes during connection setup. Cleanup cancels notifications, closes
+SSH I/O to release any blocked request, then joins the watcher and unregisters its signal/timer.
+The Channel and Session base interfaces, shared byte path, and MCP tools are unchanged.
 
 ## Device discovery
 

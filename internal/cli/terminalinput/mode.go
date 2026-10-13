@@ -1,5 +1,5 @@
-// Package terminalinput configures the local console for byte-oriented
-// interactive terminal input.
+// Package terminalinput configures byte-oriented local console input and
+// observes terminal dimensions without owning remote terminal behavior.
 package terminalinput
 
 // fileDescriptorReader is the minimum capability needed to put a local console

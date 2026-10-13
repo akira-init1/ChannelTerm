@@ -22,9 +22,39 @@ ChannelTerm 讓人類與 AI 共用同一個硬體終端 Session。AI 不會取�
     channelterm attach          讀取與寫入工具
 ```
 
-目前僅實作 Windows、Linux 與 macOS 上的序列埠 Transport。SSH 與 Telnet 是未來方向，
-不是目前功能。ChannelTerm 本身也不是內建 AI；它透過 MCP 將真實終端 Session 提供給外部
-AI 用戶端。
+ChannelTerm 支援 Windows、Linux 與 macOS 上的序列埠通訊與 SSH PTY shell。它本身不內建 AI，而是透過 MCP 將真實終端 Session 提供給人類及外部 AI 用戶端。
+
+## 透過 SSH 傳輸檔案
+
+使用 SFTP 傳輸及管理遠端檔案，或使用傳統 SCP 連線至相容的 POSIX 伺服器：
+
+```bash
+channelterm sftp user@192.168.1.50 ls /tmp
+channelterm sftp user@192.168.1.50 put ./firmware.bin /tmp/firmware.bin
+channelterm sftp user@192.168.1.50 get /tmp/log.txt ./log.txt
+channelterm scp user@192.168.1.50 put ./release /tmp/release --recursive
+```
+
+這些命令沿用 SSH 的金鑰/密碼驗證與主機核驗，使用獨立連線，不占用終端 Session。
+覆寫現有檔案需要 `--overwrite`。目錄規則、取消行為及協定限制請見
+[檔案傳輸](docs/getting-started/file-transfer.md#sftp-and-scp-over-ssh)。
+
+透過共用終端 Session 傳輸檔案使用輕量的 Linux-shell 協定。獨立 SSH 檔案連線使用 SFTP 或傳統 SCP。
+
+## 共用 SSH shell
+
+使用已授權的私鑰（加密私鑰會提示輸入口令），或依提示輸入登入密碼，兩者均不儲存。首次連線至未知伺服器時，核驗顯示的指紋後輸入
+`yes`，將伺服器公鑰儲存至 `~/.ssh/known_hosts`；已知伺服器的金鑰發生變更時拒絕連線。互動提示需要實際終端機：
+
+```bash
+# 終端機 1：開啟 shell，在遠端提示符下執行 uname -a。
+channelterm ssh user@192.168.1.50
+
+# 終端機 2：查看並使用同一個 shell。
+channelterm attach SSH-1
+```
+
+保持第一個命令執行；結束它會關閉該 Host 及其 Session。預設本機共用連接埠必須閒置；若已占用，可用 `--listen` 指定另一個 Host，並使用輸出中的 attach endpoint。私鑰路徑、主機驗證、連接埠與目前限制見 [SSH 使用流程](docs/getting-started/ssh-terminal.md)。
 
 ## 快速開始：一條命令，一個終端機
 
@@ -165,7 +195,7 @@ channelterm file send ./build/release /tmp/release --session SER-1
 
 ## 安裝與建置
 
-ChannelTerm 需要 Go 1.25 或更新版本。請使用目前仍受支援的修補版本，然後在儲存庫根目錄建置：
+ChannelTerm 需要 Go 1.26 或更新版本。請使用目前仍受支援的修補版本，然後在儲存庫根目錄建置：
 
 ```bash
 git clone https://github.com/akira-init1/ChannelTerm.git
@@ -223,6 +253,7 @@ channelterm serial --config ./channelterm.toml --profile board
 
 - [文件索引](docs/README.md)
 - [序列埠終端流程](docs/getting-started/serial-terminal.md)
+- [SSH shell 使用流程](docs/getting-started/ssh-terminal.md)
 - [共享 Session](docs/getting-started/shared-session.md)
 - [MCP Server](docs/getting-started/mcp-server.md)
 - [CLI 參考](docs/reference/cli.md)

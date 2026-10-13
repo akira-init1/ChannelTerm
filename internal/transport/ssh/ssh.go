@@ -1,0 +1,431 @@
+// Package ssh establishes authenticated SSH PTY shell Channels.
+// Session, rather than Transport, owns output history and shared access.
+package ssh
+
+import (
+	"bytes"
+	"context"
+	"errors"
+	"fmt"
+	"io"
+	"net"
+	"os"
+	"slices"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/akira-init1/ChannelTerm/internal/core/channel"
+	"github.com/akira-init1/ChannelTerm/internal/core/transport"
+	gossh "golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/knownhosts"
+)
+
+// Config describes one SSH shell connection using library-independent values.
+// PrivateKeyPath optionally identifies the first private key; PrivateKeyPaths
+// adds ordered candidates. Encrypted keys use KeyPassphrase. KnownHostsPath
+// identifies the required OpenSSH host-key database. Zero Port,
+// Timeout, Term, Columns, and Rows select 22, 10 seconds, xterm-256color, 80, and
+// 24 respectively. Configuration is not persisted by this package.
+type Config struct {
+	User           string
+	Host           string
+	Port           int
+	PrivateKeyPath string
+	// PrivateKeyPaths adds candidates after PrivateKeyPath, in order. Duplicate
+	// paths are tried once. Invalid/missing files fail before network access.
+	PrivateKeyPaths []string
+	KnownHostsPath  string
+	Timeout         time.Duration
+	Term            string
+	Columns         int
+	Rows            int
+
+	// KeepAliveInterval enables periodic authenticated probes after setup.
+	// Zero disables probes. KeepAliveCountMax defaults to 3 and bounds the
+	// response wait to interval * count; negative replies count as responses.
+	KeepAliveInterval time.Duration
+	KeepAliveCountMax int
+	// WriteTimeout bounds each shell Write and Resize, including flow control.
+	// Zero disables it. Expiry closes the connection; input is never replayed.
+	WriteTimeout time.Duration
+
+	// Password supplies a fresh password only when the server offers password
+	// authentication and any configured key did not succeed. Up to three attempts
+	// are made. Ownership of the returned bytes transfers to Transport, which
+	// clears them after conversion for the backend. Passwords are never persisted.
+	// The callback must honor ctx cancellation and must not read shared shell input.
+	Password func(ctx context.Context) ([]byte, error)
+
+	// KeyPassphrase unlocks an encrypted identity after host verification.
+	// The callback must honor ctx; Transport clears returned bytes. Wrong
+	// passphrases allow up to three attempts. Cancellation aborts authentication.
+	// Decrypted signers belong only to one connection and are not persisted.
+	KeyPassphrase func(ctx context.Context, path string) ([]byte, error)
+
+	// ConfirmHostKey may approve an unknown server key for persistence. It is
+	// never called for changed or revoked keys. Nil means strict rejection.
+	// The callback must honor ctx; adapters own presentation. Network setup time
+	// excludes callbacks, but the caller's cancellation/deadline still applies.
+	ConfirmHostKey func(ctx context.Context, key HostKey) (bool, error)
+}
+
+// Transport retains validated connection settings, never a live stream.
+// Each successful Connect transfers an independent SSH connection to a Channel.
+type Transport struct {
+	config Config
+	dial   func(context.Context, string, string) (net.Conn, error)
+
+	// Backend-specific authentication stays private to this implementation.
+	identities         []identity
+	verifyHostKey      gossh.HostKeyCallback
+	hostKeyAuthorities map[int]string
+}
+
+var _ transport.Transport = (*Transport)(nil)
+
+// New validates config and loads authentication and host trust without opening
+// a network connection. It retains a private snapshot of the parsed credentials;
+// callers exchange only paths and settings, never backend-specific objects.
+// Changes to either file require constructing a new Transport. A missing trust
+// file is allowed only with an explicit unknown-host confirmation provider.
+func New(config Config) (*Transport, error) {
+	if config.User == "" || strings.ContainsAny(config.User, "@ \t\r\n\x00") {
+		return nil, errors.New("SSH username must be nonempty and contain no whitespace or @")
+	}
+	if config.Host == "" || strings.ContainsAny(config.Host, "@/[] \t\r\n\x00") {
+		return nil, errors.New("SSH host must be a hostname or an unbracketed IP address")
+	}
+	if strings.Contains(config.Host, ":") && net.ParseIP(config.Host) == nil {
+		return nil, errors.New("SSH host must not include a port; set Port separately")
+	}
+	if config.Port == 0 {
+		config.Port = 22
+	}
+	if config.Port < 1 || config.Port > 65535 {
+		return nil, errors.New("SSH port must be between 1 and 65535")
+	}
+	if config.PrivateKeyPath == "" && len(config.PrivateKeyPaths) == 0 && config.Password == nil {
+		return nil, errors.New("SSH requires a private key or an interactive password provider")
+	}
+	if config.KnownHostsPath == "" {
+		return nil, errors.New("SSH requires a known_hosts path")
+	}
+	if config.Timeout == 0 {
+		config.Timeout = 10 * time.Second
+	}
+	if config.Timeout < 0 {
+		return nil, errors.New("SSH connection timeout must be positive")
+	}
+	if config.KeepAliveCountMax == 0 {
+		config.KeepAliveCountMax = 3
+	}
+	if config.KeepAliveInterval < 0 || config.WriteTimeout < 0 || config.KeepAliveCountMax < 1 || config.KeepAliveInterval > time.Duration(1<<63-1)/time.Duration(config.KeepAliveCountMax) {
+		return nil, errors.New("invalid SSH keepalive interval, count, or write timeout")
+	}
+	if config.Term == "" {
+		config.Term = "xterm-256color"
+	}
+	if strings.ContainsAny(config.Term, "\x00\r\n") {
+		return nil, errors.New("SSH terminal type must not contain control characters")
+	}
+	if config.Columns == 0 {
+		config.Columns = 80
+	}
+	if config.Rows == 0 {
+		config.Rows = 24
+	}
+	if config.Columns < 1 || config.Columns > 65535 || config.Rows < 1 || config.Rows > 65535 {
+		return nil, errors.New("SSH PTY dimensions must be between 1 and 65535")
+	}
+	identities, err := loadIdentities(config)
+	if err != nil {
+		return nil, err
+	}
+	verifyHostKey, err := knownhosts.New(config.KnownHostsPath)
+	var authorities map[int]string
+	if err == nil {
+		authorities, err = loadHostKeyAuthorities(config.KnownHostsPath)
+	} else if errors.Is(err, os.ErrNotExist) && config.ConfirmHostKey != nil {
+		verifyHostKey, err = knownhosts.New()
+	}
+	if err != nil {
+		return nil, stageError("host-key", fmt.Errorf("load SSH known_hosts: %w", err))
+	}
+	return &Transport{
+		config: config, dial: (&net.Dialer{}).DialContext,
+		identities: identities, verifyHostKey: verifyHostKey, hostKeyAuthorities: authorities,
+	}, nil
+}
+
+// Endpoint returns the validated user@host:port Session-reuse key. IPv6 hosts
+// are bracketed, and credentials are never included.
+func (t *Transport) Endpoint() string {
+	return t.config.User + "@" + net.JoinHostPort(t.config.Host, strconv.Itoa(t.config.Port))
+}
+
+// Connect authenticates, requests a PTY, and starts an interactive shell.
+// ctx bounds setup; Config.Timeout bounds network work, excluding time spent
+// in interaction callbacks. Cancellation releases every partial resource.
+// After success, ctx no longer controls the Channel: only Channel.Close owns
+// its lifetime. Concurrent Connect calls require concurrency-safe callbacks.
+func (t *Transport) Connect(ctx context.Context) (_ channel.Channel, err error) {
+	var stream channel.Channel
+	_, err = t.open(ctx, func(client *liveClient) error {
+		stream, err = openShell(client, t.config)
+		return err
+	})
+	if err != nil && stream != nil {
+		_ = stream.Close()
+		stream = nil
+	}
+	return stream, err
+}
+
+// open keeps authentication and bounded setup common to PTY and file clients.
+// start must release its own non-socket resources on failure. The successful
+// caller owns the client and decides whether ctx also bounds its live lifetime.
+func (t *Transport) open(ctx context.Context, start func(*liveClient) error) (_ *liveClient, err error) {
+	budget := newSetupBudget(ctx, t.config.Timeout)
+	defer budget.cancel(nil)
+	defer budget.pause()
+	setup := budget.ctx
+	if err := setup.Err(); err != nil {
+		return nil, context.Cause(setup)
+	}
+	address := net.JoinHostPort(t.config.Host, strconv.Itoa(t.config.Port))
+	conn, err := t.dial(setup, "tcp", address)
+	if err != nil {
+		if setup.Err() != nil {
+			err = errors.Join(context.Cause(setup), err)
+		}
+		stage := "connect"
+		var dns *net.DNSError
+		if errors.As(err, &dns) {
+			stage = "dns"
+		}
+		return nil, stageError(stage, fmt.Errorf("dial SSH %s: %w", address, err))
+	}
+	// Closing the socket interrupts handshake, channel opening, PTY, and shell
+	// requests, none of which accept a context in x/crypto/ssh. Join the callback
+	// before handing ownership off so late cancellation cannot close a Channel.
+	cancelDone := make(chan struct{})
+	stop := context.AfterFunc(setup, func() {
+		_ = conn.Close()
+		close(cancelDone)
+	})
+	stopped := false
+	defer func() {
+		if !stopped && !stop() {
+			<-cancelDone
+		}
+		if err != nil {
+			_ = conn.Close()
+			if setup.Err() != nil && !errors.Is(err, context.Cause(setup)) {
+				var staged *StageError
+				if errors.As(err, &staged) {
+					err = &StageError{Stage: staged.Stage, Err: errors.Join(context.Cause(setup), staged.Err)}
+				} else {
+					err = errors.Join(context.Cause(setup), err)
+				}
+			}
+		}
+	}()
+	var auth []gossh.AuthMethod
+	nextIdentity := 0
+	if t.config.Password != nil {
+		auth = append(auth, gossh.RetryableAuthMethod(gossh.PasswordCallback(func() (string, error) {
+			budget.pause()
+			defer budget.resume()
+			if err := setup.Err(); err != nil {
+				return "", context.Cause(setup)
+			}
+			password, err := t.config.Password(setup)
+			defer clear(password)
+			if setup.Err() != nil {
+				return "", context.Cause(setup)
+			}
+			return string(password), stageError("authentication", err)
+		}), 3))
+	}
+	// Rekeying can occur after setup context ownership has ended. Pin the
+	// verified server identity to this connection so it never prompts again.
+	var establishedKey []byte
+	sshConn, channels, requests, err := gossh.NewClientConn(conn, address, &gossh.ClientConfig{
+		User: t.config.User, Auth: auth,
+		HostKeyAlgorithms: preferredHostKeyAlgorithms(t.verifyHostKey, t.hostKeyAuthorities, address, conn.RemoteAddr()),
+		// Select one identity at a time after the server offers public-key
+		// authentication. In particular, unused legacy PEM candidates must not
+		// prompt before an earlier key succeeds. Local callback errors cancel
+		// the setup budget and abort rather than falling back to a password.
+		AuthCallback: func(state *gossh.ClientAuthContext) (gossh.AuthMethod, error) {
+			if setup.Err() != nil {
+				return nil, context.Cause(setup)
+			}
+			if nextIdentity < len(t.identities) && slices.Contains(state.AllowedMethods, "publickey") {
+				candidate := t.identities[nextIdentity : nextIdentity+1]
+				nextIdentity++
+				return gossh.PublicKeysCallback(func() ([]gossh.Signer, error) { return t.connectionSigners(setup, budget, candidate) }), nil
+			}
+			return nil, nil
+		},
+		HostKeyCallback: func(host string, remote net.Addr, key gossh.PublicKey) error {
+			if establishedKey != nil {
+				if !bytes.Equal(establishedKey, key.Marshal()) {
+					return errors.New("SSH host key changed during rekey")
+				}
+				return nil
+			}
+			if err := t.checkHostKey(setup, budget, host, remote, key); err != nil {
+				return stageError("host-key", err)
+			}
+			establishedKey = key.Marshal()
+			return nil
+		},
+	})
+	if err != nil {
+		stage := "handshake"
+		// The backend exposes no typed authentication-rejection error. Keep
+		// this backend-specific fallback here; callback errors retain their stage.
+		if strings.Contains(err.Error(), "unable to authenticate") {
+			stage = "authentication"
+		}
+		return nil, stageError(stage, err)
+	}
+	client := newLiveClient(gossh.NewClient(sshConn, channels, requests), t.config)
+	defer func() {
+		if err != nil {
+			_ = client.Close()
+		}
+	}()
+	if err := start(client); err != nil {
+		return nil, stageError("shell", err)
+	}
+	if !stop() {
+		<-cancelDone
+	}
+	stopped = true
+	if setup.Err() != nil {
+		return nil, context.Cause(setup)
+	}
+	close(client.ready)
+	return client, nil
+}
+
+func openShell(client *liveClient, config Config) (_ channel.Channel, err error) {
+	shell, err := client.NewSession()
+	if err != nil {
+		return nil, fmt.Errorf("open SSH shell channel: %w", err)
+	}
+	stdin, err := shell.StdinPipe()
+	if err != nil {
+		return nil, fmt.Errorf("open SSH shell input: %w", err)
+	}
+	reader, writer := io.Pipe()
+	shell.Stdout, shell.Stderr = writer, writer
+	defer func() {
+		if err != nil {
+			_ = reader.Close()
+			_ = writer.Close()
+		}
+	}()
+	if err := shell.RequestPty(config.Term, config.Rows, config.Columns, gossh.TerminalModes{
+		gossh.ECHO: 1, gossh.TTY_OP_ISPEED: 38400, gossh.TTY_OP_OSPEED: 38400,
+	}); err != nil {
+		return nil, fmt.Errorf("request SSH PTY: %w", err)
+	}
+	if err := shell.Shell(); err != nil {
+		return nil, fmt.Errorf("start SSH shell: %w", err)
+	}
+	stream := &shellStream{reader: reader, writer: writer, stdin: stdin, client: client, done: make(chan struct{}), writeTimeout: config.WriteTimeout}
+	go func() {
+		defer close(stream.done)
+		_ = writer.CloseWithError(shell.Wait())
+	}()
+	base, err := channel.NewStream(stream)
+	if err != nil {
+		_ = stream.Close()
+		return nil, err
+	}
+	return &shellChannel{Stream: base, shell: shell, client: client, writeTimeout: config.WriteTimeout}, nil
+}
+
+// shellStream owns the SSH client and the two output-copy workers managed by
+// ssh.Session. The pipe merges stdout/stderr without retaining terminal history.
+// channel.Stream supplies lifecycle state and exactly-once Close around it.
+type shellStream struct {
+	reader       *io.PipeReader
+	writer       *io.PipeWriter
+	stdin        io.WriteCloser
+	client       *liveClient
+	writeTimeout time.Duration
+	done         chan struct{}
+}
+
+// Read consumes merged remote output without retaining a history copy.
+func (s *shellStream) Read(p []byte) (int, error) {
+	n, err := s.reader.Read(p)
+	if err != nil && s.client.failure() != nil {
+		// Do not wrap EOF here: Session treats EOF as a normal remote exit.
+		// A watchdog shutdown must retain its diagnostic in the read path.
+		err = stageError("liveness", s.client.failure())
+	}
+	return n, err
+}
+
+// Write sends raw shell input; Session supplies write serialization above it.
+func (s *shellStream) Write(p []byte) (n int, err error) {
+	err = s.client.boundWrite(s.writeTimeout, func() error {
+		var writeErr error
+		n, writeErr = s.stdin.Write(p)
+		return writeErr
+	})
+	return n, err
+}
+
+// Close breaks both local pipe backpressure and remote SSH flow control before
+// joining the copy workers. It cannot wait for a cooperative remote shell.
+func (s *shellStream) Close() error {
+	_ = s.reader.Close()
+	_ = s.writer.Close()
+	err := s.client.Close()
+	<-s.done
+	if errors.Is(err, net.ErrClosed) || errors.Is(err, io.EOF) {
+		return nil
+	}
+	return err
+}
+
+// shellChannel adds the optional terminal capability to the generic lifecycle
+// wrapper. The live backend session remains private to this Transport package.
+type shellChannel struct {
+	*channel.Stream
+	shell        *gossh.Session
+	client       *liveClient
+	writeTimeout time.Duration
+}
+
+var _ channel.Resizer = (*shellChannel)(nil)
+
+// Resize sends a window-change request on the existing interactive shell.
+// Dimensions are character columns then rows; the backend takes rows first.
+// No lifecycle lock is held across network I/O, so Close can interrupt a resize
+// blocked by a disconnected or unresponsive peer. Concurrent Close may make an
+// already-started request fail with an SSH I/O error.
+func (s *shellChannel) Resize(cols, rows uint16) error {
+	if cols == 0 || rows == 0 {
+		return errors.New("SSH PTY dimensions must be between 1 and 65535")
+	}
+	if s.State() != channel.StateOpen {
+		return channel.ErrNotOpen
+	}
+	if err := s.client.boundWrite(s.writeTimeout, func() error { return s.shell.WindowChange(int(rows), int(cols)) }); err != nil {
+		return fmt.Errorf("resize SSH PTY: %w", err)
+	}
+	// The request has no server acknowledgement. Do not report success if
+	// local closure interrupted its write but the backend returned nil.
+	if s.State() != channel.StateOpen {
+		return channel.ErrNotOpen
+	}
+	return nil
+}

@@ -22,9 +22,39 @@ ChannelTerm 让人类和 AI 共享同一个硬件终端 Session。它不会替�
     channelterm attach          读取和写入工具
 ```
 
-目前只实现了 Windows、Linux 和 macOS 上的串口 Transport。SSH 和 Telnet 是未来方向，
-不是当前功能。ChannelTerm 本身也不是内置 AI；它通过 MCP 把真实终端 Session 提供给外部
-AI 客户端。
+ChannelTerm 支持 Windows、Linux 和 macOS 上的串口通信与 SSH PTY shell。它本身不内置 AI，而是通过 MCP 将真实终端 Session 提供给人类和外部 AI 客户端。
+
+## 通过 SSH 传输文件
+
+使用 SFTP 传输和管理远端文件，或使用传统 SCP 连接兼容的 POSIX 服务器：
+
+```bash
+channelterm sftp user@192.168.1.50 ls /tmp
+channelterm sftp user@192.168.1.50 put ./firmware.bin /tmp/firmware.bin
+channelterm sftp user@192.168.1.50 get /tmp/log.txt ./log.txt
+channelterm scp user@192.168.1.50 put ./release /tmp/release --recursive
+```
+
+这些命令复用 SSH 的密钥/密码认证与主机校验，使用独立连接，不占用终端 Session。
+覆盖已有文件需要 `--overwrite`。目录规则、取消行为和协议限制见
+[文件传输](docs/getting-started/file-transfer.md#sftp-and-scp-over-ssh)。
+
+通过共享终端 Session 传输文件使用轻量的 Linux-shell 协议。独立 SSH 文件连接使用 SFTP 或传统 SCP。
+
+## 共享 SSH shell
+
+使用已授权的私钥（加密私钥会提示输入口令），或按提示输入登录密码，两者均不保存。首次连接未知服务器时，核验显示的指纹后输入
+`yes`，将服务器公钥保存到 `~/.ssh/known_hosts`；已知服务器的密钥发生变化时拒绝连接。交互提示需要真实终端：
+
+```bash
+# 终端 1：打开 shell，在远端提示符下运行 uname -a。
+channelterm ssh user@192.168.1.50
+
+# 终端 2：查看并使用同一个 shell。
+channelterm attach SSH-1
+```
+
+保持第一个命令运行；退出它会关闭该 Host 及其 Session。默认本机共享端口必须空闲；如已占用，可用 `--listen` 指定另一个 Host，并使用输出中的 attach endpoint。私钥路径、主机校验、端口和当前限制见 [SSH 使用流程](docs/getting-started/ssh-terminal.md)。
 
 ## 快速开始：一条命令，一个终端
 
@@ -165,7 +195,7 @@ channelterm file send ./build/release /tmp/release --session SER-1
 
 ## 安装与构建
 
-ChannelTerm 需要 Go 1.25 或更高版本。请使用当前仍受支持的补丁版本，然后在仓库根目录构建：
+ChannelTerm 需要 Go 1.26 或更高版本。请使用当前仍受支持的补丁版本，然后在仓库根目录构建：
 
 ```bash
 git clone https://github.com/akira-init1/ChannelTerm.git
@@ -223,6 +253,7 @@ channelterm serial --config ./channelterm.toml --profile board
 
 - [文档索引](docs/README.md)
 - [串口终端流程](docs/getting-started/serial-terminal.md)
+- [SSH shell 使用流程](docs/getting-started/ssh-terminal.md)
 - [共享 Session](docs/getting-started/shared-session.md)
 - [MCP Server](docs/getting-started/mcp-server.md)
 - [CLI 参考](docs/reference/cli.md)

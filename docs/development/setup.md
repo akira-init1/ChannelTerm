@@ -1,6 +1,6 @@
 # Development Setup
 
-Install Go 1.25 or newer, using a currently supported patched toolchain for ordinary development,
+Install Go 1.26 or newer, using a currently supported patched toolchain for ordinary development,
 and clone the repository on Windows, Linux, or macOS. The canonical Go module path is
 `github.com/akira-init1/ChannelTerm`. The supported desktop architectures are `amd64` and `arm64`.
 
@@ -18,8 +18,13 @@ go run ./cmd/channelterm --help
 ```
 
 The project uses Go modules. Its direct dependencies provide MCP, TOML, serial access,
-operating-system support, and terminal raw mode. Serial unit tests use fakes and do not require
-physical hardware or external services.
+operating-system support, terminal raw mode, and SSH. Serial unit tests use fakes; SSH tests use
+loopback test servers and generated ephemeral keys. They require no physical hardware, installed
+sshd, personal credentials, or external services. SSH uses the BSD-licensed `golang.org/x/crypto`
+module. The minimum Go version is 1.26 so the SSH dependency includes current security fixes;
+its module requirements also select newer `x/sys` and `x/term`. Update older Go installations
+before building this release; the six supported desktop targets and CGO-free builds are unchanged.
+The required redistribution notice is in [THIRD_PARTY_NOTICES](../../THIRD_PARTY_NOTICES).
 
 For ordinary development, inspect the worktree before editing. If the current branch is `main` or
 `master` and the task requires repository changes, create and switch to a focused task branch unless
@@ -35,6 +40,14 @@ Continue on an existing branch that already matches the task. Keep the same feat
 implementation, tests, documentation, and follow-up fixes together instead of creating another
 branch for a small addition to the same goal. Default-branch changes go through a pull request;
 normal development must not push directly to `main` or `master`.
+
+On Windows, build runnable debug binaries to a fixed path, for example
+`go build -o ./bin/channelterm.exe ./cmd/channelterm`, and launch that binary for network workflows.
+Repeated `go run` executions may use different temporary executable paths and cause repeated
+Windows Firewall prompts. For native package tests, use the
+[stable-path test runner](building-and-testing.md#repeated-native-testing-on-windows).
+Keep loopback-only defaults; changing firewall policy or exposing the Host to a LAN is not required
+for ordinary local development.
 
 Do not discard unrelated worktree changes. Keep implementation under the existing `internal`
 ownership boundary unless a public Go API is intentionally designed and reviewed.

@@ -14,6 +14,29 @@ go test -race ./...
 Documentation-only changes do not require formatting unchanged Go files but still require repository
 tests and vet before completion.
 
+### Repeated native testing on Windows
+
+For repeated local Windows runs, use the stable-path runner instead of starting a new temporary
+test executable on every invocation:
+
+```powershell
+./scripts/test-windows.ps1
+./scripts/test-windows.ps1 -Packages ./internal/transport/ssh -Run '^TestHostTrust' -Count 3
+```
+
+The runner compiles each selected test package with `go test -c` under the ignored
+`bin/tests/windows-<arch>/<import-path>/tests.exe` tree, then runs it from its source directory.
+Paths remain stable between runs, including helper subprocesses created by tests. The default is
+one uncached run with the standard ten-minute test timeout. `-Race` additionally requires the same
+Windows C compiler/CGO setup as ordinary `go test -race`. Cross-compilation overrides are rejected
+because this runner executes native Windows binaries. Avoid concurrent runs sharing this output tree.
+
+Windows Firewall identifies traditional program rules by executable path. Go's temporary build/test
+paths can therefore trigger repeated access prompts. A stable path can reuse an existing decision,
+although the first run or managed security policies can still prompt. This script does not create
+firewall exceptions, disable protection, or expand network listeners. Network unit fixtures listen
+on loopback only. CI and Linux/macOS can continue using the ordinary `go test` commands above.
+
 Useful command-surface checks are:
 
 ```powershell
@@ -22,6 +45,7 @@ go run ./cmd/channelterm attach --help
 go run ./cmd/channelterm list --help
 go run ./cmd/channelterm mcp --help
 go run ./cmd/channelterm serial --help
+go run ./cmd/channelterm ssh --help
 ```
 
 Run the Session buffer benchmarks without unit tests with:
@@ -68,7 +92,7 @@ CHANNELTERM_VERSION=0.1.0 ./scripts/build.sh
 ## Continuous integration
 
 `.github/workflows/ci.yml` runs on pushes, pull requests, and manual dispatch. It verifies the Go
-1.25 release line declared by `go.mod`, tests natively on Linux, Windows, and macOS with the current
+1.26 release line declared by `go.mod`, tests natively on Linux, Windows, and macOS with the current
 stable Go release, and runs formatting, `go vet`, the race detector, all six cross-builds, and
 `govulncheck`. The Windows job also validates `scripts/build.ps1` and its version injection. A
 release candidate should not be tagged until every job passes.
@@ -77,6 +101,7 @@ release candidate should not be tagged until every job passes.
 tag is `v` followed by a SemVer version, strips the `v` for the embedded CLI version, tests and
 cross-builds with `CGO_ENABLED=0`, and packages all six supported targets. Windows archives are ZIP
 files containing `channelterm.exe`; Linux and macOS archives are tarballs containing `channelterm`.
+All archives also include `THIRD_PARTY_NOTICES` for the SSH dependency.
 Public macOS archives use `macos` in their filenames, such as
 `channelterm_0.1.0_macos_arm64.tar.gz`; the underlying Go build target and intermediate artifact
 names retain the toolchain's `darwin` identifier.
@@ -112,7 +137,15 @@ GitHub Release workflow described above.
 
 - Unit tests confirm fake-backed package behavior, error semantics, cancellation, buffering, and
   adapters.
+- SSH transport and CLI tests start loopback SSH servers with ephemeral keys. They confirm
+  authentication, PTY/shell requests, cancellation, cleanup, and shared Session access through the
+  existing HTTP tools, including separate CLI processes. These generated-key servers do not
+  prove OpenSSH interoperability. The separate opt-in local suite below runs actual OpenSSH
+  and Linux PTYs and requires runtime dimension synchronization and full-screen redraw.
 - `go vet` performs static analysis; it is not a runtime test.
+- SFTP tests exchange real protocol packets with an in-memory filesystem over an ephemeral-key
+  loopback SSH server. SCP tests cover framing, binary payloads, normal peer EOF, cancellation,
+  and hostile record/path rejection. These are separate from real OpenSSH/server validation.
 - A cross-build confirms compilation only.
 - Native console raw-mode behavior must be checked on the target OS.
 - Serial behavior must be checked with a real device and its known settings.
@@ -121,3 +154,55 @@ GitHub Release workflow described above.
 
 Report exact commands and results. Do not claim real hardware, another OS, or external MCP client
 verification based only on unit tests or cross-compilation.
+
+## Local OpenSSH integration tests
+
+Ordinary package tests also verify password fallback/retry, explicit first-host trust persistence,
+rejected changed/revoked keys, cancellation, and concurrent trust writes using ephemeral credentials.
+On Linux, `go test ./internal/cli/command -run '^TestSSHInteractiveAuthentication$'` drives the real CLI
+through PTYs against a generated-key loopback server, including hidden password input and termios
+restoration. It does not require sshd. On Windows,
+`go test ./internal/cli/terminalinput -run '^TestPromptWindowsConsole$'`
+launches an isolated hidden console to check Unicode input, hidden
+passwords, cancellation, and console-mode restoration without altering the user's console.
+The opt-in real OpenSSH suite below remains key-authenticated; password-only remote-server acceptance
+and native macOS console interaction still need their own deployment validation.
+
+On Linux/WSL2, `bash scripts/test-ssh-local.sh` runs the real OpenSSH suite with race detection.
+It requires a non-root user, OpenSSH server (`sshd`) and `ssh-keygen`, Python 3, Vim, htop, and Go.
+Use `CHANNELTERM_TEST_SSHD=/absolute/path/to/sshd` and
+`CHANNELTERM_TEST_HTOP=/absolute/path/to/htop` when those binaries are not on PATH. Extracted
+binaries can use a caller-supplied `LD_LIBRARY_PATH`; the isolated test shell receives that path.
+The script does not install packages, configure the system SSH service, or use personal keys.
+
+The script creates and destroys a dedicated localhost server and invokes:
+
+```bash
+CHANNELTERM_TEST_OPENSSH_CONFIG=/path/to/test-config.json \
+  go test -race ./internal/cli/command -run '^TestOpenSSH' -count=1 -v
+```
+
+The temporary JSON contains `user`, `host` (a loopback IP), `port`, `identity`, `known_hosts`,
+and `htop` paths. Only use this opt-in with a dedicated local test server running as the current
+user: tests write a temporary Vim file and one test terminates its own SSH connection's server
+process. The packet-drop relay requires a dedicated unhashed `[host]:port` host-key entry.
+The script creates these inputs, uses a clean Bash shell, disables forwarding and passwords,
+and permits only its generated client key. It disables server `StrictModes` for that temporary
+credential location; it does not bypass ChannelTerm host-key verification.
+
+Without `CHANNELTERM_TEST_OPENSSH_CONFIG`, ordinary `go test ./...` skips these external-server
+tests and continues to run self-contained loopback unit tests. Test fixture keys never enter the
+repository. Logs and temporary credentials are removed by the runner when it exits; on failure,
+server diagnostics are printed before cleanup.
+
+The real suite checks initial PTY negotiation, Vim and htop interaction, Ctrl+C, local escape,
+owner/observer shutdown, terminal restoration, server connection termination, explicit reopening,
+and packet dropping after setup. Resize tests require remote `stty size` to follow the owner
+from `36 100` to `43 132` and through successive/burst changes. They verify that secondary
+attachments do not compete, initial flag overrides persist until a local change, zero dimensions
+are ignored, Vim reports updated dimensions, and htop redraws at the new height. The unit suite
+also covers invalid sizes, watcher cancellation, concurrent Resize/Close, and a blocked resize
+released by Close. See the
+[SSH workflow](../getting-started/ssh-terminal.md#current-validation-limits-and-recovery) for the
+remaining lifecycle and recovery boundaries. No native Windows/macOS or physical network-failure
+claim follows from this localhost suite.

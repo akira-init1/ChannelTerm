@@ -53,12 +53,15 @@ type terminalCommandActivity interface {
 // attachInputPump is its sole stdin/Console reader; menu, path, and transfer
 // modes consume only the pump's ordered results and never read stdin directly.
 type attachInputDispatcher struct {
-	ctx                          context.Context
-	pump                         *attachInputPump
-	interrupts                   <-chan os.Signal
-	terminal                     attachSession
-	writeLocal                   func([]byte) error
-	writeStatus                  func([]byte) error
+	ctx         context.Context
+	pump        *attachInputPump
+	interrupts  <-chan os.Signal
+	terminal    attachSession
+	writeLocal  func([]byte) error
+	writeStatus func([]byte) error
+	// writeRemote optionally schedules owner input without blocking local
+	// escape processing. Ordinary attachments retain synchronous writes.
+	writeRemote                  func([]byte) error
 	togglePromptTimestamp        func() error
 	stopAttach                   context.CancelFunc
 	controller                   *interactive.Controller
@@ -255,7 +258,11 @@ func (d *attachInputDispatcher) dispatchAttach(data []byte) bool {
 		if len(remote) == 0 {
 			return true
 		}
-		if err := writeSession(d.terminal, session.ActorUser, remote); err != nil {
+		write := d.writeRemote
+		if write == nil {
+			write = func(data []byte) error { return writeSession(d.terminal, session.ActorUser, data) }
+		}
+		if err := write(remote); err != nil {
 			return d.writeLocal != nil && d.writeLocal(writeFailureText(err)) == nil
 		}
 		remote = remote[:0]

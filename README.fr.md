@@ -23,9 +23,43 @@ voyez ses actions, saisissez directement des commandes et intervenez si nécessa
       channelterm attach         outils de lecture/écriture
 ```
 
-ChannelTerm implémente actuellement la communication série sous Windows, Linux et macOS. SSH et
-Telnet sont des orientations futures, pas des fonctions actuelles. ChannelTerm n’intègre pas d’IA ;
-il expose de vraies Sessions de terminal à des clients IA externes via MCP.
+ChannelTerm prend en charge la communication série et les shells SSH avec PTY sous Windows, Linux et macOS. Il n’intègre pas d’IA ; il expose de vraies Sessions de terminal aux utilisateurs et aux clients IA externes via MCP.
+
+## Fichiers via SSH
+
+Utilisez SFTP pour transférer et gérer les fichiers distants, ou SCP classique avec les serveurs POSIX compatibles :
+
+```bash
+channelterm sftp user@192.168.1.50 ls /tmp
+channelterm sftp user@192.168.1.50 put ./firmware.bin /tmp/firmware.bin
+channelterm sftp user@192.168.1.50 get /tmp/log.txt ./log.txt
+channelterm scp user@192.168.1.50 put ./release /tmp/release --recursive
+```
+
+Ces commandes réutilisent l'authentification par clé/mot de passe et la vérification des hôtes SSH,
+sur une connexion indépendante des Sessions de terminal. Le remplacement de fichiers nécessite
+`--overwrite`. Voir [transfert de fichiers](docs/getting-started/file-transfer.md#sftp-and-scp-over-ssh)
+pour les règles des répertoires, l'annulation et les limites.
+
+Les transferts via les Sessions de terminal partagées utilisent un petit protocole de shell Linux.
+Les connexions SSH dédiées aux fichiers utilisent SFTP ou SCP classique.
+
+## Shell SSH partagé
+
+Connectez-vous avec une clé privée autorisée (une phrase secrète est demandée pour les clés chiffrées) ou saisissez votre mot de passe à la demande
+(aucun des deux n'est enregistré). Pour un serveur inconnu, vérifiez l'empreinte affichée et saisissez `yes`
+pour enregistrer sa clé publique dans `~/.ssh/known_hosts` ; les clés modifiées sont refusées.
+Ces invites nécessitent un terminal interactif :
+
+```bash
+# Terminal 1 : ouvrir le shell, puis y exécuter uname -a.
+channelterm ssh user@192.168.1.50
+
+# Terminal 2 : observer et utiliser le même shell.
+channelterm attach SSH-1
+```
+
+Gardez la première commande ouverte : sa fermeture arrête ce Host et ses Sessions. Le port local par défaut doit être libre ; utilisez `--listen` et le point de connexion attach affiché pour un autre Host. Le [guide SSH](docs/getting-started/ssh-terminal.md) décrit les chemins des clés, la vérification du serveur, les ports et les limites actuelles.
 
 ## Démarrage rapide : une commande, un terminal
 
@@ -182,7 +216,7 @@ l’écrasement, l’annulation et la vérification SHA-256.
 
 ## Installation et compilation
 
-ChannelTerm nécessite Go 1.25 ou une version ultérieure. Utilisez une version corrigée encore prise
+ChannelTerm nécessite Go 1.26 ou une version ultérieure. Utilisez une version corrigée encore prise
 en charge, puis compilez depuis la racine du dépôt :
 
 ```bash
@@ -249,6 +283,7 @@ sélectionné, pas les fichiers `state.json` ou `http-auth-token` par défaut. C
 
 - [Index de la documentation](docs/README.md)
 - [Utiliser le terminal série](docs/getting-started/serial-terminal.md)
+- [Utiliser un shell SSH](docs/getting-started/ssh-terminal.md)
 - [Partager une Session](docs/getting-started/shared-session.md)
 - [Transférer des fichiers](docs/getting-started/file-transfer.md)
 - [Serveur MCP](docs/getting-started/mcp-server.md)

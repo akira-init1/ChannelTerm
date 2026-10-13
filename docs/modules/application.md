@@ -15,8 +15,13 @@ successfully connected Sessions into Manager ownership.
 - `OpenSerial`: load or create configuration, resolve a profile, apply explicit overrides,
   optionally save through a locked read-modify-write transaction, connect or reuse a Session,
   optionally write one wake carriage return, and return Manager-owned metadata.
+- `OpenSSH`: validate explicit SSH settings, connect or reuse a PTY shell Session, and return
+  Manager-owned metadata without reading or writing connection profiles.
+- `RunSSHFiles`: run SFTP management or SFTP/SCP copying on a dedicated connection without a
+  Manager or shared Session. Own local file handles, recursive traversal, overwrite decisions,
+  cancellation, progress callbacks, and structured results for adapters.
 - `ListSessions`, `ReadSession`, `ReadSessionActivity`, `ReadSessionEvents`, `AttachSession`,
-  `DetachSession`, `WriteSession`, `ExecuteTerminalCommand`, `AcquireLease`, `RenewLease`,
+  `DetachSession`, `WriteSession`, `ResizeSession`, `ExecuteTerminalCommand`, `AcquireLease`, `RenewLease`,
   `ReleaseLease`, `LeaseStatus`, `BeginFileTransferCancel`, `ResolveFileTransferCancel`,
   `FileTransferCheckpoint`, and `CloseSession`: operate by opaque Session ID or short Session
   reference.
@@ -36,6 +41,15 @@ successfully connected Sessions into Manager ownership.
 - `ConnectionDecision`: combine exact device presence, exact active Session metadata, and policy
   without changing state.
 
+## Terminal resizing
+
+`ResizeSession(identifier, cols, rows)` resolves a managed Session and delegates to its existing
+optional Channel capability. Lookup, lifecycle, unsupported-capability, and Transport errors
+remain visible to the caller. It does not change Session lifecycle or write-lease semantics.
+Adapters own size authority: currently only the foreground SSH CLI installs a local size watcher;
+secondary attachments and MCP have no resize operation. The application API carries character
+dimensions only, never an OS terminal descriptor, signal, or SSH-library object.
+
 ## Serial open invariants
 
 `SerialService` uses the Manager's `GetOrCreate` operation to share one active Session per exact
@@ -50,7 +64,90 @@ the original profile, label, and Transport configuration.
 Generated Session IDs use 16 random bytes encoded as hex. ID generation is retried a bounded number
 of times if it collides with an existing registration.
 
+## SSH open invariants
+
+`OpenSSH` reuses the same Manager and candidate-cleanup helpers as serial opens. Its endpoint key
+is the exact `user@host:port` (IPv6 is bracketed), paired with transport `ssh`. Different users or
+ports create independent Sessions. Reuse preserves the first connection's credentials, label,
+and PTY dimensions; it does not authenticate again or resize the shell. No DNS alias or hostname
+case normalization is implied. Metadata contains no key, password, or signer.
+
+`OpenSSHRequest.Config` carries library-independent settings, credential file paths, and optional
+context-aware password/unknown-host confirmation callbacks supplied by the adapter. Application
+asks the SSH Transport constructor to validate and load them; it does not construct or receive
+third-party SSH signers, clients, sessions, or callbacks. Generic Session I/O still sees only the
+existing Channel contract.
+
+A candidate connects before registration. Failed or cancelled candidates are closed, and failed
+opens do not reserve the endpoint. Successful SSH Sessions use opaque random IDs and `SSH-N`
+references from the existing Manager. There are no changes to Session or generic read/write/close
+ownership. See the [SSH workflow](../getting-started/ssh-terminal.md) for CLI Host lifetime.
+
 ## Read and write behavior
+
+### Dedicated SSH file operations
+
+`RunSSHFiles` validates requests and preflights upload trees before connecting. Only regular files
+and directories are uploaded; source symlinks and special files fail. Directory copies require
+`Recursive`. An existing destination directory receives the source basename. Missing destination
+parents are not implicitly created. `Overwrite` is false by default; replacing a same-type regular
+file or merging a directory tree requires explicit opt-in. This is not transactional: cancellation,
+disk-full errors, or disconnects may leave partial files and directories, including a truncated
+previous file when overwrite was selected. No automatic retry/reconnect or rollback is performed.
+
+`SafeReplace` is an opt-in alternative for SFTP put/get with `Overwrite`. Application owns a
+random, exclusively created sibling temporary file and only replaces the destination after a
+complete copy and successful close. Local downloads also sync the temporary file. Uploads require
+the advertised POSIX rename extension before any staging; local replacement follows the OS's
+`os.Root.Rename` semantics. No delete-first fallback is used. Cleanup is attempted on failure;
+an unavailable remote connection can leave a staging file whose path is included in the error.
+This is per-file staging, not a whole-tree transaction or rollback. Replacement creates a new
+file and does not preserve the previous inode's permissions, ownership, ACLs, or hard links.
+`Files` counts completed replacements; `Bytes` can include an incomplete staged copy.
+
+`Verify` accepts `none` (also the empty default) or `sha256`, with verification restricted to put/get.
+Application hashes the SFTP source stream, then reopens the closed destination and hashes exactly
+the expected size with cancellation checks. Upload verification reads the remote destination back;
+download verification rereads the local destination. A safe replacement verifies the temporary file
+before rename. SCP preflights the remote hash utility before copying: Transport hashes uploaded
+payloads and invokes Application after each file's final acknowledgement; Application compares that
+digest with the remote destination hash. For downloads, Application compares the remote source hash
+with a local reread after protocol acknowledgement. No shared Session or terminal exec is involved.
+
+`Verification` receives `SSHFileVerification` with the file name and empty hashes before checksum
+work, then matching `SourceSHA256`/`DestinationSHA256` values on success. A callback error aborts;
+the match event precedes a safe rename and does not confirm replacement. `VerifiedFiles` counts
+successfully completed files whose digests matched, and remains zero when verification is disabled.
+`Files` excludes a file whose verification failed; earlier verified files remain counted on a later
+failure. `Bytes` remains payload-only and excludes checksum readback traffic. Read/size errors,
+missing tools, malformed remote hashes, and mismatches fail without fallback. Checksums do not
+provide disk durability, namespace locking, or snapshots against concurrent mutation.
+
+Remote child paths preserve the caller's literal parent path. In particular, the application does
+not lexically collapse `symlink/..` when appending an upload basename or descending into an SFTP
+directory. Only the server can resolve its filesystem's symlinks correctly.
+
+Downloads use `os.Root` to confine remote-selected descendants within the caller-selected local
+destination parent. Remote names cannot contain separators, drive/stream syntax, control characters,
+Windows device aliases, or trailing spaces/dots. Duplicate names (case-insensitive for portability),
+more than 100,000 entries, or depth beyond 128 fail. Existing local symlinks and type changes are
+rejected. SFTP does not follow remote source symlinks; legacy SCP cannot identify server-side symlink
+expansion, but its received entries are still confined and validated. Local creation modes are
+0600 for files and 0700 for directories, subject to OS semantics; metadata preservation is not promised.
+
+Progress counts per-file bytes accepted by the stream, not durable remote storage. `Files`/`Bytes`
+results count copied files and payload bytes; failures return an error and may include partial counts.
+For SCP downloads, Transport supplies the completed-file count only after local copying and the
+final protocol acknowledgements and any requested verification succeed. Payload bytes from a failed
+file can still be included.
+Every regular file first reports `(name, 0, size)`, including empty files, before payload copying.
+A callback error aborts the operation. These callbacks do not indicate that close, acknowledgement,
+or safe replacement succeeded; the operation result supplies authoritative completed-file counts.
+The file client is always closed. No Session events, cursors, MCP schemas, or writer leases change.
+SSH file-operation errors carry a `StageError` identifying transfer failure; connection and
+authentication errors retain their Transport stage. Wrapping preserves `errors.Is` cancellation,
+deadline, and filesystem identities. No secret input is included in these diagnostics.
+See [file transfer](../getting-started/file-transfer.md#sftp-and-scp-over-ssh) for user-visible limits.
 
 `WriteSession` and `WriteSessionWithLease` reject a payload larger than 1 MiB before Session lookup
 or lease acquisition. This application-layer limit applies to decoded bytes regardless of the

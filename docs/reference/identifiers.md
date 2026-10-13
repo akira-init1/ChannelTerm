@@ -6,7 +6,8 @@ interchangeable.
 | Value | Identifies | Example |
 | --- | --- | --- |
 | Native serial target | A currently discoverable local endpoint | `COM8`, `/dev/ttyUSB0` |
-| Shared Session reference | A Manager-owned live Session | `SER-1` |
+| SSH destination | An explicit SSH login endpoint | `user@host.example` |
+| Shared Session reference | A Manager-owned live Session | `SER-1`, `SSH-1` |
 | Opaque `session_id` | One live Manager registration | `0123456789abcdef0123456789abcdef` |
 | `device_id` | A Device Registry identity record | `dev_0123456789abcdef0123456789abcdef` |
 | `transfer_id` | One file-transfer lease and its events | `FT-123` |
@@ -24,14 +25,21 @@ generated forms such as `SER-COM8` and `SER-/DEV/TTYUSB0` are not device targets
 
 ## Transport-extension boundary
 
-`TARGET` is a transport-neutral CLI role, not a synonym for a serial port. The current release has
-only one concrete Transport, so the only implemented target forms are native serial endpoints. SSH
-and Telnet remain future directions; no SSH or Telnet target syntax is currently accepted.
+`TARGET` is a transport-neutral CLI role. `attach` and `connect` currently open only native
+serial targets; SSH connections use the explicit `ssh USER@HOST` command. The SSH host may be a
+hostname, IPv4 address, or IPv6 address (optionally bracketed). The username is required; the SSH
+port is selected separately by `--port`. URLs, embedded passwords, and host:port shorthand are
+not accepted. No `ssh_config` alias resolution or SSH discovery is performed.
+
+The SSH Session endpoint is `user@host:port`, or `user@[IPv6]:port`, including the default port 22.
+This exact string and transport `ssh` determine reuse within one Manager. `list --transport ssh`
+shows active SSH Sessions from the selected Host; it does not discover remote machines or keys.
+`SSH-1` is a live Session reference accepted by `attach`, never a destination for `ssh`.
 
 Each future Transport must own an unambiguous target grammar and its discovery or resolution rules.
 The CLI attach dispatcher can add another transport-specific target kind without changing the
 meaning of existing values. In particular, short references of the form `<TRANSPORT>-<N>` remain
-live Session references: `SER-1` is not a serial target, and a future `SSH-1` would identify a
+live Session references: `SER-1` is not a serial target, and `SSH-1` identifies a
 Session rather than an SSH host. A new Transport must update `list`, command help, this document,
 and focused classification tests in the same change; it must not silently reinterpret an existing
 Session reference or native serial endpoint.
@@ -39,7 +47,8 @@ Session reference or native serial endpoint.
 ## Shared Session reference
 
 The Manager allocates short references using the transport prefix and a monotonically increasing
-process-local counter. A serial Session normally receives `SER-1`, then `SER-2`, and so on. A
+process-local counter. Serial Sessions receive `SER-1`, `SER-2`, and so on; SSH Sessions receive
+`SSH-1`, `SSH-2`, and so on. A
 reference is fixed at registration, is not reused during that Manager's lifetime, and disappears
 when the Session is removed or the host stops.
 
@@ -49,7 +58,7 @@ cannot be used as an identifier.
 
 ## Opaque `session_id`
 
-Normal serial opens generate 16 cryptographically random bytes and encode them as 32 lowercase
+Normal serial and SSH opens generate 16 cryptographically random bytes and encode them as 32 lowercase
 hexadecimal characters. Treat the value as opaque; its current representation is not a parsing
 contract. It is the canonical key returned in MCP results and the long CLI listing.
 

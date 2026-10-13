@@ -81,9 +81,10 @@ jobs:
             local staging
             staging="$(mktemp -d)"
             install -m 0755 "dist/${source_name}" "${staging}/channelterm.exe"
+            install -m 0644 THIRD_PARTY_NOTICES "${staging}/THIRD_PARTY_NOTICES"
             (
               cd "${staging}"
-              python3 -m zipfile -c "${GITHUB_WORKSPACE}/dist/${archive_name}" channelterm.exe
+              python3 -m zipfile -c "${GITHUB_WORKSPACE}/dist/${archive_name}" channelterm.exe THIRD_PARTY_NOTICES
             )
           }
 
@@ -93,7 +94,8 @@ jobs:
             local staging
             staging="$(mktemp -d)"
             install -m 0755 "dist/${source_name}" "${staging}/channelterm"
-            tar -C "${staging}" -czf "dist/${archive_name}" channelterm
+            install -m 0644 THIRD_PARTY_NOTICES "${staging}/THIRD_PARTY_NOTICES"
+            tar -C "${staging}" -czf "dist/${archive_name}" channelterm THIRD_PARTY_NOTICES
           }
 
           archives=(
@@ -118,11 +120,11 @@ jobs:
 
           for archive_path in sys.argv[1:]:
               with zipfile.ZipFile(archive_path) as archive:
-                  if archive.namelist() != ["channelterm.exe"]:
+                  if archive.namelist() != ["channelterm.exe", "THIRD_PARTY_NOTICES"]:
                       raise SystemExit(f"unexpected ZIP contents in {archive_path}: {archive.namelist()}")
           PY
           for archive_name in "${archives[@]:2}"; do
-            [[ "$(tar -tzf "dist/${archive_name}")" == "channelterm" ]]
+            [[ "$(tar -tzf "dist/${archive_name}")" == $'channelterm\nTHIRD_PARTY_NOTICES' ]]
           done
 
           (
