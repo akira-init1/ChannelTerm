@@ -205,10 +205,23 @@ Prefer SFTP for stronger exclusive file-creation behavior. A server's normal cha
 last download acknowledgement is accepted only when framing completed and the SSH exit status succeeds.
 SCP upload progress starts at zero for each regular file, including empty files, then reports bytes
 accepted by the stream. A callback error aborts the connection. The final SCP acknowledgement still
-determines file completion; progress is not a disk-durability or success notification.
+precedes file completion; progress is not a disk-durability or success notification. An optional
+upload verification callback receives the payload SHA-256 after acknowledgement and must succeed
+before the file is counted. No payload hashing is required when the callback is nil.
 `DownloadSCP` returns the number of regular files whose receive callback and final acknowledgements
-succeeded. A sender error, missing acknowledgement, or failed local acknowledgement does not count
+succeeded, followed by its optional verification callback. A sender error, missing acknowledgement,
+failed verification, or failed local acknowledgement does not count
 that file. Earlier completed files remain counted if a later entry or remote command exit fails.
+
+SCP verification uses additional non-PTY exec channels on the same dedicated connection.
+`RequireSHA256` checks `command -v sha256sum` before copying. `SCPUploadDestination` resolves the
+existing-directory rule with a fixed quoted `test -d` command, preserving literal dot components.
+`SHA256` executes only `sha256sum < quoted-path`, validates a 64-hex-digit stdin digest, and fails
+on command errors or malformed output. Stdout and stderr retention is bounded to 4096 bytes;
+oversized stdout fails, and diagnostics are quoted. These methods accept no arbitrary command,
+and the connection context interrupts their setup, reads, and exit waits. They are unavailable on
+SFTP clients: SFTP verification uses ordinary file reads and needs no exec permission. Application
+owns comparisons and replacement policy. Concurrent filesystem changes remain outside the contract.
 
 SFTP rename replacement requires the server's POSIX rename extension. There is no destructive
 delete-then-rename fallback. SFTP create-without-overwrite uses exclusive creation. Filesystem

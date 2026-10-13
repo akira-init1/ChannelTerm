@@ -247,17 +247,39 @@ Ctrl+C cancels the file connection without closing any independently running ter
 `--timeout` applies only to setup, excluding prompt wait time. Interrupted or failed transfers can
 leave partial files and directories; with overwrite enabled a previous file can be truncated.
 Inspect the target before retrying. There is no resume, rollback, automatic reconnect, or atomic
-tree replacement. SSH protects transport integrity; these commands do not compute a separate
-end-to-end file digest or promise remote disk durability.
+tree replacement. SSH protects transport integrity. To additionally check file content, opt into
+`--verify=sha256` (the default is `none`):
+
+```powershell
+channelterm sftp user@192.168.1.50 put .\firmware.bin /tmp/firmware.bin --verify=sha256
+channelterm scp user@192.168.1.50 get /tmp/firmware.bin .\download.bin --verify=sha256
+```
+
+Verification applies to every regular file, including empty files and files in recursive copies.
+SFTP uploads hash the source stream and read the closed remote destination back; this requires
+remote read permission and adds a full-file return trip. SFTP downloads hash the incoming stream
+and reread the closed local destination. SFTP-only accounts work without a shell or hash utility.
+SCP runs a fixed remote `sha256sum` command using the same dedicated SSH connection and compares
+it with the local digest. The remote POSIX shell must find `sha256sum` in PATH; this prerequisite
+is checked before transferring anything. Missing tools, read errors, and mismatches fail explicitly.
+
+Both terminal and redirected output show `Verifying SHA-256`, the local and remote digests, and
+`Verify: SHA-256 matched` when equal. The file is counted as completed only after verification and
+any replacement succeed. Ctrl+C and `--operation-timeout` cover checksum work as well. Hashing adds
+I/O and takes time after the payload bar stops advancing. It does not promise physical disk
+durability or lock either file against concurrent writers. Keep source and destination stable.
+Without safe replacement, a verification failure leaves the destination for inspection.
 
 For SFTP, protect an existing destination during copying with explicit staged replacement:
 
 ```bash
-channelterm sftp user@192.168.1.50 put ./firmware.bin /tmp/firmware.bin --overwrite --safe-replace --operation-timeout 2m
+channelterm sftp user@192.168.1.50 put ./firmware.bin /tmp/firmware.bin --overwrite --safe-replace --verify=sha256 --operation-timeout 2m
 ```
 
 This also works for `get` and recursive copies, one file at a time. Each file is copied to a random
-`.channelterm-*.part` sibling and renamed only after a successful copy and close. Upload requires
+`.channelterm-*.part` sibling and renamed only after a successful copy, close, and requested
+verification. A checksum failure preserves the old destination and attempts staging cleanup.
+Upload requires
 the server's POSIX rename extension; unsupported servers fail before staging. Downloads sync the
 temporary file first; atomic visibility depends on the local OS/filesystem. No delete-first
 fallback is used. The destination directory must permit creating and renaming files. Replacement
@@ -287,10 +309,10 @@ File 1: "firmware.bin" (0 completed)
 The bar refreshes in place at most five times per second during each file's payload. File boundaries
 and the final frame always display. For recursive copies, the percentage, speed and ETA belong to
 the current file, while the completed-file count advances across the tree. Empty files also finish
-at 100%. Success is shown only after closing/acknowledging/replacing the file, not merely after its
+at 100%. Success is shown only after closing/acknowledging/verifying/replacing the file, not merely after its
 last payload byte. Ctrl+C still cancels immediately without a confirmation menu. Failure/cancellation
 prints the partial counts and explains possible partial or temporary files. Redirected output omits
-the animated bar and preserves the existing simple completion/error messages.
+the animated bar; requested verification reports are still printed before completion/error messages.
 
 Only regular files and directories are uploaded. SFTP downloads reject symlinks and special entries.
 Legacy SCP may follow remote symlinks according to the server's scp behavior; received names still
@@ -300,7 +322,8 @@ are created with 0600/0700 modes subject to the operating system. Ownership, tim
 sparse-file layout, and full permission preservation are not transfer contracts.
 
 For acceptance testing, use a new disposable directory: round-trip binary and empty files, names
-with spaces/Unicode, and a nested tree; compare hashes of the local source and download. Verify
+with spaces/Unicode, and a nested tree using `--verify=sha256`; compare hashes of the local source
+and download. Also check that a missing remote `sha256sum` rejects verified SCP before copying. Verify
 that existing-target writes fail without overwrite, missing sources fail, nonempty `rmdir` fails,
 and Ctrl+C interrupts an active operation. Record the client version, protocol, exact error, and
 whether authentication or transfer failed; never record passwords or private-key contents.

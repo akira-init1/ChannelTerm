@@ -21,8 +21,8 @@ func sshTemporaryName() (string, error) {
 	return fmt.Sprintf(".channelterm-%x.part", nonce), nil
 }
 
-// replaceSFTPUpload keeps the old destination until close and POSIX rename
-// succeed. It never deletes the target as a fallback. Cleanup uses the same
+// replaceSFTPUpload keeps the old destination until close, requested verification,
+// and POSIX rename succeed. It never deletes the target as a fallback. Cleanup uses the same
 // connection; after a disconnect the error names the possibly retained file.
 func replaceSFTPUpload(ctx context.Context, client *sshtransport.Files, source io.Reader, target, name string, size int64, r SSHFilesRequest, result *SSHFilesResult) (err error) {
 	temporary, err := sshTemporaryName()
@@ -43,9 +43,12 @@ func replaceSFTPUpload(ctx context.Context, client *sshtransport.Files, source i
 			}
 		}
 	}()
-	n, copyErr := copySSHFile(ctx, sink, source, name, size, r)
+	n, digest, copyErr := copySSHFileChecked(ctx, sink, source, name, size, r)
 	result.Bytes += n
 	if err := errors.Join(copyErr, sink.Close()); err != nil {
+		return err
+	}
+	if err := verifySSHCopy(ctx, r, name, size, digest, func() (io.ReadCloser, error) { return client.Open(temporary) }); err != nil {
 		return err
 	}
 	if err := ctx.Err(); err != nil {
@@ -55,12 +58,12 @@ func replaceSFTPUpload(ctx context.Context, client *sshtransport.Files, source i
 		return err
 	}
 	committed = true
-	result.Files++
+	completeSSHFile(r, result)
 	return nil
 }
 
 // replaceSFTPDownload stages inside the same os.Root and destination directory.
-// Sync and Close failures leave the old file intact. Rename semantics follow
+// Sync, Close, and verification failures leave the old file intact. Rename semantics follow
 // the local OS/filesystem; no delete-first fallback or tree rollback is used.
 func replaceSFTPDownload(ctx context.Context, root *os.Root, source io.Reader, target, name string, size int64, r SSHFilesRequest, result *SSHFilesResult) (err error) {
 	temporary, err := sshTemporaryName()
@@ -80,12 +83,15 @@ func replaceSFTPDownload(ctx context.Context, root *os.Root, source io.Reader, t
 			}
 		}
 	}()
-	n, copyErr := copySSHFile(ctx, file, source, name, size, r)
+	n, digest, copyErr := copySSHFileChecked(ctx, file, source, name, size, r)
 	result.Bytes += n
 	if copyErr == nil {
 		copyErr = file.Sync()
 	}
 	if err := errors.Join(copyErr, file.Close()); err != nil {
+		return err
+	}
+	if err := verifySSHCopy(ctx, r, name, size, digest, func() (io.ReadCloser, error) { return root.Open(temporary) }); err != nil {
 		return err
 	}
 	if err := ctx.Err(); err != nil {
@@ -95,6 +101,6 @@ func replaceSFTPDownload(ctx context.Context, root *os.Root, source io.Reader, t
 		return err
 	}
 	committed = true
-	result.Files++
+	completeSSHFile(r, result)
 	return nil
 }

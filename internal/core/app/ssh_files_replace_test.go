@@ -138,6 +138,7 @@ func TestSafeUploadFailurePreservesCommittedFile(t *testing.T) {
 				t.Fatal(err)
 			}
 			r.Overwrite, r.SafeReplace = true, true
+			r.Verify = "sha256"
 			if mode == "disconnect" {
 				r.Progress = func(_ string, n, _ int64) error {
 					if n > 0 {
@@ -151,9 +152,12 @@ func TestSafeUploadFailurePreservesCommittedFile(t *testing.T) {
 			}
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
-			_, err := RunSSHFiles(ctx, r)
+			result, err := RunSSHFiles(ctx, r)
 			if err == nil || errors.Is(err, context.DeadlineExceeded) {
 				t.Fatalf("failure=%v", err)
+			}
+			if result.Files != 0 || result.VerifiedFiles != 0 {
+				t.Fatalf("failed replacement counted as completed: %+v", result)
 			}
 			if mode == "disconnect" && !strings.Contains(err.Error(), "temporary remote file may remain") {
 				t.Fatal("missing staging cleanup diagnostic", err)

@@ -28,6 +28,17 @@ func fileServer(t *testing.T, stall bool) sshtransport.Config {
 // retaining the same generated credentials and loopback-only SSH lifecycle.
 func fileServerWithHandler(t *testing.T, stall bool, serve func(gossh.Channel)) sshtransport.Config {
 	t.Helper()
+	var handler func(gossh.Channel, *gossh.Request)
+	if serve != nil {
+		handler = func(ch gossh.Channel, _ *gossh.Request) { serve(ch) }
+	}
+	return fileServerWithRequests(t, stall, handler)
+}
+
+// fileServerWithRequests accepts concurrent channels so a file transfer may
+// request a checksum on the same SSH connection while SCP awaits the next file.
+func fileServerWithRequests(t *testing.T, stall bool, serve func(gossh.Channel, *gossh.Request)) sshtransport.Config {
+	t.Helper()
 	config := sshTestConfig(t)
 	key, err := os.ReadFile(config.PrivateKeyPath)
 	if err != nil {
@@ -82,27 +93,32 @@ func fileServerWithHandler(t *testing.T, stall bool, serve func(gossh.Channel)) 
 					if err != nil {
 						return
 					}
-					for req := range requests {
-						if req.Type != "subsystem" && !(req.Type == "exec" && serve != nil) {
-							_ = req.Reply(false, nil)
-							continue
-						}
-						if stall {
-							_ = server.Wait()
-							return
-						}
-						_ = req.Reply(true, nil)
-						if serve != nil {
-							serve(ch)
+					workers.Add(1)
+					go func() {
+						defer workers.Done()
+						defer ch.Close()
+						for req := range requests {
+							if req.Type != "subsystem" && !(req.Type == "exec" && serve != nil) {
+								_ = req.Reply(false, nil)
+								continue
+							}
+							if stall {
+								_ = server.Wait()
+								return
+							}
+							_ = req.Reply(true, nil)
+							if serve != nil {
+								serve(ch, req)
+								_ = ch.Close()
+								break
+							}
+							sftpServer := sftp.NewRequestServer(ch, handlers)
+							_ = sftpServer.Serve()
+							_ = sftpServer.Close()
 							_ = ch.Close()
 							break
 						}
-						sftpServer := sftp.NewRequestServer(ch, handlers)
-						_ = sftpServer.Serve()
-						_ = sftpServer.Close()
-						_ = ch.Close()
-						break
-					}
+					}()
 				}
 			}()
 		}

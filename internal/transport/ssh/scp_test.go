@@ -31,9 +31,42 @@ func TestReceiveSCPRejectsUntrustedRecords(t *testing.T) {
 				return err
 			}
 			return nil
-		})
+		}, nil)
 		if err == nil {
 			t.Errorf("accepted malformed record %q", input[:min(len(input), 100)])
+		}
+	}
+}
+
+// TestReceiveSCPVerificationCompletion requires acknowledgements before calling
+// verification, and counts only the files whose verification also succeeded.
+func TestReceiveSCPVerificationCompletion(t *testing.T) {
+	for _, status := range []string{"\x00", "\x01source failed\n"} {
+		failure := errors.New("checksum mismatch")
+		calls := 0
+		wire := "D0700 0 tree\nC0600 0 first\n\x00C0600 0 second\n" + status + "E\n"
+		files, err := receiveSCP(bufio.NewReader(strings.NewReader(wire)), io.Discard, "tree", true, func(_ SCPEntry, reader io.Reader) error {
+			if reader != nil {
+				_, err := io.Copy(io.Discard, reader)
+				return err
+			}
+			return nil
+		}, func(entry SCPEntry) error {
+			calls++
+			if entry.Path == "tree/second" {
+				return failure
+			}
+			return nil
+		})
+		if files != 1 || err == nil {
+			t.Fatalf("files=%d error=%v", files, err)
+		}
+		if status == "\x00" {
+			if calls != 2 || !errors.Is(err, failure) {
+				t.Fatalf("calls=%d error=%v", calls, err)
+			}
+		} else if calls != 1 {
+			t.Fatal("verification ran before acknowledgement")
 		}
 	}
 }
@@ -119,7 +152,7 @@ func TestSCPConnectionCompletion(t *testing.T) {
 					}
 					reports = append(reports, n)
 					return nil
-				})
+				}, nil)
 				if err != nil || files != 1 || n != int64(len(data)) {
 					t.Fatalf("upload=%d %d %v", files, n, err)
 				}
@@ -128,7 +161,7 @@ func TestSCPConnectionCompletion(t *testing.T) {
 				}
 			} else {
 				var output bytes.Buffer
-				files, err := client.DownloadSCP("/tmp/fixture.bin", false, func(entry SCPEntry, r io.Reader) error { _, err := io.Copy(&output, r); return err })
+				files, err := client.DownloadSCP("/tmp/fixture.bin", false, func(entry SCPEntry, r io.Reader) error { _, err := io.Copy(&output, r); return err }, nil)
 				if err != nil || files != 1 || !bytes.Equal(output.Bytes(), []byte{'A', 0, 'B'}) {
 					t.Fatalf("download=%d %v %v", files, output.Bytes(), err)
 				}
@@ -162,7 +195,7 @@ func TestSCPBlockedTransferCancellation(t *testing.T) {
 	defer client.Close()
 	done := make(chan error, 1)
 	go func() {
-		_, err := client.DownloadSCP("fixture.bin", false, func(SCPEntry, io.Reader) error { return nil })
+		_, err := client.DownloadSCP("fixture.bin", false, func(SCPEntry, io.Reader) error { return nil }, nil)
 		done <- err
 	}()
 	select {
@@ -199,7 +232,7 @@ func TestReceiveSCPTree(t *testing.T) {
 			}
 		}
 		return nil
-	})
+	}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -207,7 +240,7 @@ func TestReceiveSCPTree(t *testing.T) {
 		t.Fatalf("paths=%v acks=%d files=%d", paths, acks.Len(), files)
 	}
 	duplicate := "D0755 0 tree\nC0644 0 x\n\x00C0644 0 x\n\x00E\n"
-	if _, err := receiveSCP(bufio.NewReader(strings.NewReader(duplicate)), io.Discard, "tree", true, func(SCPEntry, io.Reader) error { return nil }); err == nil {
+	if _, err := receiveSCP(bufio.NewReader(strings.NewReader(duplicate)), io.Discard, "tree", true, func(SCPEntry, io.Reader) error { return nil }, nil); err == nil {
 		t.Fatal("duplicate accepted")
 	}
 }
@@ -232,7 +265,7 @@ func TestReceiveSCPCountsOnlyAcknowledgedFiles(t *testing.T) {
 			files, err := receiveSCP(bufio.NewReader(strings.NewReader("C0600 0 file\n"+tc.status)), writer, "file", false, func(_ SCPEntry, reader io.Reader) error {
 				_, err := io.Copy(io.Discard, reader)
 				return err
-			})
+			}, nil)
 			if files != tc.wantFile || (err == nil) != (tc.wantFile == 1) {
 				t.Fatalf("completed files = %d, error = %v", files, err)
 			}

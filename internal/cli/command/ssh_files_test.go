@@ -56,6 +56,9 @@ func TestSSHFilesCLIValidation(t *testing.T) {
 		{"user@host", "ls", "--keepalive-interval", "-1s"},
 		{"user@host", "put", "local", "remote", "--safe-replace"},
 		{"user@host", "ls", "--safe-replace", "--overwrite"},
+		{"user@host", "ls", "--verify=sha256"},
+		{"user@host", "put", "local", "remote", "--verify=md5"},
+		{"user@host", "put", "local", "remote", "--verify="},
 	} {
 		err := runSSHFiles(context.Background(), "sftp", args, strings.NewReader(""), io.Discard, func(context.Context, app.SSHFilesRequest) (app.SSHFilesResult, error) {
 			t.Fatal("invalid command dispatched")

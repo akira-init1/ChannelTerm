@@ -35,14 +35,30 @@ type SSHFilesRequest struct {
 	// directory transactional. Remote upload requires POSIX rename support.
 	SafeReplace bool
 	Progress    func(name string, transferred, total int64) error
+	// Verify accepts "none" (also the empty default) or "sha256" for put/get.
+	// Verification reports a start event with empty hashes, then matching hashes.
+	// Returning an error aborts the operation, including before a safe rename.
+	Verify       string
+	Verification func(SSHFileVerification) error
+}
+
+// SSHFileVerification reports per-file checksum work. Matching hashes confirm
+// content, not successful replacement; Files is updated only after completion.
+type SSHFileVerification struct {
+	Name              string
+	SourceSHA256      string
+	DestinationSHA256 string
 }
 
 // SSHFilesResult returns remote entries or successfully copied file/byte counts.
-// It never contains credentials or terminal Session identifiers.
+// Files includes requested verification and replacement; Bytes includes partial
+// payloads but excludes checksum readback. VerifiedFiles counts completed files
+// with matching SHA-256 digests. No credentials or Session identifiers are returned.
 type SSHFilesResult struct {
-	Entries []sshtransport.FileInfo `json:"entries,omitempty"`
-	Files   int64                   `json:"files"`
-	Bytes   int64                   `json:"bytes"`
+	Entries       []sshtransport.FileInfo `json:"entries,omitempty"`
+	Files         int64                   `json:"files"`
+	Bytes         int64                   `json:"bytes"`
+	VerifiedFiles int64                   `json:"verified_files,omitempty"`
 }
 
 // RunSSHFiles owns one operation's dedicated connection and local file handles.
@@ -77,6 +93,12 @@ func RunSSHFiles(ctx context.Context, request SSHFilesRequest) (result SSHFilesR
 }
 
 func validateSSHFiles(r SSHFilesRequest) error {
+	if r.Verify != "" && r.Verify != "none" && r.Verify != "sha256" {
+		return errors.New("verify must be none or sha256")
+	}
+	if r.Verify == "sha256" && r.Operation != "put" && r.Operation != "get" {
+		return errors.New("SHA-256 verification requires put or get")
+	}
 	if r.SafeReplace && (r.Protocol != "sftp" || !r.Overwrite || r.Operation != "put" && r.Operation != "get") {
 		return errors.New("safe replacement requires SFTP put/get and explicit overwrite")
 	}
@@ -106,6 +128,11 @@ func validateSSHFiles(r SSHFilesRequest) error {
 }
 
 func runSSHFiles(ctx context.Context, client *sshtransport.Files, r SSHFilesRequest) (result SSHFilesResult, err error) {
+	if r.Protocol == "scp" && r.Verify == "sha256" {
+		if err := client.RequireSHA256(); err != nil {
+			return result, &sshtransport.StageError{Stage: "transfer", Err: err}
+		}
+	}
 	switch r.Operation {
 	case "ls":
 		result.Entries, err = client.List(r.Remote)
@@ -132,7 +159,30 @@ func runSSHFiles(ctx context.Context, client *sshtransport.Files, r SSHFilesRequ
 				return result, openErr
 			}
 			defer root.Close()
-			result.Files, result.Bytes, err = client.UploadSCP(root.FS(), filepath.Base(absolute), r.Remote, r.Recursive, r.Overwrite, r.Progress)
+			name := filepath.Base(absolute)
+			var verify func(sshtransport.SCPEntry, string) error
+			if r.Verify == "sha256" {
+				destination, err := client.SCPUploadDestination(r.Remote, name)
+				if err != nil {
+					return result, &sshtransport.StageError{Stage: "transfer", Err: err}
+				}
+				verify = func(entry sshtransport.SCPEntry, sourceHash string) error {
+					if err := startSSHVerification(r, entry.Path); err != nil {
+						return err
+					}
+					remote := destination + strings.TrimPrefix(entry.Path, name)
+					destinationHash, err := client.SHA256(remote)
+					if err != nil {
+						return err
+					}
+					if err := finishSSHVerification(r, entry.Path, sourceHash, destinationHash); err != nil {
+						return err
+					}
+					result.VerifiedFiles++
+					return nil
+				}
+			}
+			result.Files, result.Bytes, err = client.UploadSCP(root.FS(), name, r.Remote, r.Recursive, r.Overwrite, r.Progress, verify)
 		} else {
 			err = uploadSFTP(ctx, client, r, &result)
 		}
@@ -306,12 +356,15 @@ func uploadSFTP(ctx context.Context, client *sshtransport.Files, r SSHFilesReque
 		if err != nil {
 			return err
 		}
-		n, copyErr := copySSHFile(ctx, sink, source, current, info.Size(), r)
+		n, digest, copyErr := copySSHFileChecked(ctx, sink, source, current, info.Size(), r)
 		result.Bytes += n
 		if err := errors.Join(copyErr, sink.Close()); err != nil {
 			return err
 		}
-		result.Files++
+		if err := verifySSHCopy(ctx, r, current, info.Size(), digest, func() (io.ReadCloser, error) { return client.Open(target) }); err != nil {
+			return err
+		}
+		completeSSHFile(r, result)
 		return nil
 	})
 }
@@ -337,6 +390,7 @@ func downloadSSH(ctx context.Context, client *sshtransport.Files, r SSHFilesRequ
 	defer root.Close()
 	localBase := filepath.Base(destination)
 	seen := make(map[string]bool)
+	var downloaded string
 	receive := func(entry sshtransport.SCPEntry, source io.Reader) error {
 		if err := ctx.Err(); err != nil {
 			return err
@@ -389,20 +443,46 @@ func downloadSSH(ctx context.Context, client *sshtransport.Files, r SSHFilesRequ
 		if err != nil {
 			return err
 		}
-		n, copyErr := copySSHFile(ctx, file, source, entry.Path, entry.Size, r)
+		n, digest, copyErr := copySSHFileChecked(ctx, file, source, entry.Path, entry.Size, r)
 		result.Bytes += n
 		if err := errors.Join(copyErr, file.Close()); err != nil {
 			return err
 		}
 		if r.Protocol != "scp" {
-			result.Files++
+			if err := verifySSHCopy(ctx, r, entry.Path, entry.Size, digest, func() (io.ReadCloser, error) { return root.Open(local) }); err != nil {
+				return err
+			}
+			completeSSHFile(r, result)
 		}
+		downloaded = local
 		return nil
 	}
 	if r.Protocol == "scp" {
 		// Only Transport can confirm the sender's status and final acknowledgement.
 		// Copying the declared payload alone does not make an SCP file successful.
-		result.Files, err = client.DownloadSCP(r.Remote, r.Recursive, receive)
+		var verify func(sshtransport.SCPEntry) error
+		if r.Verify == "sha256" {
+			verify = func(entry sshtransport.SCPEntry) error {
+				if err := startSSHVerification(r, entry.Path); err != nil {
+					return err
+				}
+				remote := r.Remote + strings.TrimPrefix(entry.Path, base)
+				sourceHash, err := client.SHA256(remote)
+				if err != nil {
+					return err
+				}
+				destinationHash, err := hashSSHFile(ctx, entry.Size, func() (io.ReadCloser, error) { return root.Open(downloaded) })
+				if err != nil {
+					return err
+				}
+				if err := finishSSHVerification(r, entry.Path, sourceHash, destinationHash); err != nil {
+					return err
+				}
+				result.VerifiedFiles++
+				return nil
+			}
+		}
+		result.Files, err = client.DownloadSCP(r.Remote, r.Recursive, receive, verify)
 		return err
 	}
 	var walk func(string, string, int) error

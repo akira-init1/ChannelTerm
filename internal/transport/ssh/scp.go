@@ -2,6 +2,7 @@ package ssh
 
 import (
 	"bufio"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"io"
@@ -162,12 +163,14 @@ func (d *scpDiagnostic) Write(data []byte) (int, error) {
 // overwrite=false adds a remote existence guard, not an atomic reservation.
 // Progress reports zero bytes before each file, including an empty file; an
 // error aborts transfer. Payload progress precedes the final acknowledgement.
-func (f *Files) UploadSCP(source fs.FS, name, destination string, recursive, overwrite bool, progress func(string, int64, int64) error) (files, totalBytes int64, err error) {
+// When verify is nonnil, it receives the source payload SHA-256 after the peer's
+// final acknowledgement and must succeed before the file is counted.
+func (f *Files) UploadSCP(source fs.FS, name, destination string, recursive, overwrite bool, progress func(string, int64, int64) error, verify func(SCPEntry, string) error) (files, totalBytes int64, err error) {
 	command, err := scpUploadCommand(name, destination, recursive, overwrite)
 	if err != nil {
 		return 0, 0, err
 	}
-	return f.uploadSCP(source, name, recursive, progress, command)
+	return f.uploadSCP(source, name, recursive, progress, verify, command)
 }
 
 // scpUploadCommand keeps the existence guard and the remote sink invocation
@@ -197,7 +200,7 @@ func scpUploadCommand(name, destination string, recursive, overwrite bool) (stri
 	return command, nil
 }
 
-func (f *Files) uploadSCP(source fs.FS, name string, recursive bool, progress func(string, int64, int64) error, command string) (files, totalBytes int64, err error) {
+func (f *Files) uploadSCP(source fs.FS, name string, recursive bool, progress func(string, int64, int64) error, verify func(SCPEntry, string) error, command string) (files, totalBytes int64, err error) {
 	err = f.runSCP(command, func(reader *bufio.Reader, writer io.Writer) error {
 		if err := scpAck(reader); err != nil {
 			return err
@@ -265,7 +268,12 @@ func (f *Files) uploadSCP(source fs.FS, name string, recursive bool, progress fu
 					return err
 				}
 			}
-			n, err := io.CopyN(counter, file, info.Size())
+			var payload io.Reader = file
+			digest := sha256.New()
+			if verify != nil {
+				payload = io.TeeReader(file, digest)
+			}
+			n, err := io.CopyN(counter, payload, info.Size())
 			totalBytes += n
 			if err != nil {
 				return err
@@ -275,6 +283,11 @@ func (f *Files) uploadSCP(source fs.FS, name string, recursive bool, progress fu
 			}
 			if err := scpAck(reader); err != nil {
 				return err
+			}
+			if verify != nil {
+				if err := verify(SCPEntry{Path: current, Size: info.Size(), Mode: info.Mode()}, fmt.Sprintf("%x", digest.Sum(nil))); err != nil {
+					return err
+				}
 			}
 			files++
 			return nil
@@ -311,7 +324,9 @@ func (w *scpProgressWriter) Write(data []byte) (int, error) {
 // files counts regular files only after receive succeeds and both final file
 // acknowledgements succeed. Earlier completed files remain counted on error;
 // the operation still requires successful framing and remote command exit.
-func (f *Files) DownloadSCP(source string, recursive bool, receive func(SCPEntry, io.Reader) error) (files int64, err error) {
+// When verify is nonnil, it runs after the acknowledgements and must succeed
+// before counting the file. Callbacks are serialized, including across files.
+func (f *Files) DownloadSCP(source string, recursive bool, receive func(SCPEntry, io.Reader) error, verify func(SCPEntry) error) (files int64, err error) {
 	quoted, err := scpPath(source)
 	if err != nil {
 		return 0, err
@@ -326,13 +341,13 @@ func (f *Files) DownloadSCP(source string, recursive bool, receive func(SCPEntry
 	}
 	err = f.runSCP(command, func(reader *bufio.Reader, writer io.Writer) error {
 		var transferErr error
-		files, transferErr = receiveSCP(reader, writer, expected, recursive, receive)
+		files, transferErr = receiveSCP(reader, writer, expected, recursive, receive, verify)
 		return transferErr
 	})
 	return files, err
 }
 
-func receiveSCP(reader *bufio.Reader, writer io.Writer, expected string, recursive bool, receive func(SCPEntry, io.Reader) error) (files int64, err error) {
+func receiveSCP(reader *bufio.Reader, writer io.Writer, expected string, recursive bool, receive func(SCPEntry, io.Reader) error, verify func(SCPEntry) error) (files int64, err error) {
 	if err := scpOK(writer); err != nil {
 		return files, err
 	}
@@ -428,6 +443,11 @@ func receiveSCP(reader *bufio.Reader, writer io.Writer, expected string, recursi
 			return files, err
 		}
 		if kind == 'C' {
+			if verify != nil {
+				if err := verify(entry); err != nil {
+					return files, err
+				}
+			}
 			files++
 		}
 	}

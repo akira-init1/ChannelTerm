@@ -158,6 +158,13 @@ trust are shared with the terminal connection implementation. The operation cont
 throughout file I/O; cancelling it closes only that file connection. A future GUI can use the same
 application use case without a terminal attachment.
 
+With optional SHA-256 verification, Application compares the source digest with a reread of the
+closed destination before counting a file or committing an SFTP safe replacement. SFTP readback
+uses its existing subsystem. SCP uses fixed checksum exec channels on the same dedicated SSH
+connection after each file's protocol acknowledgement; its hash utility is checked before copying.
+The operation context also covers verification. See [Application Module](../modules/application.md#dedicated-ssh-file-operations)
+for digest callbacks, completion counts, and mutation limits.
+
 The size-control path is separate from shared terminal bytes:
 
 ```text

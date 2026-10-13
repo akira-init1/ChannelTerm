@@ -353,7 +353,24 @@ Final 100% is withheld until that file finishes; byte progress alone does not pr
 durability. Empty files are included. The display says `Ctrl+C cancels`; cancellation has no extra
 confirmation. Failed/cancelled operations end the progress line and report completed files and
 partial bytes with destination-recovery guidance. Redirected output has no dynamic progress or ANSI
-and keeps the existing completion/error output. Management operations have no progress bar.
+and keeps the existing completion/error output unless verification is requested. Management
+operations have no progress bar.
+
+`--verify=sha256` enables per-file content verification for SFTP/SCP `put`/`get`, including recursive
+copies and empty files. The default is `--verify=none`; other algorithms and verification on
+management operations are rejected. SFTP hashes the source stream and reopens the closed destination:
+uploads read the whole remote file back over SFTP, and downloads reread the local file. It needs no
+remote shell or hash utility, but verified uploads require remote read permission. SCP requires a
+POSIX shell and `sha256sum` in the remote PATH, checked before transfer. It compares the local digest
+with a fixed remote hash command over the same dedicated SSH connection. There is no silent fallback.
+
+Verification prints a `Verifying SHA-256` phase, then `Local SHA-256`, `Remote SHA-256`, and
+`Verify: SHA-256 matched` in both terminal and redirected output. A mismatch or unreadable/unhashable
+file fails the operation and excludes that file from the completed count. Final 100% also waits for
+verification. Hash matching does not guarantee physical disk durability or a snapshot against
+concurrent source/destination changes. With `--safe-replace`, the staged file is verified before
+rename; a hash match alone does not mean the final rename succeeded. Without staging, a failed
+verification leaves the copied destination for inspection.
 
 `--timeout` bounds network setup, excluding interactive input. `--operation-timeout` bounds the
 entire operation including prompts; zero (default) leaves it unbounded. Ctrl+C cancels, closes the

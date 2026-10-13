@@ -105,6 +105,24 @@ This is per-file staging, not a whole-tree transaction or rollback. Replacement 
 file and does not preserve the previous inode's permissions, ownership, ACLs, or hard links.
 `Files` counts completed replacements; `Bytes` can include an incomplete staged copy.
 
+`Verify` accepts `none` (also the empty default) or `sha256`, with verification restricted to put/get.
+Application hashes the SFTP source stream, then reopens the closed destination and hashes exactly
+the expected size with cancellation checks. Upload verification reads the remote destination back;
+download verification rereads the local destination. A safe replacement verifies the temporary file
+before rename. SCP preflights the remote hash utility before copying: Transport hashes uploaded
+payloads and invokes Application after each file's final acknowledgement; Application compares that
+digest with the remote destination hash. For downloads, Application compares the remote source hash
+with a local reread after protocol acknowledgement. No shared Session or terminal exec is involved.
+
+`Verification` receives `SSHFileVerification` with the file name and empty hashes before checksum
+work, then matching `SourceSHA256`/`DestinationSHA256` values on success. A callback error aborts;
+the match event precedes a safe rename and does not confirm replacement. `VerifiedFiles` counts
+successfully completed files whose digests matched, and remains zero when verification is disabled.
+`Files` excludes a file whose verification failed; earlier verified files remain counted on a later
+failure. `Bytes` remains payload-only and excludes checksum readback traffic. Read/size errors,
+missing tools, malformed remote hashes, and mismatches fail without fallback. Checksums do not
+provide disk durability, namespace locking, or snapshots against concurrent mutation.
+
 Remote child paths preserve the caller's literal parent path. In particular, the application does
 not lexically collapse `symlink/..` when appending an upload basename or descending into an SFTP
 directory. Only the server can resolve its filesystem's symlinks correctly.
@@ -120,7 +138,8 @@ expansion, but its received entries are still confined and validated. Local crea
 Progress counts per-file bytes accepted by the stream, not durable remote storage. `Files`/`Bytes`
 results count copied files and payload bytes; failures return an error and may include partial counts.
 For SCP downloads, Transport supplies the completed-file count only after local copying and the
-final protocol acknowledgements succeed. Payload bytes from a failed file can still be included.
+final protocol acknowledgements and any requested verification succeed. Payload bytes from a failed
+file can still be included.
 Every regular file first reports `(name, 0, size)`, including empty files, before payload copying.
 A callback error aborts the operation. These callbacks do not indicate that close, acknowledgement,
 or safe replacement succeeded; the operation result supplies authoritative completed-file counts.

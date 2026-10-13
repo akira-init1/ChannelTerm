@@ -42,6 +42,7 @@ func runSSHFilesWithProgress(ctx context.Context, protocol string, args []string
 	flags.BoolVar(recursive, "r", false, "alias for --recursive")
 	overwrite := flags.Bool("overwrite", false, "allow replacing existing files (failed transfers can leave partial files)")
 	safeReplace := flags.Bool("safe-replace", false, "stage each SFTP file before replacement; requires --overwrite (upload needs POSIX rename)")
+	verify := flags.String("verify", "none", "file verification: none or sha256 (put/get; SCP requires remote sha256sum)")
 	flags.Usage = func() {
 		fmt.Fprintf(output, "Usage: channelterm %s USER@HOST OPERATION [paths] [options]\n", protocol)
 		fmt.Fprintln(output, "  put LOCAL REMOTE     Upload a file or directory")
@@ -94,6 +95,7 @@ func runSSHFilesWithProgress(ctx context.Context, protocol string, args []string
 	identities.configure(&r.Config)
 	r.Config.KeepAliveInterval, r.Config.KeepAliveCountMax = *keepAlive, *keepAliveCount
 	r.SafeReplace = *safeReplace
+	r.Verify = *verify
 	paths := positional[2:]
 	if r.Operation == "ls" && len(paths) == 0 {
 		paths = []string{"."}
@@ -126,6 +128,12 @@ func runSSHFilesWithProgress(ctx context.Context, protocol string, args []string
 	if *safeReplace && (protocol != "sftp" || !*overwrite || r.Operation != "put" && r.Operation != "get") {
 		return errors.New("--safe-replace requires sftp put/get and --overwrite")
 	}
+	if *verify != "none" && *verify != "sha256" {
+		return errors.New("--verify must be none or sha256")
+	}
+	if *verify == "sha256" && r.Operation != "put" && r.Operation != "get" {
+		return errors.New("--verify=sha256 requires put or get")
+	}
 	if err := configureSSHAuthentication(&r.Config, input, output); err != nil {
 		return err
 	}
@@ -138,6 +146,25 @@ func runSSHFilesWithProgress(ctx context.Context, protocol string, args []string
 	if interactive && (r.Operation == "put" || r.Operation == "get") {
 		progress = &sshFileProgress{output: output, now: time.Now, request: r}
 		r.Progress = progress.Report
+	}
+	if r.Verify == "sha256" {
+		r.Verification = func(event app.SSHFileVerification) error {
+			if progress != nil {
+				if err := progress.endLine(); err != nil {
+					return err
+				}
+			}
+			if event.SourceSHA256 == "" {
+				_, err := fmt.Fprintf(output, "Verifying SHA-256: %q\n", event.Name)
+				return err
+			}
+			local, remote := event.SourceSHA256, event.DestinationSHA256
+			if r.Operation == "get" {
+				local, remote = remote, local
+			}
+			_, err := fmt.Fprintf(output, "Local SHA-256:  %s\nRemote SHA-256: %s\nVerify: SHA-256 matched (%q)\n", local, remote, event.Name)
+			return err
+		}
 	}
 	result, err := run(ctx, r)
 	if progress != nil {
