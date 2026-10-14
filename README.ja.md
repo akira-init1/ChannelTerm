@@ -172,7 +172,7 @@ HTTP を選ぶと、対応する Codex、Claude Code、OpenCode、Zoo Code ク�
 Skill はインストールしません。
 
 v0.2.0 以降は [Releases](https://github.com/akira-init1/ChannelTerm/releases) から
-`channelterm_VERSION_skills.zip` をダウンロードできます。展開後、上記の Skill インストール手順に
+`channelterm_skills_VERSION.zip` をダウンロードできます。展開後、上記の Skill インストール手順に
 従って `cterm-serial-debug` ディレクトリ全体をコピーしてください。
 
 AI 自身が共有 Session を作成することもできます。まず `channelterm init --mcp` を一度実行して

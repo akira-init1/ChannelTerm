@@ -171,7 +171,7 @@ HTTP를 선택하면 지원되는 Codex, Claude Code, OpenCode 또는 Zoo Code �
 설치하십시오. `channelterm init --mcp`는 MCP 클라이언트를 구성하지만 Skill은 설치하지 않습니다.
 
 v0.2.0부터 [Releases](https://github.com/akira-init1/ChannelTerm/releases)에서
-`channelterm_VERSION_skills.zip`을 제공합니다. 압축을 풀고 위에 링크된 Skill 설치 안내에 따라
+`channelterm_skills_VERSION.zip`을 제공합니다. 압축을 풀고 위에 링크된 Skill 설치 안내에 따라
 `cterm-serial-debug` 디렉터리 전체를 복사하십시오.
 
 AI가 공유 Session을 직접 만들 수도 있습니다. 먼저 `channelterm init --mcp`를 한 번 실행하고 HTTP를

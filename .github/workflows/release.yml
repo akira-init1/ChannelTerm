@@ -105,7 +105,7 @@ jobs:
             "channelterm_${RELEASE_VERSION}_linux_arm64.tar.gz"
             "channelterm_${RELEASE_VERSION}_macos_amd64.tar.gz"
             "channelterm_${RELEASE_VERSION}_macos_arm64.tar.gz"
-            "channelterm_${RELEASE_VERSION}_skills.zip"
+            "channelterm_skills_${RELEASE_VERSION}.zip"
           )
 
           package_zip channelterm-windows-amd64.exe "${archives[0]}"
@@ -174,10 +174,11 @@ jobs:
             "dist/channelterm_${RELEASE_VERSION}_linux_arm64.tar.gz"
             "dist/channelterm_${RELEASE_VERSION}_macos_amd64.tar.gz"
             "dist/channelterm_${RELEASE_VERSION}_macos_arm64.tar.gz"
-            "dist/channelterm_${RELEASE_VERSION}_skills.zip"
+            "dist/channelterm_skills_${RELEASE_VERSION}.zip"
             "dist/SHA256SUMS"
           )
           legacy_assets=(
+            "channelterm_${RELEASE_VERSION}_skills.zip"
             "channelterm_${RELEASE_VERSION}_darwin_amd64.tar.gz"
             "channelterm_${RELEASE_VERSION}_darwin_arm64.tar.gz"
           )

@@ -35,7 +35,7 @@ that teaches an agent when and how to combine ChannelTerm's MCP tools for shared
 embedded-Linux serial diagnosis. It recognizes `cterm` as an alias for ChannelTerm and records
 important boundaries such as using raw writes for bare MCUs and reserving `terminal_exec` for a known idle Bash prompt.
 
-Starting with v0.2.0, download `channelterm_VERSION_skills.zip` and `SHA256SUMS` from the same
+Starting with v0.2.0, download `channelterm_skills_VERSION.zip` and `SHA256SUMS` from the same
 [GitHub Release](https://github.com/akira-init1/ChannelTerm/releases). Verify the ZIP against its
 entry in `SHA256SUMS`, then extract it. The archive contains the project `LICENSE` and the complete
 skill directories at its root:

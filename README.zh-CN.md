@@ -164,7 +164,7 @@ channelterm init --mcp
 `channelterm init --mcp` 只配置 MCP 客户端，不会安装 Skill。
 
 从 v0.2.0 起，[Releases](https://github.com/akira-init1/ChannelTerm/releases) 提供
-`channelterm_VERSION_skills.zip`。解压后，按上述 Skill 安装说明复制完整的
+`channelterm_skills_VERSION.zip`。解压后，按上述 Skill 安装说明复制完整的
 `cterm-serial-debug` 目录。
 
 AI 也可以自己创建共享 Session。先运行一次 `channelterm init --mcp` 并选择 HTTP 来配置客户端，

@@ -105,7 +105,7 @@ All executable archives also include `THIRD_PARTY_NOTICES` for the SSH dependenc
 Public macOS archives use `macos` in their filenames, such as
 `channelterm_0.1.0_macos_arm64.tar.gz`; the underlying Go build target and intermediate artifact
 names retain the toolchain's `darwin` identifier.
-Starting with v0.2.0, a platform-independent `channelterm_VERSION_skills.zip` contains the tracked
+Starting with v0.2.0, a platform-independent `channelterm_skills_VERSION.zip` contains the tracked
 files under `skills/`, with each skill directory at the archive root, plus the project `LICENSE`.
 The packaging step checks the archive layout and file bytes against the source files. See the
 [Skill installation workflow](../getting-started/mcp-server.md#install-the-bundled-agent-skill)

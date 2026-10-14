@@ -176,7 +176,7 @@ channelterm init --mcp
 но не устанавливает Skill.
 
 Начиная с v0.2.0, в [Releases](https://github.com/akira-init1/ChannelTerm/releases) доступен архив
-`channelterm_VERSION_skills.zip`. Распакуйте его и скопируйте весь каталог `cterm-serial-debug`
+`channelterm_skills_VERSION.zip`. Распакуйте его и скопируйте весь каталог `cterm-serial-debug`
 согласно инструкции по установке Skill по ссылке выше.
 
 ИИ также может самостоятельно создать общую Session. Сначала один раз выполните

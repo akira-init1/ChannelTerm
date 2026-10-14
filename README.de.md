@@ -177,7 +177,7 @@ in einem Agent-Skills-kompatiblen Client. `channelterm init --mcp` konfiguriert 
 installiert den Skill jedoch nicht.
 
 Ab v0.2.0 enthalten die [Releases](https://github.com/akira-init1/ChannelTerm/releases)
-`channelterm_VERSION_skills.zip`. Entpacken Sie das Archiv und kopieren Sie das vollständige
+`channelterm_skills_VERSION.zip`. Entpacken Sie das Archiv und kopieren Sie das vollständige
 Verzeichnis `cterm-serial-debug` gemäß der verlinkten Skill-Installationsanleitung.
 
 Die KI kann die gemeinsame Session auch selbst erstellen. Führen Sie zuerst einmal

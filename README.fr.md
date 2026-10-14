@@ -177,7 +177,7 @@ inclus dans un client compatible avec Agent Skills. `channelterm init --mcp` con
 MCP, mais n’installe pas le Skill.
 
 À partir de v0.2.0, les [Releases](https://github.com/akira-init1/ChannelTerm/releases) incluent
-`channelterm_VERSION_skills.zip`. Décompressez-le et copiez le répertoire `cterm-serial-debug` complet
+`channelterm_skills_VERSION.zip`. Décompressez-le et copiez le répertoire `cterm-serial-debug` complet
 en suivant le guide d’installation du Skill indiqué ci-dessus.
 
 L’IA peut aussi créer elle-même la Session partagée. Exécutez d’abord une fois

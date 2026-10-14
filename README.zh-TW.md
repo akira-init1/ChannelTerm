@@ -164,7 +164,7 @@ channelterm init --mcp
 `channelterm init --mcp` 只會設定 MCP 客戶端，不會安裝 Skill。
 
 從 v0.2.0 起，[Releases](https://github.com/akira-init1/ChannelTerm/releases) 提供
-`channelterm_VERSION_skills.zip`。解壓縮後，依照上述 Skill 安裝說明複製完整的
+`channelterm_skills_VERSION.zip`。解壓縮後，依照上述 Skill 安裝說明複製完整的
 `cterm-serial-debug` 目錄。
 
 AI 也可以自行建立共用 Session。先執行一次 `channelterm init --mcp` 並選擇 HTTP 來設定用戶端，
