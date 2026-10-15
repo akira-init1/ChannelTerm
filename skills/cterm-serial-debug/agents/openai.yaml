@@ -1,7 +1,7 @@
 interface:
   display_name: "ChannelTerm Serial Debug"
-  short_description: "Shared serial debugging for humans and AI"
-  default_prompt: "Use $cterm-serial-debug to inspect and safely operate a ChannelTerm serial Session."
+  short_description: "Shared serial debugging and file transfer"
+  default_prompt: "Use $cterm-serial-debug to inspect a ChannelTerm serial Session or transfer files through its embedded-Linux shell."
 dependencies:
   tools:
     - type: "mcp"
