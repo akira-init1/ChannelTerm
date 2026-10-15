@@ -1,0 +1,11 @@
+interface:
+  display_name: "ChannelTerm SSH Debug"
+  short_description: "Share and diagnose remote SSH terminal Sessions"
+  default_prompt: "Use $cterm-ssh-debug to connect to or reuse my ChannelTerm SSH Session and diagnose the remote shell."
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "channelterm"
+      description: "ChannelTerm shared terminal MCP server"
+policy:
+  allow_implicit_invocation: true

@@ -45,7 +45,8 @@ ChannelTerm/
 |   `-- release.sh                  Clean tagged release verification and checksums
 |-- skills/
 |   |-- cterm-file-transfer/         Serial/SFTP/SCP transfer workflows for AI clients
-|   `-- cterm-serial-debug/          Shared serial-debugging workflow for AI clients
+|   |-- cterm-serial-debug/          Shared serial-debugging workflow for AI clients
+|   `-- cterm-ssh-debug/             Shared SSH shell diagnosis workflow for AI clients
 |-- docs/                           Public English technical documentation
 |-- .gitattributes                  Cross-platform text line-ending policy
 |-- .gitignore                      Local/build/generated-state ignore policy

@@ -36,10 +36,12 @@ The repository includes these independently installable Agent Skills-compatible 
 | --- | --- |
 | [`cterm-serial-debug`](../../skills/cterm-serial-debug/SKILL.md) | Shared MCU and embedded-Linux serial diagnosis through MCP. |
 | [`cterm-file-transfer`](../../skills/cterm-file-transfer/SKILL.md) | Choose shared serial transfer, SFTP, or SCP; copy files and verify results using the CLI, with optional MCP observation for serial transfers. |
+| [`cterm-ssh-debug`](../../skills/cterm-ssh-debug/SKILL.md) | Open an SSH shell with the CLI, then share and diagnose its Session through MCP while preserving Host ownership and trust. |
 
 They recognize `cterm` as an alias for ChannelTerm. File transfer requires CLI access to the local
 files; installing the Skill does not add an MCP upload tool. The serial skill reserves
 `terminal_exec` for a known idle Bash prompt and uses raw writes for bare MCUs.
+The SSH skill opens connections through `channelterm ssh`; no MCP SSH-open tool is added.
 
 Starting with v0.2.0, download `channelterm_skills_VERSION.zip` and `SHA256SUMS` from the same
 [GitHub Release](https://github.com/akira-init1/ChannelTerm/releases). Verify the ZIP against its
@@ -59,7 +61,7 @@ The portable workflow lives in `SKILL.md`. If an agent supports Agent Skills, co
 extracted directory for each wanted skill into that client's documented user-level or project-level
 Skill directory, then restart or reload the client. A source checkout provides each directory under
 `skills/`. Keep `agents/` when copying a Skill. The examples below use `cterm-serial-debug`; substitute
-`cterm-file-transfer` to install or invoke the transfer skill:
+`cterm-file-transfer` or `cterm-ssh-debug` to install or invoke the corresponding skill:
 
 | Client | Skill directory | Direct use |
 | ------ | --------------- | ---------- |
