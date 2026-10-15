@@ -30,15 +30,22 @@ display only one client's selected configuration.
 
 ## Install the bundled Agent Skill
 
-The repository includes `skills/cterm-serial-debug`, an Agent Skills-compatible workflow
-that teaches an agent when and how to combine ChannelTerm's MCP tools for shared MCU and
-embedded-Linux serial diagnosis. It recognizes `cterm` as an alias for ChannelTerm and records
-important boundaries such as using raw writes for bare MCUs and reserving `terminal_exec` for a known idle Bash prompt.
+The repository includes these independently installable Agent Skills-compatible workflows:
+
+| Skill | Purpose |
+| --- | --- |
+| [`cterm-serial-debug`](../../skills/cterm-serial-debug/SKILL.md) | Shared MCU and embedded-Linux serial diagnosis through MCP. |
+| [`cterm-file-transfer`](../../skills/cterm-file-transfer/SKILL.md) | Choose shared serial transfer, SFTP, or SCP; copy files and verify results using the CLI, with optional MCP observation for serial transfers. |
+
+They recognize `cterm` as an alias for ChannelTerm. File transfer requires CLI access to the local
+files; installing the Skill does not add an MCP upload tool. The serial skill reserves
+`terminal_exec` for a known idle Bash prompt and uses raw writes for bare MCUs.
 
 Starting with v0.2.0, download `channelterm_skills_VERSION.zip` and `SHA256SUMS` from the same
 [GitHub Release](https://github.com/akira-init1/ChannelTerm/releases). Verify the ZIP against its
 entry in `SHA256SUMS`, then extract it. The archive contains the project `LICENSE` and the complete
-skill directories at its root:
+skill directories at its root. Available skills depend on the release; older archives may contain
+only `cterm-serial-debug`. Each skill has this layout, illustrated with the serial skill:
 
 ```text
 LICENSE
@@ -49,10 +56,10 @@ cterm-serial-debug/
 ```
 
 The portable workflow lives in `SKILL.md`. If an agent supports Agent Skills, copy the complete
-extracted `cterm-serial-debug` directory into that client's documented user-level or project-level
-Skill directory, then restart or reload the client. A source checkout provides the same directory
-under `skills/cterm-serial-debug`. Keep `agents/` when copying the Skill. Common user-level locations
-include:
+extracted directory for each wanted skill into that client's documented user-level or project-level
+Skill directory, then restart or reload the client. A source checkout provides each directory under
+`skills/`. Keep `agents/` when copying a Skill. The examples below use `cterm-serial-debug`; substitute
+`cterm-file-transfer` to install or invoke the transfer skill:
 
 | Client | Skill directory | Direct use |
 | ------ | --------------- | ---------- |

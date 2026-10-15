@@ -30,7 +30,9 @@ for command-line flags and defaults, the running program's `--help` output remai
 ## Agent Skills
 
 - [ChannelTerm Serial Debug Skill](../skills/cterm-serial-debug/SKILL.md) — shared MCU and embedded-Linux
-  serial-debugging and embedded-Linux file-transfer workflows for ChannelTerm/cterm
+  serial-debugging workflow for ChannelTerm/cterm
+- [ChannelTerm File Transfer Skill](../skills/cterm-file-transfer/SKILL.md) — protocol selection,
+  upload/download, verification, and recovery over shared serial Sessions, SFTP, or SCP
 
 ## Reference
 

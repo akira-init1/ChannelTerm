@@ -44,6 +44,7 @@ ChannelTerm/
 |   |-- build.sh                    Six-target build from Linux/Bash
 |   `-- release.sh                  Clean tagged release verification and checksums
 |-- skills/
+|   |-- cterm-file-transfer/         Serial/SFTP/SCP transfer workflows for AI clients
 |   `-- cterm-serial-debug/          Shared serial-debugging workflow for AI clients
 |-- docs/                           Public English technical documentation
 |-- .gitattributes                  Cross-platform text line-ending policy
