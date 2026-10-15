@@ -1,0 +1,6 @@
+interface:
+  display_name: "ChannelTerm File Transfer"
+  short_description: "Transfer files over serial, SFTP, or SCP"
+  default_prompt: "Use $cterm-file-transfer to choose a ChannelTerm transfer path, copy my files, and verify the result."
+policy:
+  allow_implicit_invocation: true

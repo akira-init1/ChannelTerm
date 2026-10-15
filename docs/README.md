@@ -31,6 +31,10 @@ for command-line flags and defaults, the running program's `--help` output remai
 
 - [ChannelTerm Serial Debug Skill](../skills/cterm-serial-debug/SKILL.md) — shared MCU and embedded-Linux
   serial-debugging workflow for ChannelTerm/cterm
+- [ChannelTerm File Transfer Skill](../skills/cterm-file-transfer/SKILL.md) — protocol selection,
+  upload/download, verification, and recovery over shared serial Sessions, SFTP, or SCP
+- [ChannelTerm SSH Debug Skill](../skills/cterm-ssh-debug/SKILL.md) — SSH authentication, shared
+  shell diagnosis, Host ownership, and connection recovery
 
 ## Reference
 

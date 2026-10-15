@@ -1,6 +1,6 @@
 ---
 name: cterm-serial-debug
-description: Operate ChannelTerm (cterm) shared serial Sessions for MCU and embedded-Linux diagnosis. Use when a user wants to inspect boot logs, interact with a UART or serial console, run a command at a known idle Bash prompt, or let a human and AI share one device Session. Do not use for JTAG, SWD, GDB, or an unrelated local shell.
+description: Operate ChannelTerm (cterm) shared serial Sessions for MCU and embedded-Linux diagnosis. Use when a user wants to inspect boot logs, interact with a UART or serial console, run a command at a known idle Bash prompt, or let a human and AI share one device Session. Do not use for JTAG, SWD, GDB, firmware flashing, or an unrelated local shell.
 ---
 
 # ChannelTerm Serial Debug
@@ -38,8 +38,12 @@ Treat `cterm` as an alias for ChannelTerm. Use ChannelTerm's MCP tools to work t
 - Prefer leaving the Session open after diagnosis. `terminal_session_detach` only records a client departure on the Session event stream. The client must stop its own attachment I/O through its exit or detach action; calling the tool does not disconnect it. `terminal_close` closes the shared Session for every client and requires clear user intent.
 - Before advising a CLI attachment to exit, check whether it created a temporary Host. Exiting that creating attachment also stops the Host and closes all of its Sessions, even if other clients remain attached. Keep it open while those Sessions are needed. Use a separately started persistent HTTP Host from the outset when Sessions must outlive CLI attachments.
 - Do not stop a persistent HTTP Host unless the user asks to end it. The normal foreground-process exit is `Ctrl+C`; stopping it closes the Sessions owned by that Host.
-- Use `terminal_wait_file_transfer` only for a transfer identified by `transfer_id`; ordinary terminal output waits do not report transfer completion.
-- File and directory transfer requires an idle POSIX-style shell and target-side utilities. It is not a generic bare-MCU firmware flashing mechanism.
+
+## File Transfer Handoff
+
+For uploads/downloads, use `cterm-file-transfer` when installed. It owns protocol selection, paths, verification, and cancellation. Preserve the selected Session and Host when handing off. If that skill is unavailable, consult `channelterm file send --help` / `file receive --help` and the [file-transfer guide](../../docs/getting-started/file-transfer.md) when working from a source checkout.
+
+Managed serial transfer requires an idle Linux shell and the target-side utilities; it is not firmware flashing. The CLI initiates transfers and manages their leases. MCP can observe a matching `transfer_id` through `terminal_wait_file_transfer`, but cannot accept client-side files. Keep the Session owner alive and wait for transfer cleanup before resuming terminal writes.
 
 ## Current Capability Boundary
 
