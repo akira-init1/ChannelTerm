@@ -38,6 +38,7 @@ This file records stable ownership boundaries, not a duplicate source tree. The 
 | `internal/core/channel/` | Established protocol-neutral stream contract and lifecycle |
 | `internal/core/session/` | Session lifecycle, shared I/O, buffering, activity, and Session management |
 | `internal/core/config/` | Configuration models, loading, saving, and overrides |
+| `internal/core/debugger/` | Local GDB/MI control and the binary RSP relay over Session services |
 | `internal/core/device/` | Device discovery and state registry abstractions |
 | `internal/core/connectionpolicy/` | Connection and Session-reuse policy decisions |
 | `internal/core/tool/` | Protocol-neutral tool contracts and registry |

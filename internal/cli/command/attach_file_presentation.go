@@ -10,7 +10,7 @@ import (
 )
 
 // fileTransferPresentation gates one attach client's local terminal rendering
-// for file transfers and isolated terminal-command bootstraps. It deliberately
+// for file transfers, debug takeovers, and isolated terminal-command bootstraps. It deliberately
 // owns no Session cursor or terminal bytes: the caller keeps advancing its
 // cursor while this gate suppresses only local presentation.
 type fileTransferPresentation struct {
@@ -89,7 +89,7 @@ func (p *fileTransferPresentation) handle(event session.Event, local bool, write
 	defer p.mu.Unlock()
 	switch event.Type {
 	case session.EventLeaseAcquired:
-		if event.Metadata["type"] == "file-transfer" {
+		if event.Metadata["type"] == "file-transfer" || event.Metadata["type"] == "debug" {
 			if cursor, ok := fileTransferEventCursor(event.Metadata); ok {
 				p.openStart = &cursor
 				p.legacyActive = false
@@ -98,7 +98,7 @@ func (p *fileTransferPresentation) handle(event session.Event, local bool, write
 			}
 		}
 	case session.EventLeaseReleased:
-		if event.Metadata["type"] == "file-transfer" {
+		if event.Metadata["type"] == "file-transfer" || event.Metadata["type"] == "debug" {
 			if p.openStart != nil {
 				if cursor, ok := fileTransferEventCursor(event.Metadata); ok && cursor >= *p.openStart {
 					outputRange := fileTransferOutputRange{start: *p.openStart, end: cursor}

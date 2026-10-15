@@ -221,3 +221,6 @@ Manager shutdown rejects new Session registration and waits for any already-star
 attempt to finish, closing its candidate rather than allowing it to register after shutdown.
 
 See [MCP tools](../reference/mcp-tools.md) for the currently exposed tool names and schemas.
+
+For native Linux user-space process debugging, follow the [GDB/MI workflow](gdb-debugging.md).
+The `debug_*` tools use the same Host authentication and an additional per-operation owner capability.

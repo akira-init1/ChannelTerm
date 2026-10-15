@@ -58,8 +58,9 @@ type Dependencies struct {
 //
 // It delegates each concern to the existing SerialService, Session Manager,
 // Device Registry, and Connection Policy packages. Application intentionally
-// owns no terminal presentation, protocol schema, stdin/stdout, or process
-// lifetime; the Composition Root owns the supplied Manager and Registry.
+// owns managed debug operations but no terminal presentation, protocol schema,
+// host stdin/stdout, or Host process lifetime. The Composition Root owns the
+// supplied Manager and Registry.
 type Application struct {
 	manager         *session.Manager
 	serial          *SerialService
@@ -67,6 +68,7 @@ type Application struct {
 	devices         *device.Registry
 	policy          connectionpolicy.Policy
 	listSerialPorts func() ([]serialtransport.Port, error)
+	debug           debugCoordinator
 }
 
 // New creates an Application from Core runtime dependencies.
@@ -335,7 +337,8 @@ func (a *Application) writeSession(ctx context.Context, identifier, owner string
 }
 
 // AcquireLease creates one exclusive application-level lease for an active
-// Session. It does not affect readers, raw output, or Session lifecycle.
+// Session. Readers and raw output are unaffected. An expired debug lease closes
+// the Session because restoring its terminal state cannot be assumed.
 func (a *Application) AcquireLease(identifier, owner string, typ LeaseType) (SessionLease, error) {
 	terminal, err := a.session(identifier)
 	if err != nil {
@@ -372,11 +375,19 @@ func (a *Application) RenewLease(identifier, owner string) (SessionLease, error)
 
 // ReleaseLease releases identifier's lease only when owner matches its owner
 // capability. Releasing an already absent lease is successful and idempotent.
+// Managed debug leases must end through StopDebug to verify terminal restoration.
 func (a *Application) ReleaseLease(identifier, owner string) error {
 	terminal, err := a.session(identifier)
 	if err != nil {
 		return err
 	}
+	if a.debug.owns(terminal.ID(), owner) {
+		return errors.New("managed debug lease must end through StopDebug")
+	}
+	return a.releaseLease(terminal, owner)
+}
+
+func (a *Application) releaseLease(terminal session.Session, owner string) error {
 	lease, released, cancelled, err := a.leases.release(terminal.ID(), owner)
 	if err != nil {
 		return err

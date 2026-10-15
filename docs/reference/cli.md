@@ -514,6 +514,11 @@ attach prints one timestamped cancellation result with the last confirmed byte c
 Ctrl+C is ignored; normal attachment input resumes after the transfer ends. This feedback is not
 Session output. `Ctrl+] q` closes only the MCP client connection. It does not call `terminal_close`.
 
+During a managed `debug` lease, attachment rendering suppresses the corresponding raw RSP cursor
+range. Ordinary input receives the Host's busy error; local escape controls remain available.
+Use MCP debug interrupt/stop tools, then wait for verified shell recovery before typing commands.
+See [GDB workflow](../getting-started/gdb-debugging.md). No GDB CLI subcommand is added.
+
 Examples:
 
 ```powershell
@@ -552,7 +557,7 @@ continue from its `next` cursor.
 channelterm events SER-1
 ```
 
-Events carry Session and file-transfer state only. They never include terminal bytes and do not
+Events carry Session, file-transfer, terminal-command, and debug lifecycle state. They never include terminal bytes and do not
 change `attach`, `terminal_read`, or another observer's cursor.
 
 ## `file`

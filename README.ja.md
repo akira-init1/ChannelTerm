@@ -25,6 +25,16 @@ AI が端末を置き換えるのではありません。AI がデバイスを�
 
 ChannelTerm は Windows、Linux、macOS でシリアル通信と SSH PTY シェルをサポートします。AI は内蔵せず、実際の端末 Session を人間と外部 AI クライアントに MCP 経由で提供します。
 
+## MCP 経由のユーザー空間 GDB
+
+ネイティブ Linux では、MCP クライアントが `debug_*` ツールで待機中の Bash Session を引き継ぎ、ブレークポイント、ステップ実行、変数・スレッド・レジスタの確認、デタッチを行えます。初版では ChannelTerm、GDB、gdbserver、ELF が同じ Linux 環境にある必要があります。単一 inferior の all-stop デバッグに対応し、端末状態の復元と一意のマーカーによるシェル確認が成功してから通常の書き込みを再開します。
+
+```text
+debug_start -> break_insert -> continue -> debug_events -> next/step/finish -> debug_stop
+```
+
+[手順、MCP 呼び出し、安全な attach、ローカル PTY テストの範囲](docs/getting-started/gdb-debugging.md).
+
 ## SSH 経由のファイル転送
 
 SFTP でファイル転送とリモートファイル管理を行えます。対応する POSIX サーバーでは従来の SCP も使用できます。

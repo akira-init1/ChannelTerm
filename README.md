@@ -24,6 +24,16 @@ AI does not replace your terminal. It joins it: the AI can read and operate the 
 
 ChannelTerm currently implements serial communication and SSH PTY shells on Windows, Linux, and macOS. It is not a built-in AI; it exposes real terminal Sessions to human CLI clients and external AI clients through MCP.
 
+## User-space GDB through MCP
+
+On native Linux, an MCP client can take over an idle Bash Session, set breakpoints, step, inspect variables/threads/registers, and detach through `debug_*` tools. This first backend requires ChannelTerm, GDB, gdbserver, and the ELF in one Linux environment. It supports one inferior and all-stop debugging; ordinary writing resumes only after terminal restoration and a unique shell probe succeed.
+
+```text
+debug_start -> break_insert -> continue -> debug_events -> next/step/finish -> debug_stop
+```
+
+[Workflow, MCP calls, safe attach, and local PTY test coverage](docs/getting-started/gdb-debugging.md).
+
 ## Files over SSH
 
 Use SFTP for file transfer and remote file management, or legacy SCP for compatible POSIX servers:

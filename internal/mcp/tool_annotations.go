@@ -11,6 +11,13 @@ func terminalToolAnnotations(name string) (*protocol.ToolAnnotations, bool) {
 	idempotent := false
 
 	switch name {
+	case "debug_start", "debug_command", "debug_stop":
+		destructive = true
+		openWorld = true
+		idempotent = true
+	case "debug_events":
+		// Reading events extends the debug heartbeat.
+
 	case "terminal_list_sessions",
 		"terminal_read",
 		"terminal_read_activity",

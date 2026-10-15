@@ -1,6 +1,6 @@
 # MCP Tool Reference
 
-The MCP adapter exposes terminal, command execution, discovery, lease, activity, file-transfer, and
+The MCP adapter exposes terminal, command execution, discovery, lease, activity, file-transfer, user-space debug, and
 structured Session-event tools. It also provides cursor-required wait tools for raw output,
 activity, device events, and file-transfer terminal results.
 
@@ -10,7 +10,8 @@ version. Its server instructions tell clients that users may refer to ChannelTer
 distinguish single non-interactive Bash commands from raw or interactive writes, select the matching
 output or file-transfer wait tool, apply the discovery connection decision before a discovery-driven
 open, obtain explicit approval for an `ask` decision, treat Session close as shared-client
-destructive, and reserve lease and file-transfer control tools for managed multi-step operations.
+destructive, reserve lease and file-transfer control tools for managed multi-step operations, and
+select debug_start/command/events/stop for native Linux user-space GDB.
 
 Every tool advertised by `tools/list` includes an `outputSchema` for its structured result. Required
 properties are present on every successful result; optional properties describe conditional data,
@@ -66,6 +67,10 @@ and logs. The `terminal_*` name remains the stable machine-readable compatibilit
 | `terminal_wait_device_event` | Wait for Device Event |
 | `terminal_get_connection_decision` | Get Connection Decision |
 | `terminal_close` | Close Terminal Session |
+| `debug_start` | Start User-Space Debugging |
+| `debug_command` | Control GDB |
+| `debug_events` | Read Debug Events |
+| `debug_stop` | End User-Space Debugging |
 
 Streamable HTTP requests require `Authorization: Bearer <token>`. An automatically started,
 attachment-owned Host returns `X-ChannelTerm-Host-Lifetime: attachment` on every authenticated MCP
@@ -550,7 +555,7 @@ capability.
 Purpose: acquire one exclusive application-level writer lease for an active Session.
 
 - Required input: `session_id`, caller-generated opaque `owner`, and `type` (`terminal`,
-  `file-transfer`, or reserved `debug`).
+  `file-transfer`, or `debug`).
 - Optional input: none.
 - Result: canonical `session_id`, `type`, UTC `created_at`, UTC `expires_at`, and `state`
   (`active`). A `file-transfer` lease additionally returns its non-secret `transfer_id`. The owner
@@ -650,3 +655,74 @@ Important errors: missing, unknown, or already removed Session; cancellation bef
 transport close failure. Safety: this is a lifecycle-destructive operation for every attached
 client. Detach a single CLI by closing its MCP client instead when the shared Session must remain
 open.
+
+## Debug tools
+
+`debug_start`, `debug_command`, `debug_events`, and `debug_stop` implement native Linux user-space
+GDB/MI. The Host, GDB, gdbserver, ELF, and idle Bash Session must share one Linux environment.
+Only one inferior, multiple threads, and all-stop execution are supported. See the
+[workflow and examples](../getting-started/gdb-debugging.md) and
+[Application lifecycle contract](../modules/application.md#user-space-debug-operations).
+
+All four tools require a secret `owner` supplied at start (32..128 characters; generate it randomly).
+Debug IDs alone do not authorize access. The internal lease owner is distinct and never returned.
+Existing HTTP bearer authentication and loopback defaults remain unchanged. `debug_start`,
+`debug_command`, and `debug_stop` are destructive, open-world, and idempotent-with-identical-request
+operations. `debug_events` changes the client heartbeat and therefore is not annotated read-only.
+
+| Tool | Required additional parameters | Optional parameters | Successful result |
+| --- | --- | --- | --- |
+| `debug_start` | `session_id`, `request_id`, `elf` | `args` string array, `pid`, absolute `gdb` / `gdbserver` paths | `status` |
+| `debug_command` | `debug_id`, `request_id`, `action` | `argument` | parsed MI `record` |
+| `debug_events` | `debug_id`, integer `cursor` | `timeout_ms` (default 10000, range 1..30000) | `status`, ordered `events`, `next` |
+| `debug_stop` | `debug_id` | `terminate` (default false) | `status` |
+
+`status` contains `debug_id`, canonical `session_id`, `state`, current event-tail `next`, client
+heartbeat `expires_at`, and optional `error`. States are `starting`, `stopped`, `running`, `exited`,
+`recovering`, `closed`, and `failed`. `closed` means shell restoration was verified. A failed call
+uses the ordinary MCP `isError` result, not a successful status object; subsequent authenticated
+event reads can still inspect the retained failure.
+
+`elf` is an absolute native amd64/arm64 executable/PIE path. Start accepts at most 128 launch
+arguments and 8192 combined path/argument bytes; NUL and newlines are rejected. The resulting
+bootstrap must also fit Linux's canonical input line limit (4095 bytes); shorten paths/arguments
+if it does not. `pid: 0` or omission launches. Positive PID attaches, disallows arguments, requires
+a matching `/proc/PID/exe`, no controlling terminal, and no potentially shared character-device
+descriptors. `/dev/null`, `/dev/zero`, `/dev/random`, and `/dev/urandom` are allowed. Unreadable process
+state is refused. Pipes and sockets are rejected because their peers could forward Session I/O.
+The target must not reopen terminal devices during debugging.
+
+Start and command request IDs are 1..128 characters. Reusing the same start ID and exact arguments
+returns the same operation; reusing a command ID returns its cached response/error. Changed
+arguments are an error. No state-mutating command is automatically replayed after a timeout.
+Start/MI commands have a 30-second maximum; uncertain execution fails closed. Stop uses an
+independent 10-second recovery context even if its caller disconnects. A repeat successful stop
+succeeds; a repeat failed stop remains an error. `terminate: true` is forbidden for attached PIDs.
+
+Supported command actions:
+
+| Actions | Argument |
+| --- | --- |
+| `break_insert` | One location, such as `add` or `/tmp/addition.c:2` |
+| `break_delete` | Numeric breakpoint ID |
+| `continue`, `next`, `step`, `finish`, `interrupt` | None; wait for subsequent stop/exit events |
+| `stack`, `arguments`, `variables`, `threads`, `registers`, `register_names` | None |
+| `thread`, `frame` | Numeric thread/frame ID |
+| `evaluate` | One expression; function calls disabled, assignments may modify values |
+| `renew` | None; refresh the 60-second client heartbeat |
+
+Arguments are MI-quoted, limited to 4096 bytes, and cannot contain NUL/newlines. Raw MI/console,
+non-stop mode, multi-inferior operations, and kernel debugging are not exposed. Each MI `record`
+contains `kind`, `class`, `token`, `results`, and `text`. Nested tuples/lists retain their MI shape;
+a string with non-UTF-8 bytes becomes `{"encoding":"base64","data":"..."}` rather than replacement
+characters. Events contain `sequence` and `record`; lifecycle events use `kind: "lifecycle"`.
+The record schema allows these nested MI values, whose fields depend on the selected GDB action.
+
+Debug event cursors begin at zero and are separate from terminal cursors. Reads return at most 128
+records. A stale/future cursor is an explicit error; no silent skip occurs. Timeout is an error and
+does not end the operation. Event reads and new commands renew the 60-second client heartbeat;
+use a new request ID for each explicit `renew`. Idle expiry attempts detach/restoration. Internal
+lease expiry, transport loss, overwritten RSP bytes, or failed restoration closes the Session.
+Application retains at most 128 operations, 512 events / 4 MiB per operation, and 4096 cached commands
+/ approximately 16 MiB per operation. Exhausted retention requires ending debugging; Host restart
+clears retained operation IDs. No persistent debug log or credentials are created.

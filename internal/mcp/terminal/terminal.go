@@ -176,6 +176,7 @@ func newSerialTools(manager *session.Manager, serviceDependencies app.SerialDepe
 
 func terminalToolsForApplication(application *app.Application) []tool.Tool {
 	tools := serialToolsForApplication(application)
+	tools = append(tools, debugToolsForApplication(application)...)
 	return append(tools, sessionToolsForApplication(application)...)
 }
 

@@ -4,6 +4,14 @@ package mcp
 // MCP tool. Machine-readable terminal_* names remain the compatibility key.
 func terminalToolTitle(name string) (string, bool) {
 	switch name {
+	case "debug_start":
+		return "Start User-Space Debugging", true
+	case "debug_command":
+		return "Control GDB", true
+	case "debug_events":
+		return "Read Debug Events", true
+	case "debug_stop":
+		return "End User-Space Debugging", true
 	case "terminal_list_sessions":
 		return "List Terminal Sessions", true
 	case "terminal_read":

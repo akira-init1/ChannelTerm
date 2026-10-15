@@ -48,6 +48,7 @@ The core service boundary contains:
 - `session`: lifecycle, Session Manager ownership, raw output retention, activity retention,
   structured event retention, and write serialization.
 - `channel`: established protocol-neutral byte-stream I/O and lifecycle state.
+- `debugger`: local GDB/MI process control, bounded protocol parsing, and a binary RSP relay.
 - `device`: current discovery state, device identity state, and a bounded device-event stream.
 - `connectionpolicy`: a pure discovery-response decision; it never connects.
 - `tool`: a protocol-neutral callable contract and registry.
@@ -98,3 +99,12 @@ assumptions to Session. Arbitrary SSH exec, Telnet, OpenOCD, and a dedicated fil
 architectural directions, not current features or commitments. The current CLI file transfer is an
 application-layer Linux shell protocol carried over an existing serial Session; it is not another
 Transport.
+
+## Managed user-space debugging
+
+Application owns a debug operation above an existing Session, including exclusive lease ownership,
+gdbserver startup, heartbeat, cancellation, and verified shell restoration. The debugger service
+owns GDB/MI and relays raw RSP through direct Session-service calls. The private Unix socket accepts
+only the exact owned GDB PID and user. No RSP TCP listener or loopback MCP recursion is introduced.
+The initial backend is native Linux only and requires all processes and the ELF in one environment.
+See [Application](../modules/application.md#user-space-debug-operations).

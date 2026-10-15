@@ -24,6 +24,16 @@ ChannelTerm 让人类和 AI 共享同一个硬件终端 Session。它不会替�
 
 ChannelTerm 支持 Windows、Linux 和 macOS 上的串口通信与 SSH PTY shell。它本身不内置 AI，而是通过 MCP 将真实终端 Session 提供给人类和外部 AI 客户端。
 
+## 通过 MCP 使用用户态 GDB
+
+在原生 Linux 上，MCP 客户端可通过 `debug_*` 工具接管空闲 Bash Session、设置断点、步进、查看变量/线程/寄存器并分离。首版要求 ChannelTerm、GDB、gdbserver 和 ELF 位于同一 Linux 环境，支持单 inferior、all-stop 调试；只有恢复终端状态并通过唯一标记 Shell 探测后，才开放普通写入。
+
+```text
+debug_start -> break_insert -> continue -> debug_events -> next/step/finish -> debug_stop
+```
+
+[工作流、MCP 调用、安全 attach 和本机 PTY 测试范围](docs/getting-started/gdb-debugging.md).
+
 ## 通过 SSH 传输文件
 
 使用 SFTP 传输和管理远端文件，或使用传统 SCP 连接兼容的 POSIX 服务器：

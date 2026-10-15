@@ -24,6 +24,7 @@ for command-line flags and defaults, the running program's `--help` output remai
 - [Create and use serial profiles](getting-started/serial-profiles.md)
 - [Share a Session](getting-started/shared-session.md)
 - [Transfer files over a shared Session or SFTP/SCP](getting-started/file-transfer.md)
+- [Debug a local Linux process through GDB/MI and MCP](getting-started/gdb-debugging.md)
 - [Run the MCP server](getting-started/mcp-server.md)
 - [Troubleshoot common failures](getting-started/troubleshooting.md)
 

@@ -211,3 +211,19 @@ released by Close. See the
 [SSH workflow](../getting-started/ssh-terminal.md#current-validation-limits-and-recovery) for the
 remaining lifecycle and recovery boundaries. No native Windows/macOS or physical network-failure
 claim follows from this localhost suite.
+
+## Local GDB integration tests
+
+On native Linux with GDB, gdbserver, GCC, Bash, and util-linux on PATH, run:
+
+```bash
+CHANNELTERM_TEST_GDB=1 go test -race ./internal/mcp -run '^TestGDBLocal' -count=1 -v
+```
+
+The suite creates disposable ELF executables and PTYs and uses the real MCP SDK, GDB/MI, and
+gdbserver. It needs local Unix sockets and ptrace permission for its own test processes. It does not
+change ptrace policy or contact hardware. Without this opt-in, ordinary tests skip these cases.
+Extracted binaries may use a caller-supplied PATH and LD_LIBRARY_PATH. GDB/gdbserver are runtime test
+tools, not bundled Go dependencies. See [the workflow](../getting-started/gdb-debugging.md#validation-and-diagnostics)
+for coverage and evidence boundaries. Other desktop builds still compile, but debug_start rejects
+non-Linux hosts explicitly; cross-build success does not validate their terminal behavior.

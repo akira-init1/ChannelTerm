@@ -71,8 +71,9 @@ The current event types are `SESSION_CREATED`, `SESSION_ATTACHED`, `SESSION_DETA
 `LEASE_ACQUIRED`, `LEASE_RELEASED`, `FILE_TRANSFER_STARTED`, `FILE_TRANSFER_PROGRESS`,
 `FILE_TRANSFER_COMPLETED`, `FILE_TRANSFER_CANCELLED`, `FILE_TRANSFER_FAILED`,
 `TERMINAL_COMMAND_STARTED`, `TERMINAL_COMMAND_OUTPUT_STARTED`, `TERMINAL_COMMAND_COMPLETED`, and
-`TERMINAL_COMMAND_FAILED`. One file transfer's lease acquire/release and status events all carry the
-same process-local `transfer_id`. `file-transfer` lease events also include an `output_cursor`
+`TERMINAL_COMMAND_FAILED`, and `DEBUG_STATE`. Debug transitions carry only `debug_id` and `state`.
+One file transfer's lease acquire/release and status events all carry the
+same process-local `transfer_id`. `file-transfer` and `debug` lease events also include an `output_cursor`
 snapshot used only by attach presentation to suppress the corresponding internal raw-output range.
 
 One isolated Agent command carries the same non-secret `command_id` across its command events.
@@ -126,3 +127,12 @@ prevents a delayed completion signal from removing a newer Session that reuses t
 
 After a successful registration, Manager publishes `SESSION_CREATED` with display metadata.
 Registration remains complete even if an observer is slow.
+
+## Conservative input summary
+
+`Core.HasPendingInput` is an optional consumer capability above the unchanged Session interface.
+It summarizes confirmed non-system writes while holding the write mutex, independently of bounded
+activity retention. CR, LF, Ctrl+C, and Ctrl+U clear pending input; other non-backspace bytes mark
+it pending, and backspace cannot prove the line is empty. Internal system protocol bytes leave
+this summary unchanged. It supports safe debug takeover; it does not establish remote shell state,
+parse escape sequences, or change retained bytes. Debug lease coordination belongs to Application.

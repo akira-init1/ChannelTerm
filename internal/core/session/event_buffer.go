@@ -23,6 +23,8 @@ var (
 type EventType string
 
 const (
+	// EventDebugState records a debug lifecycle transition without owner secrets.
+	EventDebugState EventType = "DEBUG_STATE"
 	// EventSessionCreated records successful Manager registration of a Session.
 	EventSessionCreated EventType = "SESSION_CREATED"
 	// EventSessionAttached records one client attachment to a Session.

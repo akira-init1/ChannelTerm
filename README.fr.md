@@ -25,6 +25,16 @@ voyez ses actions, saisissez directement des commandes et intervenez si nécessa
 
 ChannelTerm prend en charge la communication série et les shells SSH avec PTY sous Windows, Linux et macOS. Il n’intègre pas d’IA ; il expose de vraies Sessions de terminal aux utilisateurs et aux clients IA externes via MCP.
 
+## GDB en espace utilisateur via MCP
+
+Sous Linux natif, un client MCP peut prendre le contrôle d’une Session Bash inactive avec les outils `debug_*`, poser des points d’arrêt, avancer pas à pas, examiner variables/threads/registres et se détacher. Ce premier backend exige ChannelTerm, GDB, gdbserver et l’ELF dans le même environnement Linux. Il prend en charge un seul inferior en mode all-stop ; l’écriture normale reprend uniquement après restauration du terminal et vérification du shell par un marqueur unique.
+
+```text
+debug_start -> break_insert -> continue -> debug_events -> next/step/finish -> debug_stop
+```
+
+[Procédure, appels MCP, attach sûr et couverture des tests PTY locaux](docs/getting-started/gdb-debugging.md).
+
 ## Fichiers via SSH
 
 Utilisez SFTP pour transférer et gérer les fichiers distants, ou SCP classique avec les serveurs POSIX compatibles :

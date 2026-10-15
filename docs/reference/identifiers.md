@@ -10,6 +10,7 @@ interchangeable.
 | Shared Session reference | A Manager-owned live Session | `SER-1`, `SSH-1` |
 | Opaque `session_id` | One live Manager registration | `0123456789abcdef0123456789abcdef` |
 | `device_id` | A Device Registry identity record | `dev_0123456789abcdef0123456789abcdef` |
+| `debug_id` | One managed user-space debug operation | `DBG-example` |
 | `transfer_id` | One file-transfer lease and its events | `FT-123` |
 
 ## Native serial target
@@ -101,3 +102,11 @@ transfer_id -> correlate one file-transfer lease and outcome
 Do not pass `device_id` to Session operations. Do not pass a native target such as `COM8` to a tool
 expecting an existing Session. Do not infer a target or endpoint from an opaque Session or device
 ID. `SER-1` and `SER-2` identify live shared Sessions, never physical serial ports.
+
+## Debug identity and requests
+
+`debug_id` is an opaque Host-lifetime operation identifier, not a Session reference or an ownership
+secret. Debug tools also require the caller's secret `owner`; knowing a debug ID alone grants no
+control. Start `request_id` values are scoped to the canonical Session ID, and command request IDs
+to one debug operation. Exact retries reuse the existing operation/result; conflicting parameters
+are rejected. Debug event cursors start at zero and are independent of every Session cursor.

@@ -25,6 +25,16 @@ ChannelTerm은 사람과 AI가 하나의 하드웨어 터미널 Session을 공�
 
 ChannelTerm은 Windows, Linux, macOS에서 시리얼 통신과 SSH PTY 셸을 지원합니다. AI를 내장하지 않으며, MCP를 통해 실제 터미널 Session을 사용자와 외부 AI 클라이언트에 제공합니다.
 
+## MCP를 통한 사용자 공간 GDB
+
+네이티브 Linux에서 MCP 클라이언트는 `debug_*` 도구로 대기 중인 Bash Session을 인계받아 중단점 설정, 단계 실행, 변수·스레드·레지스터 확인 및 분리를 수행할 수 있습니다. 첫 버전은 ChannelTerm, GDB, gdbserver, ELF가 같은 Linux 환경에 있어야 합니다. 단일 inferior의 all-stop 디버깅을 지원하며, 터미널 복원과 고유 마커를 이용한 셸 확인이 성공한 뒤에만 일반 쓰기를 재개합니다.
+
+```text
+debug_start -> break_insert -> continue -> debug_events -> next/step/finish -> debug_stop
+```
+
+[워크플로, MCP 호출, 안전한 attach 및 로컬 PTY 테스트 범위](docs/getting-started/gdb-debugging.md).
+
 ## SSH 파일 전송
 
 SFTP로 파일을 전송하고 원격 파일을 관리할 수 있으며, 호환되는 POSIX 서버에서는 기존 SCP도 사용할 수 있습니다.

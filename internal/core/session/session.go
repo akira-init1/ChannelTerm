@@ -262,6 +262,7 @@ type Core struct {
 
 	mu              sync.Mutex
 	writeMu         sync.Mutex
+	inputPending    bool
 	state           SessionState
 	closeErr        error
 	readerDone      chan struct{}
@@ -547,6 +548,17 @@ func (s *Core) recordWriteActivity(timestamp time.Time, request WriteRequest, wr
 	if written == 0 {
 		return
 	}
+	if request.Actor != ActorSystem {
+		for _, value := range request.Data[:written] {
+			switch value {
+			case '\r', '\n', 0x03, 0x15:
+				s.inputPending = false
+			case '\b', 0x7f: // Backspace cannot prove an edited line is empty.
+			default:
+				s.inputPending = true
+			}
+		}
+	}
 	s.activity.append(SessionEvent{
 		Timestamp: timestamp,
 		Actor:     request.Actor,
@@ -697,4 +709,14 @@ func (s *Core) Close() error {
 	s.mu.Unlock()
 	s.signalManagerDone()
 	return err
+}
+
+// HasPendingInput reports conservatively tracked non-system input since the last
+// submit/cancel/clear byte. Unlike activity history, this summary cannot be
+// overwritten. It does not prove that the remote program is an idle shell.
+// System protocol writes deliberately leave the summary unchanged.
+func (s *Core) HasPendingInput() bool {
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
+	return s.inputPending
 }

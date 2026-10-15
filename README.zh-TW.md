@@ -1,4 +1,4 @@
-[English](README.md) | [Deutsch](README.de.md) | [Español](README.es.md) | [Français](README.fr.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Русский](README.ru.md) | [简体中文](README.zh-CN.md) | 繁體中文
+[English](README.md) | [Deutsch](README.de.md) | [Español](README.es.md) | [Français](README.fr.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Русский](README.ru.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md)
 
 # ChannelTerm
 
@@ -23,6 +23,16 @@ ChannelTerm 讓人類與 AI 共用同一個硬體終端 Session。AI 不會取�
 ```
 
 ChannelTerm 支援 Windows、Linux 與 macOS 上的序列埠通訊與 SSH PTY shell。它本身不內建 AI，而是透過 MCP 將真實終端 Session 提供給人類及外部 AI 用戶端。
+
+## 透過 MCP 使用使用者態 GDB
+
+在原生 Linux 上，MCP 用戶端可透過 `debug_*` 工具接管閒置 Bash Session、設定中斷點、逐步執行、查看變數/執行緒/暫存器並分離。首版要求 ChannelTerm、GDB、gdbserver 和 ELF 位於同一 Linux 環境，支援單一 inferior、all-stop 除錯；只有還原終端機狀態並通過唯一標記 Shell 探測後，才開放一般寫入。
+
+```text
+debug_start -> break_insert -> continue -> debug_events -> next/step/finish -> debug_stop
+```
+
+[工作流程、MCP 呼叫、安全 attach 與本機 PTY 測試範圍](docs/getting-started/gdb-debugging.md).
 
 ## 透過 SSH 傳輸檔案
 

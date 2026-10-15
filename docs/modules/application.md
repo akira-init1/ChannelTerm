@@ -178,7 +178,7 @@ background-job lifecycle, and arbitrary raw keys remain `WriteSession` concerns,
 terminal-command semantics.
 
 Application additionally owns one exclusive lease per managed Session. Supported lease types are
-`terminal`, `file-transfer`, and reserved `debug`. A normal write fails immediately with
+`terminal`, `file-transfer`, and `debug`. A normal write fails immediately with
 `ErrSessionBusy` while a lease is active. `WriteSessionWithLease` requires a non-empty matching
 opaque owner capability and rejects a missing, released, expired, or replacement lease with
 `ErrLeaseNotOwned`.
@@ -267,6 +267,56 @@ lifecycle path is independent of the Transport service that originally opened th
 
 ## Boundary rules
 
-Application owns orchestration, not process lifetime, stdin/stdout, flags, ANSI, MCP schemas, or
+Application owns orchestration and managed debug subprocesses, not Host process lifetime, host stdin/stdout, flags, ANSI, MCP schemas, or
 concrete UI behavior. New CLI or protocol adapters should call this layer instead of looking up
 Session or Serial Transport objects directly.
+
+## User-space debug operations
+
+`StartDebug`, `DebugCommand`, `ReadDebugEvents`, and `StopDebug` coordinate one native Linux inferior
+through `internal/core/debugger`. The backend checks ELF architecture and existing-process I/O
+isolation before acquiring the terminal. A persistent optional Session input summary rejects
+unsubmitted human/agent input even after activity-history overwrite. Alternate Session
+implementations without that summary must have complete retained activity. This summary is not a
+terminal emulator: the caller must supply a known idle Bash prompt.
+
+Start claims a fresh internal debug lease capability, separate from the client owner. It saves
+`stty -g`, verifies the same local filesystem, and switches the PTY to raw/no-echo mode. A private
+wrapper launches gdbserver without a controlling terminal; a second wrapper redirects new-inferior
+I/O to `/dev/null`. GDB runs with init files, auto-loading, debuginfod, and expression function calls
+disabled. Non-stop mode is off and fork-following stays on the parent with detach-on-fork enabled.
+There is no raw MI or console passthrough. The relay uses the existing Session reader's independent
+cursor and the Application leased-write gate. It fails on dropped bytes instead of resynchronizing.
+
+An internal 30-second lease is renewed every 10 seconds. Debug lease expiry always closes/removes
+the Session, even without an active write. Public lease release cannot release a managed operation.
+Client events/commands maintain a separate 60-second heartbeat; expiry attempts detach rather than
+killing an attached process. Setup and MI commands are capped at 30 seconds; recovery has an
+independent 10-second context. An uncertain command timeout kills GDB and fails the operation closed.
+An authoritative MI error preserves the operation for another command. A shell watchdog checks Host
+process identity and an atomically replaced heartbeat file, ending only its original server after
+Host death or 45 seconds without renewal. PID/start-time checks and pidfds prevent cleanup from
+signalling a reused server PID.
+
+GDB closes RSP before its MI exit record can arrive; the coordinator allows up to two seconds for
+that record, without inferring success from EOF. In ACK mode, the relay observes checksum-valid
+packet framing without rewriting bytes. For normal exit it confirms the final W/X acknowledgement;
+for explicit termination it confirms the last reply acknowledgement. Only then may Application end
+a gdbserver waiting for stdio EOF, which PTYs cannot transmit. Detach uses GDB's target-detach
+handshake. All paths still require the shell footer, restoration of the exact saved TTY settings,
+and a fresh split-token `printf` probe before releasing the lease. A failure closes the Session;
+no timeout, silent period, or socket closure is accepted as proof of restoration.
+
+Operation IDs and exact start requests remain retained for Host-lifetime retry deduplication, with
+at most 128 operations. Commands retain at most 4096 requests / approximately 16 MiB per operation;
+reaching the limit rejects new commands but still permits stop. MI lines are capped at 1 MiB and
+nesting at 64 levels. Events retain at most 512 records / 4 MiB and return at most 128 per read;
+a stale cursor is an error. These debug cursors are distinct from Session output/activity/events.
+Lifecycle state is `starting`, `stopped`, `running`, `exited`, `recovering`, `closed`, or `failed`.
+Closed/failed states cannot be overwritten by delayed MI notifications.
+
+The private runtime directory is mode 0700 and the socket mode 0600; `SO_PEERCRED` checks the exact
+GDB PID and Host user. Neither debug events nor Session events contain the client owner or internal
+lease capability. The ordinary MCP Host authentication remains in force. The operation is not a
+sandbox for malicious programs, debugger executables, or same-user processes. See the
+[workflow](../getting-started/gdb-debugging.md) for prerequisites, safe attach, and validation limits.

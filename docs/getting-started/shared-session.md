@@ -127,3 +127,12 @@ SSH uses private-key or interactive password authentication and verified host ke
 inside a separately started Host; choose a distinct loopback `--listen` address if one is already
 running. Follow the [SSH terminal workflow](ssh-terminal.md) for prerequisites, alternate ports,
 and safe shutdown. The Session read/write model is unchanged.
+
+## Exclusive user-space debugging
+
+A [local Linux GDB operation](gdb-debugging.md) temporarily owns a `debug` lease. Other readers keep
+independent raw cursors, while ordinary writers receive a busy error. Bundled attachments suppress
+the leased binary protocol output and remain attached. Use the debug tools for interrupt/detach;
+normal Ctrl+C is not debugger control. The original terminal mode and a random-marker shell probe
+must succeed before ordinary input resumes. Expired debug leases and unverified recovery close the
+Session instead of reopening writing. `DEBUG_STATE` events identify lifecycle transitions.

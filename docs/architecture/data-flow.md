@@ -267,3 +267,25 @@ host-owned Session if lease expiry finds a Channel write still in flight or if b
 recovery times out. `Channel.Close` releases the blocked write before a later open creates a
 replacement Session. See [Application Module](../modules/application.md) for the lifecycle details
 and [File Transfer](../getting-started/file-transfer.md) for the user workflow.
+
+## User-space GDB
+
+```text
+MCP debug_* -> Application debug operation -> GDB/MI subprocess
+                        |                         |
+                  managed debug lease      private Unix socket
+                        |                         |
+                        +---- binary RSP relay ---+
+                                      |
+                           Session cursor / leased Write
+                                      |
+                       existing Channel and sole reader
+                                      |
+                     Bash PTY -> gdbserver stdio -> inferior
+```
+
+The relay preserves binary bytes and ACKs; an overwritten cursor is fatal. Inferior standard I/O
+is isolated from the PTY. MI records form a separate bounded debug-event cursor stream. The existing
+Session event stream carries `DEBUG_STATE` and lease boundaries for CLI presentation. Raw Session
+history remains unchanged. See [Application](../modules/application.md#user-space-debug-operations)
+for timeout, final-ACK, recovery, and subprocess ownership details.

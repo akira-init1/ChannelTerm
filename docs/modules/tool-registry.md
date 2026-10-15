@@ -5,7 +5,7 @@ operations to be registered without importing MCP or another model/protocol SDK.
 
 A Tool supplies a stable name, human description, JSON-object input schema, and cancellable call
 returning JSON-serializable structured data. The schema subset supports object properties, primitive
-types, descriptions, enums, and required fields.
+types, array item schemas, descriptions, enums, and required fields.
 
 ## Registry behavior
 
@@ -23,7 +23,7 @@ output.
 ## MCP adaptation
 
 `internal/mcp/terminal` implements registered Tool names for serial, Session, file-transfer, device,
-and decision use cases. `internal/mcp/server.go` requires those names and exposes them over MCP. The
+decision, and user-space debug use cases. `internal/mcp/server.go` requires those names and exposes them over MCP. The
 three generic wait tools below are public aliases with `cursor` made required; the focused
 `terminal_wait_file_transfer` Tool is registered directly and filters the Session event stream by
 `transfer_id` until both one terminal transfer result and its file-transfer lease release are
