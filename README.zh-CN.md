@@ -1,4 +1,4 @@
-[English](README.md) | [Deutsch](README.de.md) | [Español](README.es.md) | [Français](README.fr.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Русский](README.ru.md) | 简体中文 | [繁體中文](README.zh-TW.md)
+[English](README.md) | [Deutsch](README.de.md) | [Español](README.es.md) | [Français](README.fr.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Русский](README.ru.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md)
 
 # ChannelTerm
 
@@ -149,7 +149,7 @@ Shared Session created: SER-1 (0123456789abcdef0123456789abcdef)
 客户端就可以创建或加入 Session。就绪提示之后没有输出是正常现象；需要关闭 Host 及其全部
 Session 时按 `Ctrl+C`。
 
-## 交互按键
+连接期间可使用以下按键：
 
 ```text
 Ctrl+C      向远端终端发送 0x03
@@ -161,17 +161,7 @@ Ctrl+] f    打开本地文件发送/接收菜单
 Ctrl+] Esc  取消本地转义模式
 ```
 
-## 让 AI 接入同一 Session
-
-运行：
-
-```bash
-channelterm init --mcp
-```
-
-选择 HTTP 后，受支持的 Codex、Claude Code、OpenCode 或 Zoo Code 客户端会使用本机共享端点
-`http://127.0.0.1:37099/mcp`。AI 可以列出、读取和操作 `SER-1`；在已知空闲的 Bash 提示符
-上应优先使用 `terminal_exec`，原始按键和交互程序使用 `terminal_write`。
+要让受支持的 AI 客户端加入同一 Host，请运行 `channelterm init --mcp`，选择 HTTP，再让客户端列出或操作 `SER-1`。认证与客户端使用流程见 [MCP Server](docs/getting-started/mcp-server.md)。
 
 如需获得可复用的工作流指导，请在支持 Agent Skills 的客户端中安装仓库内置的
 [`cterm-serial-debug` Agent Skill](docs/getting-started/mcp-server.md#install-the-bundled-agent-skill)。
@@ -188,30 +178,124 @@ AI 也可以自己创建共享 Session。先运行一次 `channelterm init --mcp
 明确批准。`auto` 返回 `connect`，但 AI 仍须调用 `terminal_open_serial`；Host 永远不会自动打开
 串口。正常使用 `Ctrl+C` 停止 Host；停止时会关闭它拥有的 Sessions。
 
-HTTP Host 需要 Bearer token，默认只监听回环地址。内置 CLI 会读取本机用户 token；它也可以
-[监听受信任的局域网](docs/getting-started/mcp-server.md#listen-on-a-lan)，远程客户端必须使用 Host
-可达的局域网地址，并通过 `Authorization` 请求头发送相同的 token。不要把未经 TLS 和额外网络
-访问控制保护的端点直接暴露到不可信网络。
+## 共享终端实际示例
 
-## 文件传输
+已连接的 CLI 会把 Agent 命令显示为本地 `AI` 活动块。`terminal_exec` 不会将该命令写入空闲 Bash 提示符的历史记录；活动块之后的内容仍是设备的原始终端输出，短期命令租约释放后，人类即可继续输入：
 
-共享 Session 可以发送或接收文件和目录。在正在运行的共享 `attach` 中，先按 `Ctrl+]`，再按 `f`，
-即可打开引导式发送/接收菜单；同样的操作也可以通过命令完成：
+```bash
+root@board:~#
+
+──────── AI ────────
+[18:52:31] >> echo agent-check
+────────────────────
+agent-check
+root@board:~# echo human-still-here
+human-still-here
+root@board:~#
+```
+
+命令的具体输出取决于所连接的设备。`AI` 活动块是根据结构化 Session 事件生成的本地显示，不会插入设备字节流或存储的终端输出。原始按键和交互程序仍使用 `terminal_write`，保留设备原本的历史记录行为。
+
+## 为什么使用 ChannelTerm？
+
+传统串口终端让人类持有物理连接：
+
+```text
+Human ---- terminal ---- Serial device
+```
+
+仅供 AI 使用的串口工具让 AI 持有连接，但人类无法加入实时终端：
+
+```text
+AI ---- MCP / serial ---- Serial device
+
+Human         (not attached)
+```
+
+ChannelTerm 将一条物理连接保留在共享 Session 中：
+
+```text
+                         +---- Human terminal
+                         |
+Serial device ---- Session
+                         |
+                         +---- AI / MCP client
+```
+
+这样，AI 的操作在硬件调试过程中始终可见，人类也始终可以参与。共享不只是重新打开同一个端口：每个客户端通过独立游标读取保留的原始输出，所有写入都经过同一个 Session。
+
+## AI、文件与本地控制
+
+同一个共享串口 Session 也可以传输普通文件和目录，无需 AI 客户端，也无需在板端另行安装传输代理。在正在运行的共享 `attach` 中，先按 `Ctrl+]`，再按 `f`，即可打开引导式发送/接收菜单。目录传输使用标准 tar 和带确认、便于取消的数据分块；同样的操作也可通过命令完成：
 
 ```bash
 channelterm file send firmware.bin --session SER-1
 channelterm file receive /tmp/log.txt ./log.txt --session SER-1
 channelterm file send ./build/release /tmp/release --session SER-1
+channelterm file receive /var/log/myapp ./myapp --session SER-1
 ```
 
-发送时省略远端目标路径，文件或目录会默认保存到 `/tmp/cterm/mcp-files/`；交互快捷键默认
-使用 `/tmp/cterm/user-files/`。ChannelTerm 会按需创建目录，并为同名目标选择 `_1`、`_2`
-等不覆盖现有内容的名称。
+命令省略远端目标路径时，默认保存到 `/tmp/cterm/mcp-files/`；交互快捷键使用 `/tmp/cterm/user-files/`。ChannelTerm 会创建缺失的目标目录层级，并在后续传输中复用。Linux shell 需要原生的 `mkdir`、`stty`、`dd`、`wc`、`sha256sum` 和 `sleep`，目录传输还需要 `tar`。ChannelTerm 以大小受限的分块传输，报告进度，并对文件字节及目录 tar 数据流进行端到端 SHA-256 校验。目录传输使用目标端临时归档，因此取消会在当前分块结束后停止，无需继续传完整个目录。临时文件传输租约会阻止其他 ChannelTerm 写入者，直到命令结束。租约有效期间，在任一随附的终端客户端中按 `Ctrl+C`，会打开默认选择“否”的本地取消确认；其他时候则保持正常的远端终端含义。前提和限制见[文件传输流程](docs/getting-started/file-transfer.md)。
 
-目标端必须是具备所需标准命令的 Linux Shell。具体前提、覆盖保护、取消和 SHA-256 校验规则
-见[文件传输流程](docs/getting-started/file-transfer.md)。
+要让 AI 加入同一个 Session，请将其 MCP 客户端配置为使用同一个 Streamable HTTP 端点：
 
-## 安装与构建
+```text
+http://127.0.0.1:37099/mcp
+```
+
+AI 可以通过 MCP Session 工具列出和读取 `SER-1`，使用 `terminal_exec` 在空闲 Bash 中运行命令，或使用 `terminal_write` 明确发送原始终端字节；详见 [MCP 使用流程](docs/getting-started/mcp-server.md)和[工具参考](docs/reference/mcp-tools.md)。运行 `channelterm init --mcp` 安装客户端配置，或运行 `channelterm init --mcp-show` 打印配置；两者都会提示选择 HTTP 或 stdio，默认使用 HTTP。打印的 HTTP 配置包含本机 Bearer 凭据，不可分享或提交。
+
+按 `Ctrl+]` 进入本地转义模式，ChannelTerm 会在本地显示可用命令。`Ctrl+] f` 在当前附件中启动引导式文件/目录发送或接收，默认路径为 `/tmp/cterm/user-files/<basename>` 和 `./<basename>`，并通过 `_1`、`_2` 选择不覆盖已有内容的名称。`Ctrl+] t` 默认关闭，仅在可靠识别的 shell 提示符前添加本地 `[HH:MM:SS]` 时间戳，不改变共享 Session 或 MCP 输出。
+
+HTTP Host 需要 Bearer token，默认只监听回环地址。内置 CLI 会读取本机用户 token；它也可以
+[监听受信任的局域网](docs/getting-started/mcp-server.md#listen-on-a-lan)，远程客户端必须使用 Host
+可达的局域网地址，并通过 `Authorization` 请求头发送相同的 token。不要把未经 TLS 和额外网络
+访问控制保护的端点直接暴露到不可信网络。
+
+## 支持的能力
+
+- 由 Host 持有一条串口连接，供人类 CLI 与 MCP 客户端共享。
+- 独立的输出和活动游标，避免一个读取者消耗另一个读取者的数据。
+- 在已连接终端中显示 Agent 写入，同时保持原始 Session 输出不变。
+- AI 保持连接时，人类仍可直接输入，包括向远端发送 `Ctrl+C`。
+- 客户端可以分离，而不关闭其他客户端正在使用的 Session。
+- 使用 Windows、Linux 和 macOS 的原生目标名称发现串口，支持 TOML Profile，以及不需要共享时的私有直连。
+- 通过 stdio 或 Streamable HTTP 提供 MCP；共享 CLI 流程使用 HTTP Session Host。
+- 通过已有串口 Session 进行有界的 CLI 文件/目录发送与接收，支持 SHA-256 校验和安全的暂存目录解包。
+
+## 使用场景
+
+### 嵌入式 Linux 调试
+
+只需连接开发板一次。AI 读取保留的启动日志并执行有针对性的诊断，工程师同时观察相同的设备输出，并在实时 shell 中响应。
+
+### AI 操作，人类观察
+
+在空闲 Bash 提示符下，AI 通过 `terminal_exec` 发送非交互命令。已连接的 CLI 将命令显示一次为 `AI` 活动块，随后显示设备返回的真实字节；命令和内部引导代码都不会写入 Bash 历史。
+
+### 人类介入
+
+人类可以向共享 Session 输入，或向远端终端发送 `Ctrl+C`，然后继续观察，或按 `Ctrl+] q` 分离。短期 `terminal_exec` 租约会暂时锁定人类输入；普通原始写入只提供字节级串行化，不仲裁 shell 状态，因此客户端仍应避免冲突的原始命令序列。
+
+## 工作原理
+
+```text
+Human CLI ---------+
+                   |
+                   v
+            Session Host / Manager
+                   |
+AI via MCP --------+--> Session --> Serial Transport <--> Device
+                        |    |
+                        |    `-- serialized writes
+                        `------- retained raw output
+```
+
+Session Host 持有物理端口并管理 Session 生命周期。Serial Transport 打开协议无关的 Channel；Session 拥有唯一的 Channel 读取者、有界的内存输出与活动保留，以及写入串行化。CLI 和 MCP 适配器复用相同的 Core 行为；高亮与 `AI` 活动块等显示处理位于存储的终端数据之外。
+
+`SER-1` 等共享 Session 引用仅在所属 Host 进程内有效。停止 Host 会关闭其 Session；单个客户端分离不会。
+
+## 安装
 
 从 [Releases](https://github.com/akira-init1/ChannelTerm/releases) 下载与你的操作系统和架构匹配的
 压缩包，并与同一版本的 `SHA256SUMS` 核对。解压后，在解压目录中运行
@@ -278,10 +362,20 @@ channelterm serial --config ./channelterm.toml --profile board
 - [串口终端流程](docs/getting-started/serial-terminal.md)
 - [SSH shell 使用流程](docs/getting-started/ssh-terminal.md)
 - [共享 Session](docs/getting-started/shared-session.md)
+- [文件传输流程](docs/getting-started/file-transfer.md)
 - [MCP Server](docs/getting-started/mcp-server.md)
 - [CLI 参考](docs/reference/cli.md)
 - [MCP 工具参考](docs/reference/mcp-tools.md)
 - [标识符与引用](docs/reference/identifiers.md)
+- [架构概览](docs/architecture/overview.md)
+
+准确的命令参数及默认值以运行程序的 `--help` 输出为准。
+
+## 路线图
+
+串口与 SSH PTY shell 已实现为 Transport；专用 SFTP 和传统 SCP 文件客户端也已提供。任意 SSH exec、Telnet 和更强的多写入者协调仍是未来方向，不属于已实现功能或版本承诺。
+
+ChannelTerm 目前尚未实现 JTAG/OpenOCD、虚拟串口设备、内置 AI 或多 Agent 编排。
 
 ## 许可
 

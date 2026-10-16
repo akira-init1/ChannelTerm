@@ -1,4 +1,4 @@
-[English](README.md) | [Deutsch](README.de.md) | [Español](README.es.md) | [Français](README.fr.md) | [日本語](README.ja.md) | 한국어 | [Русский](README.ru.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md)
+[English](README.md) | [Deutsch](README.de.md) | [Español](README.es.md) | [Français](README.fr.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Русский](README.ru.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md)
 
 # ChannelTerm
 
@@ -155,7 +155,7 @@ Session ID를 사용해야 합니다.
 클라이언트가 Session을 만들거나 연결할 수 있습니다. 준비 메시지 이후 출력이 없는 것은 정상입니다.
 Host와 모든 Session을 닫을 때 `Ctrl+C`를 누르십시오.
 
-## 대화형 키
+연결 중에는 다음 키를 사용할 수 있습니다.
 
 ```text
 Ctrl+C      원격 터미널에 0x03 전송
@@ -167,18 +167,7 @@ Ctrl+] f    로컬 파일 송수신 메뉴 열기
 Ctrl+] Esc  로컬 이스케이프 모드 취소
 ```
 
-## AI를 같은 Session에 연결
-
-다음을 실행합니다.
-
-```bash
-channelterm init --mcp
-```
-
-HTTP를 선택하면 지원되는 Codex, Claude Code, OpenCode 또는 Zoo Code 클라이언트가 로컬 공유
-엔드포인트 `http://127.0.0.1:37099/mcp`를 사용합니다. AI는 `SER-1`을 나열하고 읽고 조작할 수
-있습니다. 유휴 상태임을 알고 있는 Bash 프롬프트에서는 `terminal_exec`를 우선 사용하고, 원시 키와
-대화형 프로그램에는 `terminal_write`를 사용합니다.
+지원되는 AI 클라이언트를 같은 Host에 연결하려면 `channelterm init --mcp`를 실행하고 HTTP를 선택한 다음, 클라이언트에서 `SER-1`을 나열하거나 조작하십시오. 인증과 클라이언트 사용 절차는 [MCP Server](docs/getting-started/mcp-server.md)를 참고하십시오.
 
 재사용 가능한 워크플로 지침을 사용하려면 Agent Skills 호환 클라이언트에 번들
 [`cterm-serial-debug` Agent Skill](docs/getting-started/mcp-server.md#install-the-bundled-agent-skill)을
@@ -197,33 +186,125 @@ Host를 시작하고 정확한 시리얼 대상과 통신 설정을 AI에 제공
 `terminal_open_serial`을 호출해야 하며, Host가 포트를 자동으로 열지는 않습니다. Host는 일반적으로
 `Ctrl+C`로 중지하며, 이때 Host가 소유한 Sessions도 닫힙니다.
 
+## 공유 터미널 사용 예
+
+연결된 CLI는 Agent 명령을 로컬 `AI` 활동 블록으로 표시합니다. `terminal_exec`는 해당 명령을 유휴 Bash 프롬프트의 기록에 남기지 않습니다. 블록 다음에 나오는 줄은 여전히 장치의 원시 터미널 출력이며, 짧은 명령 임대가 해제되면 사람이 다시 입력할 수 있습니다.
+
+```bash
+root@board:~#
+
+──────── AI ────────
+[18:52:31] >> echo agent-check
+────────────────────
+agent-check
+root@board:~# echo human-still-here
+human-still-here
+root@board:~#
+```
+
+실제 명령 출력은 연결된 장치에 따라 다릅니다. `AI` 블록은 구조화된 Session 이벤트에서 생성한 로컬 표시이며, 장치 바이트 스트림이나 저장된 터미널 출력에 삽입되지 않습니다. 원시 키 입력과 대화형 프로그램에는 계속 `terminal_write`를 사용하며, 장치의 기존 명령 기록 동작을 유지합니다.
+
+## ChannelTerm을 사용하는 이유
+
+기존 시리얼 터미널에서는 사람이 물리 연결을 사용합니다.
+
+```text
+Human ---- terminal ---- Serial device
+```
+
+AI 전용 시리얼 도구에서는 AI가 연결을 사용하지만, 사람은 실시간 터미널에 참여하지 못합니다.
+
+```text
+AI ---- MCP / serial ---- Serial device
+
+Human         (not attached)
+```
+
+ChannelTerm은 하나의 물리 연결을 공유 Session에 유지합니다.
+
+```text
+                         +---- Human terminal
+                         |
+Serial device ---- Session
+                         |
+                         +---- AI / MCP client
+```
+
+따라서 하드웨어 디버깅 중 AI의 동작을 관찰하면서 사람이 계속 참여할 수 있습니다. 공유는 단순히 같은 포트를 다시 여는 것이 아닙니다. 각 클라이언트는 독립된 커서로 보관된 원시 출력을 읽으며, 모든 쓰기는 같은 Session을 거칩니다.
+
+## AI, 파일 및 로컬 제어
+
+같은 공유 시리얼 Session으로 일반 파일과 디렉터리도 전송할 수 있습니다. AI 클라이언트나 보드에 별도로 설치하는 전송 에이전트는 필요하지 않습니다. 실행 중인 공유 `attach`에서 `Ctrl+]` 다음 `f`를 누르면 안내식 송수신 메뉴가 열립니다. 디렉터리는 표준 tar와 확인 응답이 있는 취소 가능한 청크 전송을 사용합니다. 같은 작업을 명령으로도 실행할 수 있습니다.
+
+```bash
+channelterm file send firmware.bin --session SER-1
+channelterm file receive /tmp/log.txt ./log.txt --session SER-1
+channelterm file send ./build/release /tmp/release --session SER-1
+channelterm file receive /var/log/myapp ./myapp --session SER-1
+```
+
+명령에서 원격 대상 경로를 생략하면 `/tmp/cterm/mcp-files/`에 저장하며, 대화형 단축키는 `/tmp/cterm/user-files/`를 사용합니다. ChannelTerm은 없는 대상 디렉터리 계층을 만들고 이후 전송에서 재사용합니다. Linux shell에는 기본 `mkdir`, `stty`, `dd`, `wc`, `sha256sum`, `sleep`이 필요하며, 디렉터리 전송에는 `tar`도 필요합니다. ChannelTerm은 크기가 제한된 청크를 전송하고 진행 상황을 보고하며, 파일 바이트와 디렉터리 tar 스트림에 대해 종단 간 SHA-256을 검증합니다. 디렉터리 전송은 대상 측의 임시 아카이브를 사용하므로 취소 시 나머지 디렉터리를 모두 전송하지 않고 현재 청크가 끝난 뒤 멈춥니다. 임시 파일 전송 임대는 명령이 끝날 때까지 다른 ChannelTerm 쓰기 작업을 차단합니다. 임대가 활성 상태일 때 번들에 포함된 어떤 연결에서든 `Ctrl+C`를 누르면 기본 선택이 아니요인 로컬 취소 확인이 열립니다. 그 외에는 기존 원격 터미널 입력으로 동작합니다. 요구 사항과 제한은 [파일 전송 워크플로](docs/getting-started/file-transfer.md)를 참고하십시오.
+
+AI가 같은 Session에 참여하도록 하려면 MCP 클라이언트에 같은 Streamable HTTP 엔드포인트를 설정하십시오.
+
+```text
+http://127.0.0.1:37099/mcp
+```
+
+AI는 MCP Session 도구로 `SER-1`을 나열하고 읽거나, `terminal_exec`로 유휴 Bash 명령을 실행하거나, `terminal_write`로 원시 터미널 바이트를 명시적으로 보낼 수 있습니다. [MCP 워크플로](docs/getting-started/mcp-server.md)와 [도구 레퍼런스](docs/reference/mcp-tools.md)를 참고하십시오. `channelterm init --mcp`는 클라이언트 설정을 설치하고, `channelterm init --mcp-show`는 설정을 출력합니다. 둘 다 HTTP 또는 stdio를 선택하도록 요청하며 기본값은 HTTP입니다. 출력된 HTTP 설정에는 로컬 Bearer 자격 증명이 포함되므로 공유하거나 커밋하지 마십시오.
+
+`Ctrl+]`를 누르면 로컬 이스케이프 모드로 들어가며 사용 가능한 명령을 로컬에 표시합니다. `Ctrl+] f`는 현재 연결에서 안내식 파일/디렉터리 송수신을 시작합니다. 기본 경로는 `/tmp/cterm/user-files/<basename>`과 `./<basename>`이며, `_1`, `_2`를 선택하여 기존 내용을 덮어쓰지 않습니다. `Ctrl+] t`는 기본적으로 꺼져 있고, 확실히 식별된 셸 프롬프트에만 로컬 `[HH:MM:SS]` 타임스탬프를 붙입니다. 공유 Session이나 MCP 출력은 바뀌지 않습니다.
+
 HTTP Host에는 Bearer token이 필요하며 기본적으로 루프백 주소에서만 수신합니다. 내장 CLI는 로컬
 사용자 token을 자동으로 읽습니다. [신뢰할 수 있는 LAN에서 수신](docs/getting-started/mcp-server.md#listen-on-a-lan)할
 수도 있지만, 원격 클라이언트는 Host의 연결 가능한 LAN 주소를 사용하고 `Authorization` 헤더로 같은
 token을 보내야 합니다. TLS와 별도의 네트워크 접근 제어 없이 신뢰할 수 없는 네트워크에 엔드포인트를
 직접 노출하지 마십시오.
 
-## 파일 전송
+## 제공하는 기능
 
-공유 Session을 통해 파일과 디렉터리를 보내거나 받을 수 있습니다. 실행 중인 공유 `attach`에서
-`Ctrl+]`를 누른 다음 `f`를 누르면 안내식 송수신 메뉴가 열립니다. 같은 작업은 명령으로도
-실행할 수 있습니다.
+- Host가 소유한 하나의 시리얼 연결을 사람의 CLI와 MCP 클라이언트가 공유합니다.
+- 독립된 출력 및 활동 커서를 통해 한 리더가 다른 리더의 데이터를 소비하지 않습니다.
+- 원시 Session 출력을 변경하지 않고 연결된 터미널에 Agent의 쓰기를 표시합니다.
+- AI가 연결된 상태에서도 사람이 원격 `Ctrl+C`를 포함한 입력을 직접 보냅니다.
+- 다른 클라이언트가 사용하는 Session을 닫지 않고 클라이언트만 연결 해제합니다.
+- Windows, Linux, macOS의 기본 대상 이름을 이용한 시리얼 검색, TOML Profile, 공유가 필요 없을 때의 비공개 직접 연결을 지원합니다.
+- stdio 또는 Streamable HTTP를 통해 MCP를 제공합니다. 공유 CLI 워크플로는 HTTP Session Host를 사용합니다.
+- 기존 시리얼 Session을 통해 크기가 제한된 CLI 파일/디렉터리 송수신을 제공하며, SHA-256 검증과 임시 영역에서의 안전한 디렉터리 압축 해제를 지원합니다.
 
-```bash
-channelterm file send firmware.bin --session SER-1
-channelterm file receive /tmp/log.txt ./log.txt --session SER-1
-channelterm file send ./build/release /tmp/release --session SER-1
+## 워크플로 예
+
+### 임베디드 Linux 디버깅
+
+보드에 한 번 연결합니다. AI가 보관된 부팅 로그를 읽고 필요한 진단을 실행하는 동안 엔지니어는 같은 장치 출력을 관찰하고 실시간 셸에서 대응합니다.
+
+### AI가 조작하고 사람이 관찰
+
+유휴 Bash 프롬프트에서 AI가 `terminal_exec`로 비대화형 명령을 보냅니다. 연결된 CLI는 명령을 `AI` 활동 블록으로 한 번 표시한 뒤 장치가 반환한 실제 바이트를 보여 줍니다. 명령과 내부 초기화 코드는 Bash 기록에 남지 않습니다.
+
+### 사람이 개입
+
+사람은 공유 Session에 입력하거나 원격 터미널에 `Ctrl+C`를 보낸 뒤 계속 관찰하거나 `Ctrl+] q`로 연결을 해제할 수 있습니다. 짧은 `terminal_exec` 임대 동안에는 사람의 입력이 일시적으로 잠깁니다. 일반 원시 쓰기는 바이트 수준으로 직렬화되지만 셸 상태를 조정하지 않으므로 클라이언트는 여전히 충돌하는 원시 명령 순서를 피해야 합니다.
+
+## 동작 원리
+
+```text
+Human CLI ---------+
+                   |
+                   v
+            Session Host / Manager
+                   |
+AI via MCP --------+--> Session --> Serial Transport <--> Device
+                        |    |
+                        |    `-- serialized writes
+                        `------- retained raw output
 ```
 
-전송할 때 원격 대상 경로를 생략하면 파일이나 디렉터리는 기본적으로
-`/tmp/cterm/mcp-files/`에 저장됩니다. 대화형 단축키는 `/tmp/cterm/user-files/`를
-사용합니다. ChannelTerm은 필요한 디렉터리를 만들고, 같은 이름의 대상이 있으면 기존 내용을
-덮어쓰지 않도록 `_1`, `_2` 등의 이름을 선택합니다.
+Session Host는 물리 포트와 Session 수명 주기를 소유합니다. Serial Transport는 프로토콜 중립적인 Channel을 열며, Session은 단일 Channel 리더, 크기가 제한된 메모리 내 출력 및 활동 보관, 쓰기 직렬화를 담당합니다. CLI와 MCP 어댑터는 같은 Core 동작을 사용합니다. 강조 표시와 `AI` 활동 블록 같은 표현 처리는 저장된 터미널 데이터 밖에서 이루어집니다.
 
-대상은 필요한 표준 명령을 갖춘 Linux Shell이어야 합니다. 요구 사항, 덮어쓰기 방지, 취소 및
-SHA-256 검증 규칙은 [파일 전송 워크플로](docs/getting-started/file-transfer.md)를 참고하십시오.
+`SER-1` 같은 공유 Session 참조는 이를 소유한 Host 프로세스 안에서만 유효합니다. Host를 중지하면 해당 Session이 닫히지만, 클라이언트 하나의 연결 해제는 Session을 닫지 않습니다.
 
-## 설치 및 빌드
+## 설치
 
 [Releases](https://github.com/akira-init1/ChannelTerm/releases)에서 운영체제와 아키텍처에 맞는
 압축 파일을 내려받아 같은 릴리스의 `SHA256SUMS`와 대조하십시오. 압축을 푼 디렉터리에서
@@ -296,10 +377,20 @@ channelterm serial --config ./channelterm.toml --profile board
 - [시리얼 터미널 워크플로](docs/getting-started/serial-terminal.md)
 - [SSH 셸 워크플로](docs/getting-started/ssh-terminal.md)
 - [공유 Session](docs/getting-started/shared-session.md)
+- [파일 전송 워크플로](docs/getting-started/file-transfer.md)
 - [MCP Server](docs/getting-started/mcp-server.md)
 - [CLI 레퍼런스](docs/reference/cli.md)
 - [MCP 도구 레퍼런스](docs/reference/mcp-tools.md)
 - [식별자와 참조](docs/reference/identifiers.md)
+- [아키텍처 개요](docs/architecture/overview.md)
+
+정확한 명령 플래그와 기본값은 실행 중인 프로그램의 `--help` 출력을 기준으로 합니다.
+
+## 로드맵
+
+시리얼과 SSH PTY 셸은 구현된 Transport이며, 전용 SFTP 및 기존 SCP 파일 클라이언트도 사용할 수 있습니다. 임의의 SSH exec, Telnet, 더 강력한 다중 쓰기 조정은 향후 방향이며 구현된 기능이나 릴리스 약속이 아닙니다.
+
+ChannelTerm은 현재 JTAG/OpenOCD, 가상 시리얼 장치, 내장 AI 또는 다중 에이전트 오케스트레이션을 구현하지 않습니다.
 
 ## 라이선스
 

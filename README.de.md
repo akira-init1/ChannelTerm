@@ -1,4 +1,4 @@
-[English](README.md) | Deutsch | [Español](README.es.md) | [Français](README.fr.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Русский](README.ru.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md)
+[English](README.md) | [Deutsch](README.de.md) | [Español](README.es.md) | [Français](README.fr.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Русский](README.ru.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md)
 
 # ChannelTerm
 
@@ -160,7 +160,7 @@ Ein dauerhafter Host ist ein separater, lang laufender Prozess. Nachdem
 konfigurierte KI-Clients Sessions erstellen oder ihnen beitreten. Keine weitere Ausgabe nach dieser
 Bereitschaftsmeldung ist normal. Beenden Sie den Host und alle seine Sessions mit `Ctrl+C`.
 
-## Interaktive Tasten
+Während der Verbindung:
 
 ```text
 Ctrl+C      0x03 an das entfernte Terminal senden
@@ -172,18 +172,7 @@ Ctrl+] f    Lokales Menü zum Senden/Empfangen von Dateien öffnen
 Ctrl+] Esc  Lokalen Escape-Modus abbrechen
 ```
 
-## Eine KI mit derselben Session verbinden
-
-Führen Sie aus:
-
-```bash
-channelterm init --mcp
-```
-
-Nach Auswahl von HTTP verwenden unterstützte Codex-, Claude-Code-, OpenCode- oder Zoo-Code-Clients
-den lokalen gemeinsamen Endpunkt `http://127.0.0.1:37099/mcp`. Die KI kann `SER-1` auflisten, lesen
-und bedienen. Verwenden Sie an einem nachweislich inaktiven Bash-Prompt bevorzugt `terminal_exec`;
-für rohe Tasten und interaktive Programme ist `terminal_write` vorgesehen.
+Um einen unterstützten KI-Client mit demselben Host zu verbinden, führen Sie `channelterm init --mcp` aus, wählen HTTP und lassen den Client `SER-1` auflisten oder bedienen. Authentifizierung und Client-Ablauf beschreibt [MCP-Server](docs/getting-started/mcp-server.md).
 
 Installieren Sie für wiederverwendbare Workflow-Anleitungen den mitgelieferten
 [`cterm-serial-debug` Agent Skill](docs/getting-started/mcp-server.md#install-the-bundled-agent-skill)
@@ -204,6 +193,75 @@ erfordert weiterhin eine ausdrückliche Genehmigung. `auto` liefert `connect`, a
 weiterhin `terminal_open_serial` aufrufen; der Host öffnet niemals automatisch einen Port. Beenden
 Sie den Host normalerweise mit `Ctrl+C`; dabei werden die von ihm verwalteten Sessions geschlossen.
 
+## Ein gemeinsames Terminal in der Praxis
+
+Eine verbundene CLI zeigt einen Agent-Befehl als lokalen `AI`-Aktivitätsblock an. `terminal_exec` hält diesen Befehl aus der History eines inaktiven Bash-Prompts heraus. Die folgenden Zeilen bleiben die rohe Terminalausgabe des Geräts. Sobald die kurze Befehls-Lease freigegeben wird, kann der Mensch wieder tippen:
+
+```bash
+root@board:~#
+
+──────── AI ────────
+[18:52:31] >> echo agent-check
+────────────────────
+agent-check
+root@board:~# echo human-still-here
+human-still-here
+root@board:~#
+```
+
+Die genaue Befehlsausgabe hängt vom angeschlossenen Gerät ab. Der `AI`-Block ist eine lokale Darstellung aus strukturierten Session-Ereignissen; er wird weder in den Byte-Stream des Geräts noch in die gespeicherte Terminalausgabe eingefügt. Rohe Tasteneingaben und interaktive Programme verwenden weiterhin `terminal_write` und behalten das normale History-Verhalten des Geräts bei.
+
+## Warum ChannelTerm?
+
+Ein herkömmliches serielles Terminal gibt dem Menschen die physische Verbindung:
+
+```text
+Human ---- terminal ---- Serial device
+```
+
+Ein serielles Werkzeug nur für KI gibt der KI die Verbindung, lässt den Menschen aber außerhalb des laufenden Terminals:
+
+```text
+AI ---- MCP / serial ---- Serial device
+
+Human         (not attached)
+```
+
+ChannelTerm hält eine physische Verbindung in einer gemeinsamen Session:
+
+```text
+                         +---- Human terminal
+                         |
+Serial device ---- Session
+                         |
+                         +---- AI / MCP client
+```
+
+So bleiben KI-Aktionen beim Hardware-Debugging sichtbar, und der Mensch bleibt beteiligt. Gemeinsame Nutzung bedeutet mehr, als denselben Port erneut zu öffnen: Jeder Client liest die aufbewahrte rohe Ausgabe über einen eigenen Cursor, und alle Schreibvorgänge laufen durch dieselbe Session.
+
+## KI, Dateien und lokale Steuerung
+
+Dieselbe gemeinsame serielle Session kann auch reguläre Dateien und Verzeichnisse übertragen, ohne KI-Client oder separat installierten Übertragungsagenten auf dem Board. Drücken Sie in einem aktiven gemeinsamen `attach` zuerst `Ctrl+]` und dann `f`, um das geführte Sende-/Empfangsmenü zu öffnen. Verzeichnisse verwenden Standard-tar sowie bestätigte, gut abbrechbare Datenblöcke. Dieselben Vorgänge sind als Befehle verfügbar:
+
+```bash
+channelterm file send firmware.bin --session SER-1
+channelterm file receive /tmp/log.txt ./log.txt --session SER-1
+channelterm file send ./build/release /tmp/release --session SER-1
+channelterm file receive /var/log/myapp ./myapp --session SER-1
+```
+
+Ohne entferntes Ziel speichert der Befehl unter `/tmp/cterm/mcp-files/`; der interaktive Kurzbefehl verwendet `/tmp/cterm/user-files/`. ChannelTerm erstellt fehlende Zielverzeichnisse und verwendet sie bei späteren Übertragungen erneut. Die Linux-Shell benötigt die nativen Werkzeuge `mkdir`, `stty`, `dd`, `wc`, `sha256sum` und `sleep`, für Verzeichnisse zusätzlich `tar`. ChannelTerm überträgt begrenzte Datenblöcke, meldet den Fortschritt und prüft Datei-Bytes sowie tar-Streams von Verzeichnissen durchgängig per SHA-256. Verzeichnisübertragungen verwenden temporäre Archive auf dem Ziel; ein Abbruch stoppt nach dem aktiven Block, ohne den Rest des Verzeichnisses zu übertragen. Eine temporäre Dateiübertragungs-Lease blockiert andere ChannelTerm-Schreiber bis zum Ende des Befehls. Während dieser Lease öffnet `Ctrl+C` in jeder mitgelieferten Terminal-Anbindung eine lokale Abbruchbestätigung mit der Vorauswahl Nein. Ansonsten behält es seine normale Bedeutung für das entfernte Terminal. Voraussetzungen und Grenzen beschreibt der [Dateiübertragungsablauf](docs/getting-started/file-transfer.md).
+
+Damit eine KI dieselbe Session nutzt, konfigurieren Sie ihren MCP-Client für denselben Streamable-HTTP-Endpunkt:
+
+```text
+http://127.0.0.1:37099/mcp
+```
+
+Die KI kann mit MCP-Session-Werkzeugen `SER-1` auflisten und lesen, mit `terminal_exec` einen Befehl in einer inaktiven Bash ausführen oder mit `terminal_write` ausdrücklich rohe Terminal-Bytes senden. Siehe [MCP-Ablauf](docs/getting-started/mcp-server.md) und [Werkzeugreferenz](docs/reference/mcp-tools.md). `channelterm init --mcp` installiert die Client-Konfiguration; `channelterm init --mcp-show` gibt sie aus. Beide fragen nach HTTP oder stdio und verwenden standardmäßig HTTP. Die ausgegebene HTTP-Konfiguration enthält die lokale Bearer-Zugangsinformation und darf weder geteilt noch committet werden.
+
+`Ctrl+]` aktiviert den lokalen Escape-Modus und zeigt die verfügbaren Befehle lokal an. `Ctrl+] f` startet den geführten Datei-/Verzeichnisversand oder -empfang in der aktuellen Verbindung. Die Standardziele sind `/tmp/cterm/user-files/<basename>` und `./<basename>`; mit `_1`, `_2` werden Namen ohne Überschreiben gewählt. `Ctrl+] t` ist standardmäßig aus und setzt lokale `[HH:MM:SS]`-Zeitstempel nur vor zuverlässig erkannte Shell-Prompts. Gemeinsame Session- oder MCP-Ausgaben bleiben unverändert.
+
 Der HTTP-Host benötigt ein Bearer-Token und lauscht standardmäßig nur auf der Loopback-Adresse. Die
 integrierten CLI-Clients lesen das lokale Benutzertoken automatisch. Der Host kann auch
 [in einem vertrauenswürdigen LAN lauschen](docs/getting-started/mcp-server.md#listen-on-a-lan).
@@ -211,28 +269,50 @@ Entfernte Clients müssen seine erreichbare Adresse verwenden und dasselbe Token
 `Authorization`-Header senden. Stellen Sie den Endpunkt nicht ohne TLS und zusätzliche
 Netzwerkzugriffskontrollen in einem nicht vertrauenswürdigen Netzwerk bereit.
 
-## Dateiübertragung
+## Möglichkeiten
 
-Eine gemeinsame Session kann Dateien und Verzeichnisse senden oder empfangen. Drücken Sie in einem
-aktiven gemeinsamen `attach` zuerst `Ctrl+]` und danach `f`, um das geführte Sende-/Empfangsmenü zu
-öffnen. Dieselben Vorgänge stehen auch als Befehle zur Verfügung:
+- Eine vom Host gehaltene serielle Verbindung, gemeinsam genutzt von menschlichen CLI- und MCP-Clients.
+- Unabhängige Ausgabe- und Aktivitätscursor, damit ein Leser nicht die Daten eines anderen verbraucht.
+- Sichtbare Agent-Schreibvorgänge in verbundenen Terminals ohne Änderung der rohen Session-Ausgabe.
+- Direkte menschliche Eingabe einschließlich eines entfernten `Ctrl+C`, während die KI verbunden bleibt.
+- Trennen eines Clients, ohne die von anderen Clients genutzte Session zu schließen.
+- Serielle Geräteerkennung mit nativen Zielnamen unter Windows, Linux und macOS, TOML-Profilen und privaten Direktverbindungen, wenn keine Freigabe gewünscht ist.
+- MCP über stdio oder Streamable HTTP; der gemeinsame CLI-Ablauf verwendet den HTTP Session Host.
+- CLI-Versand und -Empfang von Dateien und Verzeichnissen in begrenzten Datenblöcken über eine vorhandene serielle Session, mit SHA-256-Prüfung und sicherem Entpacken in einem Zwischenverzeichnis.
 
-```bash
-channelterm file send firmware.bin --session SER-1
-channelterm file receive /tmp/log.txt ./log.txt --session SER-1
-channelterm file send ./build/release /tmp/release --session SER-1
+## Beispielabläufe
+
+### Embedded-Linux-Debugging
+
+Verbinden Sie sich einmal mit dem Board. Die KI liest das aufbewahrte Bootprotokoll und führt eine gezielte Diagnose aus, während der Entwickler dieselbe Geräteausgabe beobachtet und in der laufenden Shell reagiert.
+
+### Die KI bedient, der Mensch beobachtet
+
+An einem inaktiven Bash-Prompt sendet die KI mit `terminal_exec` einen nicht interaktiven Befehl. Die verbundene CLI zeigt ihn einmal als `AI`-Aktivitätsblock und danach die tatsächlich vom Gerät zurückgegebenen Bytes. Befehl und interne Initialisierung bleiben aus der Bash-History heraus.
+
+### Der Mensch greift ein
+
+Der Mensch kann in die gemeinsame Session tippen oder `Ctrl+C` an das entfernte Terminal senden, danach weiter beobachten oder sich mit `Ctrl+] q` trennen. Eine kurze `terminal_exec`-Lease sperrt vorübergehend menschliche Eingaben. Normale rohe Schreibvorgänge werden auf Byte-Ebene serialisiert, jedoch ohne Abstimmung des Shell-Zustands; Clients müssen daher weiterhin widersprüchliche rohe Befehlsfolgen vermeiden.
+
+## Funktionsweise
+
+```text
+Human CLI ---------+
+                   |
+                   v
+            Session Host / Manager
+                   |
+AI via MCP --------+--> Session --> Serial Transport <--> Device
+                        |    |
+                        |    `-- serialized writes
+                        `------- retained raw output
 ```
 
-Wird beim Senden kein entferntes Ziel angegeben, landet die Datei oder das Verzeichnis standardmäßig
-unter `/tmp/cterm/mcp-files/`. Der interaktive Kurzbefehl verwendet
-`/tmp/cterm/user-files/`. ChannelTerm erstellt fehlende Verzeichnisse und wählt Suffixe wie `_1`
-oder `_2`, damit vorhandene Inhalte nicht überschrieben werden.
+Der Session Host besitzt den physischen Port und verwaltet die Session-Lebensdauer. Ein Serial Transport öffnet einen protokollneutralen Channel. Die Session besitzt dessen einzigen Leser, die begrenzte Aufbewahrung von Ausgabe und Aktivität im Speicher sowie die Schreibserialisierung. CLI- und MCP-Adapter nutzen dasselbe Core-Verhalten. Darstellung wie Hervorhebung und der `AI`-Aktivitätsblock bleibt außerhalb der gespeicherten Terminaldaten.
 
-Das Ziel muss eine Linux-Shell mit den erforderlichen Standardbefehlen sein. Voraussetzungen,
-Überschreibschutz, Abbruch und SHA-256-Prüfung beschreibt der
-[Ablauf zur Dateiübertragung](docs/getting-started/file-transfer.md).
+Gemeinsame Session-Referenzen wie `SER-1` gelten nur innerhalb des besitzenden Host-Prozesses. Das Stoppen dieses Hosts schließt seine Sessions; das Trennen eines einzelnen Clients nicht.
 
-## Installation und Build
+## Installation
 
 Laden Sie unter [Releases](https://github.com/akira-init1/ChannelTerm/releases) das Archiv für Ihr
 Betriebssystem und Ihre Architektur herunter und prüfen Sie es anhand der `SHA256SUMS` derselben
@@ -305,11 +385,20 @@ unterstützt außerdem `--connection-policy ask|auto|deny`. `--config` ändert n
 - [Seriellen Terminalablauf verwenden](docs/getting-started/serial-terminal.md)
 - [SSH-Shell verwenden](docs/getting-started/ssh-terminal.md)
 - [Eine Session teilen](docs/getting-started/shared-session.md)
-- [Dateien übertragen](docs/getting-started/file-transfer.md)
+- [Dateiübertragungsablauf](docs/getting-started/file-transfer.md)
 - [MCP-Server](docs/getting-started/mcp-server.md)
 - [CLI-Referenz](docs/reference/cli.md)
 - [MCP-Werkzeugreferenz](docs/reference/mcp-tools.md)
 - [Kennungen und Referenzen](docs/reference/identifiers.md)
+- [Architekturübersicht](docs/architecture/overview.md)
+
+Für genaue Befehlsoptionen und Standardwerte ist die `--help`-Ausgabe des laufenden Programms maßgeblich.
+
+## Ausblick
+
+Serielle Verbindungen und SSH-PTY-Shells sind implementierte Transports; dedizierte SFTP- und ältere SCP-Dateiclients stehen ebenfalls bereit. Beliebiges SSH exec, Telnet und stärkere Koordination mehrerer Schreiber bleiben zukünftige Richtungen, keine implementierten Funktionen oder Release-Zusagen.
+
+ChannelTerm implementiert derzeit weder JTAG/OpenOCD noch virtuelle serielle Geräte, eine integrierte KI oder Multi-Agent-Orchestrierung.
 
 ## Lizenz
 

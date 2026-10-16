@@ -1,4 +1,4 @@
-[English](README.md) | [Deutsch](README.de.md) | [Español](README.es.md) | [Français](README.fr.md) | 日本語 | [한국어](README.ko.md) | [Русский](README.ru.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md)
+[English](README.md) | [Deutsch](README.de.md) | [Español](README.es.md) | [Français](README.fr.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Русский](README.ru.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md)
 
 # ChannelTerm
 
@@ -155,7 +155,7 @@ HTTP MCP クライアントは `http://127.0.0.1:37099/mcp` を使用して同�
 AI クライアントが Session を作成または接続できます。準備完了後に出力がないのは正常です。Host と
 そのすべての Session を終了するときは `Ctrl+C` を押します。
 
-## 操作キー
+接続中は次のキーを使用できます。
 
 ```text
 Ctrl+C      リモート端末へ 0x03 を送信
@@ -167,18 +167,7 @@ Ctrl+] f    ローカルのファイル送受信メニューを開く
 Ctrl+] Esc  ローカルエスケープモードをキャンセル
 ```
 
-## AI を同じ Session に接続する
-
-次を実行します。
-
-```bash
-channelterm init --mcp
-```
-
-HTTP を選ぶと、対応する Codex、Claude Code、OpenCode、Zoo Code クライアントがローカル共有
-エンドポイント `http://127.0.0.1:37099/mcp` を使用します。AI は `SER-1` を一覧、読み取り、操作
-できます。既知のアイドル状態の Bash プロンプトでは `terminal_exec` を優先し、生キー入力や
-対話型プログラムには `terminal_write` を使用します。
+対応する AI クライアントを同じ Host に接続するには、`channelterm init --mcp` を実行して HTTP を選び、クライアントから `SER-1` を一覧または操作します。認証とクライアントの利用手順は [MCP Server](docs/getting-started/mcp-server.md) を参照してください。
 
 再利用可能なワークフローガイダンスを利用するには、Agent Skills 対応クライアントに同梱の
 [`cterm-serial-debug` Agent Skill](docs/getting-started/mcp-server.md#install-the-bundled-agent-skill)を
@@ -198,34 +187,125 @@ HTTP を選び、クライアントを設定します。次に `channelterm mcp 
 `terminal_open_serial` を呼び出す必要があり、Host がポートを自動的に開くことはありません。
 Host は通常 `Ctrl+C` で停止し、その際に Host が所有する Sessions も閉じます。
 
+## 共有端末の実例
+
+接続中の CLI は Agent のコマンドをローカルの `AI` アクティビティブロックとして表示します。`terminal_exec` はそのコマンドをアイドル状態の Bash の履歴に残しません。ブロックに続く行はデバイスの生の端末出力であり、短いコマンドリースが解放されると人間が再び入力できます。
+
+```bash
+root@board:~#
+
+──────── AI ────────
+[18:52:31] >> echo agent-check
+────────────────────
+agent-check
+root@board:~# echo human-still-here
+human-still-here
+root@board:~#
+```
+
+実際のコマンド出力は接続先のデバイスによって異なります。`AI` ブロックは構造化 Session イベントから生成されるローカル表示で、デバイスのバイトストリームや保存された端末出力には挿入されません。生のキー入力や対話型プログラムには引き続き `terminal_write` を使用し、デバイス本来の履歴動作を保ちます。
+
+## ChannelTerm を使う理由
+
+従来のシリアル端末では、人間が物理接続を利用します。
+
+```text
+Human ---- terminal ---- Serial device
+```
+
+AI 専用のシリアルツールでは AI が接続を利用し、人間はライブ端末に参加できません。
+
+```text
+AI ---- MCP / serial ---- Serial device
+
+Human         (not attached)
+```
+
+ChannelTerm は 1 本の物理接続を共有 Session に保持します。
+
+```text
+                         +---- Human terminal
+                         |
+Serial device ---- Session
+                         |
+                         +---- AI / MCP client
+```
+
+これにより、ハードウェアのデバッグ中も AI の操作を観察でき、人間も参加し続けられます。共有は同じポートを開き直すだけではありません。各クライアントは独立したカーソルで保持された生の出力を読み、すべての書き込みは同じ Session を通ります。
+
+## AI、ファイル、ローカル操作
+
+同じ共有シリアル Session で通常のファイルやディレクトリも転送でき、AI クライアントや別途インストールするボード側の転送エージェントは不要です。実行中の共有 `attach` で `Ctrl+]`、続けて `f` を押すと、ガイド付き送受信メニューが開きます。ディレクトリには標準 tar と、確認応答を伴いキャンセルしやすいチャンク転送を使用します。同じ操作はコマンドでも実行できます。
+
+```bash
+channelterm file send firmware.bin --session SER-1
+channelterm file receive /tmp/log.txt ./log.txt --session SER-1
+channelterm file send ./build/release /tmp/release --session SER-1
+channelterm file receive /var/log/myapp ./myapp --session SER-1
+```
+
+コマンドでリモートの宛先を省略すると `/tmp/cterm/mcp-files/` に保存され、対話型ショートカットは `/tmp/cterm/user-files/` を使用します。ChannelTerm は不足している宛先ディレクトリ階層を作成し、以後の転送で再利用します。Linux shell にはネイティブの `mkdir`、`stty`、`dd`、`wc`、`sha256sum`、`sleep` が必要で、ディレクトリには `tar` も必要です。ChannelTerm はサイズを制限したチャンクを転送して進捗を報告し、ファイルのバイト列とディレクトリの tar ストリームをエンドツーエンドの SHA-256 で検証します。ディレクトリ転送はターゲット側の一時アーカイブを使うため、キャンセル時は現在のチャンク完了後に停止し、残りのディレクトリ全体を送り切る必要はありません。一時的なファイル転送リースはコマンド終了まで他の ChannelTerm 書き込みをブロックします。リース中に付属のいずれかのアタッチメントで `Ctrl+C` を押すと、既定の選択が「いいえ」のローカルキャンセル確認が開きます。それ以外では通常のリモート端末操作として機能します。前提条件と制限は[ファイル転送ワークフロー](docs/getting-started/file-transfer.md)を参照してください。
+
+AI を同じ Session に参加させるには、MCP クライアントに同じ Streamable HTTP エンドポイントを設定します。
+
+```text
+http://127.0.0.1:37099/mcp
+```
+
+AI は MCP Session ツールで `SER-1` を一覧・読み取りし、`terminal_exec` でアイドル状態の Bash コマンドを実行したり、`terminal_write` で明示的に生の端末バイトを送ったりできます。[MCP ワークフロー](docs/getting-started/mcp-server.md)と[ツールリファレンス](docs/reference/mcp-tools.md)を参照してください。`channelterm init --mcp` はクライアント設定をインストールし、`channelterm init --mcp-show` は設定を表示します。どちらも HTTP または stdio の選択を求め、既定は HTTP です。表示された HTTP 設定にはローカルの Bearer 資格情報が含まれるため、共有やコミットをしないでください。
+
+`Ctrl+]` でローカルエスケープモードに入り、利用可能なコマンドをローカルに表示します。`Ctrl+] f` は現在のアタッチメントでファイル／ディレクトリのガイド付き送受信を開始します。既定の宛先は `/tmp/cterm/user-files/<basename>` と `./<basename>` で、既存データを上書きしないよう `_1`、`_2` を選びます。`Ctrl+] t` は既定でオフであり、確実に識別できるシェルプロンプトだけにローカルの `[HH:MM:SS]` 時刻を付けます。共有 Session や MCP 出力は変えません。
+
 HTTP Host は Bearer token を必要とし、既定ではループバックだけを待ち受けます。組み込み CLI
 はローカルユーザーの token を自動的に読み取ります。[信頼できる LAN で待ち受ける](docs/getting-started/mcp-server.md#listen-on-a-lan)
 こともできますが、リモートクライアントは Host の到達可能な LAN アドレスを使用し、
 `Authorization` ヘッダーで同じ token を送信する必要があります。TLS と追加のネットワークアクセス
 制御なしで信頼できないネットワークへ公開しないでください。
 
-## ファイル転送
+## できること
 
-共有 Session を通してファイルやディレクトリを送受信できます。実行中の共有 `attach` で
-`Ctrl+]` を押してから `f` を押すと、ガイド付き送受信メニューが開きます。同じ操作は
-コマンドからも実行できます。
+- Host が所有する 1 本のシリアル接続を、人間の CLI と MCP クライアントで共有。
+- 独立した出力・アクティビティカーソルにより、ある読み取り側が他の読み取り側のデータを消費することを防止。
+- 生の Session 出力を変更せず、接続中の端末に Agent の書き込みを表示。
+- AI が接続したまま、人間がリモートへの `Ctrl+C` を含む直接入力を実行。
+- 他のクライアントが利用する Session を閉じずに、クライアントだけを切断。
+- Windows、Linux、macOS のネイティブなターゲット名によるシリアル検出、TOML Profile、共有不要時のプライベート直接接続。
+- stdio または Streamable HTTP 上の MCP。共有 CLI ワークフローは HTTP Session Host を使用。
+- 既存のシリアル Session 上で、サイズを制限した転送による CLI のファイル／ディレクトリ送受信、SHA-256 検証、安全な一時領域でのディレクトリ展開。
 
-```bash
-channelterm file send firmware.bin --session SER-1
-channelterm file receive /tmp/log.txt ./log.txt --session SER-1
-channelterm file send ./build/release /tmp/release --session SER-1
+## ワークフローの例
+
+### 組み込み Linux のデバッグ
+
+ボードへの接続は一度だけです。AI が保持された起動ログを読み、目的を絞った診断を実行する間、エンジニアは同じデバイス出力を観察してライブシェルで応答します。
+
+### AI が操作し、人間が観察する
+
+アイドル状態の Bash プロンプトで、AI が `terminal_exec` により非対話型コマンドを送ります。接続中の CLI はコマンドを `AI` アクティビティブロックとして一度表示し、その後にデバイスが返した実際のバイトを表示します。コマンドと内部の初期化処理は Bash の履歴に残りません。
+
+### 人間が介入する
+
+人間は共有 Session に入力したり、リモート端末に `Ctrl+C` を送ったりしてから、観察を続けるか `Ctrl+] q` で切断できます。短い `terminal_exec` リース中は人間の入力が一時的にロックされます。通常の生の書き込みはバイト単位で直列化されますが、シェル状態の調停は行わないため、クライアント間で競合する生のコマンド列を避ける必要があります。
+
+## 仕組み
+
+```text
+Human CLI ---------+
+                   |
+                   v
+            Session Host / Manager
+                   |
+AI via MCP --------+--> Session --> Serial Transport <--> Device
+                        |    |
+                        |    `-- serialized writes
+                        `------- retained raw output
 ```
 
-送信時にリモートの宛先を省略すると、ファイルまたはディレクトリは既定で
-`/tmp/cterm/mcp-files/` に保存されます。対話型ショートカットは
-`/tmp/cterm/user-files/` を使用します。ChannelTerm は必要なディレクトリを作成し、同名の
-宛先がある場合は既存内容を上書きしないよう `_1`、`_2` などの名前を選びます。
+Session Host は物理ポートと Session のライフサイクルを所有します。Serial Transport はプロトコルに依存しない Channel を開き、Session は単一の Channel 読み取り処理、上限のあるメモリ内の出力・アクティビティ保持、書き込みの直列化を担当します。CLI と MCP のアダプターは同じ Core の動作を使います。ハイライトや `AI` アクティビティブロックなどの表示処理は、保存された端末データの外で行います。
 
-ターゲット側は必要な標準コマンドを備えた Linux Shell である必要があります。前提条件、上書き
-保護、キャンセル、SHA-256 検証については[ファイル転送ワークフロー](docs/getting-started/file-transfer.md)
-を参照してください。
+`SER-1` などの共有 Session 参照は、所有元の Host プロセス内でのみ有効です。Host を停止するとその Session は閉じますが、クライアント 1 つの切断では閉じません。
 
-## インストールとビルド
+## インストール
 
 [Releases](https://github.com/akira-init1/ChannelTerm/releases) から OS とアーキテクチャに対応する
 アーカイブをダウンロードし、同じリリースの `SHA256SUMS` と照合してください。展開先のディレクトリで
@@ -298,10 +378,20 @@ channelterm serial --config ./channelterm.toml --profile board
 - [シリアル端末ワークフロー](docs/getting-started/serial-terminal.md)
 - [SSH シェルワークフロー](docs/getting-started/ssh-terminal.md)
 - [共有 Session](docs/getting-started/shared-session.md)
+- [ファイル転送ワークフロー](docs/getting-started/file-transfer.md)
 - [MCP Server](docs/getting-started/mcp-server.md)
 - [CLI リファレンス](docs/reference/cli.md)
 - [MCP ツールリファレンス](docs/reference/mcp-tools.md)
 - [識別子と参照](docs/reference/identifiers.md)
+- [アーキテクチャ概要](docs/architecture/overview.md)
+
+正確なコマンドフラグと既定値は、実行中のプログラムの `--help` 出力を参照してください。
+
+## ロードマップ
+
+シリアルと SSH PTY シェルは実装済みの Transport です。専用の SFTP および従来の SCP ファイルクライアントも利用できます。任意の SSH exec、Telnet、より強い複数書き込み側の協調は今後の方向性であり、実装済み機能やリリースの約束ではありません。
+
+ChannelTerm は現在、JTAG/OpenOCD、仮想シリアルデバイス、組み込み AI、マルチエージェントのオーケストレーションを実装していません。
 
 ## ライセンス
 
