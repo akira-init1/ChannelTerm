@@ -13,13 +13,17 @@ import (
 	"github.com/akira-init1/ChannelTerm/internal/core/session"
 )
 
-// TestGDBExternalPTY uses real independently launched GDB/gdbserver and a Linux
-// PTY. Target preparation uses the existing terminal API, and only bridge
-// management/reporting uses debug_bridge_*. It does not validate Windows/WSL or ARM boards.
-func TestGDBExternalPTY(t *testing.T) {
+type externalBridgeFixture struct {
+	*debugFixture
+	ctx                                         context.Context
+	dir, helper, ttyState, bridgeID, descriptor string
+}
+
+func newExternalBridgeFixture(t *testing.T, timeout time.Duration) *externalBridgeFixture {
+	t.Helper()
 	f := newDebugFixture(t) // Opt-in: CHANNELTERM_TEST_GDB=1, with GDB tools on PATH.
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
-	defer cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	t.Cleanup(cancel)
 	dir := t.TempDir()
 	helper := filepath.Join(dir, "channelterm")
 	build := exec.CommandContext(ctx, "go", "build", "-o", helper, "./cmd/channelterm")
@@ -64,22 +68,32 @@ func TestGDBExternalPTY(t *testing.T) {
 	if err := os.WriteFile(descriptor, data, 0600); err != nil {
 		t.Fatal(err)
 	}
+	return &externalBridgeFixture{debugFixture: f, ctx: ctx, dir: dir, helper: helper, ttyState: ttyState, bridgeID: id, descriptor: descriptor}
+}
+
+// TestGDBExternalPTY uses real independently launched GDB/gdbserver and a Linux
+// PTY. It validates neither a Windows Host nor an ARM board.
+func TestGDBExternalPTY(t *testing.T) {
+	x := newExternalBridgeFixture(t, 90*time.Second)
+	f, ctx, dir, helper, ttyState, id, descriptor := x.debugFixture, x.ctx, x.dir, x.helper, x.ttyState, x.bridgeID, x.descriptor
+	quote := func(s string) string { return "'" + strings.ReplaceAll(s, "'", "'\\''") + "'" }
+
 	args := []string{"--nx", "--nh", "--batch", "-iex", "set auto-load off", "-iex", "set debuginfod enabled off", f.elf}
 	commands := []string{
 		"set pagination off", "set confirm off", "set sysroot /",
 		"target remote | " + quote(helper) + " rsp-client --connection " + quote(descriptor),
-		"break add", "continue", "step", "next", "finish", "next", `printf "SUM_VALUE=%d\n", sum`, "bt", "detach",
+		"break add", "continue", "info registers", `printf "PC_VALUE=%lx\n", $pc`, "step", "next", "finish", "next", `printf "SUM_VALUE=%d\n", sum`, "bt", "detach",
 	}
 	for _, command := range commands {
 		args = append(args, "-ex", command)
 	}
 	// This process is owned by the external test driver, never Application.
 	out, err := exec.CommandContext(ctx, "gdb", args...).CombinedOutput()
-	if err != nil || !strings.Contains(string(out), "SUM_VALUE=7") || !strings.Contains(string(out), "#0") || !strings.Contains(string(out), "add (") {
+	if err != nil || !strings.Contains(string(out), "SUM_VALUE=7") || !strings.Contains(string(out), "#0") || !strings.Contains(string(out), "add (") || !strings.Contains(string(out), "PC_VALUE=") {
 		log, _ := os.ReadFile(filepath.Join(dir, "gdbserver.log"))
 		t.Fatalf("external GDB: %v\n%s\nserver: %s", err, out, log)
 	}
-	t.Log("independent GDB confirmed breakpoint, step/next/finish, sum=7, backtrace, and detach over TLS/PTY")
+	t.Log("independent GDB confirmed breakpoint, step/next/finish, sum=7, registers, backtrace, and detach over TLS/PTY")
 	// The external driver reports only after executing GDB. Reporting never
 	// substitutes for execution and deliberately omits the connection command.
 	f.call(t, "debug_bridge_report", map[string]any{"bridge_id": id, "owner": f.owner, "sequence": 1, "kind": "command", "text": strings.Join(commands[4:], "\n")})

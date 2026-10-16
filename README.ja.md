@@ -37,6 +37,8 @@ debug_start -> break_insert -> continue -> debug_events -> next/step/finish -> d
 
 独立して実行する GDB には、`debug_bridge_*` が準備済みのシリアル Session を認証付き TCP ブリッジで公開します。ChannelTerm は GDB や gdbserver を起動しません。GDB から `channelterm rsp-client` を使用します。認証済みの接続は RSP が無通信でもリースを自動更新し、最大有効期間は 24 時間です。切断後もシェル／TTY の復元を検証するまで排他リースを保持し、明示的な終了では Session も閉じます。Windows/WSL2 の設定と PTY・実機を区別した検証手順は[外部ブリッジのワークフロー](docs/getting-started/gdb-debugging.md#external-gdb-over-a-prepared-serial-session)を参照してください。
 
+外部ブリッジは、準備済みのシリアル接続で通信できる互換 gdbserver と、ターゲットに対応する GDB があれば、Linux が動作するあらゆる開発ボードを対象にします。ブリッジはボードの機種やターゲットの CPU アーキテクチャを制限しません。ベアメタルのデバッグは対象外です。
+
 ## SSH 経由のファイル転送
 
 SFTP でファイル転送とリモートファイル管理を行えます。対応する POSIX サーバーでは従来の SCP も使用できます。

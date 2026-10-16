@@ -147,10 +147,58 @@ launcher, target Python supervisor, or MI operation is required by the bridge. I
 breakpoints, attach to a target process, or implement KGDB control. Its lifecycle and management
 contracts are in the [MCP reference](../reference/mcp-tools.md#external-rsp-bridge-tools).
 
+The target scope is user-space debugging on **any Linux development board with a compatible
+gdbserver** that can carry RSP over the prepared serial connection. The bridge imposes no board
+vendor, model, or CPU architecture restriction; use GDB and symbols matching the target.
+Bare-metal debugging is outside scope. Windows/WSL2 and the ARM GDB command below are examples,
+not restrictions on supported Linux boards. Hardware validation remains separate from this scope.
+
+### Windows Host and MCP connection
+
+Keep one persistent Host running in a Windows PowerShell window:
+
+```powershell
+channelterm mcp --transport http --listen 127.0.0.1:37099
+```
+
+Wait for `MCP Streamable HTTP listening on http://127.0.0.1:37099/mcp`; silence afterward is normal.
+Configure the MCP client using `channelterm init --mcp` (select HTTP), or its secret/header settings
+as described in [MCP server setup](mcp-server.md#streamable-http). Do not print its Bearer token.
+Use `terminal_list_sessions` to confirm that Codex reaches this Host. Stop with `Ctrl+C` only after
+restoring/closing active bridges; shutting down the Host closes its Sessions.
+
+The two connections serve different purposes:
+
+```text
+Codex -- authenticated MCP HTTP :37099 --> Windows ChannelTerm
+                                             |
+WSL2 GDB --> Linux rsp-client -- TLS/TCP --> RSP bridge
+                              data + control  |
+                                       Serial Session --> COM --> Linux board / gdbserver
+```
+
+MCP creates/manages the bridge. GDB's data and helper control connections use the bridge's actual
+returned TCP port, never the MCP HTTP endpoint. The helper receives only the private `connection`
+object, not the MCP Bearer token or management `owner`.
+
 ### Prepare and open
 
 1. Open the serial Session on the Windows Host using the normal serial workflow. Record the actual
    port, baud, data bits, parity, stop bits, and flow-control settings. Do not guess board settings.
+   Call `terminal_open_serial` through MCP. This is an **illustrative configuration**, valid only if
+   every setting has been independently confirmed for your board:
+
+   ```json
+   {"port":"COM8","baud":115200,"data_bits":8,"parity":"none","stop_bits":"1","flow_control":"none","wake":false,"label":"linux-board"}
+   ```
+
+   Save the returned opaque `session_id`; the example `SER-1` below is only its convenience reference.
+   Use `terminal_read` to inspect the prompt. Check `uname -m`, `command -v gdbserver`, and
+   `gdbserver --version` through the terminal tools before takeover. The board must run a compatible
+   Linux gdbserver; board model and CPU architecture are not restricted by the bridge. Confirm
+   executable permissions, target ABI/libraries, ptrace permission, and an ELF with matching symbols
+   in WSL. If gdbserver is missing, install/build it using the board's supported toolchain before
+   starting the bridge.
 2. If the target needs an ELF, first use the existing [file transfer](file-transfer.md) workflow at
    its idle shell: `channelterm file send ./addition /tmp/addition --session SER-1` (select the owning
    `--endpoint` when needed). Run it where that local path is readable and the Host is reachable.
@@ -185,6 +233,21 @@ starts at the creation cursor; old terminal history is not replayed.
 Save the returned `connection` object, containing `address`, `fingerprint`, and secret `token`, as
 `bridge.json` in WSL. Use `umask 077` when creating it and `chmod 600 bridge.json`; do not put it in
 source control or paste it into public logs. Keep the separate management `owner` private too.
+**ChannelTerm does not transfer bridge.json into WSL.** The MCP client/operator must save or copy
+only that object, as UTF-8 JSON without a BOM. For example, after the MCP client has exported it to
+an account-private Windows file with restrictive ACLs, copy it into WSL's Linux filesystem:
+
+```bash
+umask 077
+mkdir -p "$HOME/.local/state/channelterm-rsp"
+chmod 700 "$HOME/.local/state/channelterm-rsp"
+install -m 600 /mnt/c/Users/EXAMPLE/private/bridge-connection.json "$HOME/.local/state/channelterm-rsp/bridge.json"
+```
+
+Replace the source path with the actual private export. Do not put the JSON in command arguments,
+shell history, terminal transcripts, or a shared clipboard. Do not rely on `chmod` on a Windows
+mount to provide Linux file privacy. Remove the private export/copy when the bridge ends.
+
 Retain `status.bridge_id` for management calls. Exact retries of the same start request return the
 same operation and descriptor. Current `rsp-client` automatically maintains the 60-second management
 lease while connected, including long GDB commands, breakpoint waits, and paused targets with no RSP
@@ -198,17 +261,28 @@ renewal extends that limit.
 ### Connect independent GDB from WSL2
 
 Use a Linux ChannelTerm executable in WSL for the pipe client helper. The Windows Host does
-not install it or launch GDB. Start the ARM-capable GDB yourself with matching symbols and sysroot:
+not install it or launch GDB. Verify `channelterm rsp-client --help` and your GDB's `--version`
+inside WSL. Choose the GDB from the target SDK (or a multiarch GDB supporting the target), with the
+matching ELF, architecture/ABI, and target sysroot. The debugger's target architecture is separate
+from the Linux helper executable's WSL host architecture.
+
+Start the GDB matching your target yourself. This example uses a 32-bit ARM Linux toolchain;
+replace its GDB executable for other targets. Paths, function names, and variables are examples:
 
 ```text
 $ arm-linux-gnueabihf-gdb /work/build/addition
-(gdb) target remote | channelterm rsp-client --connection /work/private/bridge.json
+(gdb) set sysroot /work/sdk/target-sysroot
+(gdb) target remote | channelterm rsp-client --connection /home/EXAMPLE/.local/state/channelterm-rsp/bridge.json
 (gdb) break add
 (gdb) continue
+(gdb) step
 (gdb) next
+(gdb) finish
 (gdb) print sum
+(gdb) info registers
 (gdb) bt
 (gdb) detach
+(gdb) quit
 ```
 
 The executable name and source locations depend on the target toolchain. GDB launches the pipe
@@ -222,14 +296,33 @@ dynamic fallback. Each Host continues from its previous allocation and wraps at 
 Set `strict_port_pool: true` on `debug_bridge_start` to fail when this pool is exhausted. An explicit
 `listen_address` overrides the pool policy; fixed ports never silently change, and `:0` requests an
 OS dynamic port. Always use the returned address. MCP HTTP remains on its separate default **37099**.
-The pool size is not a device limit or a concurrency benchmark. With WSL mirrored networking, WSL can reach
-Windows services using IPv4 loopback. With NAT networking, use the Windows host address visible
-from WSL instead. See Microsoft's [WSL networking guidance](https://learn.microsoft.com/en-us/windows/wsl/networking).
-For NAT, explicitly provide `listen_address` with that particular Windows interface IP and port
-zero, plus `allowed_peer` with the actual WSL client IP. Wildcard addresses are rejected. Scope any
-Windows firewall rule to that interface, TCP port, and client IP; ChannelTerm does not change
-firewall rules, WSL configuration, or port forwarding. WSL addresses can change after restart.
-Do not change the descriptor's certificate fingerprint or token when choosing a reachable address.
+The pool size is not a device limit or a concurrency benchmark. Existing Host retention remains
+128 bridge records; this is separate from port allocation and is not a device throughput claim.
+
+For **mirrored networking**, use IPv4 loopback for both sides; Windows 11 22H2 or later supports this
+mode. For **NAT**, find the Windows host gateway and the WSL source address, then select that specific
+Windows interface for the bridge. Microsoft's [WSL networking guidance](https://learn.microsoft.com/en-us/windows/wsl/networking)
+describes these differences. Inspect in WSL:
+
+```bash
+ip -4 route show default
+ip -4 route get WINDOWS_HOST_IP
+```
+
+Use the gateway from the first command in the second (replace `WINDOWS_HOST_IP`); its `src` is the
+client IP to allow. Add `listen_address: "WINDOWS_HOST_IP:37100"` and
+`allowed_peer: "WSL_SOURCE_IP"` to the start request, replacing both placeholders with numeric
+addresses. A fixed port has no fallback. Alternatively use `WINDOWS_HOST_IP:0` and read the actual
+port from the result; explicit `:0` bypasses the preferred pool and its strict policy. Restrict the
+Windows firewall rule to this interface, actual TCP port, and client IP; both data and control use
+that same port. ChannelTerm does not change firewall rules, WSL settings, or forwarding. Addresses
+can change after restart. Wildcard binds are rejected; do not replace the pin/token to troubleshoot.
+
+If Codex's MCP client also runs inside NAT-mode WSL, configure the **MCP** Host separately with
+`--listen WINDOWS_HOST_IP:37099` and that client's authenticated HTTP URL on the trusted host network.
+If Codex runs on Windows, MCP can remain on Windows loopback. Bridge `allowed_peer` does not filter
+MCP HTTP; its Bearer credential belongs only in the MCP client's secret settings. Keep the two
+credentials and listener configurations distinct.
 
 TLS 1.3, certificate pinning, and token authentication apply even on loopback. The first authorized
 data connection consumes the endpoint; other data connections and reconnects cannot take over.
@@ -299,6 +392,30 @@ It closes the endpoint and serial Session without sending protocol commands or c
 Heartbeat expiry and serial I/O/data loss also fail closed. Reopening the port does not itself reset
 the target. Confirm its state independently before reusing it.
 
+### Failure and recovery decisions
+
+| Observation | Bridge/lease consequence | Operator action |
+| --- | --- | --- |
+| Connected, paused or waiting for a breakpoint | Fresh control responses maintain both leases; RSP may stay silent | Continue GDB; observe `auto_keepalive` and the absolute deadline. |
+| GDB reports successful `detach` | GDB normally disconnects; lease remains held | Confirm gdbserver returned to the shell, then call restore with the saved TTY state. |
+| GDB unexpectedly exits or rsp-client is killed | Data EOF stops control and automatic renewal; target remains unverified | Inspect target through an independent authorized path; do not assume detach. |
+| Network drops or a control socket remains open but stops answering | Challenge timeout terminates data; remaining management grace is bounded | Diagnose routing/firewall/helper state. Reconnect cannot take over the consumed bridge. |
+| Management deadline, internal lease, or 24-hour limit expires | Session closes; ordinary writes cannot resume | Resolve target state independently before reopening a serial Session. |
+| Restore returns `restored` / `shell_verified` | Fresh shell response and exact TTY readback passed; lease released | Resume terminal work in the preserved Session. |
+| Restore fails, times out, or no shell can be confirmed | Failed restoration closes the Session; lack of confirmation refuses to probe | Keep target state unknown; use board-side recovery, then establish a new Session. |
+
+TCP disconnect is **not evidence that gdbserver exited**. Do not force ordinary lease release,
+send speculative shell input into RSP, or claim recovery because reopening COM succeeded. If an
+independent board-management path cannot establish a shell, end host ownership explicitly:
+
+```json
+{"bridge_id":"RSP-example","owner":"EXAMPLE-ONLY-REPLACE-WITH-RANDOM-OWNER"}
+```
+
+Send that object to `debug_bridge_close`. It closes the bridge and serial Session; it does not kill
+or detach the remote program. For recoverable disconnected operations that need more time, send
+the same object to `debug_bridge_renew` before `expires_at`, while respecting `max_expires_at`.
+
 ### Evidence boundaries and diagnostics
 
 Ordinary tests cover TLS authentication, peer filtering, single-client admission, byte transparency,
@@ -306,21 +423,37 @@ lease exclusion/expiry, blocked-write closure, MCP management, and success/failu
 `TestRSPBridgePTYBinaryAndShellRestoration` uses an actual Linux PTY with `cat` as a byte simulator;
 it verifies TTY readback and shell probing, not GDB commands or board behavior. The separate
 `TestGDBExternalPTY` opt-in test uses real, independently launched native GDB/gdbserver and the
-`rsp-client` helper to check breakpoint/step/variable/backtrace/detach behavior over a Linux PTY,
+`rsp-client` helper to check breakpoint/step/variable/register/backtrace/detach behavior over a Linux PTY,
 then publishes the actual commands and results through the independent report interface:
 
 ```bash
 CHANNELTERM_TEST_GDB=1 go test -race ./internal/mcp -run '^TestGDBExternalPTY$' -count=1 -v
 ```
 
-It requires the same local test tools and ptrace permission as the managed suite. Neither native
-PTY test establishes Windows/WSL2/ARM hardware acceptance.
+It requires the same local test tools and ptrace permission as the managed suite. Add the lifecycle
+and 310-second paused-breakpoint tests for real GDB long-duration acceptance:
 
-For real acceptance, record Windows/WSL versions and networking mode, the actual serial settings,
+```bash
+CHANNELTERM_TEST_GDB=1 CHANNELTERM_TEST_RSP_LONG=1 go test -race ./internal/mcp -run '^TestGDBExternalPTY' -timeout 10m -count=1 -v
+```
+
+These also kill the actual GDB/helper process separately, verify that automatic renewal stops and
+ordinary writes stay blocked, and exercise explicit MCP closure. The long test issues no management
+renewal, checks that the RSP output cursor stays unchanged while paused, then steps, inspects,
+detaches, and verifies exact TTY restoration. See [build/test procedures](../development/building-and-testing.md#external-rsp-bridge-verification)
+for prerequisites and evidence levels. Linux tests running inside WSL2 still use a **Linux Host and
+PTY**; they do not exercise a Windows Host, COM driver, NAT/mirrored boundary, or physical board.
+
+For Windows + WSL2 + Linux-board acceptance, execute the Host/open/prepare/connect/recover steps
+above with real values and record Windows/WSL versions and networking mode, the actual serial settings,
 board/target architecture, GDB/gdbserver versions, matching ELF, and independently observed results
-for breakpoints, stepping, variables, and backtrace. Also verify competing writes are refused,
+for breakpoints, `next`/`step`/`finish`, variables, registers, and backtrace. Leave a breakpoint paused
+for at least 310 seconds without MCP renewal, then continue and detach. In separate fresh runs,
+terminate GDB, terminate only its rsp-client, and interrupt the network; confirm automatic renewal
+stops and no ordinary writes are accepted. Recreate the target/bridge between runs because a
+consumed endpoint cannot reconnect. Also verify competing writes are refused,
 unauthorized/second clients cannot connect, disconnect retains the lease, explicit close releases
-the port, and only a verified restore resumes normal writes. Windows/WSL2/ARM board results require
+the port, and only a verified restore resumes normal writes. Windows/WSL2/Linux-board results require
 that environment and must be reported separately from Linux PTY simulation and cross-builds.
 Collect `bridge_id`, lifecycle state/error, lease state, relevant target logs, and the exact test
 commands if behavior differs. Never include the owner, connection token, or private descriptor.

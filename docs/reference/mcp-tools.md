@@ -746,6 +746,9 @@ clears retained operation IDs. No persistent debug log or credentials are create
 These tools manage an independent byte bridge over an already-open serial Session on any supported
 Host OS. They never launch/control GDB or gdbserver. The existing native Linux `debug_start`,
 `debug_command`, `debug_events`, and `debug_stop` contracts remain separate.
+The [target workflow](../getting-started/gdb-debugging.md#external-gdb-over-a-prepared-serial-session)
+supports Linux boards with a compatible gdbserver over serial; it has no board-model or target-CPU
+restriction. Bare-metal debugging is outside scope.
 
 All calls require the secret management `owner` (32..128 characters on start). Management ownership
 is distinct from the generated connection token and internal debug lease capability.

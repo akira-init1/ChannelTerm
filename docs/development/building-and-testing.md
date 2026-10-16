@@ -264,14 +264,32 @@ CHANNELTERM_TEST_GDB=1 go test -race ./internal/mcp -run '^TestGDBExternalPTY$' 
 ```
 
 This test requires GDB/gdbserver/GCC and local ptrace permission, builds a temporary helper, and
-checks breakpoints, step/next/finish, a variable value, backtrace, detach, and exact TTY restoration.
+checks breakpoints, step/next/finish, a variable value, registers, backtrace, detach, and exact TTY restoration.
 It also reports actual external commands/results through MCP and reads them from Session events.
 Ordinary tests cover report authorization, retry ordering, rejected secrets, cancellation and
 heartbeat independence, event-history overwrite, multiple attach observers, retained replay, and
 control-escaped previews. Report failures are followed by successful byte relay in both directions.
 It uses native Linux executables and a PTY, not an ARM board. GDB is launched by the test driver,
 not by the Application bridge. Extracted test tools can use private PATH/LD_LIBRARY_PATH settings.
+The expanded external suite adds real GDB/helper process termination and MCP closure. Enable the
+310-second paused-breakpoint test separately so ordinary CI stays fast:
+
+```bash
+CHANNELTERM_TEST_GDB=1 CHANNELTERM_TEST_RSP_LONG=1 go test -race ./internal/mcp -run '^TestGDBExternalPTY' -timeout 10m -count=1 -v
+```
+
+During the long test no MCP renewal or RSP output occurs; the test checks both leases, then resumes
+step/inspection/detach and verifies exact TTY recovery. Crash tests retain write exclusion and close
+the Session without claiming board-side cleanup. They require Linux pidfds for signalling only the
+disposable helper process. Their fixture builds a native executable and a private connection file.
+
+On a Windows machine, run `go test ./internal/core/debugger -run '^TestBridge' -count=1 -v` to check
+native loopback TLS, port reservation, and keepalive semantics. An equivalent cross-compiled test
+executable may be invoked through Windows interop from WSL; record the OS actually executing it.
+This is endpoint validation, not COM/board validation. Packet blackholes, Windows firewall policy,
+and real serial hardware still require the separate acceptance workflow.
+
 Cross-builds cover all six desktop targets with CGO disabled;
 they are not native Windows validation. Follow the
 [external workflow's evidence checklist](../getting-started/gdb-debugging.md#evidence-boundaries-and-diagnostics)
-for Windows/WSL2/ARM acceptance and record real-board results separately.
+for Windows/WSL2/Linux-board acceptance and record each tested board and architecture separately.

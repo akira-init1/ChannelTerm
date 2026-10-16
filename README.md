@@ -36,6 +36,8 @@ debug_start -> break_insert -> continue -> debug_events -> next/step/finish -> d
 
 For an independently operated GDB, `debug_bridge_*` exposes an already prepared serial Session through an authenticated TCP bridge. ChannelTerm does not start GDB or gdbserver. Use `channelterm rsp-client` from GDB; authenticated connections maintain their leases automatically even while RSP is idle, within a 24-hour maximum lifetime. Disconnect keeps the exclusive lease until shell/TTY restoration is verified, while explicit close also closes the Session. See the [external bridge workflow](docs/getting-started/gdb-debugging.md#external-gdb-over-a-prepared-serial-session) for Windows/WSL2 setup and separate PTY/board validation.
 
+External bridging supports any Linux development board with a compatible gdbserver over the prepared serial connection and a GDB matching the target. The bridge does not restrict board model or target CPU architecture; bare-metal debugging is outside scope.
+
 ## Files over SSH
 
 Use SFTP for file transfer and remote file management, or legacy SCP for compatible POSIX servers:

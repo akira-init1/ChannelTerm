@@ -37,6 +37,8 @@ debug_start -> break_insert -> continue -> debug_events -> next/step/finish -> d
 
 독립적으로 실행하는 GDB는 `debug_bridge_*`가 제공하는 인증된 TCP 브리지를 통해 준비된 직렬 Session에 접근합니다. ChannelTerm은 GDB나 gdbserver를 시작하지 않습니다. GDB에서 `channelterm rsp-client`를 사용합니다. 인증된 연결은 RSP 트래픽이 없어도 임대를 자동 갱신하며, 최대 수명은 24시간입니다. 연결이 끊겨도 셸/TTY 복원을 검증할 때까지 독점 임대를 유지합니다. 명시적으로 브리지를 닫으면 Session도 닫힙니다. Windows/WSL2 설정과 PTY 및 실제 보드를 구분한 검증 절차는 [외부 브리지 워크플로](docs/getting-started/gdb-debugging.md#external-gdb-over-a-prepared-serial-session)를 참조하세요.
 
+외부 브리지는 준비된 직렬 연결로 통신할 수 있는 호환 gdbserver와 대상에 맞는 GDB를 갖춘 모든 Linux 개발 보드를 지원합니다. 브리지는 보드 모델이나 대상 CPU 아키텍처를 제한하지 않으며, 베어메탈 디버깅은 지원 범위에 포함되지 않습니다.
+
 ## SSH 파일 전송
 
 SFTP로 파일을 전송하고 원격 파일을 관리할 수 있으며, 호환되는 POSIX 서버에서는 기존 SCP도 사용할 수 있습니다.
