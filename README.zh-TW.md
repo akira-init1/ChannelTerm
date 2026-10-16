@@ -8,67 +8,72 @@
 ChannelTerm 讓人類與 AI 共用同一個硬體終端 Session。AI 不會取代你的終端：AI 可以讀取、
 操作裝置，而你仍能保持連線、看到 AI 的操作、直接輸入並在需要時介入。
 
-```text
-              實體序列埠裝置
-                    |
-              Serial Transport
-                （單一連線）
-                    |
-                    v
-          ChannelTerm Session SER-1
-             /                 \
-            /                   \
-         人類終端              AI / MCP 用戶端
-    channelterm attach          讀取與寫入工具
-```
-
 ChannelTerm 支援 Windows、Linux 與 macOS 上的序列埠通訊與 SSH PTY shell。它本身不內建 AI，而是透過 MCP 將真實終端 Session 提供給人類及外部 AI 用戶端。
 
-## 透過 MCP 使用使用者態 GDB
+## 為什麼使用 ChannelTerm？
 
-在原生 Linux 上，MCP 用戶端可透過 `debug_start` / `debug_command` / `debug_events` / `debug_stop` 工具接管閒置 Bash Session、設定中斷點、逐步執行、查看變數/執行緒/暫存器並分離。首版要求 ChannelTerm、GDB、gdbserver 和 ELF 位於同一 Linux 環境，支援單一 inferior、all-stop 除錯；只有還原終端機狀態並通過唯一標記 Shell 探測後，才開放一般寫入。
+傳統序列埠終端機讓人類持有實體連線：
 
 ```text
-debug_start -> break_insert -> continue -> debug_events -> next/step/finish -> debug_stop
+Human ---- terminal ---- Serial device
 ```
 
-[工作流程、MCP 呼叫、安全 attach 與本機 PTY 測試範圍](docs/getting-started/gdb-debugging.md).
+僅供 AI 使用的序列埠工具讓 AI 持有連線，但人類無法加入即時終端機：
 
-獨立執行的 GDB 可透過 `debug_bridge_*` 建立的驗證 TCP 橋接存取已準備好的序列埠 Session。ChannelTerm 不啟動 GDB 或 gdbserver。由 GDB 呼叫 `channelterm rsp-client` 連線；驗證連線在 RSP 無流量時也會自動保活，最長生命週期為 24 小時。斷線後保留獨占租約，直到 Shell/TTY 復原驗證成功，明確關閉橋接則同時關閉 Session。Windows/WSL2 設定及 PTY 與開發板分別驗證的步驟請見[外部橋接工作流程](docs/getting-started/gdb-debugging.md#external-gdb-over-a-prepared-serial-session)。
+```text
+AI ---- MCP / serial ---- Serial device
 
-外部橋接適用於所有執行 Linux 的開發板：板端需有可透過已準備好的序列埠連線通訊的相容 gdbserver，並使用與目標相符的 GDB。橋接不限制開發板型號或目標 CPU 架構；裸機除錯不在支援範圍內。
+Human         (not attached)
+```
 
-## 透過 SSH 傳輸檔案
+ChannelTerm 將一條實體連線保留在共用 Session 中：
 
-使用 SFTP 傳輸及管理遠端檔案，或使用傳統 SCP 連線至相容的 POSIX 伺服器：
+```text
+                         +---- Human terminal
+                         |
+Serial device ---- Session
+                         |
+                         +---- AI / MCP client
+```
+
+如此一來，AI 的操作在硬體除錯過程中始終可見，人類也能持續參與。共用不只是重新開啟同一個連接埠：每個用戶端透過獨立游標讀取保留的原始輸出，所有寫入都經過同一個 Session。
+
+## 支援的能力
+
+- 由 Host 持有一條序列埠連線，供人類 CLI 與 MCP 用戶端共用。
+- 獨立的輸出與活動游標，避免一個讀取者消耗另一個讀取者的資料。
+- 在已連線的終端機中顯示 Agent 寫入，同時保持原始 Session 輸出不變。
+- AI 保持連線時，人類仍可直接輸入，包括向遠端傳送 `Ctrl+C`。
+- 退出後來加入的用戶端而不關閉共用 Session；退出擁有臨時 Host 的連線時，該 Host 及其 Sessions 也會關閉。
+- 使用 Windows、Linux 與 macOS 的原生目標名稱探索序列埠，支援 TOML Profile，以及不需要共用時的私人直接連線。
+- 透過 stdio 或 Streamable HTTP 提供 MCP；共用 CLI 流程使用 HTTP Session Host。
+- 透過既有序列埠 Session 進行有界的 CLI 檔案/目錄傳送與接收，支援 SHA-256 驗證及安全的暫存目錄解壓縮。
+
+## 安裝
+
+從 [Releases](https://github.com/akira-init1/ChannelTerm/releases) 下載符合你的作業系統與架構的
+壓縮檔，並與同一版本的 `SHA256SUMS` 核對。解壓縮後，在解壓縮目錄中執行
+`.\channelterm.exe install`（Windows）或 `./channelterm install`（Linux/macOS）。
+使用預先編譯的程式無需安裝 Go。
+
+從原始碼建置需要 Go 1.26 或更新版本。請使用目前仍受支援的修補版本，然後在儲存庫根目錄建置：
 
 ```bash
-channelterm sftp user@192.168.1.50 ls /tmp
-channelterm sftp user@192.168.1.50 put ./firmware.bin /tmp/firmware.bin
-channelterm sftp user@192.168.1.50 get /tmp/log.txt ./log.txt
-channelterm scp user@192.168.1.50 put ./release /tmp/release --recursive
+git clone https://github.com/akira-init1/ChannelTerm.git
+cd ChannelTerm
+go build ./cmd/channelterm
+./channelterm install
 ```
 
-這些命令沿用 SSH 的金鑰/密碼驗證與主機核驗，使用獨立連線，不占用終端 Session。
-覆寫現有檔案需要 `--overwrite`。目錄規則、取消行為及協定限制請見
-[檔案傳輸](docs/getting-started/file-transfer.md#sftp-and-scp-over-ssh)。
+`install` 會將目前執行的二進位檔複製到目前使用者的標準程式目錄，建立 `channelterm` 與 `cterm`
+命令，只在需要時將該目錄加入使用者 PATH，並在缺少設定時初始化最小設定。若命令提示 PATH 已變更，
+請開啟新的終端機。`channelterm uninstall` 會刪除安裝器管理的命令與 PATH 變更，但保留使用者資料；
+`channelterm uninstall --purge` 必須明確確認後才會刪除設定、裝置狀態與本機 HTTP 驗證資訊。
 
-透過共用終端 Session 傳輸檔案使用輕量的 Linux-shell 協定。獨立 SSH 檔案連線使用 SFTP 或傳統 SCP。
-
-## 共用 SSH shell
-
-使用已授權的私鑰（加密私鑰會提示輸入口令），或依提示輸入登入密碼，兩者均不儲存。首次連線至未知伺服器時，核驗顯示的指紋後輸入
-`yes`，將伺服器公鑰儲存至 `~/.ssh/known_hosts`；已知伺服器的金鑰發生變更時拒絕連線。互動提示需要實際終端機：
-
-```bash
-# 終端機 1：開啟 shell，在遠端提示符下執行 uname -a。
-channelterm ssh user@192.168.1.50
-
-# 終端機 2：查看並使用同一個 shell。
-channelterm attach SSH-1
-```
-
-保持第一個命令執行；結束它會關閉該 Host 及其 Session。預設本機共用連接埠必須閒置；若已占用，可用 `--listen` 指定另一個 Host，並使用輸出中的 attach endpoint。私鑰路徑、主機驗證、連接埠與目前限制見 [SSH 使用流程](docs/getting-started/ssh-terminal.md)。
+支援的桌面目標為 Windows、Linux、macOS 的 amd64/arm64。詳見
+[從原始碼建置並安裝](docs/getting-started/build.md)、
+[`install` / `uninstall` 完整契約](docs/reference/cli.md#install-and-uninstall)、
+[設定位置](docs/reference/configuration.md)與[建置及測試](docs/development/building-and-testing.md)。
 
 ## 快速開始：一條命令，一個終端機
 
@@ -81,18 +86,7 @@ channelterm list
 Host 不必處於執行狀態。若無法連線，`list` 會將 MCP 回報為 offline，同時繼續顯示本機裝置與
 Profile。
 
-| 常用參數 | 作用 |
-| --- | --- |
-| `--kind device`、`profile` 或 `session` | 只顯示指定類型；可用逗號組合多個值。 |
-| `--transport serial` | 只顯示序列埠結果。 |
-| `--no-mcp` | 略過 MCP Host 查詢，只顯示本機來源。 |
-| `--long`、`-l` | 在表格中顯示完整的不透明 Session ID。 |
-| `--json` | 輸出供指令稿處理的結構化 JSON。 |
-| `--endpoint URL` | 從非預設 HTTP Host 查詢 Session。 |
-
 完整參數契約請參閱 [CLI 參考](docs/reference/cli.md#list)。
-
-如果已經知道 `COM50` 這類原生目標，可以略過此步驟。
 
 若需要 AI 用戶端加入 Session，請在連入前為支援的用戶端執行一次設定：
 
@@ -155,28 +149,23 @@ Session 時按 `Ctrl+C`。
 Ctrl+C      將 0x03 傳送到遠端終端
 Ctrl+] q    離開目前 CLI；若它擁有暫時 Host，該 Host 也會停止
 Ctrl+] ?    顯示本機跳脫說明
-Ctrl+] ]    將字面 Ctrl+] 傳送到遠端
-Ctrl+] t    切換本機 Shell 提示字元時間戳
-Ctrl+] f    開啟本機檔案傳送/接收選單
-Ctrl+] Esc  取消本機跳脫模式
 ```
 
-若要讓支援的 AI 用戶端加入同一個 Host，請執行 `channelterm init --mcp`，選擇 HTTP，再讓用戶端列出或操作 `SER-1`。驗證與用戶端使用流程請見 [MCP Server](docs/getting-started/mcp-server.md)。
+完整本機快捷鍵見 [CLI 參考](docs/reference/cli.md#attach)；用戶端設定與由 AI 建立 Session 的流程見 [MCP 使用流程](docs/getting-started/mcp-server.md)。
 
 若要取得可重複使用的工作流程指引，請在支援 Agent Skills 的客戶端中安裝儲存庫內附的
 [`cterm-serial-debug` Agent Skill](docs/getting-started/mcp-server.md#install-the-bundled-agent-skill)。
 `channelterm init --mcp` 只會設定 MCP 客戶端，不會安裝 Skill。
 
-從 v0.2.0 起，[Releases](https://github.com/akira-init1/ChannelTerm/releases) 提供
-`channelterm_skills_VERSION.zip`。解壓縮後，依照上述 Skill 安裝說明複製完整的
-`cterm-serial-debug` 目錄。
+HTTP Host 需要 Bearer token，預設僅監聽回環位址。內建 CLI 會讀取本機使用者 token；它也可以
+[監聽受信任的區域網路](docs/getting-started/mcp-server.md#listen-on-a-lan)，遠端用戶端必須使用 Host
+可連線的區域網路位址，並透過 `Authorization` 標頭傳送相同的 token。請勿將沒有 TLS 與額外
+網路存取控制保護的端點直接暴露到不受信任的網路。
 
-AI 也可以自行建立共用 Session。先執行一次 `channelterm init --mcp` 並選擇 HTTP 來設定用戶端，
-接著執行 `channelterm mcp --transport http` 啟動前景持久 Host，再向 AI 提供正確的序列埠目標與
-通訊參數。AI 可以列出序列埠、呼叫 `terminal_open_serial`，再回報產生的 `SER-N`，供人類執行
-`channelterm attach SER-N` 加入。僅啟動 Host 不會開啟任何序列埠；探索策略傳回 `ask` 時仍須
-使用者明確核准。`auto` 傳回 `connect`，但 AI 仍須呼叫 `terminal_open_serial`；Host 永遠不會
-自動開啟序列埠。正常使用 `Ctrl+C` 停止 Host；停止時會關閉它擁有的 Sessions。
+<a id="使用情境"></a>
+<a id="嵌入式-linux-除錯"></a>
+<a id="ai-操作人類觀察"></a>
+<a id="人類介入"></a>
 
 ## 共用終端機實際範例
 
@@ -196,35 +185,41 @@ root@board:~#
 
 命令的實際輸出取決於所連線的裝置。`AI` 活動區塊是依據結構化 Session 事件產生的本機顯示，不會插入裝置位元組串流或儲存的終端機輸出。原始按鍵與互動程式仍使用 `terminal_write`，保留裝置原本的歷程記錄行為。
 
-## 為什麼使用 ChannelTerm？
+## 共用 SSH shell
 
-傳統序列埠終端機讓人類持有實體連線：
+使用已授權的私鑰（加密私鑰會提示輸入口令），或依提示輸入登入密碼，兩者均不儲存。首次連線至未知伺服器時，核驗顯示的指紋後輸入
+`yes`，將伺服器公鑰儲存至 `~/.ssh/known_hosts`；已知伺服器的金鑰發生變更時拒絕連線。互動提示需要實際終端機：
 
-```text
-Human ---- terminal ---- Serial device
+```bash
+# 終端機 1：開啟 shell，在遠端提示符下執行 uname -a。
+channelterm ssh user@192.168.1.50
+
+# 終端機 2：查看並使用同一個 shell。
+channelterm attach SSH-1
 ```
 
-僅供 AI 使用的序列埠工具讓 AI 持有連線，但人類無法加入即時終端機：
+保持第一個命令執行；結束它會關閉該 Host 及其 Session。預設本機共用連接埠必須閒置；若已占用，可用 `--listen` 指定另一個 Host，並使用輸出中的 attach endpoint。私鑰路徑、主機驗證、連接埠與目前限制見 [SSH 使用流程](docs/getting-started/ssh-terminal.md)。
 
-```text
-AI ---- MCP / serial ---- Serial device
+## 透過 SSH 傳輸檔案
 
-Human         (not attached)
+使用 SFTP 傳輸及管理遠端檔案，或使用傳統 SCP 連線至相容的 POSIX 伺服器：
+
+```bash
+channelterm sftp user@192.168.1.50 ls /tmp
+channelterm sftp user@192.168.1.50 put ./firmware.bin /tmp/firmware.bin
+channelterm sftp user@192.168.1.50 get /tmp/log.txt ./log.txt
+channelterm scp user@192.168.1.50 put ./release /tmp/release --recursive
 ```
 
-ChannelTerm 將一條實體連線保留在共用 Session 中：
+這些命令沿用 SSH 的金鑰/密碼驗證與主機核驗，使用獨立連線，不占用終端 Session。
+覆寫現有檔案需要 `--overwrite`。目錄規則、取消行為及協定限制請見
+[檔案傳輸](docs/getting-started/file-transfer.md#sftp-and-scp-over-ssh)。
 
-```text
-                         +---- Human terminal
-                         |
-Serial device ---- Session
-                         |
-                         +---- AI / MCP client
-```
+透過共用終端 Session 傳輸檔案使用輕量的 Linux-shell 協定。獨立 SSH 檔案連線使用 SFTP 或傳統 SCP。
 
-如此一來，AI 的操作在硬體除錯過程中始終可見，人類也能持續參與。共用不只是重新開啟同一個連接埠：每個用戶端透過獨立游標讀取保留的原始輸出，所有寫入都經過同一個 Session。
+<a id="ai檔案與本機控制"></a>
 
-## AI、檔案與本機控制
+## 透過共用 Session 傳輸檔案
 
 同一個共用序列埠 Session 也能傳輸一般檔案與目錄，無需 AI 用戶端，也無需在板端另行安裝傳輸代理。在執行中的共用 `attach` 中，先按 `Ctrl+]`，再按 `f`，即可開啟引導式傳送/接收選單。目錄傳輸使用標準 tar 與帶確認、便於取消的資料區塊；相同操作也能透過命令完成：
 
@@ -235,109 +230,37 @@ channelterm file send ./build/release /tmp/release --session SER-1
 channelterm file receive /var/log/myapp ./myapp --session SER-1
 ```
 
-命令省略遠端目的地路徑時，預設儲存至 `/tmp/cterm/mcp-files/`；互動快捷鍵使用 `/tmp/cterm/user-files/`。ChannelTerm 會建立缺少的目的地目錄階層，並在後續傳輸中重複使用。Linux shell 需要原生的 `mkdir`、`stty`、`dd`、`wc`、`sha256sum` 與 `sleep`，目錄傳輸還需要 `tar`。ChannelTerm 以大小受限的區塊傳輸、回報進度，並對檔案位元組與目錄 tar 串流進行端對端 SHA-256 驗證。目錄傳輸使用目標端暫存封存檔，因此取消會在目前區塊結束後停止，無需繼續傳完整個目錄。暫時的檔案傳輸租約會阻擋其他 ChannelTerm 寫入者，直到命令結束。租約有效期間，在任一隨附的終端機用戶端中按 `Ctrl+C`，會開啟預設選擇「否」的本機取消確認；其他時候則保持正常的遠端終端機含義。前提與限制請見[檔案傳輸流程](docs/getting-started/file-transfer.md)。
+傳輸需要閒置的 Linux shell，以及[檔案傳輸流程](docs/getting-started/file-transfer.md)列出的工具。傳輸會驗證 SHA-256，並選擇新名稱以避免覆寫既有目標。傳輸期間，在共用附件中按 `Ctrl+C` 會詢問是否取消；清理完成並釋放租約前，其他寫入者仍被阻擋。
 
-若要讓 AI 加入同一個 Session，請將其 MCP 用戶端設定為使用相同的 Streamable HTTP 端點：
+## 透過 MCP 使用使用者態 GDB
+
+在原生 Linux 上，MCP 用戶端可透過 `debug_start` / `debug_command` / `debug_events` / `debug_stop` 工具接管閒置 Bash Session、設定中斷點、逐步執行、查看變數/執行緒/暫存器並分離。首版要求 ChannelTerm、GDB、gdbserver 和 ELF 位於同一 Linux 環境，支援單一 inferior、all-stop 除錯；只有還原終端機狀態並通過唯一標記 Shell 探測後，才開放一般寫入。
 
 ```text
-http://127.0.0.1:37099/mcp
+debug_start -> break_insert -> continue -> debug_events -> next/step/finish -> debug_stop
 ```
 
-AI 可以透過 MCP Session 工具列出與讀取 `SER-1`，使用 `terminal_exec` 在閒置 Bash 中執行命令，或使用 `terminal_write` 明確傳送原始終端機位元組；詳見 [MCP 使用流程](docs/getting-started/mcp-server.md)與[工具參考](docs/reference/mcp-tools.md)。執行 `channelterm init --mcp` 安裝用戶端設定，或執行 `channelterm init --mcp-show` 列印設定；兩者都會提示選擇 HTTP 或 stdio，預設使用 HTTP。列印的 HTTP 設定包含本機 Bearer 憑證，不可分享或提交。
+[工作流程、MCP 呼叫、安全 attach 與本機 PTY 測試範圍](docs/getting-started/gdb-debugging.md).
 
-按 `Ctrl+]` 進入本機逸出模式，ChannelTerm 會在本機顯示可用命令。`Ctrl+] f` 在目前附件中啟動引導式檔案/目錄傳送或接收，預設路徑為 `/tmp/cterm/user-files/<basename>` 與 `./<basename>`，並透過 `_1`、`_2` 選擇不覆寫既有內容的名稱。`Ctrl+] t` 預設關閉，僅在可靠辨識的 shell 提示符前加入本機 `[HH:MM:SS]` 時間戳記，不改變共用 Session 或 MCP 輸出。
-
-HTTP Host 需要 Bearer token，預設僅監聽回環位址。內建 CLI 會讀取本機使用者 token；它也可以
-[監聽受信任的區域網路](docs/getting-started/mcp-server.md#listen-on-a-lan)，遠端用戶端必須使用 Host
-可連線的區域網路位址，並透過 `Authorization` 標頭傳送相同的 token。請勿將沒有 TLS 與額外
-網路存取控制保護的端點直接暴露到不受信任的網路。
-
-## 支援的能力
-
-- 由 Host 持有一條序列埠連線，供人類 CLI 與 MCP 用戶端共用。
-- 獨立的輸出與活動游標，避免一個讀取者消耗另一個讀取者的資料。
-- 在已連線的終端機中顯示 Agent 寫入，同時保持原始 Session 輸出不變。
-- AI 保持連線時，人類仍可直接輸入，包括向遠端傳送 `Ctrl+C`。
-- 用戶端可以中斷附加，而不關閉其他用戶端正在使用的 Session。
-- 使用 Windows、Linux 與 macOS 的原生目標名稱探索序列埠，支援 TOML Profile，以及不需要共用時的私人直接連線。
-- 透過 stdio 或 Streamable HTTP 提供 MCP；共用 CLI 流程使用 HTTP Session Host。
-- 透過既有序列埠 Session 進行有界的 CLI 檔案/目錄傳送與接收，支援 SHA-256 驗證及安全的暫存目錄解壓縮。
-
-## 使用情境
-
-### 嵌入式 Linux 除錯
-
-只需連線開發板一次。AI 讀取保留的開機記錄並執行針對性的診斷，工程師同時觀察相同的裝置輸出，並在即時 shell 中回應。
-
-### AI 操作，人類觀察
-
-在閒置 Bash 提示符下，AI 透過 `terminal_exec` 傳送非互動命令。已連線的 CLI 將命令顯示一次為 `AI` 活動區塊，隨後顯示裝置傳回的真實位元組；命令與內部引導程式碼都不會寫入 Bash 歷程記錄。
-
-### 人類介入
-
-人類可以向共用 Session 輸入，或向遠端終端機傳送 `Ctrl+C`，然後繼續觀察，或按 `Ctrl+] q` 中斷附加。短期 `terminal_exec` 租約會暫時鎖定人類輸入；一般原始寫入僅提供位元組層級的序列化，不仲裁 shell 狀態，因此用戶端仍應避免衝突的原始命令序列。
+獨立執行的 GDB 可透過 `debug_bridge_*` 建立的驗證 TLS/TCP 橋接存取已準備好的序列埠 Session。操作者準備相容的 Linux gdbserver 並獨立執行 GDB；`channelterm rsp-client` 負責連線。橋接不限制開發板型號或目標 CPU 架構。斷線後會在有限的復原期間保留獨占所有權。復原驗證成功可保留 Session；明確關閉或到期會關閉 Session。Windows/WSL2 設定、續期與復原見[外部橋接工作流程](docs/getting-started/gdb-debugging.md#external-gdb-over-a-prepared-serial-session)。裸機除錯不在支援範圍內。
 
 ## 運作原理
 
 ```text
-Human CLI ---------+
-                   |
-                   v
-            Session Host / Manager
-                   |
-AI via MCP --------+--> Session --> Serial Transport <--> Device
-                        |    |
-                        |    `-- serialized writes
-                        `------- retained raw output
+Human CLI -----+
+               +--> Session Host --> Session <--> Channel <--> Serial / SSH endpoint
+AI via MCP ----+                         |
+                                        +-- retained output, activity, events
+                                        `-- serialized writes
 ```
 
-Session Host 持有實體連接埠並管理 Session 生命週期。Serial Transport 開啟與協定無關的 Channel；Session 擁有唯一的 Channel 讀取者、有界的記憶體輸出與活動保留，以及寫入序列化。CLI 與 MCP 介面卡重複使用相同的 Core 行為；醒目提示與 `AI` 活動區塊等顯示處理位於儲存的終端機資料之外。
+Session Host 擁有連線並管理 Session 生命週期。Serial 或 SSH Transport 建立協定無關的 Channel；Session 讀取該 Channel，在記憶體中保留有界的輸出、活動及事件，並序列化寫入。CLI 與 MCP 介面層重用相同的 Core 行為。醒目提示和 `AI` 活動區塊等顯示處理不會改變儲存的終端機原始資料。
 
-`SER-1` 等共用 Session 參照僅在所屬 Host 程序內有效。停止 Host 會關閉其 Session；單一用戶端中斷附加則不會。
+讀取者擁有獨立游標。原始寫入會序列化，但不會協調 shell 命令的語意；應用層租約會在命令執行、檔案傳輸及除錯期間暫時阻擋其他寫入者。所有權與並行規則見[共用 Session](docs/getting-started/shared-session.md)。
 
-## 安裝
-
-從 [Releases](https://github.com/akira-init1/ChannelTerm/releases) 下載符合你的作業系統與架構的
-壓縮檔，並與同一版本的 `SHA256SUMS` 核對。解壓縮後，在解壓縮目錄中執行
-`.\channelterm.exe install`（Windows）或 `./channelterm install`（Linux/macOS）。
-使用預先編譯的程式無需安裝 Go。
-
-從原始碼建置需要 Go 1.26 或更新版本。請使用目前仍受支援的修補版本，然後在儲存庫根目錄建置：
-
-```bash
-git clone https://github.com/akira-init1/ChannelTerm.git
-cd ChannelTerm
-go build ./cmd/channelterm
-./channelterm install
-```
-
-`install` 會將目前執行的二進位檔複製到目前使用者的標準程式目錄，建立 `channelterm` 與 `cterm`
-命令，只在需要時將該目錄加入使用者 PATH，並在缺少設定時初始化最小設定。若命令提示 PATH 已變更，
-請開啟新的終端機。`channelterm uninstall` 會刪除安裝器管理的命令與 PATH 變更，但保留使用者資料；
-`channelterm uninstall --purge` 必須明確確認後才會刪除設定、裝置狀態與本機 HTTP 驗證資訊。
-
-預設位置如下；安裝器每次執行後也會顯示實際路徑：
-
-| 平台 | 命令目錄 | 安裝記錄 | 預設設定 |
-| --- | --- | --- | --- |
-| Windows | `%LOCALAPPDATA%\Programs\ChannelTerm\bin` | `%LOCALAPPDATA%\ChannelTerm\install.json` | `%APPDATA%\channelterm\config.toml` |
-| Linux | `~/.local/bin` | `$XDG_STATE_HOME/channelterm/install.json`；未設定時為 `~/.local/state/channelterm/install.json` | `$XDG_CONFIG_HOME/channelterm/config.toml`；未設定時為 `~/.config/channelterm/config.toml` |
-| macOS | `~/.local/bin` | `~/Library/Application Support/channelterm/install.json` | `~/Library/Application Support/channelterm/config.toml` |
-
-支援的桌面目標為 Windows、Linux、macOS 的 amd64/arm64。詳見
-[從原始碼建置並安裝](docs/getting-started/build.md)、
-[`install` / `uninstall` 完整契約](docs/reference/cli.md#install-and-uninstall)、
-[設定位置](docs/reference/configuration.md)與[建置及測試](docs/development/building-and-testing.md)。
+`SER-1` 等共用參照僅在所屬 Host 程序內有效。停止 Host 會關閉其 Sessions。後來加入的連線可以單獨退出，但退出擁有臨時 Host 的連線或建立 Host 的 SSH 命令時，也會關閉其 Sessions。各層職責見[架構概觀](docs/architecture/overview.md)。
 
 ## 設定
-
-ChannelTerm 將本機檔案儲存在各平台的使用者設定目錄中：
-
-| 平台 | 預設目錄 |
-| --- | --- |
-| Windows | `%AppData%\channelterm\` |
-| Linux | `$XDG_CONFIG_HOME/channelterm/`；未設定時為 `~/.config/channelterm/` |
-| macOS | `~/Library/Application Support/channelterm/` |
 
 `config.toml` 儲存使用者維護的序列埠 Profile 與連線原則；`state.json` 是 ChannelTerm 自動維護的
 裝置身分狀態；`http-auth-token` 是 MCP HTTP 用戶端的驗證密鑰，請勿分享或提交。

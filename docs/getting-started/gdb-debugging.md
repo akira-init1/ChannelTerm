@@ -136,24 +136,15 @@ process into tracing. Existing-process stop always detaches; there is no default
 
 ## Validation and diagnostics
 
-Run the opt-in local suite from the repository with GDB/gdbserver/GCC on PATH:
-
-```bash
-CHANNELTERM_TEST_GDB=1 go test -race ./internal/mcp -run '^TestGDBLocal' -count=1 -v
-```
-
-These tests use real GDB/MI, gdbserver, Linux PTYs, and the MCP SDK. They cover the addition workflow,
-two-thread inspection, normal exit, safe attach/detach, automatic lease renewal, disconnect survival,
-authorization and retry semantics, native
-ELF mismatch, unsafe attach rejection, and a missing shell that must fail closed. Ordinary Go tests
-separately exercise simulated binary fragmentation, empty reads, invalid UTF-8, dropped buffers,
-final ACK tracking, lease conflict/renewal/expiry, input tracking, and MI cancellation.
+For local managed-backend checks, follow the prerequisites, commands, and coverage in
+[Local GDB integration tests](../development/building-and-testing.md#local-gdb-integration-tests).
+Those tests use native Linux GDB/gdbserver and PTYs; they do not validate a physical board or
+cross-environment managed debugging.
 
 When a result differs, collect the failing tool error, `debug_id`, event cursor, lifecycle state,
 GDB/gdbserver versions, Linux architecture, and the exact test command. Raw terminal history and MI
 values may contain program data; review before sharing them. Temporary runtime files are private
-and removed on cleanup. Physical serial settings and development boards have not been validated by
-these tests; their backend is outside this first release's scope.
+and removed on cleanup. Physical-board acceptance belongs to the separate external bridge workflow below.
 
 
 ## Debug a Linux server over SSH or TCP
@@ -449,13 +440,11 @@ GDB supports this [pipe connection form](https://www.sourceware.org/gdb/current/
 A plain `target remote HOST:PORT` cannot authenticate this endpoint; use the helper. No token or
 TLS preface is forwarded to the serial Session. ACK and no-ack traffic are both forwarded unchanged.
 
-The bridge defaults to `127.0.0.1`, rotating through unallocated ports **37100–37999** before OS
-dynamic fallback. Each Host continues from its previous allocation and wraps at the end of the pool.
-Set `strict_port_pool: true` on `debug_bridge_start` to fail when this pool is exhausted. An explicit
-`listen_address` overrides the pool policy; fixed ports never silently change, and `:0` requests an
-OS dynamic port. Always use the returned address. MCP HTTP remains on its separate default **37099**.
-The pool size is not a device limit or a concurrency benchmark. Existing Host retention remains
-128 bridge records; this is separate from port allocation and is not a device throughput claim.
+Use the address returned by `debug_bridge_start`; it is separate from the MCP HTTP endpoint.
+The default is loopback with a preferred port pool and dynamic fallback. The
+[MCP port policy](../reference/mcp-tools.md#external-rsp-bridge-tools) defines the pool,
+`strict_port_pool`, explicit addresses, and retention limits. An explicit fixed port never silently
+changes; `:0` requests an OS-selected port. These choices do not establish a device throughput limit.
 
 For **mirrored networking**, use IPv4 loopback for both sides; Windows 11 22H2 or later supports this
 mode. For **NAT**, find the Windows host gateway and the WSL source address, then select that specific
@@ -576,31 +565,12 @@ the same object to `debug_bridge_renew` before `expires_at`, while respecting `m
 
 ### Evidence boundaries and diagnostics
 
-Ordinary tests cover TLS authentication, peer filtering, single-client admission, byte transparency,
-lease exclusion/expiry, blocked-write closure, MCP management, and success/failure of recovery.
-`TestRSPBridgePTYBinaryAndShellRestoration` uses an actual Linux PTY with `cat` as a byte simulator;
-it verifies TTY readback and shell probing, not GDB commands or board behavior. The separate
-`TestGDBExternalPTY` opt-in test uses real, independently launched native GDB/gdbserver and the
-`rsp-client` helper to check breakpoint/step/variable/register/backtrace/detach behavior over a Linux PTY,
-then publishes the actual commands and results through the independent report interface:
-
-```bash
-CHANNELTERM_TEST_GDB=1 go test -race ./internal/mcp -run '^TestGDBExternalPTY$' -count=1 -v
-```
-
-It requires the same local test tools and ptrace permission as the managed suite. Add the lifecycle
-and 310-second paused-breakpoint tests for real GDB long-duration acceptance:
-
-```bash
-CHANNELTERM_TEST_GDB=1 CHANNELTERM_TEST_RSP_LONG=1 go test -race ./internal/mcp -run '^TestGDBExternalPTY' -timeout 10m -count=1 -v
-```
-
-These also kill the actual GDB/helper process separately, verify that automatic renewal stops and
-ordinary writes stay blocked, and exercise explicit MCP closure. The long test issues no management
-renewal, checks that the RSP output cursor stays unchanged while paused, then steps, inspects,
-detaches, and verifies exact TTY restoration. See [build/test procedures](../development/building-and-testing.md#external-rsp-bridge-verification)
-for prerequisites and evidence levels. Linux tests running inside WSL2 still use a **Linux Host and
-PTY**; they do not exercise a Windows Host, COM driver, NAT/mirrored boundary, or physical board.
+For automated and opt-in suites, use the commands and prerequisites in
+[External RSP bridge verification](../development/building-and-testing.md#external-rsp-bridge-verification).
+That page distinguishes fake serial/TLS checks, Linux PTY byte simulation, and real native
+GDB/gdbserver/helper lifecycle tests, including the optional long idle test. Linux tests running
+inside WSL2 still use a **Linux Host and PTY**; they do not validate a Windows Host, COM driver,
+NAT/mirrored networking boundary, or physical board.
 
 For Windows + WSL2 + Linux-board acceptance, execute the Host/open/prepare/connect/recover steps
 above with real values and record Windows/WSL versions and networking mode, the actual serial settings,

@@ -137,20 +137,21 @@ CLI file command
    |
    | existing Session Write / independent output cursor
    v
-Shared Session -> Channel -> Serial Transport -> Linux TTY
-                                                |
-                                      stty raw/no-echo
-                                                |
-                               dd reads or writes one chunk
-                                                |
-                                      restore saved TTY mode
-                                                |
-                                  wc -c + sha256sum
-                                                |
-                                                v
-                                       verified remote file
+Shared Session -> Serial Channel -> serial driver -> Linux TTY
+                                                       |
+                                               stty raw/no-echo
+                                                       |
+                                           dd reads or writes a chunk
+                                                       |
+                                              restore saved TTY mode
+                                                       |
+                                               wc -c + sha256sum
+                                                       |
+                                                       v
+                                               verified remote file
 ```
 
+The Serial Transport established the Channel before transfer; ongoing I/O uses that Channel.
 For each chunk, the shell saves its TTY mode, enters raw/no-echo mode, transfers one bounded block,
 restores the saved mode, and acknowledges the block with a per-transfer token. Progress advances
 only after acknowledgement. Start, progress, completion, cancellation, and failure are published as
@@ -168,9 +169,11 @@ For send, ChannelTerm hashes bytes as it reads the local file. After the final c
 computes the stored size with `wc -c` and digest with `sha256sum`; both must match.
 
 For receive, the board announces size and digest before streaming. ChannelTerm writes to a temporary
-file beside the requested destination, hashes the stream, and replaces the destination only after
-the digest matches. A failed receive removes the temporary file and retains an existing destination
-until verification has succeeded.
+file beside the selected destination, hashes the stream, and installs it at that path only after
+the digest matches. An existing name selects a free `_N` sibling; if the final destination check
+finds that path occupied, the operation refuses to overwrite it. A failed receive removes its
+temporary file. This is separate from the explicit overwrite options of SFTP/SCP below; destination
+checks do not lock the filesystem against unrelated writers.
 
 ## Protocol and concurrency limits
 

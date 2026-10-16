@@ -1,6 +1,6 @@
 # Code Style
 
-Repository-wide rules are defined in `AGENTS.md`; this page summarizes the coding conventions most
+Repository-wide rules are defined in [AGENTS.md](../../AGENTS.md); this page summarizes the coding conventions most
 relevant to implementation work.
 
 ## Go style
@@ -30,23 +30,13 @@ the preferred replacement when one exists.
 
 ## Architecture placement
 
-- CLI parsing and presentation belong in `internal/cli`.
-- MCP names and schemas belong in `internal/mcp`.
-- adapter-neutral orchestration belongs in `internal/core/app`.
-- Session lifecycle and retained data belong in `internal/core/session`.
-- live protocol behavior belongs in a Transport implementation.
-- discovery, connection decisions, configuration, and Tool contracts remain in their dedicated Core
-  packages.
-
-Core must not import CLI or MCP. Presentation must not alter stored Session output. Transport must
-not own terminal history.
+Use the [repository map](../architecture/repository-map.md) to select the owning package and
+[architecture rules](../../AGENTS.md#2-ownership-and-architecture) for dependency and lifecycle
+boundaries. Core behavior stays independent of CLI/MCP presentation.
 
 ## Change quality
 
-Keep one independently verifiable goal together with its tests and required documentation. Do not
-mix unrelated cleanup, dependency upgrades, renames, or refactors. Update CLI, MCP, configuration,
-identifier, architecture, or module documentation whenever the corresponding public contract or
-ownership changes.
-
-Before completion, inspect `git diff`, run `git diff --check`, run the applicable tests and vet, and
-report unverified real-hardware or external-service boundaries.
+Follow the [change workflow](../../AGENTS.md#3-change-workflow-and-compatibility),
+[documentation impact review](../../AGENTS.md#4-documentation), and
+[completion gate](../../AGENTS.md#10-completion-gate-and-report). Exact test and build commands
+belong in [Building and testing](building-and-testing.md).

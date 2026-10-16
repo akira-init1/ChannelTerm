@@ -224,9 +224,16 @@ The suite creates disposable ELF executables and PTYs and uses the real MCP SDK,
 gdbserver. It needs local Unix sockets and ptrace permission for its own test processes. It does not
 change ptrace policy or contact hardware. Without this opt-in, ordinary tests skip these cases.
 Extracted binaries may use a caller-supplied PATH and LD_LIBRARY_PATH. GDB/gdbserver are runtime test
-tools, not bundled Go dependencies. See [the workflow](../getting-started/gdb-debugging.md#validation-and-diagnostics)
-for coverage and evidence boundaries. Other desktop builds still compile, but debug_start rejects
-non-Linux hosts explicitly; cross-build success does not validate their terminal behavior.
+tools, not bundled Go dependencies. Coverage includes the addition workflow, thread inspection,
+normal exit, safe attach/detach, automatic lease renewal, disconnect survival, authorization/retries,
+ELF mismatch, unsafe attach rejection, and missing-shell recovery that must fail closed. Ordinary
+unit tests cover binary fragmentation, empty reads, invalid UTF-8, buffer loss, final ACK tracking,
+lease conflicts/expiry, input tracking, and MI cancellation.
+
+See [the workflow](../getting-started/gdb-debugging.md#validation-and-diagnostics) for operational
+diagnostics. These tests do not validate physical serial settings or boards. Other desktop builds
+still compile, but `debug_start` rejects non-Linux hosts; cross-build success does not validate their
+terminal behavior.
 
 
 ## External RSP bridge verification

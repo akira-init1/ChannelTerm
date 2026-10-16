@@ -83,9 +83,7 @@ opens do not reserve the endpoint. Successful SSH Sessions use opaque random IDs
 references from the existing Manager. There are no changes to Session or generic read/write/close
 ownership. See the [SSH workflow](../getting-started/ssh-terminal.md) for CLI Host lifetime.
 
-## Read and write behavior
-
-### Dedicated SSH file operations
+## Dedicated SSH file operations
 
 `RunSSHFiles` validates requests and preflights upload trees before connecting. Only regular files
 and directories are uploaded; source symlinks and special files fail. Directory copies require
@@ -149,6 +147,8 @@ authentication errors retain their Transport stage. Wrapping preserves `errors.I
 deadline, and filesystem identities. No secret input is included in these diagnostics.
 See [file transfer](../getting-started/file-transfer.md#sftp-and-scp-over-ssh) for user-visible limits.
 
+## Read and write behavior
+
 `WriteSession` and `WriteSessionWithLease` reject a payload larger than 1 MiB before Session lookup
 or lease acquisition. This application-layer limit applies to decoded bytes regardless of the
 calling adapter or transport. MCP additionally rejects input whose decoded size cannot fit before
@@ -160,6 +160,8 @@ Application does not encode terminal bytes, add presentation, or merge output wi
 `WriteSession` validates the actor and retries short writes while honoring context cancellation
 between retries. Session still provides lower-level byte-boundary write serialization and activity
 recording.
+
+## Isolated terminal commands
 
 `ExecuteTerminalCommand` is the command-aware alternative to a raw Agent write. It accepts one
 printable command line, acquires and renews a `terminal` lease, rejects a Session whose retained
@@ -177,7 +179,9 @@ returns its exit code plus raw-output start and end cursors. Interactive program
 background-job lifecycle, and arbitrary raw keys remain `WriteSession` concerns, not
 terminal-command semantics.
 
-Application additionally owns one exclusive lease per managed Session. Supported lease types are
+## Writer leases and transfer cancellation
+
+Application owns one exclusive lease per managed Session. Supported lease types are
 `terminal`, `file-transfer`, and `debug`. A normal write fails immediately with
 `ErrSessionBusy` while a lease is active. `WriteSessionWithLease` requires a non-empty matching
 opaque owner capability and rejects a missing, released, expired, or replacement lease with
@@ -227,6 +231,8 @@ Terminal command execution publishes `TERMINAL_COMMAND_STARTED`, `TERMINAL_COMMA
 writer ownership. The command event contains the display command and output cursor but never the
 lease owner capability.
 
+## Shared Session file transfer
+
 File transfer uses the same Session write and output-cursor semantics. It obtains a `file-transfer`
 lease before its first protocol command, renews it every 10 seconds, and releases it on success,
 failure, or cancellation. A send creates a missing remote destination hierarchy before payload
@@ -260,6 +266,8 @@ recovery reaches that deadline, the bundled MCP attachment invokes `terminal_clo
 five-second-bounded request. This releases an in-flight Host write and prevents an unusable protocol
 state from retaining the Session or lease. Recovery timeout errors are joined with the original
 failure. Independent readers continue to see raw output, including received file bytes.
+
+## Session close
 
 `CloseSession` first resolves and snapshots Session metadata, removes the Session directly from
 Manager ownership, closes it, and returns the pre-close information for adapter results. This

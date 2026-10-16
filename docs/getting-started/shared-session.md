@@ -25,8 +25,8 @@ terminal. Press `Ctrl+]` to enter local escape mode; ChannelTerm displays the av
 commands locally. `Ctrl+] t` toggles prompt timestamps for this CLI attachment only, so other CLI
 attachments and MCP readers continue to receive raw output. `Ctrl+] Esc` reports
 `[ChannelTerm] Escape cancelled` locally, cancels escape mode without sending a byte to the shared
-Session, and returns subsequent input to normal remote forwarding. `Ctrl+] q` detaches this CLI
-without closing the host-owned Session.
+Session, and returns subsequent input to normal remote forwarding. `Ctrl+] q` leaves this CLI;
+whether the Host survives depends on ownership, as described in [Lifecycle boundary](#lifecycle-boundary).
 
 Each CLI attachment applies semantic colors to safe plain text by default when its own stdout is a
 color-capable terminal. Use `--highlight=false` to disable generated colors. Remote ANSI/VT causes
@@ -100,9 +100,18 @@ target, not with a Session reference.
 
 ## Lifecycle boundary
 
-Detaching a Client does not close a shared Session. `terminal_close` removes and closes one
-host-owned Session. Stopping the Session Host closes all Sessions still owned by its Manager.
-Session references such as `SER-1` are valid only for that host process lifetime.
+An ordinary attachment disconnects without closing its shared Session. Host owners have a different
+lifetime boundary:
+
+| Process that exits | Effect |
+| --- | --- |
+| Secondary `attach`, or an attachment to a separately running Host | Only that attachment leaves; the Host and Sessions remain. |
+| `attach` that created the temporary Host | The temporary Host and all of its Sessions stop. |
+| Foreground `ssh` owner | Its sharing Host and all of its Sessions stop. |
+| Separately started `mcp --transport http` Host | All Sessions owned by that Host close. |
+
+`terminal_close` removes and closes one host-owned Session. Session references such as `SER-1`
+are valid only for that Host process lifetime.
 
 If the underlying serial Channel ends or its reader fails, the host automatically removes and closes
 the affected Session. Its short reference and opaque ID stop resolving, retained buffers are

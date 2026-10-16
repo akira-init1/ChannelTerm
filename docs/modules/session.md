@@ -14,7 +14,7 @@ new --> connecting --> open --> closing --> closed
 
 `Connect` may run only from `new`. It checks and passes the context to Transport connection, then
 accepts ownership of the returned Channel. A cancelled or failed connection, or a successful
-Transport result with no Channel, enters `failed` and closes both reader-facing buffers.
+Transport result with no Channel, enters `failed` and closes the output, activity, and event buffers.
 
 Only `open` permits read, write, activity read, event read, and resize operations. `Close` wakes
 waiting readers, closes the Channel to unblock active I/O, waits for the reader goroutine, releases
@@ -54,9 +54,9 @@ operation (`write`), and a copied payload. A partial write followed by an error 
 confirmed prefix; a zero-byte failure records nothing. Activity metadata is never forwarded to
 Channel.
 
-Retention is bounded by both 1024 events and 16 MiB of combined payload data. The oldest complete
-events are evicted before either limit is exceeded. One event larger than the byte limit is not
-retained, and older cursors report `Dropped`.
+Retention bounds both event count and combined payload size. The oldest complete events are evicted
+before either limit is exceeded; an oversized event is not retained, and older cursors report
+`Dropped`. Capacities and cursor details are owned by the [activity buffer contract](buffer.md#activity-buffer).
 
 Activity and remote output are independent cursor streams. Reading one cannot consume or modify the
 other.
@@ -95,8 +95,9 @@ the last confirmed progress, and successful regular-file completion includes the
 `local_sha256` and `remote_sha256` values. File-transfer metadata never exposes a lease owner
 capability.
 
-`ReadEvents` and `ReadRecentEvents` give every observer an independent event cursor. The fixed
-1024-event retention overwrites its oldest event for a slow observer and reports `Dropped`.
+`ReadEvents` and `ReadRecentEvents` give every observer an independent event cursor. The
+[event buffer](buffer.md#structured-session-event-buffer) overwrites old events for slow observers
+and reports `Dropped`.
 Publishing does not send on observer channels, so it cannot block Channel reads, Session writes, or
 another observer.
 

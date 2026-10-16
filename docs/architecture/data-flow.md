@@ -243,7 +243,7 @@ local file <--> bounded CLI chunks
                   Channel
                      |
                      v
-               Serial Transport
+                serial driver
                      |
                      v
         Linux shell: stty + dd
@@ -252,7 +252,8 @@ local file <--> bounded CLI chunks
              wc -c + sha256sum
 ```
 
-The file-transfer use case is layered above Session and does not access Serial Transport directly. A
+Serial Transport establishes the Channel before this runtime I/O path begins. The file-transfer
+use case is layered above Session and does not access Serial Transport directly. A
 CLI attachment uses the Host's lease and lease-authorized write tools as byte-oriented clients of
 the host-owned Session. Existing `terminal_write` input is unchanged.
 
@@ -307,8 +308,10 @@ Authentication precedes all Session I/O. Only one authorized data connection is 
 retains its bind and logical address reservation until bridge finalization. A current helper also
 authenticates one control TLS socket on that same listener. Its random challenge/response loop is
 separate from the unchanged RSP stream and supplies liveness evidence to Application's lease monitor.
-No new TCP service is opened. Later data clients cannot reconnect or take over. The external operator prepares gdbserver and controls GDB independently. No terminal
-history is replayed at startup, and no MI subprocess participates in this path. TCP disconnect
+The control connection reuses the bridge listener; it does not open another listening port.
+Later data clients cannot reconnect or take over. The external operator prepares gdbserver and
+controls GDB independently. No terminal history is replayed at startup, and no MI subprocess
+participates in this path. TCP disconnect
 retains the lease; a separately confirmed shell/TTY probe may restore terminal use. Otherwise
 explicit close, expiry, or uncertain recovery closes the Session. See
 [Application](../modules/application.md#external-serial-rsp-bridge) for concurrency and cleanup.

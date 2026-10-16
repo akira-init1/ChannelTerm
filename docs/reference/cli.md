@@ -520,10 +520,13 @@ echoed after the prompt's colon even though the terminal is in raw mode. `n`, `N
 other character print `[ChannelTerm] File transfer resumed` and let the worker continue. After
 confirmation, the target restores its TTY, temporary data is removed, the lease is released, and
 attach prints one timestamped cancellation result with the last confirmed byte counts and
-`Reason: cancelled by user`. The published `FILE_TRANSFER_FAILED` metadata reports
-`error: user_cancelled` and `reason: user_cancelled`. Residual console input from the confirming
-Ctrl+C is ignored; normal attachment input resumes after the transfer ends. This feedback is not
-Session output. `Ctrl+] q` closes only the MCP client connection. It does not call `terminal_close`.
+`Reason: cancelled by user`. After `LEASE_RELEASED`, the Host publishes `FILE_TRANSFER_CANCELLED`
+with `reason: user_cancelled`, `lease_released: true`, the transfer ID, and last confirmed progress.
+It suppresses the transfer worker's intermediate failure report for this confirmed cancellation.
+Residual console input from the confirming Ctrl+C is ignored; normal attachment input resumes
+after the transfer ends. This feedback is not
+Session output. `Ctrl+] q` does not call `terminal_close`; it leaves this attachment. If that
+attachment owns the temporary Host, exiting also stops the Host and all of its Sessions.
 
 During a managed `debug` lease, attachment rendering suppresses the corresponding raw RSP cursor
 range. Ordinary input receives the Host's busy error; local escape controls remain available.

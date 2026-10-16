@@ -1,7 +1,7 @@
 # Buffers and Cursors
 
-Session maintains two bounded, independent buffers: raw Channel output and write activity. Device
-Registry maintains a third bounded stream for discovery events.
+Session maintains three bounded, independent buffers: raw Channel output, write activity, and
+structured Session events. Device Registry maintains a separate stream for discovery events.
 
 ## Output receive buffer
 
@@ -31,6 +31,20 @@ at the current tail, including when the event list is empty. A read whose reques
 evicted, including an oversized event that was never retained, advances to the oldest available
 cursor and sets `Dropped`.
 
+## Structured Session event buffer
+
+- Default capacity: 1024 `Event` values (`DefaultEventBufferCapacity`).
+- Overflow: overwrite the oldest complete event without blocking Session I/O or other observers.
+- Ownership: events and supported metadata values are copied for storage and for readers.
+
+`EventCursor` is independent from output and activity cursors. `ReadEvents` waits for events at
+the supplied cursor; a cursor older than retained history advances to the oldest event with
+`Dropped`. `ReadRecentEvents` returns the newest retained events and a continuation cursor at the
+tail, including for an empty live buffer. Both require a positive event limit.
+
+This stream carries lifecycle metadata rather than terminal output or write payloads. See
+[Session events](session.md#structured-event-stream) for event types and publication semantics.
+
 ## Device event buffer
 
 Device Registry retains 1024 appearance/disappearance events. It uses its own `device.Cursor` and
@@ -42,6 +56,7 @@ Each buffer replaces a notification channel whenever data or lifecycle state cha
 inspect state under a short mutex and wait without holding it. Slow or blocked consumers therefore
 do not apply backpressure to Channel reads, Session writes, or device scans.
 
-Closing wakes current waiters after retained data has been consumed. Session close then releases its
-output and activity backing storage. These buffers are retention windows, not persistent logs;
-cursor overflow is permanent data loss for that consumer.
+Closing a buffer wakes current waiters and lets them read retained data before returning the close
+error. Session shutdown subsequently releases all three backing stores; it does not wait for every
+consumer to drain history. These buffers are retention windows, not persistent logs; overwritten or
+released history cannot be recovered by that consumer.

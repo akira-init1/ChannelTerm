@@ -22,6 +22,9 @@ MCP Adapter -> Tool Registry --+--> internal/core/app.Application
                       Channel -----+
 ```
 
+The Transport-to-Channel arrows show connection establishment and ownership transfer. Once open,
+Session reads and writes the Channel directly; Transport is not an extra runtime I/O hop.
+
 `cmd/channelterm` is the composition root. It creates process cancellation and passes standard
 streams to `internal/cli/command`. The CLI owns argument syntax, status text, raw console mode,
 escape commands, highlighting, HTTP host setup, and MCP client attachment.

@@ -79,17 +79,25 @@ rejected before a physical open.
 
 ## Precedence and saving
 
-Serial settings resolve in this order, from highest to lowest precedence:
+Serial settings resolve in three steps:
 
-```text
-explicit CLI/MCP overrides
-        |
-selected named profile
-        |
-configured default profile
-        |
-built-in serial defaults
+```mermaid
+flowchart TD
+    A{"Explicit profile name supplied?"}
+    A -->|Yes| B["Select named profile"]
+    A -->|No| C{"serial.default configured?"}
+    C -->|Yes| D["Select default profile"]
+    C -->|No| E["Use no profile"]
+    B --> F["Fill omitted fields from built-in serial defaults"]
+    D --> F
+    E --> F
+    F --> G["Apply explicitly supplied CLI/MCP overrides"]
 ```
+
+Named and default profiles are alternatives, not inheritance layers. For example, if the default
+profile uses 9600 baud but a different explicitly selected profile omits baud, the selected profile
+uses the built-in 115200 baud. It does not inherit 9600 from the default profile. An unknown selected
+profile is an error rather than a fallback to another profile.
 
 Only explicitly present flags or JSON properties override profile values. The port in a target-first
 `connect` or `attach` operation is always selected by that native serial target.
