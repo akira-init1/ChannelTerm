@@ -309,3 +309,8 @@ history is replayed at startup, and no MI subprocess participates in this path. 
 retains the lease; a separately confirmed shell/TTY probe may restore terminal use. Otherwise
 explicit close, expiry, or uncertain recovery closes the Session. See
 [Application](../modules/application.md#external-serial-rsp-bridge) for concurrency and cleanup.
+
+An independent observation path is `external Codex driver -> MCP debug_bridge_report -> Application
+validation -> Session event ring -> CLI attach/events and MCP event cursors`. It carries selected
+commands/results/states labelled as Codex reports, not complete audit evidence. It never joins the
+serial byte path, starts GDB, parses RSP, or changes the relay lifecycle on reporting failure.

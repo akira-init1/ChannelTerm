@@ -252,6 +252,10 @@ CHANNELTERM_TEST_GDB=1 go test -race ./internal/mcp -run '^TestGDBExternalPTY$' 
 
 This test requires GDB/gdbserver/GCC and local ptrace permission, builds a temporary helper, and
 checks breakpoints, step/next/finish, a variable value, backtrace, detach, and exact TTY restoration.
+It also reports actual external commands/results through MCP and reads them from Session events.
+Ordinary tests cover report authorization, retry ordering, rejected secrets, cancellation and
+heartbeat independence, event-history overwrite, multiple attach observers, retained replay, and
+control-escaped previews. Report failures are followed by successful byte relay in both directions.
 It uses native Linux executables and a PTY, not an ARM board. GDB is launched by the test driver,
 not by the Application bridge. Extracted test tools can use private PATH/LD_LIBRARY_PATH settings.
 Cross-builds cover all six desktop targets with CGO disabled;

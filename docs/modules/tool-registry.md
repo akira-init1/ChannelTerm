@@ -52,3 +52,7 @@ read-only status, explicit heartbeat renewal, Session-closing abort, and verifie
 Connection secrets are returned only to an authorized start caller. The relay invokes Session
 services directly; RSP bytes do not travel through MCP tool calls. The Core Registry remains unaware
 of TLS, target readiness, and debugger process ownership.
+
+`debug_bridge_report` translates caller-supplied command/result/state observations into Application
+report publication. It is an authenticated event-write tool, not GDB control. Its receipt confirms
+report acceptance only; observers use the existing `terminal_session_events` cursor interface.

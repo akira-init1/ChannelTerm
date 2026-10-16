@@ -316,6 +316,9 @@ func runAttachSessionWithInputEnd(ctx context.Context, args []string, input io.R
 			// notifications for an attachment that has just joined.
 			_ = presentation.handle(event, true, nil)
 		}
+		if err := writeDebugReportHistory(eventChunk.Events, writeLocalStatus); err != nil {
+			return fmt.Errorf("write retained debug reports: %w", err)
+		}
 		eventCursor := eventChunk.Next
 		eventWait.Add(1)
 		go func() {

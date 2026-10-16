@@ -23,6 +23,8 @@ type jsonSchema struct {
 func terminalOutputSchema(name string) (jsonSchema, bool) {
 	var schema jsonSchema
 	switch name {
+	case "debug_bridge_report":
+		schema = objectSchema(map[string]jsonSchema{"bridge_id": stringSchema(), "sequence": integerSchema()}, "bridge_id", "sequence")
 	case "debug_bridge_start":
 		schema = objectSchema(map[string]jsonSchema{"status": bridgeStatusSchema(), "connection": objectSchema(map[string]jsonSchema{"address": stringSchema(), "fingerprint": stringSchema(), "token": stringSchema()}, "address", "fingerprint", "token")}, "status", "connection")
 	case "debug_bridge_status", "debug_bridge_renew", "debug_bridge_close", "debug_bridge_restore":
@@ -205,6 +207,8 @@ func sessionEventSchema() jsonSchema {
 		"session_id": stringSchema(),
 		"type": stringSchema(
 			string(session.EventSessionCreated),
+			string(session.EventDebugState),
+			string(session.EventDebugClientReport),
 			string(session.EventSessionAttached),
 			string(session.EventSessionDetached),
 			string(session.EventLeaseAcquired),

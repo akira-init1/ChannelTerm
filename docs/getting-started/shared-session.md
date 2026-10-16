@@ -146,3 +146,8 @@ For an independently operated GDB, use the
 It shares the same exclusive write lease and attachment output suppression, but does not run MI or
 start a target server. External client disconnection retains the lease. Only a separately confirmed
 shell/TTY restoration allows ordinary writers again; explicit bridge close also closes the Session.
+
+Codex can separately publish actual external commands, results, and observed states with
+`debug_bridge_report`. All attach clients see labelled report blocks; a new client can see recent
+retained reports. They are caller reports, not a complete GDB audit or shell output. Reporting
+failure does not stop debugging. See the [reporting workflow](gdb-debugging.md#show-codex-reported-commands-and-results).

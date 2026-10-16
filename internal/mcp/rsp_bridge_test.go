@@ -12,12 +12,13 @@ import (
 	"github.com/akira-init1/ChannelTerm/internal/core/session"
 	"github.com/akira-init1/ChannelTerm/internal/core/tool"
 	"github.com/akira-init1/ChannelTerm/internal/mcp/terminal"
+	protocol "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 func TestExternalBridgeMCPLifecycle(t *testing.T) {
 	m := session.NewManager()
 	defer m.Close()
-	s, err := session.New("bridge-board", newFakeTransport())
+	s, err := session.New("bridge-board", newFakeTransport(), session.WithEventBufferCapacity(8))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -69,6 +70,51 @@ func TestExternalBridgeMCPLifecycle(t *testing.T) {
 	conn, err := debugger.DialBridge(context.Background(), *start.Connection)
 	if err != nil {
 		t.Fatal(err)
+	}
+	// Reports use MCP events only; errors must leave the authenticated connection
+	// available to the external GDB client.
+	report := map[string]any{"bridge_id": start.Status.BridgeID, "owner": owner, "sequence": 1, "kind": "command", "text": "break main"}
+	for range 2 {
+		if r := callTool(t, client, "debug_bridge_report", report); r.IsError || !strings.Contains(resultText(t, r), `"sequence":1`) {
+			t.Fatal(resultText(t, r))
+		}
+	}
+	report["text"] = start.Connection.Token
+	if r := callTool(t, client, "debug_bridge_report", report); !r.IsError || strings.Contains(resultText(t, r), start.Connection.Token) {
+		t.Fatal("report did not reject credential safely")
+	}
+	observer, closeObserver := connectTestClient(t, registry)
+	defer closeObserver()
+	for _, reader := range []*protocol.ClientSession{client, observer} {
+		r := callTool(t, reader, "terminal_session_events", map[string]any{"session_id": "SER-1", "cursor": 0, "max_events": 100})
+		var events struct {
+			Events []session.Event `json:"events"`
+		}
+		if err := json.Unmarshal([]byte(resultText(t, r)), &events); err != nil {
+			t.Fatal(err)
+		}
+		count := 0
+		for _, e := range events.Events {
+			if e.Type == session.EventDebugClientReport {
+				count++
+				if e.Metadata["text"] != "break main" || e.Metadata["reported_by"] != "codex" || e.Metadata["complete_audit"] != false {
+					t.Fatal(e)
+				}
+			}
+		}
+		if count != 1 {
+			t.Fatalf("report retry duplicated history: %d", count)
+		}
+	}
+	for seq := 3; seq <= 12; seq++ {
+		report["sequence"], report["text"], report["kind"] = seq, "stopped at main", "state"
+		if r := callTool(t, client, "debug_bridge_report", report); r.IsError {
+			t.Fatal(resultText(t, r))
+		}
+	}
+	retained := callTool(t, observer, "terminal_session_events", map[string]any{"session_id": "SER-1", "cursor": 0, "max_events": 100})
+	if !strings.Contains(resultText(t, retained), `"dropped":true`) || !strings.Contains(resultText(t, retained), `"sequence":12`) {
+		t.Fatal("slow observer did not receive bounded retained history")
 	}
 	conn.Close()
 	deadline := time.Now().Add(time.Second)

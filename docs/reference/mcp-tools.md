@@ -71,6 +71,12 @@ and logs. The `terminal_*` name remains the stable machine-readable compatibilit
 | `debug_command` | Control GDB |
 | `debug_events` | Read Debug Events |
 | `debug_stop` | End User-Space Debugging |
+| `debug_bridge_start` | Open External GDB Bridge |
+| `debug_bridge_status` | Read External GDB Bridge Status |
+| `debug_bridge_renew` | Renew External GDB Bridge |
+| `debug_bridge_close` | Close External GDB Bridge and Session |
+| `debug_bridge_restore` | Verify Terminal Restoration after RSP |
+| `debug_bridge_report` | Report External GDB Activity from Codex |
 
 Streamable HTTP requests require `Authorization: Bearer <token>`. An automatically started,
 attachment-owned Host returns `X-ChannelTerm-Host-Lifetime: attachment` on every authenticated MCP
@@ -751,6 +757,7 @@ is distinct from the generated connection token and internal debug lease capabil
 | `debug_bridge_renew` | `bridge_id` | none | `status` with extended `expires_at` |
 | `debug_bridge_close` | `bridge_id` | none | `status`; closes bridge **and Session** |
 | `debug_bridge_restore` | `bridge_id`, `confirm_shell_ready: true`, `tty_state` | none | `status`; preserves Session only after verification |
+| `debug_bridge_report` | `bridge_id`, `sequence`, `kind`, `text` | none | `bridge_id`, `sequence`; acknowledges reporting only |
 
 `status` contains `bridge_id`, canonical `session_id`, `state`, bound `address`, `expires_at`,
 `target_state`, and optional `warning`/`error`. States are `listening`, `connected`, `disconnected`,
@@ -793,3 +800,34 @@ Start/close/restore have destructive and open-world annotations; start is dedupl
 close/restore are idempotent. Status is read-only; renew changes expiry. See the
 [external GDB workflow](../getting-started/gdb-debugging.md#external-gdb-over-a-prepared-serial-session)
 for target preparation, Windows/WSL networking, secret handling, and verification boundaries.
+
+### External debugger reports
+
+`debug_bridge_report` publishes selected, actual external GDB commands, their results, or observed
+states into the existing Session event stream. `kind` is `command`, `result`, or `state`; `text` is
+nonempty UTF-8, at most 4096 bytes. It is never executed, sent to the serial port, or interpreted as
+RSP. Report after executing/observing the action externally. A `state` report cannot change the
+Host's bridge/target state or prove recovery. No GDB log file is watched.
+
+`sequence` is an increasing integer from 1 through 9007199254740991, scoped to one bridge.
+Gaps are allowed. An exact retry of the latest accepted sequence returns the same receipt without
+another event, including after the bridge ends. Older sequences and conflicting retries fail.
+New reports require a nonexpired bridge in an open Session, before recovery/termination. Reporting
+does not renew the heartbeat. Invalid input, wrong owner, cancellation, and reporting failures never
+close the bridge or Session. External drivers must continue GDB independently and renew separately;
+do not gate debugging on delivery or re-execute a GDB command to retry its report.
+
+Each `DEBUG_CLIENT_REPORT` has actor `agent` and metadata `bridge_id`, `sequence`, `kind`, `text`,
+`reported_by: "codex"`, and `complete_audit: false`. This is caller-supplied reporting, not attested
+execution or a complete audit of manual/automatic GDB actions. Read it through
+`terminal_session_events` or `channelterm events`; each observer keeps an independent cursor.
+Retention shares the Session's 1024-event ring; overwritten entries report `dropped: true` and
+history is unavailable after Session removal or Host exit. Attach shows bounded live previews and
+recent retained reports; see [CLI](cli.md#attach).
+
+Reports are visible to every authorized Session observer. The caller must omit raw RSP, connection
+descriptors, credentials, and sensitive program values. Known management/lease/TCP capabilities are
+rejected if included in text, but this is not a general secret detector. The relay never generates
+reports from protocol bytes. CLI previews escape control characters. The tool is non-destructive,
+closed-world, and idempotent with respect to sequence retries; it is not read-only because it
+publishes events. MCP transport authentication and the bridge owner capability are required.

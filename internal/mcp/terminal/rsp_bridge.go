@@ -15,7 +15,7 @@ type bridgeTool struct {
 
 func bridgeToolsForApplication(a *app.Application) []tool.Tool {
 	var out []tool.Tool
-	for _, name := range []string{"debug_bridge_start", "debug_bridge_status", "debug_bridge_renew", "debug_bridge_close", "debug_bridge_restore"} {
+	for _, name := range []string{"debug_bridge_start", "debug_bridge_status", "debug_bridge_renew", "debug_bridge_close", "debug_bridge_restore", "debug_bridge_report"} {
 		out = append(out, &bridgeTool{application: a, name: name})
 	}
 	return out
@@ -25,8 +25,10 @@ func (t *bridgeTool) Name() string { return t.name }
 
 func (t *bridgeTool) Description() string {
 	switch t.name {
+	case "debug_bridge_report":
+		return "Report actual externally executed GDB commands, results, or observed states as Codex reports, not a complete GDB audit. Publishes only independent Session events visible in attach/events; never executes commands, forwards RSP, verifies target state, or renews the heartbeat. Omit raw RSP and secrets. Reporting failure must not interrupt GDB: continue debugging and renew separately. Sequence increases per bridge (gaps allowed); retry only the latest identical report."
 	case "debug_bridge_start":
-		return "Bridge an already prepared serial Session to one authorized external GDB via pinned TLS/TCP. Does not start or control GDB/gdbserver or probe RSP. Target readiness cannot be inferred from silence: explicit acknowledgement is required after preparing the target. Returns a secret connection descriptor for channelterm rsp-client. Defaults to loopback; a specific non-loopback bind requires allowed_peer. Reuse owner/request_id and all parameters exactly for retries. Renew every 30 seconds."
+		return "Bridge an already prepared serial Session to one authorized external GDB via pinned TLS/TCP. Does not start or control GDB/gdbserver or probe RSP. Target readiness cannot be inferred from silence: explicit acknowledgement is required after preparing the target. Returns a secret connection descriptor for channelterm rsp-client. Defaults to loopback; a specific non-loopback bind requires allowed_peer. Reuse owner/request_id and all parameters exactly for retries. Renew every 30 seconds. Use debug_bridge_report for actual externally executed commands, results, and observed states (Codex reports, not a complete audit)."
 	case "debug_bridge_status":
 		return "Read external RSP bridge status without renewing its heartbeat or disclosing connection secrets. Disconnected retains exclusive ownership and does not mean the target or shell has recovered."
 	case "debug_bridge_renew":
@@ -57,10 +59,24 @@ func (t *bridgeTool) InputSchema() tool.InputSchema {
 		props["tty_state"] = tool.InputProperty{Type: "string", Description: "Exact stty -g value recorded before preparing the target, 1..512 printable bytes. No guessed defaults."}
 		required = append(required, "confirm_shell_ready", "tty_state")
 	}
+	if t.name == "debug_bridge_report" {
+		props["sequence"] = tool.InputProperty{Type: "integer", Description: "Increasing per-bridge sequence, 1..9007199254740991. Gaps are allowed; latest exact retry is deduplicated."}
+		props["kind"] = tool.InputProperty{Type: "string", Enum: []string{"command", "result", "state"}, Description: "Actual command executed externally, its result, or observed debugger state. This never changes bridge state."}
+		props["text"] = tool.InputProperty{Type: "string", Description: "Nonempty UTF-8 text, at most 4096 bytes. Select/redact before reporting: no raw RSP, credentials, or connection descriptors. Visible to all Session observers."}
+		required = append(required, "sequence", "kind", "text")
+	}
 	return tool.InputSchema{Type: "object", Properties: props, Required: required}
 }
 
 func (t *bridgeTool) Call(ctx context.Context, input json.RawMessage) (tool.Result, error) {
+	if t.name == "debug_bridge_report" {
+		var q app.BridgeReportRequest
+		if err := decodeDebug(input, &q); err != nil {
+			return nil, err
+		}
+		result, err := t.application.ReportRSPBridge(ctx, q)
+		return tool.Result{"bridge_id": result.BridgeID, "sequence": result.Sequence}, err
+	}
 	if t.name == "debug_bridge_start" {
 		var q app.BridgeStartRequest
 		if err := decodeDebug(input, &q); err != nil {

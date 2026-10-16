@@ -481,6 +481,13 @@ Completion, failure, and cancellation release that presentation range, so later 
 their `AI` activity blocks and later ordinary terminal output renders normally. File-transfer
 started, completed, failed, and cancelled status lines convert Host event times to the CLI's local
 timezone and use `[HH:MM:SS] [ChannelTerm]` prefixes; the in-place progress frame has no timestamp.
+External `DEBUG_CLIENT_REPORT` events render separate blocks labelled
+`Codex report; not a complete GDB audit`, with bridge ID, sequence, kind, and reported text.
+Each preview is limited to 1024 rendered bytes and twelve lines with controls escaped; full
+retained text remains in `terminal_session_events`. New attachments replay at most the last twenty
+retained reports marked `[history]`, then follow their own event cursor. Raw-output refreshes do
+not replay reports. Overwritten live event history produces a notice. Reports remain visible while
+the debug lease hides RSP, and never enter Session output or the target input stream.
 Before a local status block, attach adds one line ending only when the visible terminal is mid-line,
 so an unterminated board prompt cannot join the status text and already-terminated board output does
 not accumulate blank lines. This affects only local presentation, never Session raw output. On

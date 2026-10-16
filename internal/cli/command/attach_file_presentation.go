@@ -88,6 +88,11 @@ func (p *fileTransferPresentation) handle(event session.Event, local bool, write
 	// suppressed until the confirmation is resolved.
 	defer p.mu.Unlock()
 	switch event.Type {
+	case session.EventDebugClientReport:
+		// Background refreshes pass a nil writer and must not replay reports.
+		if write != nil {
+			text = string(renderDebugClientReport(event, false))
+		}
 	case session.EventLeaseAcquired:
 		if event.Metadata["type"] == "file-transfer" || event.Metadata["type"] == "debug" {
 			if cursor, ok := fileTransferEventCursor(event.Metadata); ok {
@@ -503,6 +508,11 @@ func forwardFileTransferEvents(ctx context.Context, events attachEventSession, c
 			return
 		}
 		cursor = chunk.Next
+		if chunk.Dropped {
+			if err := write([]byte("[ChannelTerm] Session event history was overwritten; some reports or lifecycle events are unavailable.\r\n")); err != nil {
+				return
+			}
+		}
 		for _, event := range chunk.Events {
 			local := false
 			owner, ownsTransfer := attached.(localFileTransferPresentation)

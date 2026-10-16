@@ -72,6 +72,9 @@ type bridgeRun struct {
 	workerDone  chan struct{}
 	finished    chan struct{}
 	relayErr    error
+	// Report deduplication is bounded to the latest accepted sequence, under op.
+	reportSequence uint64
+	reportDigest   [32]byte
 }
 
 func (c *bridgeCoordinator) owns(id, owner string) bool {

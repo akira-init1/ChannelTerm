@@ -15,7 +15,7 @@ import (
 
 // TestGDBExternalPTY uses real independently launched GDB/gdbserver and a Linux
 // PTY. Target preparation uses the existing terminal API, and only bridge
-// management uses debug_bridge_*. It does not validate Windows/WSL or ARM boards.
+// management/reporting uses debug_bridge_*. It does not validate Windows/WSL or ARM boards.
 func TestGDBExternalPTY(t *testing.T) {
 	f := newDebugFixture(t) // Opt-in: CHANNELTERM_TEST_GDB=1, with GDB tools on PATH.
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
@@ -65,11 +65,12 @@ func TestGDBExternalPTY(t *testing.T) {
 		t.Fatal(err)
 	}
 	args := []string{"--nx", "--nh", "--batch", "-iex", "set auto-load off", "-iex", "set debuginfod enabled off", f.elf}
-	for _, command := range []string{
+	commands := []string{
 		"set pagination off", "set confirm off", "set sysroot /",
 		"target remote | " + quote(helper) + " rsp-client --connection " + quote(descriptor),
 		"break add", "continue", "step", "next", "finish", "next", `printf "SUM_VALUE=%d\n", sum`, "bt", "detach",
-	} {
+	}
+	for _, command := range commands {
 		args = append(args, "-ex", command)
 	}
 	// This process is owned by the external test driver, never Application.
@@ -79,6 +80,15 @@ func TestGDBExternalPTY(t *testing.T) {
 		t.Fatalf("external GDB: %v\n%s\nserver: %s", err, out, log)
 	}
 	t.Log("independent GDB confirmed breakpoint, step/next/finish, sum=7, backtrace, and detach over TLS/PTY")
+	// The external driver reports only after executing GDB. Reporting never
+	// substitutes for execution and deliberately omits the connection command.
+	f.call(t, "debug_bridge_report", map[string]any{"bridge_id": id, "owner": f.owner, "sequence": 1, "kind": "command", "text": strings.Join(commands[4:], "\n")})
+	f.call(t, "debug_bridge_report", map[string]any{"bridge_id": id, "owner": f.owner, "sequence": 2, "kind": "result", "text": string(out)})
+	reports := f.call(t, "terminal_session_events", map[string]any{"session_id": f.terminal.ID(), "cursor": 0, "max_events": 100})
+	encodedReports, _ := json.Marshal(reports)
+	if strings.Count(string(encodedReports), "DEBUG_CLIENT_REPORT") != 2 || !strings.Contains(string(encodedReports), "SUM_VALUE=7") {
+		t.Fatalf("actual GDB observations missing: %s", encodedReports)
+	}
 	for {
 		status, err := f.app.RSPBridgeStatus(id, f.owner)
 		if err != nil {

@@ -340,7 +340,7 @@ func newAdapter(registry *tool.Registry) (*adapter, error) {
 		{name: "terminal_get_connection_decision", target: connectionDecision.Name(), description: connectionDecision.Description(), schema: connectionDecision.InputSchema()},
 		{name: "terminal_close", target: closeTool.Name(), description: closeTool.Description(), schema: closeTool.InputSchema()},
 	}
-	for _, name := range []string{"debug_start", "debug_command", "debug_events", "debug_stop", "debug_bridge_start", "debug_bridge_status", "debug_bridge_renew", "debug_bridge_close", "debug_bridge_restore"} {
+	for _, name := range []string{"debug_start", "debug_command", "debug_events", "debug_stop", "debug_bridge_start", "debug_bridge_status", "debug_bridge_renew", "debug_bridge_close", "debug_bridge_restore", "debug_bridge_report"} {
 		if registered, ok := registry.Get(name); ok {
 			exposed = append(exposed, exposedTool{name: name, target: name, description: registered.Description(), schema: registered.InputSchema()})
 		}

@@ -225,6 +225,34 @@ connection consumes the endpoint; other connections and reconnects cannot take o
 credentials do not consume it. The MCP Host's authentication still protects creation/management;
 MCP access does not automatically authenticate a TCP peer.
 
+### Show Codex-reported commands and results
+
+Keep controlling GDB with the external execution tool. After an actual command or observation,
+call `debug_bridge_report` separately so attached users can follow the work. For example, after
+executing `print sum`, report the command and the real response with increasing sequence numbers:
+
+```json
+{"bridge_id":"RSP-example","owner":"EXAMPLE-ONLY-REPLACE-WITH-RANDOM-OWNER","sequence":1,"kind":"command","text":"print sum"}
+```
+
+```json
+{"bridge_id":"RSP-example","owner":"EXAMPLE-ONLY-REPLACE-WITH-RANDOM-OWNER","sequence":2,"kind":"result","text":"$1 = 7"}
+```
+
+The result above is illustrative; copy the response actually observed. `kind: "state"` can report
+an observed stop location or running state. Never include connection credentials, raw RSP packets,
+or unreviewed sensitive values. These entries are labelled **Codex report; not a complete GDB audit**.
+They do not execute GDB commands or prove the target state. MCP report failure must not stop GDB;
+continue debugging and heartbeat renewal independently. Retry the latest report unchanged, or use
+a higher sequence for the next observation; do not rerun the GDB command merely to resend a report.
+
+Multiple `channelterm attach SER-1` clients see live reports in separate status blocks, including
+while binary RSP output is hidden. A new attachment replays the last 20 retained reports, marked
+as history. `channelterm events SER-1` or `terminal_session_events` exposes the complete retained
+event text with independent cursors. The history is bounded and lasts only with the Session;
+it is not a persistent or complete audit. Manual GDB commands are invisible unless explicitly
+reported. This workflow does not monitor a GDB log file or add a debugger control process.
+
 ### Disconnect, recover, or close
 
 TCP EOF only changes the bridge to `disconnected`. The serial Session remains exclusively leased,
@@ -261,7 +289,8 @@ lease exclusion/expiry, blocked-write closure, MCP management, and success/failu
 `TestRSPBridgePTYBinaryAndShellRestoration` uses an actual Linux PTY with `cat` as a byte simulator;
 it verifies TTY readback and shell probing, not GDB commands or board behavior. The separate
 `TestGDBExternalPTY` opt-in test uses real, independently launched native GDB/gdbserver and the
-`rsp-client` helper to check breakpoint/step/variable/backtrace/detach behavior over a Linux PTY:
+`rsp-client` helper to check breakpoint/step/variable/backtrace/detach behavior over a Linux PTY,
+then publishes the actual commands and results through the independent report interface:
 
 ```bash
 CHANNELTERM_TEST_GDB=1 go test -race ./internal/mcp -run '^TestGDBExternalPTY$' -count=1 -v
