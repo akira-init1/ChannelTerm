@@ -8,6 +8,7 @@ channelterm --help
 channelterm attach --help
 channelterm events --help
 channelterm file --help
+channelterm gdb-list --help
 channelterm init --help
 channelterm install --help
 channelterm list --help
@@ -45,8 +46,8 @@ and a UTC RFC 3339 build timestamp. Tagged release artifacts use the injected re
 version and target platform come from the compiled binary. An unknown command returns an error and
 the process exits with status 1.
 
-The top-level help currently lists `attach`, `events`, `file`, `init`, `install`, `list`, `mcp`,
-`serial`, `ssh`, `sftp`, `scp`, `uninstall`, `help`, and `version`.
+The top-level help currently lists `attach`, `events`, `file`, `gdb-list`, `init`, `install`, `list`,
+`mcp`, `rsp-client`, `serial`, `ssh`, `sftp`, `scp`, `uninstall`, `help`, and `version`.
 
 ## `install` and `uninstall`
 
@@ -527,7 +528,8 @@ Session output. `Ctrl+] q` closes only the MCP client connection. It does not ca
 During a managed `debug` lease, attachment rendering suppresses the corresponding raw RSP cursor
 range. Ordinary input receives the Host's busy error; local escape controls remain available.
 Use MCP debug interrupt/stop tools, then wait for verified shell recovery before typing commands.
-See [GDB workflow](../getting-started/gdb-debugging.md). No GDB CLI subcommand is added.
+See [GDB workflow](../getting-started/gdb-debugging.md). Managed GDB control remains MCP-only;
+[`gdb-list`](#gdb-list) observes external bridges.
 
 Examples:
 
@@ -744,6 +746,42 @@ Important errors include an unsupported transport, path without a leading slash,
 policy, invalid configuration or state, initial discovery failure, listen failure, and protocol
 serving failure. Normal client EOF and process cancellation are normal shutdowns.
 
+
+## `gdb-list`
+
+`channelterm gdb-list` queries all unfinished external GDB/RSP bridges in one existing MCP HTTP
+Host. It defaults to the usual local Host endpoint; `--endpoint URL` selects another Host using
+the existing HTTP Bearer authentication. It does not start a Host, scan OS ports, query other
+processes or stdio-only Hosts, or enumerate managed GDB/MI operations and independent gdbservers.
+
+The default table shows `PORT`, `ADDRESS`, `SESSION`, `TARGET`, `STATE`, and the full `BRIDGE` ID.
+The address is the actual bound TCP endpoint, including explicit or OS-selected ports outside the
+preferred pool. The data and control sockets share one bridge row. Results are sorted by numeric
+port, then address and bridge ID. Table metadata escapes control characters; JSON preserves values.
+
+`--json` writes one object with `endpoint` and a `bridges` array. Each entry contains `bridge_id`,
+opaque `session_id`, short `session_ref`, serial `target`, `address`, numeric `port`, `state`,
+`expires_at`, and `auto_keepalive`. The latter two describe the management heartbeat and recent
+helper liveness, not proof of target readiness. Session metadata can be empty during concurrent
+removal (shown as `-` in the table). No owner, connection token, fingerprint, or descriptor is returned.
+
+`listening`, `connected`, `disconnected`, and `recovering` bridges remain listed until finalization.
+`closed`, `failed`, and `restored` records are excluded: their addresses are historical. This is a
+snapshot, not a guarantee that a port remains bound after the query. Reads neither renew leases
+nor send target bytes; cancelling the query leaves bridge lifetimes unchanged. Listed addresses
+still require the authenticated [`rsp-client`](#rsp-client) helper, not a raw GDB TCP connection.
+
+```powershell
+channelterm gdb-list
+channelterm gdb-list --json
+channelterm gdb-list --endpoint http://127.0.0.1:37099/mcp
+```
+
+An empty inventory exits successfully with `No active external GDB bridges.` or `bridges: []` in
+JSON. Connection/authentication failures and an older Host without `debug_bridge_list` return an
+error and exit status 1, without a success inventory. The query has a ten-second deadline;
+`Ctrl+C` cancels it. Check the endpoint, Host version, and existing authentication setup on failure;
+do not collect credentials in diagnostics. See the [workflow](../getting-started/gdb-debugging.md#inspect-bridge-ports).
 
 ## `rsp-client`
 

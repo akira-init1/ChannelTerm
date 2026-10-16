@@ -44,6 +44,23 @@ func TestExternalBridgeMCPLifecycle(t *testing.T) {
 	}
 	client, closeClient := connectTestClient(t, registry)
 	defer closeClient()
+	list := func(reader *protocol.ClientSession) []app.BridgeSummary {
+		t.Helper()
+		result := callTool(t, reader, "debug_bridge_list", map[string]any{})
+		if result.IsError {
+			t.Fatal(resultText(t, result))
+		}
+		var inventory struct {
+			Bridges []app.BridgeSummary `json:"bridges"`
+		}
+		if err := json.Unmarshal([]byte(resultText(t, result)), &inventory); err != nil || inventory.Bridges == nil {
+			t.Fatalf("invalid bridge inventory: %v, %s", err, resultText(t, result))
+		}
+		return inventory.Bridges
+	}
+	if items := list(client); len(items) != 0 {
+		t.Fatalf("expected empty inventory: %+v", items)
+	}
 	owner := "EXAMPLE-MCP-BRIDGE-OWNER-NOT-A-REAL-SECRET"
 	q := map[string]any{"session_id": "SER-1", "owner": owner, "request_id": "start", "acknowledge_unverified_target": false}
 	result := callTool(t, client, "debug_bridge_start", q)
@@ -60,6 +77,9 @@ func TestExternalBridgeMCPLifecycle(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer a.CloseRSPBridge(start.Status.BridgeID, owner)
+	if items := list(client); len(items) != 1 || items[0].BridgeID != start.Status.BridgeID || items[0].Address != start.Connection.Address || items[0].SessionRef != "SER-1" || !items[0].ExpiresAt.Equal(start.Status.ExpiresAt) {
+		t.Fatalf("incorrect bridge inventory: %+v", items)
+	}
 	control := map[string]any{"bridge_id": start.Status.BridgeID, "owner": owner}
 	if r := callTool(t, client, "debug_bridge_renew", control); r.IsError {
 		t.Fatal(resultText(t, r))
@@ -85,6 +105,19 @@ func TestExternalBridgeMCPLifecycle(t *testing.T) {
 	}
 	observer, closeObserver := connectTestClient(t, registry)
 	defer closeObserver()
+	items := list(observer)
+	if len(items) != 1 || items[0].BridgeID != start.Status.BridgeID {
+		t.Fatalf("independent observer could not list bridges: %+v", items)
+	}
+	encoded, err := json.Marshal(items)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, secret := range []string{owner, start.Connection.Token, start.Connection.Fingerprint} {
+		if strings.Contains(string(encoded), secret) {
+			t.Fatal("bridge inventory disclosed credentials")
+		}
+	}
 	for _, reader := range []*protocol.ClientSession{client, observer} {
 		r := callTool(t, reader, "terminal_session_events", map[string]any{"session_id": "SER-1", "cursor": 0, "max_events": 100})
 		var events struct {
@@ -132,11 +165,17 @@ func TestExternalBridgeMCPLifecycle(t *testing.T) {
 		}
 		time.Sleep(time.Millisecond)
 	}
+	if items := list(observer); len(items) != 1 || items[0].State != "disconnected" {
+		t.Fatalf("disconnected bridge missing: %+v", items)
+	}
 	if r := callTool(t, client, "debug_bridge_close", map[string]any{"bridge_id": start.Status.BridgeID, "owner": "wrong"}); !r.IsError {
 		t.Fatal("wrong owner closed bridge")
 	}
 	result = callTool(t, client, "debug_bridge_close", control)
 	if result.IsError || s.State() != session.StateClosed {
 		t.Fatal(resultText(t, result))
+	}
+	if items := list(observer); len(items) != 0 {
+		t.Fatalf("closed bridge retained in inventory: %+v", items)
 	}
 }

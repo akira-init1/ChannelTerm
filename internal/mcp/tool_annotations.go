@@ -17,7 +17,7 @@ func terminalToolAnnotations(name string) (*protocol.ToolAnnotations, bool) {
 		destructive = true
 		openWorld = true
 		idempotent = true
-	case "debug_bridge_status":
+	case "debug_bridge_list", "debug_bridge_status":
 		readOnly = true
 	case "debug_bridge_renew", "debug_events":
 		// Reading events extends the debug heartbeat.

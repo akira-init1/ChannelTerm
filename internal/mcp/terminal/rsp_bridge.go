@@ -15,18 +15,20 @@ type bridgeTool struct {
 
 func bridgeToolsForApplication(a *app.Application) []tool.Tool {
 	var out []tool.Tool
-	for _, name := range []string{"debug_bridge_start", "debug_bridge_status", "debug_bridge_renew", "debug_bridge_close", "debug_bridge_restore", "debug_bridge_report"} {
+	for _, name := range []string{"debug_bridge_list", "debug_bridge_start", "debug_bridge_status", "debug_bridge_renew", "debug_bridge_close", "debug_bridge_restore", "debug_bridge_report"} {
 		out = append(out, &bridgeTool{application: a, name: name})
 	}
 	return out
 }
 
-// Name identifies the bridge management or reporting operation.
+// Name identifies the bridge observation, management, or reporting operation.
 func (t *bridgeTool) Name() string { return t.name }
 
 // Description states the operation's ownership, liveness, and recovery limits.
 func (t *bridgeTool) Description() string {
 	switch t.name {
+	case "debug_bridge_list":
+		return "List all unfinished external GDB bridges in this Host with bound addresses, ports, Session references, targets, and states. Includes disconnected/recovering bridges until finalization; excludes closed/failed/restored history. Read-only: no heartbeat renewal, target I/O, management owner, or connection secrets. Uses Host access authorization without a per-bridge owner. Does not scan OS ports or other Hosts."
 	case "debug_bridge_report":
 		return "Report actual externally executed GDB commands, results, or observed states as Codex reports, not a complete GDB audit. Publishes only independent Session events visible in attach/events; never executes commands, forwards RSP, verifies target state, or renews the heartbeat. Omit raw RSP and secrets. Reporting failure must not interrupt GDB: continue debugging; renewal is independent of reporting. Sequence increases per bridge (gaps allowed); retry only the latest identical report."
 	case "debug_bridge_start":
@@ -44,6 +46,9 @@ func (t *bridgeTool) Description() string {
 
 // InputSchema exposes operation-specific arguments and separate capabilities.
 func (t *bridgeTool) InputSchema() tool.InputSchema {
+	if t.name == "debug_bridge_list" {
+		return tool.InputSchema{Type: "object", Properties: map[string]tool.InputProperty{}}
+	}
 	props := map[string]tool.InputProperty{"owner": {Type: "string", Description: "Secret management capability, 32..128 characters; distinct from the generated TCP connection token."}}
 	required := []string{"owner"}
 	if t.name == "debug_bridge_start" {
@@ -72,8 +77,16 @@ func (t *bridgeTool) InputSchema() tool.InputSchema {
 	return tool.InputSchema{Type: "object", Properties: props, Required: required}
 }
 
-// Call validates input and delegates lifecycle and reporting to Application.
+// Call validates input and delegates observation, lifecycle, and reporting to Application.
 func (t *bridgeTool) Call(ctx context.Context, input json.RawMessage) (tool.Result, error) {
+	if t.name == "debug_bridge_list" {
+		var q struct{}
+		if err := decodeDebug(input, &q); err != nil {
+			return nil, err
+		}
+		items, err := t.application.ListRSPBridges(ctx)
+		return tool.Result{"bridges": items}, err
+	}
 	if t.name == "debug_bridge_report" {
 		var q app.BridgeReportRequest
 		if err := decodeDebug(input, &q); err != nil {

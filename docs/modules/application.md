@@ -330,6 +330,16 @@ or controls GDB, gdbserver, or a target supervisor in this mode. Its coordinator
 managed MI operation. Input-pending checks are shared; both use the existing debug lease gate.
 The Session keeps its sole Channel reader, raw history, cursors, and write serialization.
 
+`ListRSPBridges(ctx)` provides a separate non-secret inventory for Host observers. It copies run
+references under the coordinator mutex, reads each status under its status mutex, and joins
+Manager metadata without holding the coordinator lock. It includes unfinished runs, including
+disconnected/recovering bridges, until their terminal state is published. Results are sorted by
+actual port, address, and bridge ID. Concurrent finalization can remove Session metadata or
+supersede a returned snapshot. No lease, target I/O, or managed GDB operation is touched;
+cancellation ends collection only. Adapters enforce Host access policy without requiring a
+per-bridge owner for this restricted summary. The public fields and authorization boundary are
+owned by the [MCP reference](../reference/mcp-tools.md#external-rsp-bridge-tools).
+
 The bridge coordinator owns a `debugger.EndpointAllocator`. One mutex protects its rotating cursor,
 real TCP binds, and logical address reservations. Allocation continues through 37100..37999 across
 requests, skipping active addresses; an active-pool count avoids scanning a fully reserved pool.

@@ -23,6 +23,13 @@ type jsonSchema struct {
 func terminalOutputSchema(name string) (jsonSchema, bool) {
 	var schema jsonSchema
 	switch name {
+	case "debug_bridge_list":
+		schema = objectSchema(map[string]jsonSchema{"bridges": arraySchema(objectSchema(map[string]jsonSchema{
+			"bridge_id": stringSchema(), "session_id": stringSchema(), "session_ref": stringSchema(),
+			"target": stringSchema(), "address": stringSchema(), "port": integerSchema(),
+			"state":      stringSchema("listening", "connected", "disconnected", "recovering"),
+			"expires_at": dateTimeSchema(), "auto_keepalive": booleanSchema(),
+		}, "bridge_id", "session_id", "session_ref", "target", "address", "port", "state", "expires_at", "auto_keepalive"))}, "bridges")
 	case "debug_bridge_report":
 		schema = objectSchema(map[string]jsonSchema{"bridge_id": stringSchema(), "sequence": integerSchema()}, "bridge_id", "sequence")
 	case "debug_bridge_start":

@@ -1,12 +1,15 @@
 package terminal
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"reflect"
 	"testing"
 
 	"github.com/akira-init1/ChannelTerm/internal/core/app"
 	"github.com/akira-init1/ChannelTerm/internal/core/debugger"
+	"github.com/akira-init1/ChannelTerm/internal/core/session"
 )
 
 func TestDebugMCPPreservesInvalidUTF8(t *testing.T) {
@@ -17,6 +20,30 @@ func TestDebugMCPPreservesInvalidUTF8(t *testing.T) {
 	encoded, e := json.Marshal(r)
 	if e != nil || len(encoded) == 0 {
 		t.Fatalf("JSON: %s %v", encoded, e)
+	}
+}
+
+func TestBridgeListSchemaValidationAndCancellation(t *testing.T) {
+	m := session.NewManager()
+	defer m.Close()
+	a, err := app.New(app.Dependencies{Manager: m})
+	if err != nil {
+		t.Fatal(err)
+	}
+	tool := &bridgeTool{name: "debug_bridge_list", application: a}
+	schema := tool.InputSchema()
+	if schema.Type != "object" || len(schema.Required) != 0 || len(schema.Properties) != 0 {
+		t.Fatalf("list must not require owner or bridge ID: %+v", schema)
+	}
+	for _, input := range []string{`{"owner":"unnecessary"}`, `{"bridge_id":"RSP-example"}`, `[]`, `{} {}`} {
+		if _, err := tool.Call(context.Background(), json.RawMessage(input)); err == nil {
+			t.Fatalf("accepted invalid list arguments: %s", input)
+		}
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := tool.Call(ctx, json.RawMessage(`{}`)); !errors.Is(err, context.Canceled) {
+		t.Fatalf("canceled list: %v", err)
 	}
 }
 

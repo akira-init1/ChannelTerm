@@ -71,6 +71,7 @@ and logs. The `terminal_*` name remains the stable machine-readable compatibilit
 | `debug_command` | Control GDB |
 | `debug_events` | Read Debug Events |
 | `debug_stop` | End User-Space Debugging |
+| `debug_bridge_list` | List External GDB Bridge Ports |
 | `debug_bridge_start` | Open External GDB Bridge |
 | `debug_bridge_status` | Read External GDB Bridge Status |
 | `debug_bridge_renew` | Renew External GDB Bridge |
@@ -750,8 +751,25 @@ The [target workflow](../getting-started/gdb-debugging.md#external-gdb-over-a-pr
 supports Linux boards with a compatible gdbserver over serial; it has no board-model or target-CPU
 restriction. Bare-metal debugging is outside scope.
 
-All calls require the secret management `owner` (32..128 characters on start). Management ownership
-is distinct from the generated connection token and internal debug lease capability.
+`debug_bridge_list` accepts an empty argument object and returns `bridges`, an array of all
+unfinished external bridges in this Host, ordered by numeric port, address, then bridge ID.
+Each entry contains `bridge_id`, canonical `session_id`, `session_ref`, serial `target`, actual
+bound `address`, integer `port`, `state`, `expires_at`, and `auto_keepalive`. Session metadata can
+be empty during concurrent removal. Empty inventory is `[]`, never `null`. Listed states are
+`listening`, `connected`, `disconnected`, and `recovering`; terminal `closed`, `failed`, and
+`restored` records are excluded. A concurrent transition can immediately supersede the snapshot.
+It does not scan OS ports or include managed MI operations, other Hosts, or standalone gdbservers.
+
+The list is read-only: it sends no target bytes and renews no heartbeat or lease. Cancellation
+affects only the query. Security impact: clients authorized to access the Host can observe bridge
+IDs, addresses, and the listed Session metadata without individual bridge owners. The result omits
+all capabilities, connection descriptors, fingerprints, error messages, and terminal/debugger output. Existing HTTP
+authentication and bridge mutation authorization remain unchanged. The CLI exposes this observation
+as [`gdb-list`](cli.md#gdb-list).
+
+The management, single-status, and reporting calls below require the secret management `owner`
+(32..128 characters on start). Management ownership is distinct from the generated connection
+token and internal debug lease capability.
 
 | Tool | Required arguments besides `owner` | Optional arguments | Result |
 | --- | --- | --- | --- |

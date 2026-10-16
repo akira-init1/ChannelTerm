@@ -396,6 +396,26 @@ while arranging recovery after disconnect, or with a legacy data-only helper. St
 renew. Finish debugging before the absolute 24-hour `max_expires_at`; neither automatic nor explicit
 renewal extends that limit.
 
+### Inspect bridge ports
+
+From another terminal with access to the same HTTP Host and its existing authentication setup, run:
+
+```powershell
+channelterm gdb-list
+channelterm gdb-list --json
+```
+
+The table associates each actual TCP port/address with its Session, serial target, state, and
+bridge ID. Use `--endpoint URL` for a different Host; listing one Host cannot discover bridges
+in another process or a stdio-only Host. Disconnected bridges remain listed until finalization,
+so their presence does not mean GDB is still connected. Empty results are successful; a connection,
+authentication, or unsupported-Host error is reported separately. Queries neither renew leases
+nor affect target I/O. They time out after ten seconds and can be cancelled with `Ctrl+C`.
+
+The list contains no private connection material. Continue using the saved descriptor with
+`rsp-client`; the listed address is not an unauthenticated `target remote IP:PORT` endpoint.
+See the [CLI contract](../reference/cli.md#gdb-list) for fields and snapshot semantics.
+
 ### Connect independent GDB from WSL2
 
 Use a Linux ChannelTerm executable in WSL for the pipe client helper. The Windows Host does

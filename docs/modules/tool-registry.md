@@ -48,7 +48,9 @@ See [MCP tools](../reference/mcp-tools.md) for the actual public surface.
 
 
 The `debug_bridge_*` adapters expose the separate external bridge Application operations, including
-read-only status, explicit heartbeat renewal, Session-closing abort, and verified restoration.
+read-only inventory/status, explicit heartbeat renewal, Session-closing abort, and verified restoration.
+`debug_bridge_list` returns non-secret summaries under Host access authorization; individual bridge
+management still requires its owner capability. The result contract is in the MCP reference.
 Connection secrets are returned only to an authorized start caller. The relay invokes Session
 services directly; RSP bytes do not travel through MCP tool calls. The Core Registry remains unaware
 of TLS, target readiness, and debugger process ownership.
