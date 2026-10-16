@@ -28,6 +28,7 @@ type BridgeStartRequest struct {
 	RequestID                   string `json:"request_id"`
 	ListenAddress               string `json:"listen_address,omitempty"`
 	AllowedPeer                 string `json:"allowed_peer,omitempty"`
+	StrictPortPool              bool   `json:"strict_port_pool,omitempty"`
 	AcknowledgeUnverifiedTarget bool   `json:"acknowledge_unverified_target"`
 }
 
@@ -53,9 +54,10 @@ type BridgeStartResult struct {
 }
 
 type bridgeCoordinator struct {
-	mu       sync.Mutex
-	runs     map[string]*bridgeRun
-	requests map[string]*bridgeRun
+	endpoints debugger.EndpointAllocator
+	mu        sync.Mutex
+	runs      map[string]*bridgeRun
+	requests  map[string]*bridgeRun
 }
 
 type bridgeRun struct {
@@ -163,7 +165,7 @@ func (a *Application) StartRSPBridge(ctx context.Context, q BridgeStartRequest) 
 	if err = checkDebugPendingInput(terminal); err != nil {
 		return BridgeStartResult{}, err
 	}
-	endpoint, err := debugger.ListenBridge(q.ListenAddress, q.AllowedPeer)
+	endpoint, err := a.bridges.endpoints.Listen(q.ListenAddress, q.AllowedPeer, q.StrictPortPool)
 	if err != nil {
 		return BridgeStartResult{}, err
 	}
@@ -329,13 +331,13 @@ func (r *bridgeRun) end(state string, cause error) {
 		return
 	}
 	r.cancel()
-	r.endpoint.Close()
 	if _, err := r.app.removeAndCloseSession(r.terminal.ID()); err != nil {
 		state = "failed"
 		cause = errors.Join(cause, fmt.Errorf("close serial Session: %w", err))
 	}
 	r.app.leases.remove(r.terminal.ID())
 	<-r.workerDone
+	r.endpoint.Close()
 	r.setState(state, cause)
 	close(r.finished)
 }
@@ -451,6 +453,7 @@ func (a *Application) RestoreRSPBridge(id, owner, ttyState string, confirmShellR
 		return r.snapshot(), err
 	}
 	r.cancel()
+	r.endpoint.Close()
 	r.setState("restored", nil)
 	close(r.finished)
 	return r.snapshot(), nil

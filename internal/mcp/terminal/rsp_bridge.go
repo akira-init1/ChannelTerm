@@ -21,8 +21,10 @@ func bridgeToolsForApplication(a *app.Application) []tool.Tool {
 	return out
 }
 
+// Name identifies the bridge management or reporting operation.
 func (t *bridgeTool) Name() string { return t.name }
 
+// Description states the operation's ownership, liveness, and recovery limits.
 func (t *bridgeTool) Description() string {
 	switch t.name {
 	case "debug_bridge_report":
@@ -40,13 +42,15 @@ func (t *bridgeTool) Description() string {
 	}
 }
 
+// InputSchema exposes operation-specific arguments and separate capabilities.
 func (t *bridgeTool) InputSchema() tool.InputSchema {
 	props := map[string]tool.InputProperty{"owner": {Type: "string", Description: "Secret management capability, 32..128 characters; distinct from the generated TCP connection token."}}
 	required := []string{"owner"}
 	if t.name == "debug_bridge_start" {
 		props["session_id"] = tool.InputProperty{Type: "string", Description: activeSessionIDDescription + " Must be an open serial Session."}
 		props["request_id"] = tool.InputProperty{Type: "string", Description: "Unique start request ID, 1..128 characters; exact retries return the original bridge."}
-		props["listen_address"] = tool.InputProperty{Type: "string", Description: "Specific numeric IP:port; default 127.0.0.1:0. No wildcard binds. Port zero allocates an ephemeral port."}
+		props["listen_address"] = tool.InputProperty{Type: "string", Description: "Specific numeric IP:port. Omit to rotate through unallocated loopback ports 37100..37999 then fall back to an OS dynamic port. Explicit ports never fall back; explicit zero requests an OS dynamic port. No wildcard binds."}
+		props["strict_port_pool"] = tool.InputProperty{Type: "boolean", Description: "When listen_address is omitted, fail if ports 37100..37999 are exhausted instead of using an OS dynamic port. Default false. Explicit listen_address overrides the pool policy."}
 		props["allowed_peer"] = tool.InputProperty{Type: "string", Description: "One numeric client IP. Required for non-loopback binding. Authentication is still mandatory."}
 		props["acknowledge_unverified_target"] = tool.InputProperty{Type: "boolean", Description: "Must be true after preparing the target for raw RSP and saving its stty -g state. This acknowledges that passive checks cannot prove gdbserver readiness."}
 		required = append(required, "session_id", "request_id", "acknowledge_unverified_target")
@@ -68,6 +72,7 @@ func (t *bridgeTool) InputSchema() tool.InputSchema {
 	return tool.InputSchema{Type: "object", Properties: props, Required: required}
 }
 
+// Call validates input and delegates lifecycle and reporting to Application.
 func (t *bridgeTool) Call(ctx context.Context, input json.RawMessage) (tool.Result, error) {
 	if t.name == "debug_bridge_report" {
 		var q app.BridgeReportRequest

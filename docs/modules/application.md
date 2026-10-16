@@ -330,7 +330,18 @@ or controls GDB, gdbserver, or a target supervisor in this mode. Its coordinator
 managed MI operation. Input-pending checks are shared; both use the existing debug lease gate.
 The Session keeps its sole Channel reader, raw history, cursors, and write serialization.
 
-`debugger.Endpoint` owns bounded TLS authentication and a single accepted socket. Application
+The bridge coordinator owns a `debugger.EndpointAllocator`. One mutex protects its rotating cursor,
+real TCP binds, and logical address reservations. Allocation continues through 37100..37999 across
+requests, skipping active addresses; an active-pool count avoids scanning a fully reserved pool.
+This avoids repeatedly traversing the same occupied prefix during concurrent creation. Releases
+remove reservations without rewinding the cursor. Explicit and OS-selected binds within the pool
+also count as active pool addresses. The allocator closes the listener and removes its reservation
+under the same mutex, preventing dynamic allocation from selecting an address still reserved during
+finalization. See the [port policy](../reference/mcp-tools.md#external-rsp-bridge-tools)
+for strict exhaustion, dynamic fallback, and explicit addresses. `debugger.Endpoint` owns bounded TLS
+authentication and transfers one accepted socket to the relay. Its listener remains bound, rejecting
+later clients until finalization. Logical reservations and OS binds are distinct; neither client
+authentication nor disconnect releases either. Final close/failure or verified restoration does. Application
 adapts the Session cursor/leased write to the existing `debugger.Relay`; authentication bytes never
 reach the Session. Creation does not send target bytes. Pending input, incomplete input history,
 non-serial Sessions, and conflicting leases are rejected. Silent-target readiness remains explicitly

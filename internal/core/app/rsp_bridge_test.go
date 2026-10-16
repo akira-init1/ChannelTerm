@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"net"
 	"regexp"
 	"strings"
 	"testing"
@@ -132,6 +133,16 @@ func TestRSPBridgeReadinessLeaseAndBinaryRelay(t *testing.T) {
 	if _, err = a.CloseRSPBridge(status.BridgeID, bridgeTestOwner); err != nil {
 		t.Fatal(err)
 	}
+	assertBridgePortReleased(t, status.Address)
+}
+
+func assertBridgePortReleased(t *testing.T, address string) {
+	t.Helper()
+	listener, err := net.Listen("tcp", address)
+	if err != nil {
+		t.Fatalf("bridge port retained after finalization: %v", err)
+	}
+	listener.Close()
 }
 
 func TestRSPBridgeAuthorizationRetryAndExpiry(t *testing.T) {
@@ -231,6 +242,7 @@ func TestRSPBridgeVerifiedRestorationAndEchoFailure(t *testing.T) {
 			} else if err == nil || status.State != "failed" || s.State() != session.StateClosed {
 				t.Fatalf("echo falsely recovered: %+v %v", status, err)
 			}
+			assertBridgePortReleased(t, status.Address)
 		})
 	}
 }

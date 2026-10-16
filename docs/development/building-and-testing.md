@@ -235,6 +235,9 @@ Ordinary tests include fake serial Sessions, real loopback TLS sockets, and (on 
 with a `cat` byte-stream simulator. The latter is named
 `TestRSPBridgePTYBinaryAndShellRestoration`; it checks bytes, independent target preparation, and
 exact terminal-mode restoration. It does not validate GDB, Windows/WSL networking, or a physical board.
+Port tests cover cursor advancement after release, wraparound, active/external port conflicts,
+strict exhaustion/dynamic fallback with a reduced test pool, concurrent allocation and reuse,
+and reservation through authentication/disconnect.
 The relevant concurrency checks are:
 
 ```bash

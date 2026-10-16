@@ -11,6 +11,7 @@ import (
 	"crypto/x509"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"io"
 	"math/big"
 	"net"
@@ -36,19 +37,30 @@ type BridgeConnection struct {
 // peers do not consume that connection. Close interrupts pending authentication;
 // the owner of an accepted connection must close it separately.
 type Endpoint struct {
-	listener net.Listener
-	config   *tls.Config
-	peer     netip.Addr
-	info     BridgeConnection
-	mu       sync.Mutex
-	pending  net.Conn
-	closed   bool
+	listener  net.Listener
+	config    *tls.Config
+	peer      netip.Addr
+	info      BridgeConnection
+	mu        sync.Mutex
+	pending   net.Conn
+	closed    bool
+	accepting bool
+	release   func()
 }
 
-// ListenBridge binds a specific numeric IP (default 127.0.0.1:0). Wildcard
+// ListenBridge binds a standalone endpoint using the default port policy.
+// Hosts should share an EndpointAllocator across their bridge operations.
+func ListenBridge(address, allowedPeer string) (*Endpoint, error) {
+	return new(EndpointAllocator).Listen(address, allowedPeer, false)
+}
+
+// Listen binds a specific numeric IP (default loopback port pool). Wildcard
 // binding is forbidden. A non-loopback bind requires an exact allowed peer IP;
 // all clients, including loopback clients, must authenticate over pinned TLS.
-func ListenBridge(address, allowedPeer string) (*Endpoint, error) {
+// StrictPool disables dynamic fallback for an omitted address. Explicit ports,
+// including zero, always use exactly the caller's requested bind policy.
+func (a *EndpointAllocator) Listen(address, allowedPeer string, strictPool bool) (*Endpoint, error) {
+	automatic := address == ""
 	if address == "" {
 		address = "127.0.0.1:0"
 	}
@@ -88,12 +100,12 @@ func ListenBridge(address, allowedPeer string) (*Endpoint, error) {
 	if _, err = rand.Read(secret); err != nil {
 		return nil, err
 	}
-	listener, err := net.Listen("tcp", address)
+	listener, release, err := a.bind(address, automatic, strictPool)
 	if err != nil {
 		return nil, err
 	}
 	fingerprint := sha256.Sum256(der)
-	return &Endpoint{listener: listener, peer: peer,
+	return &Endpoint{listener: listener, peer: peer, release: release,
 		config: &tls.Config{MinVersion: tls.VersionTLS13, Certificates: []tls.Certificate{{Certificate: [][]byte{der}, PrivateKey: key}}},
 		info:   BridgeConnection{Address: listener.Addr().String(), Fingerprint: hex.EncodeToString(fingerprint[:]), Token: hex.EncodeToString(secret)},
 	}, nil
@@ -104,9 +116,17 @@ func (e *Endpoint) Connection() BridgeConnection { return e.info }
 
 // Accept authenticates bounded, sequential handshakes until one succeeds or
 // ctx/Close ends the wait. Authentication bytes never reach the Session. The
-// listener is closed before the authorized connection is returned; no reconnect
-// or second debugger can take over this endpoint.
+// listener remains bound until Close, rejecting subsequent sockets without TLS
+// authentication. Neither disconnect nor OS address reuse releases the logical
+// reservation; the operation owner calls Close at finalization.
 func (e *Endpoint) Accept(ctx context.Context) (net.Conn, error) {
+	e.mu.Lock()
+	if e.accepting || e.closed {
+		e.mu.Unlock()
+		return nil, net.ErrClosed
+	}
+	e.accepting = true
+	e.mu.Unlock()
 	stop := context.AfterFunc(ctx, e.Close)
 	defer stop()
 	for {
@@ -151,21 +171,129 @@ func (e *Endpoint) Accept(ctx context.Context) (net.Conn, error) {
 			}
 			continue
 		}
-		e.Close()
+		go e.rejectClients()
 		secure.SetDeadline(time.Time{})
 		return secure, nil
 	}
 }
 
-// Close is idempotent and releases the listener and any unauthenticated socket.
+// rejectClients keeps the OS bind alive without allowing a second client or
+// accumulating a full accept backlog. Close interrupts its blocking Accept.
+func (e *Endpoint) rejectClients() {
+	for {
+		conn, err := e.listener.Accept()
+		if err != nil {
+			return
+		}
+		conn.Close()
+	}
+}
+
+// Close idempotently releases the listener, pending authentication, and logical
+// port reservation. The accepted socket is owned and closed by the relay.
 func (e *Endpoint) Close() {
 	e.mu.Lock()
 	defer e.mu.Unlock()
+	if e.closed {
+		return
+	}
 	e.closed = true
-	e.listener.Close()
 	if e.pending != nil {
 		e.pending.Close()
 	}
+	e.release()
+}
+
+// EndpointAllocator tracks addresses owned by unfinished bridge operations.
+// The zero value rotates through ports 37100..37999. Its mutex covers the cursor,
+// real TCP binds, and reservations, never a probe-then-bind sequence. The OS bind
+// additionally excludes other processes; the map expresses operation ownership.
+type EndpointAllocator struct {
+	mu       sync.Mutex
+	held     map[string]bool
+	next     int
+	poolHeld int
+	// A smaller pool allows deterministic exhaustion tests without 900 sockets.
+	first, last int
+}
+
+func (a *EndpointAllocator) bind(address string, automatic, strict bool) (net.Listener, func(), error) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	first, last := a.first, a.last
+	if first == 0 {
+		first, last = 37100, 37999
+	}
+	bind := func(address string) (net.Listener, error) {
+		if a.held[address] {
+			return nil, fmt.Errorf("RSP endpoint %s is reserved by an unfinished bridge", address)
+		}
+		listener, err := net.Listen("tcp", address)
+		if err != nil {
+			return nil, fmt.Errorf("bind RSP endpoint %s: %w", address, err)
+		}
+		if a.held[listener.Addr().String()] {
+			listener.Close()
+			return nil, errors.New("OS selected an RSP endpoint reserved by an unfinished bridge")
+		}
+		return listener, nil
+	}
+	var listener net.Listener
+	var err error
+	if automatic {
+		if a.next == 0 {
+			a.next = first
+		}
+		// Continue from the previous attempt instead of rescanning the occupied
+		// prefix for every request. A full active pool needs no scan at all.
+		err = errors.New("all pool ports are reserved by unfinished bridges")
+		for remaining := last - first + 1; a.poolHeld < last-first+1 && remaining > 0; remaining-- {
+			candidate := net.JoinHostPort("127.0.0.1", strconv.Itoa(a.next))
+			a.next++
+			if a.next > last {
+				a.next = first
+			}
+			if a.held[candidate] {
+				continue
+			}
+			listener, err = bind(candidate)
+			if err == nil {
+				break
+			}
+		}
+		if listener == nil && strict {
+			return nil, nil, fmt.Errorf("RSP port pool %d..%d exhausted: %w", first, last, err)
+		}
+	}
+	if listener == nil {
+		listener, err = bind(address)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+	key := listener.Addr().String()
+	if a.held == nil {
+		a.held = make(map[string]bool)
+	}
+	a.held[key] = true
+	// Include explicit binds and OS-selected ports in the pool count when they
+	// occupy the same loopback range. Other IPs do not consume these candidates.
+	bound := listener.Addr().(*net.TCPAddr)
+	inPool := bound.IP.Equal(net.IPv4(127, 0, 0, 1)) && bound.Port >= first && bound.Port <= last
+	if inPool {
+		a.poolHeld++
+	}
+	return listener, func() {
+		a.mu.Lock()
+		// Publish OS availability and logical release under the same lock;
+		// otherwise a concurrent :0 bind can select a still-reserved address.
+		listener.Close()
+		delete(a.held, key)
+		if inPool {
+			a.poolHeld--
+		}
+		a.mu.Unlock()
+	}, nil
 }
 
 // DialBridge authenticates the server certificate before transmitting the

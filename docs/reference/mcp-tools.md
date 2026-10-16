@@ -752,7 +752,7 @@ is distinct from the generated connection token and internal debug lease capabil
 
 | Tool | Required arguments besides `owner` | Optional arguments | Result |
 | --- | --- | --- | --- |
-| `debug_bridge_start` | `session_id`, `request_id`, `acknowledge_unverified_target: true` | `listen_address`, `allowed_peer` | `status`, private `connection` |
+| `debug_bridge_start` | `session_id`, `request_id`, `acknowledge_unverified_target: true` | `listen_address`, `allowed_peer`, `strict_port_pool` | `status`, private `connection` |
 | `debug_bridge_status` | `bridge_id` | none | `status`; does not renew |
 | `debug_bridge_renew` | `bridge_id` | none | `status` with extended `expires_at` |
 | `debug_bridge_close` | `bridge_id` | none | `status`; closes bridge **and Session** |
@@ -767,11 +767,26 @@ restoration changes it to `shell_verified`; neither connection nor EOF proves ta
 object appears only in successful start responses and contains `address`, SHA-256 certificate
 `fingerprint` (hex), and random `token` (64 hex characters).
 
-Default listen address is `127.0.0.1:0`. Only a specific numeric IP with port 0..65535 is accepted;
+With `listen_address` omitted, each Host rotates through `127.0.0.1:37100` through `37999`.
+A synchronized cursor starts at 37100, advances across requests, and wraps after 37999; closing a
+bridge does not reset it. Active logical reservations are skipped without a bind attempt. Each
+remaining candidate is allocated by an actual TCP bind; unavailable ports advance the cursor,
+with at most one pass per request. A pool fully reserved by this Host needs no scan. Exhaustion
+falls back to an OS dynamic port (`:0`), or returns an error with `strict_port_pool: true`.
+Explicit `listen_address` overrides this pool policy: a fixed port either binds or returns an error;
+explicit port zero requests an OS dynamic port. `status.address` and `connection.address` always
+contain the actual bound port. The 900 preferred ports are an allocation policy, not a device limit
+or evidence of 900 concurrent debugging Sessions. Existing operation retention limits still apply.
+MCP HTTP retains its separate default port **37099**.
+
+Only a specific numeric IP with port 0..65535 is accepted;
 no wildcard bind, hostname, or implicit all-interface fallback. A non-loopback bind requires one
 numeric `allowed_peer` IP. Without an explicit peer, only loopback clients are eligible. All clients
 must authenticate using TLS 1.3, certificate pinning, and the connection token. Exactly one
-successful client is admitted; no reconnect. Authentication attempts have a three-second deadline
+successful client is admitted; no reconnect. After authentication the listener stays bound and
+rejects subsequent sockets. The Host separately reserves the logical IP/port until final close,
+failure, or verified restoration, including while disconnected. Closing a listener alone must not
+be treated as OS reservation of that port. Authentication attempts have a three-second deadline
 and are processed sequentially. Use the `rsp-client` CLI helper, not an unauthenticated raw TCP GDB
 connection. The MCP listener's authentication/configuration is unchanged.
 

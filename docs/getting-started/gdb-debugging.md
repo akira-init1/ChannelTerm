@@ -211,7 +211,12 @@ GDB supports this [pipe connection form](https://www.sourceware.org/gdb/current/
 A plain `target remote HOST:PORT` cannot authenticate this endpoint; use the helper. No token or
 TLS preface is forwarded to the serial Session. ACK and no-ack traffic are both forwarded unchanged.
 
-The bridge defaults to `127.0.0.1` on an allocated port. With WSL mirrored networking, WSL can reach
+The bridge defaults to `127.0.0.1`, rotating through unallocated ports **37100–37999** before OS
+dynamic fallback. Each Host continues from its previous allocation and wraps at the end of the pool.
+Set `strict_port_pool: true` on `debug_bridge_start` to fail when this pool is exhausted. An explicit
+`listen_address` overrides the pool policy; fixed ports never silently change, and `:0` requests an
+OS dynamic port. Always use the returned address. MCP HTTP remains on its separate default **37099**.
+The pool size is not a device limit or a concurrency benchmark. With WSL mirrored networking, WSL can reach
 Windows services using IPv4 loopback. With NAT networking, use the Windows host address visible
 from WSL instead. See Microsoft's [WSL networking guidance](https://learn.microsoft.com/en-us/windows/wsl/networking).
 For NAT, explicitly provide `listen_address` with that particular Windows interface IP and port
