@@ -25,7 +25,7 @@ var (
 	ErrRequiredCursor = errors.New("cursor is required for wait tools")
 )
 
-const serverInstructions = `cterm means ChannelTerm. terminal_list_sessions finds Sessions. At idle Bash: terminal_exec; otherwise terminal_write. Output: terminal_wait; transfers: terminal_wait_file_transfer. For discovered devices: terminal_get_connection_decision before opening; ask requires approval. terminal_close closes the Session for all clients. Lease and file-transfer controls are not for normal use. Linux MI: debug_start/command/events/stop. External GDB: debug_bridge_*; renew heartbeat, verify shell restoration.`
+const serverInstructions = `cterm means ChannelTerm. terminal_list_sessions finds Sessions. Idle Bash: terminal_exec; keys: terminal_write. Files: CLI channelterm file send/receive; terminal_wait_file_transfer. For discovered devices: terminal_get_connection_decision before opening; ask requires approval. terminal_close closes the Session for all clients. Lease and file-transfer controls are not for normal use. Linux MI: debug_start/command/events/stop. External GDB: debug_bridge_*; renew and verify shell recovery.`
 
 // NewServer creates an MCP Server backed by registry and reports version in
 // protocol implementation metadata. An empty version is reported as devel.

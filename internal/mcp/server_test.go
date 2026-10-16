@@ -34,6 +34,7 @@ func TestServerInstructionsCoverRoutingAndSafety(t *testing.T) {
 		"terminal_exec",
 		"terminal_write",
 		"terminal_wait_file_transfer",
+		"channelterm file send/receive",
 		"For discovered devices",
 		"terminal_get_connection_decision",
 		"ask requires approval",
@@ -168,6 +169,9 @@ func TestServerListsAndUsesTerminalTools(t *testing.T) {
 		}
 		if registered.Name == "terminal_wait" && !strings.Contains(registered.Description, "terminal_wait_file_transfer") {
 			t.Errorf("terminal_wait description = %q, want file-transfer wait guidance", registered.Description)
+		}
+		if registered.Name == "terminal_write" && (!strings.Contains(registered.Description, "channelterm file send/receive") || !strings.Contains(registered.Description, "Do not construct Base64/heredoc")) {
+			t.Errorf("terminal_write description must route file uploads to the existing CLI: %q", registered.Description)
 		}
 		assertOutputSchema(t, registered, wantOutputProperty[registered.Name])
 		assertToolAnnotations(t, registered, readOnlyAnnotations[registered.Name], destructiveAnnotations[registered.Name], openWorldAnnotations[registered.Name], registered.Name == "terminal_release_lease" || registered.Name == "debug_start" || registered.Name == "debug_command" || registered.Name == "debug_stop" || registered.Name == "debug_bridge_start" || registered.Name == "debug_bridge_close" || registered.Name == "debug_bridge_restore")

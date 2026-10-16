@@ -151,10 +151,16 @@ contracts are in the [MCP reference](../reference/mcp-tools.md#external-rsp-brid
 
 1. Open the serial Session on the Windows Host using the normal serial workflow. Record the actual
    port, baud, data bits, parity, stop bits, and flow-control settings. Do not guess board settings.
-2. At the target shell, save the exact output of `stty -g` outside the target. Use `terminal_exec`
+2. If the target needs an ELF, first use the existing [file transfer](file-transfer.md) workflow at
+   its idle shell: `channelterm file send ./addition /tmp/addition --session SER-1` (select the owning
+   `--endpoint` when needed). Run it where that local path is readable and the Host is reachable.
+   Wait for verified completion and use the returned destination path. Do not upload Base64 through
+   `terminal_write`. The transfer handles payload suppression, TTY restoration, and hash verification;
+   it must finish before the bridge takes its debug lease.
+3. At the target shell, save the exact output of `stty -g` outside the target. Use `terminal_exec`
    followed by `terminal_read` at an idle Bash prompt, or `terminal_write`/`terminal_read` for another
    known shell. This saved value is required if the Session is to be restored later.
-3. The user or an external agent prepares the target using those existing terminal tools. For a
+4. The user or an external agent prepares the target using those existing terminal tools. For a
    trusted Linux target, a representative shell command is:
 
    ```sh
@@ -164,7 +170,7 @@ contracts are in the [MCP reference](../reference/mcp-tools.md#external-rsp-brid
    Adapt paths and process arguments to the board. Verify that the server starts, that inferior I/O
    does not consume or corrupt its RSP stream, and that no other console producer writes to the same
    serial line. This command is supplied by the operator; the bridge never sends it automatically.
-4. Call `debug_bridge_start` with a fresh secret owner and request ID:
+5. Call `debug_bridge_start` with a fresh secret owner and request ID:
 
    ```json
    {"session_id":"SER-1","owner":"EXAMPLE-ONLY-REPLACE-WITH-RANDOM-OWNER","request_id":"bridge-1","acknowledge_unverified_target":true}

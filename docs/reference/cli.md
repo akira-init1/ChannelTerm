@@ -465,7 +465,10 @@ for an already listed Session.
 
 The initial attach read returns recent retained output, then uses private cursors to wait for later
 output and activity. New non-empty Agent writes are shown as local `AI` activity blocks; prior
-activity and CR/LF-only writes are not rendered. A `terminal_exec` event renders its original
+activity and CR/LF-only writes are not rendered. Raw Agent-write previews are limited to 512
+rendered bytes and four lines, with control/invalid bytes escaped. Truncation reports the original
+byte count; `terminal_read_activity` still returns the complete retained payload. This is a local
+display limit, not a write limit or a filter on board output. A `terminal_exec` event renders its original
 command in the same `AI` block format while the internal `system` wrapper is hidden by exact output
 cursor boundaries. Command output remains raw and visible. During the command's `terminal` lease,
 ordinary attachment keys are discarded locally and produce

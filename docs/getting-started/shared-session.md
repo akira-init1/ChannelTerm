@@ -69,7 +69,10 @@ transfer, but Clients must otherwise avoid conflicting command sequences themsel
 After attachment, the CLI watches new activity from the current tail and renders non-empty Agent
 writes as local `AI` activity blocks. It does not replay older activity, and writes containing only
 carriage-return or line-feed bytes are not rendered as blocks. This local view does not add bytes to
-Session output or change another client's cursor.
+Session output or change another client's cursor. Large raw Agent writes use a bounded preview
+instead of printing the entire payload; see the [CLI contract](../reference/cli.md#attach).
+File uploads should use the existing [file transfer](file-transfer.md) workflow, which renders
+progress and verification rather than file bytes. Manual shell uploads can still echo board output.
 
 ## Observe shared state
 

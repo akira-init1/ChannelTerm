@@ -1099,7 +1099,7 @@ func (*writeTool) Name() string { return "terminal_write" }
 
 // Description explains that the Tool sends lossless byte input to an active terminal session.
 func (*writeTool) Description() string {
-	return "Write raw UTF-8, hexadecimal, or base64 bytes for keys or interactive programs; shell lines follow target history, so use terminal_exec for one command at an idle Bash prompt."
+	return "Write raw UTF-8, hexadecimal, or base64 bytes for keys or interactive programs; shell lines follow target history, so use terminal_exec at an idle Bash prompt. For files/ELFs use CLI channelterm file send/receive with --session and the owning --endpoint, then terminal_wait_file_transfer. Do not construct Base64/heredoc uploads with this tool. Run the CLI where the local file and Host are accessible; if unavailable, report the limitation."
 }
 
 // InputSchema describes the session ID and text payload required for a write.

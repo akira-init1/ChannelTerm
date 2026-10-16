@@ -546,6 +546,13 @@ Include `\r` or `\n` only when the target protocol requires it; ChannelTerm adds
 automatically. A shell line sent with this raw-byte tool follows the remote shell's normal history
 behavior. Agents should use `terminal_exec` for an idle Bash command that must stay out of history.
 
+For files and debugging ELFs, run `channelterm file send` / `receive` from an environment that can
+read the local file and reach the Session's HTTP Host. Select `--session` and the owning `--endpoint`,
+then observe `terminal_wait_file_transfer` as described in the [transfer workflow](../getting-started/file-transfer.md).
+Do not construct Base64/heredoc uploads with `terminal_write`: they bypass managed transfer progress
+and payload suppression. If CLI or file access is unavailable, report that limitation. MCP provides
+transfer control and observation, not a client-file upload tool; the CLI opens no additional serial port.
+
 When another operation owns an exclusive lease, this unchanged tool returns a busy error such as
 `Session SER-1 is locked by file-transfer`. It never waits for the lease or accepts an owner
 capability.

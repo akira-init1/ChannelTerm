@@ -7,6 +7,12 @@ ChannelTerm can stream a regular file or a directory through an existing shared 
 AI client or a separately installed board-side transfer program. The board side remains an ordinary
 interactive Linux shell.
 
+Agents copying programs or debugging ELFs use this same CLI workflow. MCP exposes its transfer
+control/events, but has no client-file upload tool. Do not build a separate Base64/heredoc transfer
+with `terminal_write`; those writes are ordinary input and may be displayed and echoed. If the CLI,
+local file, or owning HTTP Host is inaccessible, report the missing access instead. With WSL/Windows
+interop, local paths and the HTTP credential belong to the OS running the chosen CLI executable.
+
 ## Preconditions
 
 - The remote shell is idle and accepts POSIX-style shell commands.
