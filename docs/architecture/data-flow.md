@@ -289,3 +289,23 @@ is isolated from the PTY. MI records form a separate bounded debug-event cursor 
 Session event stream carries `DEBUG_STATE` and lease boundaries for CLI presentation. Raw Session
 history remains unchanged. See [Application](../modules/application.md#user-space-debug-operations)
 for timeout, final-ACK, recovery, and subprocess ownership details.
+
+
+## External GDB bridge
+
+```text
+MCP debug_bridge_* -> Application bridge operation -> exclusive debug lease
+                                  |
+External GDB -> rsp-client -> pinned TLS/TCP endpoint -> existing binary RSP relay
+                                                              |
+                                                   Session cursor / leased Write
+                                                              |
+                                              existing serial Channel -> target
+```
+
+Authentication precedes all Session I/O. Only one authorized connection is admitted; the acceptor
+then closes. The external operator prepares gdbserver and controls GDB independently. No terminal
+history is replayed at startup, and no MI subprocess participates in this path. TCP disconnect
+retains the lease; a separately confirmed shell/TTY probe may restore terminal use. Otherwise
+explicit close, expiry, or uncertain recovery closes the Session. See
+[Application](../modules/application.md#external-serial-rsp-bridge) for concurrency and cleanup.

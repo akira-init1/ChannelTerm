@@ -23,6 +23,10 @@ type jsonSchema struct {
 func terminalOutputSchema(name string) (jsonSchema, bool) {
 	var schema jsonSchema
 	switch name {
+	case "debug_bridge_start":
+		schema = objectSchema(map[string]jsonSchema{"status": bridgeStatusSchema(), "connection": objectSchema(map[string]jsonSchema{"address": stringSchema(), "fingerprint": stringSchema(), "token": stringSchema()}, "address", "fingerprint", "token")}, "status", "connection")
+	case "debug_bridge_status", "debug_bridge_renew", "debug_bridge_close", "debug_bridge_restore":
+		schema = objectSchema(map[string]jsonSchema{"status": bridgeStatusSchema()}, "status")
 	case "debug_start", "debug_stop":
 		schema = objectSchema(map[string]jsonSchema{"status": debugStatusSchema()}, "status")
 	case "debug_command":
@@ -287,4 +291,13 @@ func debugStatusSchema() jsonSchema {
 		"state": stringSchema("starting", "stopped", "running", "exited", "recovering", "closed", "failed"),
 		"next":  integerSchema(), "expires_at": stringSchema(), "error": stringSchema(),
 	}, "debug_id", "session_id", "state", "next", "expires_at")
+}
+
+func bridgeStatusSchema() jsonSchema {
+	return objectSchema(map[string]jsonSchema{
+		"bridge_id": stringSchema(), "session_id": stringSchema(), "address": stringSchema(),
+		"state":      stringSchema("listening", "connected", "disconnected", "recovering", "restored", "closed", "failed"),
+		"expires_at": stringSchema(), "target_state": stringSchema("unverified", "shell_verified"),
+		"warning": stringSchema(), "error": stringSchema(),
+	}, "bridge_id", "session_id", "state", "address", "expires_at", "target_state")
 }

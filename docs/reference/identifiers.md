@@ -110,3 +110,14 @@ secret. Debug tools also require the caller's secret `owner`; knowing a debug ID
 control. Start `request_id` values are scoped to the canonical Session ID, and command request IDs
 to one debug operation. Exact retries reuse the existing operation/result; conflicting parameters
 are rejected. Debug event cursors start at zero and are independent of every Session cursor.
+
+
+## External bridge identity
+
+`bridge_id` (currently displayed as `RSP-<opaque-token>`) identifies an external bridge operation,
+not a Session or Transport reference. Management calls require the separate secret `owner`.
+Start request IDs are scoped to that owner and fingerprint all arguments exactly, including the
+supplied Session reference. IDs/results remain retained through terminal states for Host-lifetime
+retry deduplication. TCP connection tokens are independently generated secret capabilities; they
+are not Session IDs, management owners, or lease owners. Neither status nor Session events exposes
+them. See [bridge contracts](mcp-tools.md#external-rsp-bridge-tools).

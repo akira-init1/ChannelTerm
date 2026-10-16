@@ -374,6 +374,9 @@ func (*fakeConnectedSession) Resize(uint16, uint16) error { return nil }
 func (s *fakeConnectedSession) Close() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.closed {
+		return nil
+	}
 	s.closed = true
 	s.state = session.StateClosed
 	close(s.outputNew)

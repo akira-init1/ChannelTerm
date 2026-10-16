@@ -26,13 +26,15 @@ ChannelTerm 支援 Windows、Linux 與 macOS 上的序列埠通訊與 SSH PTY sh
 
 ## 透過 MCP 使用使用者態 GDB
 
-在原生 Linux 上，MCP 用戶端可透過 `debug_*` 工具接管閒置 Bash Session、設定中斷點、逐步執行、查看變數/執行緒/暫存器並分離。首版要求 ChannelTerm、GDB、gdbserver 和 ELF 位於同一 Linux 環境，支援單一 inferior、all-stop 除錯；只有還原終端機狀態並通過唯一標記 Shell 探測後，才開放一般寫入。
+在原生 Linux 上，MCP 用戶端可透過 `debug_start` / `debug_command` / `debug_events` / `debug_stop` 工具接管閒置 Bash Session、設定中斷點、逐步執行、查看變數/執行緒/暫存器並分離。首版要求 ChannelTerm、GDB、gdbserver 和 ELF 位於同一 Linux 環境，支援單一 inferior、all-stop 除錯；只有還原終端機狀態並通過唯一標記 Shell 探測後，才開放一般寫入。
 
 ```text
 debug_start -> break_insert -> continue -> debug_events -> next/step/finish -> debug_stop
 ```
 
 [工作流程、MCP 呼叫、安全 attach 與本機 PTY 測試範圍](docs/getting-started/gdb-debugging.md).
+
+獨立執行的 GDB 可透過 `debug_bridge_*` 建立的驗證 TCP 橋接存取已準備好的序列埠 Session。ChannelTerm 不啟動 GDB 或 gdbserver。由 GDB 呼叫 `channelterm rsp-client` 連線；斷線後保留獨占租約，直到 Shell/TTY 復原驗證成功，明確關閉橋接則同時關閉 Session。Windows/WSL2 設定及 PTY 與開發板分別驗證的步驟請見[外部橋接工作流程](docs/getting-started/gdb-debugging.md#external-gdb-over-a-prepared-serial-session)。
 
 ## 透過 SSH 傳輸檔案
 

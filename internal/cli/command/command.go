@@ -127,6 +127,9 @@ func runWithDependenciesWithInterrupts(ctx context.Context, args []string, input
 			}
 		}()
 	}
+	if len(args) > 0 && args[0] == "rsp-client" {
+		return runRSPClient(ctx, args[1:], input, output)
+	}
 	if len(args) > 0 && args[0] == "serial" {
 		return runSerial(ctx, args[1:], input, output, newSession)
 	}
@@ -180,6 +183,7 @@ func runWithDependenciesWithInterrupts(ctx context.Context, args []string, input
 		fmt.Fprintln(output, "  install Install ChannelTerm for the current user")
 		fmt.Fprintln(output, "  list    List local devices, saved profiles, and MCP sessions")
 		fmt.Fprintln(output, "  mcp     Start the Session Host MCP server")
+		fmt.Fprintln(output, "  rsp-client Connect external GDB to an authenticated RSP bridge")
 		fmt.Fprintln(output, "  serial  Connect to a serial port")
 		fmt.Fprintln(output, "  ssh     Open and share an SSH interactive shell")
 		fmt.Fprintln(output, "  sftp    Transfer files and manage remote files over SFTP")

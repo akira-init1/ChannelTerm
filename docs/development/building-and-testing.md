@@ -227,3 +227,34 @@ Extracted binaries may use a caller-supplied PATH and LD_LIBRARY_PATH. GDB/gdbse
 tools, not bundled Go dependencies. See [the workflow](../getting-started/gdb-debugging.md#validation-and-diagnostics)
 for coverage and evidence boundaries. Other desktop builds still compile, but debug_start rejects
 non-Linux hosts explicitly; cross-build success does not validate their terminal behavior.
+
+
+## External RSP bridge verification
+
+Ordinary tests include fake serial Sessions, real loopback TLS sockets, and (on Linux) an actual PTY
+with a `cat` byte-stream simulator. The latter is named
+`TestRSPBridgePTYBinaryAndShellRestoration`; it checks bytes, independent target preparation, and
+exact terminal-mode restoration. It does not validate GDB, Windows/WSL networking, or a physical board.
+The relevant concurrency checks are:
+
+```bash
+go test -race ./internal/core/debugger ./internal/core/app ./internal/mcp ./internal/cli/command -run 'TestRSP|TestBridge|TestExternalBridge|TestDebug|TestMI|TestRelay|TestFinalExitACK' -count=1
+```
+
+Tests need local socket permission; a sandbox refusal to bind is an environment failure. Linux PTY
+coverage uses `sh`, `stty`, and `cat` and reports a skip if these are unavailable. The original opt-in
+managed GDB suite remains separate. The external real-GDB test prepares gdbserver through existing
+terminal APIs, then independently launches GDB and the `rsp-client` pipe helper:
+
+```bash
+CHANNELTERM_TEST_GDB=1 go test -race ./internal/mcp -run '^TestGDBExternalPTY$' -count=1 -v
+```
+
+This test requires GDB/gdbserver/GCC and local ptrace permission, builds a temporary helper, and
+checks breakpoints, step/next/finish, a variable value, backtrace, detach, and exact TTY restoration.
+It uses native Linux executables and a PTY, not an ARM board. GDB is launched by the test driver,
+not by the Application bridge. Extracted test tools can use private PATH/LD_LIBRARY_PATH settings.
+Cross-builds cover all six desktop targets with CGO disabled;
+they are not native Windows validation. Follow the
+[external workflow's evidence checklist](../getting-started/gdb-debugging.md#evidence-boundaries-and-diagnostics)
+for Windows/WSL2/ARM acceptance and record real-board results separately.

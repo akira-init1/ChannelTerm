@@ -320,3 +320,40 @@ GDB PID and Host user. Neither debug events nor Session events contain the clien
 lease capability. The ordinary MCP Host authentication remains in force. The operation is not a
 sandbox for malicious programs, debugger executables, or same-user processes. See the
 [workflow](../getting-started/gdb-debugging.md) for prerequisites, safe attach, and validation limits.
+
+
+## External serial RSP bridge
+
+`StartRSPBridge`, `RSPBridgeStatus`, `RenewRSPBridge`, `CloseRSPBridge`, and `RestoreRSPBridge`
+coordinate a separate bridge over an already prepared serial Session. The Application never launches
+or controls GDB, gdbserver, or a target supervisor in this mode. Its coordinator is independent of the
+managed MI operation. Input-pending checks are shared; both use the existing debug lease gate.
+The Session keeps its sole Channel reader, raw history, cursors, and write serialization.
+
+`debugger.Endpoint` owns bounded TLS authentication and a single accepted socket. Application
+adapts the Session cursor/leased write to the existing `debugger.Relay`; authentication bytes never
+reach the Session. Creation does not send target bytes. Pending input, incomplete input history,
+non-serial Sessions, and conflicting leases are rejected. Silent-target readiness remains explicitly
+unverified and requires an operator acknowledgement; no RSP probe/parser is added to Session.
+
+The operation retains a secret management capability separately from its internal lease owner and
+TCP token. Status/events omit all three. Start retries are scoped to owner/request ID and fingerprint
+all arguments; retention is bounded to 128 operations. The management TTL is 60 seconds; status reads
+do not extend it. The existing 30-second debug lease is renewed every ten seconds, including after
+client disconnection. A closed/expired operation cannot be renewed.
+
+The worker alone transitions listening -> connected -> disconnected. Management mutations serialize
+on an operation mutex; state reads use a separate short-held mutex. Finalization cancels and closes
+the endpoint, closes the Session to interrupt an unbounded Channel write, then joins the relay before
+publishing its final state. No worker publishes a state after that join. Concurrent relay EOF must
+not hide a lost-buffer error from the other direction.
+
+Disconnected is not restored: ordinary writers remain excluded. Explicit restoration requires an
+externally returned shell and its pre-debug TTY snapshot. It joins the disconnected worker, applies
+and reads back the caller's exact `stty -g` value, and uses the existing split-token command-marker
+reader for a fresh proof. The independent ten-second timeout closes the Session even if a probe write
+blocks. Only successful verification releases the lease while preserving the Session. Unknown target
+state, lost serial bytes, expiry, explicit close, or failed recovery closes the Session without
+claiming target cleanup. There are no ACK-mode assumptions, injected detach commands, or remote PID
+signals in this lifecycle. See the [MCP contracts](../reference/mcp-tools.md#external-rsp-bridge-tools)
+and [external workflow](../getting-started/gdb-debugging.md#external-gdb-over-a-prepared-serial-session).

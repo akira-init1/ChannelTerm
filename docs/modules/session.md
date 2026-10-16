@@ -71,7 +71,7 @@ The current event types are `SESSION_CREATED`, `SESSION_ATTACHED`, `SESSION_DETA
 `LEASE_ACQUIRED`, `LEASE_RELEASED`, `FILE_TRANSFER_STARTED`, `FILE_TRANSFER_PROGRESS`,
 `FILE_TRANSFER_COMPLETED`, `FILE_TRANSFER_CANCELLED`, `FILE_TRANSFER_FAILED`,
 `TERMINAL_COMMAND_STARTED`, `TERMINAL_COMMAND_OUTPUT_STARTED`, `TERMINAL_COMMAND_COMPLETED`, and
-`TERMINAL_COMMAND_FAILED`, and `DEBUG_STATE`. Debug transitions carry only `debug_id` and `state`.
+`TERMINAL_COMMAND_FAILED`, and `DEBUG_STATE`. Managed MI transitions carry only `debug_id` and `state`; external bridge transitions carry only `bridge_id` and `state`. Neither includes credentials.
 One file transfer's lease acquire/release and status events all carry the
 same process-local `transfer_id`. `file-transfer` and `debug` lease events also include an `output_cursor`
 snapshot used only by attach presentation to suppress the corresponding internal raw-output range.

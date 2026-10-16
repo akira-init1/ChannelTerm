@@ -27,13 +27,15 @@ ChannelTerm は Windows、Linux、macOS でシリアル通信と SSH PTY シェ�
 
 ## MCP 経由のユーザー空間 GDB
 
-ネイティブ Linux では、MCP クライアントが `debug_*` ツールで待機中の Bash Session を引き継ぎ、ブレークポイント、ステップ実行、変数・スレッド・レジスタの確認、デタッチを行えます。初版では ChannelTerm、GDB、gdbserver、ELF が同じ Linux 環境にある必要があります。単一 inferior の all-stop デバッグに対応し、端末状態の復元と一意のマーカーによるシェル確認が成功してから通常の書き込みを再開します。
+ネイティブ Linux では、MCP クライアントが `debug_start` / `debug_command` / `debug_events` / `debug_stop` ツールで待機中の Bash Session を引き継ぎ、ブレークポイント、ステップ実行、変数・スレッド・レジスタの確認、デタッチを行えます。初版では ChannelTerm、GDB、gdbserver、ELF が同じ Linux 環境にある必要があります。単一 inferior の all-stop デバッグに対応し、端末状態の復元と一意のマーカーによるシェル確認が成功してから通常の書き込みを再開します。
 
 ```text
 debug_start -> break_insert -> continue -> debug_events -> next/step/finish -> debug_stop
 ```
 
 [手順、MCP 呼び出し、安全な attach、ローカル PTY テストの範囲](docs/getting-started/gdb-debugging.md).
+
+独立して実行する GDB には、`debug_bridge_*` が準備済みのシリアル Session を認証付き TCP ブリッジで公開します。ChannelTerm は GDB や gdbserver を起動しません。GDB から `channelterm rsp-client` を使用します。切断後もシェル／TTY の復元を検証するまで排他リースを保持し、明示的な終了では Session も閉じます。Windows/WSL2 の設定と PTY・実機を区別した検証手順は[外部ブリッジのワークフロー](docs/getting-started/gdb-debugging.md#external-gdb-over-a-prepared-serial-session)を参照してください。
 
 ## SSH 経由のファイル転送
 

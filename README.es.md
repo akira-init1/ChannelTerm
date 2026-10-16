@@ -28,13 +28,15 @@ ChannelTerm admite comunicación serie y shells SSH con PTY en Windows, Linux y 
 
 ## GDB en espacio de usuario mediante MCP
 
-En Linux nativo, un cliente MCP puede tomar una Session Bash inactiva mediante las herramientas `debug_*`, establecer puntos de interrupción, ejecutar paso a paso, consultar variables/hilos/registros y desconectarse del proceso. Este primer backend requiere ChannelTerm, GDB, gdbserver y ELF en el mismo entorno Linux. Admite un solo inferior y depuración all-stop; la escritura normal se habilita después de restaurar el terminal y verificar la shell con un marcador único.
+En Linux nativo, un cliente MCP puede tomar una Session Bash inactiva mediante las herramientas `debug_start` / `debug_command` / `debug_events` / `debug_stop`, establecer puntos de interrupción, ejecutar paso a paso, consultar variables/hilos/registros y desconectarse del proceso. Este primer backend requiere ChannelTerm, GDB, gdbserver y ELF en el mismo entorno Linux. Admite un solo inferior y depuración all-stop; la escritura normal se habilita después de restaurar el terminal y verificar la shell con un marcador único.
 
 ```text
 debug_start -> break_insert -> continue -> debug_events -> next/step/finish -> debug_stop
 ```
 
 [Flujo, llamadas MCP, attach seguro y cobertura de pruebas PTY locales](docs/getting-started/gdb-debugging.md).
+
+Para un GDB ejecutado de forma independiente, `debug_bridge_*` expone una Session serie ya preparada mediante un puente TCP autenticado. ChannelTerm no inicia GDB ni gdbserver. GDB utiliza `channelterm rsp-client`; al desconectarse, la concesión exclusiva se mantiene hasta verificar la restauración de shell/TTY. El cierre explícito también cierra la Session. El [flujo del puente externo](docs/getting-started/gdb-debugging.md#external-gdb-over-a-prepared-serial-session) explica Windows/WSL2 y la validación separada con PTY y placa de desarrollo.
 
 ## Archivos mediante SSH
 

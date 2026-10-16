@@ -224,3 +224,9 @@ See [MCP tools](../reference/mcp-tools.md) for the currently exposed tool names 
 
 For native Linux user-space process debugging, follow the [GDB/MI workflow](gdb-debugging.md).
 The `debug_*` tools use the same Host authentication and an additional per-operation owner capability.
+
+
+For an external GDB (including one independently run in WSL2), `debug_bridge_*` manages a prepared
+serial Session's authenticated TCP bridge. Keep renewing its management heartbeat independently of
+GDB commands. Connection credentials differ from MCP authentication and must remain private. See
+[the external GDB workflow](gdb-debugging.md#external-gdb-over-a-prepared-serial-session).

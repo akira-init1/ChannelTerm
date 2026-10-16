@@ -120,6 +120,25 @@ func TestRelayDisconnectFails(t *testing.T) {
 	}
 }
 
+type lateLossStream struct{ released chan struct{} }
+
+func (s lateLossStream) Read(ctx context.Context) ([]byte, bool, error) {
+	<-ctx.Done()
+	close(s.released)
+	return nil, true, nil
+}
+func (lateLossStream) Write(context.Context, []byte) error { return nil }
+
+func TestRelayDoesNotHideDataLossBehindClientEOF(t *testing.T) {
+	left, right := net.Pipe()
+	s := lateLossStream{released: make(chan struct{})}
+	right.Close()
+	if err := Relay(context.Background(), left, s); !errors.Is(err, ErrDataLost) {
+		t.Fatalf("concurrent EOF hid data loss: %v", err)
+	}
+	<-s.released
+}
+
 func TestFinalExitACKTracksFragmentsAndRejectsPayloadACK(t *testing.T) {
 	for _, tc := range []struct {
 		name, packet string

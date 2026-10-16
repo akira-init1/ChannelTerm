@@ -125,7 +125,7 @@ int main(int argc, char **argv) {
 		t.Fatal(e)
 	}
 	manager := session.NewManager()
-	if e = manager.Register(s); e != nil {
+	if e = manager.RegisterWithMetadata(s, session.SessionMetadata{Transport: "serial", Endpoint: "PTY-SIMULATION"}); e != nil {
 		t.Fatal(e)
 	}
 	t.Cleanup(func() { manager.Close() })

@@ -136,3 +136,10 @@ the leased binary protocol output and remain attached. Use the debug tools for i
 normal Ctrl+C is not debugger control. The original terminal mode and a random-marker shell probe
 must succeed before ordinary input resumes. Expired debug leases and unverified recovery close the
 Session instead of reopening writing. `DEBUG_STATE` events identify lifecycle transitions.
+
+
+For an independently operated GDB, use the
+[external serial RSP bridge](gdb-debugging.md#external-gdb-over-a-prepared-serial-session).
+It shares the same exclusive write lease and attachment output suppression, but does not run MI or
+start a target server. External client disconnection retains the lease. Only a separately confirmed
+shell/TTY restoration allows ordinary writers again; explicit bridge close also closes the Session.

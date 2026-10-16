@@ -69,6 +69,7 @@ type Application struct {
 	policy          connectionpolicy.Policy
 	listSerialPorts func() ([]serialtransport.Port, error)
 	debug           debugCoordinator
+	bridges         bridgeCoordinator
 }
 
 // New creates an Application from Core runtime dependencies.
@@ -375,11 +376,15 @@ func (a *Application) RenewLease(identifier, owner string) (SessionLease, error)
 
 // ReleaseLease releases identifier's lease only when owner matches its owner
 // capability. Releasing an already absent lease is successful and idempotent.
-// Managed debug leases must end through StopDebug to verify terminal restoration.
+// Managed debug leases must end through their MI or RSP bridge lifecycle to
+// verify terminal restoration or close the Session.
 func (a *Application) ReleaseLease(identifier, owner string) error {
 	terminal, err := a.session(identifier)
 	if err != nil {
 		return err
+	}
+	if a.bridges.owns(terminal.ID(), owner) {
+		return errors.New("managed RSP bridge lease must end through bridge close or verified restoration")
 	}
 	if a.debug.owns(terminal.ID(), owner) {
 		return errors.New("managed debug lease must end through StopDebug")

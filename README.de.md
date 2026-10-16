@@ -28,13 +28,15 @@ ChannelTerm unterstützt serielle Kommunikation und SSH-Shells mit PTY unter Win
 
 ## GDB im Benutzerraum über MCP
 
-Unter nativem Linux kann ein MCP-Client mit den `debug_*`-Tools eine wartende Bash-Session übernehmen, Haltepunkte setzen, schrittweise ausführen, Variablen/Threads/Register prüfen und sich wieder lösen. Dieses erste Backend setzt ChannelTerm, GDB, gdbserver und ELF in derselben Linux-Umgebung voraus. Es unterstützt einen Inferior im All-Stop-Modus; normales Schreiben wird erst nach Wiederherstellung des Terminals und erfolgreicher Shell-Prüfung mit einer eindeutigen Markierung freigegeben.
+Unter nativem Linux kann ein MCP-Client mit den `debug_start` / `debug_command` / `debug_events` / `debug_stop`-Tools eine wartende Bash-Session übernehmen, Haltepunkte setzen, schrittweise ausführen, Variablen/Threads/Register prüfen und sich wieder lösen. Dieses erste Backend setzt ChannelTerm, GDB, gdbserver und ELF in derselben Linux-Umgebung voraus. Es unterstützt einen Inferior im All-Stop-Modus; normales Schreiben wird erst nach Wiederherstellung des Terminals und erfolgreicher Shell-Prüfung mit einer eindeutigen Markierung freigegeben.
 
 ```text
 debug_start -> break_insert -> continue -> debug_events -> next/step/finish -> debug_stop
 ```
 
 [Ablauf, MCP-Aufrufe, sicheres Attach und lokale PTY-Testabdeckung](docs/getting-started/gdb-debugging.md).
+
+Für ein unabhängig betriebenes GDB stellt `debug_bridge_*` eine bereits vorbereitete serielle Session über eine authentifizierte TCP-Brücke bereit. ChannelTerm startet weder GDB noch gdbserver. GDB verwendet `channelterm rsp-client`; nach einer Trennung bleibt die exklusive Lease bis zur bestätigten Shell-/TTY-Wiederherstellung bestehen. Explizites Schließen beendet auch die Session. Der [Workflow für die externe Brücke](docs/getting-started/gdb-debugging.md#external-gdb-over-a-prepared-serial-session) beschreibt Windows/WSL2 sowie die getrennte Prüfung mit PTY und Entwicklungsboard.
 
 ## Dateien über SSH übertragen
 

@@ -94,6 +94,13 @@ func RelayFinalACK(ctx context.Context, conn net.Conn, stream Stream) (RelayResu
 	cancel()
 	_ = conn.Close()
 	wg.Wait()
+	other := <-result
+	// Do not hide lost target bytes behind a concurrent client EOF. Both pump
+	// results are available after the join; cancellation/closed-socket errors
+	// from shutting down the opposite direction carry no new failure evidence.
+	if errors.Is(other, ErrDataLost) || ((errors.Is(e, io.EOF) || errors.Is(e, context.Canceled) || errors.Is(e, net.ErrClosed)) && other != nil && !errors.Is(other, context.Canceled) && !errors.Is(other, net.ErrClosed)) {
+		e = other
+	}
 	if errors.Is(e, io.EOF) {
 		return tracker.result(), nil
 	}

@@ -27,13 +27,15 @@ ChannelTerm은 Windows, Linux, macOS에서 시리얼 통신과 SSH PTY 셸을 �
 
 ## MCP를 통한 사용자 공간 GDB
 
-네이티브 Linux에서 MCP 클라이언트는 `debug_*` 도구로 대기 중인 Bash Session을 인계받아 중단점 설정, 단계 실행, 변수·스레드·레지스터 확인 및 분리를 수행할 수 있습니다. 첫 버전은 ChannelTerm, GDB, gdbserver, ELF가 같은 Linux 환경에 있어야 합니다. 단일 inferior의 all-stop 디버깅을 지원하며, 터미널 복원과 고유 마커를 이용한 셸 확인이 성공한 뒤에만 일반 쓰기를 재개합니다.
+네이티브 Linux에서 MCP 클라이언트는 `debug_start` / `debug_command` / `debug_events` / `debug_stop` 도구로 대기 중인 Bash Session을 인계받아 중단점 설정, 단계 실행, 변수·스레드·레지스터 확인 및 분리를 수행할 수 있습니다. 첫 버전은 ChannelTerm, GDB, gdbserver, ELF가 같은 Linux 환경에 있어야 합니다. 단일 inferior의 all-stop 디버깅을 지원하며, 터미널 복원과 고유 마커를 이용한 셸 확인이 성공한 뒤에만 일반 쓰기를 재개합니다.
 
 ```text
 debug_start -> break_insert -> continue -> debug_events -> next/step/finish -> debug_stop
 ```
 
 [워크플로, MCP 호출, 안전한 attach 및 로컬 PTY 테스트 범위](docs/getting-started/gdb-debugging.md).
+
+독립적으로 실행하는 GDB는 `debug_bridge_*`가 제공하는 인증된 TCP 브리지를 통해 준비된 직렬 Session에 접근합니다. ChannelTerm은 GDB나 gdbserver를 시작하지 않습니다. GDB에서 `channelterm rsp-client`를 사용하며, 연결이 끊겨도 셸/TTY 복원을 검증할 때까지 독점 임대를 유지합니다. 명시적으로 브리지를 닫으면 Session도 닫힙니다. Windows/WSL2 설정과 PTY 및 실제 보드를 구분한 검증 절차는 [외부 브리지 워크플로](docs/getting-started/gdb-debugging.md#external-gdb-over-a-prepared-serial-session)를 참조하세요.
 
 ## SSH 파일 전송
 

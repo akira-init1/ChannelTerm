@@ -25,7 +25,7 @@ var (
 	ErrRequiredCursor = errors.New("cursor is required for wait tools")
 )
 
-const serverInstructions = `cterm means ChannelTerm. Find Sessions: terminal_list_sessions. At an idle Bash prompt use terminal_exec for one non-interactive command; otherwise terminal_write. Output: terminal_wait; transfers: terminal_wait_file_transfer. For discovered devices call terminal_get_connection_decision before opening; ask requires approval. terminal_close closes the Session for all clients. Lease and file-transfer controls are not for normal use. Linux GDB: debug_start, debug_command, debug_events, debug_stop.`
+const serverInstructions = `cterm means ChannelTerm. terminal_list_sessions finds Sessions. At idle Bash: terminal_exec; otherwise terminal_write. Output: terminal_wait; transfers: terminal_wait_file_transfer. For discovered devices: terminal_get_connection_decision before opening; ask requires approval. terminal_close closes the Session for all clients. Lease and file-transfer controls are not for normal use. Linux MI: debug_start/command/events/stop. External GDB: debug_bridge_*; renew heartbeat, verify shell restoration.`
 
 // NewServer creates an MCP Server backed by registry and reports version in
 // protocol implementation metadata. An empty version is reported as devel.
@@ -340,7 +340,7 @@ func newAdapter(registry *tool.Registry) (*adapter, error) {
 		{name: "terminal_get_connection_decision", target: connectionDecision.Name(), description: connectionDecision.Description(), schema: connectionDecision.InputSchema()},
 		{name: "terminal_close", target: closeTool.Name(), description: closeTool.Description(), schema: closeTool.InputSchema()},
 	}
-	for _, name := range []string{"debug_start", "debug_command", "debug_events", "debug_stop"} {
+	for _, name := range []string{"debug_start", "debug_command", "debug_events", "debug_stop", "debug_bridge_start", "debug_bridge_status", "debug_bridge_renew", "debug_bridge_close", "debug_bridge_restore"} {
 		if registered, ok := registry.Get(name); ok {
 			exposed = append(exposed, exposedTool{name: name, target: name, description: registered.Description(), schema: registered.InputSchema()})
 		}

@@ -195,24 +195,7 @@ func (a *Application) StartDebug(ctx context.Context, request DebugStartRequest)
 		close(r.finished)
 		return r.status(), e
 	}
-	if tracker, ok := terminal.(interface{ HasPendingInput() bool }); ok {
-		if tracker.HasPendingInput() {
-			e = ErrTerminalCommandInputPending
-		}
-	} else {
-		var activity session.ActivityChunk
-		activity, e = terminal.ReadRecentActivity(session.DefaultActivityBufferCapacity)
-		if e == nil && (activity.Dropped || uint64(activity.Next) > uint64(len(activity.Events))) {
-			e = errors.New("terminal input history incomplete; debug takeover refused")
-		}
-		if e == nil {
-			var pending bool
-			pending, e = terminalHasPendingInteractiveInput(terminal)
-			if pending {
-				e = ErrTerminalCommandInputPending
-			}
-		}
-	}
+	e = checkDebugPendingInput(terminal)
 	if e == nil {
 		e = r.start(ctx)
 	}

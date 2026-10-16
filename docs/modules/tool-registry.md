@@ -45,3 +45,10 @@ enforce safety. It owns MCP-facing compatibility: public names, titles, descript
 schemas, annotations, and result translation. The Core Registry remains protocol-neutral.
 
 See [MCP tools](../reference/mcp-tools.md) for the actual public surface.
+
+
+The `debug_bridge_*` adapters expose the separate external bridge Application operations, including
+read-only status, explicit heartbeat renewal, Session-closing abort, and verified restoration.
+Connection secrets are returned only to an authorized start caller. The relay invokes Session
+services directly; RSP bytes do not travel through MCP tool calls. The Core Registry remains unaware
+of TLS, target readiness, and debugger process ownership.

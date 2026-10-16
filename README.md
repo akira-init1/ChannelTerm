@@ -26,13 +26,15 @@ ChannelTerm currently implements serial communication and SSH PTY shells on Wind
 
 ## User-space GDB through MCP
 
-On native Linux, an MCP client can take over an idle Bash Session, set breakpoints, step, inspect variables/threads/registers, and detach through `debug_*` tools. This first backend requires ChannelTerm, GDB, gdbserver, and the ELF in one Linux environment. It supports one inferior and all-stop debugging; ordinary writing resumes only after terminal restoration and a unique shell probe succeed.
+On native Linux, an MCP client can take over an idle Bash Session, set breakpoints, step, inspect variables/threads/registers, and detach through `debug_start` / `debug_command` / `debug_events` / `debug_stop` tools. This first backend requires ChannelTerm, GDB, gdbserver, and the ELF in one Linux environment. It supports one inferior and all-stop debugging; ordinary writing resumes only after terminal restoration and a unique shell probe succeed.
 
 ```text
 debug_start -> break_insert -> continue -> debug_events -> next/step/finish -> debug_stop
 ```
 
 [Workflow, MCP calls, safe attach, and local PTY test coverage](docs/getting-started/gdb-debugging.md).
+
+For an independently operated GDB, `debug_bridge_*` exposes an already prepared serial Session through an authenticated TCP bridge. ChannelTerm does not start GDB or gdbserver. Use `channelterm rsp-client` from GDB; disconnect keeps the exclusive lease until shell/TTY restoration is verified, while explicit close also closes the Session. See the [external bridge workflow](docs/getting-started/gdb-debugging.md#external-gdb-over-a-prepared-serial-session) for Windows/WSL2 setup and separate PTY/board validation.
 
 ## Files over SSH
 

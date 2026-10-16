@@ -105,6 +105,17 @@ Transport.
 Application owns a debug operation above an existing Session, including exclusive lease ownership,
 gdbserver startup, heartbeat, cancellation, and verified shell restoration. The debugger service
 owns GDB/MI and relays raw RSP through direct Session-service calls. The private Unix socket accepts
-only the exact owned GDB PID and user. No RSP TCP listener or loopback MCP recursion is introduced.
+only the exact owned GDB PID and user. This managed MI mode uses no TCP listener or loopback MCP recursion.
 The initial backend is native Linux only and requires all processes and the ELF in one environment.
 See [Application](../modules/application.md#user-space-debug-operations).
+
+
+## External RSP bridge
+
+A separate Application operation leases an already-open serial Session and exposes a single
+credential-authenticated TLS/TCP stream. `internal/core/debugger` supplies endpoint authentication
+and the same byte relay used by managed MI. The CLI `rsp-client` adapts GDB's pipe to the authenticated
+connection; it never starts or controls GDB. MCP only manages bridge lifecycle. Target preparation
+and debugger control remain with the external operator. No additional Transport, Session reader,
+Agent Runtime, or RSP implementation is introduced. Failure/recovery ownership remains in
+[Application](../modules/application.md#external-serial-rsp-bridge).
