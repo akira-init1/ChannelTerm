@@ -303,9 +303,11 @@ External GDB -> rsp-client -> pinned TLS/TCP endpoint -> existing binary RSP rel
                                               existing serial Channel -> target
 ```
 
-Authentication precedes all Session I/O. Only one authorized connection is admitted; the acceptor
-then rejects subsequent sockets while retaining its bind and logical address reservation until
-bridge finalization. The external operator prepares gdbserver and controls GDB independently. No terminal
+Authentication precedes all Session I/O. Only one authorized data connection is admitted; the acceptor
+retains its bind and logical address reservation until bridge finalization. A current helper also
+authenticates one control TLS socket on that same listener. Its random challenge/response loop is
+separate from the unchanged RSP stream and supplies liveness evidence to Application's lease monitor.
+No new TCP service is opened. Later data clients cannot reconnect or take over. The external operator prepares gdbserver and controls GDB independently. No terminal
 history is replayed at startup, and no MI subprocess participates in this path. TCP disconnect
 retains the lease; a separately confirmed shell/TTY probe may restore terminal use. Otherwise
 explicit close, expiry, or uncertain recovery closes the Session. See

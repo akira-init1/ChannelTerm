@@ -36,7 +36,7 @@ debug_start -> break_insert -> continue -> debug_events -> next/step/finish -> d
 
 [Flujo, llamadas MCP, attach seguro y cobertura de pruebas PTY locales](docs/getting-started/gdb-debugging.md).
 
-Para un GDB ejecutado de forma independiente, `debug_bridge_*` expone una Session serie ya preparada mediante un puente TCP autenticado. ChannelTerm no inicia GDB ni gdbserver. GDB utiliza `channelterm rsp-client`; al desconectarse, la concesión exclusiva se mantiene hasta verificar la restauración de shell/TTY. El cierre explícito también cierra la Session. El [flujo del puente externo](docs/getting-started/gdb-debugging.md#external-gdb-over-a-prepared-serial-session) explica Windows/WSL2 y la validación separada con PTY y placa de desarrollo.
+Para un GDB ejecutado de forma independiente, `debug_bridge_*` expone una Session serie ya preparada mediante un puente TCP autenticado. ChannelTerm no inicia GDB ni gdbserver. GDB utiliza `channelterm rsp-client`; las conexiones autenticadas renuevan sus concesiones automáticamente incluso sin tráfico RSP, con una duración máxima de 24 horas. Al desconectarse, la concesión exclusiva se mantiene hasta verificar la restauración de shell/TTY. El cierre explícito también cierra la Session. El [flujo del puente externo](docs/getting-started/gdb-debugging.md#external-gdb-over-a-prepared-serial-session) explica Windows/WSL2 y la validación separada con PTY y placa de desarrollo.
 
 ## Archivos mediante SSH
 

@@ -34,7 +34,7 @@ debug_start -> break_insert -> continue -> debug_events -> next/step/finish -> d
 
 [Workflow, MCP calls, safe attach, and local PTY test coverage](docs/getting-started/gdb-debugging.md).
 
-For an independently operated GDB, `debug_bridge_*` exposes an already prepared serial Session through an authenticated TCP bridge. ChannelTerm does not start GDB or gdbserver. Use `channelterm rsp-client` from GDB; disconnect keeps the exclusive lease until shell/TTY restoration is verified, while explicit close also closes the Session. See the [external bridge workflow](docs/getting-started/gdb-debugging.md#external-gdb-over-a-prepared-serial-session) for Windows/WSL2 setup and separate PTY/board validation.
+For an independently operated GDB, `debug_bridge_*` exposes an already prepared serial Session through an authenticated TCP bridge. ChannelTerm does not start GDB or gdbserver. Use `channelterm rsp-client` from GDB; authenticated connections maintain their leases automatically even while RSP is idle, within a 24-hour maximum lifetime. Disconnect keeps the exclusive lease until shell/TTY restoration is verified, while explicit close also closes the Session. See the [external bridge workflow](docs/getting-started/gdb-debugging.md#external-gdb-over-a-prepared-serial-session) for Windows/WSL2 setup and separate PTY/board validation.
 
 ## Files over SSH
 

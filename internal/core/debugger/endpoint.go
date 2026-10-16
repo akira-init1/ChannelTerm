@@ -33,19 +33,29 @@ type BridgeConnection struct {
 	Token       string `json:"token"`
 }
 
-// Endpoint accepts exactly one authorized TLS connection over TCP. Rejected
-// peers do not consume that connection. Close interrupts pending authentication;
-// the owner of an accepted connection must close it separately.
+// Endpoint accepts one authorized TLS data connection and, for a current helper,
+// one authenticated control connection on the same TCP listener. Rejected peers
+// do not consume them. Close interrupts authentication and both accepted sockets;
+// the relay owner must still join its I/O workers.
 type Endpoint struct {
-	listener  net.Listener
-	config    *tls.Config
-	peer      netip.Addr
-	info      BridgeConnection
-	mu        sync.Mutex
-	pending   net.Conn
-	closed    bool
-	accepting bool
-	release   func()
+	listener     net.Listener
+	config       *tls.Config
+	peer         netip.Addr
+	info         BridgeConnection
+	mu           sync.Mutex
+	pending      net.Conn
+	closed       bool
+	accepting    bool
+	release      func()
+	data         net.Conn
+	control      net.Conn
+	dataEnded    bool
+	keepalive    bool
+	lastAlive    time.Time
+	keepaliveErr error
+	// Immutable after Listen; tests shorten this to exercise silent peers.
+	aliveTimeout time.Duration
+	clientDone   chan struct{}
 }
 
 // ListenBridge binds a standalone endpoint using the default port policy.
@@ -57,7 +67,7 @@ func ListenBridge(address, allowedPeer string) (*Endpoint, error) {
 // Listen binds a specific numeric IP (default loopback port pool). Wildcard
 // binding is forbidden. A non-loopback bind requires an exact allowed peer IP;
 // all clients, including loopback clients, must authenticate over pinned TLS.
-// StrictPool disables dynamic fallback for an omitted address. Explicit ports,
+// strictPool disables dynamic fallback for an omitted address. Explicit ports,
 // including zero, always use exactly the caller's requested bind policy.
 func (a *EndpointAllocator) Listen(address, allowedPeer string, strictPool bool) (*Endpoint, error) {
 	automatic := address == ""
@@ -105,7 +115,7 @@ func (a *EndpointAllocator) Listen(address, allowedPeer string, strictPool bool)
 		return nil, err
 	}
 	fingerprint := sha256.Sum256(der)
-	return &Endpoint{listener: listener, peer: peer, release: release,
+	return &Endpoint{listener: listener, peer: peer, release: release, aliveTimeout: bridgeAliveTimeout, clientDone: make(chan struct{}),
 		config: &tls.Config{MinVersion: tls.VersionTLS13, Certificates: []tls.Certificate{{Certificate: [][]byte{der}, PrivateKey: key}}},
 		info:   BridgeConnection{Address: listener.Addr().String(), Fingerprint: hex.EncodeToString(fingerprint[:]), Token: hex.EncodeToString(secret)},
 	}, nil
@@ -116,9 +126,10 @@ func (e *Endpoint) Connection() BridgeConnection { return e.info }
 
 // Accept authenticates bounded, sequential handshakes until one succeeds or
 // ctx/Close ends the wait. Authentication bytes never reach the Session. The
-// listener remains bound until Close, rejecting subsequent sockets without TLS
-// authentication. Neither disconnect nor OS address reuse releases the logical
-// reservation; the operation owner calls Close at finalization.
+// listener remains bound until Close. A v2 helper can authenticate one separate
+// control connection on that listener; additional data clients are rejected.
+// Neither disconnect nor OS address reuse releases the logical reservation;
+// the operation owner calls Close at finalization.
 func (e *Endpoint) Accept(ctx context.Context) (net.Conn, error) {
 	e.mu.Lock()
 	if e.accepting || e.closed {
@@ -134,73 +145,105 @@ func (e *Endpoint) Accept(ctx context.Context) (net.Conn, error) {
 		if err != nil {
 			return nil, err
 		}
-		remote, ok := conn.RemoteAddr().(*net.TCPAddr)
-		if !ok || (e.peer.IsValid() && remote.AddrPort().Addr().Unmap() != e.peer) || (!e.peer.IsValid() && !remote.AddrPort().Addr().IsLoopback()) {
+		secure, protocol, err := e.authenticate(ctx, conn, bridgePreface, bridgeAlivePreface)
+		if err != nil {
 			conn.Close()
+			if errors.Is(err, net.ErrClosed) {
+				return nil, err
+			}
 			continue
 		}
 		e.mu.Lock()
 		if e.closed {
 			e.mu.Unlock()
-			conn.Close()
+			secure.Close()
 			return nil, net.ErrClosed
 		}
-		e.pending = conn
+		e.data = secure
+		e.keepalive = protocol == bridgeAlivePreface
 		e.mu.Unlock()
-		conn.SetDeadline(time.Now().Add(bridgeHandshakeTimeout))
-		secure := tls.Server(conn, e.config)
-		err = secure.HandshakeContext(ctx)
-		if err == nil {
-			preface := make([]byte, len(bridgePreface)+64+1)
-			_, err = io.ReadFull(secure, preface)
-			if err == nil && subtle.ConstantTimeCompare(preface, []byte(bridgePreface+e.info.Token+"\n")) != 1 {
-				err = errors.New("unauthorized bridge peer")
-			}
+		if protocol == bridgeAlivePreface {
+			// A helper that never opens its control connection cannot keep the
+			// data connection indefinitely, even when management is renewed.
+			go func() {
+				deadline := time.NewTimer(e.aliveTimeout)
+				defer deadline.Stop()
+				select {
+				case <-e.clientDone:
+					return
+				case <-deadline.C:
+				}
+				e.mu.Lock()
+				missing := e.control == nil
+				e.mu.Unlock()
+				if missing {
+					e.stopClient(errors.New("bridge client control connection missing"))
+				}
+			}()
 		}
-		if err == nil {
-			_, err = writeAll(secure, []byte("OK\n"))
-		}
-		e.mu.Lock()
-		e.pending = nil
-		closed := e.closed
-		e.mu.Unlock()
-		if err != nil || closed {
-			conn.Close()
-			if closed {
-				return nil, net.ErrClosed
-			}
-			continue
-		}
-		go e.rejectClients()
-		secure.SetDeadline(time.Time{})
-		return secure, nil
+		go e.acceptControl()
+		return &endpointDataConn{Conn: secure, endpoint: e}, nil
 	}
 }
 
-// rejectClients keeps the OS bind alive without allowing a second client or
-// accumulating a full accept backlog. Close interrupts its blocking Accept.
-func (e *Endpoint) rejectClients() {
-	for {
-		conn, err := e.listener.Accept()
-		if err != nil {
-			return
-		}
-		conn.Close()
+// authenticate shares peer filtering, deadlines, and capability verification
+// between the data and control sockets. Neither preface reaches the Session.
+func (e *Endpoint) authenticate(ctx context.Context, conn net.Conn, protocols ...string) (net.Conn, string, error) {
+	remote, ok := conn.RemoteAddr().(*net.TCPAddr)
+	if !ok || (e.peer.IsValid() && remote.AddrPort().Addr().Unmap() != e.peer) || (!e.peer.IsValid() && !remote.AddrPort().Addr().IsLoopback()) {
+		return nil, "", errors.New("bridge peer is not allowed")
 	}
+	e.mu.Lock()
+	if e.closed {
+		e.mu.Unlock()
+		return nil, "", net.ErrClosed
+	}
+	e.pending = conn
+	e.mu.Unlock()
+	defer func() { e.mu.Lock(); e.pending = nil; e.mu.Unlock() }()
+	conn.SetDeadline(time.Now().Add(bridgeHandshakeTimeout))
+	if err := configureBridgeTCP(conn); err != nil {
+		return nil, "", err
+	}
+	secure := tls.Server(conn, e.config)
+	if err := secure.HandshakeContext(ctx); err != nil {
+		return nil, "", err
+	}
+	preface := make([]byte, len(bridgePreface)+64+1)
+	if _, err := io.ReadFull(secure, preface); err != nil {
+		return nil, "", err
+	}
+	protocol := ""
+	for _, candidate := range protocols {
+		if subtle.ConstantTimeCompare(preface, []byte(candidate+e.info.Token+"\n")) == 1 {
+			protocol = candidate
+		}
+	}
+	if protocol == "" {
+		return nil, "", errors.New("unauthorized bridge peer")
+	}
+	if _, err := writeAll(secure, []byte("OK\n")); err != nil {
+		return nil, "", err
+	}
+	secure.SetDeadline(time.Time{})
+	return secure, protocol, nil
 }
 
 // Close idempotently releases the listener, pending authentication, and logical
-// port reservation. The accepted socket is owned and closed by the relay.
+// port reservation. It also interrupts both accepted sockets; the relay still
+// owns joining its I/O workers.
 func (e *Endpoint) Close() {
 	e.mu.Lock()
-	defer e.mu.Unlock()
 	if e.closed {
+		e.mu.Unlock()
 		return
 	}
 	e.closed = true
 	if e.pending != nil {
 		e.pending.Close()
 	}
+	e.mu.Unlock()
+	e.stopClient(nil)
 	e.release()
 }
 
@@ -300,6 +343,10 @@ func (a *EndpointAllocator) bind(address string, automatic, strict bool) (net.Li
 // bearer token. Cancellation bounds connection/authentication; after return,
 // the caller owns the connection and its lifetime. No RSP bytes are generated.
 func DialBridge(ctx context.Context, info BridgeConnection) (net.Conn, error) {
+	return dialBridge(ctx, info, bridgePreface)
+}
+
+func dialBridge(ctx context.Context, info BridgeConnection, protocol string) (net.Conn, error) {
 	pin, err := hex.DecodeString(info.Fingerprint)
 	if err != nil || len(pin) != sha256.Size {
 		return nil, errors.New("fingerprint must be a SHA-256 certificate fingerprint")
@@ -329,11 +376,15 @@ func DialBridge(ctx context.Context, info BridgeConnection) (net.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err = configureBridgeTCP(conn.(*tls.Conn).NetConn()); err != nil {
+		conn.Close()
+		return nil, err
+	}
 	stop := context.AfterFunc(ctx, func() { conn.Close() })
 	defer stop()
 	deadline, _ := ctx.Deadline()
 	conn.SetDeadline(deadline)
-	if _, err = writeAll(conn, []byte(bridgePreface+info.Token+"\n")); err == nil {
+	if _, err = writeAll(conn, []byte(protocol+info.Token+"\n")); err == nil {
 		var response [3]byte
 		_, err = io.ReadFull(conn, response[:])
 		if err == nil && string(response[:]) != "OK\n" {

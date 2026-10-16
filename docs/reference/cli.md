@@ -750,7 +750,9 @@ serving failure. Normal client EOF and process cancellation are normal shutdowns
 `channelterm rsp-client --connection FILE` is a binary stdio adapter for an independently launched
 GDB: `target remote | channelterm rsp-client --connection FILE`. It authenticates the TLS/TCP
 endpoint from `debug_bridge_start` and then forwards bytes unchanged. It does not start/control
-GDB, prepare a target, or renew the bridge management heartbeat. No raw RSP endpoint is exposed by
+GDB or prepare a target. It answers authenticated challenges on a separate TLS control connection
+on the same bridge port, allowing the Host to renew both leases while RSP is idle. The descriptor
+format is unchanged; use matching current Host/helper versions. No raw RSP endpoint is exposed by
 this command. Consult `channelterm rsp-client --help` for current options.
 
 FILE contains exactly the returned `connection` JSON object (`address`, `fingerprint`, `token`),
@@ -759,5 +761,6 @@ group/other permissions. On Windows protect it with the account's ACL. No enviro
 command-line token is used. TLS certificate pinning happens before the secret is transmitted.
 Normal stdout contains only remote bytes; errors go through the normal CLI error/exit path. EOF,
 connection failure, or process cancellation ends the helper. It never reports shell restoration.
-GDB owns the pipe/helper lifetime; management must keep renewing and explicitly restore or close
-the bridge. See the [workflow](../getting-started/gdb-debugging.md#external-gdb-over-a-prepared-serial-session).
+GDB owns the pipe/helper lifetime. EOF or control loss stops automatic keepalive; management must
+explicitly restore or close the bridge. Manual renewal remains necessary before connection, during
+post-disconnect recovery, or with legacy helpers. All bridges have a 24-hour maximum lifetime. See the [workflow](../getting-started/gdb-debugging.md#external-gdb-over-a-prepared-serial-session).

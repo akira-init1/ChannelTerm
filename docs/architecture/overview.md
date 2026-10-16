@@ -115,7 +115,8 @@ See [Application](../modules/application.md#user-space-debug-operations).
 A separate Application operation leases an already-open serial Session and exposes a single
 credential-authenticated TLS/TCP stream. `internal/core/debugger` supplies endpoint authentication
 and the same byte relay used by managed MI. The CLI `rsp-client` adapts GDB's pipe to the authenticated
-connection; it never starts or controls GDB. MCP only manages bridge lifecycle. Target preparation
-and debugger control remain with the external operator. No additional Transport, Session reader,
+connection and answers a separate authenticated control heartbeat on the same endpoint; it never
+starts or controls GDB. Application uses fresh liveness evidence for automatic
+management renewal. MCP retains explicit lifecycle management. Target preparation and debugger control remain with the external operator. No additional Transport, Session reader,
 Agent Runtime, or RSP implementation is introduced. Failure/recovery ownership remains in
 [Application](../modules/application.md#external-serial-rsp-bridge).

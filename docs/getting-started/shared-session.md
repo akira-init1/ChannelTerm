@@ -144,8 +144,10 @@ Session instead of reopening writing. `DEBUG_STATE` events identify lifecycle tr
 For an independently operated GDB, use the
 [external serial RSP bridge](gdb-debugging.md#external-gdb-over-a-prepared-serial-session).
 It shares the same exclusive write lease and attachment output suppression, but does not run MI or
-start a target server. External client disconnection retains the lease. Only a separately confirmed
-shell/TTY restoration allows ordinary writers again; explicit bridge close also closes the Session.
+start a target server. A current helper maintains the leases through a separate authenticated control
+connection, even while RSP is idle. External client disconnection stops automatic renewal but retains the lease
+during the remaining management grace (see the bridge workflow for renewal and lifetime bounds).
+Only a separately confirmed shell/TTY restoration allows ordinary writers again; explicit bridge close also closes the Session.
 
 Codex can separately publish actual external commands, results, and observed states with
 `debug_bridge_report`. All attach clients see labelled report blocks; a new client can see recent

@@ -24,7 +24,7 @@ func runRSPClient(ctx context.Context, args []string, input io.Reader, output io
 	usage := func() {
 		fmt.Fprintln(output, "Usage: channelterm rsp-client --connection FILE")
 		fmt.Fprintln(output, "GDB pipe helper: target remote | channelterm rsp-client --connection FILE")
-		fmt.Fprintln(output, "Authenticates pinned TLS/TCP, then forwards bytes unchanged. Does not start or control GDB.")
+		fmt.Fprintln(output, "Authenticates pinned TLS/TCP and maintains a separate control heartbeat. Forwards RSP bytes unchanged; does not start or control GDB.")
 		flags.SetOutput(output)
 		flags.PrintDefaults()
 		flags.SetOutput(io.Discard)

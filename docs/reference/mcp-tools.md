@@ -759,8 +759,8 @@ is distinct from the generated connection token and internal debug lease capabil
 | `debug_bridge_restore` | `bridge_id`, `confirm_shell_ready: true`, `tty_state` | none | `status`; preserves Session only after verification |
 | `debug_bridge_report` | `bridge_id`, `sequence`, `kind`, `text` | none | `bridge_id`, `sequence`; acknowledges reporting only |
 
-`status` contains `bridge_id`, canonical `session_id`, `state`, bound `address`, `expires_at`,
-`target_state`, and optional `warning`/`error`. States are `listening`, `connected`, `disconnected`,
+`status` contains `bridge_id`, canonical `session_id`, `state`, bound `address`, `expires_at`, `max_expires_at`,
+`auto_keepalive`, `target_state`, and optional `warning`/`error`. States are `listening`, `connected`, `disconnected`,
 `recovering`, `restored`, `closed`, and `failed`. Target state is `unverified` until successful shell
 restoration changes it to `shell_verified`; neither connection nor EOF proves target readiness.
 `DEBUG_STATE` Session events contain `bridge_id` and `state`, without secrets. The secret connection
@@ -783,10 +783,13 @@ Only a specific numeric IP with port 0..65535 is accepted;
 no wildcard bind, hostname, or implicit all-interface fallback. A non-loopback bind requires one
 numeric `allowed_peer` IP. Without an explicit peer, only loopback clients are eligible. All clients
 must authenticate using TLS 1.3, certificate pinning, and the connection token. Exactly one
-successful client is admitted; no reconnect. After authentication the listener stays bound and
-rejects subsequent sockets. The Host separately reserves the logical IP/port until final close,
+successful data client is admitted; no reconnect. After authentication the listener stays bound.
+A current helper may authenticate one additional control socket on the same port; further
+data/control sockets are rejected. The Host separately reserves the logical IP/port until final close,
 failure, or verified restoration, including while disconnected. Closing a listener alone must not
-be treated as OS reservation of that port. Authentication attempts have a three-second deadline
+be treated as OS reservation of that port. Conversely, releasing the logical reservation does not
+guarantee the OS will immediately allow rebinding; allocation always checks actual bind results.
+Authentication attempts have a three-second deadline
 and are processed sequentially. Use the `rsp-client` CLI helper, not an unauthenticated raw TCP GDB
 connection. The MCP listener's authentication/configuration is unchanged.
 
@@ -798,10 +801,39 @@ leases, pending interactive input, and incomplete input history when no persiste
 Target preparation is external; passive checks cannot prove RSP readiness, so missing explicit
 acknowledgement returns an actionable risk error. Bytes are read from a new Session cursor.
 
-The internal debug lease has a 30-second TTL renewed every ten seconds. The management heartbeat
-lasts 60 seconds; call renew every 30 seconds. Status does not renew, and expiry cannot be reversed.
-Disconnect retains the lease and does not send target bytes. Data loss, serial failure, or heartbeat
-expiry closes the Session. Ordinary lease-release tools cannot bypass managed bridge recovery.
+The internal debug lease has a 30-second TTL. The one-second monitor checks it and renews when
+at most twenty seconds remain. Only after confirming that lease can the monitor extend the
+60-second management TTL for a connected helper with fresh control challenge/response evidence.
+`auto_keepalive` reports this automatic renewal; `expires_at` is the current management deadline.
+A paused target, breakpoint wait, or lack of RSP traffic does not prevent renewal.
+
+Current `rsp-client` uses a second TLS connection on the **same listener and port** for control,
+with the same pinned certificate, bridge token, and peer restriction. Only one data client and its
+one control connection are admitted. The Host issues a fresh random challenge every ten seconds;
+a missing control connection or response has a thirty-second deadline (loss is detected within
+approximately forty seconds of the last successful response). TCP keepalive additionally probes
+idle data sockets (10-second idle, 5-second interval, 3 probes, subject to OS support). Control
+failure closes data; data EOF closes control. No heartbeat bytes enter GDB, Session, or standard
+RSP, and no MCP Host token or management owner is exposed to the helper. The connection descriptor
+format is unchanged. Use matching current Host/helper versions for automatic renewal. Legacy
+data-only helpers remain accepted but require explicit management renewal.
+
+Control liveness proves helper responsiveness, not target execution or acknowledgement of every RSP
+write. A failure isolated to the data socket with unacknowledged traffic can still follow the OS's
+TCP retransmission timeout; idle keepalive is not a per-write delivery deadline. The absolute
+lifetime below remains a bound. Validate packet-loss behavior on the deployed OS/network separately.
+
+Call `debug_bridge_renew` every thirty seconds **while listening, arranging recovery after a
+disconnect, or using a legacy helper**. It also renews the internal lease and fails closed if that
+lease has expired. Status reads, reports, and RSP traffic alone do not renew management time.
+Every operation has an absolute 24-hour maximum (`max_expires_at`), including manually renewed ones;
+finish and restore/close before that deadline. Neither deadline can be resurrected. This caps a
+forgotten but responsive helper; lost control cannot indefinitely reserve a serial Session.
+
+Disconnect stops automatic renewal but retains the lease until recovery or the remaining management
+grace expires. It sends no target bytes and does not prove detach or gdbserver exit. Data loss,
+serial failure, either lease's expiry, and the absolute maximum close the Session. Ordinary
+lease-release tools cannot bypass managed bridge recovery.
 
 Restore requires a disconnected client, explicit confirmation that the target returned to its
 shell, and the exact pre-debug `stty -g` snapshot (1..512 printable bytes). It sends a quoted shell
@@ -829,7 +861,7 @@ Gaps are allowed. An exact retry of the latest accepted sequence returns the sam
 another event, including after the bridge ends. Older sequences and conflicting retries fail.
 New reports require a nonexpired bridge in an open Session, before recovery/termination. Reporting
 does not renew the heartbeat. Invalid input, wrong owner, cancellation, and reporting failures never
-close the bridge or Session. External drivers must continue GDB independently and renew separately;
+close the bridge or Session. External drivers must continue GDB independently; keepalive and any needed manual renewal remain separate;
 do not gate debugging on delivery or re-execute a GDB command to retry its report.
 
 Each `DEBUG_CLIENT_REPORT` has actor `agent` and metadata `bridge_id`, `sequence`, `kind`, `text`,

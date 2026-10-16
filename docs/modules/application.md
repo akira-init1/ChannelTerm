@@ -340,8 +340,9 @@ under the same mutex, preventing dynamic allocation from selecting an address st
 finalization. See the [port policy](../reference/mcp-tools.md#external-rsp-bridge-tools)
 for strict exhaustion, dynamic fallback, and explicit addresses. `debugger.Endpoint` owns bounded TLS
 authentication and transfers one accepted socket to the relay. Its listener remains bound, rejecting
-later clients until finalization. Logical reservations and OS binds are distinct; neither client
-authentication nor disconnect releases either. Final close/failure or verified restoration does. Application
+later data clients until finalization; current helpers may authenticate one control socket. Logical
+reservations and OS binds are distinct; neither client authentication nor disconnect releases either.
+Final close/failure or verified restoration does. Application
 adapts the Session cursor/leased write to the existing `debugger.Relay`; authentication bytes never
 reach the Session. Creation does not send target bytes. Pending input, incomplete input history,
 non-serial Sessions, and conflicting leases are rejected. Silent-target readiness remains explicitly
@@ -350,13 +351,26 @@ unverified and requires an operator acknowledgement; no RSP probe/parser is adde
 The operation retains a secret management capability separately from its internal lease owner and
 TCP token. Status/events omit all three. Start retries are scoped to owner/request ID and fingerprint
 all arguments; retention is bounded to 128 operations. The management TTL is 60 seconds; status reads
-do not extend it. The existing 30-second debug lease is renewed every ten seconds, including after
-client disconnection. A closed/expired operation cannot be renewed.
+do not extend it. Each one-second monitor pass checks the existing 30-second debug lease and renews
+with at most twenty seconds remaining, including during the post-disconnect management grace.
+Automatic management renewal requires both a valid internal lease and recent authenticated control
+challenge/response evidence. Explicit renewal also renews the internal lease first; a stale lease
+fails closed instead of leaving the management layer apparently healthy. All renewal is capped at
+24 hours from start; closed/expired operations cannot be resurrected.
+
+A current helper authenticates data using `ChannelTerm-RSP/2`, then one separate control TLS socket
+using `ChannelTerm-HBT/1` on the same listener, with the existing token, pin, and peer checks. The
+control loop uses random 16-byte challenges, a ten-second interval and a thirty-second response
+bound, independent of RSP traffic. It closes both sockets on control failure and stops on data EOF.
+The helper bounds data reads after control EOF while allowing final RSP bytes to drain, because
+independent TCP streams can deliver EOF in either order. Legacy `ChannelTerm-RSP/1` data connections
+retain manual management renewal. Session and the managed MI relay never see this control protocol.
+The exact public lifetime rules are owned by the [MCP reference](../reference/mcp-tools.md#external-rsp-bridge-tools).
 
 The worker alone transitions listening -> connected -> disconnected. Management mutations serialize
-on an operation mutex; state reads use a separate short-held mutex. Finalization cancels and closes
-the endpoint, closes the Session to interrupt an unbounded Channel write, then joins the relay before
-publishing its final state. No worker publishes a state after that join. Concurrent relay EOF must
+on an operation mutex; state reads use a separate short-held mutex. Finalization cancels the
+relay, closes the Session to interrupt an unbounded Channel write, then joins the relay and closes
+the endpoint/reservation before publishing its final state. No worker publishes a state after that join. Concurrent relay EOF must
 not hide a lost-buffer error from the other direction.
 
 Disconnected is not restored: ordinary writers remain excluded. Explicit restoration requires an

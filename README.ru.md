@@ -35,7 +35,7 @@ debug_start -> break_insert -> continue -> debug_events -> next/step/finish -> d
 
 [Рабочий процесс, вызовы MCP, безопасный attach и локальные тесты PTY](docs/getting-started/gdb-debugging.md).
 
-Для независимо запущенного GDB инструменты `debug_bridge_*` открывают доступ к уже подготовленной последовательной Session через аутентифицированный TCP-мост. ChannelTerm не запускает GDB или gdbserver. GDB использует `channelterm rsp-client`; после разрыва соединения эксклюзивная аренда сохраняется до проверки восстановления shell/TTY. Явное закрытие моста также закрывает Session. [Рабочий процесс внешнего моста](docs/getting-started/gdb-debugging.md#external-gdb-over-a-prepared-serial-session) описывает Windows/WSL2 и раздельную проверку на PTY и реальной плате.
+Для независимо запущенного GDB инструменты `debug_bridge_*` открывают доступ к уже подготовленной последовательной Session через аутентифицированный TCP-мост. ChannelTerm не запускает GDB или gdbserver. GDB использует `channelterm rsp-client`; аутентифицированное соединение автоматически продлевает аренду даже без трафика RSP, но не дольше 24 часов. После разрыва соединения эксклюзивная аренда сохраняется до проверки восстановления shell/TTY. Явное закрытие моста также закрывает Session. [Рабочий процесс внешнего моста](docs/getting-started/gdb-debugging.md#external-gdb-over-a-prepared-serial-session) описывает Windows/WSL2 и раздельную проверку на PTY и реальной плате.
 
 ## Передача файлов по SSH
 

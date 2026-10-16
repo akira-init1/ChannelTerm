@@ -34,7 +34,7 @@ debug_start -> break_insert -> continue -> debug_events -> next/step/finish -> d
 
 [工作流程、MCP 呼叫、安全 attach 與本機 PTY 測試範圍](docs/getting-started/gdb-debugging.md).
 
-獨立執行的 GDB 可透過 `debug_bridge_*` 建立的驗證 TCP 橋接存取已準備好的序列埠 Session。ChannelTerm 不啟動 GDB 或 gdbserver。由 GDB 呼叫 `channelterm rsp-client` 連線；斷線後保留獨占租約，直到 Shell/TTY 復原驗證成功，明確關閉橋接則同時關閉 Session。Windows/WSL2 設定及 PTY 與開發板分別驗證的步驟請見[外部橋接工作流程](docs/getting-started/gdb-debugging.md#external-gdb-over-a-prepared-serial-session)。
+獨立執行的 GDB 可透過 `debug_bridge_*` 建立的驗證 TCP 橋接存取已準備好的序列埠 Session。ChannelTerm 不啟動 GDB 或 gdbserver。由 GDB 呼叫 `channelterm rsp-client` 連線；驗證連線在 RSP 無流量時也會自動保活，最長生命週期為 24 小時。斷線後保留獨占租約，直到 Shell/TTY 復原驗證成功，明確關閉橋接則同時關閉 Session。Windows/WSL2 設定及 PTY 與開發板分別驗證的步驟請見[外部橋接工作流程](docs/getting-started/gdb-debugging.md#external-gdb-over-a-prepared-serial-session)。
 
 ## 透過 SSH 傳輸檔案
 

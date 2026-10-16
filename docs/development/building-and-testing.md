@@ -237,11 +237,21 @@ with a `cat` byte-stream simulator. The latter is named
 exact terminal-mode restoration. It does not validate GDB, Windows/WSL networking, or a physical board.
 Port tests cover cursor advancement after release, wraparound, active/external port conflicts,
 strict exhaustion/dynamic fallback with a reduced test pool, concurrent allocation and reuse,
-and reservation through authentication/disconnect.
+and reservation through authentication/disconnect. Control tests exercise
+missing/silent/wrong-response clients, separate-stream authentication, no heartbeat bytes in RSP,
+lease expiry, the lifetime cap, and final-byte draining. Silent TCP peers simulate application
+stalls/half-open behavior; they are not an OS packet-loss or Windows firewall test.
 The relevant concurrency checks are:
 
 ```bash
 go test -race ./internal/core/debugger ./internal/core/app ./internal/mcp ./internal/cli/command -run 'TestRSP|TestBridge|TestExternalBridge|TestDebug|TestMI|TestRelay|TestFinalExitACK' -count=1
+```
+
+The optional wall-clock idle test runs for 310 seconds using real TLS/control sockets and a fake
+serial Session (no GDB or hardware). It sends no RSP data and calls no management renewal:
+
+```bash
+CHANNELTERM_TEST_RSP_LONG=1 go test -race ./internal/core/app -run '^TestRSPBridgeIdleFiveMinutes$' -timeout 7m -count=1 -v
 ```
 
 Tests need local socket permission; a sandbox refusal to bind is an environment failure. Linux PTY

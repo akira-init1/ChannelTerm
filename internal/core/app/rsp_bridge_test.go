@@ -40,7 +40,9 @@ func bridgeFixture(t *testing.T) (*Application, *fakeConnectedSession) {
 }
 
 func bridgeRequest() BridgeStartRequest {
-	return BridgeStartRequest{SessionID: "bridge-serial", Owner: bridgeTestOwner, RequestID: "start", AcknowledgeUnverifiedTarget: true}
+	// Avoid competing with debugger package pool-allocation stress tests when
+	// independently built Go package tests run at the same time.
+	return BridgeStartRequest{SessionID: "bridge-serial", Owner: bridgeTestOwner, RequestID: "start", ListenAddress: "127.0.0.1:0", AcknowledgeUnverifiedTarget: true}
 }
 
 func waitBridgeState(t *testing.T, a *Application, id, want string) BridgeStatus {

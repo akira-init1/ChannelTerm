@@ -16,6 +16,10 @@ import (
 
 const bridgeReadinessWarning = "target RSP readiness is unverified: passive Session inspection cannot distinguish a silent gdbserver from a shell; prepare the target first and explicitly acknowledge this risk"
 
+// bridgeMaxLifetime bounds even a live but abandoned external helper. Neither
+// automatic nor explicit renewal can extend an operation past this deadline.
+const bridgeMaxLifetime = 24 * time.Hour
+
 var errBridgeSessionIO = errors.New("bridge Session I/O failed")
 
 // BridgeStartRequest leases an already prepared serial Session without sending
@@ -35,15 +39,19 @@ type BridgeStartRequest struct {
 // BridgeStatus separates transport lifecycle from target and shell state.
 // Disconnected retains the lease; restored alone proves a fresh shell probe
 // and exact caller-supplied TTY-state readback. Closed/failed close the Session.
+// AutoKeepalive reflects recent control evidence. MaxExpiresAt is the absolute
+// lifetime bound, independent of manual or automatic management renewal.
 type BridgeStatus struct {
-	BridgeID    string    `json:"bridge_id"`
-	SessionID   string    `json:"session_id"`
-	State       string    `json:"state"`
-	Address     string    `json:"address"`
-	ExpiresAt   time.Time `json:"expires_at"`
-	TargetState string    `json:"target_state"`
-	Warning     string    `json:"warning,omitempty"`
-	Error       string    `json:"error,omitempty"`
+	BridgeID      string    `json:"bridge_id"`
+	SessionID     string    `json:"session_id"`
+	State         string    `json:"state"`
+	Address       string    `json:"address"`
+	ExpiresAt     time.Time `json:"expires_at"`
+	MaxExpiresAt  time.Time `json:"max_expires_at"`
+	AutoKeepalive bool      `json:"auto_keepalive"`
+	TargetState   string    `json:"target_state"`
+	Warning       string    `json:"warning,omitempty"`
+	Error         string    `json:"error,omitempty"`
 }
 
 // BridgeStartResult includes secret connection material only in the authorized
@@ -175,7 +183,8 @@ func (a *Application) StartRSPBridge(ctx context.Context, q BridgeStartRequest) 
 	}
 	workerCtx, cancel := context.WithCancel(context.Background())
 	r := &bridgeRun{app: a, terminal: terminal, request: q, fingerprint: string(encoded), id: "RSP-" + id, owner: owner, endpoint: endpoint, cancel: cancel, workerDone: make(chan struct{}), finished: make(chan struct{})}
-	r.status = BridgeStatus{BridgeID: r.id, SessionID: terminal.ID(), State: "listening", Address: endpoint.Connection().Address, ExpiresAt: time.Now().Add(debugClientTTL), TargetState: "unverified", Warning: bridgeReadinessWarning}
+	now := time.Now()
+	r.status = BridgeStatus{BridgeID: r.id, SessionID: terminal.ID(), State: "listening", Address: endpoint.Connection().Address, ExpiresAt: now.Add(debugClientTTL), MaxExpiresAt: now.Add(bridgeMaxLifetime), TargetState: "unverified", Warning: bridgeReadinessWarning}
 	if a.bridges.runs == nil {
 		a.bridges.runs = make(map[string]*bridgeRun)
 		a.bridges.requests = make(map[string]*bridgeRun)
@@ -231,6 +240,9 @@ func (r *bridgeRun) publish(state string) {
 func (r *bridgeRun) setState(state string, err error) {
 	r.mu.Lock()
 	r.status.State = state
+	if state != "connected" {
+		r.status.AutoKeepalive = false
+	}
 	r.status.Error = ""
 	if err != nil {
 		r.status.Error = err.Error()
@@ -252,6 +264,7 @@ func (r *bridgeRun) relay(ctx context.Context, cursor session.OutputCursor) {
 		r.setState("connected", nil)
 		err = debugger.Relay(ctx, conn, &bridgeSessionStream{run: r, cursor: cursor})
 		conn.Close()
+		err = errors.Join(err, r.endpoint.ClientError())
 	}
 	r.mu.Lock()
 	r.relayErr = err
@@ -284,40 +297,74 @@ func (s *bridgeSessionStream) Write(ctx context.Context, data []byte) error {
 func (r *bridgeRun) monitor() {
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
-	lastRenew := time.Now()
 	for {
 		select {
 		case <-r.finished:
 			return
 		case <-ticker.C:
-			r.op.Lock()
-			s := r.snapshot()
-			if bridgeEnded(s.State) {
-				r.op.Unlock()
-				return
-			}
-			r.mu.Lock()
-			cause := r.relayErr
-			r.mu.Unlock()
-			switch {
-			case errors.Is(cause, debugger.ErrDataLost), errors.Is(cause, errBridgeSessionIO):
-			case r.terminal.State() != session.StateOpen:
-				cause = errors.New("serial Session disconnected during RSP bridge")
-			case !time.Now().Before(s.ExpiresAt):
-				cause = errors.New("bridge management heartbeat expired; Session closed without claiming shell restoration")
-			default:
-				cause = nil
-				if time.Since(lastRenew) >= 10*time.Second {
-					_, cause = r.app.RenewLease(r.terminal.ID(), r.owner)
-					lastRenew = time.Now()
-				}
-			}
-			if cause != nil {
-				r.end("failed", cause)
-			}
-			r.op.Unlock()
+			r.maintain()
 		}
 	}
+}
+
+// maintain serializes with explicit management. The internal lease is checked
+// before extending management time; failed renewal can never report a healthy
+// bridge or reopen ordinary writes. Listening/disconnected/legacy clients still
+// need explicit management renewal. It is also called by deterministic tests.
+func (r *bridgeRun) maintain() {
+	r.op.Lock()
+	defer r.op.Unlock()
+	s := r.snapshot()
+	if bridgeEnded(s.State) {
+		return
+	}
+	r.mu.Lock()
+	cause := r.relayErr
+	r.mu.Unlock()
+	now := time.Now()
+	switch {
+	case errors.Is(cause, debugger.ErrDataLost), errors.Is(cause, errBridgeSessionIO):
+	case r.terminal.State() != session.StateOpen:
+		cause = errors.New("serial Session disconnected during RSP bridge")
+	case !now.Before(s.MaxExpiresAt):
+		cause = errors.New("bridge maximum lifetime reached; Session closed without claiming shell restoration")
+	case !now.Before(s.ExpiresAt):
+		cause = errors.New("bridge management heartbeat expired; Session closed without claiming shell restoration")
+	default:
+		// LeaseStatus itself expires stale leases fail-closed. Renew before the
+		// remaining time drops below twenty seconds, rather than trusting a
+		// monitor-local timer that could outlive the underlying lease.
+		lease, active, err := r.app.LeaseStatus(r.terminal.ID())
+		cause = err
+		if cause == nil && (!active || lease.Owner != r.owner) {
+			cause = ErrLeaseNotOwned
+		}
+		if cause == nil && time.Until(lease.ExpiresAt) <= 20*time.Second {
+			_, cause = r.app.RenewLease(r.terminal.ID(), r.owner)
+		}
+		now = time.Now()
+		if cause == nil && (!now.Before(s.ExpiresAt) || !now.Before(s.MaxExpiresAt)) {
+			cause = errors.New("bridge expired while renewing the internal lease")
+		}
+		if cause == nil {
+			r.mu.Lock()
+			r.status.AutoKeepalive = r.status.State == "connected" && r.endpoint.ClientAlive()
+			if r.status.AutoKeepalive {
+				r.status.ExpiresAt = minBridgeExpiry(now.Add(debugClientTTL), s.MaxExpiresAt)
+			}
+			r.mu.Unlock()
+		}
+	}
+	if cause != nil {
+		r.end("failed", cause)
+	}
+}
+
+func minBridgeExpiry(expiry, maximum time.Time) time.Time {
+	if expiry.After(maximum) {
+		return maximum
+	}
+	return expiry
 }
 
 func bridgeEnded(state string) bool {
@@ -351,8 +398,9 @@ func (a *Application) RSPBridgeStatus(id, owner string) (BridgeStatus, error) {
 	return r.snapshot(), nil
 }
 
-// RenewRSPBridge extends the 60-second management TTL. An expired or ended
-// operation cannot be resurrected, even if the timer has not run yet.
+// RenewRSPBridge renews the internal lease before extending the 60-second
+// management TTL, capped by the absolute lifetime. An expired or ended operation
+// cannot be resurrected, even if the timer has not run yet.
 func (a *Application) RenewRSPBridge(id, owner string) (BridgeStatus, error) {
 	r, err := a.bridges.get(id, owner)
 	if err != nil {
@@ -360,13 +408,23 @@ func (a *Application) RenewRSPBridge(id, owner string) (BridgeStatus, error) {
 	}
 	r.op.Lock()
 	defer r.op.Unlock()
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	if bridgeEnded(r.status.State) || !time.Now().Before(r.status.ExpiresAt) {
-		return r.status, errors.New("bridge is ended or heartbeat expired")
+	s := r.snapshot()
+	if bridgeEnded(s.State) || !time.Now().Before(s.ExpiresAt) || !time.Now().Before(s.MaxExpiresAt) {
+		return s, errors.New("bridge is ended or heartbeat expired")
 	}
-	r.status.ExpiresAt = time.Now().Add(debugClientTTL)
-	return r.status, nil
+	if _, err := a.RenewLease(r.terminal.ID(), r.owner); err != nil {
+		r.end("failed", err)
+		return r.snapshot(), err
+	}
+	if !time.Now().Before(s.ExpiresAt) || !time.Now().Before(s.MaxExpiresAt) {
+		err := errors.New("bridge expired while renewing the internal lease")
+		r.end("failed", err)
+		return r.snapshot(), err
+	}
+	r.mu.Lock()
+	r.status.ExpiresAt = minBridgeExpiry(time.Now().Add(debugClientTTL), s.MaxExpiresAt)
+	r.mu.Unlock()
+	return r.snapshot(), nil
 }
 
 // CloseRSPBridge idempotently closes both the bridge and its serial Session.
@@ -459,9 +517,10 @@ func (a *Application) RestoreRSPBridge(id, owner, ttyState string, confirmShellR
 	return r.snapshot(), nil
 }
 
-// ConnectRSPBridge connects a byte-stream adapter without starting or controlling
-// GDB. ctx bounds dialing/authentication; after return the caller owns the stream
-// and its lifetime. Secret descriptors must remain private.
+// ConnectRSPBridge connects a byte-stream adapter and its independent control
+// heartbeat without starting or controlling GDB. ctx bounds dialing/authentication;
+// after return the caller owns both sockets through the stream's Close method.
+// Secret descriptors must remain private.
 func ConnectRSPBridge(ctx context.Context, info debugger.BridgeConnection) (io.ReadWriteCloser, error) {
-	return debugger.DialBridge(ctx, info)
+	return debugger.DialBridgeKeepAlive(ctx, info)
 }
