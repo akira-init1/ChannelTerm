@@ -9,33 +9,27 @@ import (
 	"testing"
 )
 
+// TestBridgeDefaultPortPool checks the public range and OS bind exclusion while
+// allowing other processes to allocate from the same pool concurrently.
 func TestBridgeDefaultPortPool(t *testing.T) {
-	// These assertions intentionally exercise the public default ports. Tests
-	// in other packages may own them; a busy environment is explicitly skipped.
-	for _, port := range []int{37100, 37101} {
-		probe, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
+	seen := make(map[string]bool)
+	for i := 0; i < 2; i++ {
+		// Separate allocators must observe each other's live OS binds without
+		// sharing reservation maps. Keep both endpoints open until cleanup.
+		e, err := new(EndpointAllocator).Listen("", "", true)
 		if err != nil {
-			t.Skipf("default port %d unavailable: %v", port, err)
+			t.Fatal(err)
 		}
-		probe.Close()
-	}
-	var a EndpointAllocator
-	first, err := a.Listen("", "", true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer first.Close()
-	if first.Connection().Address != "127.0.0.1:37100" {
-		t.Fatal(first.Connection().Address)
-	}
-	// A separate allocator must observe the real OS bind, not only a's map.
-	second, err := new(EndpointAllocator).Listen("", "", true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer second.Close()
-	if second.Connection().Address != "127.0.0.1:37101" {
-		t.Fatal(second.Connection().Address)
+		t.Cleanup(e.Close)
+		bound := e.listener.Addr().(*net.TCPAddr)
+		if !bound.IP.Equal(net.IPv4(127, 0, 0, 1)) || bound.Port < 37100 || bound.Port > 37999 {
+			t.Fatalf("default endpoint %s is outside the loopback port pool", bound)
+		}
+		address := e.Connection().Address
+		if seen[address] {
+			t.Fatalf("separate allocators reused an active endpoint: %s", address)
+		}
+		seen[address] = true
 	}
 }
 
