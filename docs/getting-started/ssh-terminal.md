@@ -5,6 +5,11 @@ HTTP Host. The foreground `ssh` command owns that Host. For dedicated SFTP or le
 use the [file-transfer workflow](file-transfer.md#sftp-and-scp-over-ssh); those connections do not share
 the terminal Session or insert protocol bytes into its history. Arbitrary SSH exec is not exposed.
 
+To debug a Linux C/C++ program, run GDB interactively in this shared shell or use an independent
+native SSH/TCP connection to gdbserver. See the [GDB workflow](gdb-debugging.md#debug-a-linux-server-over-ssh-or-tcp)
+for prerequisites, examples, and cleanup. ChannelTerm's external RSP bridge accepts serial Sessions
+only; it does not provide SSH forwarding.
+
 ## Prerequisites
 
 Use a running SSH server on Linux, WSL2, or another SSH-capable host, its actual reachable address

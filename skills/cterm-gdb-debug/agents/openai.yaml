@@ -1,0 +1,11 @@
+interface:
+  display_name: "ChannelTerm GDB Debug"
+  short_description: "Debug Linux boards and servers over serial or SSH"
+  default_prompt: "Use $cterm-gdb-debug to check my Linux target and debug its C/C++ program through ChannelTerm, SSH, or gdbserver."
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "channelterm"
+      description: "ChannelTerm shared terminal and GDB MCP tools"
+policy:
+  allow_implicit_invocation: true

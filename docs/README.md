@@ -24,7 +24,7 @@ for command-line flags and defaults, the running program's `--help` output remai
 - [Create and use serial profiles](getting-started/serial-profiles.md)
 - [Share a Session](getting-started/shared-session.md)
 - [Transfer files over a shared Session or SFTP/SCP](getting-started/file-transfer.md)
-- [Use managed Linux GDB/MI or an external serial RSP bridge](getting-started/gdb-debugging.md)
+- [Debug Linux programs with managed GDB, serial RSP, or SSH/network GDB](getting-started/gdb-debugging.md)
 - [Run the MCP server](getting-started/mcp-server.md)
 - [Troubleshoot common failures](getting-started/troubleshooting.md)
 
@@ -36,6 +36,8 @@ for command-line flags and defaults, the running program's `--help` output remai
   upload/download, verification, and recovery over shared serial Sessions, SFTP, or SCP
 - [ChannelTerm SSH Debug Skill](../skills/cterm-ssh-debug/SKILL.md) — SSH authentication, shared
   shell diagnosis, Host ownership, and connection recovery
+- [ChannelTerm GDB Debug Skill](../skills/cterm-gdb-debug/SKILL.md) — Linux target/gdbserver checks,
+  C/C++ debugging over serial or SSH/network connections, and debugger cleanup
 
 ## Reference
 

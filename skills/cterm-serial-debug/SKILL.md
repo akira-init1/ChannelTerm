@@ -29,7 +29,7 @@ Treat `cterm` as an alias for ChannelTerm. Use ChannelTerm's MCP tools to work t
 - Use `terminal_exec` only for one non-interactive command at a known idle Bash prompt. Each call uses a fresh child, so combine dependent shell steps in one command. Do not use it while a foreground or interactive program owns the terminal.
 - Use `terminal_write` for a bare MCU, RTOS console, bootloader, REPL, password prompt, interactive program, raw keys, control characters, or binary protocol.
 - For files or debugging ELFs, follow `cterm-file-transfer` and run `channelterm file send/receive` against the existing Session. Do not implement Base64/heredoc uploads with raw writes. If execution, local-file, or Host access is unavailable, report the limitation.
-- With an external GDB bridge, execute GDB independently and use `debug_bridge_report` for selected actual commands, results, and observed states. These are Codex reports, not a complete audit. Omit RSP bytes and secrets; reporting failures must not stop GDB or independent heartbeat renewal. See the [debugging workflow](../../docs/getting-started/gdb-debugging.md#show-codex-reported-commands-and-results).
+- For Linux source-level debugging, use `cterm-gdb-debug` when installed; it covers gdbserver checks, target preparation, bridge ownership, independent GDB control, reporting, and recovery. Preserve the intended Session and Host. Otherwise consult the [debugging workflow](../../docs/getting-started/gdb-debugging.md#external-gdb-over-a-prepared-serial-session) and installed MCP schemas before taking over the serial stream.
 - Observe the response before choosing the next action. Do not invent device-specific commands.
 - Obtain explicit approval before an operation that may reset a device, enter a bootloader, erase or flash storage, change persistent configuration, or otherwise interrupt the user's hardware workflow.
 - Use leases and `terminal_write_leased` only for a deliberately managed multi-step operation. Renew and release an acquired lease; do not add lease machinery to ordinary reads or writes.
@@ -49,7 +49,7 @@ Managed serial transfer requires an idle Linux shell and the target-side utiliti
 
 ## Current Capability Boundary
 
-ChannelTerm currently provides serial terminal I/O, retained output, shared Sessions, activity, discovery, command execution at Bash, and managed file transfer for suitable embedded Linux targets. It does not provide JTAG/SWD debugging, GDB breakpoints or stepping, register or memory inspection, manual RTS/DTR control, JSON serial macros, or general firmware flashing. The portable serial backend currently supports only `flow_control: none`.
+This skill covers serial terminal diagnosis and file-transfer handoff. ChannelTerm's separate GDB workflows support Linux user-space breakpoints, stepping, and inspection; use the GDB skill or guide above. JTAG/SWD, bare-metal GDB, manual RTS/DTR control, JSON serial macros, and general firmware flashing are outside this workflow. The portable serial backend currently supports only `flow_control: none`.
 
 ## Report Evidence
 

@@ -1,4 +1,21 @@
-# GDB debugging through MCP
+# GDB debugging with ChannelTerm
+
+Choose a path by where the debugger and program run. These workflows cover Linux user-space
+programs, including C/C++ applications on servers and boards; bare-metal and KGDB are outside scope.
+The bundled [GDB Skill](../../skills/cterm-gdb-debug/SKILL.md) provides agent preflight, operation,
+and recovery steps. Installation follows the [Agent Skill instructions](mcp-server.md#install-the-bundled-agent-skill).
+
+| Path | Requirement and control |
+| --- | --- |
+| [Managed GDB/MI](#managed-native-linux-prerequisites) | Host, tools, ELF, and shell in one native Linux environment; MCP controls supported debugger actions. |
+| [Interactive GDB in SSH](#gdb-in-the-shared-ssh-terminal) | GDB and program on the remote Linux server; ordinary shared terminal input/output. |
+| [External GDB over SSH/TCP](#workstation-gdb-and-remote-gdbserver) | Workstation GDB and remote gdbserver; native SSH or a restricted network carries RSP independently of ChannelTerm. |
+| [External serial bridge](#external-gdb-over-a-prepared-serial-session) | Prepared serial Session to a Linux board; MCP manages ownership and `rsp-client` connects external GDB. |
+
+An SSH Session to another machine does not satisfy the managed backend's same-environment check.
+`debug_bridge_start` accepts only serial Sessions, not SSH Sessions or arbitrary TCP targets.
+
+## Managed native Linux prerequisites
 
 The managed GDB/MI backend requires ChannelTerm, GDB, gdbserver, the executable ELF, and the Session's
 Bash shell in **one native Linux environment**. It supports one inferior, multiple threads, and
@@ -138,6 +155,127 @@ values may contain program data; review before sharing them. Temporary runtime f
 and removed on cleanup. Physical serial settings and development boards have not been validated by
 these tests; their backend is outside this first release's scope.
 
+
+## Debug a Linux server over SSH or TCP
+
+ChannelTerm can share a server's SSH shell while GDB runs there, or prepare the target for a separate
+workstation debugger. Native OpenSSH pipe/forwarding examples below use the external `ssh` executable;
+`channelterm ssh` provides an interactive PTY shell and has no arbitrary exec or forwarding interface.
+External local GDB requires a persistent process execution tool in addition to an MCP connection.
+
+### Check the target and build
+
+Open or reuse the intended [SSH Session](ssh-terminal.md), record its owning endpoint, and keep its
+foreground owner alive. At an idle target shell, check `uname -s`, `uname -m`, and the debugger needed
+for the selected path. For gdbserver:
+
+```sh
+if command -v gdbserver >/dev/null 2>&1; then
+    gdbserver --version
+else
+    printf '%s\n' 'gdbserver is not on PATH'
+fi
+```
+
+Check the exit status as well as output: a present file may fail due to loader, ABI, library, or
+permission errors. Check a known vendor SDK path when applicable. If missing, use the target's
+authorized package-management or cross-toolchain workflow, then repeat the check. A Linux board
+does not necessarily have apt or accept the workstation's executable. Native GDB on the server
+does not require gdbserver; check `command -v gdb` and `gdb --version` for that path instead.
+
+For a small authorized C++ debug build, a representative command is:
+
+```sh
+g++ -g -O0 -fno-omit-frame-pointer -o /srv/debug/demo /srv/debug/demo.cpp
+```
+
+Use the project's build system for a real application. Paths and code are supplied by the operator.
+Keep the matching unstripped ELF/debug files, libraries, and source; an unrelated rebuild does not
+match an already running service. For workstation debugging, choose target-compatible GDB and
+configure its `file`, `set sysroot`, and source path mappings as needed. Transfer files through the
+[file-transfer workflow](file-transfer.md). Identify the intended PID and tracing permissions before
+attach; stopping a service affects its execution and must fit the requested debugging scope.
+
+### GDB in the shared SSH terminal
+
+At the server shell, launch:
+
+```sh
+gdb -q --args /srv/debug/demo
+```
+
+For an authorized existing process, use `gdb -q /path/to/matching/executable -p PID` instead.
+Once GDB owns the PTY, use interactive terminal input (`terminal_write` plus reads), not
+`terminal_exec`, which sends a Bash wrapper. A new-program example is:
+
+```text
+(gdb) set pagination off
+(gdb) break main
+(gdb) run
+(gdb) bt
+(gdb) info locals
+(gdb) next
+```
+
+Observe each stop before inspecting values. An attached process is already running under the
+debugger's control: inspect it and use `continue`, not a fresh `run`. To preserve a live inferior,
+use `detach` before `quit`; after normal program exit, simply quit. Verify that the shell returns.
+The shared Session shows normal GDB terminal output, with no managed MI event stream or debug lease.
+Keep other writers from issuing conflicting interactive commands.
+
+### Workstation GDB and remote gdbserver
+
+Prefer an SSH stdio connection when available. Establish trust and authentication for native
+OpenSSH independently of ChannelTerm; the example assumes usable noninteractive authentication.
+`BatchMode=yes` makes authentication failure explicit instead of waiting for prompts inside the pipe.
+
+```text
+$ gdb -q /work/symbols/demo
+(gdb) target remote | ssh -T -o BatchMode=yes user@host.example gdbserver --once stdio /srv/debug/demo
+(gdb) break main
+(gdb) continue
+(gdb) bt
+```
+
+Replace host, paths, arguments, and SSH options with the actual settings. For attach, replace the
+server invocation with `gdbserver --once --attach stdio PID`. Keep startup output off protocol stdout;
+do not allocate a PTY. The stdio path also needs a separate I/O arrangement for applications requiring
+interactive stdin. See [GNU's gdbserver documentation](https://sourceware.org/gdb/current/onlinedocs/gdb.html/Server.html).
+
+For a TCP-only setup, first establish authorized firewall/network restrictions. GNU gdbserver has
+no built-in authentication, and the host component of its TCP address can be ignored:
+`127.0.0.1:2345` does not establish that the listener is private. Do not expose it publicly. On the
+target, start the following in a persistent terminal and inspect the actual listener with `ss -ltnp`
+or an equivalent tool:
+
+```sh
+gdbserver --once :2345 /srv/debug/demo
+```
+
+Substitute a free port; for attach, use `gdbserver --once --attach :2345 PID`. From the workstation,
+either connect directly over the verified restricted network with `target remote TARGET_IP:2345`,
+or keep this native OpenSSH tunnel running in a separate terminal:
+
+```sh
+ssh -N -T -o ExitOnForwardFailure=yes -L 127.0.0.1:12345:127.0.0.1:2345 user@host.example
+```
+
+Then connect GDB with `target remote 127.0.0.1:12345`. The local bind restricts the forwarding listener;
+it does not restrict the server's gdbserver port. See the [OpenSSH forwarding contract](https://man.openbsd.org/ssh.1#L).
+The SSH port, forwarding port, gdbserver port, MCP HTTP endpoint, and ChannelTerm TLS bridge are
+separate connections. `rsp-client` is for ChannelTerm's authenticated serial bridge, not plain gdbserver TCP.
+
+With `target remote`, gdbserver has already launched or attached to the process. Set breakpoints
+and `continue`; do not issue native `run` or upload with `load`. Detach a surviving inferior before
+quitting, verify server/target state, then stop only this operation's tunnel. After network loss,
+inspect the target before retrying; a dropped socket is not proof of detach or process exit.
+Diagnose connection refusal from server startup, listener, route, and forwarding errors without
+restarting an unrelated service or weakening host trust. External GDB commands are not automatically
+reported into the ChannelTerm SSH Session, and `debug_bridge_report` requires a real serial bridge.
+
+These instructions compose existing terminal operations with external GDB/OpenSSH behavior; they
+do not add a ChannelTerm SSH RSP backend. Validate actual server authentication, target permissions,
+toolchain compatibility, and end-to-end behavior in the deployment environment.
 
 ## External GDB over a prepared serial Session
 

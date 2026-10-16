@@ -7,6 +7,8 @@ description: Open, share, and diagnose ChannelTerm (cterm) SSH terminal Sessions
 
 Treat `cterm` as an alias for ChannelTerm. This skill handles terminal diagnosis through an SSH PTY shell. It does not add debugger protocols or arbitrary SSH exec support. For uploads/downloads, use `cterm-file-transfer` when installed; dedicated SFTP/SCP connections are independent of the shared shell.
 
+For C/C++ source-level debugging, hand off the selected Session, Host, and target to `cterm-gdb-debug` when installed, or the [GDB guide](../../docs/getting-started/gdb-debugging.md#debug-a-linux-server-over-ssh-or-tcp). That workflow distinguishes interactive remote GDB from external native-SSH/TCP gdbserver connections. ChannelTerm's serial RSP bridge cannot take over an SSH Session.
+
 ## Reuse or establish the Session
 
 1. If connected to the intended ChannelTerm MCP Host, call `terminal_list_sessions` and reuse the intended open SSH Session. Check its transport and target rather than guessing from its position in the list. Record its opaque ID, short reference such as `SSH-1`, and Host endpoint; references are local to each Host. A username/hostname or label is not a Session ID.
