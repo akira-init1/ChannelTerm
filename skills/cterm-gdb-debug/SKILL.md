@@ -5,27 +5,27 @@ description: Debug Linux user-space programs with GDB and ChannelTerm (cterm). U
 
 # ChannelTerm GDB Debug
 
-Treat `cterm` as an alias for ChannelTerm. This workflow is model-neutral: the agent needs the relevant MCP tools and, for an external local GDB, a persistent process/terminal execution tool. Installing this skill supplies instructions, not binaries, credentials, an MCP connection, or an execution tool. Use the installed tool schemas and CLI help for exact arguments.
+Treat `cterm` as an alias for ChannelTerm. Use available MCP schemas and CLI help for exact arguments. External local GDB also needs persistent process execution; with MCP alone, use remote interactive GDB or provide commands to the operator.
 
 ## Select the debugging path
 
-Establish where the ChannelTerm Host, GDB, symbols, gdbserver, and target process run. Preserve the user's selected path when it meets the prerequisites.
+Locate the Host, GDB, symbols, and target. Preserve the user's selected path when its prerequisites hold.
 
 | Situation | Path |
 | --- | --- |
-| Linux board reached through an existing serial Session | External serial RSP bridge; independently operate a target-compatible GDB. |
-| Linux server reached through a ChannelTerm SSH shell, with GDB on that server | Run interactive GDB inside that shared shell. gdbserver is unnecessary for this path. |
-| GDB on the workstation; program on an SSH-accessible Linux server or board | Native OpenSSH pipe to gdbserver, or a protected TCP connection. ChannelTerm can prepare/observe the server shell; the RSP connection is separate. |
-| ChannelTerm Host, GDB, gdbserver, ELF, and Session shell in the same native Linux environment | Managed MCP `debug_start` / `debug_command` / `debug_events` / `debug_stop`. |
+| Linux board through serial | External serial RSP bridge with independently operated GDB. |
+| GDB installed on an SSH server | Interactive GDB in the shared SSH shell; no gdbserver needed. |
+| Workstation GDB, remote Linux program | Native SSH pipe to gdbserver, or protected TCP; RSP travels separately from ChannelTerm. |
+| Host, tools, ELF, and shell in one native Linux environment | Managed MCP GDB/MI. |
 
-`debug_bridge_start` accepts only an open **serial** Session. It cannot bridge an SSH Session or connect to a remote TCP gdbserver. `debug_start` is not a general remote-SSH backend: another machine, container/PID namespace, or Windows/WSL split does not satisfy its local-environment requirement. Do not invent `debug_bridge_command` or `terminal_open_ssh` tools.
+`debug_bridge_start` accepts only an open **serial** Session. `debug_start` requires the same Linux filesystem/PID environment; another machine or Windows/WSL split does not qualify.
 
-Reuse the intended Session from `terminal_list_sessions`; record its opaque ID, reference, transport, and owning MCP endpoint. Keep its owning Host alive. Use `cterm-serial-debug` or `cterm-ssh-debug` when available to establish a missing connection. Otherwise use installed CLI help; `channelterm ssh USER@HOST` opens an SSH shell and its own sharing Host, which the MCP client must reach. It cannot add an SSH Session to an existing Host. Known serial settings and the actual SSH host/user/authentication are prerequisites, not values to guess.
+Reuse the intended Session from `terminal_list_sessions`; retain its opaque ID, transport, and owning endpoint. Keep its Host alive. For setup, use `cterm-serial-debug` / `cterm-ssh-debug` when installed or CLI help. `channelterm ssh USER@HOST` creates its own sharing Host; connect MCP to its printed endpoint. No `terminal_open_ssh` tool exists. Obtain actual serial settings or SSH credentials without guessing.
 
 ## Check the target and symbols before takeover
 
-1. Observe the terminal first. Use `terminal_exec` only at an idle Bash prompt; use `terminal_write` and reads for another known shell or interactive GDB. Never send a shell wrapper into GDB or an RSP stream. Each `terminal_exec` uses a fresh child, so combine dependent directory/environment steps in one invocation.
-2. On the **target**, check the OS, CPU, and executable tools. For a gdbserver path, run this shell preflight and inspect both the version output and exit status:
+1. Observe before writing. Reserve `terminal_exec` for idle Bash; each call uses a fresh child. Use `terminal_write` and reads for interactive GDB or another known shell. Never inject shell commands into RSP.
+2. Check tools on the **target**, including successful execution rather than presence alone:
 
    ```sh
    uname -s
@@ -37,95 +37,71 @@ Reuse the intended Session from `terminal_list_sessions`; record its opaque ID, 
    fi
    ```
 
-   A path alone is insufficient: execution can fail because of ABI, loader, library, or permission problems. Check a known SDK-specific absolute path if appropriate. If absent, inspect `/etc/os-release` and the board's package/SDK facilities. Use an authorized package installation or a compatible vendor/cross-built gdbserver, transfer it through the supported file workflow, then repeat the version check. Do not assume every board uses apt, copy the workstation's binary across architectures, or start a bridge before this succeeds. If installation is outside the task's authorization, report the missing prerequisite; remote native GDB remains an option if present.
-3. Check `gdb --version` **where GDB will execute**. Select the target SDK's GDB or a multiarch build that supports the target architecture/ABI. Server-side native GDB requires only GDB there; external paths require gdbserver on the target and GDB on the debugger machine.
-4. Identify launch versus attach, the intended executable/PID, arguments, working directory, environment, and tracing permissions. Attaching or stopping a service affects its execution; respect the user's existing authorization and service constraints. Do not stop a service merely to obtain a PID, guess among matching processes, or weaken system-wide ptrace policy. Keep inspection expressions free of assignments and function calls unless changing program state is intended.
-5. Use symbols from the exact deployed build, including matching shared libraries/sysroot. For an authorized debug build, retain symbols, for example `g++ -g -O0 -fno-omit-frame-pointer -o demo demo.cpp`; use the project's build system for a real project. A freshly rebuilt binary is not a symbol substitute for an older running service. Use build IDs or identical artifact hashes where applicable. Configure GDB `file`, `set sysroot`, and `set substitute-path` for the actual local symbol/library/source paths. Use `cterm-file-transfer` if installed, or `channelterm file`, SFTP/SCP help, for transfers; complete transfers before serial takeover.
+   Inspect output and exit status for loader, ABI, library, or permission errors. If missing, check the SDK path or target OS/package facilities; install a compatible gdbserver within existing authorization, then recheck. Do not assume apt or copy a workstation binary across architectures. For server-side native debugging, check `gdb --version` instead of gdbserver.
+3. Verify GDB where it will run, target architecture/ABI support, and symbols/libraries from the exact deployed build. Configure `file`, `set sysroot`, and source mappings as needed. Use `cterm-file-transfer` when installed or supported CLI file commands; finish transfers before serial takeover.
+4. Confirm launch versus attach, executable/PID, arguments, working directory, environment, and tracing permission. Respect service interruption constraints; do not weaken system-wide ptrace policy. Inspection expressions should avoid assignments/function calls unless mutation is intended.
 
 ## Run GDB in the shared SSH shell
 
-Use this path when the target server has native GDB and shared terminal visibility is useful.
-
-1. Reuse the SSH Session, or open `channelterm ssh user@host.example` in a persistent terminal with live stdin. Verify host trust and authentication; keep the owner alive. Connect MCP to its printed endpoint and list Sessions to confirm ownership.
-2. At the remote idle shell, verify `command -v gdb` and `gdb --version`, then start `gdb -q --args /srv/debug/demo` using interactive terminal input. Substitute real paths/arguments. For an authorized existing process, use `gdb -q /path/to/matching/executable -p PID` instead; it stops the process on attachment.
-3. Wait for `(gdb)`, send `set pagination off`, then use `break main` and `run` for a newly launched program. For an attached program, inspect its current stop and use `continue` when intended. Read the response after each command; do not call `terminal_exec` while GDB owns the PTY.
-4. Inspect a confirmed stop with `bt`, `info threads`, `frame`, `info locals`, or `print EXPRESSION`; use `next`, `step`, and `finish` as needed. Send Ctrl+C through terminal input only when this Session is known to be running the intended GDB/inferior. Shared writes are serialized but do not coordinate competing debugger commands.
-5. To preserve a live inferior, issue `detach` before `quit`; after normal inferior exit, `quit` is enough. Do not accept an unexpected kill confirmation just to close GDB. Confirm the shell prompt returned and preserve the shared SSH Session. Disconnecting the SSH owner closes its Host/Sessions and does not prove the target process survived.
-
-This is ordinary interactive GDB carried by ChannelTerm's SSH terminal. It does not gain managed MI events, debug leases, or automatic `debug_bridge_report` history.
+1. At the remote shell, start `gdb -q --args /srv/debug/demo`, or `gdb -q /path/to/matching/executable -p PID` for authorized attach. Substitute actual paths/arguments.
+2. Wait for `(gdb)`, disable pagination, then set breakpoints and `run` for launch or inspect/`continue` for attach. Use terminal writes and read each response; inspect only after a confirmed stop. Other writers must not issue conflicting commands.
+3. To preserve a live inferior, `detach` before `quit`; after normal exit, just quit. Confirm the shell returned and keep the Session owner alive. This path uses ordinary terminal output, without managed MI events or debug leases.
 
 ## Use workstation GDB over SSH or TCP
 
-Use a persistent local GDB process and actual matching symbols. If the agent has MCP access but no local process execution, use remote interactive GDB above or hand the local commands to the operator; do not claim external GDB has started.
-
-### Prefer a native SSH pipe
-
-After target preflight, establish host trust and usable authentication for the **native `ssh` client**. ChannelTerm SSH settings do not automatically configure it. This example assumes trusted, noninteractive key/agent authentication; `BatchMode=yes` fails instead of prompting inside the RSP pipe:
+Prefer a native SSH pipe. Establish host trust and noninteractive authentication for native `ssh` separately from ChannelTerm:
 
 ```text
 gdb -q /work/symbols/demo
 (gdb) target remote | ssh -T -o BatchMode=yes user@host.example gdbserver --once stdio /srv/debug/demo
-(gdb) break main
-(gdb) continue
-(gdb) bt
 ```
 
-For an authorized existing process, replace the server portion with `gdbserver --once --attach stdio PID`, keeping the matching local ELF. Apply the actual SSH port (`ssh -p`), identity, working directory, and safely quoted program arguments. `-T` avoids PTY transformations; never substitute `channelterm ssh` for this command. Keep remote startup output off the RSP stdout stream. Programs needing interactive stdin require another I/O arrangement; stdio gdbserver does not provide a normal interactive application terminal.
+For attach, replace the server invocation with `gdbserver --once --attach stdio PID`. Adapt SSH options, working directory, and quoted arguments. Keep `-T`, startup output off protocol stdout, and credentials private. Do not substitute `channelterm ssh`; it provides a PTY shell. Applications needing interactive stdin require separate I/O.
 
-### TCP when required
+For TCP, restrict access **before** starting `gdbserver --once :2345 /srv/debug/demo` in a persistent target terminal. For attach, use `gdbserver --once --attach :2345 PID`. Verify the actual listener with `ss -ltnp` or equivalent: gdbserver has no authentication, and `127.0.0.1:2345` does not guarantee loopback binding. Never expose it publicly. Connect through a protected network with `target remote TARGET_IP:2345`, or keep this native SSH tunnel running separately:
 
-GNU gdbserver has no built-in authentication; its `HOST:PORT` host component may be ignored. Writing `127.0.0.1:2345` does **not** prove a loopback-only listener. Prefer the SSH pipe unless an authorized restricted network/firewall setup already protects the target port. Do not expose it to a public network.
+```sh
+ssh -N -T -o ExitOnForwardFailure=yes -L 127.0.0.1:12345:127.0.0.1:2345 user@host.example
+```
 
-1. Select an available target port and arrange access restrictions before starting `gdbserver --once :2345 /srv/debug/demo` on the target. Use `--attach :2345 PID` instead of the executable for attach. Keep the foreground server process alive; use interactive terminal input, not a short `terminal_exec` timeout. Inspect startup diagnostics and actual listening addresses with `ss -ltnp` or the target's equivalent.
-2. For an SSH tunnel, run native OpenSSH in another persistent local process:
+Then use `target remote 127.0.0.1:12345`. The tunnel does not restrict the target listener. Substitute available ports; none is an MCP or ChannelTerm TLS endpoint.
 
-   ```sh
-   ssh -N -T -o ExitOnForwardFailure=yes -L 127.0.0.1:12345:127.0.0.1:2345 user@host.example
-   ```
-
-   Then use `(gdb) target remote 127.0.0.1:12345`. The tunnel protects this connection but does not restrict the gdbserver listener on the server. Alternatively, connect to `(gdb) target remote TARGET_IP:2345` only on the verified restricted network. These are ordinary RSP endpoints, not ChannelTerm TLS bridge addresses or MCP HTTP ports.
-3. Wait for a stop after connecting, then use `break` and `continue`. `target remote` starts/attaches through gdbserver; do not use `run` or `load` as though it were a native launch. `extended-remote` is a separate GDB mode; use it only when the requested workflow needs it and the installed server supports it.
-4. Detach a surviving inferior before quitting GDB, verify target state and server exit, and stop only the tunnel/server processes created for this operation. Connection refusal calls for checking startup, route, port, and forwarding diagnostics. A broken connection is not proof of detach or permission to blindly reattach/relaunch. Do not kill unrelated gdbserver processes or restart the application automatically.
-
-These connections bypass ChannelTerm's serial bridge. Do not create a dummy bridge to report them. Summarize observations directly; commands run in the shared SSH terminal remain visible there, but external GDB commands are not automatically copied into it.
+After a confirmed stop, set breakpoints and `continue`; `target remote` does not use native `run` or `load`. Detach surviving inferiors before quitting, verify target/server state, then stop only owned helpers. After failure, inspect diagnostics and target state before retrying. These external paths have no ChannelTerm bridge reports.
 
 ## Use the external serial RSP bridge
 
-1. Finish target/gdbserver and symbol preflight at the intended serial shell. Save the exact pre-debug `stty -g` value outside the target. Prepare raw RSP using the known shell; a launch example is:
+1. Finish preflight and save the exact pre-debug `stty -g` value outside the target. Prepare the serial shell for RSP; adapt this launch example:
 
    ```sh
    ct_saved=$(stty -g); stty raw -echo; gdbserver --once stdio /tmp/demo 2>/tmp/ct-gdbserver.log; stty "$ct_saved"
    ```
 
-   Adapt paths and protect diagnostic output as needed. Ensure inferior I/O and other console producers cannot corrupt RSP; attached processes retaining the serial TTY are unsuitable. Silence is not readiness evidence. After takeover, do not send shell commands or terminal Ctrl+C into the stream.
-2. Generate a secret random management `owner` (32–128 characters) and unique `request_id`. Call `debug_bridge_start` with the actual `session_id`, those values, and `acknowledge_unverified_target: true` only after preparation. Exact retries reuse all arguments. Keep `status.bridge_id` and save only the returned `connection` object to a private JSON file readable by the GDB-side helper. Restrict permissions/ACLs; never print its token or the owner in chat, commands, reports, or source control.
-3. Use the actual returned address; default ports rotate through 37100–37999 with dynamic fallback. MCP HTTP is separate. Loopback is relative to each machine/namespace; a non-loopback bridge needs a specific numeric interface and `allowed_peer`. Do not use wildcard binds or weaken TLS pinning to fix connectivity.
-4. Verify `channelterm rsp-client --help` on the GDB machine, then connect from its target-compatible GDB:
+   Isolate inferior I/O and other console output from RSP; attached processes retaining this TTY are unsuitable. Silence is not readiness. Do not send terminal Ctrl+C or shell input during takeover.
+2. Call `debug_bridge_start` with `session_id`, a secret random `owner`, unique `request_id`, and `acknowledge_unverified_target: true` after preparation. Exact retries reuse all arguments. Retain `status.bridge_id`; save only `connection` in a private JSON file with restrictive permissions/ACLs. Never disclose tokens or owner capabilities.
+3. Use the returned address. Non-loopback binds require a specific interface and `allowed_peer`; preserve authentication and TLS pinning. Verify the GDB-side helper's help, load matching symbols, then connect:
 
    ```text
    (gdb) file /work/symbols/demo
    (gdb) target remote | channelterm rsp-client --connection /private/bridge.json
-   (gdb) break main
-   (gdb) continue
    ```
 
-   A plain `target remote HOST:PORT` cannot authenticate this TLS endpoint. Only one data client can consume a bridge; reconnect cannot take it over.
-5. Current matching `rsp-client` versions automatically renew while connected, including idle breakpoint waits; inspect `auto_keepalive`. Independently call `debug_bridge_renew` every 30 seconds before connecting, after disconnect while arranging recovery, or with a legacy helper. Status and reports do not renew. Respect the 60-second grace and absolute 24-hour limit.
-6. Optionally call `debug_bridge_report` with `bridge_id`, `owner`, increasing `sequence`, `kind` (`command`, `result`, `state`), and actual observed `text` (up to 4096 UTF-8 bytes). Omit secrets, raw RSP, and sensitive values. Report failures must not interrupt GDB or renewal; retry only the latest identical report, never reexecute a GDB command to resend it. Current output labels these as **Codex reports** even for another calling model; this is not verified model identity or a complete audit.
-7. Issue GDB `detach` before `quit` when preserving a live program. Disconnection retains the lease and leaves shell state unknown. Only after independently confirming the target shell has returned, call `debug_bridge_restore` with the saved exact `tty_state` and `confirm_shell_ready: true`. Require `restored` / `shell_verified` before ordinary terminal writes. An exit can leave serial gdbserver awaiting EOF; use a separate authorized management path when needed.
-8. If recovery cannot be established or the snapshot is missing, call `debug_bridge_close` to end bridge and shared serial Session ownership. It does not detach or kill the target. Failed/timed-out restore and lease expiry also close the Session. Never force-release the debug lease, guess `stty sane`, or use speculative shell probes while RSP may still own the line. Remove private connection files after cleanup.
+   Plain `target remote HOST:PORT` cannot authenticate this endpoint; reconnect cannot take over a consumed bridge.
+4. Current `rsp-client` maintains leases while connected, including idle waits; check `auto_keepalive`. Otherwise call `debug_bridge_renew` every 30 seconds, including before connection and during disconnected recovery. Status/reports do not renew. Respect the 60-second grace and 24-hour maximum.
+5. Optionally use `debug_bridge_report` for actual commands/results/states, with increasing sequences and redacted text; omit raw RSP and secrets. Report failures must not interrupt GDB or renewal; retry only the latest identical report, never rerun GDB commands for reporting. Current labels say **Codex report**, regardless of calling model; this is not a complete audit.
+6. Detach through GDB before quitting when preserving the inferior. Disconnection retains the lease and does not prove shell recovery. Once the shell is independently confirmed, call `debug_bridge_restore` with the saved `tty_state` and `confirm_shell_ready: true`; require `restored` / `shell_verified`. Serial gdbserver may still await EOF; use separate authorized management if needed.
+7. If recovery is uncertain or the snapshot missing, `debug_bridge_close` closes bridge and shared Session without detaching/killing the target. Restore failure or expiry also closes the Session. Never force-release the lease or guess `stty sane`. Remove private connection files afterward.
 
 ## Use managed native Linux MCP debugging
 
-Use this path only when the Host and shell share the same Linux filesystem/PID environment and native amd64/arm64 ELF. Verify GDB, gdbserver, Bash, `setsid`, and required shell utilities there. The backend supports one inferior, multiple threads, and all-stop execution; attach rejects controlling TTYs, pipes, sockets, and unsafe character devices. A network server with open sockets therefore needs an external path for attach.
+Verify native amd64/arm64 ELF, GDB, gdbserver, Bash, `setsid`, and required utilities in the Host environment. This backend is single-inferior, multithreaded, all-stop. Attach rejects controlling TTYs, pipes, sockets, and unsafe character devices; services with sockets need an external path.
 
-1. Call `debug_start` with `session_id`, secret random `owner`, unique `request_id`, absolute local `elf`, and launch `args` or attach `pid`. Do not prepare your own gdbserver or raw TTY for this managed mode.
-2. Keep `status.debug_id`. Consume `debug_events` from `cursor: 0`, retaining each returned `next`. Use supported `debug_command` actions such as `break_insert`, `continue`, `next`, `stack`, and `evaluate`; discover exact fields from the schema. Give each new command a unique request ID and retry uncertain responses with identical arguments/ID.
-3. Execution acceptance is not a stop: wait for a stopped event before inspecting. Poll events or call `debug_command` with `action: "renew"` at least every 30 seconds, also during long runs. Debug and terminal cursors are independent. `evaluate` can mutate values even though function calls are disabled.
-4. Interrupt through `debug_command` with `action: "interrupt"`. End through `debug_stop`; the default detaches, while `terminate: true` is only for an authorized launched inferior. Require successful shell restoration before resuming terminal work. Recovery failure closes the Session; reconnect and inspect rather than replaying uncertain actions.
+1. Call `debug_start` with `session_id`, secret random `owner`, unique `request_id`, absolute `elf`, and launch `args` or attach `pid`. Let the backend prepare gdbserver/TTY.
+2. Retain `status.debug_id`. Consume `debug_events` from cursor zero, then each returned `next`; debug and terminal cursors differ. Use schema-supported `debug_command` actions with unique request IDs; uncertain retries keep identical arguments/ID.
+3. Wait for a stopped event before inspection. Poll events or issue `action: "renew"` every 30 seconds, including long runs. `evaluate` can modify values despite disabled function calls.
+4. Interrupt with `action: "interrupt"`, not terminal bytes. End with `debug_stop`; default detach preserves the inferior, while `terminate: true` requires an authorized launched process. Resume terminal work only after successful restoration; failure closes the Session.
 
 ## Report and reference
 
-Report the selected path, actual machines/architecture, verified tool versions, Session/Host when used, executable/symbol match, commands and observed stops/results, and final process/connection state. Separate prepared instructions, local checks, and real-board/server evidence. On failure, include the failing stage, relevant error and nonsecret identifiers/cursors; do not invent target recovery.
+Report the selected path, target/tool versions, symbol match, actual observations, and final process/Session state. Distinguish prepared commands, local checks, and real-target evidence; redact secrets and identify uncertain recovery.
 
-In a source checkout, see the [GDB workflow](../../docs/getting-started/gdb-debugging.md), [MCP contracts](../../docs/reference/mcp-tools.md#debug-tools), and [SSH workflow](../../docs/getting-started/ssh-terminal.md). Installed skill bundles may omit these docs; the procedures above remain usable with installed help and schemas. For external connections, consult the [GNU gdbserver manual](https://sourceware.org/gdb/current/onlinedocs/gdb.html/Server.html) and [OpenSSH manual](https://man.openbsd.org/ssh.1) for version-specific behavior.
+Full examples: [GDB workflow](../../docs/getting-started/gdb-debugging.md). Exact interfaces: [MCP contracts](../../docs/reference/mcp-tools.md#debug-tools) and [SSH workflow](../../docs/getting-started/ssh-terminal.md). Installed bundles may omit repository docs; use the essential steps above with installed help/schemas.
