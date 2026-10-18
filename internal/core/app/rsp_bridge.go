@@ -480,6 +480,8 @@ func (a *Application) RestoreRSPBridge(id, owner, ttyState string, confirmShellR
 		return r.snapshot(), err
 	}
 	r.setState("recovering", nil)
+	// TODO: Diagnose the reported serial-board restore timeout after GDB detach.
+	// The root cause is unconfirmed; see docs/development/known-issues.md.
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	// Closing the Channel on timeout also bounds a blocked probe write.

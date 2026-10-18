@@ -67,3 +67,4 @@ for command-line flags and defaults, the running program's `--help` output remai
 - [Development setup](development/setup.md)
 - [Building and testing](development/building-and-testing.md)
 - [Code style](development/code-style.md)
+- [Known issues and pending investigations](development/known-issues.md)
