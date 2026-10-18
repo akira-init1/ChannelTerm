@@ -57,6 +57,25 @@ jobs:
             throw "unexpected version output: $($actual -join '; ')"
           }
 
+  gdb-integration:
+    name: Real GDB integration (Linux)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: stable
+          cache-dependency-path: go.sum
+      - name: Install local debugger test tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y gdb gdbserver gcc bash util-linux
+      - name: Run managed and external GDB tests
+        env:
+          CHANNELTERM_TEST_GDB: "1"
+        run: go test -race ./internal/mcp -run '^TestGDB(Local|ExternalPTY)' -timeout 10m -count=1 -v
+
   quality:
     name: Quality and cross-build
     runs-on: ubuntu-latest

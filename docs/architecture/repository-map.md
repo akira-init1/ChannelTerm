@@ -28,6 +28,7 @@ ChannelTerm/
 |   |   |-- channel/                Established stream contract and lifecycle
 |   |   |-- config/                 Connection profiles and policy, user preferences, TOML/state persistence
 |   |   |-- connectionpolicy/       Discovery-response policy decisions
+|   |   |-- debugger/               GDB/MI, authenticated RSP endpoints/control keepalive, binary relay
 |   |   |-- device/                 Discovery registry, events, identity state
 |   |   |-- session/                Session, Manager, output and activity buffers
 |   |   |-- tool/                   Protocol-neutral Tool and Registry
@@ -45,6 +46,7 @@ ChannelTerm/
 |   `-- release.sh                  Clean tagged release verification and checksums
 |-- skills/
 |   |-- cterm-file-transfer/         Serial/SFTP/SCP transfer workflows for AI clients
+|   |-- cterm-gdb-debug/             Linux GDB workflows over serial, SSH, or TCP
 |   |-- cterm-serial-debug/          Shared serial-debugging workflow for AI clients
 |   `-- cterm-ssh-debug/             Shared SSH shell diagnosis workflow for AI clients
 |-- docs/                           Public English technical documentation
@@ -75,8 +77,9 @@ The main ownership distinctions are deliberate:
   configuration discovery and installation. `internal/install` owns per-user executable placement,
   short-command aliases, PATH changes, and the installation ownership manifest. These packages may
   depend inward; Core may not depend on them.
-- **Application:** `internal/core/app` orchestrates adapter-neutral use cases without owning process
-  lifetime or presentation.
+- **Application:** `internal/core/app` orchestrates adapter-neutral use cases and the lifetime of managed debug operations; it does not own the Host process
+  lifetime or presentation. `internal/core/debugger` owns GDB/MI, pinned TLS connection endpoints, and the RSP relay through a minimal
+  cursor-read/leased-write service; it never opens a terminal Transport. Application separately owns the pure external bridge lifecycle and its managed debug lease; the CLI `rsp-client` adapts external GDB pipe I/O and answers control heartbeats on the same authenticated endpoint.
 - **Core services:** `internal/core/channel`, `session`, `config`, `connectionpolicy`, `device`, and
   `tool` own their protocol-neutral responsibilities. Channel owns established stream I/O and
   lifecycle; Session owns sharing, retained bytes, activity, and write serialization above it.

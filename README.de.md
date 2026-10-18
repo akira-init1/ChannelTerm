@@ -1,4 +1,4 @@
-[English](README.md) | Deutsch | [Español](README.es.md) | [Français](README.fr.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Русский](README.ru.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md)
+[English](README.md) | [Deutsch](README.de.md) | [Español](README.es.md) | [Français](README.fr.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Русский](README.ru.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md)
 
 # ChannelTerm
 
@@ -10,57 +10,76 @@ Mit ChannelTerm teilen Menschen und KI dieselbe Hardware-Terminal-Session. Die K
 Terminal nicht: Sie kann das Gerät lesen und bedienen, während Sie verbunden bleiben, ihre Aktionen
 sehen, selbst Eingaben machen und bei Bedarf eingreifen.
 
-```text
-                    Physisches serielles Gerät
-                              |
-                       Serial Transport
-                        (eine Verbindung)
-                              |
-                              v
-                  ChannelTerm Session SER-1
-                     /                 \
-                    /                   \
-          Menschliches Terminal      KI-/MCP-Client
-          channelterm attach         Lese-/Schreibwerkzeuge
-```
-
 ChannelTerm unterstützt serielle Kommunikation und SSH-Shells mit PTY unter Windows, Linux und macOS. ChannelTerm enthält keine eigene KI; es stellt echte Terminal-Sessions für Menschen und externe KI-Clients über MCP bereit.
 
-## Dateien über SSH übertragen
+## Warum ChannelTerm?
 
-Nutzen Sie SFTP für Dateiübertragung und entfernte Dateiverwaltung oder das klassische SCP für kompatible POSIX-Server:
+Ein herkömmliches serielles Terminal gibt dem Menschen die physische Verbindung:
 
-```bash
-channelterm sftp user@192.168.1.50 ls /tmp
-channelterm sftp user@192.168.1.50 put ./firmware.bin /tmp/firmware.bin
-channelterm sftp user@192.168.1.50 get /tmp/log.txt ./log.txt
-channelterm scp user@192.168.1.50 put ./release /tmp/release --recursive
+```text
+Human ---- terminal ---- Serial device
 ```
 
-Diese Befehle verwenden dieselbe Schlüssel-/Passwortauthentifizierung und Hostprüfung wie SSH,
-jedoch eine von Terminal-Sessions unabhängige Verbindung. Das Ersetzen vorhandener Dateien erfordert
-`--overwrite`. Verzeichnisregeln, Abbruch und Grenzen beschreibt die
-[Dateiübertragung](docs/getting-started/file-transfer.md#sftp-and-scp-over-ssh).
+Ein serielles Werkzeug nur für KI gibt der KI die Verbindung, lässt den Menschen aber außerhalb des laufenden Terminals:
 
-Dateiübertragungen über gemeinsame Terminal-Sessions verwenden ein kleines Linux-Shell-Protokoll.
-Separate SSH-Dateiverbindungen verwenden SFTP oder das klassische SCP.
+```text
+AI ---- MCP / serial ---- Serial device
 
-## Gemeinsame SSH-Shell
-
-Verbinden Sie sich mit einem autorisierten privaten Schlüssel (verschlüsselte Schlüssel fragen nach einer Passphrase) oder geben Sie auf
-Nachfrage Ihr Passwort ein (beides wird nicht gespeichert). Prüfen Sie bei einem unbekannten Server den
-angezeigten Fingerabdruck und geben Sie `yes` ein, um seinen öffentlichen Schlüssel in
-`~/.ssh/known_hosts` zu speichern; geänderte Schlüssel werden abgelehnt. Die Abfragen benötigen ein interaktives Terminal:
-
-```bash
-# Terminal 1: Shell öffnen, dann dort uname -a ausführen.
-channelterm ssh user@192.168.1.50
-
-# Terminal 2: dieselbe Shell beobachten und bedienen.
-channelterm attach SSH-1
+Human         (not attached)
 ```
 
-Lassen Sie den ersten Befehl laufen: Beim Beenden werden dieser Host und seine Sessions geschlossen. Der lokale Standardport muss frei sein; mit `--listen` und dem ausgegebenen Attach-Endpunkt verwenden Sie einen separaten Host. Der [SSH-Ablauf](docs/getting-started/ssh-terminal.md) beschreibt Schlüsselpfade, Hostprüfung, Ports und aktuelle Grenzen.
+ChannelTerm hält eine physische Verbindung in einer gemeinsamen Session:
+
+```text
+                         +---- Human terminal
+                         |
+Serial device ---- Session
+                         |
+                         +---- AI / MCP client
+```
+
+So bleiben KI-Aktionen beim Hardware-Debugging sichtbar, und der Mensch bleibt beteiligt. Gemeinsame Nutzung bedeutet mehr, als denselben Port erneut zu öffnen: Jeder Client liest die aufbewahrte rohe Ausgabe über einen eigenen Cursor, und alle Schreibvorgänge laufen durch dieselbe Session.
+
+## Möglichkeiten
+
+- Eine vom Host gehaltene serielle Verbindung, gemeinsam genutzt von menschlichen CLI- und MCP-Clients.
+- Unabhängige Ausgabe- und Aktivitätscursor, damit ein Leser nicht die Daten eines anderen verbraucht.
+- Sichtbare Agent-Schreibvorgänge in verbundenen Terminals ohne Änderung der rohen Session-Ausgabe.
+- Direkte menschliche Eingabe einschließlich eines entfernten `Ctrl+C`, während die KI verbunden bleibt.
+- Einen zusätzlich verbundenen Client trennen, ohne die gemeinsame Session zu schließen; beim Beenden des Attachments, das einen temporären Host besitzt, werden dieser Host und seine Sessions geschlossen.
+- Serielle Geräteerkennung mit nativen Zielnamen unter Windows, Linux und macOS, TOML-Profilen und privaten Direktverbindungen, wenn keine Freigabe gewünscht ist.
+- MCP über stdio oder Streamable HTTP; der gemeinsame CLI-Ablauf verwendet den HTTP Session Host.
+- CLI-Versand und -Empfang von Dateien und Verzeichnissen in begrenzten Datenblöcken über eine vorhandene serielle Session, mit SHA-256-Prüfung und sicherem Entpacken in einem Zwischenverzeichnis.
+
+## Installation
+
+Laden Sie unter [Releases](https://github.com/akira-init1/ChannelTerm/releases) das Archiv für Ihr
+Betriebssystem und Ihre Architektur herunter und prüfen Sie es anhand der `SHA256SUMS` derselben
+Version. Entpacken Sie es und führen Sie im entpackten Verzeichnis `.\channelterm.exe install`
+unter Windows oder `./channelterm install` unter Linux/macOS aus. Fertige Binärdateien benötigen kein Go.
+
+Zum Bauen aus dem Quellcode ist Go 1.26 oder neuer erforderlich. Verwenden Sie eine aktuell
+unterstützte Patch-Version und erstellen Sie das Programm im Stammverzeichnis des Repositorys:
+
+```bash
+git clone https://github.com/akira-init1/ChannelTerm.git
+cd ChannelTerm
+go build ./cmd/channelterm
+./channelterm install
+```
+
+`install` kopiert die laufende Binärdatei in den Standard-Programmpfad des aktuellen Benutzers,
+erstellt die Befehle `channelterm` und `cterm`, ergänzt den Benutzer-PATH nur bei Bedarf und erzeugt
+eine fehlende minimale Konfiguration. Öffnen Sie nach einer PATH-Änderung ein neues Terminal.
+`channelterm uninstall` entfernt die vom Installer verwalteten Befehle und die PATH-Änderung, behält
+aber Benutzerdaten. `channelterm uninstall --purge` verlangt eine ausdrückliche Bestätigung, bevor
+Konfiguration, Gerätestatus und lokale HTTP-Anmeldedaten gelöscht werden.
+
+Unterstützte Desktop-Ziele sind Windows, Linux und macOS auf amd64/arm64. Weitere Informationen:
+[Aus dem Quellcode bauen und installieren](docs/getting-started/build.md), vollständiger Vertrag für
+[`install` / `uninstall`](docs/reference/cli.md#install-and-uninstall),
+[Konfigurationspfade](docs/reference/configuration.md) sowie
+[Build und Tests](docs/development/building-and-testing.md).
 
 ## Schnellstart: ein Befehl, ein Terminal
 
@@ -74,18 +93,7 @@ channelterm list
 Der Host muss nicht laufen. Ist er nicht erreichbar, meldet `list` MCP als offline und zeigt lokale
 Geräte und Profile weiterhin an.
 
-| Häufige Option | Wirkung |
-| --- | --- |
-| `--kind device`, `profile` oder `session` | Nur die ausgewählten Arten anzeigen; mehrere Werte können kommasepariert angegeben werden. |
-| `--transport serial` | Nur serielle Ergebnisse anzeigen. |
-| `--no-mcp` | Die Abfrage des MCP-Hosts überspringen und nur lokale Quellen anzeigen. |
-| `--long`, `-l` | Vollständige undurchsichtige Session-IDs in die Tabelle aufnehmen. |
-| `--json` | Strukturiertes JSON für Skripte ausgeben. |
-| `--endpoint URL` | Sessions von einem anderen HTTP-Host abfragen. |
-
 Den vollständigen Optionsvertrag finden Sie in der [CLI-Referenz](docs/reference/cli.md#list).
-
-Überspringen Sie diesen Schritt, wenn das native Ziel, zum Beispiel `COM50`, bereits bekannt ist.
 
 Soll ein KI-Client der Session beitreten, konfigurieren Sie vor dem Verbinden einmalig einen
 unterstützten Client:
@@ -146,49 +154,20 @@ Ein dauerhafter Host ist ein separater, lang laufender Prozess. Nachdem
 konfigurierte KI-Clients Sessions erstellen oder ihnen beitreten. Keine weitere Ausgabe nach dieser
 Bereitschaftsmeldung ist normal. Beenden Sie den Host und alle seine Sessions mit `Ctrl+C`.
 
-## Interaktive Tasten
+Während der Verbindung:
 
 ```text
 Ctrl+C      0x03 an das entfernte Terminal senden
 Ctrl+] q    Dieses CLI verlassen; ein von ihm gestarteter temporärer Host endet ebenfalls
 Ctrl+] ?    Lokale Hilfe zu Escape-Befehlen anzeigen
-Ctrl+] ]    Ein wörtliches Ctrl+]-Byte an das entfernte Gerät senden
-Ctrl+] t    Lokale Zeitstempel für Shell-Prompts umschalten
-Ctrl+] f    Lokales Menü zum Senden/Empfangen von Dateien öffnen
-Ctrl+] Esc  Lokalen Escape-Modus abbrechen
 ```
 
-## Eine KI mit derselben Session verbinden
-
-Führen Sie aus:
-
-```bash
-channelterm init --mcp
-```
-
-Nach Auswahl von HTTP verwenden unterstützte Codex-, Claude-Code-, OpenCode- oder Zoo-Code-Clients
-den lokalen gemeinsamen Endpunkt `http://127.0.0.1:37099/mcp`. Die KI kann `SER-1` auflisten, lesen
-und bedienen. Verwenden Sie an einem nachweislich inaktiven Bash-Prompt bevorzugt `terminal_exec`;
-für rohe Tasten und interaktive Programme ist `terminal_write` vorgesehen.
+Alle lokalen Steuerbefehle stehen in der [CLI-Referenz](docs/reference/cli.md#attach); Client-Einrichtung und durch KI erstellte Sessions beschreibt der [MCP-Workflow](docs/getting-started/mcp-server.md).
 
 Installieren Sie für wiederverwendbare Workflow-Anleitungen den mitgelieferten
 [`cterm-serial-debug` Agent Skill](docs/getting-started/mcp-server.md#install-the-bundled-agent-skill)
 in einem Agent-Skills-kompatiblen Client. `channelterm init --mcp` konfiguriert MCP-Clients,
 installiert den Skill jedoch nicht.
-
-Ab v0.2.0 enthalten die [Releases](https://github.com/akira-init1/ChannelTerm/releases)
-`channelterm_skills_VERSION.zip`. Entpacken Sie das Archiv und kopieren Sie das vollständige
-Verzeichnis `cterm-serial-debug` gemäß der verlinkten Skill-Installationsanleitung.
-
-Die KI kann die gemeinsame Session auch selbst erstellen. Führen Sie zuerst einmal
-`channelterm init --mcp` aus und wählen Sie HTTP, um den Client zu konfigurieren. Starten Sie danach
-mit `channelterm mcp --transport http` den dauerhaften Host im Vordergrund und geben Sie der KI das
-genaue serielle Ziel sowie die Kommunikationsparameter. Sie kann Ports auflisten,
-`terminal_open_serial` aufrufen und die erzeugte Referenz `SER-N` melden, damit ein Mensch mit
-`channelterm attach SER-N` beitreten kann. Das Starten des Hosts allein öffnet keinen Port: `ask`
-erfordert weiterhin eine ausdrückliche Genehmigung. `auto` liefert `connect`, aber die KI muss
-weiterhin `terminal_open_serial` aufrufen; der Host öffnet niemals automatisch einen Port. Beenden
-Sie den Host normalerweise mit `Ctrl+C`; dabei werden die von ihm verwalteten Sessions geschlossen.
 
 Der HTTP-Host benötigt ein Bearer-Token und lauscht standardmäßig nur auf der Loopback-Adresse. Die
 integrierten CLI-Clients lesen das lokale Benutzertoken automatisch. Der Host kann auch
@@ -197,74 +176,109 @@ Entfernte Clients müssen seine erreichbare Adresse verwenden und dasselbe Token
 `Authorization`-Header senden. Stellen Sie den Endpunkt nicht ohne TLS und zusätzliche
 Netzwerkzugriffskontrollen in einem nicht vertrauenswürdigen Netzwerk bereit.
 
-## Dateiübertragung
+<a id="beispielabläufe"></a>
+<a id="embedded-linux-debugging"></a>
+<a id="die-ki-bedient-der-mensch-beobachtet"></a>
+<a id="der-mensch-greift-ein"></a>
 
-Eine gemeinsame Session kann Dateien und Verzeichnisse senden oder empfangen. Drücken Sie in einem
-aktiven gemeinsamen `attach` zuerst `Ctrl+]` und danach `f`, um das geführte Sende-/Empfangsmenü zu
-öffnen. Dieselben Vorgänge stehen auch als Befehle zur Verfügung:
+## Ein gemeinsames Terminal in der Praxis
+
+Eine verbundene CLI zeigt einen Agent-Befehl als lokalen `AI`-Aktivitätsblock an. `terminal_exec` hält diesen Befehl aus der History eines inaktiven Bash-Prompts heraus. Die folgenden Zeilen bleiben die rohe Terminalausgabe des Geräts. Sobald die kurze Befehls-Lease freigegeben wird, kann der Mensch wieder tippen:
+
+```bash
+root@board:~#
+
+──────── AI ────────
+[18:52:31] >> echo agent-check
+────────────────────
+agent-check
+root@board:~# echo human-still-here
+human-still-here
+root@board:~#
+```
+
+Die genaue Befehlsausgabe hängt vom angeschlossenen Gerät ab. Der `AI`-Block ist eine lokale Darstellung aus strukturierten Session-Ereignissen; er wird weder in den Byte-Stream des Geräts noch in die gespeicherte Terminalausgabe eingefügt. Rohe Tasteneingaben und interaktive Programme verwenden weiterhin `terminal_write` und behalten das normale History-Verhalten des Geräts bei.
+
+## Gemeinsame SSH-Shell
+
+Verbinden Sie sich mit einem autorisierten privaten Schlüssel (verschlüsselte Schlüssel fragen nach einer Passphrase) oder geben Sie auf
+Nachfrage Ihr Passwort ein (beides wird nicht gespeichert). Prüfen Sie bei einem unbekannten Server den
+angezeigten Fingerabdruck und geben Sie `yes` ein, um seinen öffentlichen Schlüssel in
+`~/.ssh/known_hosts` zu speichern; geänderte Schlüssel werden abgelehnt. Die Abfragen benötigen ein interaktives Terminal:
+
+```bash
+# Terminal 1: Shell öffnen, dann dort uname -a ausführen.
+channelterm ssh user@192.168.1.50
+
+# Terminal 2: dieselbe Shell beobachten und bedienen.
+channelterm attach SSH-1
+```
+
+Lassen Sie den ersten Befehl laufen: Beim Beenden werden dieser Host und seine Sessions geschlossen. Der lokale Standardport muss frei sein; mit `--listen` und dem ausgegebenen Attach-Endpunkt verwenden Sie einen separaten Host. Der [SSH-Ablauf](docs/getting-started/ssh-terminal.md) beschreibt Schlüsselpfade, Hostprüfung, Ports und aktuelle Grenzen.
+
+## Dateien über SSH übertragen
+
+Nutzen Sie SFTP für Dateiübertragung und entfernte Dateiverwaltung oder das klassische SCP für kompatible POSIX-Server:
+
+```bash
+channelterm sftp user@192.168.1.50 ls /tmp
+channelterm sftp user@192.168.1.50 put ./firmware.bin /tmp/firmware.bin
+channelterm sftp user@192.168.1.50 get /tmp/log.txt ./log.txt
+channelterm scp user@192.168.1.50 put ./release /tmp/release --recursive
+```
+
+Diese Befehle verwenden dieselbe Schlüssel-/Passwortauthentifizierung und Hostprüfung wie SSH,
+jedoch eine von Terminal-Sessions unabhängige Verbindung. Das Ersetzen vorhandener Dateien erfordert
+`--overwrite`. Verzeichnisregeln, Abbruch und Grenzen beschreibt die
+[Dateiübertragung](docs/getting-started/file-transfer.md#sftp-and-scp-over-ssh).
+
+Dateiübertragungen über gemeinsame Terminal-Sessions verwenden ein kleines Linux-Shell-Protokoll.
+Separate SSH-Dateiverbindungen verwenden SFTP oder das klassische SCP.
+
+<a id="ki-dateien-und-lokale-steuerung"></a>
+
+## Dateien über eine gemeinsame Session übertragen
+
+Dieselbe gemeinsame serielle Session kann auch reguläre Dateien und Verzeichnisse übertragen, ohne KI-Client oder separat installierten Übertragungsagenten auf dem Board. Drücken Sie in einem aktiven gemeinsamen `attach` zuerst `Ctrl+]` und dann `f`, um das geführte Sende-/Empfangsmenü zu öffnen. Verzeichnisse verwenden Standard-tar sowie bestätigte, gut abbrechbare Datenblöcke. Dieselben Vorgänge sind als Befehle verfügbar:
 
 ```bash
 channelterm file send firmware.bin --session SER-1
 channelterm file receive /tmp/log.txt ./log.txt --session SER-1
 channelterm file send ./build/release /tmp/release --session SER-1
+channelterm file receive /var/log/myapp ./myapp --session SER-1
 ```
 
-Wird beim Senden kein entferntes Ziel angegeben, landet die Datei oder das Verzeichnis standardmäßig
-unter `/tmp/cterm/mcp-files/`. Der interaktive Kurzbefehl verwendet
-`/tmp/cterm/user-files/`. ChannelTerm erstellt fehlende Verzeichnisse und wählt Suffixe wie `_1`
-oder `_2`, damit vorhandene Inhalte nicht überschrieben werden.
+Übertragungen benötigen eine wartende Linux-Shell und die im [Dateitransfer-Workflow](docs/getting-started/file-transfer.md) genannten Programme. Sie prüfen SHA-256 und wählen einen neuen Namen, statt ein vorhandenes Ziel zu überschreiben. Während einer Übertragung fragt `Ctrl+C` in einem gemeinsamen Attachment nach einer Abbruchbestätigung; andere Schreibzugriffe bleiben bis zur Bereinigung und Lease-Freigabe gesperrt.
 
-Das Ziel muss eine Linux-Shell mit den erforderlichen Standardbefehlen sein. Voraussetzungen,
-Überschreibschutz, Abbruch und SHA-256-Prüfung beschreibt der
-[Ablauf zur Dateiübertragung](docs/getting-started/file-transfer.md).
+## GDB im Benutzerraum über MCP
 
-## Installation und Build
+Unter nativem Linux kann ein MCP-Client mit den `debug_start` / `debug_command` / `debug_events` / `debug_stop`-Tools eine wartende Bash-Session übernehmen, Haltepunkte setzen, schrittweise ausführen, Variablen/Threads/Register prüfen und sich wieder lösen. Dieses erste Backend setzt ChannelTerm, GDB, gdbserver und ELF in derselben Linux-Umgebung voraus. Es unterstützt einen Inferior im All-Stop-Modus; normales Schreiben wird erst nach Wiederherstellung des Terminals und erfolgreicher Shell-Prüfung mit einer eindeutigen Markierung freigegeben.
 
-Laden Sie unter [Releases](https://github.com/akira-init1/ChannelTerm/releases) das Archiv für Ihr
-Betriebssystem und Ihre Architektur herunter und prüfen Sie es anhand der `SHA256SUMS` derselben
-Version. Entpacken Sie es und führen Sie im entpackten Verzeichnis `.\channelterm.exe install`
-unter Windows oder `./channelterm install` unter Linux/macOS aus. Fertige Binärdateien benötigen kein Go.
-
-Zum Bauen aus dem Quellcode ist Go 1.26 oder neuer erforderlich. Verwenden Sie eine aktuell
-unterstützte Patch-Version und erstellen Sie das Programm im Stammverzeichnis des Repositorys:
-
-```bash
-git clone https://github.com/akira-init1/ChannelTerm.git
-cd ChannelTerm
-go build ./cmd/channelterm
-./channelterm install
+```text
+debug_start -> break_insert -> continue -> debug_events -> next/step/finish -> debug_stop
 ```
 
-`install` kopiert die laufende Binärdatei in den Standard-Programmpfad des aktuellen Benutzers,
-erstellt die Befehle `channelterm` und `cterm`, ergänzt den Benutzer-PATH nur bei Bedarf und erzeugt
-eine fehlende minimale Konfiguration. Öffnen Sie nach einer PATH-Änderung ein neues Terminal.
-`channelterm uninstall` entfernt die vom Installer verwalteten Befehle und die PATH-Änderung, behält
-aber Benutzerdaten. `channelterm uninstall --purge` verlangt eine ausdrückliche Bestätigung, bevor
-Konfiguration, Gerätestatus und lokale HTTP-Anmeldedaten gelöscht werden.
+[Ablauf, MCP-Aufrufe, sicheres Attach und lokale PTY-Testabdeckung](docs/getting-started/gdb-debugging.md).
 
-Standardpfade; der Installer zeigt nach jedem Lauf auch die tatsächlich verwendeten Pfade an:
+Für ein unabhängig betriebenes GDB stellt `debug_bridge_*` eine vorbereitete serielle Session über eine authentifizierte TLS/TCP-Brücke bereit. Der Betreiber bereitet einen kompatiblen Linux-gdbserver vor und führt GDB unabhängig aus; `channelterm rsp-client` übernimmt die Verbindung. Boardmodell und Ziel-CPU-Architektur sind nicht eingeschränkt. Nach einer Trennung bleibt der exklusive Zugriff während einer begrenzten Wiederherstellungsfrist reserviert. Eine geprüfte Wiederherstellung erhält die Session; explizites Schließen oder Ablauf beendet sie. Der [Workflow für die externe Brücke](docs/getting-started/gdb-debugging.md#external-gdb-over-a-prepared-serial-session) beschreibt Windows/WSL2, Verlängerung und Wiederherstellung. Bare-Metal-Debugging gehört nicht zum unterstützten Umfang.
 
-| Plattform | Befehlsverzeichnis | Installationsstatus | Standardkonfiguration |
-| --- | --- | --- | --- |
-| Windows | `%LOCALAPPDATA%\Programs\ChannelTerm\bin` | `%LOCALAPPDATA%\ChannelTerm\install.json` | `%APPDATA%\channelterm\config.toml` |
-| Linux | `~/.local/bin` | `$XDG_STATE_HOME/channelterm/install.json` oder `~/.local/state/channelterm/install.json` | `$XDG_CONFIG_HOME/channelterm/config.toml` oder `~/.config/channelterm/config.toml` |
-| macOS | `~/.local/bin` | `~/Library/Application Support/channelterm/install.json` | `~/Library/Application Support/channelterm/config.toml` |
+## Funktionsweise
 
-Unterstützte Desktop-Ziele sind Windows, Linux und macOS auf amd64/arm64. Weitere Informationen:
-[Aus dem Quellcode bauen und installieren](docs/getting-started/build.md), vollständiger Vertrag für
-[`install` / `uninstall`](docs/reference/cli.md#install-and-uninstall),
-[Konfigurationspfade](docs/reference/configuration.md) sowie
-[Build und Tests](docs/development/building-and-testing.md).
+```text
+Human CLI -----+
+               +--> Session Host --> Session <--> Channel <--> Serial / SSH endpoint
+AI via MCP ----+                         |
+                                        +-- retained output, activity, events
+                                        `-- serialized writes
+```
+
+Der Session Host besitzt die Verbindungen und verwaltet die Session-Lebensdauer. Ein Serial oder SSH Transport stellt einen protokollneutralen Channel her; die Session liest diesen Channel, hält Ausgabe, Aktivität und Ereignisse begrenzt im Speicher und serialisiert Schreibzugriffe. CLI- und MCP-Adapter nutzen dasselbe Core-Verhalten. Darstellung wie Hervorhebung und der `AI`-Aktivitätsblock bleibt außerhalb der gespeicherten Terminaldaten.
+
+Leser haben unabhängige Cursor. Rohe Schreibzugriffe werden serialisiert, koordinieren aber nicht die Bedeutung von Shell-Befehlen. Application-Leases sperren andere Schreiber vorübergehend während Befehlsausführung, Übertragungen und Debugging. Siehe [gemeinsame Sessions](docs/getting-started/shared-session.md) für Besitz und Nebenläufigkeit.
+
+Gemeinsame Referenzen wie `SER-1` gelten nur innerhalb des besitzenden Host-Prozesses. Das Stoppen dieses Hosts schließt seine Sessions. Ein zusätzliches Attachment kann unabhängig beendet werden; beim Beenden des Attachments mit eigenem temporären Host oder des besitzenden SSH-Befehls werden auch deren Sessions geschlossen. Die Schichtgrenzen beschreibt die [Architekturübersicht](docs/architecture/overview.md).
 
 ## Konfiguration
-
-ChannelTerm speichert lokale Dateien im Benutzer-Konfigurationsverzeichnis der jeweiligen Plattform:
-
-| Plattform | Standardverzeichnis |
-| --- | --- |
-| Windows | `%AppData%\channelterm\` |
-| Linux | `$XDG_CONFIG_HOME/channelterm/` oder `~/.config/channelterm/`, wenn nicht gesetzt |
-| macOS | `~/Library/Application Support/channelterm/` |
 
 `config.toml` enthält benutzerverwaltete serielle Profile und die Verbindungsrichtlinie.
 `state.json` ist der von ChannelTerm verwaltete Gerätestatus. `http-auth-token` ist das Geheimnis zur
@@ -291,11 +305,20 @@ unterstützt außerdem `--connection-policy ask|auto|deny`. `--config` ändert n
 - [Seriellen Terminalablauf verwenden](docs/getting-started/serial-terminal.md)
 - [SSH-Shell verwenden](docs/getting-started/ssh-terminal.md)
 - [Eine Session teilen](docs/getting-started/shared-session.md)
-- [Dateien übertragen](docs/getting-started/file-transfer.md)
+- [Dateiübertragungsablauf](docs/getting-started/file-transfer.md)
 - [MCP-Server](docs/getting-started/mcp-server.md)
 - [CLI-Referenz](docs/reference/cli.md)
 - [MCP-Werkzeugreferenz](docs/reference/mcp-tools.md)
 - [Kennungen und Referenzen](docs/reference/identifiers.md)
+- [Architekturübersicht](docs/architecture/overview.md)
+
+Für genaue Befehlsoptionen und Standardwerte ist die `--help`-Ausgabe des laufenden Programms maßgeblich.
+
+## Ausblick
+
+Serielle Verbindungen und SSH-PTY-Shells sind implementierte Transports; dedizierte SFTP- und ältere SCP-Dateiclients stehen ebenfalls bereit. Beliebiges SSH exec, Telnet und stärkere Koordination mehrerer Schreiber bleiben zukünftige Richtungen, keine implementierten Funktionen oder Release-Zusagen.
+
+ChannelTerm implementiert derzeit weder JTAG/OpenOCD noch virtuelle serielle Geräte, eine integrierte KI oder Multi-Agent-Orchestrierung.
 
 ## Lizenz
 

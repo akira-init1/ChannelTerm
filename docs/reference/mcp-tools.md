@@ -1,6 +1,6 @@
 # MCP Tool Reference
 
-The MCP adapter exposes terminal, command execution, discovery, lease, activity, file-transfer, and
+The MCP adapter exposes terminal, command execution, discovery, lease, activity, file-transfer, user-space debug, and
 structured Session-event tools. It also provides cursor-required wait tools for raw output,
 activity, device events, and file-transfer terminal results.
 
@@ -10,7 +10,8 @@ version. Its server instructions tell clients that users may refer to ChannelTer
 distinguish single non-interactive Bash commands from raw or interactive writes, select the matching
 output or file-transfer wait tool, apply the discovery connection decision before a discovery-driven
 open, obtain explicit approval for an `ask` decision, treat Session close as shared-client
-destructive, and reserve lease and file-transfer control tools for managed multi-step operations.
+destructive, reserve lease and file-transfer control tools for managed multi-step operations, and
+select debug_start/command/events/stop for native Linux user-space GDB.
 
 Every tool advertised by `tools/list` includes an `outputSchema` for its structured result. Required
 properties are present on every successful result; optional properties describe conditional data,
@@ -66,6 +67,17 @@ and logs. The `terminal_*` name remains the stable machine-readable compatibilit
 | `terminal_wait_device_event` | Wait for Device Event |
 | `terminal_get_connection_decision` | Get Connection Decision |
 | `terminal_close` | Close Terminal Session |
+| `debug_start` | Start User-Space Debugging |
+| `debug_command` | Control GDB |
+| `debug_events` | Read Debug Events |
+| `debug_stop` | End User-Space Debugging |
+| `debug_bridge_list` | List External GDB Bridge Ports |
+| `debug_bridge_start` | Open External GDB Bridge |
+| `debug_bridge_status` | Read External GDB Bridge Status |
+| `debug_bridge_renew` | Renew External GDB Bridge |
+| `debug_bridge_close` | Close External GDB Bridge and Session |
+| `debug_bridge_restore` | Verify Terminal Restoration after RSP |
+| `debug_bridge_report` | Report External GDB Activity from Codex |
 
 Streamable HTTP requests require `Authorization: Bearer <token>`. An automatically started,
 attachment-owned Host returns `X-ChannelTerm-Host-Lifetime: attachment` on every authenticated MCP
@@ -541,6 +553,13 @@ Include `\r` or `\n` only when the target protocol requires it; ChannelTerm adds
 automatically. A shell line sent with this raw-byte tool follows the remote shell's normal history
 behavior. Agents should use `terminal_exec` for an idle Bash command that must stay out of history.
 
+For files and debugging ELFs, run `channelterm file send` / `receive` from an environment that can
+read the local file and reach the Session's HTTP Host. Select `--session` and the owning `--endpoint`,
+then observe `terminal_wait_file_transfer` as described in the [transfer workflow](../getting-started/file-transfer.md).
+Do not construct Base64/heredoc uploads with `terminal_write`: they bypass managed transfer progress
+and payload suppression. If CLI or file access is unavailable, report that limitation. MCP provides
+transfer control and observation, not a client-file upload tool; the CLI opens no additional serial port.
+
 When another operation owns an exclusive lease, this unchanged tool returns a busy error such as
 `Session SER-1 is locked by file-transfer`. It never waits for the lease or accepts an owner
 capability.
@@ -550,7 +569,7 @@ capability.
 Purpose: acquire one exclusive application-level writer lease for an active Session.
 
 - Required input: `session_id`, caller-generated opaque `owner`, and `type` (`terminal`,
-  `file-transfer`, or reserved `debug`).
+  `file-transfer`, or `debug`).
 - Optional input: none.
 - Result: canonical `session_id`, `type`, UTC `created_at`, UTC `expires_at`, and `state`
   (`active`). A `file-transfer` lease additionally returns its non-secret `transfer_id`. The owner
@@ -650,3 +669,236 @@ Important errors: missing, unknown, or already removed Session; cancellation bef
 transport close failure. Safety: this is a lifecycle-destructive operation for every attached
 client. Detach a single CLI by closing its MCP client instead when the shared Session must remain
 open.
+
+## Debug tools
+
+`debug_start`, `debug_command`, `debug_events`, and `debug_stop` implement native Linux user-space
+GDB/MI. The Host, GDB, gdbserver, ELF, and idle Bash Session must share one Linux environment.
+Only one inferior, multiple threads, and all-stop execution are supported. See the
+[workflow and examples](../getting-started/gdb-debugging.md) and
+[Application lifecycle contract](../modules/application.md#user-space-debug-operations).
+
+All four tools require a secret `owner` supplied at start (32..128 characters; generate it randomly).
+Debug IDs alone do not authorize access. The internal lease owner is distinct and never returned.
+Existing HTTP bearer authentication and loopback defaults remain unchanged. `debug_start`,
+`debug_command`, and `debug_stop` are destructive, open-world, and idempotent-with-identical-request
+operations. `debug_events` changes the client heartbeat and therefore is not annotated read-only.
+
+| Tool | Required additional parameters | Optional parameters | Successful result |
+| --- | --- | --- | --- |
+| `debug_start` | `session_id`, `request_id`, `elf` | `args` string array, `pid`, absolute `gdb` / `gdbserver` paths | `status` |
+| `debug_command` | `debug_id`, `request_id`, `action` | `argument` | parsed MI `record` |
+| `debug_events` | `debug_id`, integer `cursor` | `timeout_ms` (default 10000, range 1..30000) | `status`, ordered `events`, `next` |
+| `debug_stop` | `debug_id` | `terminate` (default false) | `status` |
+
+`status` contains `debug_id`, canonical `session_id`, `state`, current event-tail `next`, client
+heartbeat `expires_at`, and optional `error`. States are `starting`, `stopped`, `running`, `exited`,
+`recovering`, `closed`, and `failed`. `closed` means shell restoration was verified. A failed call
+uses the ordinary MCP `isError` result, not a successful status object; subsequent authenticated
+event reads can still inspect the retained failure.
+
+`elf` is an absolute native amd64/arm64 executable/PIE path. Start accepts at most 128 launch
+arguments and 8192 combined path/argument bytes; NUL and newlines are rejected. The resulting
+bootstrap must also fit Linux's canonical input line limit (4095 bytes); shorten paths/arguments
+if it does not. `pid: 0` or omission launches. Positive PID attaches, disallows arguments, requires
+a matching `/proc/PID/exe`, no controlling terminal, and no potentially shared character-device
+descriptors. `/dev/null`, `/dev/zero`, `/dev/random`, and `/dev/urandom` are allowed. Unreadable process
+state is refused. Pipes and sockets are rejected because their peers could forward Session I/O.
+The target must not reopen terminal devices during debugging.
+
+Start and command request IDs are 1..128 characters. Reusing the same start ID and exact arguments
+returns the same operation; reusing a command ID returns its cached response/error. Changed
+arguments are an error. No state-mutating command is automatically replayed after a timeout.
+Start/MI commands have a 30-second maximum; uncertain execution fails closed. Stop uses an
+independent 10-second recovery context even if its caller disconnects. A repeat successful stop
+succeeds; a repeat failed stop remains an error. `terminate: true` is forbidden for attached PIDs.
+
+Supported command actions:
+
+| Actions | Argument |
+| --- | --- |
+| `break_insert` | One location, such as `add` or `/tmp/addition.c:2` |
+| `break_delete` | Numeric breakpoint ID |
+| `continue`, `next`, `step`, `finish`, `interrupt` | None; wait for subsequent stop/exit events |
+| `stack`, `arguments`, `variables`, `threads`, `registers`, `register_names` | None |
+| `thread`, `frame` | Numeric thread/frame ID |
+| `evaluate` | One expression; function calls disabled, assignments may modify values |
+| `renew` | None; refresh the 60-second client heartbeat |
+
+Arguments are MI-quoted, limited to 4096 bytes, and cannot contain NUL/newlines. Raw MI/console,
+non-stop mode, multi-inferior operations, and kernel debugging are not exposed. Each MI `record`
+contains `kind`, `class`, `token`, `results`, and `text`. Nested tuples/lists retain their MI shape;
+a string with non-UTF-8 bytes becomes `{"encoding":"base64","data":"..."}` rather than replacement
+characters. Events contain `sequence` and `record`; lifecycle events use `kind: "lifecycle"`.
+The record schema allows these nested MI values, whose fields depend on the selected GDB action.
+
+Debug event cursors begin at zero and are separate from terminal cursors. Reads return at most 128
+records. A stale/future cursor is an explicit error; no silent skip occurs. Timeout is an error and
+does not end the operation. Event reads and new commands renew the 60-second client heartbeat;
+use a new request ID for each explicit `renew`. Idle expiry attempts detach/restoration. Internal
+lease expiry, transport loss, overwritten RSP bytes, or failed restoration closes the Session.
+Application retains at most 128 operations, 512 events / 4 MiB per operation, and 4096 cached commands
+/ approximately 16 MiB per operation. Exhausted retention requires ending debugging; Host restart
+clears retained operation IDs. No persistent debug log or credentials are created.
+
+
+## External RSP bridge tools
+
+These tools manage an independent byte bridge over an already-open serial Session on any supported
+Host OS. They never launch/control GDB or gdbserver. The existing native Linux `debug_start`,
+`debug_command`, `debug_events`, and `debug_stop` contracts remain separate.
+The [target workflow](../getting-started/gdb-debugging.md#external-gdb-over-a-prepared-serial-session)
+supports Linux boards with a compatible gdbserver over serial; it has no board-model or target-CPU
+restriction. Bare-metal debugging is outside scope.
+
+`debug_bridge_list` accepts an empty argument object and returns `bridges`, an array of all
+unfinished external bridges in this Host, ordered by numeric port, address, then bridge ID.
+Each entry contains `bridge_id`, canonical `session_id`, `session_ref`, serial `target`, actual
+bound `address`, integer `port`, `state`, `expires_at`, and `auto_keepalive`. Session metadata can
+be empty during concurrent removal. Empty inventory is `[]`, never `null`. Listed states are
+`listening`, `connected`, `disconnected`, and `recovering`; terminal `closed`, `failed`, and
+`restored` records are excluded. A concurrent transition can immediately supersede the snapshot.
+It does not scan OS ports or include managed MI operations, other Hosts, or standalone gdbservers.
+
+The list is read-only: it sends no target bytes and renews no heartbeat or lease. Cancellation
+affects only the query. Security impact: clients authorized to access the Host can observe bridge
+IDs, addresses, and the listed Session metadata without individual bridge owners. The result omits
+all capabilities, connection descriptors, fingerprints, error messages, and terminal/debugger output. Existing HTTP
+authentication and bridge mutation authorization remain unchanged. The CLI exposes this observation
+as [`gdb-list`](cli.md#gdb-list).
+
+The management, single-status, and reporting calls below require the secret management `owner`
+(32..128 characters on start). Management ownership is distinct from the generated connection
+token and internal debug lease capability.
+
+| Tool | Required arguments besides `owner` | Optional arguments | Result |
+| --- | --- | --- | --- |
+| `debug_bridge_start` | `session_id`, `request_id`, `acknowledge_unverified_target: true` | `listen_address`, `allowed_peer`, `strict_port_pool` | `status`, private `connection` |
+| `debug_bridge_status` | `bridge_id` | none | `status`; does not renew |
+| `debug_bridge_renew` | `bridge_id` | none | `status` with extended `expires_at` |
+| `debug_bridge_close` | `bridge_id` | none | `status`; closes bridge **and Session** |
+| `debug_bridge_restore` | `bridge_id`, `confirm_shell_ready: true`, `tty_state` | none | `status`; preserves Session only after verification |
+| `debug_bridge_report` | `bridge_id`, `sequence`, `kind`, `text` | none | `bridge_id`, `sequence`; acknowledges reporting only |
+
+`status` contains `bridge_id`, canonical `session_id`, `state`, bound `address`, `expires_at`, `max_expires_at`,
+`auto_keepalive`, `target_state`, and optional `warning`/`error`. States are `listening`, `connected`, `disconnected`,
+`recovering`, `restored`, `closed`, and `failed`. Target state is `unverified` until successful shell
+restoration changes it to `shell_verified`; neither connection nor EOF proves target readiness.
+`DEBUG_STATE` Session events contain `bridge_id` and `state`, without secrets. The secret connection
+object appears only in successful start responses and contains `address`, SHA-256 certificate
+`fingerprint` (hex), and random `token` (64 hex characters).
+
+With `listen_address` omitted, each Host rotates through `127.0.0.1:37100` through `37999`.
+A synchronized cursor starts at 37100, advances across requests, and wraps after 37999; closing a
+bridge does not reset it. Active logical reservations are skipped without a bind attempt. Each
+remaining candidate is allocated by an actual TCP bind; unavailable ports advance the cursor,
+with at most one pass per request. A pool fully reserved by this Host needs no scan. Exhaustion
+falls back to an OS dynamic port (`:0`), or returns an error with `strict_port_pool: true`.
+Explicit `listen_address` overrides this pool policy: a fixed port either binds or returns an error;
+explicit port zero requests an OS dynamic port. `status.address` and `connection.address` always
+contain the actual bound port. The 900 preferred ports are an allocation policy, not a device limit
+or evidence of 900 concurrent debugging Sessions. Existing operation retention limits still apply.
+MCP HTTP retains its separate default port **37099**.
+
+Only a specific numeric IP with port 0..65535 is accepted;
+no wildcard bind, hostname, or implicit all-interface fallback. A non-loopback bind requires one
+numeric `allowed_peer` IP. Without an explicit peer, only loopback clients are eligible. All clients
+must authenticate using TLS 1.3, certificate pinning, and the connection token. Exactly one
+successful data client is admitted; no reconnect. After authentication the listener stays bound.
+A current helper may authenticate one additional control socket on the same port; further
+data/control sockets are rejected. The Host separately reserves the logical IP/port until final close,
+failure, or verified restoration, including while disconnected. Closing a listener alone must not
+be treated as OS reservation of that port. Conversely, releasing the logical reservation does not
+guarantee the OS will immediately allow rebinding; allocation always checks actual bind results.
+Authentication attempts have a three-second deadline
+and are processed sequentially. Use the `rsp-client` CLI helper, not an unauthenticated raw TCP GDB
+connection. The MCP listener's authentication/configuration is unchanged.
+
+Start `request_id` is 1..128 characters, scoped to the supplied owner. Exact retries return the
+retained operation/descriptor, including its current terminal state. Reusing that request ID with
+different arguments is an error. At most 128 bridges are retained per Host lifetime. Requests are
+limited to 32 KiB and reject unknown fields. Start refuses non-serial/closed Sessions, conflicting
+leases, pending interactive input, and incomplete input history when no persistent summary exists.
+Target preparation is external; passive checks cannot prove RSP readiness, so missing explicit
+acknowledgement returns an actionable risk error. Bytes are read from a new Session cursor.
+
+The internal debug lease has a 30-second TTL. The one-second monitor checks it and renews when
+at most twenty seconds remain. Only after confirming that lease can the monitor extend the
+60-second management TTL for a connected helper with fresh control challenge/response evidence.
+`auto_keepalive` reports this automatic renewal; `expires_at` is the current management deadline.
+A paused target, breakpoint wait, or lack of RSP traffic does not prevent renewal.
+
+Current `rsp-client` uses a second TLS connection on the **same listener and port** for control,
+with the same pinned certificate, bridge token, and peer restriction. Only one data client and its
+one control connection are admitted. The Host issues a fresh random challenge every ten seconds;
+a missing control connection or response has a thirty-second deadline (loss is detected within
+approximately forty seconds of the last successful response). TCP keepalive additionally probes
+idle data sockets (10-second idle, 5-second interval, 3 probes, subject to OS support). Control
+failure closes data; data EOF closes control. No heartbeat bytes enter GDB, Session, or standard
+RSP, and no MCP Host token or management owner is exposed to the helper. The connection descriptor
+format is unchanged. Use matching current Host/helper versions for automatic renewal. Legacy
+data-only helpers remain accepted but require explicit management renewal.
+
+Control liveness proves helper responsiveness, not target execution or acknowledgement of every RSP
+write. A failure isolated to the data socket with unacknowledged traffic can still follow the OS's
+TCP retransmission timeout; idle keepalive is not a per-write delivery deadline. The absolute
+lifetime below remains a bound. Validate packet-loss behavior on the deployed OS/network separately.
+
+Call `debug_bridge_renew` every thirty seconds **while listening, arranging recovery after a
+disconnect, or using a legacy helper**. It also renews the internal lease and fails closed if that
+lease has expired. Status reads, reports, and RSP traffic alone do not renew management time.
+Every operation has an absolute 24-hour maximum (`max_expires_at`), including manually renewed ones;
+finish and restore/close before that deadline. Neither deadline can be resurrected. This caps a
+forgotten but responsive helper; lost control cannot indefinitely reserve a serial Session.
+
+Disconnect stops automatic renewal but retains the lease until recovery or the remaining management
+grace expires. It sends no target bytes and does not prove detach or gdbserver exit. Data loss,
+serial failure, either lease's expiry, and the absolute maximum close the Session. Ordinary
+lease-release tools cannot bypass managed bridge recovery.
+
+Restore requires a disconnected client, explicit confirmation that the target returned to its
+shell, and the exact pre-debug `stty -g` snapshot (1..512 printable bytes). It sends a quoted shell
+command to apply/read back that state and obtain a fresh split-token response. It does not synthesize
+RSP detach/kill. The independent ten-second recovery deadline also closes a blocked serial write.
+In interactive Bash, the probe removes only its own current history entry, if recorded; it does
+not clear user history or change history settings. Other shells retain their normal history
+behavior. This does not remove earlier raw setup commands sent through `terminal_write`.
+Only verified restoration releases the lease while keeping the Session open. Close always ends an
+unfinished bridge by closing its Session. Close and successful restoration are idempotent; terminal
+states cannot be resurrected. A later close of an already restored bridge preserves that Session.
+
+Start/close/restore have destructive and open-world annotations; start is deduplicated, while
+close/restore are idempotent. Status is read-only; renew changes expiry. See the
+[external GDB workflow](../getting-started/gdb-debugging.md#external-gdb-over-a-prepared-serial-session)
+for target preparation, Windows/WSL networking, secret handling, and verification boundaries.
+
+### External debugger reports
+
+`debug_bridge_report` publishes selected, actual external GDB commands, their results, or observed
+states into the existing Session event stream. `kind` is `command`, `result`, or `state`; `text` is
+nonempty UTF-8, at most 4096 bytes. It is never executed, sent to the serial port, or interpreted as
+RSP. Report after executing/observing the action externally. A `state` report cannot change the
+Host's bridge/target state or prove recovery. No GDB log file is watched.
+
+`sequence` is an increasing integer from 1 through 9007199254740991, scoped to one bridge.
+Gaps are allowed. An exact retry of the latest accepted sequence returns the same receipt without
+another event, including after the bridge ends. Older sequences and conflicting retries fail.
+New reports require a nonexpired bridge in an open Session, before recovery/termination. Reporting
+does not renew the heartbeat. Invalid input, wrong owner, cancellation, and reporting failures never
+close the bridge or Session. External drivers must continue GDB independently; keepalive and any needed manual renewal remain separate;
+do not gate debugging on delivery or re-execute a GDB command to retry its report.
+
+Each `DEBUG_CLIENT_REPORT` has actor `agent` and metadata `bridge_id`, `sequence`, `kind`, `text`,
+`reported_by: "codex"`, and `complete_audit: false`. This is caller-supplied reporting, not attested
+execution or a complete audit of manual/automatic GDB actions. Read it through
+`terminal_session_events` or `channelterm events`; each observer keeps an independent cursor.
+Retention shares the Session's 1024-event ring; overwritten entries report `dropped: true` and
+history is unavailable after Session removal or Host exit. Attach shows bounded live previews and
+recent retained reports; see [CLI](cli.md#attach).
+
+Reports are visible to every authorized Session observer. The caller must omit raw RSP, connection
+descriptors, credentials, and sensitive program values. Known management/lease/TCP capabilities are
+rejected if included in text, but this is not a general secret detector. The relay never generates
+reports from protocol bytes. CLI previews escape control characters. The tool is non-destructive,
+closed-world, and idempotent with respect to sequence retries; it is not read-only because it
+publishes events. MCP transport authentication and the bridge owner capability are required.

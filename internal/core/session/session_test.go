@@ -992,3 +992,28 @@ func (t *shortWriteTransport) Connect(context.Context) (channel.Channel, error) 
 func (t *partialWriteTransport) Connect(context.Context) (channel.Channel, error) {
 	return t, nil
 }
+
+func TestPendingInputSurvivesActivityOverwriteAndIgnoresProtocol(t *testing.T) {
+	// The summary belongs to the serialized write boundary and must survive a
+	// bounded activity buffer dropping the human's original partial line.
+	s := &Core{activity: mustTestActivityBuffer(t)}
+	s.recordWriteActivity(time.Now(), WriteRequest{Actor: ActorUser, Data: []byte("unfinished")}, 10)
+	for i := 0; i < 20; i++ {
+		s.recordWriteActivity(time.Now(), WriteRequest{Actor: ActorSystem, Data: []byte("$binary\n")}, 8)
+	}
+	if !s.HasPendingInput() {
+		t.Fatal("protocol overwrote pending human input")
+	}
+	s.recordWriteActivity(time.Now(), WriteRequest{Actor: ActorUser, Data: []byte{0x15}}, 1)
+	if s.HasPendingInput() {
+		t.Fatal("clear-line byte did not clear summary")
+	}
+}
+func mustTestActivityBuffer(t *testing.T) *activityBuffer {
+	t.Helper()
+	b, e := newActivityBuffer(1, 32)
+	if e != nil {
+		t.Fatal(e)
+	}
+	return b
+}

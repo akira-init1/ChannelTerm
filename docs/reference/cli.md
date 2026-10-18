@@ -8,6 +8,7 @@ channelterm --help
 channelterm attach --help
 channelterm events --help
 channelterm file --help
+channelterm gdb-list --help
 channelterm init --help
 channelterm install --help
 channelterm list --help
@@ -45,8 +46,8 @@ and a UTC RFC 3339 build timestamp. Tagged release artifacts use the injected re
 version and target platform come from the compiled binary. An unknown command returns an error and
 the process exits with status 1.
 
-The top-level help currently lists `attach`, `events`, `file`, `init`, `install`, `list`, `mcp`,
-`serial`, `ssh`, `sftp`, `scp`, `uninstall`, `help`, and `version`.
+The top-level help currently lists `attach`, `events`, `file`, `gdb-list`, `init`, `install`, `list`,
+`mcp`, `rsp-client`, `serial`, `ssh`, `sftp`, `scp`, `uninstall`, `help`, and `version`.
 
 ## `install` and `uninstall`
 
@@ -465,7 +466,10 @@ for an already listed Session.
 
 The initial attach read returns recent retained output, then uses private cursors to wait for later
 output and activity. New non-empty Agent writes are shown as local `AI` activity blocks; prior
-activity and CR/LF-only writes are not rendered. A `terminal_exec` event renders its original
+activity and CR/LF-only writes are not rendered. Raw Agent-write previews are limited to 512
+rendered bytes and four lines, with control/invalid bytes escaped. Truncation reports the original
+byte count; `terminal_read_activity` still returns the complete retained payload. This is a local
+display limit, not a write limit or a filter on board output. A `terminal_exec` event renders its original
 command in the same `AI` block format while the internal `system` wrapper is hidden by exact output
 cursor boundaries. Command output remains raw and visible. During the command's `terminal` lease,
 ordinary attachment keys are discarded locally and produce
@@ -478,6 +482,13 @@ Completion, failure, and cancellation release that presentation range, so later 
 their `AI` activity blocks and later ordinary terminal output renders normally. File-transfer
 started, completed, failed, and cancelled status lines convert Host event times to the CLI's local
 timezone and use `[HH:MM:SS] [ChannelTerm]` prefixes; the in-place progress frame has no timestamp.
+External `DEBUG_CLIENT_REPORT` events render separate blocks labelled
+`Codex report; not a complete GDB audit`, with bridge ID, sequence, kind, and reported text.
+Each preview is limited to 1024 rendered bytes and twelve lines with controls escaped; full
+retained text remains in `terminal_session_events`. New attachments replay at most the last twenty
+retained reports marked `[history]`, then follow their own event cursor. Raw-output refreshes do
+not replay reports. Overwritten live event history produces a notice. Reports remain visible while
+the debug lease hides RSP, and never enter Session output or the target input stream.
 Before a local status block, attach adds one line ending only when the visible terminal is mid-line,
 so an unterminated board prompt cannot join the status text and already-terminated board output does
 not accumulate blank lines. This affects only local presentation, never Session raw output. On
@@ -509,10 +520,19 @@ echoed after the prompt's colon even though the terminal is in raw mode. `n`, `N
 other character print `[ChannelTerm] File transfer resumed` and let the worker continue. After
 confirmation, the target restores its TTY, temporary data is removed, the lease is released, and
 attach prints one timestamped cancellation result with the last confirmed byte counts and
-`Reason: cancelled by user`. The published `FILE_TRANSFER_FAILED` metadata reports
-`error: user_cancelled` and `reason: user_cancelled`. Residual console input from the confirming
-Ctrl+C is ignored; normal attachment input resumes after the transfer ends. This feedback is not
-Session output. `Ctrl+] q` closes only the MCP client connection. It does not call `terminal_close`.
+`Reason: cancelled by user`. After `LEASE_RELEASED`, the Host publishes `FILE_TRANSFER_CANCELLED`
+with `reason: user_cancelled`, `lease_released: true`, the transfer ID, and last confirmed progress.
+It suppresses the transfer worker's intermediate failure report for this confirmed cancellation.
+Residual console input from the confirming Ctrl+C is ignored; normal attachment input resumes
+after the transfer ends. This feedback is not
+Session output. `Ctrl+] q` does not call `terminal_close`; it leaves this attachment. If that
+attachment owns the temporary Host, exiting also stops the Host and all of its Sessions.
+
+During a managed `debug` lease, attachment rendering suppresses the corresponding raw RSP cursor
+range. Ordinary input receives the Host's busy error; local escape controls remain available.
+Use MCP debug interrupt/stop tools, then wait for verified shell recovery before typing commands.
+See [GDB workflow](../getting-started/gdb-debugging.md). Managed GDB control remains MCP-only;
+[`gdb-list`](#gdb-list) observes external bridges.
 
 Examples:
 
@@ -552,7 +572,7 @@ continue from its `next` cursor.
 channelterm events SER-1
 ```
 
-Events carry Session and file-transfer state only. They never include terminal bytes and do not
+Events carry Session, file-transfer, terminal-command, and debug lifecycle state. They never include terminal bytes and do not
 change `attach`, `terminal_read`, or another observer's cursor.
 
 ## `file`
@@ -728,3 +748,60 @@ channelterm mcp --transport http --listen 127.0.0.1:12345 --path /terminal
 Important errors include an unsupported transport, path without a leading slash, invalid connection
 policy, invalid configuration or state, initial discovery failure, listen failure, and protocol
 serving failure. Normal client EOF and process cancellation are normal shutdowns.
+
+
+## `gdb-list`
+
+`channelterm gdb-list` queries all unfinished external GDB/RSP bridges in one existing MCP HTTP
+Host. It defaults to the usual local Host endpoint; `--endpoint URL` selects another Host using
+the existing HTTP Bearer authentication. It does not start a Host, scan OS ports, query other
+processes or stdio-only Hosts, or enumerate managed GDB/MI operations and independent gdbservers.
+
+The default table shows `PORT`, `ADDRESS`, `SESSION`, `TARGET`, `STATE`, and the full `BRIDGE` ID.
+The address is the actual bound TCP endpoint, including explicit or OS-selected ports outside the
+preferred pool. The data and control sockets share one bridge row. Results are sorted by numeric
+port, then address and bridge ID. Table metadata escapes control characters; JSON preserves values.
+
+`--json` writes one object with `endpoint` and a `bridges` array. Each entry contains `bridge_id`,
+opaque `session_id`, short `session_ref`, serial `target`, `address`, numeric `port`, `state`,
+`expires_at`, and `auto_keepalive`. The latter two describe the management heartbeat and recent
+helper liveness, not proof of target readiness. Session metadata can be empty during concurrent
+removal (shown as `-` in the table). No owner, connection token, fingerprint, or descriptor is returned.
+
+`listening`, `connected`, `disconnected`, and `recovering` bridges remain listed until finalization.
+`closed`, `failed`, and `restored` records are excluded: their addresses are historical. This is a
+snapshot, not a guarantee that a port remains bound after the query. Reads neither renew leases
+nor send target bytes; cancelling the query leaves bridge lifetimes unchanged. Listed addresses
+still require the authenticated [`rsp-client`](#rsp-client) helper, not a raw GDB TCP connection.
+
+```powershell
+channelterm gdb-list
+channelterm gdb-list --json
+channelterm gdb-list --endpoint http://127.0.0.1:37099/mcp
+```
+
+An empty inventory exits successfully with `No active external GDB bridges.` or `bridges: []` in
+JSON. Connection/authentication failures and an older Host without `debug_bridge_list` return an
+error and exit status 1, without a success inventory. The query has a ten-second deadline;
+`Ctrl+C` cancels it. Check the endpoint, Host version, and existing authentication setup on failure;
+do not collect credentials in diagnostics. See the [workflow](../getting-started/gdb-debugging.md#inspect-bridge-ports).
+
+## `rsp-client`
+
+`channelterm rsp-client --connection FILE` is a binary stdio adapter for an independently launched
+GDB: `target remote | channelterm rsp-client --connection FILE`. It authenticates the TLS/TCP
+endpoint from `debug_bridge_start` and then forwards bytes unchanged. It does not start/control
+GDB or prepare a target. It answers authenticated challenges on a separate TLS control connection
+on the same bridge port, allowing the Host to renew both leases while RSP is idle. The descriptor
+format is unchanged; use matching current Host/helper versions. No raw RSP endpoint is exposed by
+this command. Consult `channelterm rsp-client --help` for current options.
+
+FILE contains exactly the returned `connection` JSON object (`address`, `fingerprint`, `token`),
+not the whole MCP result. It must be a regular file of at most 4096 bytes; on Unix it must have no
+group/other permissions. On Windows protect it with the account's ACL. No environment variable or
+command-line token is used. TLS certificate pinning happens before the secret is transmitted.
+Normal stdout contains only remote bytes; errors go through the normal CLI error/exit path. EOF,
+connection failure, or process cancellation ends the helper. It never reports shell restoration.
+GDB owns the pipe/helper lifetime. EOF or control loss stops automatic keepalive; management must
+explicitly restore or close the bridge. Manual renewal remains necessary before connection, during
+post-disconnect recovery, or with legacy helpers. All bridges have a 24-hour maximum lifetime. See the [workflow](../getting-started/gdb-debugging.md#external-gdb-over-a-prepared-serial-session).

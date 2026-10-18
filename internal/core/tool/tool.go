@@ -39,9 +39,10 @@ type InputSchema struct {
 
 // InputProperty describes a single property within an InputSchema object.
 type InputProperty struct {
-	Type        string   `json:"type"`
-	Description string   `json:"description,omitempty"`
-	Enum        []string `json:"enum,omitempty"`
+	Type        string         `json:"type"`
+	Description string         `json:"description,omitempty"`
+	Enum        []string       `json:"enum,omitempty"`
+	Items       *InputProperty `json:"items,omitempty"`
 }
 
 // Result contains structured data returned by a Tool call.

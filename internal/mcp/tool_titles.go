@@ -4,6 +4,28 @@ package mcp
 // MCP tool. Machine-readable terminal_* names remain the compatibility key.
 func terminalToolTitle(name string) (string, bool) {
 	switch name {
+	case "debug_bridge_list":
+		return "List External GDB Bridge Ports", true
+	case "debug_bridge_report":
+		return "Report External GDB Activity from Codex", true
+	case "debug_bridge_start":
+		return "Open External GDB Bridge", true
+	case "debug_bridge_status":
+		return "Read External GDB Bridge Status", true
+	case "debug_bridge_renew":
+		return "Renew External GDB Bridge", true
+	case "debug_bridge_close":
+		return "Close External GDB Bridge and Session", true
+	case "debug_bridge_restore":
+		return "Verify Terminal Restoration after RSP", true
+	case "debug_start":
+		return "Start User-Space Debugging", true
+	case "debug_command":
+		return "Control GDB", true
+	case "debug_events":
+		return "Read Debug Events", true
+	case "debug_stop":
+		return "End User-Space Debugging", true
 	case "terminal_list_sessions":
 		return "List Terminal Sessions", true
 	case "terminal_read":

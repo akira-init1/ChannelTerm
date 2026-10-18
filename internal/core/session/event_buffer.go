@@ -23,6 +23,11 @@ var (
 type EventType string
 
 const (
+	// EventDebugState records a debug lifecycle transition without owner secrets.
+	EventDebugState EventType = "DEBUG_STATE"
+	// EventDebugClientReport carries explicitly reported external-debugger text.
+	// It is caller-supplied observation, not raw terminal data or verified execution.
+	EventDebugClientReport EventType = "DEBUG_CLIENT_REPORT"
 	// EventSessionCreated records successful Manager registration of a Session.
 	EventSessionCreated EventType = "SESSION_CREATED"
 	// EventSessionAttached records one client attachment to a Session.

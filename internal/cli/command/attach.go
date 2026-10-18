@@ -316,6 +316,9 @@ func runAttachSessionWithInputEnd(ctx context.Context, args []string, input io.R
 			// notifications for an attachment that has just joined.
 			_ = presentation.handle(event, true, nil)
 		}
+		if err := writeDebugReportHistory(eventChunk.Events, writeLocalStatus); err != nil {
+			return fmt.Errorf("write retained debug reports: %w", err)
+		}
 		eventCursor := eventChunk.Next
 		eventWait.Add(1)
 		go func() {
@@ -1202,8 +1205,8 @@ func forwardAgentActivity(ctx context.Context, attached attachSession, cursor se
 }
 
 // renderAgentActivity formats local-only AI activity without changing the
-// original event. Pure carriage-return and line-feed writes remain recorded but
-// do not generate a visually noisy block for split command submissions.
+// original event. Large writes have a bounded, control-escaped preview; the
+// activity stream retains the complete bytes. Pure line endings have no block.
 func renderAgentActivity(event session.SessionEvent) []byte {
 	if event.Actor != session.ActorAgent || event.Operation != session.OperationWrite || isLineEnding(event.Data) {
 		return nil
@@ -1211,6 +1214,10 @@ func renderAgentActivity(event session.SessionEvent) []byte {
 	payload := strings.TrimRight(string(event.Data), "\r\n")
 	if payload == "" {
 		return nil
+	}
+	payload, truncated := previewTerminalText(payload, 512, 4)
+	if truncated {
+		payload += fmt.Sprintf("\r\n[%d bytes; preview truncated; full data: terminal_read_activity]", len(event.Data))
 	}
 	return []byte(fmt.Sprintf("\r\n──────── AI ────────\r\n[%s] >> %s\r\n────────────────────\r\n", event.Timestamp.Format("15:04:05"), payload))
 }

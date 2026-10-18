@@ -243,7 +243,7 @@ local file <--> bounded CLI chunks
                   Channel
                      |
                      v
-               Serial Transport
+                serial driver
                      |
                      v
         Linux shell: stty + dd
@@ -252,7 +252,8 @@ local file <--> bounded CLI chunks
              wc -c + sha256sum
 ```
 
-The file-transfer use case is layered above Session and does not access Serial Transport directly. A
+Serial Transport establishes the Channel before this runtime I/O path begins. The file-transfer
+use case is layered above Session and does not access Serial Transport directly. A
 CLI attachment uses the Host's lease and lease-authorized write tools as byte-oriented clients of
 the host-owned Session. Existing `terminal_write` input is unchanged.
 
@@ -267,3 +268,55 @@ host-owned Session if lease expiry finds a Channel write still in flight or if b
 recovery times out. `Channel.Close` releases the blocked write before a later open creates a
 replacement Session. See [Application Module](../modules/application.md) for the lifecycle details
 and [File Transfer](../getting-started/file-transfer.md) for the user workflow.
+
+## User-space GDB
+
+```text
+MCP debug_* -> Application debug operation -> GDB/MI subprocess
+                        |                         |
+                  managed debug lease      private Unix socket
+                        |                         |
+                        +---- binary RSP relay ---+
+                                      |
+                           Session cursor / leased Write
+                                      |
+                       existing Channel and sole reader
+                                      |
+                     Bash PTY -> gdbserver stdio -> inferior
+```
+
+The relay preserves binary bytes and ACKs; an overwritten cursor is fatal. Inferior standard I/O
+is isolated from the PTY. MI records form a separate bounded debug-event cursor stream. The existing
+Session event stream carries `DEBUG_STATE` and lease boundaries for CLI presentation. Raw Session
+history remains unchanged. See [Application](../modules/application.md#user-space-debug-operations)
+for timeout, final-ACK, recovery, and subprocess ownership details.
+
+
+## External GDB bridge
+
+```text
+MCP debug_bridge_* -> Application bridge operation -> exclusive debug lease
+                                  |
+External GDB -> rsp-client -> pinned TLS/TCP endpoint -> existing binary RSP relay
+                                                              |
+                                                   Session cursor / leased Write
+                                                              |
+                                              existing serial Channel -> target
+```
+
+Authentication precedes all Session I/O. Only one authorized data connection is admitted; the acceptor
+retains its bind and logical address reservation until bridge finalization. A current helper also
+authenticates one control TLS socket on that same listener. Its random challenge/response loop is
+separate from the unchanged RSP stream and supplies liveness evidence to Application's lease monitor.
+The control connection reuses the bridge listener; it does not open another listening port.
+Later data clients cannot reconnect or take over. The external operator prepares gdbserver and
+controls GDB independently. No terminal history is replayed at startup, and no MI subprocess
+participates in this path. TCP disconnect
+retains the lease; a separately confirmed shell/TTY probe may restore terminal use. Otherwise
+explicit close, expiry, or uncertain recovery closes the Session. See
+[Application](../modules/application.md#external-serial-rsp-bridge) for concurrency and cleanup.
+
+An independent observation path is `external Codex driver -> MCP debug_bridge_report -> Application
+validation -> Session event ring -> CLI attach/events and MCP event cursors`. It carries selected
+commands/results/states labelled as Codex reports, not complete audit evidence. It never joins the
+serial byte path, starts GDB, parses RSP, or changes the relay lifecycle on reporting failure.

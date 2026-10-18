@@ -10,6 +10,7 @@ interchangeable.
 | Shared Session reference | A Manager-owned live Session | `SER-1`, `SSH-1` |
 | Opaque `session_id` | One live Manager registration | `0123456789abcdef0123456789abcdef` |
 | `device_id` | A Device Registry identity record | `dev_0123456789abcdef0123456789abcdef` |
+| `debug_id` | One managed user-space debug operation | `DBG-example` |
 | `transfer_id` | One file-transfer lease and its events | `FT-123` |
 
 ## Native serial target
@@ -101,3 +102,22 @@ transfer_id -> correlate one file-transfer lease and outcome
 Do not pass `device_id` to Session operations. Do not pass a native target such as `COM8` to a tool
 expecting an existing Session. Do not infer a target or endpoint from an opaque Session or device
 ID. `SER-1` and `SER-2` identify live shared Sessions, never physical serial ports.
+
+## Debug identity and requests
+
+`debug_id` is an opaque Host-lifetime operation identifier, not a Session reference or an ownership
+secret. Debug tools also require the caller's secret `owner`; knowing a debug ID alone grants no
+control. Start `request_id` values are scoped to the canonical Session ID, and command request IDs
+to one debug operation. Exact retries reuse the existing operation/result; conflicting parameters
+are rejected. Debug event cursors start at zero and are independent of every Session cursor.
+
+
+## External bridge identity
+
+`bridge_id` (currently displayed as `RSP-<opaque-token>`) identifies an external bridge operation,
+not a Session or Transport reference. Management calls require the separate secret `owner`.
+Start request IDs are scoped to that owner and fingerprint all arguments exactly, including the
+supplied Session reference. IDs/results remain retained through terminal states for Host-lifetime
+retry deduplication. TCP connection tokens are independently generated secret capabilities; they
+are not Session IDs, management owners, or lease owners. Neither status nor Session events exposes
+them. See [bridge contracts](mcp-tools.md#external-rsp-bridge-tools).

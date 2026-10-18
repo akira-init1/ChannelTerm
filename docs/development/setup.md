@@ -26,20 +26,12 @@ its module requirements also select newer `x/sys` and `x/term`. Update older Go 
 before building this release; the six supported desktop targets and CGO-free builds are unchanged.
 The required redistribution notice is in [THIRD_PARTY_NOTICES](../../THIRD_PARTY_NOTICES).
 
-For ordinary development, inspect the worktree before editing. If the current branch is `main` or
-`master` and the task requires repository changes, create and switch to a focused task branch unless
-the maintainer explicitly requests work directly on the default branch:
+Before editing, inspect the worktree and follow the [branch and staging rules](../../AGENTS.md#8-git-and-commit-messages):
 
 ```powershell
 git status
 git branch --show-current
-git switch -c feature/short-name
 ```
-
-Continue on an existing branch that already matches the task. Keep the same feature's
-implementation, tests, documentation, and follow-up fixes together instead of creating another
-branch for a small addition to the same goal. Default-branch changes go through a pull request;
-normal development must not push directly to `main` or `master`.
 
 On Windows, build runnable debug binaries to a fixed path, for example
 `go build -o ./bin/channelterm.exe ./cmd/channelterm`, and launch that binary for network workflows.
@@ -48,9 +40,6 @@ Windows Firewall prompts. For native package tests, use the
 [stable-path test runner](building-and-testing.md#repeated-native-testing-on-windows).
 Keep loopback-only defaults; changing firewall policy or exposing the Host to a LAN is not required
 for ordinary local development.
-
-Do not discard unrelated worktree changes. Keep implementation under the existing `internal`
-ownership boundary unless a public Go API is intentionally designed and reviewed.
 
 Real serial validation additionally requires a known device, endpoint, and confirmed
 baud/data/parity/stop/flow settings. Do not infer them from examples. MCP HTTP testing does not

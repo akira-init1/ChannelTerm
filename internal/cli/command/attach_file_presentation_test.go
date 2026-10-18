@@ -528,3 +528,22 @@ func TestFileTransferPresentationRestoresAIActivityAfterEveryTerminalState(t *te
 		})
 	}
 }
+
+func TestDebugLeaseSuppressesRSPUntilRestoration(t *testing.T) {
+	p := newFileTransferPresentation()
+	write := func([]byte) error { return nil }
+	if err := p.handle(session.Event{Type: session.EventLeaseAcquired, Metadata: map[string]any{"type": "debug", "output_cursor": uint64(3)}}, false, write); err != nil {
+		t.Fatal(err)
+	}
+	parts := p.visibleParts(0, []byte("ok $binary\xff"))
+	if len(parts) != 1 || string(parts[0]) != "ok " {
+		t.Fatalf("debug bytes visible: %q", parts)
+	}
+	if err := p.handle(session.Event{Type: session.EventLeaseReleased, Metadata: map[string]any{"type": "debug", "output_cursor": uint64(11)}}, false, write); err != nil {
+		t.Fatal(err)
+	}
+	parts = p.visibleParts(3, []byte("$binary\xffshell"))
+	if len(parts) != 1 || string(parts[0]) != "shell" {
+		t.Fatalf("shell restoration range: %q", parts)
+	}
+}

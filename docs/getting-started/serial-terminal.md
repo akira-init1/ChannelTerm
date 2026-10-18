@@ -48,10 +48,9 @@ On Windows Console hosts, navigation keys are sent as standard VT sequences: for
 - `Ctrl+] ]` sends a literal `Ctrl+]` byte (`0x1d`) to the remote terminal.
 - `Ctrl+] t` toggles local-only `[HH:MM:SS]` timestamps before recognized shell prompts. It is off
   by default and does not timestamp ordinary output or change Session data.
-- `Ctrl+] f` opens the local file-transfer menu. Send defaults to
-  `/tmp/cterm/user-files/<local-basename>` on the board and creates that hierarchy when needed;
-  receive defaults to `./<remote-basename>` on the PC. See [file transfer](file-transfer.md) for
-  overwrite and cancellation behavior.
+- `Ctrl+] f` is available only in a shared `attach`. Private `serial`, `connect`, and
+  `attach --private` connections report that file transfer requires shared attach. See
+  [file transfer](file-transfer.md) for the shared workflow.
 - `Ctrl+] Esc` cancels local escape mode without sending a byte to the remote terminal, reports
   `[ChannelTerm] Escape cancelled` locally, and returns subsequent input to normal remote
   forwarding.

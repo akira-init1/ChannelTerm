@@ -83,9 +83,7 @@ opens do not reserve the endpoint. Successful SSH Sessions use opaque random IDs
 references from the existing Manager. There are no changes to Session or generic read/write/close
 ownership. See the [SSH workflow](../getting-started/ssh-terminal.md) for CLI Host lifetime.
 
-## Read and write behavior
-
-### Dedicated SSH file operations
+## Dedicated SSH file operations
 
 `RunSSHFiles` validates requests and preflights upload trees before connecting. Only regular files
 and directories are uploaded; source symlinks and special files fail. Directory copies require
@@ -149,6 +147,8 @@ authentication errors retain their Transport stage. Wrapping preserves `errors.I
 deadline, and filesystem identities. No secret input is included in these diagnostics.
 See [file transfer](../getting-started/file-transfer.md#sftp-and-scp-over-ssh) for user-visible limits.
 
+## Read and write behavior
+
 `WriteSession` and `WriteSessionWithLease` reject a payload larger than 1 MiB before Session lookup
 or lease acquisition. This application-layer limit applies to decoded bytes regardless of the
 calling adapter or transport. MCP additionally rejects input whose decoded size cannot fit before
@@ -160,6 +160,8 @@ Application does not encode terminal bytes, add presentation, or merge output wi
 `WriteSession` validates the actor and retries short writes while honoring context cancellation
 between retries. Session still provides lower-level byte-boundary write serialization and activity
 recording.
+
+## Isolated terminal commands
 
 `ExecuteTerminalCommand` is the command-aware alternative to a raw Agent write. It accepts one
 printable command line, acquires and renews a `terminal` lease, rejects a Session whose retained
@@ -177,8 +179,10 @@ returns its exit code plus raw-output start and end cursors. Interactive program
 background-job lifecycle, and arbitrary raw keys remain `WriteSession` concerns, not
 terminal-command semantics.
 
-Application additionally owns one exclusive lease per managed Session. Supported lease types are
-`terminal`, `file-transfer`, and reserved `debug`. A normal write fails immediately with
+## Writer leases and transfer cancellation
+
+Application owns one exclusive lease per managed Session. Supported lease types are
+`terminal`, `file-transfer`, and `debug`. A normal write fails immediately with
 `ErrSessionBusy` while a lease is active. `WriteSessionWithLease` requires a non-empty matching
 opaque owner capability and rejects a missing, released, expired, or replacement lease with
 `ErrLeaseNotOwned`.
@@ -227,6 +231,8 @@ Terminal command execution publishes `TERMINAL_COMMAND_STARTED`, `TERMINAL_COMMA
 writer ownership. The command event contains the display command and output cursor but never the
 lease owner capability.
 
+## Shared Session file transfer
+
 File transfer uses the same Session write and output-cursor semantics. It obtains a `file-transfer`
 lease before its first protocol command, renews it every 10 seconds, and releases it on success,
 failure, or cancellation. A send creates a missing remote destination hierarchy before payload
@@ -261,12 +267,148 @@ five-second-bounded request. This releases an in-flight Host write and prevents 
 state from retaining the Session or lease. Recovery timeout errors are joined with the original
 failure. Independent readers continue to see raw output, including received file bytes.
 
+## Session close
+
 `CloseSession` first resolves and snapshots Session metadata, removes the Session directly from
 Manager ownership, closes it, and returns the pre-close information for adapter results. This
 lifecycle path is independent of the Transport service that originally opened the Session.
 
 ## Boundary rules
 
-Application owns orchestration, not process lifetime, stdin/stdout, flags, ANSI, MCP schemas, or
+Application owns orchestration and managed debug subprocesses, not Host process lifetime, host stdin/stdout, flags, ANSI, MCP schemas, or
 concrete UI behavior. New CLI or protocol adapters should call this layer instead of looking up
 Session or Serial Transport objects directly.
+
+## User-space debug operations
+
+`StartDebug`, `DebugCommand`, `ReadDebugEvents`, and `StopDebug` coordinate one native Linux inferior
+through `internal/core/debugger`. The backend checks ELF architecture and existing-process I/O
+isolation before acquiring the terminal. A persistent optional Session input summary rejects
+unsubmitted human/agent input even after activity-history overwrite. Alternate Session
+implementations without that summary must have complete retained activity. This summary is not a
+terminal emulator: the caller must supply a known idle Bash prompt.
+
+Start claims a fresh internal debug lease capability, separate from the client owner. It saves
+`stty -g`, verifies the same local filesystem, and switches the PTY to raw/no-echo mode. A private
+wrapper launches gdbserver without a controlling terminal; a second wrapper redirects new-inferior
+I/O to `/dev/null`. GDB runs with init files, auto-loading, debuginfod, and expression function calls
+disabled. Non-stop mode is off and fork-following stays on the parent with detach-on-fork enabled.
+There is no raw MI or console passthrough. The relay uses the existing Session reader's independent
+cursor and the Application leased-write gate. It fails on dropped bytes instead of resynchronizing.
+
+An internal 30-second lease is renewed every 10 seconds. Debug lease expiry always closes/removes
+the Session, even without an active write. Public lease release cannot release a managed operation.
+Client events/commands maintain a separate 60-second heartbeat; expiry attempts detach rather than
+killing an attached process. Setup and MI commands are capped at 30 seconds; recovery has an
+independent 10-second context. An uncertain command timeout kills GDB and fails the operation closed.
+An authoritative MI error preserves the operation for another command. A shell watchdog checks Host
+process identity and an atomically replaced heartbeat file, ending only its original server after
+Host death or 45 seconds without renewal. PID/start-time checks and pidfds prevent cleanup from
+signalling a reused server PID.
+
+GDB closes RSP before its MI exit record can arrive; the coordinator allows up to two seconds for
+that record, without inferring success from EOF. In ACK mode, the relay observes checksum-valid
+packet framing without rewriting bytes. For normal exit it confirms the final W/X acknowledgement;
+for explicit termination it confirms the last reply acknowledgement. Only then may Application end
+a gdbserver waiting for stdio EOF, which PTYs cannot transmit. Detach uses GDB's target-detach
+handshake. All paths still require the shell footer, restoration of the exact saved TTY settings,
+and a fresh split-token `printf` probe before releasing the lease. A failure closes the Session;
+no timeout, silent period, or socket closure is accepted as proof of restoration.
+
+Operation IDs and exact start requests remain retained for Host-lifetime retry deduplication, with
+at most 128 operations. Commands retain at most 4096 requests / approximately 16 MiB per operation;
+reaching the limit rejects new commands but still permits stop. MI lines are capped at 1 MiB and
+nesting at 64 levels. Events retain at most 512 records / 4 MiB and return at most 128 per read;
+a stale cursor is an error. These debug cursors are distinct from Session output/activity/events.
+Lifecycle state is `starting`, `stopped`, `running`, `exited`, `recovering`, `closed`, or `failed`.
+Closed/failed states cannot be overwritten by delayed MI notifications.
+
+The private runtime directory is mode 0700 and the socket mode 0600; `SO_PEERCRED` checks the exact
+GDB PID and Host user. Neither debug events nor Session events contain the client owner or internal
+lease capability. The ordinary MCP Host authentication remains in force. The operation is not a
+sandbox for malicious programs, debugger executables, or same-user processes. See the
+[workflow](../getting-started/gdb-debugging.md) for prerequisites, safe attach, and validation limits.
+
+
+## External serial RSP bridge
+
+`StartRSPBridge`, `RSPBridgeStatus`, `RenewRSPBridge`, `CloseRSPBridge`, and `RestoreRSPBridge`
+coordinate a separate bridge over an already prepared serial Session. The Application never launches
+or controls GDB, gdbserver, or a target supervisor in this mode. Its coordinator is independent of the
+managed MI operation. Input-pending checks are shared; both use the existing debug lease gate.
+The Session keeps its sole Channel reader, raw history, cursors, and write serialization.
+
+`ListRSPBridges(ctx)` provides a separate non-secret inventory for Host observers. It copies run
+references under the coordinator mutex, reads each status under its status mutex, and joins
+Manager metadata without holding the coordinator lock. It includes unfinished runs, including
+disconnected/recovering bridges, until their terminal state is published. Results are sorted by
+actual port, address, and bridge ID. Concurrent finalization can remove Session metadata or
+supersede a returned snapshot. No lease, target I/O, or managed GDB operation is touched;
+cancellation ends collection only. Adapters enforce Host access policy without requiring a
+per-bridge owner for this restricted summary. The public fields and authorization boundary are
+owned by the [MCP reference](../reference/mcp-tools.md#external-rsp-bridge-tools).
+
+The bridge coordinator owns a `debugger.EndpointAllocator`. One mutex protects its rotating cursor,
+real TCP binds, and logical address reservations. Allocation continues through 37100..37999 across
+requests, skipping active addresses; an active-pool count avoids scanning a fully reserved pool.
+This avoids repeatedly traversing the same occupied prefix during concurrent creation. Releases
+remove reservations without rewinding the cursor. Explicit and OS-selected binds within the pool
+also count as active pool addresses. The allocator closes the listener and removes its reservation
+under the same mutex, preventing dynamic allocation from selecting an address still reserved during
+finalization. See the [port policy](../reference/mcp-tools.md#external-rsp-bridge-tools)
+for strict exhaustion, dynamic fallback, and explicit addresses. `debugger.Endpoint` owns bounded TLS
+authentication and transfers one accepted socket to the relay. Its listener remains bound, rejecting
+later data clients until finalization; current helpers may authenticate one control socket. Logical
+reservations and OS binds are distinct; neither client authentication nor disconnect releases either.
+Final close/failure or verified restoration does. Application
+adapts the Session cursor/leased write to the existing `debugger.Relay`; authentication bytes never
+reach the Session. Creation does not send target bytes. Pending input, incomplete input history,
+non-serial Sessions, and conflicting leases are rejected. Silent-target readiness remains explicitly
+unverified and requires an operator acknowledgement; no RSP probe/parser is added to Session.
+
+The operation retains a secret management capability separately from its internal lease owner and
+TCP token. Status/events omit all three. Start retries are scoped to owner/request ID and fingerprint
+all arguments; retention is bounded to 128 operations. The management TTL is 60 seconds; status reads
+do not extend it. Each one-second monitor pass checks the existing 30-second debug lease and renews
+with at most twenty seconds remaining, including during the post-disconnect management grace.
+Automatic management renewal requires both a valid internal lease and recent authenticated control
+challenge/response evidence. Explicit renewal also renews the internal lease first; a stale lease
+fails closed instead of leaving the management layer apparently healthy. All renewal is capped at
+24 hours from start; closed/expired operations cannot be resurrected.
+
+A current helper authenticates data using `ChannelTerm-RSP/2`, then one separate control TLS socket
+using `ChannelTerm-HBT/1` on the same listener, with the existing token, pin, and peer checks. The
+control loop uses random 16-byte challenges, a ten-second interval and a thirty-second response
+bound, independent of RSP traffic. It closes both sockets on control failure and stops on data EOF.
+The helper bounds data reads after control EOF while allowing final RSP bytes to drain, because
+independent TCP streams can deliver EOF in either order. Legacy `ChannelTerm-RSP/1` data connections
+retain manual management renewal. Session and the managed MI relay never see this control protocol.
+The exact public lifetime rules are owned by the [MCP reference](../reference/mcp-tools.md#external-rsp-bridge-tools).
+
+The worker alone transitions listening -> connected -> disconnected. Management mutations serialize
+on an operation mutex; state reads use a separate short-held mutex. Finalization cancels the
+relay, closes the Session to interrupt an unbounded Channel write, then joins the relay and closes
+the endpoint/reservation before publishing its final state. No worker publishes a state after that join. Concurrent relay EOF must
+not hide a lost-buffer error from the other direction.
+
+Disconnected is not restored: ordinary writers remain excluded. Explicit restoration requires an
+externally returned shell and its pre-debug TTY snapshot. It joins the disconnected worker, applies
+and reads back the caller's exact `stty -g` value, and uses the existing split-token command-marker
+reader for a fresh proof. The independent ten-second timeout closes the Session even if a probe write
+blocks. In Bash, the probe deletes its own history entry only after matching its fresh split token
+in the last entry; ignored probes or disabled history must not delete a prior user command. Other
+shells keep their normal history behavior. Only successful verification releases the lease while preserving the Session. Unknown target
+state, lost serial bytes, expiry, explicit close, or failed recovery closes the Session without
+claiming target cleanup. There are no ACK-mode assumptions, injected detach commands, or remote PID
+signals in this lifecycle. See the [MCP contracts](../reference/mcp-tools.md#external-rsp-bridge-tools)
+and [external workflow](../getting-started/gdb-debugging.md#external-gdb-over-a-prepared-serial-session).
+
+`ReportRSPBridge` is an independent observation path. It authenticates the same management owner,
+validates kind/UTF-8/size and rejects known bridge capabilities in the text, then publishes
+`DEBUG_CLIENT_REPORT` through Session. The operation mutex serializes publication and the latest
+sequence/digest retry cache with shutdown. Increasing sequences may skip values; exact latest
+retries are deduplicated, older/conflicting reports fail. Only a live, nonexpired bridge accepts
+new reports. Context cancellation and all report errors affect reporting only. No bytes, GDB
+commands, target-state assertions, heartbeat renewal, or cleanup are generated by reporting.
+The existing bounded event buffer owns history; observers cannot backpressure the relay. Caller
+selection/redaction and incomplete-audit labelling are part of the public reporting contract.

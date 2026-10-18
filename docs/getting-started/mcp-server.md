@@ -37,11 +37,15 @@ The repository includes these independently installable Agent Skills-compatible 
 | [`cterm-serial-debug`](../../skills/cterm-serial-debug/SKILL.md) | Shared MCU and embedded-Linux serial diagnosis through MCP. |
 | [`cterm-file-transfer`](../../skills/cterm-file-transfer/SKILL.md) | Choose shared serial transfer, SFTP, or SCP; copy files and verify results using the CLI, with optional MCP observation for serial transfers. |
 | [`cterm-ssh-debug`](../../skills/cterm-ssh-debug/SKILL.md) | Open an SSH shell with the CLI, then share and diagnose its Session through MCP while preserving Host ownership and trust. |
+| [`cterm-gdb-debug`](../../skills/cterm-gdb-debug/SKILL.md) | Check Linux targets and symbols, then choose managed GDB, a serial RSP bridge, interactive SSH GDB, or external SSH/TCP gdbserver debugging. |
 
 They recognize `cterm` as an alias for ChannelTerm. File transfer requires CLI access to the local
 files; installing the Skill does not add an MCP upload tool. The serial skill reserves
 `terminal_exec` for a known idle Bash prompt and uses raw writes for bare MCUs.
 The SSH skill opens connections through `channelterm ssh`; no MCP SSH-open tool is added.
+The GDB skill requires the tools for its selected path: external local GDB needs process execution
+in addition to MCP, while remote interactive GDB can use an existing shared SSH shell. It does not
+turn the serial-only RSP bridge into an SSH or general TCP backend.
 
 Starting with v0.2.0, download `channelterm_skills_VERSION.zip` and `SHA256SUMS` from the same
 [GitHub Release](https://github.com/akira-init1/ChannelTerm/releases). Verify the ZIP against its
@@ -61,7 +65,7 @@ The portable workflow lives in `SKILL.md`. If an agent supports Agent Skills, co
 extracted directory for each wanted skill into that client's documented user-level or project-level
 Skill directory, then restart or reload the client. A source checkout provides each directory under
 `skills/`. Keep `agents/` when copying a Skill. The examples below use `cterm-serial-debug`; substitute
-`cterm-file-transfer` or `cterm-ssh-debug` to install or invoke the corresponding skill:
+`cterm-file-transfer`, `cterm-ssh-debug`, or `cterm-gdb-debug` to install or invoke the corresponding skill:
 
 | Client | Skill directory | Direct use |
 | ------ | --------------- | ---------- |
@@ -221,3 +225,12 @@ Manager shutdown rejects new Session registration and waits for any already-star
 attempt to finish, closing its candidate rather than allowing it to register after shutdown.
 
 See [MCP tools](../reference/mcp-tools.md) for the currently exposed tool names and schemas.
+
+For native Linux user-space process debugging, follow the [GDB/MI workflow](gdb-debugging.md).
+The `debug_*` tools use the same Host authentication and an additional per-operation owner capability.
+
+
+For an external GDB (including one independently run in WSL2), `debug_bridge_*` manages a prepared
+serial Session's authenticated TCP bridge. Keep renewing its management heartbeat independently of
+GDB commands. Connection credentials differ from MCP authentication and must remain private. See
+[the external GDB workflow](gdb-debugging.md#external-gdb-over-a-prepared-serial-session).

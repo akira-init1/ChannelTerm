@@ -5,7 +5,7 @@ operations to be registered without importing MCP or another model/protocol SDK.
 
 A Tool supplies a stable name, human description, JSON-object input schema, and cancellable call
 returning JSON-serializable structured data. The schema subset supports object properties, primitive
-types, descriptions, enums, and required fields.
+types, array item schemas, descriptions, enums, and required fields.
 
 ## Registry behavior
 
@@ -23,7 +23,7 @@ output.
 ## MCP adaptation
 
 `internal/mcp/terminal` implements registered Tool names for serial, Session, file-transfer, device,
-and decision use cases. `internal/mcp/server.go` requires those names and exposes them over MCP. The
+decision, and user-space debug use cases. `internal/mcp/server.go` requires those names and exposes them over MCP. The
 three generic wait tools below are public aliases with `cursor` made required; the focused
 `terminal_wait_file_transfer` Tool is registered directly and filters the Session event stream by
 `transfer_id` until both one terminal transfer result and its file-transfer lease release are
@@ -45,3 +45,16 @@ enforce safety. It owns MCP-facing compatibility: public names, titles, descript
 schemas, annotations, and result translation. The Core Registry remains protocol-neutral.
 
 See [MCP tools](../reference/mcp-tools.md) for the actual public surface.
+
+
+The `debug_bridge_*` adapters expose the separate external bridge Application operations, including
+read-only inventory/status, explicit heartbeat renewal, Session-closing abort, and verified restoration.
+`debug_bridge_list` returns non-secret summaries under Host access authorization; individual bridge
+management still requires its owner capability. The result contract is in the MCP reference.
+Connection secrets are returned only to an authorized start caller. The relay invokes Session
+services directly; RSP bytes do not travel through MCP tool calls. The Core Registry remains unaware
+of TLS, target readiness, and debugger process ownership.
+
+`debug_bridge_report` translates caller-supplied command/result/state observations into Application
+report publication. It is an authenticated event-write tool, not GDB control. Its receipt confirms
+report acceptance only; observers use the existing `terminal_session_events` cursor interface.

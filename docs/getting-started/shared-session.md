@@ -25,8 +25,8 @@ terminal. Press `Ctrl+]` to enter local escape mode; ChannelTerm displays the av
 commands locally. `Ctrl+] t` toggles prompt timestamps for this CLI attachment only, so other CLI
 attachments and MCP readers continue to receive raw output. `Ctrl+] Esc` reports
 `[ChannelTerm] Escape cancelled` locally, cancels escape mode without sending a byte to the shared
-Session, and returns subsequent input to normal remote forwarding. `Ctrl+] q` detaches this CLI
-without closing the host-owned Session.
+Session, and returns subsequent input to normal remote forwarding. `Ctrl+] q` leaves this CLI;
+whether the Host survives depends on ownership, as described in [Lifecycle boundary](#lifecycle-boundary).
 
 Each CLI attachment applies semantic colors to safe plain text by default when its own stdout is a
 color-capable terminal. Use `--highlight=false` to disable generated colors. Remote ANSI/VT causes
@@ -69,7 +69,10 @@ transfer, but Clients must otherwise avoid conflicting command sequences themsel
 After attachment, the CLI watches new activity from the current tail and renders non-empty Agent
 writes as local `AI` activity blocks. It does not replay older activity, and writes containing only
 carriage-return or line-feed bytes are not rendered as blocks. This local view does not add bytes to
-Session output or change another client's cursor.
+Session output or change another client's cursor. Large raw Agent writes use a bounded preview
+instead of printing the entire payload; see the [CLI contract](../reference/cli.md#attach).
+File uploads should use the existing [file transfer](file-transfer.md) workflow, which renders
+progress and verification rather than file bytes. Manual shell uploads can still echo board output.
 
 ## Observe shared state
 
@@ -97,9 +100,18 @@ target, not with a Session reference.
 
 ## Lifecycle boundary
 
-Detaching a Client does not close a shared Session. `terminal_close` removes and closes one
-host-owned Session. Stopping the Session Host closes all Sessions still owned by its Manager.
-Session references such as `SER-1` are valid only for that host process lifetime.
+An ordinary attachment disconnects without closing its shared Session. Host owners have a different
+lifetime boundary:
+
+| Process that exits | Effect |
+| --- | --- |
+| Secondary `attach`, or an attachment to a separately running Host | Only that attachment leaves; the Host and Sessions remain. |
+| `attach` that created the temporary Host | The temporary Host and all of its Sessions stop. |
+| Foreground `ssh` owner | Its sharing Host and all of its Sessions stop. |
+| Separately started `mcp --transport http` Host | All Sessions owned by that Host close. |
+
+`terminal_close` removes and closes one host-owned Session. Session references such as `SER-1`
+are valid only for that Host process lifetime.
 
 If the underlying serial Channel ends or its reader fails, the host automatically removes and closes
 the affected Session. Its short reference and opaque ID stop resolving, retained buffers are
@@ -127,3 +139,26 @@ SSH uses private-key or interactive password authentication and verified host ke
 inside a separately started Host; choose a distinct loopback `--listen` address if one is already
 running. Follow the [SSH terminal workflow](ssh-terminal.md) for prerequisites, alternate ports,
 and safe shutdown. The Session read/write model is unchanged.
+
+## Exclusive user-space debugging
+
+A [local Linux GDB operation](gdb-debugging.md) temporarily owns a `debug` lease. Other readers keep
+independent raw cursors, while ordinary writers receive a busy error. Bundled attachments suppress
+the leased binary protocol output and remain attached. Use the debug tools for interrupt/detach;
+normal Ctrl+C is not debugger control. The original terminal mode and a random-marker shell probe
+must succeed before ordinary input resumes. Expired debug leases and unverified recovery close the
+Session instead of reopening writing. `DEBUG_STATE` events identify lifecycle transitions.
+
+
+For an independently operated GDB, use the
+[external serial RSP bridge](gdb-debugging.md#external-gdb-over-a-prepared-serial-session).
+It shares the same exclusive write lease and attachment output suppression, but does not run MI or
+start a target server. A current helper maintains the leases through a separate authenticated control
+connection, even while RSP is idle. External client disconnection stops automatic renewal but retains the lease
+during the remaining management grace (see the bridge workflow for renewal and lifetime bounds).
+Only a separately confirmed shell/TTY restoration allows ordinary writers again; explicit bridge close also closes the Session.
+
+Codex can separately publish actual external commands, results, and observed states with
+`debug_bridge_report`. All attach clients see labelled report blocks; a new client can see recent
+retained reports. They are caller reports, not a complete GDB audit or shell output. Reporting
+failure does not stop debugging. See the [reporting workflow](gdb-debugging.md#show-codex-reported-commands-and-results).

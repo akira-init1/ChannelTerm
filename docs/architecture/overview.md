@@ -22,6 +22,9 @@ MCP Adapter -> Tool Registry --+--> internal/core/app.Application
                       Channel -----+
 ```
 
+The Transport-to-Channel arrows show connection establishment and ownership transfer. Once open,
+Session reads and writes the Channel directly; Transport is not an extra runtime I/O hop.
+
 `cmd/channelterm` is the composition root. It creates process cancellation and passes standard
 streams to `internal/cli/command`. The CLI owns argument syntax, status text, raw console mode,
 escape commands, highlighting, HTTP host setup, and MCP client attachment.
@@ -48,6 +51,7 @@ The core service boundary contains:
 - `session`: lifecycle, Session Manager ownership, raw output retention, activity retention,
   structured event retention, and write serialization.
 - `channel`: established protocol-neutral byte-stream I/O and lifecycle state.
+- `debugger`: local GDB/MI process control, bounded protocol parsing, and a binary RSP relay.
 - `device`: current discovery state, device identity state, and a bounded device-event stream.
 - `connectionpolicy`: a pure discovery-response decision; it never connects.
 - `tool`: a protocol-neutral callable contract and registry.
@@ -98,3 +102,24 @@ assumptions to Session. Arbitrary SSH exec, Telnet, OpenOCD, and a dedicated fil
 architectural directions, not current features or commitments. The current CLI file transfer is an
 application-layer Linux shell protocol carried over an existing serial Session; it is not another
 Transport.
+
+## Managed user-space debugging
+
+Application owns a debug operation above an existing Session, including exclusive lease ownership,
+gdbserver startup, heartbeat, cancellation, and verified shell restoration. The debugger service
+owns GDB/MI and relays raw RSP through direct Session-service calls. The private Unix socket accepts
+only the exact owned GDB PID and user. This managed MI mode uses no TCP listener or loopback MCP recursion.
+The initial backend is native Linux only and requires all processes and the ELF in one environment.
+See [Application](../modules/application.md#user-space-debug-operations).
+
+
+## External RSP bridge
+
+A separate Application operation leases an already-open serial Session and exposes a single
+credential-authenticated TLS/TCP stream. `internal/core/debugger` supplies endpoint authentication
+and the same byte relay used by managed MI. The CLI `rsp-client` adapts GDB's pipe to the authenticated
+connection and answers a separate authenticated control heartbeat on the same endpoint; it never
+starts or controls GDB. Application uses fresh liveness evidence for automatic
+management renewal. MCP retains explicit lifecycle management. Target preparation and debugger control remain with the external operator. No additional Transport, Session reader,
+Agent Runtime, or RSP implementation is introduced. Failure/recovery ownership remains in
+[Application](../modules/application.md#external-serial-rsp-bridge).

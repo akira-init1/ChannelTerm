@@ -25,7 +25,7 @@ var (
 	ErrRequiredCursor = errors.New("cursor is required for wait tools")
 )
 
-const serverInstructions = `cterm means ChannelTerm. If no Session is known, call terminal_list_sessions. Use terminal_exec for a non-interactive command at a known idle Bash prompt; use terminal_write for raw, interactive, or binary input. Use terminal_wait for output and terminal_wait_file_transfer for transfer results. For discovered devices, call terminal_get_connection_decision before opening; action ask requires approval. terminal_close closes the Session for all clients. Lease and file-transfer controls are not for normal use.`
+const serverInstructions = `cterm means ChannelTerm. terminal_list_sessions finds Sessions. Idle Bash: terminal_exec; keys: terminal_write. Files: CLI channelterm file send/receive; terminal_wait_file_transfer. For discovered devices: terminal_get_connection_decision before opening; ask requires approval. terminal_close closes the Session for all clients. Lease and file-transfer controls are not for normal use. Linux MI: debug_start/command/events/stop. External GDB: debug_bridge_*; renew and verify shell recovery.`
 
 // NewServer creates an MCP Server backed by registry and reports version in
 // protocol implementation metadata. An empty version is reported as devel.
@@ -339,6 +339,11 @@ func newAdapter(registry *tool.Registry) (*adapter, error) {
 		{name: "terminal_wait_device_event", target: readDeviceEvents.Name(), description: "Wait for a device appearance or disappearance event after a known cursor; use terminal_read_device_events without cursor for an immediate snapshot. After appeared, call terminal_get_connection_decision before terminal_open_serial.", schema: waitSchema(readDeviceEvents.InputSchema()), requireCursor: true},
 		{name: "terminal_get_connection_decision", target: connectionDecision.Name(), description: connectionDecision.Description(), schema: connectionDecision.InputSchema()},
 		{name: "terminal_close", target: closeTool.Name(), description: closeTool.Description(), schema: closeTool.InputSchema()},
+	}
+	for _, name := range []string{"debug_start", "debug_command", "debug_events", "debug_stop", "debug_bridge_list", "debug_bridge_start", "debug_bridge_status", "debug_bridge_renew", "debug_bridge_close", "debug_bridge_restore", "debug_bridge_report"} {
+		if registered, ok := registry.Get(name); ok {
+			exposed = append(exposed, exposedTool{name: name, target: name, description: registered.Description(), schema: registered.InputSchema()})
+		}
 	}
 	for index := range exposed {
 		outputSchema, ok := terminalOutputSchema(exposed[index].name)

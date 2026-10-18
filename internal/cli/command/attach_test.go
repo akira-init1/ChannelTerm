@@ -15,6 +15,7 @@ import (
 	"sync"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"github.com/akira-init1/ChannelTerm/internal/cli/interactive"
 	"github.com/akira-init1/ChannelTerm/internal/core/channel"
@@ -619,6 +620,31 @@ func TestRenderAgentActivityShowsCommandsButSkipsUserAndLineEndings(t *testing.T
 		if got := renderAgentActivity(event); len(got) != 0 {
 			t.Errorf("renderAgentActivity(%+v) = %q, want no block", event, got)
 		}
+	}
+}
+
+func TestRenderAgentActivityBoundsAndEscapesPreview(t *testing.T) {
+	for _, tc := range []struct {
+		name, payload, want string
+	}{
+		{"large upload", strings.Repeat("QUJD", 4096), "16384 bytes; preview truncated"},
+		{"many lines", strings.Repeat("line\n", 100), "500 bytes; preview truncated"},
+		{"unicode boundary", strings.Repeat("板", 300), "900 bytes; preview truncated"},
+		{"terminal controls", "test\x1b[2J\r\x00\xff", `test\x1b[2J\r\x00\xff`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			data := []byte(tc.payload)
+			got := renderAgentActivity(session.SessionEvent{Actor: session.ActorAgent, Operation: session.OperationWrite, Data: data})
+			if len(got) > 800 || !strings.Contains(string(got), tc.want) {
+				t.Fatalf("preview length=%d, want bounded preview containing %q: %q", len(got), tc.want, got[:min(len(got), 800)])
+			}
+			if bytes.ContainsAny(got, "\x1b\x00\xff") || !utf8.Valid(got) {
+				t.Fatalf("unsafe preview: %q", got)
+			}
+			if string(data) != tc.payload {
+				t.Fatal("presentation changed retained payload")
+			}
+		})
 	}
 }
 

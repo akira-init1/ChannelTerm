@@ -127,6 +127,9 @@ func runWithDependenciesWithInterrupts(ctx context.Context, args []string, input
 			}
 		}()
 	}
+	if len(args) > 0 && args[0] == "rsp-client" {
+		return runRSPClient(ctx, args[1:], input, output)
+	}
 	if len(args) > 0 && args[0] == "serial" {
 		return runSerial(ctx, args[1:], input, output, newSession)
 	}
@@ -150,6 +153,9 @@ func runWithDependenciesWithInterrupts(ctx context.Context, args []string, input
 	}
 	if len(args) > 0 && args[0] == "list" {
 		return runList(ctx, args[1:], output)
+	}
+	if len(args) > 0 && args[0] == "gdb-list" {
+		return runGDBList(ctx, args[1:], output, listMCPBridges)
 	}
 	if len(args) > 0 && args[0] == "mcp" {
 		return runMCP(ctx, args[1:], output)
@@ -175,11 +181,13 @@ func runWithDependenciesWithInterrupts(ctx context.Context, args []string, input
 		fmt.Fprintln(output, "  attach  Attach to a Session hosted by local MCP HTTP")
 		fmt.Fprintln(output, "  events  Stream structured events from a shared Session")
 		fmt.Fprintln(output, "  file    Send or receive a file through a shared Session")
+		fmt.Fprintln(output, "  gdb-list List external GDB bridge ports in an existing Host")
 		fmt.Fprintln(output, "  help    Show this help message")
 		fmt.Fprintln(output, "  init    Configure supported MCP clients")
 		fmt.Fprintln(output, "  install Install ChannelTerm for the current user")
 		fmt.Fprintln(output, "  list    List local devices, saved profiles, and MCP sessions")
 		fmt.Fprintln(output, "  mcp     Start the Session Host MCP server")
+		fmt.Fprintln(output, "  rsp-client Connect external GDB to an authenticated RSP bridge")
 		fmt.Fprintln(output, "  serial  Connect to a serial port")
 		fmt.Fprintln(output, "  ssh     Open and share an SSH interactive shell")
 		fmt.Fprintln(output, "  sftp    Transfer files and manage remote files over SFTP")

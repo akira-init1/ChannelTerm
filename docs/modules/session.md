@@ -14,7 +14,7 @@ new --> connecting --> open --> closing --> closed
 
 `Connect` may run only from `new`. It checks and passes the context to Transport connection, then
 accepts ownership of the returned Channel. A cancelled or failed connection, or a successful
-Transport result with no Channel, enters `failed` and closes both reader-facing buffers.
+Transport result with no Channel, enters `failed` and closes the output, activity, and event buffers.
 
 Only `open` permits read, write, activity read, event read, and resize operations. `Close` wakes
 waiting readers, closes the Channel to unblock active I/O, waits for the reader goroutine, releases
@@ -54,9 +54,9 @@ operation (`write`), and a copied payload. A partial write followed by an error 
 confirmed prefix; a zero-byte failure records nothing. Activity metadata is never forwarded to
 Channel.
 
-Retention is bounded by both 1024 events and 16 MiB of combined payload data. The oldest complete
-events are evicted before either limit is exceeded. One event larger than the byte limit is not
-retained, and older cursors report `Dropped`.
+Retention bounds both event count and combined payload size. The oldest complete events are evicted
+before either limit is exceeded; an oversized event is not retained, and older cursors report
+`Dropped`. Capacities and cursor details are owned by the [activity buffer contract](buffer.md#activity-buffer).
 
 Activity and remote output are independent cursor streams. Reading one cannot consume or modify the
 other.
@@ -71,8 +71,15 @@ The current event types are `SESSION_CREATED`, `SESSION_ATTACHED`, `SESSION_DETA
 `LEASE_ACQUIRED`, `LEASE_RELEASED`, `FILE_TRANSFER_STARTED`, `FILE_TRANSFER_PROGRESS`,
 `FILE_TRANSFER_COMPLETED`, `FILE_TRANSFER_CANCELLED`, `FILE_TRANSFER_FAILED`,
 `TERMINAL_COMMAND_STARTED`, `TERMINAL_COMMAND_OUTPUT_STARTED`, `TERMINAL_COMMAND_COMPLETED`, and
-`TERMINAL_COMMAND_FAILED`. One file transfer's lease acquire/release and status events all carry the
-same process-local `transfer_id`. `file-transfer` lease events also include an `output_cursor`
+`TERMINAL_COMMAND_FAILED`, `DEBUG_STATE`, and `DEBUG_CLIENT_REPORT`. Managed MI transitions carry
+only `debug_id` and `state`; external bridge transitions carry only `bridge_id` and `state`.
+Neither includes credentials. `DEBUG_CLIENT_REPORT` carries explicitly selected external-debugger
+text, not raw Session bytes: bridge ID, report sequence, kind, text (at most 4096 UTF-8 bytes),
+`reported_by: codex`, and `complete_audit: false`. Application validates the report owner and
+known capabilities; Session stores it as ordinary event metadata. Reporting never changes target
+state or renews a lease. Reports share the bounded event history and are not a persistent audit.
+One file transfer's lease acquire/release and status events all carry the
+same process-local `transfer_id`. `file-transfer` and `debug` lease events also include an `output_cursor`
 snapshot used only by attach presentation to suppress the corresponding internal raw-output range.
 
 One isolated Agent command carries the same non-secret `command_id` across its command events.
@@ -88,8 +95,9 @@ the last confirmed progress, and successful regular-file completion includes the
 `local_sha256` and `remote_sha256` values. File-transfer metadata never exposes a lease owner
 capability.
 
-`ReadEvents` and `ReadRecentEvents` give every observer an independent event cursor. The fixed
-1024-event retention overwrites its oldest event for a slow observer and reports `Dropped`.
+`ReadEvents` and `ReadRecentEvents` give every observer an independent event cursor. The
+[event buffer](buffer.md#structured-session-event-buffer) overwrites old events for slow observers
+and reports `Dropped`.
 Publishing does not send on observer channels, so it cannot block Channel reads, Session writes, or
 another observer.
 
@@ -126,3 +134,12 @@ prevents a delayed completion signal from removing a newer Session that reuses t
 
 After a successful registration, Manager publishes `SESSION_CREATED` with display metadata.
 Registration remains complete even if an observer is slow.
+
+## Conservative input summary
+
+`Core.HasPendingInput` is an optional consumer capability above the unchanged Session interface.
+It summarizes confirmed non-system writes while holding the write mutex, independently of bounded
+activity retention. CR, LF, Ctrl+C, and Ctrl+U clear pending input; other non-backspace bytes mark
+it pending, and backspace cannot prove the line is empty. Internal system protocol bytes leave
+this summary unchanged. It supports safe debug takeover; it does not establish remote shell state,
+parse escape sequences, or change retained bytes. Debug lease coordination belongs to Application.

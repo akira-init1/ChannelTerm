@@ -40,7 +40,7 @@ const (
 	LeaseTypeTerminal LeaseType = "terminal"
 	// LeaseTypeFileTransfer reserves a Session for a multi-chunk file transfer.
 	LeaseTypeFileTransfer LeaseType = "file-transfer"
-	// LeaseTypeDebug is reserved for a future debugging operation.
+	// LeaseTypeDebug reserves a Session for an exclusive debugging operation.
 	LeaseTypeDebug LeaseType = "debug"
 )
 
@@ -181,6 +181,9 @@ func (c *leaseCoordinator) acquire(sessionID, owner string, typ LeaseType) (Sess
 		expired, abortSession := c.expireLocked(sessionID)
 		c.mu.Unlock()
 		c.notifyExpired(expired, abortSession)
+		if abortSession {
+			return SessionLease{}, ErrSessionBusy
+		}
 		c.mu.Lock()
 	}
 	now := time.Now().UTC()
@@ -299,12 +302,13 @@ func (c *leaseCoordinator) expireLocked(sessionID string) (SessionLease, bool) {
 	lease := c.leases[sessionID]
 	delete(c.leases, sessionID)
 	delete(c.timers, sessionID)
-	abortSession := c.activeWrites[sessionID] > 0
+	abortSession := c.activeWrites[sessionID] > 0 || lease.Type == LeaseTypeDebug
 	if abortSession {
 		// A Channel write has no generic context or deadline capability. Mark the
 		// Session as recovering until Application closes it, which is the only
 		// portable way to release a blocked write without allowing a replacement
-		// lease to race the stale operation.
+		// lease to race the stale operation. An expired debug lease also requires
+		// closure: protocol bytes may still arrive even with no write in flight.
 		c.recovering[sessionID] = true
 	}
 	if control := c.fileTransfers[sessionID]; control != nil {
@@ -514,6 +518,9 @@ func (c *leaseCoordinator) write(sessionID, owner, displayID string, operation f
 		c.notifyExpired(expired, abortSession)
 		if requireLease {
 			return 0, ErrLeaseNotOwned
+		}
+		if abortSession {
+			return 0, ErrSessionBusy
 		}
 		return operation()
 	}
