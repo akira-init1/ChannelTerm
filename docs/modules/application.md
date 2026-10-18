@@ -395,7 +395,9 @@ Disconnected is not restored: ordinary writers remain excluded. Explicit restora
 externally returned shell and its pre-debug TTY snapshot. It joins the disconnected worker, applies
 and reads back the caller's exact `stty -g` value, and uses the existing split-token command-marker
 reader for a fresh proof. The independent ten-second timeout closes the Session even if a probe write
-blocks. Only successful verification releases the lease while preserving the Session. Unknown target
+blocks. In Bash, the probe deletes its own history entry only after matching its fresh split token
+in the last entry; ignored probes or disabled history must not delete a prior user command. Other
+shells keep their normal history behavior. Only successful verification releases the lease while preserving the Session. Unknown target
 state, lost serial bytes, expiry, explicit close, or failed recovery closes the Session without
 claiming target cleanup. There are no ACK-mode assumptions, injected detach commands, or remote PID
 signals in this lifecycle. See the [MCP contracts](../reference/mcp-tools.md#external-rsp-bridge-tools)

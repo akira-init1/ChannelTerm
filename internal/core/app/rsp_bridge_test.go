@@ -7,7 +7,11 @@ import (
 	"errors"
 	"io"
 	"net"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -246,6 +250,85 @@ func TestRSPBridgeVerifiedRestorationAndEchoFailure(t *testing.T) {
 			}
 			assertBridgePortReleased(t, status.Address)
 		})
+	}
+}
+
+func TestRSPBridgeRestoreCommandPreservesBashHistory(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Bash history check runs on Unix")
+	}
+	bash, err := exec.LookPath("bash")
+	if err != nil {
+		t.Skip("Bash is unavailable")
+	}
+	const token = "00112233445566778899aabb"
+	for _, mode := range []struct{ name, setup string }{
+		{"normal", ":"},
+		{"ignore-space", "HISTCONTROL=ignorespace"},
+		{"ignore-probe", "HISTIGNORE='*stty*'"},
+		{"disabled", "set +o history"},
+	} {
+		for _, probe := range []struct {
+			name, stty string
+			verified   bool
+		}{
+			{"verified", `stty() { if [ "$1" = -g ]; then printf '1:2:3'; fi; }`, true},
+			{"stty-failed", `stty() { return 1; }`, false},
+			{"readback-mismatch", `stty() { if [ "$1" = -g ]; then printf '4:5:6'; fi; }`, false},
+		} {
+			t.Run(mode.name+"/"+probe.name, func(t *testing.T) {
+				historyPath := filepath.Join(t.TempDir(), "history")
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer cancel()
+				cmd := exec.CommandContext(ctx, bash, "--noprofile", "--norc", "-i")
+				cmd.Env = append(os.Environ(), "HISTFILE=/dev/null", "HISTSIZE=100", "HISTCONTROL=", "HISTIGNORE=", "HISTTIMEFORMAT=", "PS1=", "PS2=")
+				// A fake stty isolates history semantics from TTY availability; the
+				// Linux PTY test separately checks actual terminal restoration.
+				cmd.Stdin = strings.NewReader(probe.stty + "\nhistory -c\n" + mode.setup + "\necho USER_BEFORE_RESTORE\n" + rspBridgeRestoreCommand("1:2:3", token) + "echo USER_AFTER_RESTORE\nhistory -w " + quoteTerminalCommand(historyPath) + "\nexit 0\n")
+				output, err := cmd.CombinedOutput()
+				if err != nil {
+					t.Fatalf("Bash: %v, output=%q", err, output)
+				}
+				history, err := os.ReadFile(historyPath)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if strings.Contains(string(history), token[:12]) || strings.Contains(string(history), "history -d") {
+					t.Fatalf("restore probe retained in history: %s", history)
+				}
+				if mode.name != "disabled" {
+					for _, line := range []string{"echo USER_BEFORE_RESTORE\n", "echo USER_AFTER_RESTORE\n"} {
+						if !strings.Contains(string(history), line) {
+							t.Fatalf("user history lost %q: %s", line, history)
+						}
+					}
+				} else if !strings.Contains(string(history), "set +o history\n") {
+					t.Fatalf("last recorded user command was deleted: %s", history)
+				}
+				if got := bytes.Contains(output, []byte("\x1e\x1f"+token+"\x1f\x1e")); got != probe.verified {
+					t.Fatalf("verified response=%t, want %t; output=%q", got, probe.verified, output)
+				}
+			})
+		}
+	}
+}
+
+func TestRSPBridgeRestoreCommandSupportsPOSIXShell(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX shell check runs on Unix")
+	}
+	sh, err := exec.LookPath("sh")
+	if err != nil {
+		t.Skip("sh is unavailable")
+	}
+	const token = "00112233445566778899aabb"
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, sh)
+	cmd.Stdin = strings.NewReader("unset BASH_VERSION\nstty() { if [ \"$1\" = -g ]; then printf '1:2:3'; fi; }\n" + rspBridgeRestoreCommand("1:2:3", token))
+	output, err := cmd.CombinedOutput()
+	if err != nil || string(output) != "\x1e\x1f"+token+"\x1f\x1e" {
+		t.Fatalf("POSIX restoration: %v, output=%q", err, output)
 	}
 }
 

@@ -488,8 +488,7 @@ func (a *Application) RestoreRSPBridge(id, owner, ttyState string, confirmShellR
 	token, err := newTerminalCommandToken()
 	if err == nil {
 		p := &terminalCommandProtocol{terminal: r.terminal, cursor: sessionOutputCursor(r.terminal), token: token}
-		quoted := quoteTerminalCommand(ttyState)
-		command := "stty " + quoted + " && [ \"$(stty -g)\" = " + quoted + " ] && printf '\\036\\037%s\\037\\036' " + quoteSplitTerminalCommandToken(token) + "\n"
+		command := rspBridgeRestoreCommand(ttyState, token)
 		_, err = a.writeSession(ctx, r.terminal.ID(), r.owner, session.WriteRequest{Actor: session.ActorSystem, Data: []byte(command)})
 		if err == nil {
 			_, err = p.waitStart(ctx)
@@ -515,6 +514,18 @@ func (a *Application) RestoreRSPBridge(id, owner, ttyState string, confirmShellR
 	r.setState("restored", nil)
 	close(r.finished)
 	return r.snapshot(), nil
+}
+
+// rspBridgeRestoreCommand verifies the saved TTY state before emitting the
+// split-token response, so neither input echo nor a failed stty proves recovery.
+func rspBridgeRestoreCommand(ttyState, token string) string {
+	quoted := quoteTerminalCommand(ttyState)
+	splitToken := quoteSplitTerminalCommandToken(token)
+	// Only delete a Bash entry containing this fresh probe's literal split token.
+	// HISTIGNORE or disabled history can leave a user's command as the last entry;
+	// blindly deleting HISTCMD would remove it. Other shells keep normal history.
+	cleanup := "if [ -n \"${BASH_VERSION-}\" ];then case \"$(HISTTIMEFORMAT= builtin history 1)\" in *" + quoteTerminalCommand(splitToken) + "*) builtin " + bashDeleteCurrentHistoryEntry + ";;esac;fi;"
+	return cleanup + "stty " + quoted + " && [ \"$(stty -g)\" = " + quoted + " ] && printf '\\036\\037%s\\037\\036' " + splitToken + "\n"
 }
 
 // ConnectRSPBridge connects a byte-stream adapter and its independent control

@@ -25,6 +25,7 @@ Reuse the intended Session from `terminal_list_sessions`; retain its opaque ID, 
 ## Check the target and symbols before takeover
 
 1. Observe before writing. Reserve `terminal_exec` for idle Bash; each call uses a fresh child. Use `terminal_write` and reads for interactive GDB or another known shell. Never inject shell commands into RSP.
+   Prefer absolute tool paths over changing the shared shell's `PATH` just for debugging. Raw setup commands follow shell history rules; `terminal_exec` is not a global history filter and cannot persist environment changes. Do not clear user history to hide setup. The bridge's automatic restore probe handles its own Bash history entry.
 2. Check tools on the **target**, including successful execution rather than presence alone:
 
    ```sh

@@ -860,6 +860,9 @@ Restore requires a disconnected client, explicit confirmation that the target re
 shell, and the exact pre-debug `stty -g` snapshot (1..512 printable bytes). It sends a quoted shell
 command to apply/read back that state and obtain a fresh split-token response. It does not synthesize
 RSP detach/kill. The independent ten-second recovery deadline also closes a blocked serial write.
+In interactive Bash, the probe removes only its own current history entry, if recorded; it does
+not clear user history or change history settings. Other shells retain their normal history
+behavior. This does not remove earlier raw setup commands sent through `terminal_write`.
 Only verified restoration releases the lease while keeping the Session open. Close always ends an
 unfinished bridge by closing its Session. Close and successful restoration are idempotent; terminal
 states cannot be resurrected. A later close of an already restored bridge preserves that Session.

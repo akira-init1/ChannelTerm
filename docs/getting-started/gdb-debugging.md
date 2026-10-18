@@ -534,6 +534,12 @@ come from this target before preparation; no guessed `stty sane` defaults are us
 mismatched TTY state, lost output, or ten-second recovery timeout closes the Session and reports
 `failed`. This verifies shell/TTY recovery, not the inferior's state or lack of debugging side effects.
 
+The automatic restore probe keeps itself out of interactive Bash history; see the
+[history contract](../reference/mcp-tools.md#external-rsp-bridge-tools). Raw setup commands still
+follow the target shell's history rules. Use `terminal_exec` for ordinary checks at an idle Bash
+prompt, and prefer absolute debugger paths over changing the shared shell's `PATH`. Do not clear
+user history to hide setup commands.
+
 For an uncertain target, missing TTY snapshot, or abandoned operation, use `debug_bridge_close`.
 It closes the endpoint and serial Session without sending protocol commands or claiming recovery.
 Heartbeat expiry and serial I/O/data loss also fail closed. Reopening the port does not itself reset
