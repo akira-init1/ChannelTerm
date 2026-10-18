@@ -2,32 +2,18 @@
 
 # ChannelTerm
 
+**AI と一緒にボードをデバッグ。同じ端末で作業を続ける。**
+
+ChannelTerm は、あなたと AI クライアントで実際のシリアル端末や SSH 端末を共有します。同じデバイス出力を読み、AI の端末コマンドを確認し、交代でボードを操作できます。Windows、Linux、macOS に対応し、MCP で外部 AI クライアントと接続します。
+
+GDB を使えば、AI にブレークポイント設定、Linux プログラムのステップ実行、変数確認を任せられます。Windows でシリアル接続して WSL2 で GDB を動かす構成や、共有コンソールを保ちつつ GDB が Ethernet を使う構成を選べます。[デバッグ構成を選ぶ](#gdb-debugging)。
+
 > この文書は日本語版の入口です。動作、オプション、互換性については、英語版
 > [README](README.md)、現在のソースコード、および `channelterm --help` が基準です。
 
-ChannelTerm は、人間と AI が同じハードウェア端末 Session を共有するためのツールです。
-AI が端末を置き換えるのではありません。AI がデバイスを読み書きしている間も、人間は接続を
-維持し、AI の操作を確認し、直接入力し、必要に応じて介入できます。
-
-ChannelTerm は Windows、Linux、macOS でシリアル通信と SSH PTY シェルをサポートします。AI は内蔵せず、実際の端末 Session を人間と外部 AI クライアントに MCP 経由で提供します。
-
 ## ChannelTerm を使う理由
 
-従来のシリアル端末では、人間が物理接続を利用します。
-
-```text
-Human ---- terminal ---- Serial device
-```
-
-AI 専用のシリアルツールでは AI が接続を利用し、人間はライブ端末に参加できません。
-
-```text
-AI ---- MCP / serial ---- Serial device
-
-Human         (not attached)
-```
-
-ChannelTerm は 1 本の物理接続を共有 Session に保持します。
+端末を開いたまま、AI と同じデバイス接続を使えます。
 
 ```text
                          +---- Human terminal
@@ -37,18 +23,15 @@ Serial device ---- Session
                          +---- AI / MCP client
 ```
 
-これにより、ハードウェアのデバッグ中も AI の操作を観察でき、人間も参加し続けられます。共有は同じポートを開き直すだけではありません。各クライアントは独立したカーソルで保持された生の出力を読み、すべての書き込みは同じ Session を通ります。
+各クライアントは独立して読むため、AI が読んでも人間が見ている出力は消費されません。ChannelTerm は AI の端末書き込みを表示します。外部デバッガーには別の[表示範囲](#gdb-debugging)があります。
 
 ## できること
 
-- Host が所有する 1 本のシリアル接続を、人間の CLI と MCP クライアントで共有。
-- 独立した出力・アクティビティカーソルにより、ある読み取り側が他の読み取り側のデータを消費することを防止。
-- 生の Session 出力を変更せず、接続中の端末に Agent の書き込みを表示。
-- AI が接続したまま、人間がリモートへの `Ctrl+C` を含む直接入力を実行。
-- 追加で接続したクライアントだけを切断し、共有 Session を維持。一時 Host を所有するアタッチメントを終了すると、その Host と Session も終了。
-- Windows、Linux、macOS のネイティブなターゲット名によるシリアル検出、TOML Profile、共有不要時のプライベート直接接続。
-- stdio または Streamable HTTP 上の MCP。共有 CLI ワークフローは HTTP Session Host を使用。
-- 既存のシリアル Session 上で、サイズを制限した転送による CLI のファイル／ディレクトリ送受信、SHA-256 検証、安全な一時領域でのディレクトリ展開。
+- **コンソールを共有：**人間の CLI と AI/MCP が同じシリアル／SSH Session を利用。
+- **作業を追う：**デバイス出力とともに AI の端末コマンドを確認。
+- **Linux をデバッグ：**管理型 GDB、シリアルブリッジ、ネットワーク GDB を利用。
+- **ファイルを転送：**共有シリアル Session と SHA-256 検証、または独立した SFTP/SCP 接続。
+- **attach で開始：**`channelterm attach` がローカル共有 Host を自動作成可能。
 
 ## インストール
 
@@ -151,7 +134,7 @@ HTTP MCP クライアントは `http://127.0.0.1:37099/mcp` を使用して同�
 AI クライアントが Session を作成または接続できます。準備完了後に出力がないのは正常です。Host と
 そのすべての Session を終了するときは `Ctrl+C` を押します。
 
-接続中は次のキーを使用できます。
+ファイル転送やデバッガーの接管中を除く、通常の端末操作では：
 
 ```text
 Ctrl+C      リモート端末へ 0x03 を送信
@@ -244,17 +227,97 @@ channelterm file receive /var/log/myapp ./myapp --session SER-1
 
 転送には、待機中の Linux シェルと[ファイル転送ガイド](docs/getting-started/file-transfer.md)に記載されたツールが必要です。SHA-256 を検証し、既存の宛先を上書きせず新しい名前を選びます。転送中に共有アタッチメントで `Ctrl+C` を押すとキャンセルの確認が表示されます。後処理がリースを解放するまで、他の書き込みはブロックされます。
 
-## MCP 経由のユーザー空間 GDB
+<a id="gdb-debugging"></a>
 
-ネイティブ Linux では、MCP クライアントが `debug_start` / `debug_command` / `debug_events` / `debug_stop` ツールで待機中の Bash Session を引き継ぎ、ブレークポイント、ステップ実行、変数・スレッド・レジスタの確認、デタッチを行えます。初版では ChannelTerm、GDB、gdbserver、ELF が同じ Linux 環境にある必要があります。単一 inferior の all-stop デバッグに対応し、端末状態の復元と一意のマーカーによるシェル確認が成功してから通常の書き込みを再開します。
+## GDB によるリモートデバッグ
 
-```text
-debug_start -> break_insert -> continue -> debug_events -> next/step/finish -> debug_stop
+デバッガーから Linux プログラムへの接続方式を選びます。いずれもターゲット対応ツールと一致するシンボルが必要です。
+
+| 方式 | GDB の接続経路 | デバッグ中のコンソール／Session |
+| --- | --- | --- |
+| [シリアルブリッジ](#gdb-serial-bridge) | ワークステーション GDB → ChannelTerm → ボードのシリアル；下記は Windows + WSL2 の例 | 復元まで GDB が占有 |
+| [シリアルコンソール + TCP](#gdb-serial-tcp) | ワークステーション GDB → ボードのネットワーク；対応 GDB があれば WSL2、Linux、Windows、macOS | 独立したシェル／ログ操作に利用可能 |
+| [管理型 GDB/MI](docs/getting-started/gdb-debugging.md#managed-native-linux-prerequisites) | MCP が GDB を操作；Host、シェル、ツール、ELF は同一ネイティブ Linux 環境 | 選択した Session をデバッグ中は占有 |
+
+<a id="gdb-serial-bridge"></a>
+
+### シリアル GDB ブリッジ：Windows + WSL2
+
+**Windows でシリアル接続、WSL2 で GDB 実行、AI がリモートデバッグを進めます。** Windows の ChannelTerm Host が COM ポートと共有 Session を保持します。WSL2 のターゲット対応 GDB は、Linux 版 `channelterm rsp-client` と認証付き TLS/TCP ブリッジを経由して、ボード上の Linux gdbserver に接続します。
+
+```mermaid
+flowchart LR
+    AI["AI クライアント"]
+    Human["人間の端末"]
+    subgraph Windows
+        Host["ChannelTerm Host"]
+        COM["COM ポート"]
+        Host <--> COM
+    end
+    subgraph WSL2["WSL2 / Linux"]
+        GDB["ターゲット対応 GDB"]
+        Helper["Linux channelterm rsp-client"]
+        GDB <--> Helper
+    end
+    Board["Linux ボード / gdbserver"]
+    AI -->|"MCP：準備と管理"| Host
+    AI -->|"プロセスツール：GDB 操作"| GDB
+    Human ---|"attach / AI レポート"| Host
+    Helper <-->|"TLS/TCP"| Host
+    COM <-->|"シリアル RSP"| Board
 ```
 
-[手順、MCP 呼び出し、安全な attach、ローカル PTY テストの範囲](docs/getting-started/gdb-debugging.md).
+Windows のシリアルドライバーと Linux ツールチェーンをそのまま利用できます。シリアル機器は Windows 側に置き、ボード側のネットワーク GDB ポートは不要です。
 
-独立して実行する GDB には、`debug_bridge_*` が準備済みのシリアル Session を認証付き TLS/TCP ブリッジとして公開します。操作者が互換性のある Linux gdbserver を準備し、GDB を独立して実行します。`channelterm rsp-client` は接続を担います。ボードの型番やターゲット CPU アーキテクチャの制限はありません。切断後も、期限のある復旧期間は排他的な所有権を保持します。復元の検証に成功すれば Session を維持し、明示的な終了や期限切れでは Session を閉じます。Windows/WSL2 の設定、更新、復旧は[外部ブリッジのガイド](docs/getting-started/gdb-debugging.md#external-gdb-over-a-prepared-serial-session)を参照してください。ベアメタルデバッグは対象外です。
+1. Windows で `channelterm init --mcp`（HTTP）を使って AI クライアントを設定し、例えば `channelterm attach COM8 --baud 115200` でボードに接続します。確認済みのシリアル設定を使い、所有元の Host を稼働させておきます。
+2. [準備手順](docs/getting-started/gdb-debugging.md#prepare-and-open)に従い、TTY 状態を保存し、ボード上で互換性のある `gdbserver --once stdio` を準備して、MCP から `debug_bridge_start` を呼び出します。AI が WSL2 で GDB を実行するにはプロセス実行ツールも必要です。
+3. WSL2 では Linux 版 ChannelTerm、ターゲット対応 GDB、一致する ELF を使います。秘密の接続記述子を WSL ファイルシステムの `bridge.json` に保存してください（`chmod 600`）。ネットワークとパスは [WSL2 ガイド](docs/getting-started/gdb-debugging.md#connect-independent-gdb-from-wsl2)を参照し、下のファイルパスを置き換えます。
+
+```text
+(gdb) target remote | channelterm rsp-client --connection /home/EXAMPLE/private/bridge.json
+(gdb) break main
+(gdb) continue
+(gdb) next
+(gdb) backtrace
+(gdb) detach
+```
+
+4. Windows で `channelterm gdb-list` または `channelterm gdb-list --json` を使い、ブリッジのポートと状態を確認します。GDB detach 後、ボードがシェルに戻ったことを確認して保存した TTY 状態で `debug_bridge_restore` を呼び出し、共有端末の利用を再開します。
+
+このシリアルブリッジでは、AI が実際のコマンドや観測結果を `debug_bridge_report` で接続中の端末に報告できます。AI レポートと明示され、GDB の完全な自動記録ではありません。
+
+<a id="gdb-serial-tcp"></a>
+
+### 共有シリアルコンソール + Ethernet 経由の GDB
+
+シリアルコンソールでログやシェル操作を共有しながら、GDB の通信にはネットワークを利用できます。シリアル Host と GDB は同じコンピューターでも別々でも構いません。ドライバーとターゲット用ツールチェーンを各環境に合わせて選べます。
+
+```mermaid
+flowchart LR
+    AI["AI クライアント"]
+    Human["人間の端末"]
+    Host["ChannelTerm Host"]
+    GDB["ワークステーション GDB: WSL2 / Linux / Windows / macOS"]
+    subgraph Board["Linux ボード"]
+        Console["シリアルシェル / ログ"]
+        Server["gdbserver"]
+    end
+    Human ---|"attach"| Host
+    AI -->|"MCP"| Host
+    AI -->|"プロセスツール：GDB 操作"| GDB
+    Host <-->|"シリアル"| Console
+    GDB <-->|"TCP / Ethernet"| Server
+```
+
+シリアルシェルで引き続きコマンドを実行するには、gdbserver をその対話シェルとは独立して稼働させます。ワークステーションの GDB で一致する ELF を読み込み、制限されたネットワーク経由で下記のように接続します（`TARGET_IP` とポートを置き換えてください）。起動、プログラムの入出力、SSH トンネルは[シリアルコンソール + TCP の手順](docs/getting-started/gdb-debugging.md#shared-serial-console-with-tcp-gdb)を参照してください。
+
+```text
+(gdb) target remote TARGET_IP:2345
+```
+
+この TCP 構成は `rsp-client` や `debug_bridge_*` を使わず、gdbserver に直接接続します。人間と AI は共有シリアルの活動を確認できますが、外部 GDB のコマンドと結果はデバッガー側の出力に残り、シリアル端末へ自動転送されません。
+
+CI は Linux PTY 上で実際の GDB/gdbserver により管理型 GDB/MI と外部ブリッジを検証します。設定、互換性、SSH の代替手順、復旧は[完全なガイド](docs/getting-started/gdb-debugging.md)を参照してください。
 
 ## 仕組み
 
@@ -301,6 +364,7 @@ channelterm serial --config ./channelterm.toml --profile board
 - [共有 Session](docs/getting-started/shared-session.md)
 - [ファイル転送ワークフロー](docs/getting-started/file-transfer.md)
 - [MCP Server](docs/getting-started/mcp-server.md)
+- [GDB デバッグ手順](docs/getting-started/gdb-debugging.md)
 - [CLI リファレンス](docs/reference/cli.md)
 - [MCP ツールリファレンス](docs/reference/mcp-tools.md)
 - [識別子と参照](docs/reference/identifiers.md)

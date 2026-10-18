@@ -2,32 +2,18 @@
 
 # ChannelTerm
 
+**Déboguez votre carte avec l’IA. Restez dans le même terminal.**
+
+ChannelTerm vous permet de partager un vrai terminal série ou SSH avec votre client IA. Lisez la même sortie, suivez les commandes de terminal de l’IA et utilisez la carte à tour de rôle. Il fonctionne sous Windows, Linux et macOS et connecte les clients IA externes via MCP.
+
+Avec GDB, l’IA peut poser des points d’arrêt, parcourir un programme Linux et examiner ses variables. Connectez le port série sous Windows et lancez GDB dans WSL2, ou gardez la console partagée pendant que GDB utilise Ethernet. [Choisir une configuration](#gdb-debugging).
+
 > Ce document est la page d’entrée en français. Le [README anglais](README.md), le code source
 > actuel et `channelterm --help` font autorité pour le comportement, les options et la compatibilité.
 
-ChannelTerm permet aux humains et à l’IA de partager la même Session de terminal matériel. L’IA ne
-remplace pas votre terminal : elle peut lire et piloter l’appareil pendant que vous restez connecté,
-voyez ses actions, saisissez directement des commandes et intervenez si nécessaire.
-
-ChannelTerm prend en charge la communication série et les shells SSH avec PTY sous Windows, Linux et macOS. Il n’intègre pas d’IA ; il expose de vraies Sessions de terminal aux utilisateurs et aux clients IA externes via MCP.
-
 ## Pourquoi ChannelTerm ?
 
-Un terminal série traditionnel donne la connexion physique à l’utilisateur :
-
-```text
-Human ---- terminal ---- Serial device
-```
-
-Un outil série réservé à l’IA donne la connexion à l’IA, mais laisse l’utilisateur en dehors du terminal actif :
-
-```text
-AI ---- MCP / serial ---- Serial device
-
-Human         (not attached)
-```
-
-ChannelTerm conserve une connexion physique dans une Session partagée :
+Gardez votre terminal ouvert pendant que l’IA utilise la même connexion à l’appareil :
 
 ```text
                          +---- Human terminal
@@ -37,18 +23,15 @@ Serial device ---- Session
                          +---- AI / MCP client
 ```
 
-Les actions de l’IA restent ainsi observables pendant le débogage matériel, et l’utilisateur reste présent. Le partage ne consiste pas simplement à rouvrir le même port : chaque client lit la sortie brute conservée avec un curseur indépendant, et toutes les écritures passent par la même Session.
+Chaque client lit indépendamment : l’IA ne consomme pas la sortie que vous observez. ChannelTerm affiche les écritures de terminal de l’IA ; les débogueurs externes ont leurs propres [règles de visibilité](#gdb-debugging).
 
 ## Ce que permet ChannelTerm
 
-- Une connexion série détenue par le Host et partagée entre les clients CLI humains et les clients MCP.
-- Des curseurs de sortie et d’activité indépendants, afin qu’un lecteur ne consomme pas les données d’un autre.
-- Des écritures de l’agent visibles dans les terminaux connectés, sans modification de la sortie brute de Session.
-- La saisie humaine directe, y compris un `Ctrl+C` distant, pendant que l’IA reste connectée.
-- Déconnecter un client supplémentaire sans fermer la Session partagée ; quitter la connexion CLI propriétaire d’un Host temporaire ferme ce Host et ses Sessions.
-- La découverte série avec les noms de cibles natifs de Windows, Linux et macOS, des profils TOML et des connexions directes privées lorsque le partage n’est pas souhaité.
-- MCP sur stdio ou Streamable HTTP ; le workflow CLI partagé utilise le HTTP Session Host.
-- L’envoi et la réception CLI de fichiers/répertoires par blocs limités sur une Session série existante, avec vérification SHA-256 et extraction sûre des répertoires dans une zone temporaire.
+- **Partager la console :** humains et IA/MCP utilisent une Session série ou SSH.
+- **Suivre le travail :** voyez les commandes de terminal de l’IA à côté de la sortie de l’appareil.
+- **Déboguer Linux :** avec GDB géré, un pont série ou GDB par le réseau.
+- **Transférer des fichiers :** sur la Session série partagée avec SHA-256, ou par des connexions SFTP/SCP dédiées.
+- **Démarrer avec un attach :** `channelterm attach` peut créer automatiquement le Host local partagé.
 
 ## Installation
 
@@ -156,7 +139,7 @@ Un Host persistant est un processus distinct de longue durée. Après l’affich
 configurés peuvent créer ou rejoindre des Sessions. L’absence de sortie après ce message est
 normale. Appuyez sur `Ctrl+C` pour arrêter le Host et toutes ses Sessions.
 
-Pendant la connexion :
+En usage normal du terminal, hors transfert de fichiers ou prise de contrôle par le débogueur :
 
 ```text
 Ctrl+C      Envoyer 0x03 au terminal distant
@@ -252,17 +235,97 @@ channelterm file receive /var/log/myapp ./myapp --session SER-1
 
 Les transferts nécessitent un shell Linux inactif et les outils indiqués dans le [guide de transfert](docs/getting-started/file-transfer.md). Ils vérifient SHA-256 et choisissent un nouveau nom au lieu d’écraser une destination existante. Pendant un transfert, `Ctrl+C` dans un attachement partagé demande confirmation de l’annulation ; les autres écritures restent bloquées jusqu’à la fin du nettoyage et à la libération du bail.
 
-## GDB en espace utilisateur via MCP
+<a id="gdb-debugging"></a>
 
-Sous Linux natif, un client MCP peut prendre le contrôle d’une Session Bash inactive avec les outils `debug_start` / `debug_command` / `debug_events` / `debug_stop`, poser des points d’arrêt, avancer pas à pas, examiner variables/threads/registres et se détacher. Ce premier backend exige ChannelTerm, GDB, gdbserver et l’ELF dans le même environnement Linux. Il prend en charge un seul inferior en mode all-stop ; l’écriture normale reprend uniquement après restauration du terminal et vérification du shell par un marqueur unique.
+## Débogage distant avec GDB
 
-```text
-debug_start -> break_insert -> continue -> debug_events -> next/step/finish -> debug_stop
+Choisissez comment le débogueur atteint votre programme Linux. Chaque voie nécessite des outils compatibles avec la cible et les symboles correspondants.
+
+| Voie | Connexion GDB | Console / Session pendant le débogage |
+| --- | --- | --- |
+| [Pont série](#gdb-serial-bridge) | GDB du poste → ChannelTerm → port série de la carte ; exemple Windows + WSL2 ci-dessous | Réservée à GDB jusqu’à restauration |
+| [Console série + TCP](#gdb-serial-tcp) | GDB du poste → réseau de la carte ; WSL2, Linux, Windows ou macOS avec GDB compatible | Disponible pour le shell et les journaux indépendants |
+| [GDB/MI géré](docs/getting-started/gdb-debugging.md#managed-native-linux-prerequisites) | MCP contrôle GDB ; Host, shell, outils et ELF dans un même Linux natif | Session choisie réservée pendant le débogage |
+
+<a id="gdb-serial-bridge"></a>
+
+### Pont GDB série : Windows + WSL2
+
+**Windows connecte le port série ; WSL2 exécute GDB ; l’IA coordonne le débogage distant.** Le Host ChannelTerm Windows garde le port COM et la Session partagée ouverts. Un GDB compatible avec la cible dans WSL2 se connecte au gdbserver Linux de la carte via l’auxiliaire Linux `channelterm rsp-client` et le pont TLS/TCP authentifié.
+
+```mermaid
+flowchart LR
+    AI["Client IA"]
+    Human["Terminal humain"]
+    subgraph Windows
+        Host["ChannelTerm Host"]
+        COM["Port COM"]
+        Host <--> COM
+    end
+    subgraph WSL2["WSL2 / Linux"]
+        GDB["GDB compatible avec la cible"]
+        Helper["Linux channelterm rsp-client"]
+        GDB <--> Helper
+    end
+    Board["Carte Linux / gdbserver"]
+    AI -->|"MCP : préparer et gérer"| Host
+    AI -->|"Outil de processus : commandes GDB"| GDB
+    Human ---|"attach / rapports IA"| Host
+    Helper <-->|"TLS/TCP"| Host
+    COM <-->|"RSP série"| Board
 ```
 
-[Procédure, appels MCP, attach sûr et couverture des tests PTY locaux](docs/getting-started/gdb-debugging.md).
+Conservez le pilote série Windows et la chaîne Linux : le périphérique série reste sous Windows et la carte n’a pas besoin de port GDB réseau.
 
-Pour un GDB indépendant, `debug_bridge_*` expose une Session série préparée via un pont TLS/TCP authentifié. L’opérateur prépare un gdbserver Linux compatible et exécute GDB indépendamment ; `channelterm rsp-client` assure la connexion. Le modèle de carte et l’architecture CPU cible ne sont pas restreints. La déconnexion conserve la propriété exclusive pendant un délai de récupération limité. Une restauration vérifiée préserve la Session ; la fermeture explicite ou l’expiration la ferme. Consultez le [guide du pont externe](docs/getting-started/gdb-debugging.md#external-gdb-over-a-prepared-serial-session) pour Windows/WSL2, le renouvellement et la récupération. Le débogage bare-metal est hors périmètre.
+1. Sous Windows, configurez le client IA avec `channelterm init --mcp` (HTTP), puis connectez la carte, par exemple avec `channelterm attach COM8 --baud 115200`. Utilisez ses paramètres série confirmés et laissez tourner le Host propriétaire.
+2. Suivez les [étapes de préparation](docs/getting-started/gdb-debugging.md#prepare-and-open) : sauvegardez l’état TTY, préparez un `gdbserver --once stdio` compatible sur la carte et appelez `debug_bridge_start` via MCP. L’IA a aussi besoin d’un outil d’exécution de processus pour lancer GDB dans WSL2.
+3. Dans WSL2, utilisez ChannelTerm Linux, un GDB compatible et l’ELF correspondant. Enregistrez le descripteur privé dans `bridge.json` sur le système de fichiers WSL (`chmod 600`). Le [guide WSL2](docs/getting-started/gdb-debugging.md#connect-independent-gdb-from-wsl2) décrit réseau et chemins. Remplacez le chemin ci-dessous :
+
+```text
+(gdb) target remote | channelterm rsp-client --connection /home/EXAMPLE/private/bridge.json
+(gdb) break main
+(gdb) continue
+(gdb) next
+(gdb) backtrace
+(gdb) detach
+```
+
+4. Sous Windows, `channelterm gdb-list` ou `channelterm gdb-list --json` affichent les ports et états des ponts. Après GDB detach, confirmez le retour de la carte au shell, puis appelez `debug_bridge_restore` avec l’état TTY sauvegardé pour reprendre l’usage du terminal partagé.
+
+Pour ce pont série, l’IA peut publier ses commandes réelles et observations via `debug_bridge_report` dans le terminal attaché. Ces entrées sont étiquetées comme rapports IA, pas comme un enregistrement automatique complet de GDB.
+
+<a id="gdb-serial-tcp"></a>
+
+### Console série partagée + GDB par Ethernet
+
+La console série reste disponible pour les journaux et le shell partagés pendant que GDB utilise le réseau. Host série et GDB peuvent être sur le même ordinateur ou sur des machines différentes ; pilotes et chaîne d’outils cible se choisissent indépendamment.
+
+```mermaid
+flowchart LR
+    AI["Client IA"]
+    Human["Terminal humain"]
+    Host["ChannelTerm Host"]
+    GDB["GDB du poste de travail: WSL2 / Linux / Windows / macOS"]
+    subgraph Board["Carte Linux"]
+        Console["Shell série / journaux"]
+        Server["gdbserver"]
+    end
+    Human ---|"attach"| Host
+    AI -->|"MCP"| Host
+    AI -->|"Outil de processus : commandes GDB"| GDB
+    Host <-->|"Série"| Console
+    GDB <-->|"TCP / Ethernet"| Server
+```
+
+Faites tourner gdbserver indépendamment du shell série interactif si vous souhaitez continuer à y saisir des commandes. Chargez l’ELF correspondant dans GDB et connectez-vous sur un réseau restreint comme ci-dessous (remplacez `TARGET_IP` et le port). Le [guide console série + TCP](docs/getting-started/gdb-debugging.md#shared-serial-console-with-tcp-gdb) décrit le démarrage cible, les entrées/sorties et les tunnels SSH.
+
+```text
+(gdb) target remote TARGET_IP:2345
+```
+
+Cette voie TCP rejoint directement gdbserver, sans `rsp-client` ni `debug_bridge_*`. Humains et IA voient l’activité série partagée ; les commandes et résultats de GDB externe restent dans la sortie du débogueur et ne sont pas automatiquement recopiés dans le terminal série.
+
+CI vérifie GDB/MI géré et le pont externe avec de vrais GDB/gdbserver sur des PTY Linux. La [procédure complète](docs/getting-started/gdb-debugging.md) décrit configuration, compatibilité, alternatives SSH et récupération.
 
 ## Fonctionnement
 
@@ -310,6 +373,7 @@ sélectionné, pas les fichiers `state.json` ou `http-auth-token` par défaut. C
 - [Partager une Session](docs/getting-started/shared-session.md)
 - [Workflow de transfert de fichiers](docs/getting-started/file-transfer.md)
 - [Serveur MCP](docs/getting-started/mcp-server.md)
+- [Procédure de débogage GDB](docs/getting-started/gdb-debugging.md)
 - [Référence CLI](docs/reference/cli.md)
 - [Référence des outils MCP](docs/reference/mcp-tools.md)
 - [Identifiants et références](docs/reference/identifiers.md)

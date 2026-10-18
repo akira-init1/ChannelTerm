@@ -2,31 +2,18 @@
 
 # ChannelTerm
 
+**让 AI 帮你调试开发板，你始终在同一个终端里。**
+
+ChannelTerm 让你和 AI 客户端共享真实的串口或 SSH 终端：读取同一份设备输出、看到 AI 的终端命令，并轮流操作开发板。支持 Windows、Linux 和 macOS，通过 MCP 接入外部 AI 客户端。
+
+也可以让 AI 使用 GDB 设置断点、单步执行 Linux 程序、检查变量。Windows 连串口、WSL2 跑 GDB；或者保留共享串口控制台，让 GDB 走开发板网口。[选择调试方案](#gdb-debugging)。
+
 > 本文是简体中文入口。行为、参数和兼容性以英文 [README](README.md)、当前源码及
 > `channelterm --help` 为准。
 
-ChannelTerm 让人类和 AI 共享同一个硬件终端 Session。它不会替代你的终端：AI 可以读取、
-操作设备，而你仍能保持连接、看到 AI 的操作、直接输入并在需要时介入。
-
-ChannelTerm 支持 Windows、Linux 和 macOS 上的串口通信与 SSH PTY shell。它本身不内置 AI，而是通过 MCP 将真实终端 Session 提供给人类和外部 AI 客户端。
-
 ## 为什么使用 ChannelTerm？
 
-传统串口终端让人类持有物理连接：
-
-```text
-Human ---- terminal ---- Serial device
-```
-
-仅供 AI 使用的串口工具让 AI 持有连接，但人类无法加入实时终端：
-
-```text
-AI ---- MCP / serial ---- Serial device
-
-Human         (not attached)
-```
-
-ChannelTerm 将一条物理连接保留在共享 Session 中：
+保持终端连接，让 AI 使用同一条设备连接协助操作：
 
 ```text
                          +---- Human terminal
@@ -36,18 +23,15 @@ Serial device ---- Session
                          +---- AI / MCP client
 ```
 
-这样，AI 的操作在硬件调试过程中始终可见，人类也始终可以参与。共享不只是重新打开同一个端口：每个客户端通过独立游标读取保留的原始输出，所有写入都经过同一个 Session。
+各客户端独立读取输出，AI 的读取不会消耗你正在看的数据。ChannelTerm 会在已连接终端中显示 AI 的终端写入；外部调试器输出的[显示范围](#gdb-debugging)另有说明。
 
 ## 支持的能力
 
-- 由 Host 持有一条串口连接，供人类 CLI 与 MCP 客户端共享。
-- 独立的输出和活动游标，避免一个读取者消耗另一个读取者的数据。
-- 在已连接终端中显示 Agent 写入，同时保持原始 Session 输出不变。
-- AI 保持连接时，人类仍可直接输入，包括向远端发送 `Ctrl+C`。
-- 退出后来加入的客户端而不关闭共享 Session；退出拥有临时 Host 的连接时，该 Host 及其 Sessions 也会关闭。
-- 使用 Windows、Linux 和 macOS 的原生目标名称发现串口，支持 TOML Profile，以及不需要共享时的私有直连。
-- 通过 stdio 或 Streamable HTTP 提供 MCP；共享 CLI 流程使用 HTTP Session Host。
-- 通过已有串口 Session 进行有界的 CLI 文件/目录发送与接收，支持 SHA-256 校验和安全的暂存目录解包。
+- **共享控制台：**人类 CLI 与 AI/MCP 客户端共用一个串口或 SSH Session。
+- **跟随操作：**在设备输出旁看到 AI 执行的终端命令。
+- **调试 Linux 程序：**支持托管 GDB、串口桥接或网口 GDB 流程。
+- **传输文件：**通过共享串口 Session 传输并校验 SHA-256，也可使用独立的 SFTP/SCP 连接。
+- **一条命令接入：**`channelterm attach` 可自动创建本地共享 Host。
 
 ## 安装
 
@@ -143,7 +127,7 @@ Shared Session created: SER-1 (0123456789abcdef0123456789abcdef)
 客户端就可以创建或加入 Session。就绪提示之后没有输出是正常现象；需要关闭 Host 及其全部
 Session 时按 `Ctrl+C`。
 
-连接期间可使用以下按键：
+普通终端操作期间（未处于文件传输或调试接管状态）：
 
 ```text
 Ctrl+C      向远端终端发送 0x03
@@ -232,17 +216,97 @@ channelterm file receive /var/log/myapp ./myapp --session SER-1
 
 传输需要空闲的 Linux shell，以及[文件传输流程](docs/getting-started/file-transfer.md)列出的工具。传输会校验 SHA-256，并选择新名称以避免覆盖已有目标。传输期间，在共享附件中按 `Ctrl+C` 会询问是否取消；清理完成并释放租约前，其他写入者仍被阻止。
 
-## 通过 MCP 使用用户态 GDB
+<a id="gdb-debugging"></a>
 
-在原生 Linux 上，MCP 客户端可通过 `debug_start` / `debug_command` / `debug_events` / `debug_stop` 工具接管空闲 Bash Session、设置断点、步进、查看变量/线程/寄存器并分离。首版要求 ChannelTerm、GDB、gdbserver 和 ELF 位于同一 Linux 环境，支持单 inferior、all-stop 调试；只有恢复终端状态并通过唯一标记 Shell 探测后，才开放普通写入。
+## 使用 GDB 远程调试
 
-```text
-debug_start -> break_insert -> continue -> debug_events -> next/step/finish -> debug_stop
+按调试器到 Linux 程序的连接方式选择方案。各方案均需使用兼容目标的工具和匹配的符号。
+
+| 方案 | GDB 连接路径 | 调试时的控制台／Session |
+| --- | --- | --- |
+| [串口桥接](#gdb-serial-bridge) | 工作站 GDB → ChannelTerm → 板端串口；下方以 Windows + WSL2 为例 | 由 GDB 占用，恢复后继续使用 |
+| [串口控制台 + TCP](#gdb-serial-tcp) | 工作站 GDB → 板端网口；WSL2、Linux、Windows、macOS 均可使用兼容的 GDB | 可继续进行独立的 shell／日志操作 |
+| [托管 GDB/MI](docs/getting-started/gdb-debugging.md#managed-native-linux-prerequisites) | MCP 工具控制 GDB；Host、shell、工具和 ELF 须在同一原生 Linux 环境 | 所选 Session 在调试期间被占用 |
+
+<a id="gdb-serial-bridge"></a>
+
+### 串口 GDB 桥接：Windows + WSL2
+
+**Windows 连串口，WSL2 跑 GDB，AI 协调远程调试。** Windows 上的 ChannelTerm Host 持有 COM 口和共享 Session；WSL2 中支持目标架构的 GDB，通过 Linux 版 `channelterm rsp-client` 和认证的 TLS/TCP 桥接，连接板端 Linux gdbserver。
+
+```mermaid
+flowchart LR
+    AI["AI 客户端"]
+    Human["人类终端"]
+    subgraph Windows
+        Host["ChannelTerm Host"]
+        COM["COM 串口"]
+        Host <--> COM
+    end
+    subgraph WSL2["WSL2 / Linux"]
+        GDB["匹配目标架构的 GDB"]
+        Helper["Linux channelterm rsp-client"]
+        GDB <--> Helper
+    end
+    Board["Linux 开发板 / gdbserver"]
+    AI -->|"MCP：准备和管理桥接"| Host
+    AI -->|"进程工具：操作 GDB"| GDB
+    Human ---|"attach / AI 报告"| Host
+    Helper <-->|"TLS/TCP"| Host
+    COM <-->|"串口 RSP"| Board
 ```
 
-[工作流、MCP 调用、安全 attach 和本机 PTY 测试范围](docs/getting-started/gdb-debugging.md).
+继续使用 Windows 串口驱动和 Linux 工具链：串口设备留在 Windows，板端也无需开放网络 GDB 端口。
 
-独立运行的 GDB 可通过 `debug_bridge_*` 创建的认证 TLS/TCP 桥接访问已准备好的串口 Session。操作者准备兼容的 Linux gdbserver 并独立运行 GDB；`channelterm rsp-client` 负责连接。桥接不限制开发板型号或目标 CPU 架构。断线后会在有限的恢复期内保留独占所有权。恢复验证成功可保留 Session；显式关闭或过期会关闭 Session。Windows/WSL2 配置、续期和恢复见[外部桥接工作流](docs/getting-started/gdb-debugging.md#external-gdb-over-a-prepared-serial-session)。裸机调试不在支持范围内。
+1. 在 Windows 上运行 `channelterm init --mcp` 配置 AI 客户端（选择 HTTP），再连接开发板，例如 `channelterm attach COM8 --baud 115200`。串口参数以开发板实际配置为准，并保持所属 Host 运行。
+2. 按[桥接准备步骤](docs/getting-started/gdb-debugging.md#prepare-and-open)保存 TTY 状态，在板端准备兼容的 `gdbserver --once stdio`，再通过 MCP 调用 `debug_bridge_start`。AI 还需要进程执行工具，才能在 WSL2 中运行 GDB。
+3. 在 WSL2 中使用 Linux 版 ChannelTerm、兼容目标的 GDB 和匹配的 ELF。将私密连接描述保存为 WSL 文件系统中的 `bridge.json`（`chmod 600`）。网络和路径配置见 [WSL2 指南](docs/getting-started/gdb-debugging.md#connect-independent-gdb-from-wsl2)。请替换下方文件路径：
+
+```text
+(gdb) target remote | channelterm rsp-client --connection /home/EXAMPLE/private/bridge.json
+(gdb) break main
+(gdb) continue
+(gdb) next
+(gdb) backtrace
+(gdb) detach
+```
+
+4. 在 Windows 上用 `channelterm gdb-list` 或 `channelterm gdb-list --json` 查看桥接端口与状态。GDB detach 后，确认板端已返回 shell，再携带保存的 TTY 状态调用 `debug_bridge_restore`，恢复共享终端使用。
+
+使用此串口桥接时，AI 可通过 `debug_bridge_report` 将实际执行的命令和观察结果报告到已连接终端，方便你跟随调试。这些内容明确标记为 AI 报告，并非完整的 GDB 自动操作记录。
+
+<a id="gdb-serial-tcp"></a>
+
+### 共享串口控制台 + 网口 GDB 调试
+
+串口供人和 AI 共享日志与 shell 操作，GDB 调试数据使用网口传输。串口 Host 与 GDB 可以在同一台电脑，也可以在不同电脑上，串口驱动与目标工具链可按各自环境选择。
+
+```mermaid
+flowchart LR
+    AI["AI 客户端"]
+    Human["人类终端"]
+    Host["ChannelTerm Host"]
+    GDB["工作站 GDB: WSL2 / Linux / Windows / macOS"]
+    subgraph Board["Linux 开发板"]
+        Console["串口 Shell / 日志"]
+        Server["gdbserver"]
+    end
+    Human ---|"attach"| Host
+    AI -->|"MCP"| Host
+    AI -->|"进程工具：操作 GDB"| GDB
+    Host <-->|"串口"| Console
+    GDB <-->|"TCP / 网口"| Server
+```
+
+如果需要继续在串口 shell 中执行命令，请让 gdbserver 独立于该交互 shell 运行。在工作站 GDB 中加载匹配的 ELF，再通过受限网络按下面的示例连接（替换 `TARGET_IP` 和端口）。板端启动、程序输入输出及 SSH 隧道配置详见[串口控制台 + TCP 流程](docs/getting-started/gdb-debugging.md#shared-serial-console-with-tcp-gdb)。
+
+```text
+(gdb) target remote TARGET_IP:2345
+```
+
+这条 TCP 路径直接连接 gdbserver，不使用 `rsp-client` 或 `debug_bridge_*`。人和 AI 都能看到共享串口活动；外部 GDB 的命令和结果保留在调试器自身输出中，不会自动同步到串口窗口。
+
+CI 使用真实 GDB/gdbserver 验证 Linux PTY 上的托管 GDB/MI 和外部桥接。配置、兼容性、SSH 方案和恢复步骤见[完整流程](docs/getting-started/gdb-debugging.md)。
 
 ## 工作原理
 
@@ -287,6 +351,7 @@ channelterm serial --config ./channelterm.toml --profile board
 - [共享 Session](docs/getting-started/shared-session.md)
 - [文件传输流程](docs/getting-started/file-transfer.md)
 - [MCP Server](docs/getting-started/mcp-server.md)
+- [GDB 调试流程](docs/getting-started/gdb-debugging.md)
 - [CLI 参考](docs/reference/cli.md)
 - [MCP 工具参考](docs/reference/mcp-tools.md)
 - [标识符与引用](docs/reference/identifiers.md)

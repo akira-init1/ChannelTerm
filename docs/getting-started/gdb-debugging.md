@@ -10,6 +10,7 @@ and recovery steps. Installation follows the [Agent Skill instructions](mcp-serv
 | [Managed GDB/MI](#managed-native-linux-prerequisites) | Host, tools, ELF, and shell in one native Linux environment; MCP controls supported debugger actions. |
 | [Interactive GDB in SSH](#gdb-in-the-shared-ssh-terminal) | GDB and program on the remote Linux server; ordinary shared terminal input/output. |
 | [External GDB over SSH/TCP](#workstation-gdb-and-remote-gdbserver) | Workstation GDB and remote gdbserver; native SSH or a restricted network carries RSP independently of ChannelTerm. |
+| [Shared serial console + TCP GDB](#shared-serial-console-with-tcp-gdb) | Humans and AI share the serial shell/logs while an independent workstation GDB uses the board's network connection. |
 | [External serial bridge](#external-gdb-over-a-prepared-serial-session) | Prepared serial Session to a Linux board; MCP manages ownership and `rsp-client` connects external GDB. |
 
 An SSH Session to another machine does not satisfy the managed backend's same-environment check.
@@ -268,6 +269,35 @@ reported into the ChannelTerm SSH Session, and `debug_bridge_report` requires a 
 These instructions compose existing terminal operations with external GDB/OpenSSH behavior; they
 do not add a ChannelTerm SSH RSP backend. Validate actual server authentication, target permissions,
 toolchain compatibility, and end-to-end behavior in the deployment environment.
+
+### Shared serial console with TCP GDB
+
+A shared serial console can remain open while an independent workstation GDB reaches the same
+Linux board's gdbserver over Ethernet/TCP. Humans and AI read the same retained serial output and
+use the normal terminal tools; debugger packets use the network connection instead of the serial
+Session. The serial Host and debugger may run on the same computer or on different computers.
+WSL2 is one workstation option, not a requirement: Linux, Windows, and macOS can use this arrangement
+with a GDB build supporting the target architecture/ABI, matching symbols, and network access.
+This describes an external-tool workflow, not native-platform validation of every GDB/toolchain pair.
+
+1. Open or reuse the board's shared serial Session using the [serial workflow](serial-terminal.md).
+   Keep its owning Host alive and confirm the actual serial settings and idle shell.
+2. Prepare gdbserver using the [workstation GDB steps](#workstation-gdb-and-remote-gdbserver), including
+   the network restrictions or SSH tunnel. To keep the serial shell interactive, run gdbserver in a
+   separately managed process or terminal. Arrange inferior stdin/stdout/stderr explicitly; a
+   foreground gdbserver or a program reading the console can otherwise occupy that shell.
+3. Load the matching ELF in workstation GDB and connect with `target remote TARGET_IP:2345`, replacing
+   the target address and port, or use the SSH-forwarded endpoint. An AI needs a process execution
+   tool to operate this external GDB in addition to MCP terminal access. Inspect stops, step, and
+   detach through GDB while the serial Session remains available for independent shell/log work.
+   Logs produced by the stopped inferior naturally pause until it resumes.
+
+This path does not create a ChannelTerm debug bridge or use `rsp-client`, `debug_bridge_report`, or
+`debug_bridge_restore`. `gdb-list` lists ChannelTerm bridges, not this independent TCP connection.
+Serial activity remains visible to shared terminal readers; external GDB commands/results stay in
+the debugger's own output unless separately presented by the operating client. After detach, verify
+the target/server state and clean up only this operation's server or tunnel as appropriate; the
+serial Session does not need a bridge restoration step.
 
 ## External GDB over a prepared serial Session
 

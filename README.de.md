@@ -2,33 +2,19 @@
 
 # ChannelTerm
 
+**Debuggen Sie Ihr Board mit KI – bleiben Sie im selben Terminal.**
+
+ChannelTerm lässt Sie und Ihren KI-Client ein echtes serielles oder SSH-Terminal teilen. Lesen Sie dieselbe Geräteausgabe, verfolgen Sie KI-Terminalbefehle und bedienen Sie das Board abwechselnd. Es läuft unter Windows, Linux und macOS und bindet externe KI-Clients über MCP an.
+
+Mit GDB kann die KI Haltepunkte setzen, Linux-Programme schrittweise ausführen und Variablen prüfen. Verbinden Sie den seriellen Port unter Windows und starten Sie GDB in WSL2, oder behalten Sie die gemeinsame Konsole, während GDB das Board über Ethernet erreicht. [Debugging-Aufbau wählen](#gdb-debugging).
+
 > Dieses Dokument ist der deutschsprachige Einstieg. Für Verhalten, Optionen und Kompatibilität
 > sind das englische [README](README.md), der aktuelle Quellcode und `channelterm --help`
 > maßgeblich.
 
-Mit ChannelTerm teilen Menschen und KI dieselbe Hardware-Terminal-Session. Die KI ersetzt Ihr
-Terminal nicht: Sie kann das Gerät lesen und bedienen, während Sie verbunden bleiben, ihre Aktionen
-sehen, selbst Eingaben machen und bei Bedarf eingreifen.
-
-ChannelTerm unterstützt serielle Kommunikation und SSH-Shells mit PTY unter Windows, Linux und macOS. ChannelTerm enthält keine eigene KI; es stellt echte Terminal-Sessions für Menschen und externe KI-Clients über MCP bereit.
-
 ## Warum ChannelTerm?
 
-Ein herkömmliches serielles Terminal gibt dem Menschen die physische Verbindung:
-
-```text
-Human ---- terminal ---- Serial device
-```
-
-Ein serielles Werkzeug nur für KI gibt der KI die Verbindung, lässt den Menschen aber außerhalb des laufenden Terminals:
-
-```text
-AI ---- MCP / serial ---- Serial device
-
-Human         (not attached)
-```
-
-ChannelTerm hält eine physische Verbindung in einer gemeinsamen Session:
+Lassen Sie Ihr Terminal offen, während die KI dieselbe Geräteverbindung nutzt:
 
 ```text
                          +---- Human terminal
@@ -38,18 +24,15 @@ Serial device ---- Session
                          +---- AI / MCP client
 ```
 
-So bleiben KI-Aktionen beim Hardware-Debugging sichtbar, und der Mensch bleibt beteiligt. Gemeinsame Nutzung bedeutet mehr, als denselben Port erneut zu öffnen: Jeder Client liest die aufbewahrte rohe Ausgabe über einen eigenen Cursor, und alle Schreibvorgänge laufen durch dieselbe Session.
+Jeder Client liest unabhängig; die KI verbraucht keine Ausgabe, die Sie beobachten. ChannelTerm zeigt KI-Terminaleingaben in Ihrem Terminal an; für externe Debugger gelten eigene [Sichtbarkeitsregeln](#gdb-debugging).
 
 ## Möglichkeiten
 
-- Eine vom Host gehaltene serielle Verbindung, gemeinsam genutzt von menschlichen CLI- und MCP-Clients.
-- Unabhängige Ausgabe- und Aktivitätscursor, damit ein Leser nicht die Daten eines anderen verbraucht.
-- Sichtbare Agent-Schreibvorgänge in verbundenen Terminals ohne Änderung der rohen Session-Ausgabe.
-- Direkte menschliche Eingabe einschließlich eines entfernten `Ctrl+C`, während die KI verbunden bleibt.
-- Einen zusätzlich verbundenen Client trennen, ohne die gemeinsame Session zu schließen; beim Beenden des Attachments, das einen temporären Host besitzt, werden dieser Host und seine Sessions geschlossen.
-- Serielle Geräteerkennung mit nativen Zielnamen unter Windows, Linux und macOS, TOML-Profilen und privaten Direktverbindungen, wenn keine Freigabe gewünscht ist.
-- MCP über stdio oder Streamable HTTP; der gemeinsame CLI-Ablauf verwendet den HTTP Session Host.
-- CLI-Versand und -Empfang von Dateien und Verzeichnissen in begrenzten Datenblöcken über eine vorhandene serielle Session, mit SHA-256-Prüfung und sicherem Entpacken in einem Zwischenverzeichnis.
+- **Konsole teilen:** Mensch und KI/MCP verwenden eine serielle oder SSH-Session.
+- **Arbeit verfolgen:** KI-Terminalbefehle erscheinen neben der Geräteausgabe.
+- **Linux-Programme debuggen:** mit verwaltetem GDB, serieller Brücke oder Netzwerk-GDB.
+- **Dateien übertragen:** über die gemeinsame serielle Session mit SHA-256-Prüfung oder über eigene SFTP/SCP-Verbindungen.
+- **Mit einem Attach starten:** `channelterm attach` kann den lokalen gemeinsamen Host automatisch erstellen.
 
 ## Installation
 
@@ -154,7 +137,7 @@ Ein dauerhafter Host ist ein separater, lang laufender Prozess. Nachdem
 konfigurierte KI-Clients Sessions erstellen oder ihnen beitreten. Keine weitere Ausgabe nach dieser
 Bereitschaftsmeldung ist normal. Beenden Sie den Host und alle seine Sessions mit `Ctrl+C`.
 
-Während der Verbindung:
+Bei normaler Terminalnutzung außerhalb von Dateiübertragung oder Debugger-Übernahme:
 
 ```text
 Ctrl+C      0x03 an das entfernte Terminal senden
@@ -250,17 +233,97 @@ channelterm file receive /var/log/myapp ./myapp --session SER-1
 
 Übertragungen benötigen eine wartende Linux-Shell und die im [Dateitransfer-Workflow](docs/getting-started/file-transfer.md) genannten Programme. Sie prüfen SHA-256 und wählen einen neuen Namen, statt ein vorhandenes Ziel zu überschreiben. Während einer Übertragung fragt `Ctrl+C` in einem gemeinsamen Attachment nach einer Abbruchbestätigung; andere Schreibzugriffe bleiben bis zur Bereinigung und Lease-Freigabe gesperrt.
 
-## GDB im Benutzerraum über MCP
+<a id="gdb-debugging"></a>
 
-Unter nativem Linux kann ein MCP-Client mit den `debug_start` / `debug_command` / `debug_events` / `debug_stop`-Tools eine wartende Bash-Session übernehmen, Haltepunkte setzen, schrittweise ausführen, Variablen/Threads/Register prüfen und sich wieder lösen. Dieses erste Backend setzt ChannelTerm, GDB, gdbserver und ELF in derselben Linux-Umgebung voraus. Es unterstützt einen Inferior im All-Stop-Modus; normales Schreiben wird erst nach Wiederherstellung des Terminals und erfolgreicher Shell-Prüfung mit einer eindeutigen Markierung freigegeben.
+## Remote-Debugging mit GDB
 
-```text
-debug_start -> break_insert -> continue -> debug_events -> next/step/finish -> debug_stop
+Wählen Sie, wie der Debugger Ihr Linux-Programm erreicht. Jeder Weg benötigt zielkompatible Werkzeuge und passende Symbole.
+
+| Weg | GDB-Verbindung | Konsole / Session während des Debuggings |
+| --- | --- | --- |
+| [Serielle Brücke](#gdb-serial-bridge) | Workstation-GDB → ChannelTerm → Board-Seriell; Windows/WSL2-Beispiel unten | Bis zur Wiederherstellung für GDB reserviert |
+| [Serielle Konsole + TCP](#gdb-serial-tcp) | Workstation-GDB → Board-Netzwerk; WSL2, Linux, Windows oder macOS mit kompatiblem GDB | Für unabhängige Shell-/Log-Arbeit verfügbar |
+| [Verwaltetes GDB/MI](docs/getting-started/gdb-debugging.md#managed-native-linux-prerequisites) | MCP steuert GDB; Host, Shell, Werkzeuge und ELF in einer nativen Linux-Umgebung | Ausgewählte Session während des Debuggings reserviert |
+
+<a id="gdb-serial-bridge"></a>
+
+### Serielle GDB-Brücke: Windows + WSL2
+
+**Windows verbindet den seriellen Port, WSL2 führt GDB aus, die KI koordiniert das Remote-Debugging.** Der Windows-Host von ChannelTerm hält COM-Port und gemeinsame Session offen. Ein zielkompatibles GDB in WSL2 verbindet sich über den Linux-Helfer `channelterm rsp-client` und die authentifizierte TLS/TCP-Brücke mit dem Linux-gdbserver des Boards.
+
+```mermaid
+flowchart LR
+    AI["KI-Client"]
+    Human["Menschliches Terminal"]
+    subgraph Windows
+        Host["ChannelTerm Host"]
+        COM["COM-Port"]
+        Host <--> COM
+    end
+    subgraph WSL2["WSL2 / Linux"]
+        GDB["Zielkompatibles GDB"]
+        Helper["Linux channelterm rsp-client"]
+        GDB <--> Helper
+    end
+    Board["Linux-Board / gdbserver"]
+    AI -->|"MCP: vorbereiten und verwalten"| Host
+    AI -->|"Prozesswerkzeug: GDB-Befehle"| GDB
+    Human ---|"attach / KI-Berichte"| Host
+    Helper <-->|"TLS/TCP"| Host
+    COM <-->|"Serielles RSP"| Board
 ```
 
-[Ablauf, MCP-Aufrufe, sicheres Attach und lokale PTY-Testabdeckung](docs/getting-started/gdb-debugging.md).
+Behalten Sie Windows-Treiber und Linux-Toolchain: Das serielle Gerät bleibt unter Windows, und das Board benötigt keinen Netzwerk-GDB-Port.
 
-Für ein unabhängig betriebenes GDB stellt `debug_bridge_*` eine vorbereitete serielle Session über eine authentifizierte TLS/TCP-Brücke bereit. Der Betreiber bereitet einen kompatiblen Linux-gdbserver vor und führt GDB unabhängig aus; `channelterm rsp-client` übernimmt die Verbindung. Boardmodell und Ziel-CPU-Architektur sind nicht eingeschränkt. Nach einer Trennung bleibt der exklusive Zugriff während einer begrenzten Wiederherstellungsfrist reserviert. Eine geprüfte Wiederherstellung erhält die Session; explizites Schließen oder Ablauf beendet sie. Der [Workflow für die externe Brücke](docs/getting-started/gdb-debugging.md#external-gdb-over-a-prepared-serial-session) beschreibt Windows/WSL2, Verlängerung und Wiederherstellung. Bare-Metal-Debugging gehört nicht zum unterstützten Umfang.
+1. Konfigurieren Sie den KI-Client unter Windows mit `channelterm init --mcp` (HTTP) und verbinden Sie das Board, etwa mit `channelterm attach COM8 --baud 115200`. Verwenden Sie bestätigte serielle Einstellungen und lassen Sie den zugehörigen Host laufen.
+2. Sichern Sie gemäß den [Vorbereitungsschritten](docs/getting-started/gdb-debugging.md#prepare-and-open) den TTY-Zustand, bereiten Sie einen kompatiblen `gdbserver --once stdio` auf dem Board vor und rufen Sie `debug_bridge_start` über MCP auf. Für GDB in WSL2 benötigt die KI zusätzlich ein Werkzeug zur Prozessausführung.
+3. Nutzen Sie in WSL2 Linux-ChannelTerm, zielkompatibles GDB und das passende ELF. Speichern Sie den geheimen Verbindungsdeskriptor als `bridge.json` im WSL-Dateisystem (`chmod 600`). Netzwerk und Pfade erklärt die [WSL2-Anleitung](docs/getting-started/gdb-debugging.md#connect-independent-gdb-from-wsl2). Ersetzen Sie unten den Dateipfad:
+
+```text
+(gdb) target remote | channelterm rsp-client --connection /home/EXAMPLE/private/bridge.json
+(gdb) break main
+(gdb) continue
+(gdb) next
+(gdb) backtrace
+(gdb) detach
+```
+
+4. Unter Windows zeigen `channelterm gdb-list` und `channelterm gdb-list --json` Brückenports und Zustände. Prüfen Sie nach GDB detach, dass das Board wieder in der Shell ist, und rufen Sie `debug_bridge_restore` mit dem gesicherten TTY-Zustand auf, um das gemeinsame Terminal weiterzuverwenden.
+
+Bei dieser seriellen Brücke kann die KI tatsächliche Befehle und Beobachtungen mit `debug_bridge_report` im angehängten Terminal melden. Die Einträge sind als KI-Berichte gekennzeichnet, nicht als vollständiges automatisches GDB-Protokoll.
+
+<a id="gdb-serial-tcp"></a>
+
+### Gemeinsame serielle Konsole + GDB über Ethernet
+
+Die serielle Konsole bleibt für gemeinsame Logs und Shell-Arbeit verfügbar, während GDB das Netzwerk nutzt. Serieller Host und GDB können auf demselben oder auf verschiedenen Rechnern laufen; Treiber und Ziel-Toolchain lassen sich unabhängig wählen.
+
+```mermaid
+flowchart LR
+    AI["KI-Client"]
+    Human["Menschliches Terminal"]
+    Host["ChannelTerm Host"]
+    GDB["Workstation-GDB: WSL2 / Linux / Windows / macOS"]
+    subgraph Board["Linux-Board"]
+        Console["Serielle Shell / Logs"]
+        Server["gdbserver"]
+    end
+    Human ---|"attach"| Host
+    AI -->|"MCP"| Host
+    AI -->|"Prozesswerkzeug: GDB-Befehle"| GDB
+    Host <-->|"Seriell"| Console
+    GDB <-->|"TCP / Ethernet"| Server
+```
+
+Soll die serielle Shell weiter Befehle annehmen, führen Sie gdbserver unabhängig von dieser interaktiven Shell aus. Laden Sie das passende ELF in das Workstation-GDB und verbinden Sie sich wie unten über ein beschränktes Netzwerk (`TARGET_IP` und Port ersetzen). Der [Workflow für serielle Konsole + TCP](docs/getting-started/gdb-debugging.md#shared-serial-console-with-tcp-gdb) beschreibt Zielstart, Programmein-/ausgabe und SSH-Tunnel.
+
+```text
+(gdb) target remote TARGET_IP:2345
+```
+
+Dieser TCP-Weg verbindet sich direkt mit gdbserver, ohne `rsp-client` oder `debug_bridge_*`. Mensch und KI sehen die gemeinsame serielle Aktivität; externe GDB-Befehle und Ergebnisse bleiben in der Debugger-Ausgabe und werden nicht automatisch ins serielle Terminal gespiegelt.
+
+CI prüft verwaltetes GDB/MI und die externe Brücke mit echtem GDB/gdbserver auf Linux-PTYs. Einrichtung, Kompatibilität, SSH-Alternativen und Wiederherstellung beschreibt der [vollständige Workflow](docs/getting-started/gdb-debugging.md).
 
 ## Funktionsweise
 
@@ -307,6 +370,7 @@ unterstützt außerdem `--connection-policy ask|auto|deny`. `--config` ändert n
 - [Eine Session teilen](docs/getting-started/shared-session.md)
 - [Dateiübertragungsablauf](docs/getting-started/file-transfer.md)
 - [MCP-Server](docs/getting-started/mcp-server.md)
+- [GDB-Debugging](docs/getting-started/gdb-debugging.md)
 - [CLI-Referenz](docs/reference/cli.md)
 - [MCP-Werkzeugreferenz](docs/reference/mcp-tools.md)
 - [Kennungen und Referenzen](docs/reference/identifiers.md)

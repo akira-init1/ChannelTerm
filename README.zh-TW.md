@@ -2,31 +2,18 @@
 
 # ChannelTerm
 
+**讓 AI 幫你除錯開發板，你始終在同一個終端機裡。**
+
+ChannelTerm 讓你與 AI 用戶端共享真實的序列埠或 SSH 終端機：讀取相同的裝置輸出、查看 AI 的終端機命令，並輪流操作開發板。支援 Windows、Linux 與 macOS，透過 MCP 接入外部 AI 用戶端。
+
+也可以讓 AI 使用 GDB 設定中斷點、逐步執行 Linux 程式、檢查變數。Windows 連序列埠、WSL2 跑 GDB；或保留共享序列埠主控台，讓 GDB 走開發板網路。[選擇除錯方案](#gdb-debugging)。
+
 > 本文是繁體中文入口。行為、參數與相容性以英文 [README](README.md)、目前原始碼及
 > `channelterm --help` 為準。
 
-ChannelTerm 讓人類與 AI 共用同一個硬體終端 Session。AI 不會取代你的終端：AI 可以讀取、
-操作裝置，而你仍能保持連線、看到 AI 的操作、直接輸入並在需要時介入。
-
-ChannelTerm 支援 Windows、Linux 與 macOS 上的序列埠通訊與 SSH PTY shell。它本身不內建 AI，而是透過 MCP 將真實終端 Session 提供給人類及外部 AI 用戶端。
-
 ## 為什麼使用 ChannelTerm？
 
-傳統序列埠終端機讓人類持有實體連線：
-
-```text
-Human ---- terminal ---- Serial device
-```
-
-僅供 AI 使用的序列埠工具讓 AI 持有連線，但人類無法加入即時終端機：
-
-```text
-AI ---- MCP / serial ---- Serial device
-
-Human         (not attached)
-```
-
-ChannelTerm 將一條實體連線保留在共用 Session 中：
+保持終端機連線，讓 AI 使用同一條裝置連線協助操作：
 
 ```text
                          +---- Human terminal
@@ -36,18 +23,15 @@ Serial device ---- Session
                          +---- AI / MCP client
 ```
 
-如此一來，AI 的操作在硬體除錯過程中始終可見，人類也能持續參與。共用不只是重新開啟同一個連接埠：每個用戶端透過獨立游標讀取保留的原始輸出，所有寫入都經過同一個 Session。
+各用戶端獨立讀取輸出，AI 的讀取不會消耗你正在看的資料。ChannelTerm 會在已連接終端機中顯示 AI 的終端機寫入；外部除錯器輸出的[顯示範圍](#gdb-debugging)另有說明。
 
 ## 支援的能力
 
-- 由 Host 持有一條序列埠連線，供人類 CLI 與 MCP 用戶端共用。
-- 獨立的輸出與活動游標，避免一個讀取者消耗另一個讀取者的資料。
-- 在已連線的終端機中顯示 Agent 寫入，同時保持原始 Session 輸出不變。
-- AI 保持連線時，人類仍可直接輸入，包括向遠端傳送 `Ctrl+C`。
-- 退出後來加入的用戶端而不關閉共用 Session；退出擁有臨時 Host 的連線時，該 Host 及其 Sessions 也會關閉。
-- 使用 Windows、Linux 與 macOS 的原生目標名稱探索序列埠，支援 TOML Profile，以及不需要共用時的私人直接連線。
-- 透過 stdio 或 Streamable HTTP 提供 MCP；共用 CLI 流程使用 HTTP Session Host。
-- 透過既有序列埠 Session 進行有界的 CLI 檔案/目錄傳送與接收，支援 SHA-256 驗證及安全的暫存目錄解壓縮。
+- **共享主控台：**人類 CLI 與 AI/MCP 用戶端共用一個序列埠或 SSH Session。
+- **跟隨操作：**在裝置輸出旁看到 AI 執行的終端機命令。
+- **除錯 Linux 程式：**支援託管 GDB、序列埠橋接或網路 GDB 流程。
+- **傳輸檔案：**透過共享序列埠 Session 傳輸並驗證 SHA-256，也可使用獨立的 SFTP/SCP 連線。
+- **一條命令接入：**`channelterm attach` 可自動建立本機共享 Host。
 
 ## 安裝
 
@@ -143,7 +127,7 @@ Host。
 用戶端即可建立或加入 Session。就緒訊息之後沒有輸出是正常現象；需要關閉 Host 及其所有
 Session 時按 `Ctrl+C`。
 
-連線期間可使用以下按鍵：
+一般終端機操作期間（未處於檔案傳輸或除錯接管狀態）：
 
 ```text
 Ctrl+C      將 0x03 傳送到遠端終端
@@ -232,17 +216,97 @@ channelterm file receive /var/log/myapp ./myapp --session SER-1
 
 傳輸需要閒置的 Linux shell，以及[檔案傳輸流程](docs/getting-started/file-transfer.md)列出的工具。傳輸會驗證 SHA-256，並選擇新名稱以避免覆寫既有目標。傳輸期間，在共用附件中按 `Ctrl+C` 會詢問是否取消；清理完成並釋放租約前，其他寫入者仍被阻擋。
 
-## 透過 MCP 使用使用者態 GDB
+<a id="gdb-debugging"></a>
 
-在原生 Linux 上，MCP 用戶端可透過 `debug_start` / `debug_command` / `debug_events` / `debug_stop` 工具接管閒置 Bash Session、設定中斷點、逐步執行、查看變數/執行緒/暫存器並分離。首版要求 ChannelTerm、GDB、gdbserver 和 ELF 位於同一 Linux 環境，支援單一 inferior、all-stop 除錯；只有還原終端機狀態並通過唯一標記 Shell 探測後，才開放一般寫入。
+## 使用 GDB 遠端除錯
 
-```text
-debug_start -> break_insert -> continue -> debug_events -> next/step/finish -> debug_stop
+依照除錯器到 Linux 程式的連線方式選擇方案。各方案均需使用相容目標的工具與相符的符號。
+
+| 方案 | GDB 連線路徑 | 除錯時的主控台／Session |
+| --- | --- | --- |
+| [序列埠橋接](#gdb-serial-bridge) | 工作站 GDB → ChannelTerm → 板端序列埠；下方以 Windows + WSL2 為例 | 由 GDB 占用，還原後繼續使用 |
+| [序列埠主控台 + TCP](#gdb-serial-tcp) | 工作站 GDB → 板端網路；WSL2、Linux、Windows、macOS 均可使用相容的 GDB | 可繼續進行獨立的 shell／日誌操作 |
+| [託管 GDB/MI](docs/getting-started/gdb-debugging.md#managed-native-linux-prerequisites) | MCP 工具控制 GDB；Host、shell、工具與 ELF 須在同一原生 Linux 環境 | 所選 Session 在除錯期間被占用 |
+
+<a id="gdb-serial-bridge"></a>
+
+### 序列埠 GDB 橋接：Windows + WSL2
+
+**Windows 連序列埠，WSL2 跑 GDB，AI 協調遠端除錯。** Windows 上的 ChannelTerm Host 持有 COM 埠與共享 Session；WSL2 中支援目標架構的 GDB，透過 Linux 版 `channelterm rsp-client` 與經驗證的 TLS/TCP 橋接，連接板端 Linux gdbserver。
+
+```mermaid
+flowchart LR
+    AI["AI 用戶端"]
+    Human["人類終端機"]
+    subgraph Windows
+        Host["ChannelTerm Host"]
+        COM["COM 序列埠"]
+        Host <--> COM
+    end
+    subgraph WSL2["WSL2 / Linux"]
+        GDB["符合目標架構的 GDB"]
+        Helper["Linux channelterm rsp-client"]
+        GDB <--> Helper
+    end
+    Board["Linux 開發板 / gdbserver"]
+    AI -->|"MCP：準備與管理橋接"| Host
+    AI -->|"程序工具：操作 GDB"| GDB
+    Human ---|"attach / AI 報告"| Host
+    Helper <-->|"TLS/TCP"| Host
+    COM <-->|"序列埠 RSP"| Board
 ```
 
-[工作流程、MCP 呼叫、安全 attach 與本機 PTY 測試範圍](docs/getting-started/gdb-debugging.md).
+繼續使用 Windows 序列埠驅動程式與 Linux 工具鏈：序列埠裝置留在 Windows，板端也無需開放網路 GDB 連接埠。
 
-獨立執行的 GDB 可透過 `debug_bridge_*` 建立的驗證 TLS/TCP 橋接存取已準備好的序列埠 Session。操作者準備相容的 Linux gdbserver 並獨立執行 GDB；`channelterm rsp-client` 負責連線。橋接不限制開發板型號或目標 CPU 架構。斷線後會在有限的復原期間保留獨占所有權。復原驗證成功可保留 Session；明確關閉或到期會關閉 Session。Windows/WSL2 設定、續期與復原見[外部橋接工作流程](docs/getting-started/gdb-debugging.md#external-gdb-over-a-prepared-serial-session)。裸機除錯不在支援範圍內。
+1. 在 Windows 上執行 `channelterm init --mcp` 設定 AI 用戶端（選擇 HTTP），再連接開發板，例如 `channelterm attach COM8 --baud 115200`。序列埠參數以開發板實際設定為準，並保持所屬 Host 執行。
+2. 按照[橋接準備步驟](docs/getting-started/gdb-debugging.md#prepare-and-open)儲存 TTY 狀態，在板端準備相容的 `gdbserver --once stdio`，再透過 MCP 呼叫 `debug_bridge_start`。AI 還需要程序執行工具，才能在 WSL2 中執行 GDB。
+3. 在 WSL2 中使用 Linux 版 ChannelTerm、相容目標的 GDB 與相符的 ELF。將私密連線描述儲存為 WSL 檔案系統中的 `bridge.json`（`chmod 600`）。網路與路徑設定見 [WSL2 指南](docs/getting-started/gdb-debugging.md#connect-independent-gdb-from-wsl2)。請替換下方檔案路徑：
+
+```text
+(gdb) target remote | channelterm rsp-client --connection /home/EXAMPLE/private/bridge.json
+(gdb) break main
+(gdb) continue
+(gdb) next
+(gdb) backtrace
+(gdb) detach
+```
+
+4. 在 Windows 上用 `channelterm gdb-list` 或 `channelterm gdb-list --json` 查看橋接連接埠與狀態。GDB detach 後，確認板端已返回 shell，再帶入儲存的 TTY 狀態呼叫 `debug_bridge_restore`，恢復共享終端機使用。
+
+使用此序列埠橋接時，AI 可透過 `debug_bridge_report` 將實際執行的命令與觀察結果回報到已連接終端機，方便你跟隨除錯。這些內容明確標記為 AI 報告，並非完整的 GDB 自動操作紀錄。
+
+<a id="gdb-serial-tcp"></a>
+
+### 共享序列埠主控台 + 網路 GDB 除錯
+
+序列埠供人與 AI 共享日誌與 shell 操作，GDB 除錯資料使用網路傳輸。序列埠 Host 與 GDB 可以在同一台電腦，也可以在不同電腦上，序列埠驅動程式與目標工具鏈可依各自環境選擇。
+
+```mermaid
+flowchart LR
+    AI["AI 用戶端"]
+    Human["人類終端機"]
+    Host["ChannelTerm Host"]
+    GDB["工作站 GDB: WSL2 / Linux / Windows / macOS"]
+    subgraph Board["Linux 開發板"]
+        Console["序列埠 Shell / 日誌"]
+        Server["gdbserver"]
+    end
+    Human ---|"attach"| Host
+    AI -->|"MCP"| Host
+    AI -->|"程序工具：操作 GDB"| GDB
+    Host <-->|"序列埠"| Console
+    GDB <-->|"TCP / 網路"| Server
+```
+
+如果需要繼續在序列埠 shell 中執行命令，請讓 gdbserver 獨立於該互動 shell 執行。在工作站 GDB 中載入相符的 ELF，再透過受限網路依照下列範例連線（替換 `TARGET_IP` 與連接埠）。板端啟動、程式輸入輸出與 SSH 通道設定詳見[序列埠主控台 + TCP 流程](docs/getting-started/gdb-debugging.md#shared-serial-console-with-tcp-gdb)。
+
+```text
+(gdb) target remote TARGET_IP:2345
+```
+
+這條 TCP 路徑直接連接 gdbserver，不使用 `rsp-client` 或 `debug_bridge_*`。人與 AI 都能看到共享序列埠活動；外部 GDB 的命令與結果保留在除錯器自身輸出中，不會自動同步至序列埠視窗。
+
+CI 使用真實 GDB/gdbserver 驗證 Linux PTY 上的託管 GDB/MI 與外部橋接。設定、相容性、SSH 方案與還原步驟見[完整流程](docs/getting-started/gdb-debugging.md)。
 
 ## 運作原理
 
@@ -287,6 +351,7 @@ channelterm serial --config ./channelterm.toml --profile board
 - [共享 Session](docs/getting-started/shared-session.md)
 - [檔案傳輸流程](docs/getting-started/file-transfer.md)
 - [MCP Server](docs/getting-started/mcp-server.md)
+- [GDB 除錯流程](docs/getting-started/gdb-debugging.md)
 - [CLI 參考](docs/reference/cli.md)
 - [MCP 工具參考](docs/reference/mcp-tools.md)
 - [識別碼與引用](docs/reference/identifiers.md)

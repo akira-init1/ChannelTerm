@@ -2,29 +2,15 @@
 
 # ChannelTerm
 
-ChannelTerm lets humans and AI share the same hardware terminal session.
+**Debug your board with AI. Stay in the same terminal.**
 
-AI does not replace your terminal. It joins it: the AI can read and operate the device while you remain attached, see what it writes, interact directly, and intervene when needed.
+ChannelTerm lets you and your AI client share a live serial or SSH terminal. Read the same device output, follow AI terminal commands, and take turns operating the board. It runs on Windows, Linux, and macOS and connects external AI clients through MCP.
 
-ChannelTerm currently implements serial communication and SSH PTY shells on Windows, Linux, and macOS. It is not a built-in AI; it exposes real terminal Sessions to human CLI clients and external AI clients through MCP.
+Use GDB to let AI set breakpoints, step through Linux programs, and inspect variables. Connect the serial port on Windows and run GDB in WSL2, or keep the shared console open while GDB uses the board's Ethernet connection. [Choose a debugging setup](#gdb-debugging).
 
 ## Why ChannelTerm?
 
-A traditional serial terminal gives the human the physical connection:
-
-```text
-Human ---- terminal ---- Serial device
-```
-
-An AI-only serial tool gives the AI the connection, but leaves the human outside the live terminal:
-
-```text
-AI ---- MCP / serial ---- Serial device
-
-Human         (not attached)
-```
-
-ChannelTerm keeps one physical connection in a shared Session:
+Keep your terminal open while the AI works with the same device connection:
 
 ```text
                          +---- Human terminal
@@ -34,18 +20,15 @@ Serial device ---- Session
                          +---- AI / MCP client
 ```
 
-The result is a hardware-debugging workflow where AI actions stay observable and the human remains present. Sharing is more than reopening the same port: every client sees retained raw output through an independent cursor, and all writes pass through the same Session.
+Each client reads independently, so an AI reader does not consume the output you are watching. ChannelTerm displays AI terminal writes in your attachment; external debugger output has its own [visibility rules](#gdb-debugging).
 
 ## What It Enables
 
-- One host-owned serial connection shared by human CLI and MCP clients.
-- Independent output and activity cursors, so one reader does not consume another reader's data.
-- Visible Agent writes in attached terminals without modifying raw Session output.
-- Direct human input, including a remote `Ctrl+C`, while the AI remains connected.
-- Detach a secondary client without closing the shared Session; exiting the attachment that owns a temporary Host closes that Host and its Sessions.
-- Serial discovery with native Windows, Linux, and macOS target names, TOML profiles, and private direct connections when sharing is not wanted.
-- MCP over stdio or Streamable HTTP, with the shared CLI workflow using the HTTP Session Host.
-- Bounded CLI file/directory send/receive over an existing serial Session, with SHA-256 verification and safe staged directory extraction.
+- **Share the console:** human CLI and AI/MCP clients use one serial or SSH Session.
+- **Follow the work:** see AI terminal commands alongside the device's output.
+- **Debug Linux programs:** use managed GDB, a serial bridge, or GDB over the network.
+- **Move files:** transfer over a shared serial Session with SHA-256 checks, or use dedicated SFTP/SCP connections.
+- **Start with one attachment:** `channelterm attach` can create the local shared Host automatically.
 
 ## Installation
 
@@ -147,7 +130,7 @@ A persistent Host is a separate long-running process. After it reports
 can create or join Sessions. Silence after the readiness line is normal; stop the Host with
 `Ctrl+C` when all of its Sessions should close.
 
-While attached:
+During ordinary terminal use, outside a file transfer or debugger takeover:
 
 ```text
 Ctrl+C      Send 0x03 to the remote terminal
@@ -247,17 +230,97 @@ channelterm file receive /var/log/myapp ./myapp --session SER-1
 
 Transfers require an idle Linux shell with the utilities listed in the [file-transfer workflow](docs/getting-started/file-transfer.md). They verify SHA-256 and select a new name instead of overwriting an existing destination. During a transfer, `Ctrl+C` in a shared attachment asks for cancellation; other writers remain blocked until cleanup releases the lease.
 
-## User-space GDB through MCP
+<a id="gdb-debugging"></a>
 
-On native Linux, an MCP client can take over an idle Bash Session, set breakpoints, step, inspect variables/threads/registers, and detach through `debug_start` / `debug_command` / `debug_events` / `debug_stop` tools. This first backend requires ChannelTerm, GDB, gdbserver, and the ELF in one Linux environment. It supports one inferior and all-stop debugging; ordinary writing resumes only after terminal restoration and a unique shell probe succeed.
+## Remote debugging with GDB
 
-```text
-debug_start -> break_insert -> continue -> debug_events -> next/step/finish -> debug_stop
+Choose how the debugger reaches your Linux program. Each path needs tools and symbols compatible with the target.
+
+| Path | GDB connection | Console / Session during debugging |
+| --- | --- | --- |
+| [Serial bridge](#gdb-serial-bridge) | Workstation GDB → ChannelTerm → board serial port; Windows + WSL2 example below | Reserved for GDB until restored |
+| [Serial console + TCP](#gdb-serial-tcp) | Workstation GDB → board network interface; WSL2, Linux, Windows, or macOS with compatible GDB | Available for independent shell/log work |
+| [Managed GDB/MI](docs/getting-started/gdb-debugging.md#managed-native-linux-prerequisites) | MCP tools control GDB; Host, shell, tools, and ELF must share one native Linux environment | The selected Session is reserved during debugging |
+
+<a id="gdb-serial-bridge"></a>
+
+### Serial GDB bridge: Windows + WSL2
+
+**Windows connects the serial port; WSL2 runs GDB; the AI coordinates remote debugging.** The Windows ChannelTerm Host keeps the COM port and shared Session open. A target-compatible GDB in WSL2 connects through the Linux `channelterm rsp-client` helper and the authenticated TLS/TCP bridge to the board's Linux gdbserver.
+
+```mermaid
+flowchart LR
+    AI["AI client"]
+    Human["Human terminal"]
+    subgraph Windows
+        Host["ChannelTerm Host"]
+        COM["COM port"]
+        Host <--> COM
+    end
+    subgraph WSL2["WSL2 / Linux"]
+        GDB["Target-compatible GDB"]
+        Helper["Linux channelterm rsp-client"]
+        GDB <--> Helper
+    end
+    Board["Linux board / gdbserver"]
+    AI -->|"MCP: prepare and manage"| Host
+    AI -->|"Process tool: GDB commands"| GDB
+    Human ---|"attach / AI reports"| Host
+    Helper <-->|"TLS/TCP"| Host
+    COM <-->|"Serial RSP"| Board
 ```
 
-[Workflow, MCP calls, safe attach, and local PTY test coverage](docs/getting-started/gdb-debugging.md).
+Keep your Windows serial driver and Linux toolchain: the serial device stays on Windows, and the board needs no network GDB port.
 
-For an independently operated GDB, `debug_bridge_*` exposes a prepared serial Session through an authenticated TLS/TCP bridge. The operator prepares a compatible Linux gdbserver and runs GDB independently; `channelterm rsp-client` carries its connection. Board model and target CPU architecture are not restricted. Disconnect retains exclusive ownership for a bounded recovery period. Verified restoration preserves the Session; explicit close or expiry closes it. See the [external bridge workflow](docs/getting-started/gdb-debugging.md#external-gdb-over-a-prepared-serial-session) for Windows/WSL2 setup, renewal, and recovery. Bare-metal debugging is outside scope.
+1. On Windows, configure the AI client with `channelterm init --mcp` (HTTP), then open the board, for example `channelterm attach COM8 --baud 115200`. Use the board's confirmed serial settings and keep the owning Host running.
+2. Following the [bridge preparation steps](docs/getting-started/gdb-debugging.md#prepare-and-open), save the TTY state, prepare a compatible `gdbserver --once stdio` on the board, and call `debug_bridge_start` through MCP. The AI also needs a process execution tool to run GDB in WSL2.
+3. In WSL2, use Linux ChannelTerm and target-compatible GDB with the matching ELF. Save the private connection descriptor as `bridge.json` in WSL's filesystem (`chmod 600`). The [WSL2 guide](docs/getting-started/gdb-debugging.md#connect-independent-gdb-from-wsl2) covers networking and paths. Replace the descriptor path below:
+
+```text
+(gdb) target remote | channelterm rsp-client --connection /home/EXAMPLE/private/bridge.json
+(gdb) break main
+(gdb) continue
+(gdb) next
+(gdb) backtrace
+(gdb) detach
+```
+
+4. On Windows, use `channelterm gdb-list` or `channelterm gdb-list --json` to see bridge ports and states. After GDB detach, confirm the board has returned to its shell and call `debug_bridge_restore` with the saved TTY state to resume shared terminal use.
+
+For this serial bridge, AI can publish actual commands and observations through `debug_bridge_report` so you can follow them in the attached terminal. Entries are labelled AI reports, not a complete automatic GDB transcript.
+
+<a id="gdb-serial-tcp"></a>
+
+### Shared serial console + GDB over Ethernet
+
+Keep the serial console available for shared logs and shell work while GDB uses the network. The serial Host and GDB can be on the same computer or different computers; choose each environment's serial driver and target toolchain independently.
+
+```mermaid
+flowchart LR
+    AI["AI client"]
+    Human["Human terminal"]
+    Host["ChannelTerm Host"]
+    GDB["Workstation GDB: WSL2 / Linux / Windows / macOS"]
+    subgraph Board["Linux board"]
+        Console["Serial shell / logs"]
+        Server["gdbserver"]
+    end
+    Human ---|"attach"| Host
+    AI -->|"MCP"| Host
+    AI -->|"Process tool: GDB commands"| GDB
+    Host <-->|"Serial"| Console
+    GDB <-->|"TCP / Ethernet"| Server
+```
+
+Keep gdbserver running independently of the interactive serial shell if you want to continue issuing shell commands. Load the matching ELF in workstation GDB, then connect over a restricted network as below (replace `TARGET_IP` and the port). See the [serial-console + TCP workflow](docs/getting-started/gdb-debugging.md#shared-serial-console-with-tcp-gdb) for target startup, application I/O, and SSH tunnelling.
+
+```text
+(gdb) target remote TARGET_IP:2345
+```
+
+This TCP path uses gdbserver directly, without `rsp-client` or `debug_bridge_*`. Human and AI see the shared serial activity; external GDB commands/results remain in the debugger's own output and are not automatically mirrored into the serial attachment.
+
+Managed GDB/MI and the external bridge have real GDB/gdbserver coverage on Linux PTYs in CI. See the [full workflow](docs/getting-started/gdb-debugging.md) for setup, compatibility, SSH alternatives, and recovery.
 
 ## How It Works
 
@@ -304,6 +367,7 @@ validation, and persistence behavior.
 - [Shared Session workflow](docs/getting-started/shared-session.md)
 - [File-transfer workflow](docs/getting-started/file-transfer.md)
 - [MCP server workflow](docs/getting-started/mcp-server.md)
+- [GDB debugging workflow](docs/getting-started/gdb-debugging.md)
 - [CLI reference](docs/reference/cli.md)
 - [MCP tool reference](docs/reference/mcp-tools.md)
 - [Identifiers and references](docs/reference/identifiers.md)

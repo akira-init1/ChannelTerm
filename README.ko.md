@@ -2,32 +2,18 @@
 
 # ChannelTerm
 
+**AI와 함께 보드를 디버깅하세요. 같은 터미널에서 계속 작업하세요.**
+
+ChannelTerm은 사용자와 AI 클라이언트가 실제 직렬 또는 SSH 터미널을 공유하게 합니다. 같은 장치 출력을 읽고, AI의 터미널 명령을 확인하며, 번갈아 보드를 조작할 수 있습니다. Windows, Linux, macOS에서 실행되며 MCP로 외부 AI 클라이언트에 연결합니다.
+
+GDB를 통해 AI가 중단점을 설정하고 Linux 프로그램을 단계 실행하며 변수를 확인할 수 있습니다. Windows가 직렬 포트에 연결하고 WSL2가 GDB를 실행하거나, 공유 콘솔을 유지하면서 GDB가 보드의 Ethernet을 사용할 수 있습니다. [디버깅 구성 선택](#gdb-debugging).
+
 > 이 문서는 한국어 안내 문서입니다. 동작, 옵션, 호환성에 관한 기준은 영문
 > [README](README.md), 현재 소스 코드와 `channelterm --help`입니다.
 
-ChannelTerm은 사람과 AI가 하나의 하드웨어 터미널 Session을 공유하도록 합니다. AI가 사용자의
-터미널을 대체하지 않습니다. AI가 장치를 읽고 조작하는 동안에도 사용자는 연결된 상태로 AI의 작업을
-확인하고, 직접 입력하고, 필요할 때 개입할 수 있습니다.
-
-ChannelTerm은 Windows, Linux, macOS에서 시리얼 통신과 SSH PTY 셸을 지원합니다. AI를 내장하지 않으며, MCP를 통해 실제 터미널 Session을 사용자와 외부 AI 클라이언트에 제공합니다.
-
 ## ChannelTerm을 사용하는 이유
 
-기존 시리얼 터미널에서는 사람이 물리 연결을 사용합니다.
-
-```text
-Human ---- terminal ---- Serial device
-```
-
-AI 전용 시리얼 도구에서는 AI가 연결을 사용하지만, 사람은 실시간 터미널에 참여하지 못합니다.
-
-```text
-AI ---- MCP / serial ---- Serial device
-
-Human         (not attached)
-```
-
-ChannelTerm은 하나의 물리 연결을 공유 Session에 유지합니다.
+터미널을 열어 둔 채 AI와 같은 장치 연결을 사용하세요.
 
 ```text
                          +---- Human terminal
@@ -37,18 +23,15 @@ Serial device ---- Session
                          +---- AI / MCP client
 ```
 
-따라서 하드웨어 디버깅 중 AI의 동작을 관찰하면서 사람이 계속 참여할 수 있습니다. 공유는 단순히 같은 포트를 다시 여는 것이 아닙니다. 각 클라이언트는 독립된 커서로 보관된 원시 출력을 읽으며, 모든 쓰기는 같은 Session을 거칩니다.
+각 클라이언트가 독립적으로 읽으므로 AI가 사용자가 보고 있는 출력을 소비하지 않습니다. ChannelTerm은 AI의 터미널 쓰기를 표시하며, 외부 디버거에는 별도의 [표시 범위](#gdb-debugging)가 적용됩니다.
 
 ## 제공하는 기능
 
-- Host가 소유한 하나의 시리얼 연결을 사람의 CLI와 MCP 클라이언트가 공유합니다.
-- 독립된 출력 및 활동 커서를 통해 한 리더가 다른 리더의 데이터를 소비하지 않습니다.
-- 원시 Session 출력을 변경하지 않고 연결된 터미널에 Agent의 쓰기를 표시합니다.
-- AI가 연결된 상태에서도 사람이 원격 `Ctrl+C`를 포함한 입력을 직접 보냅니다.
-- 추가로 연결한 클라이언트만 분리하고 공유 Session은 유지. 임시 Host를 소유한 연결을 종료하면 해당 Host와 Session도 종료.
-- Windows, Linux, macOS의 기본 대상 이름을 이용한 시리얼 검색, TOML Profile, 공유가 필요 없을 때의 비공개 직접 연결을 지원합니다.
-- stdio 또는 Streamable HTTP를 통해 MCP를 제공합니다. 공유 CLI 워크플로는 HTTP Session Host를 사용합니다.
-- 기존 시리얼 Session을 통해 크기가 제한된 CLI 파일/디렉터리 송수신을 제공하며, SHA-256 검증과 임시 영역에서의 안전한 디렉터리 압축 해제를 지원합니다.
+- **콘솔 공유:** 사람의 CLI와 AI/MCP가 같은 직렬 또는 SSH Session을 사용합니다.
+- **작업 확인:** 장치 출력과 함께 AI의 터미널 명령을 봅니다.
+- **Linux 디버깅:** 관리형 GDB, 직렬 브리지 또는 네트워크 GDB를 사용합니다.
+- **파일 전송:** 공유 직렬 Session과 SHA-256 검증 또는 독립 SFTP/SCP 연결을 사용합니다.
+- **attach로 시작:** `channelterm attach`가 로컬 공유 Host를 자동 생성할 수 있습니다.
 
 ## 설치
 
@@ -151,7 +134,7 @@ Session ID를 사용해야 합니다.
 클라이언트가 Session을 만들거나 연결할 수 있습니다. 준비 메시지 이후 출력이 없는 것은 정상입니다.
 Host와 모든 Session을 닫을 때 `Ctrl+C`를 누르십시오.
 
-연결 중에는 다음 키를 사용할 수 있습니다.
+파일 전송이나 디버거가 제어하는 동안을 제외한 일반 터미널 사용에서는:
 
 ```text
 Ctrl+C      원격 터미널에 0x03 전송
@@ -243,17 +226,97 @@ channelterm file receive /var/log/myapp ./myapp --session SER-1
 
 전송에는 유휴 Linux 셸과 [파일 전송 안내](docs/getting-started/file-transfer.md)에 나열된 도구가 필요합니다. SHA-256을 검증하고 기존 대상을 덮어쓰지 않도록 새 이름을 선택합니다. 전송 중 공유 연결에서 `Ctrl+C`를 누르면 취소 여부를 묻습니다. 정리가 끝나 임대를 해제할 때까지 다른 쓰기는 차단됩니다.
 
-## MCP를 통한 사용자 공간 GDB
+<a id="gdb-debugging"></a>
 
-네이티브 Linux에서 MCP 클라이언트는 `debug_start` / `debug_command` / `debug_events` / `debug_stop` 도구로 대기 중인 Bash Session을 인계받아 중단점 설정, 단계 실행, 변수·스레드·레지스터 확인 및 분리를 수행할 수 있습니다. 첫 버전은 ChannelTerm, GDB, gdbserver, ELF가 같은 Linux 환경에 있어야 합니다. 단일 inferior의 all-stop 디버깅을 지원하며, 터미널 복원과 고유 마커를 이용한 셸 확인이 성공한 뒤에만 일반 쓰기를 재개합니다.
+## GDB 원격 디버깅
 
-```text
-debug_start -> break_insert -> continue -> debug_events -> next/step/finish -> debug_stop
+디버거가 Linux 프로그램에 연결되는 방식을 선택하세요. 각 방식에는 대상 호환 도구와 일치하는 심볼이 필요합니다.
+
+| 방식 | GDB 연결 경로 | 디버깅 중 콘솔 / Session |
+| --- | --- | --- |
+| [직렬 브리지](#gdb-serial-bridge) | 워크스테이션 GDB → ChannelTerm → 보드 직렬 포트; 아래는 Windows + WSL2 예제 | 복원할 때까지 GDB가 점유 |
+| [직렬 콘솔 + TCP](#gdb-serial-tcp) | 워크스테이션 GDB → 보드 네트워크; 호환 GDB가 있는 WSL2, Linux, Windows, macOS | 독립된 셸/로그 작업에 사용 가능 |
+| [관리형 GDB/MI](docs/getting-started/gdb-debugging.md#managed-native-linux-prerequisites) | MCP가 GDB 제어; Host, 셸, 도구, ELF가 같은 네이티브 Linux 환경 | 선택한 Session은 디버깅 중 점유됨 |
+
+<a id="gdb-serial-bridge"></a>
+
+### 직렬 GDB 브리지: Windows + WSL2
+
+**Windows가 직렬 포트에 연결하고, WSL2가 GDB를 실행하며, AI가 원격 디버깅을 진행합니다.** Windows ChannelTerm Host는 COM 포트와 공유 Session을 유지합니다. WSL2의 대상 호환 GDB가 Linux용 `channelterm rsp-client`와 인증된 TLS/TCP 브리지를 거쳐 보드의 Linux gdbserver에 연결합니다.
+
+```mermaid
+flowchart LR
+    AI["AI 클라이언트"]
+    Human["사용자 터미널"]
+    subgraph Windows
+        Host["ChannelTerm Host"]
+        COM["COM 포트"]
+        Host <--> COM
+    end
+    subgraph WSL2["WSL2 / Linux"]
+        GDB["대상 호환 GDB"]
+        Helper["Linux channelterm rsp-client"]
+        GDB <--> Helper
+    end
+    Board["Linux 보드 / gdbserver"]
+    AI -->|"MCP: 준비 및 관리"| Host
+    AI -->|"프로세스 도구: GDB 명령"| GDB
+    Human ---|"attach / AI 보고서"| Host
+    Helper <-->|"TLS/TCP"| Host
+    COM <-->|"직렬 RSP"| Board
 ```
 
-[워크플로, MCP 호출, 안전한 attach 및 로컬 PTY 테스트 범위](docs/getting-started/gdb-debugging.md).
+Windows 직렬 드라이버와 Linux 도구 모음을 계속 사용할 수 있습니다. 직렬 장치는 Windows에 남고 보드에 네트워크 GDB 포트를 열 필요가 없습니다.
 
-독립적으로 실행하는 GDB에는 `debug_bridge_*`가 준비된 직렬 Session을 인증된 TLS/TCP 브리지로 제공합니다. 사용자가 호환되는 Linux gdbserver를 준비하고 GDB를 독립적으로 실행합니다. `channelterm rsp-client`는 연결을 담당합니다. 보드 모델이나 대상 CPU 아키텍처에는 제한이 없습니다. 연결이 끊겨도 제한된 복구 기간 동안 독점 소유권을 유지합니다. 복원이 검증되면 Session을 유지하며, 명시적 종료나 만료 시에는 Session을 닫습니다. Windows/WSL2 설정, 갱신 및 복구는 [외부 브리지 안내](docs/getting-started/gdb-debugging.md#external-gdb-over-a-prepared-serial-session)를 참고하세요. 베어메탈 디버깅은 지원 범위 밖입니다.
+1. Windows에서 `channelterm init --mcp`(HTTP)로 AI 클라이언트를 설정하고, 예를 들어 `channelterm attach COM8 --baud 115200`으로 보드에 연결합니다. 보드에서 확인한 직렬 설정을 사용하고 소유 Host를 계속 실행하세요.
+2. [준비 단계](docs/getting-started/gdb-debugging.md#prepare-and-open)에 따라 TTY 상태를 저장하고 보드에서 호환되는 `gdbserver --once stdio`를 준비한 다음 MCP로 `debug_bridge_start`를 호출합니다. AI가 WSL2에서 GDB를 실행하려면 프로세스 실행 도구도 필요합니다.
+3. WSL2에서 Linux용 ChannelTerm, 대상 호환 GDB와 일치하는 ELF를 사용합니다. 비공개 연결 설명자를 WSL 파일시스템의 `bridge.json`으로 저장하세요(`chmod 600`). 네트워크와 경로는 [WSL2 안내](docs/getting-started/gdb-debugging.md#connect-independent-gdb-from-wsl2)를 참고하고 아래 파일 경로를 바꾸세요.
+
+```text
+(gdb) target remote | channelterm rsp-client --connection /home/EXAMPLE/private/bridge.json
+(gdb) break main
+(gdb) continue
+(gdb) next
+(gdb) backtrace
+(gdb) detach
+```
+
+4. Windows에서 `channelterm gdb-list` 또는 `channelterm gdb-list --json`으로 브리지 포트와 상태를 확인합니다. GDB detach 후 보드가 셸로 돌아왔는지 확인하고 저장한 TTY 상태로 `debug_bridge_restore`를 호출하여 공유 터미널 사용을 재개합니다.
+
+이 직렬 브리지에서는 AI가 실제 명령과 관찰 결과를 `debug_bridge_report`로 연결된 터미널에 보고할 수 있습니다. AI 보고서로 명시되며 GDB의 완전한 자동 기록은 아닙니다.
+
+<a id="gdb-serial-tcp"></a>
+
+### 공유 직렬 콘솔 + Ethernet GDB 디버깅
+
+직렬 콘솔에서 로그와 셸 작업을 공유하면서 GDB는 네트워크로 통신합니다. 직렬 Host와 GDB는 같은 컴퓨터나 서로 다른 컴퓨터에 둘 수 있으며, 드라이버와 대상 도구 모음을 각 환경에 맞게 선택할 수 있습니다.
+
+```mermaid
+flowchart LR
+    AI["AI 클라이언트"]
+    Human["사용자 터미널"]
+    Host["ChannelTerm Host"]
+    GDB["워크스테이션 GDB: WSL2 / Linux / Windows / macOS"]
+    subgraph Board["Linux 보드"]
+        Console["직렬 셸 / 로그"]
+        Server["gdbserver"]
+    end
+    Human ---|"attach"| Host
+    AI -->|"MCP"| Host
+    AI -->|"프로세스 도구: GDB 명령"| GDB
+    Host <-->|"직렬"| Console
+    GDB <-->|"TCP / Ethernet"| Server
+```
+
+직렬 셸에서 계속 명령을 실행하려면 gdbserver를 해당 대화형 셸과 독립적으로 실행하세요. 워크스테이션 GDB에 일치하는 ELF를 로드하고 제한된 네트워크를 통해 아래처럼 연결합니다(`TARGET_IP`와 포트를 바꾸세요). 대상 시작, 프로그램 입출력, SSH 터널은 [직렬 콘솔 + TCP 절차](docs/getting-started/gdb-debugging.md#shared-serial-console-with-tcp-gdb)를 참고하세요.
+
+```text
+(gdb) target remote TARGET_IP:2345
+```
+
+이 TCP 경로는 `rsp-client`나 `debug_bridge_*` 없이 gdbserver에 직접 연결합니다. 사람과 AI는 공유 직렬 활동을 볼 수 있지만 외부 GDB 명령과 결과는 디버거 출력에 남으며 직렬 터미널에 자동으로 표시되지는 않습니다.
+
+CI는 Linux PTY에서 실제 GDB/gdbserver로 관리형 GDB/MI와 외부 브리지를 검증합니다. 설정, 호환성, SSH 대안과 복구는 [전체 안내](docs/getting-started/gdb-debugging.md)를 참고하세요.
 
 ## 동작 원리
 
@@ -300,6 +363,7 @@ channelterm serial --config ./channelterm.toml --profile board
 - [공유 Session](docs/getting-started/shared-session.md)
 - [파일 전송 워크플로](docs/getting-started/file-transfer.md)
 - [MCP Server](docs/getting-started/mcp-server.md)
+- [GDB 디버깅 워크플로](docs/getting-started/gdb-debugging.md)
 - [CLI 레퍼런스](docs/reference/cli.md)
 - [MCP 도구 레퍼런스](docs/reference/mcp-tools.md)
 - [식별자와 참조](docs/reference/identifiers.md)
