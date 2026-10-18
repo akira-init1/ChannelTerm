@@ -237,10 +237,16 @@ gdbserver. It needs local Unix sockets and ptrace permission for its own test pr
 change ptrace policy or contact hardware. Without this opt-in, ordinary tests skip these cases.
 Extracted binaries may use a caller-supplied PATH and LD_LIBRARY_PATH. GDB/gdbserver are runtime test
 tools, not bundled Go dependencies. Coverage includes the addition workflow, thread inspection,
-normal exit, safe attach/detach, automatic lease renewal, disconnect survival, authorization/retries,
+normal exit, safe attach/detach, automatic lease renewal, disconnect cleanup, authorization/retries,
 ELF mismatch, unsafe attach rejection, and missing-shell recovery that must fail closed. Ordinary
 unit tests cover binary fragmentation, empty reads, invalid UTF-8, buffer loss, final ACK tracking,
 lease conflicts/expiry, input tracking, and MI cancellation.
+
+Attach fixtures close inherited non-stdio descriptors and signal readiness before tracing starts.
+Tests deliberately pass a pipe and PTY to confirm isolation; separate cases retain them and require
+attach rejection. The disconnect fixture handles `SIGINT` and resumes interrupted sleeps, then must
+remain alive and lose its tracer within a bounded wait. This tests cleanup with a signal-tolerant
+target, not survival of arbitrary applications after an interrupted debugging connection.
 
 See [the workflow](../getting-started/gdb-debugging.md#validation-and-diagnostics) for operational
 diagnostics. These tests do not validate physical serial settings or boards. Other desktop builds

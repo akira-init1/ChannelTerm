@@ -59,10 +59,17 @@ func newDebugFixture(t *testing.T) *debugFixture {
 	dir := t.TempDir()
 	source := filepath.Join(dir, "addition.c")
 	elf := filepath.Join(dir, "addition")
-	code := `#include <pthread.h>
+	code := `#include <dirent.h>
+#include <pthread.h>
+#include <signal.h>
+#include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <sys/prctl.h>
+#include <sys/stat.h>
 volatile int done;
+/* A debugger interrupt pending during disconnect must not end this fixture. */
+void handle_interrupt(int signal_number) { (void)signal_number; }
 void *worker(void *p) { while (!done) usleep(1000); return 0; }
 int plus(int a, int b) {
  int result = a + b;
@@ -73,8 +80,30 @@ int add(int a, int b) {
  return sum;
 }
 int main(int argc, char **argv) {
- prctl(PR_SET_PTRACER, PR_SET_PTRACER_ANY, 0, 0, 0);
- if (argc > 1) { sleep(60); return 0; }
+ if (argc == 3 && (strcmp(argv[1], "wait") == 0 || strcmp(argv[1], "wait-retain-fd") == 0)) {
+  int retained_fd = strcmp(argv[1], "wait-retain-fd") == 0 ? 3 : -1;
+  /* The attach fixture must not inherit runner pipes, sockets or PTYs. */
+  DIR *fds = opendir("/proc/self/fd");
+  if (!fds) return 20;
+  struct dirent *entry;
+  while ((entry = readdir(fds)) != NULL) {
+   int fd = atoi(entry->d_name);
+   if (fd > 2 && fd != retained_fd && fd != dirfd(fds) && close(fd) != 0) return 21;
+  }
+  if (closedir(fds) != 0) return 22;
+  struct sigaction action = {0};
+  action.sa_handler = handle_interrupt;
+  sigemptyset(&action.sa_mask);
+  if (sigaction(SIGINT, &action, NULL) != 0) return 25;
+  if (prctl(PR_SET_PTRACER, PR_SET_PTRACER_ANY, 0, 0, 0) != 0) return 23;
+  /* mkdir publishes readiness without leaving a notification FD open. */
+  if (mkdir(argv[2], 0700) != 0) return 24;
+ }
+ if (argc > 1) {
+  unsigned int remaining = 60;
+  while (remaining != 0) remaining = sleep(remaining);
+  return 0;
+ }
  pthread_t thread;
  pthread_create(&thread, 0, worker, 0);
  int result = add(3, 4);
@@ -341,28 +370,129 @@ func TestGDBLocalMCPAddition(t *testing.T) {
 	f.assertShell(t)
 }
 
-func TestGDBLocalMCPAttachDetach(t *testing.T) {
-	f := newDebugFixture(t)
-	inferior := exec.Command(f.elf, "wait")
+// startAttachInferior waits until the disposable target has closed all extra
+// descriptors and enabled ptrace. A fixed startup sleep cannot prove isolation.
+// retainedFD deliberately preserves FD 3 for rejection tests, while still closing
+// unrelated runner descriptors that could mask the expected rejection reason.
+func (f *debugFixture) startAttachInferior(t *testing.T, retainedFD *os.File, extraFiles ...*os.File) *exec.Cmd {
+	t.Helper()
+	ready := filepath.Join(t.TempDir(), "ready")
+	mode := "wait"
+	wantFDs := 3
+	if retainedFD != nil {
+		mode = "wait-retain-fd"
+		wantFDs++
+		extraFiles = append([]*os.File{retainedFD}, extraFiles...)
+	}
+	inferior := exec.Command(f.elf, mode, ready)
 	inferior.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+	inferior.ExtraFiles = extraFiles
 	if e := inferior.Start(); e != nil {
 		t.Fatal(e)
 	}
-	t.Cleanup(func() { inferior.Process.Kill(); inferior.Wait() })
-	time.Sleep(100 * time.Millisecond)
+	exited := make(chan struct{})
+	var waitErr error
+	go func() {
+		waitErr = inferior.Wait()
+		close(exited)
+	}()
+	t.Cleanup(func() {
+		inferior.Process.Kill()
+		<-exited
+		if t.Failed() {
+			t.Logf("attach fixture exit: %v", waitErr)
+		}
+	})
+	timeout := time.NewTimer(5 * time.Second)
+	defer timeout.Stop()
+	ticker := time.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		if _, err := os.Stat(ready); err == nil {
+			break
+		} else if !os.IsNotExist(err) {
+			t.Fatal(err)
+		}
+		select {
+		case <-exited:
+			t.Fatalf("attach fixture exited before readiness: %v", waitErr)
+		case <-timeout.C:
+			t.Fatal("attach fixture did not signal readiness")
+		case <-ticker.C:
+		}
+	}
+	fdDir := fmt.Sprintf("/proc/%d/fd", inferior.Process.Pid)
+	entries, err := os.ReadDir(fdDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != wantFDs {
+		t.Fatalf("attach fixture retained extra descriptors: %v", entries)
+	}
+	for _, entry := range entries {
+		if retainedFD != nil && entry.Name() == "3" {
+			want, err := retainedFD.Stat()
+			if err != nil {
+				t.Fatal(err)
+			}
+			got, err := os.Stat(filepath.Join(fdDir, entry.Name()))
+			if err != nil || !os.SameFile(want, got) {
+				t.Fatalf("attach fixture retained wrong FD: %v", err)
+			}
+			continue
+		}
+		target, err := os.Readlink(filepath.Join(fdDir, entry.Name()))
+		if err != nil || target != "/dev/null" {
+			t.Fatalf("attach fixture FD %s = %q: %v", entry.Name(), target, err)
+		}
+	}
+	return inferior
+}
+
+// waitInferiorDetached observes kernel cleanup rather than assuming that sending
+// SIGKILL to gdbserver synchronously clears the inferior's TracerPid.
+func waitInferiorDetached(t *testing.T, inferior *exec.Cmd) {
+	t.Helper()
+	timeout := time.NewTimer(5 * time.Second)
+	defer timeout.Stop()
+	ticker := time.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		status, err := os.ReadFile(fmt.Sprintf("/proc/%d/status", inferior.Process.Pid))
+		if err != nil {
+			t.Fatalf("attached process did not survive: %v", err)
+		}
+		if strings.Contains(string(status), "State:\tZ") || strings.Contains(string(status), "State:\tX") {
+			t.Fatalf("attached process exited: %s", status)
+		}
+		if strings.Contains(string(status), "TracerPid:\t0\n") {
+			return
+		}
+		select {
+		case <-timeout.C:
+			t.Fatalf("process still traced after cleanup deadline: %s", status)
+		case <-ticker.C:
+		}
+	}
+}
+
+func TestGDBLocalMCPAttachDetach(t *testing.T) {
+	f := newDebugFixture(t)
+	reader, writer, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { reader.Close(); writer.Close() })
+	// Deliberately inherit both a pipe and the Session PTY. The child must close
+	// them before signalling readiness; the production attach guard stays strict.
+	inferior := f.startAttachInferior(t, nil, reader, f.slave)
 	f.start(t, inferior.Process.Pid)
 	if _, e := f.app.StopDebug(context.Background(), f.id, f.owner, true); e == nil {
 		t.Fatal("attached termination accepted")
 	}
 	f.command(t, "continue", "")
 	f.call(t, "debug_stop", map[string]any{"debug_id": f.id, "owner": f.owner})
-	if e := inferior.Process.Signal(syscall.Signal(0)); e != nil {
-		t.Fatalf("attached process was killed: %v", e)
-	}
-	stat, e := os.ReadFile(fmt.Sprintf("/proc/%d/status", inferior.Process.Pid))
-	if e != nil || !strings.Contains(string(stat), "TracerPid:\t0") {
-		t.Fatalf("process still traced: %v %s", e, stat)
-	}
+	waitInferiorDetached(t, inferior)
 	f.assertShell(t)
 }
 
@@ -377,6 +507,27 @@ func TestGDBLocalRejectsUnsafeAttachAndMismatchedELF(t *testing.T) {
 	_, e = f.app.StartDebug(ctx, app.DebugStartRequest{SessionID: "debug-pty", Owner: f.owner, RequestID: "unsafe-attach", ELF: bash, PID: f.shell.Process.Pid})
 	if e == nil || !strings.Contains(e.Error(), "controlling terminal") {
 		t.Fatalf("unsafe attach: %v", e)
+	}
+	reader, writer, e := os.Pipe()
+	if e != nil {
+		t.Fatal(e)
+	}
+	t.Cleanup(func() { reader.Close(); writer.Close() })
+	for _, descriptor := range []struct {
+		name, want string
+		file       *os.File
+	}{
+		{"pipe", "pipe/socket", reader},
+		{"pty", "character-device", f.slave},
+	} {
+		t.Run(descriptor.name, func(t *testing.T) {
+			// No controlling terminal remains, so the retained FD must be rejected.
+			inferior := f.startAttachInferior(t, descriptor.file)
+			_, err := f.app.StartDebug(ctx, app.DebugStartRequest{SessionID: "debug-pty", Owner: f.owner, RequestID: "unsafe-" + descriptor.name, ELF: f.elf, PID: inferior.Process.Pid})
+			if err == nil || !strings.Contains(err.Error(), descriptor.want) {
+				t.Fatalf("attach with retained %s: %v", descriptor.name, err)
+			}
+		})
 	}
 	data, e := os.ReadFile(f.elf)
 	if e != nil {
@@ -449,13 +600,7 @@ func TestGDBLocalMCPAuthorizationAndIdempotency(t *testing.T) {
 
 func TestGDBLocalRenewalAndDisconnectPreservesAttachedProcess(t *testing.T) {
 	f := newDebugFixture(t)
-	inferior := exec.Command(f.elf, "wait")
-	inferior.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
-	if e := inferior.Start(); e != nil {
-		t.Fatal(e)
-	}
-	t.Cleanup(func() { inferior.Process.Kill(); inferior.Wait() })
-	time.Sleep(100 * time.Millisecond)
+	inferior := f.startAttachInferior(t, nil)
 	f.start(t, inferior.Process.Pid)
 	before, active, e := f.app.LeaseStatus("debug-pty")
 	if e != nil || !active {
@@ -475,13 +620,7 @@ func TestGDBLocalRenewalAndDisconnectPreservesAttachedProcess(t *testing.T) {
 	if _, e = f.app.StopDebug(context.Background(), f.id, f.owner, false); e == nil {
 		t.Fatal("disconnect falsely recovered")
 	}
-	if e = inferior.Process.Signal(syscall.Signal(0)); e != nil {
-		t.Fatalf("disconnect killed attached process: %v", e)
-	}
-	stat, e := os.ReadFile(fmt.Sprintf("/proc/%d/status", inferior.Process.Pid))
-	if e != nil || !strings.Contains(string(stat), "TracerPid:\t0") {
-		t.Fatalf("disconnect left tracer: %v %s", e, stat)
-	}
+	waitInferiorDetached(t, inferior)
 }
 
 func TestGDBLocalLiteralArgumentsAndELFPath(t *testing.T) {

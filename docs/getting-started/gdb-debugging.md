@@ -118,7 +118,8 @@ or output-buffer loss, the Host closes the Session and kills only its pidfd-owne
 Linux releases its ptrace ownership. This failure cleanup does not intentionally kill an attached
 inferior. A shell watchdog also ends that server after Host death or 45 seconds without a Host
 heartbeat. Debugging can change program state before any failure, so surviving does not imply that
-the application is unchanged.
+the application is unchanged. An attached target can receive `SIGINT` during a connection failure;
+its signal handling may terminate it. Failure cleanup therefore does not guarantee target survival.
 
 ## Attach to an existing process
 

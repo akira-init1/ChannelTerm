@@ -73,7 +73,7 @@ func liveBridge(t *testing.T) (*Application, *fakeConnectedSession, *bridgeRun, 
 
 func TestRSPBridgeAutomaticRenewalRequiresLiveControl(t *testing.T) {
 	a, s, r, disconnect := liveBridge(t)
-	before := r.snapshot().ExpiresAt
+	before := consumeBridgeManagementTTL(r)
 	r.maintain()
 	if status := r.snapshot(); !status.AutoKeepalive || !status.ExpiresAt.After(before) {
 		t.Fatalf("live idle bridge not renewed: %+v", status)
@@ -82,7 +82,7 @@ func TestRSPBridgeAutomaticRenewalRequiresLiveControl(t *testing.T) {
 		t.Fatal("heartbeat wrote target bytes")
 	}
 	disconnect()
-	before = r.snapshot().ExpiresAt
+	before = consumeBridgeManagementTTL(r)
 	r.maintain()
 	if status := r.snapshot(); status.AutoKeepalive || !status.ExpiresAt.Equal(before) {
 		t.Fatalf("disconnected bridge auto-renewed: %+v", status)
@@ -93,6 +93,17 @@ func TestRSPBridgeAutomaticRenewalRequiresLiveControl(t *testing.T) {
 	if status, err := a.RenewRSPBridge(r.id, bridgeTestOwner); err != nil || !status.ExpiresAt.After(before) {
 		t.Fatalf("legacy explicit renewal failed: %+v %v", status, err)
 	}
+}
+
+// consumeBridgeManagementTTL models elapsed lease time without depending on OS
+// clock resolution. It leaves enough time for the next operation to renew safely.
+func consumeBridgeManagementTTL(r *bridgeRun) time.Time {
+	r.op.Lock()
+	defer r.op.Unlock()
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.status.ExpiresAt = r.status.ExpiresAt.Add(-debugClientTTL / 2)
+	return r.status.ExpiresAt
 }
 
 func TestRSPBridgeLeaseFailureAndMaximumFailClosed(t *testing.T) {
