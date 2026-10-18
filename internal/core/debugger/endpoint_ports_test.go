@@ -63,32 +63,72 @@ func TestBridgePortExhaustionAndExplicitBind(t *testing.T) {
 	explicit.Close()
 }
 
-// smallBridgePortPool finds a contiguous test range without assuming that any
-// well-known ports are free. Production allocation always uses the real bind.
+// smallBridgePortPool isolates exact cursor assertions from OS port contention.
+// Probing and then closing real listeners cannot reserve a range for later binds.
+// Real socket exclusion and release remain covered by the other port tests.
 func smallBridgePortPool(t *testing.T, size int) *EndpointAllocator {
 	t.Helper()
-	for attempt := 0; attempt < 32; attempt++ {
-		first, err := net.Listen("tcp", "127.0.0.1:0")
-		if err != nil {
-			t.Fatal(err)
+	p := &testBridgePorts{bound: make(map[string]bool), next: 60000}
+	t.Cleanup(func() {
+		p.mu.Lock()
+		defer p.mu.Unlock()
+		if len(p.bound) != 0 {
+			t.Errorf("leaked test listeners: %v", p.bound)
 		}
-		port := first.Addr().(*net.TCPAddr).Port
-		listeners := []net.Listener{first}
-		for offset := 1; offset < size && port+offset <= 65535; offset++ {
-			listener, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port+offset))
-			if err != nil {
-				break
-			}
-			listeners = append(listeners, listener)
-		}
-		for _, listener := range listeners {
-			listener.Close()
-		}
-		if len(listeners) == size {
-			return &EndpointAllocator{first: port, last: port + size - 1}
-		}
+	})
+	return &EndpointAllocator{first: 40000, last: 40000 + size - 1, listen: p.listen}
+}
+
+// testBridgePorts models bind exclusion independently of allocator reservations.
+// Its mutex also permits simulated external binds outside the allocator lock.
+type testBridgePorts struct {
+	mu    sync.Mutex
+	bound map[string]bool
+	next  int
+}
+
+func (p *testBridgePorts) listen(network, address string) (net.Listener, error) {
+	if network != "tcp" {
+		return nil, fmt.Errorf("unexpected network %q", network)
 	}
-	t.Fatal("no contiguous test port range available")
+	addr, err := net.ResolveTCPAddr(network, address)
+	if err != nil {
+		return nil, err
+	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if addr.Port == 0 {
+		addr.Port = p.next
+		p.next++
+	}
+	key := addr.String()
+	if p.bound[key] {
+		return nil, fmt.Errorf("test address %s already in use", key)
+	}
+	p.bound[key] = true
+	return &testBridgeListener{addr: addr, ports: p}, nil
+}
+
+// testBridgeListener reserves an address until Close; it carries no TCP traffic.
+type testBridgeListener struct {
+	addr  *net.TCPAddr
+	ports *testBridgePorts
+	once  sync.Once
+}
+
+// Addr returns the simulated bound TCP address.
+func (l *testBridgeListener) Addr() net.Addr { return l.addr }
+
+// Accept rejects traffic because this fixture only models port ownership.
+func (l *testBridgeListener) Accept() (net.Conn, error) { return nil, net.ErrClosed }
+
+// Close releases the simulated bind once, including after address reuse.
+func (l *testBridgeListener) Close() error {
+	l.once.Do(func() {
+		l.ports.mu.Lock()
+		delete(l.ports.bound, l.addr.String())
+		l.ports.mu.Unlock()
+	})
 	return nil
 }
 
@@ -137,7 +177,7 @@ func TestBridgePortCursorSkipsActiveAndOccupiedPorts(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer explicit.Close()
-	occupied, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", a.first+1))
+	occupied, err := a.listen("tcp", fmt.Sprintf("127.0.0.1:%d", a.first+1))
 	if err != nil {
 		t.Fatal(err)
 	}

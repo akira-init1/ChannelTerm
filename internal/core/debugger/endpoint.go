@@ -258,6 +258,9 @@ type EndpointAllocator struct {
 	poolHeld int
 	// A smaller pool allows deterministic exhaustion tests without 900 sockets.
 	first, last int
+	// listen is a test seam for deterministic port conflicts. Nil uses net.Listen;
+	// configure it before use. Calls are serialized by mu.
+	listen func(network, address string) (net.Listener, error)
 }
 
 func (a *EndpointAllocator) bind(address string, automatic, strict bool) (net.Listener, func(), error) {
@@ -271,7 +274,11 @@ func (a *EndpointAllocator) bind(address string, automatic, strict bool) (net.Li
 		if a.held[address] {
 			return nil, fmt.Errorf("RSP endpoint %s is reserved by an unfinished bridge", address)
 		}
-		listener, err := net.Listen("tcp", address)
+		listen := a.listen
+		if listen == nil {
+			listen = net.Listen
+		}
+		listener, err := listen("tcp", address)
 		if err != nil {
 			return nil, fmt.Errorf("bind RSP endpoint %s: %w", address, err)
 		}

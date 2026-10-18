@@ -262,7 +262,10 @@ with a `cat` byte-stream simulator. The latter is named
 exact terminal-mode restoration. It does not validate GDB, Windows/WSL networking, or a physical board.
 Port tests cover cursor advancement after release, wraparound, active/external port conflicts,
 strict exhaustion/dynamic fallback with a reduced test pool, concurrent allocation and reuse,
-and reservation through authentication/disconnect. Control tests exercise
+and reservation through authentication/disconnect. Exact cursor and reduced-pool concurrency tests
+use a per-allocator bind fake so other processes cannot take ports between a probe and the asserted
+allocation. Separate real TCP tests retain OS bind exclusion, exhaustion/fallback, concurrent
+allocation/release, and authentication/disconnect coverage. Control tests exercise
 missing/silent/wrong-response clients, separate-stream authentication, no heartbeat bytes in RSP,
 lease expiry, the lifetime cap, and final-byte draining. Silent TCP peers simulate application
 stalls/half-open behavior; they are not an OS packet-loss or Windows firewall test.
