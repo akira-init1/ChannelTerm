@@ -334,7 +334,7 @@ func (r *debugRun) bootstrap() string {
 	watchdog := "while [ \"$(" + statStart + "/proc/$$/stat 2>/dev/null)\" = \"$ct_birth\" ];do sleep 2;ct_beat=$(cat " + q(filepath.Join(r.dir, "heartbeat")) + " 2>/dev/null);case $ct_beat in ''|*[!0-9]*) ct_beat=0;;esac;if [ \"$(" + statStart + "/proc/" + strconv.Itoa(os.Getpid()) + "/stat 2>/dev/null)\" != " + q(hostStart) + " ] || [ $(( $(date +%s) - ct_beat )) -ge 45 ];then [ \"$(" + statStart + "/proc/$$/stat 2>/dev/null)\" != \"$ct_birth\" ] || kill -KILL $$;exit;fi;done"
 	server := "umask 077;ct_birth=$(" + statStart + "/proc/$$/stat)||exit;printf '%s %s' \"$$\" \"$ct_birth\" > " + q(filepath.Join(r.dir, "server.pid")) + "||exit;(" + watchdog + ") </dev/null >/dev/null 2>&1 & exec " + command + " 2>" + q(filepath.Join(r.dir, "server.log"))
 	token := quoteSplitTerminalCommandToken(r.token)
-	return "if [ -n \"$BASH_VERSION\" ];then " + bashDeleteCurrentHistoryEntry + ";(ct_tty=$(stty -g)||exit;trap 'stty \"$ct_tty\"' 0;[ \"$(cat " + q(filepath.Join(r.dir, "identity")) + ")\" = " + token + " ]||exit;stty raw -echo||exit;printf '\\036\\037%s\\037\\036' " + token + ";/usr/bin/setsid --wait /bin/sh -c " + q(server) + ";ct_rc=$?;stty \"$ct_tty\"||exit;trap - 0;printf '\\035\\034%s:%s\\034\\035' " + token + " \"$ct_rc\");else printf '\\035\\034%s:UNSUPPORTED\\034\\035' " + token + ";fi"
+	return "if [ -n \"$BASH_VERSION\" ];then " + bashDeleteTokenHistoryEntry(r.token) + "(ct_tty=$(stty -g)||exit;trap 'stty \"$ct_tty\"' 0;[ \"$(cat " + q(filepath.Join(r.dir, "identity")) + ")\" = " + token + " ]||exit;stty raw -echo||exit;printf '\\036\\037%s\\037\\036' " + token + ";/usr/bin/setsid --wait /bin/sh -c " + q(server) + ";ct_rc=$?;stty \"$ct_tty\"||exit;trap - 0;printf '\\035\\034%s:%s\\034\\035' " + token + " \"$ct_rc\");else printf '\\035\\034%s:UNSUPPORTED\\034\\035' " + token + ";fi"
 }
 
 type debugSessionStream struct {
@@ -469,12 +469,16 @@ func (r *debugRun) probeShell(ctx context.Context) error {
 		return e
 	}
 	p := &terminalCommandProtocol{terminal: r.terminal, cursor: sessionOutputCursor(r.terminal), token: token}
-	// printf is side-effect-free. Splitting the random token prevents input echo
-	// from being mistaken for the probe's response, even with echo enabled.
-	command := bashDeleteCurrentHistoryEntry + ";printf '\\036\\037%s\\037\\036' " + quoteSplitTerminalCommandToken(token) + "\n"
+	command := debugShellProbeCommand(token)
 	if e = r.write(ctx, []byte(command)); e != nil {
 		return e
 	}
 	_, e = p.waitStart(ctx)
 	return e
+}
+
+// debugShellProbeCommand proves shell readiness without retaining its own
+// history entry. The split token prevents input echo from satisfying the probe.
+func debugShellProbeCommand(token string) string {
+	return bashDeleteTokenHistoryEntry(token) + "printf '\\036\\037%s\\037\\036' " + quoteSplitTerminalCommandToken(token) + "\n"
 }

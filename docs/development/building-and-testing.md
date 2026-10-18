@@ -97,6 +97,12 @@ stable Go release, and runs formatting, `go vet`, the race detector, all six cro
 `govulncheck`. The Windows job also validates `scripts/build.ps1` and its version injection. A
 release candidate should not be tagged until every job passes.
 
+A separate Linux job installs GDB/gdbserver and runs both the managed and external GDB integration
+suites with race detection and `CHANNELTERM_TEST_GDB=1`. It uses disposable local processes and
+PTYs, without hardware or changes to system ptrace policy. Missing tools or denied ptrace access
+fail this opted-in job instead of silently skipping the suite. The 310-second idle test remains
+separately opt-in through `CHANNELTERM_TEST_RSP_LONG=1`.
+
 `.github/workflows/release.yml` runs only when a tag matching `v*` is pushed. It validates that the
 tag is `v` followed by a SemVer version, strips the `v` for the embedded CLI version, tests and
 cross-builds with `CGO_ENABLED=0`, and packages all six supported targets. Windows archives are ZIP
@@ -218,6 +224,12 @@ On native Linux with GDB, gdbserver, GCC, Bash, and util-linux on PATH, run:
 
 ```bash
 CHANNELTERM_TEST_GDB=1 go test -race ./internal/mcp -run '^TestGDBLocal' -count=1 -v
+```
+
+To run the same managed and external coverage as CI:
+
+```bash
+CHANNELTERM_TEST_GDB=1 go test -race ./internal/mcp -run '^TestGDB(Local|ExternalPTY)' -timeout 10m -count=1 -v
 ```
 
 The suite creates disposable ELF executables and PTYs and uses the real MCP SDK, GDB/MI, and

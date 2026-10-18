@@ -523,10 +523,7 @@ func (a *Application) RestoreRSPBridge(id, owner, ttyState string, confirmShellR
 func rspBridgeRestoreCommand(ttyState, token string) string {
 	quoted := quoteTerminalCommand(ttyState)
 	splitToken := quoteSplitTerminalCommandToken(token)
-	// Only delete a Bash entry containing this fresh probe's literal split token.
-	// HISTIGNORE or disabled history can leave a user's command as the last entry;
-	// blindly deleting HISTCMD would remove it. Other shells keep normal history.
-	cleanup := "if [ -n \"${BASH_VERSION-}\" ];then case \"$(HISTTIMEFORMAT= builtin history 1)\" in *" + quoteTerminalCommand(splitToken) + "*) builtin " + bashDeleteCurrentHistoryEntry + ";;esac;fi;"
+	cleanup := bashDeleteTokenHistoryEntry(token)
 	return cleanup + "stty " + quoted + " && [ \"$(stty -g)\" = " + quoted + " ] && printf '\\036\\037%s\\037\\036' " + splitToken + "\n"
 }
 

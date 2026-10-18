@@ -1,16 +1,82 @@
 package app
 
 import (
+	"bytes"
 	"context"
-	"github.com/akira-init1/ChannelTerm/internal/core/debugger"
-	"github.com/akira-init1/ChannelTerm/internal/core/session"
 	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/akira-init1/ChannelTerm/internal/core/debugger"
+	"github.com/akira-init1/ChannelTerm/internal/core/session"
 )
+
+func TestDebugCommandsPreserveBashHistory(t *testing.T) {
+	bash, err := exec.LookPath("bash")
+	if err != nil {
+		t.Skip("Bash is unavailable")
+	}
+	const token = "00112233445566778899aabb"
+	r := &debugRun{dir: t.TempDir(), token: token}
+	if err := os.WriteFile(filepath.Join(r.dir, "identity"), []byte("wrong-identity"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	for _, mode := range []struct{ name, setup string }{
+		{"normal", ":"},
+		{"ignore-space", "HISTCONTROL=ignorespace"},
+		{"ignore-command", "HISTIGNORE='*history*'"},
+		{"disabled", "set +o history"},
+		{"timestamps", "HISTTIMEFORMAT='%F %T '"},
+	} {
+		for _, command := range []struct {
+			name, setup, text string
+			marker            bool
+		}{
+			// Abort before starting a server: these cases isolate bootstrap history
+			// cleanup from GDB and exercise two startup error paths.
+			{"bootstrap-stty-error", "stty() { return 1; }", r.bootstrap() + "\n", false},
+			{"bootstrap-identity-error", "stty() { printf '1:2:3'; }", r.bootstrap() + "\n", false},
+			{"shell-probe", ":", debugShellProbeCommand(token), true},
+		} {
+			t.Run(mode.name+"/"+command.name, func(t *testing.T) {
+				historyPath := filepath.Join(t.TempDir(), "history")
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer cancel()
+				cmd := exec.CommandContext(ctx, bash, "--noprofile", "--norc", "-i")
+				cmd.Env = append(os.Environ(), "HISTFILE=/dev/null", "HISTSIZE=100", "HISTCONTROL=", "HISTIGNORE=", "HISTTIMEFORMAT=", "PS1=", "PS2=")
+				cmd.Stdin = strings.NewReader(command.setup + "\nhistory -c\n" + mode.setup + "\necho USER_BEFORE_DEBUG\n" + command.text + "echo USER_AFTER_DEBUG\nhistory -w " + quoteTerminalCommand(historyPath) + "\nexit 0\n")
+				output, err := cmd.CombinedOutput()
+				if err != nil {
+					t.Fatalf("Bash: %v, output=%q", err, output)
+				}
+				history, err := os.ReadFile(historyPath)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if strings.Contains(string(history), token[:12]) || strings.Contains(string(history), "history -d") {
+					t.Fatalf("debug command retained in history: %s", history)
+				}
+				want := []string{"echo USER_BEFORE_DEBUG\n", "echo USER_AFTER_DEBUG\n"}
+				if mode.name == "disabled" {
+					want = []string{"set +o history\n"}
+				}
+				for _, line := range want {
+					if !strings.Contains(string(history), line) {
+						t.Fatalf("user history lost %q: %s", line, history)
+					}
+				}
+				if got := bytes.Contains(output, []byte("\x1e\x1f"+token+"\x1f\x1e")); got != command.marker {
+					t.Fatalf("shell response=%t, want %t; output=%q", got, command.marker, output)
+				}
+			})
+		}
+	}
+}
 
 func TestDebugSocketAuthenticatesExactLocalProcess(t *testing.T) {
 	dir, e := os.MkdirTemp("", "ct-peer-")

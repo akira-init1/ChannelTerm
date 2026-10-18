@@ -27,7 +27,8 @@ func TestDebugLeaseExpiryFailsClosedWithoutActiveWrite(t *testing.T) {
 	}
 }
 func TestDebugLeaseRenewAndConflict(t *testing.T) {
-	c := newLeaseCoordinatorWithTTL(time.Second)
+	c := newLeaseCoordinatorWithTTL(time.Minute)
+	t.Cleanup(func() { c.remove("s") })
 	l, e := c.acquire("s", "owner", LeaseTypeDebug)
 	if e != nil {
 		t.Fatal(e)
@@ -35,6 +36,12 @@ func TestDebugLeaseRenewAndConflict(t *testing.T) {
 	if _, e = c.acquire("s", "other", LeaseTypeDebug); !errors.Is(e, ErrSessionBusy) {
 		t.Fatal(e)
 	}
+	// Model a partially consumed lease without relying on wall-clock resolution.
+	c.mu.Lock()
+	l.ExpiresAt = l.ExpiresAt.Add(-30 * time.Second)
+	c.leases["s"] = l
+	c.scheduleExpiryLocked(l)
+	c.mu.Unlock()
 	n, e := c.renew("s", "owner")
 	if e != nil || !n.ExpiresAt.After(l.ExpiresAt) {
 		t.Fatalf("renew: %v %v", n, e)

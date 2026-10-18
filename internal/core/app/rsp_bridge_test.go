@@ -180,8 +180,16 @@ func TestRSPBridgeAuthorizationRetryAndExpiry(t *testing.T) {
 	if _, err := a.RenewRSPBridge(id, "wrong"); err == nil {
 		t.Fatal("wrong renew owner")
 	}
+	// Model elapsed lease time without sleeping or requiring a finer OS clock.
+	r := a.bridges.runs[id]
+	r.op.Lock()
+	r.mu.Lock()
+	r.status.ExpiresAt = r.status.ExpiresAt.Add(-debugClientTTL / 2)
+	beforeRenewal := r.status.ExpiresAt
+	r.mu.Unlock()
+	r.op.Unlock()
 	renewed, err := a.RenewRSPBridge(id, bridgeTestOwner)
-	if err != nil || !renewed.ExpiresAt.After(first.Status.ExpiresAt) {
+	if err != nil || !renewed.ExpiresAt.After(beforeRenewal) {
 		t.Fatalf("renew: %v", err)
 	}
 	statusJSON, _ := json.Marshal(renewed)
@@ -192,7 +200,6 @@ func TestRSPBridgeAuthorizationRetryAndExpiry(t *testing.T) {
 			t.Fatal("secret leaked in status/events")
 		}
 	}
-	r := a.bridges.runs[id]
 	r.mu.Lock()
 	r.status.ExpiresAt = time.Now().Add(-time.Second)
 	r.mu.Unlock()
