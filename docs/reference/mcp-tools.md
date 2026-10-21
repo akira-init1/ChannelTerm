@@ -45,6 +45,8 @@ and logs. The `terminal_*` name remains the stable machine-readable compatibilit
 
 | Tool name | Display title |
 | --- | --- |
+| `terminal_export_diagnostics` | Export Session Diagnostics |
+| `terminal_read_diagnostic` | Download Diagnostic Archive |
 | `terminal_list_sessions` | List Terminal Sessions |
 | `terminal_read` | Read Terminal Output |
 | `terminal_read_activity` | Read Session Activity |
@@ -480,6 +482,47 @@ uses the stable `reason` value `user_cancelled`. A successful regular-file compl
 carries full lowercase `local_sha256` and `remote_sha256` values; because completion follows
 verification, they match. Directory completion uses the same fields for the verified tar-stream
 digest.
+
+## `terminal_export_diagnostics`
+
+Purpose: create a ZIP of retained Session evidence. Required: `session_id`. Optional:
+`include_raw` (default false). It never writes to the device. Raw output and write payload can
+contain sensitive data; true explicitly opts into retaining them. Event metadata uses an allowlist
+and excludes command text, arbitrary errors, credentials and lease owner capabilities.
+
+Returns `diagnostic_id`, ZIP `size`, lowercase `sha256`, and UTC `expires_at`. Archives are held in
+the owning Application's memory, shared under the existing Host authorization. There are no new
+listeners, arbitrary Host path arguments, or automatic uploads. At most four archives, each at most
+16 MiB, are retained for 15 minutes with oldest eviction. Expired data is reclaimed on store access;
+expired IDs cannot be read. Host exit loses all archives. Download promptly to persist evidence.
+
+Archive contents:
+
+- `manifest.json`: format version, Host build/OS/architecture, known Session metadata, unknown
+  serial parameters explicitly marked, per-file hashes, cursor ranges and completeness limits.
+- `activity.jsonl`: at most 256 recent writes; actual payload is included only with raw opt-in,
+  up to 256 KiB total, with per-record truncation flags.
+- `events.jsonl`: at most 256 recent lifecycle/operation events with bounded allowlisted metadata.
+- `errors.jsonl`: empty for retained-buffer snapshots. No historical MCP error journal is
+  implied; `historical_errors_available` is false.
+- With raw opt-in, `terminal.bin`, `terminal.hex` (pure hexadecimal), and `terminal.log` (derived
+  view escaping controls and invalid UTF-8 with bin offsets). Output is capped at 2 MiB.
+- Snapshot export supplies cursor mapping in the manifest and does not invent reception times.
+
+Buffers are sampled independently, not as one transaction. Gaps, byte/segment limits, unavailable
+buffers, retained-start cursors and payload truncation are explicit. A snapshot is not a complete
+recording. Raw archives are lossless within their declared retained ranges, not automatically
+redacted shareable reports. No transport timing or hardware health is inferred from them.
+
+## `terminal_read_diagnostic`
+
+Required: `diagnostic_id`, `offset` (nonnegative ZIP byte offset). Optional `max_bytes`
+(1..65536, default 65536). Returns `data` (Base64), `encoding: "base64"`, `bytes_read`, `next`,
+`eof`, total `size`, and `sha256`. Unknown/expired/evicted IDs and invalid ranges fail. Offset
+equal to archive size returns an empty EOF chunk. These offsets are not Session cursors.
+
+Use `next` until EOF, then verify total size and SHA-256. A CLI on another machine can save the
+same archive with `channelterm diagnostics --diagnostic-id ID --output capture.zip --endpoint URL`.
 
 ## `terminal_exec`
 

@@ -151,6 +151,9 @@ func runWithDependenciesWithInterrupts(ctx context.Context, args []string, input
 	if len(args) > 0 && args[0] == "events" {
 		return runEvents(ctx, args[1:], output)
 	}
+	if len(args) > 0 && args[0] == "diagnostics" {
+		return runDiagnostics(ctx, args[1:], output)
+	}
 	if len(args) > 0 && args[0] == "list" {
 		return runList(ctx, args[1:], output)
 	}
@@ -178,6 +181,7 @@ func runWithDependenciesWithInterrupts(ctx context.Context, args []string, input
 		fmt.Fprintln(output, "A shared terminal-session core for human and AI access.")
 		fmt.Fprintln(output)
 		fmt.Fprintln(output, "Commands:")
+		fmt.Fprintln(output, "  diagnostics Export a Session diagnostic ZIP to this machine")
 		fmt.Fprintln(output, "  attach  Attach to a Session hosted by local MCP HTTP")
 		fmt.Fprintln(output, "  events  Stream structured events from a shared Session")
 		fmt.Fprintln(output, "  file    Send or receive a file through a shared Session")
@@ -652,7 +656,7 @@ func newMCPRegistry(manager *session.Manager, devices *device.Registry) (*tool.R
 // read-only decision tool without allowing device discovery to create Sessions.
 func newMCPRegistryWithPolicy(manager *session.Manager, devices *device.Registry, policy connectionpolicy.Policy) (*tool.Registry, error) {
 	registry := tool.NewRegistry()
-	application, err := app.New(app.Dependencies{Manager: manager, Devices: devices, Policy: policy})
+	application, err := app.New(app.Dependencies{Manager: manager, Devices: devices, Policy: policy, Build: app.BuildProvenance{Version: version, Commit: buildCommit, Time: buildTime}})
 	if err != nil {
 		return nil, fmt.Errorf("create MCP application: %w", err)
 	}

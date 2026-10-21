@@ -2,6 +2,10 @@
 
 ChannelTerm exposes the same terminal Tool Registry over MCP stdio and stateless Streamable HTTP.
 
+Use the [diagnostic export workflow](serial-terminal.md#export-diagnostic-evidence) to retain
+Session evidence. Keep the owning Host alive while downloading archives. Diagnostic tools use
+the existing authenticated MCP connection; no separate logs service is needed.
+
 ## Configure supported MCP clients
 
 To add ChannelTerm to installed or already configured Codex, Claude Code, OpenCode, and Zoo Code

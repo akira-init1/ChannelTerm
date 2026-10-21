@@ -1,5 +1,19 @@
 # Serial Terminal
 
+## Export diagnostic evidence
+
+Use the owning MCP Host to snapshot retained buffers without opening another serial connection:
+
+```powershell
+channelterm diagnostics --session SER-1 --output session-evidence.zip --include-raw --endpoint http://127.0.0.1:37099/mcp
+```
+
+Omit `--include-raw` for metadata only. Files are never overwritten, and the CLI verifies download
+size and SHA-256. Download before the 15-minute expiry, earlier cache eviction, or Host exit.
+The manifest describes truncation and missing evidence. Snapshot export has no receive timestamps;
+review sensitive raw contents before sharing. An error response must be checked through `isError` before parsing text;
+use hex/base64 for ordinary reads during boot and preserve cursors across timeouts.
+
 ## Find a port
 
 List currently detected serial targets without querying MCP:

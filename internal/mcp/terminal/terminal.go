@@ -197,6 +197,8 @@ func sessionToolsForApplication(application *app.Application) []tool.Tool {
 	}
 	return []tool.Tool{
 		&listSessionsTool{sessionTools: dependencies},
+		&exportDiagnosticsTool{sessionTools: dependencies},
+		&readDiagnosticTool{sessionTools: dependencies},
 		&readTool{sessionTools: dependencies},
 		&readActivityTool{sessionTools: dependencies},
 		&readSessionEventsTool{sessionTools: dependencies},

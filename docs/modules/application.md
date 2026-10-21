@@ -185,6 +185,16 @@ returns its exit code plus raw-output start and end cursors. Interactive program
 background-job lifecycle, and arbitrary raw keys remain `WriteSession` concerns, not
 terminal-command semantics.
 
+## Diagnostic evidence
+
+`ExportDiagnostics`, `DiagnosticInfo`, and `ReadDiagnostic` own immutable ZIP evidence in bounded
+Application memory. No filesystem or additional network listener is introduced. Construction is
+serialized; at most four archives of at most 16 MiB each are retained for 15 minutes, with oldest
+eviction and expired-memory reclamation on store access. Host exit discards archives. Raw evidence
+requires explicit opt-in. Snapshot export reads at most 2 MiB of recent output. Each archive includes at most 256 recent
+activity/events, with at most 256 KiB of write payload. Gaps, truncation, unavailable buffers and
+independent sampling are explicit. Snapshots do not invent receive timestamps. See the [MCP contracts](../reference/mcp-tools.md#terminal_export_diagnostics).
+
 ## Writer leases and transfer cancellation
 
 Application owns one exclusive lease per managed Session. Supported lease types are

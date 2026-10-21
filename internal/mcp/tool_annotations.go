@@ -11,6 +11,10 @@ func terminalToolAnnotations(name string) (*protocol.ToolAnnotations, bool) {
 	idempotent := false
 
 	switch name {
+	case "terminal_export_diagnostics":
+		// Creates a bounded Host-local evidence archive without terminal writes.
+	case "terminal_read_diagnostic":
+		readOnly = true
 	case "debug_bridge_report":
 		idempotent = true // Sequence retries never duplicate a report.
 	case "debug_bridge_start", "debug_bridge_close", "debug_bridge_restore", "debug_start", "debug_command", "debug_stop":

@@ -47,6 +47,9 @@ var (
 // Serial and ListSerialPorts are test seams; nil values select production
 // configuration, Serial Transport construction, and port enumeration.
 type Dependencies struct {
+	// Build identifies the running executable in diagnostic manifests. Unknown
+	// fields remain explicit when a caller does not supply release provenance.
+	Build           BuildProvenance
 	Manager         *session.Manager
 	Devices         *device.Registry
 	Policy          connectionpolicy.Policy
@@ -70,6 +73,8 @@ type Application struct {
 	listSerialPorts func() ([]serialtransport.Port, error)
 	debug           debugCoordinator
 	bridges         bridgeCoordinator
+	diagnostics     diagnosticStore
+	build           BuildProvenance
 }
 
 // New creates an Application from Core runtime dependencies.
@@ -97,6 +102,7 @@ func New(dependencies Dependencies) (*Application, error) {
 		listPorts = serialtransport.ListPorts
 	}
 	application := &Application{
+		build:           dependencies.Build,
 		manager:         dependencies.Manager,
 		serial:          serial,
 		leases:          newLeaseCoordinator(),
