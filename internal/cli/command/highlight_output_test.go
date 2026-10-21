@@ -2,8 +2,59 @@ package command
 
 import (
 	"bytes"
+	"fmt"
 	"testing"
 )
+
+// TestBootloaderPromptEchoThroughPresentation covers the two buffering layers
+// together: neither may wait for Enter before exposing a prompt or echoed key.
+func TestBootloaderPromptEchoThroughPresentation(t *testing.T) {
+	for _, timestamps := range []bool{false, true} {
+		for _, prompt := range []string{"Zynq> ", "ZynqMP> ", "=> ", "U-Boot> ", "\x1b[32mZynq> \x1b[0m"} {
+			for split := 0; split <= len(prompt)+4; split++ {
+				t.Run(fmt.Sprintf("timestamps=%t/prompt=%q/split=%d", timestamps, prompt, split), func(t *testing.T) {
+					t.Setenv("NO_COLOR", "")
+					t.Setenv("CLICOLOR_FORCE", "1")
+					var output bytes.Buffer
+					highlighter := resolveHighlightRenderer(true, &output)
+					if highlighter == nil {
+						t.Fatal("test requires active highlighting")
+					}
+					renderer := newPromptTimestampRenderer(terminalOutputWriter(&output, highlighter), terminalOutputFlusher(highlighter), fixedPromptTimestampClock)
+					if timestamps {
+						if _, err := renderer.Toggle(); err != nil {
+							t.Fatal(err)
+						}
+					}
+					// The previous output ends a line; the new prompt has no newline.
+					want := "autoboot stopped\r\n"
+					if err := renderer.Write([]byte(want)); err != nil {
+						t.Fatal(err)
+					}
+					input := prompt + "help"
+					for _, chunk := range []string{input[:split], input[split:]} {
+						if err := renderer.Write([]byte(chunk)); err != nil {
+							t.Fatal(err)
+						}
+					}
+					want += input
+					if output.String() != want {
+						t.Fatalf("prompt/echo withheld before Enter: got %q want %q", output.String(), want)
+					}
+					for _, echo := range []string{" ", "1", "\b \b", "\r", "\n", prompt} {
+						if err := renderer.Write([]byte(echo)); err != nil {
+							t.Fatal(err)
+						}
+						want += echo
+						if output.String() != want {
+							t.Fatalf("delayed or changed echo: got %q want %q", output.String(), want)
+						}
+					}
+				})
+			}
+		}
+	}
+}
 
 // TestColoredPromptEchoThroughPresentation verifies the actual timestamp and
 // highlighting pipeline exposes every echoed key before a newline or flush.

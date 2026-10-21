@@ -216,6 +216,11 @@ Side effects and lifecycle:
   not ordinary output lines. This feedback is not Session output.
 - Received Session bytes remain raw. Highlighting is enabled by default only for a color-capable
   terminal output and prompt timestamps are applied only while writing this CLI's output.
+- Common bootloader prompts (`=> ` or a name using ASCII letters, digits, `.`, `_`, or `-`
+  followed by `> `, such as `Zynq> `)
+  and subsequent input echo are displayed without waiting for a newline, even with highlighting
+  or prompt timestamps enabled. These prompts remain unstyled and do not receive timestamps.
+  Recognition is a local presentation heuristic, not confirmation of the device's boot state.
 - The highlighter assigns non-bold semantic colors to status words, boot headings, field names,
   embedded interface/protocol identifiers, addresses, versions, timestamps, numbers, units, quoted
   values, structural `()`, `[]`, and `{}` delimiters, and recognized shell-prompt components. It

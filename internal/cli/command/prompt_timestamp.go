@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"regexp"
 	"time"
+
+	"github.com/akira-init1/ChannelTerm/internal/cli/highlight"
 )
 
 const maxPromptTimestampPendingBytes = 8 * 1024
@@ -99,7 +101,15 @@ func (r *promptTimestampRenderer) Write(data []byte) error {
 		if !complete {
 			return nil
 		}
-		if promptPattern.Match(visible) {
+		if highlight.HasBootloaderPromptPrefix(visible) {
+			// Timestamp only supported shell prompts, but never hold a bootloader
+			// prompt or its echo while waiting for a newline that needs user input.
+			if err := r.write(r.pending); err != nil {
+				return err
+			}
+			r.pending = nil
+			r.rawUntilNewline = true
+		} else if promptPattern.Match(visible) {
 			stamp := []byte(fmt.Sprintf("[%s] ", r.now().Format("15:04:05")))
 			stamped := make([]byte, 0, len(stamp)+len(r.pending))
 			stamped = append(stamped, stamp...)
