@@ -29,7 +29,7 @@ Treat `cterm` as an alias for ChannelTerm. Use ChannelTerm's MCP tools to work t
 - Use `terminal_exec` only for one non-interactive command at a known idle Bash prompt. Each call uses a fresh child, so combine dependent shell steps in one command. Do not use it while a foreground or interactive program owns the terminal.
 - Use `terminal_write` for a bare MCU, RTOS console, bootloader, REPL, password prompt, interactive program, raw keys, control characters, or binary protocol.
 - For files or debugging ELFs, follow `cterm-file-transfer` and run `channelterm file send/receive` against the existing Session. Do not implement Base64/heredoc uploads with raw writes. If execution, local-file, or Host access is unavailable, report the limitation.
-- For Linux source-level debugging, use `cterm-gdb-debug` when installed; it covers gdbserver checks, target preparation, bridge ownership, independent GDB control, reporting, and recovery. Preserve the intended Session and Host. Otherwise consult the [debugging workflow](../../docs/getting-started/gdb-debugging.md#external-gdb-over-a-prepared-serial-session) and installed MCP schemas before taking over the serial stream.
+- For Linux source-level debugging, use `cterm-gdb-debug` when installed; it covers gdbserver checks, target preparation, bridge ownership, independent GDB control, reporting, and recovery. Preserve the intended Session and Host. Otherwise consult the [debugging workflow on GitHub](https://github.com/akira-init1/ChannelTerm/blob/main/docs/getting-started/gdb-debugging.md#external-gdb-over-a-prepared-serial-session) and installed MCP schemas before taking over the serial stream.
 - Observe the response before choosing the next action. Do not invent device-specific commands.
 - Obtain explicit approval before an operation that may reset a device, enter a bootloader, erase or flash storage, change persistent configuration, or otherwise interrupt the user's hardware workflow.
 - Use leases and `terminal_write_leased` only for a deliberately managed multi-step operation. Renew and release an acquired lease; do not add lease machinery to ordinary reads or writes.
@@ -41,7 +41,8 @@ polling during the countdown. Supply the board's literal countdown/prompt/boot-s
 verified interrupt bytes. Reboot mode requires a known idle Bash prompt and an explicit command;
 wait_reset requires observing the matching `OPERATION_STATE` ready event before manual reset.
 Only status entered confirms entry; bytes_written alone does not. A missed window must not trigger
-an automatic reboot retry. See the [serial workflow](../../docs/getting-started/serial-terminal.md#enter-u-boot-and-export-evidence).
+an automatic reboot retry. See the [serial workflow on GitHub](https://github.com/akira-init1/ChannelTerm/blob/main/docs/getting-started/serial-terminal.md).
+These links track main; use installed MCP schemas and CLI help for the running version.
 
 Check MCP isError before parsing content. Preserve the last successful cursor on timeout; use
 hex/base64 for boot output. Diagnostic raw capture requires explicit opt-in because it retains
