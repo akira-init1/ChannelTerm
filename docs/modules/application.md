@@ -163,6 +163,12 @@ recording.
 
 ## Isolated terminal commands
 
+The shared pending-input check recognizes complete, bounded `ESC [ row ; col R` cursor-position
+replies, including replies split across write activity events. Such replies do not add pending
+input or clear existing human input. Other escapes, malformed/incomplete replies, and overwritten
+input history remain conservative until an explicit line reset. Recognition is syntactic, not
+proof of who produced a reply; terminal bytes and stored activity are never filtered.
+
 `ExecuteTerminalCommand` is the command-aware alternative to a raw Agent write. It accepts one
 printable command line, acquires and renews a `terminal` lease, rejects a Session whose retained
 write activity shows unsubmitted interactive input, and runs the command in an isolated

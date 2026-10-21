@@ -212,12 +212,28 @@ func terminalHasPendingInteractiveInput(terminal session.Session) (bool, error) 
 	if err != nil {
 		return false, fmt.Errorf("inspect terminal input activity: %w", err)
 	}
-	pending := false
+	// Missing activity is unknown input, not proof of an empty line. A later
+	// explicit line reset can establish an empty line again.
+	pending := activity.Dropped || uint64(activity.Next) > uint64(len(activity.Events))
+	var reply []byte
 	for _, event := range activity.Events {
 		if event.Operation != session.OperationWrite || event.Actor == session.ActorSystem {
 			continue
 		}
 		for _, value := range event.Data {
+			if len(reply) > 0 || value == 0x1b {
+				reply = append(reply, value)
+				complete, possible := cursorPositionReply(reply)
+				if complete {
+					reply = nil
+					continue
+				}
+				if possible {
+					continue
+				}
+				pending = true
+				reply = nil
+			}
 			switch value {
 			case '\r', '\n', 0x03, 0x15:
 				pending = false
@@ -229,7 +245,7 @@ func terminalHasPendingInteractiveInput(terminal session.Session) (bool, error) 
 			}
 		}
 	}
-	return pending, nil
+	return pending || len(reply) != 0, nil
 }
 
 func newTerminalCommandToken() (string, error) {
