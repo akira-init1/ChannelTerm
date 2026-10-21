@@ -631,6 +631,9 @@ func (t *readTool) Call(ctx context.Context, input json.RawMessage) (tool.Result
 	}
 	data, encoding, err := encodeOutput(chunk.Data, args.Encoding)
 	if err != nil {
+		if errors.Is(err, ErrInvalidUTF8Output) {
+			return nil, codedTerminalError{"invalid_utf8", fmt.Errorf("encode session %q output: %w", args.SessionID, err)}
+		}
 		return nil, fmt.Errorf("encode session %q output: %w", args.SessionID, err)
 	}
 	return tool.Result{

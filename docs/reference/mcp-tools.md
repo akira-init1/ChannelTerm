@@ -18,7 +18,11 @@ properties are present on every successful result; optional properties describe 
 such as connection-decision reasons, active leases, and completed file-transfer paths. Successful
 calls return both schema-matching structured content and an equivalent JSON text content item.
 Recoverable tool failures return an MCP tool result with `isError: true` and text beginning
-`<tool-name> failed:`. Structured inputs decoded by the terminal adapter reject unknown fields.
+`<tool-name> failed:`. They also include `structuredContent.error` with `code`, `tool`, and
+`message`; an operation can include partial evidence in `structuredContent.result`. Check
+`isError` before decoding content: error text is not JSON. Codes include `timeout`, `cancelled`,
+`session_closed`, `invalid_utf8`, and fallback `tool_error`. Successful result shapes are unchanged.
+Structured inputs decoded by the terminal adapter reject unknown fields.
 
 Every advertised tool also includes MCP behavioral annotations. These are planning hints, not
 authorization or safety enforcement:

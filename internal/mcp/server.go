@@ -394,7 +394,11 @@ func (a *adapter) handler(exposed exposedTool) protocol.ToolHandler {
 		}
 		result, err := a.registry.Call(ctx, exposed.target, input)
 		if err != nil {
-			return errorResult(exposed.name, err), nil
+			failure := errorResult(exposed.name, err)
+			if result != nil {
+				failure.StructuredContent.(map[string]any)["result"] = result
+			}
+			return failure, nil
 		}
 		return successResult(result)
 	}
@@ -429,8 +433,21 @@ func successResult(result tool.Result) (*protocol.CallToolResult, error) {
 
 // errorResult preserves the underlying error in concise Agent-facing text.
 func errorResult(name string, err error) *protocol.CallToolResult {
+	code := "tool_error"
+	var classified interface{ ErrorCode() string }
+	switch {
+	case errors.As(err, &classified):
+		code = classified.ErrorCode()
+	case errors.Is(err, context.DeadlineExceeded):
+		code = "timeout"
+	case errors.Is(err, context.Canceled):
+		code = "cancelled"
+	case errors.Is(err, io.EOF):
+		code = "session_closed"
+	}
 	return &protocol.CallToolResult{
-		Content: []protocol.Content{&protocol.TextContent{Text: fmt.Sprintf("%s failed: %v", name, err)}},
-		IsError: true,
+		StructuredContent: map[string]any{"error": map[string]any{"code": code, "tool": name, "message": err.Error()}},
+		Content:           []protocol.Content{&protocol.TextContent{Text: fmt.Sprintf("%s failed: %v", name, err)}},
+		IsError:           true,
 	}
 }
