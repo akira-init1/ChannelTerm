@@ -185,17 +185,34 @@ returns its exit code plus raw-output start and end cursors. Interactive program
 background-job lifecycle, and arbitrary raw keys remain `WriteSession` concerns, not
 terminal-command semantics.
 
-## Diagnostic evidence
+## Writer leases and transfer cancellation
+
+### U-Boot entry and diagnostic evidence
+
+`EnterUBoot` is a serial-only application operation using the existing terminal lease. It validates
+bounded literal patterns and interrupt bytes before acquiring ownership, arms a fresh raw-output
+cursor, and publishes `OPERATION_STATE` readiness. Reboot mode requires a caller-verified idle Bash
+prompt. Its separate history-cleaned bootstrap keeps echo unchanged and does not wait for a Bash
+end marker that a reboot may prevent. It does not nest `ExecuteTerminalCommand` or its recovery.
+
+The observer handles arbitrary bytes and cross-chunk markers, drains retained backlog before
+acting, sends the interrupt once, and requires a fresh exact prompt line after the countdown.
+Boot-start evidence takes precedence; overwritten output stops the operation. Cancellation and
+timeout stop further writes and release only this operation's lease, without recovery keys or
+closing a healthy shared Session. Already submitted device writes cannot be undone. These are
+Host observations, not guarantees about hardware scheduling or remote execution.
 
 `ExportDiagnostics`, `DiagnosticInfo`, and `ReadDiagnostic` own immutable ZIP evidence in bounded
 Application memory. No filesystem or additional network listener is introduced. Construction is
 serialized; at most four archives of at most 16 MiB each are retained for 15 minutes, with oldest
 eviction and expired-memory reclamation on store access. Host exit discards archives. Raw evidence
-requires explicit opt-in. Snapshot export reads at most 2 MiB of recent output. Each archive includes at most 256 recent
+requires explicit opt-in; operation capture retains at most 2 MiB and 4096 observation segments.
+Snapshot export reads at most 2 MiB of recent output. Each archive includes at most 256 recent
 activity/events, with at most 256 KiB of write payload. Gaps, truncation, unavailable buffers and
-independent sampling are explicit. Snapshots do not invent receive timestamps. See the [MCP contracts](../reference/mcp-tools.md#terminal_export_diagnostics).
+independent sampling are explicit. Capture times are application observation times, not UART
+arrival times. See the [MCP contracts](../reference/mcp-tools.md#terminal_export_diagnostics).
 
-## Writer leases and transfer cancellation
+### Existing lease contract
 
 Application owns one exclusive lease per managed Session. Supported lease types are
 `terminal`, `file-transfer`, and `debug`. A normal write fails immediately with

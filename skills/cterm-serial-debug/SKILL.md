@@ -36,6 +36,18 @@ Treat `cterm` as an alias for ChannelTerm. Use ChannelTerm's MCP tools to work t
 
 ## Preserve Shared Ownership
 
+For an authorized U-Boot entry, use `terminal_enter_uboot` on the owning Host instead of model-side
+polling during the countdown. Supply the board's literal countdown/prompt/boot-start markers and
+verified interrupt bytes. Reboot mode requires a known idle Bash prompt and an explicit command;
+wait_reset requires observing the matching `OPERATION_STATE` ready event before manual reset.
+Only status entered confirms entry; bytes_written alone does not. A missed window must not trigger
+an automatic reboot retry. See the [serial workflow](../../docs/getting-started/serial-terminal.md#enter-u-boot-and-export-evidence).
+
+Check MCP isError before parsing content. Preserve the last successful cursor on timeout; use
+hex/base64 for boot output. Diagnostic raw capture requires explicit opt-in because it retains
+terminal contents. Download a diagnostic_id before expiry/eviction using the diagnostic tools or
+CLI; do not interpret a Host identifier as a client-local file path.
+
 - Assume other clients may be attached to the same Session. A complete write payload is serialized, but ordinary writers do not receive semantic shell ownership.
 - Prefer leaving the Session open after diagnosis. `terminal_session_detach` only records a client departure on the Session event stream. The client must stop its own attachment I/O through its exit or detach action; calling the tool does not disconnect it. `terminal_close` closes the shared Session for every client and requires clear user intent.
 - Before advising a CLI attachment to exit, check whether it created a temporary Host. Exiting that creating attachment also stops the Host and closes all of its Sessions, even if other clients remain attached. Keep it open while those Sessions are needed. Use a separately started persistent HTTP Host from the outset when Sessions must outlive CLI attachments.

@@ -11,6 +11,8 @@ GDB를 통해 AI가 중단점을 설정하고 Linux 프로그램을 단계 실�
 > 이 문서는 한국어 안내 문서입니다. 동작, 옵션, 호환성에 관한 기준은 영문
 > [README](README.md), 현재 소스 코드와 `channelterm --help`입니다.
 
+짧은 부팅 대기 시간에도 Host가 U-Boot를 중단하고 프롬프트를 확인할 수 있습니다. 문제 조사용 진단 ZIP을 내보낼 수 있으며 원시 바이트 포함은 선택 사항입니다. [U-Boot 및 진단 절차](docs/getting-started/serial-terminal.md#enter-u-boot-and-export-evidence).
+
 ## ChannelTerm을 사용하는 이유
 
 터미널을 열어 둔 채 AI와 같은 장치 연결을 사용하세요.

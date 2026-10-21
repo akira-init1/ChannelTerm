@@ -11,6 +11,8 @@ ChannelTerm 让你和 AI 客户端共享真实的串口或 SSH 终端：读取�
 > 本文是简体中文入口。行为、参数和兼容性以英文 [README](README.md)、当前源码及
 > `channelterm --help` 为准。
 
+对于短暂的启动窗口，可由 Host 打断 U-Boot 并确认提示符。排查失败时可导出诊断 ZIP，按需包含原始字节。[U-Boot 与诊断操作流程](docs/getting-started/serial-terminal.md#enter-u-boot-and-export-evidence)。
+
 ## 为什么使用 ChannelTerm？
 
 保持终端连接，让 AI 使用同一条设备连接协助操作：

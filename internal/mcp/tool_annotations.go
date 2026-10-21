@@ -11,6 +11,8 @@ func terminalToolAnnotations(name string) (*protocol.ToolAnnotations, bool) {
 	idempotent := false
 
 	switch name {
+	case "terminal_enter_uboot":
+		destructive, openWorld = true, true
 	case "terminal_export_diagnostics":
 		// Creates a bounded Host-local evidence archive without terminal writes.
 	case "terminal_read_diagnostic":

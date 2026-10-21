@@ -1,8 +1,34 @@
 # Serial Terminal
 
-## Export diagnostic evidence
+## Enter U-Boot and export evidence
 
-Use the owning MCP Host to snapshot retained buffers without opening another serial connection:
+Use an existing shared serial Session and its owning MCP Host. Record the board's serial settings
+and verify its actual countdown text, prompt (including spaces), interrupt key, and boot-start
+markers. `terminal_enter_uboot` watches raw bytes inside the Host, avoiding model round trips in a
+short countdown window. Its [contract](../reference/mcp-tools.md#terminal_enter_uboot) includes
+board-dependent arguments and limits.
+
+First read `terminal_session_events` and retain its `next` cursor to exclude old readiness events.
+For manual reset, call with `mode: "wait_reset"`, observe a new `OPERATION_STATE` ready
+event in another client/request, then reset the board. For an authorized software reboot from a
+known idle Bash prompt, use `mode: "reboot"` with an explicit command such as `sync && reboot`.
+Do not use reboot mode in U-Boot, a foreground program, or with an unsubmitted human command.
+
+Only `status: "entered"` confirms the fresh prompt. `boot_started` means the observed window was
+missed; timeout, dropped output or write failure is not success. Do not automatically reboot again.
+Cancellation stops this operation without closing the shared Session; an already sent reboot can
+still proceed. Normal U-Boot commands use raw terminal writes, not Bash-only `terminal_exec`.
+
+Set `diagnostics: "capture"` only when retaining raw terminal contents is intended. Completion
+events also contain the diagnostic ID, so another observer can recover it after a cancelled MCP
+request whose response is no longer delivered. A returned
+diagnostic ID can be downloaded on the caller's machine, including WSL:
+
+```powershell
+channelterm diagnostics --diagnostic-id DIAG-EXAMPLE --output boot-evidence.zip --endpoint http://127.0.0.1:37099/mcp
+```
+
+Replace the example ID with the actual returned value. To create a fresh retained-buffer snapshot:
 
 ```powershell
 channelterm diagnostics --session SER-1 --output session-evidence.zip --include-raw --endpoint http://127.0.0.1:37099/mcp
@@ -11,7 +37,8 @@ channelterm diagnostics --session SER-1 --output session-evidence.zip --include-
 Omit `--include-raw` for metadata only. Files are never overwritten, and the CLI verifies download
 size and SHA-256. Download before the 15-minute expiry, earlier cache eviction, or Host exit.
 The manifest describes truncation and missing evidence. Snapshot export has no receive timestamps;
-review sensitive raw contents before sharing. An error response must be checked through `isError` before parsing text;
+operation capture times describe Host observation, not exact UART arrival. Review sensitive raw
+contents before sharing. An error response must be checked through `isError` before parsing text;
 use hex/base64 for ordinary reads during boot and preserve cursors across timeouts.
 
 ## Find a port

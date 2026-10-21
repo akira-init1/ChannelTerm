@@ -2,9 +2,11 @@
 
 ChannelTerm exposes the same terminal Tool Registry over MCP stdio and stateless Streamable HTTP.
 
-Use the [diagnostic export workflow](serial-terminal.md#export-diagnostic-evidence) to retain
-Session evidence. Keep the owning Host alive while downloading archives. Diagnostic tools use
-the existing authenticated MCP connection; no separate logs service is needed.
+For short bootloader windows, use the Host-side U-Boot operation and
+[diagnostic export workflow](serial-terminal.md#enter-u-boot-and-export-evidence). Keep the owning
+Host alive while downloading archives. These tools use the existing authenticated MCP connection;
+they do not open a separate logs service. Check `isError` before consuming tool results, including
+structured partial evidence on failure.
 
 ## Configure supported MCP clients
 

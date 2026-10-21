@@ -11,6 +11,8 @@ ChannelTerm 讓你與 AI 用戶端共享真實的序列埠或 SSH 終端機：�
 > 本文是繁體中文入口。行為、參數與相容性以英文 [README](README.md)、目前原始碼及
 > `channelterm --help` 為準。
 
+對於短暫的啟動視窗，可由 Host 中斷 U-Boot 並確認提示符。排查失敗時可匯出診斷 ZIP，按需包含原始位元組。[U-Boot 與診斷操作流程](docs/getting-started/serial-terminal.md#enter-u-boot-and-export-evidence)。
+
 ## 為什麼使用 ChannelTerm？
 
 保持終端機連線，讓 AI 使用同一條裝置連線協助操作：

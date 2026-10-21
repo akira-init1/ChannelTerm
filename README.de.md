@@ -12,6 +12,8 @@ Mit GDB kann die KI Haltepunkte setzen, Linux-Programme schrittweise ausführen 
 > sind das englische [README](README.md), der aktuelle Quellcode und `channelterm --help`
 > maßgeblich.
 
+Bei kurzen Boot-Zeitfenstern kann der Host U-Boot unterbrechen und die Eingabeaufforderung prüfen. Exportieren Sie zur Fehleranalyse ein Diagnose-ZIP, optional mit Rohbytes. [U-Boot und Diagnose](docs/getting-started/serial-terminal.md#enter-u-boot-and-export-evidence).
+
 ## Warum ChannelTerm?
 
 Lassen Sie Ihr Terminal offen, während die KI dieselbe Geräteverbindung nutzt:

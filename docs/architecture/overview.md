@@ -25,9 +25,11 @@ MCP Adapter -> Tool Registry --+--> internal/core/app.Application
 The Transport-to-Channel arrows show connection establishment and ownership transfer. Once open,
 Session reads and writes the Channel directly; Transport is not an extra runtime I/O hop.
 
-Application owns bounded diagnostic ZIP snapshots of retained Session buffers. MCP exposes
-archive creation and bounded downloads; CLI saves them on the caller's machine. Archives live
-in bounded Host memory with no new listener or changes to raw Session output.
+Application also owns bounded U-Boot entry operations and diagnostic ZIP archives. U-Boot matching
+uses a fresh Session output cursor and the existing application writer lease; it never opens a
+second Transport. Diagnostic capture observes Session bytes without altering them. MCP exposes
+operation/results and bounded archive downloads; CLI saves downloads on the caller's machine.
+Archives live in bounded Host memory, with no new listener or Session protocol-specific logic.
 
 `cmd/channelterm` is the composition root. It creates process cancellation and passes standard
 streams to `internal/cli/command`. The CLI owns argument syntax, status text, raw console mode,

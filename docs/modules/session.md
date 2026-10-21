@@ -4,6 +4,11 @@
 Channel reader, retained output, retained write activity, retained structured events, and Manager
 registration.
 
+Application operations can publish the generic `OPERATION_STATE` event with an operation ID,
+kind, status, and output cursor. Session stores it without interpreting bootloader protocols.
+U-Boot matching and diagnostic ZIP retention remain Application responsibilities. Output retains
+raw bytes and independent cursors; no terminal escape filtering or receive timestamps are added.
+
 ## Lifecycle
 
 ```text
