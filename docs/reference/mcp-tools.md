@@ -489,12 +489,25 @@ digest.
 
 Purpose: interrupt one serial boot countdown in the Host and confirm a fresh U-Boot prompt.
 This is a write-capable, non-idempotent operation that can reboot the target. It uses the existing
-terminal lease and refuses competing managed operations. Confirm the hardware action first.
+terminal lease and refuses competing managed operations. Stay within explicit user authorization;
+an existing request to enter U-Boot need not be reconfirmed, but does not authorize repeated resets.
 
 Required inputs: `session_id`, `mode` (`wait_reset` or `reboot`), `countdown_pattern`,
 `prompt_pattern`, `boot_started_patterns`, and `interrupt_data_hex`. Patterns are literal strings
 of 1..256 bytes; the prompt is one exact line including spaces. Supply 1..8 boot-start patterns.
 The interrupt is 1..32 bytes encoded as complete hexadecimal pairs without whitespace.
+It may be a single key or a complete non-secret string; there is no default key or appended CR/LF.
+Matching uses raw bytes, not rendered terminal text, regular expressions, or wildcards.
+The client must derive settings from observed output or verified board/firmware configuration,
+and ask the user about missing settings before calling. Countdown text alone does not identify
+the required interrupt input. See [parameter selection examples](../getting-started/serial-terminal.md#enter-u-boot-and-export-evidence).
+The tool does not auto-detect settings, ask questions during execution, or provide a dedicated
+credential-protection workflow. Already-idle prompts and silent countdowns are outside its fresh
+countdown-then-prompt confirmation flow.
+Tool discovery includes this preparation and clarification guidance without requiring an installed
+skill. `terminal_read`, `terminal_write`, and `terminal_exec` descriptions also distinguish countdown
+interruption from commands at an already-idle U-Boot prompt. Use raw writes for the latter, never
+Bash execution; an empty Enter is not a neutral probe because it may repeat the previous command.
 
 Optional inputs: `reboot_command` (required only in reboot mode; one printable Bash command),
 `timeout_ms` (1..180000, default 60000), and `diagnostics` (`metadata`, default, or `capture`).

@@ -84,6 +84,48 @@ func TestEnterUBootNoiseSplitCountdownAndFreshPrompt(t *testing.T) {
 	}
 }
 
+func TestEnterUBootConfiguredMarkersAndInterruptSequences(t *testing.T) {
+	for _, tc := range []struct {
+		name, marker, countdown, prompt, interrupt, newline string
+	}{
+		{"escape", "Autoboot in ", "Autoboot in 3 seconds", "=> ", "\x1b", "\r\n"},
+		{"control_c", "Press Ctrl+C", "Press Ctrl+C to stop", "board# ", "\x03", "\n"},
+		{"stop_string", "Autoboot [stop]", "Autoboot [stop] in 2 seconds", "custom> ", "stop", "\r"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			a, s := newSerialTestApplication(t)
+			request := bootTestRequest()
+			request.CountdownPattern = tc.marker
+			request.PromptPattern = tc.prompt
+			request.Interrupt = []byte(tc.interrupt)
+			s.onWrite = func(r session.WriteRequest) {
+				if string(r.Data) != tc.interrupt {
+					t.Errorf("interrupt=%q, want exact bytes %q", r.Data, tc.interrupt)
+				}
+				s.emitOutput([]byte(tc.newline + tc.prompt))
+			}
+			type outcome struct {
+				result UBootResult
+				err    error
+			}
+			done := make(chan outcome, 1)
+			go func() {
+				r, err := a.EnterUBoot(context.Background(), "SER-1", request)
+				done <- outcome{r, err}
+			}()
+			waitBootReady(t, s)
+			s.emitOutput([]byte(tc.newline + tc.countdown))
+			out := <-done
+			if out.err != nil || out.result.Status != "entered" || out.result.BytesWritten != len(tc.interrupt) {
+				t.Fatalf("result=%+v err=%v", out.result, out.err)
+			}
+			if got := string(s.writtenData()); got != tc.interrupt {
+				t.Fatalf("writes=%q, want one exact interrupt %q without appended bytes", got, tc.interrupt)
+			}
+		})
+	}
+}
+
 func TestEnterUBootRejectsBacklogAndFalsePrompt(t *testing.T) {
 	for _, tc := range []struct {
 		name, output, status string

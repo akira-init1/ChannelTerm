@@ -8,6 +8,35 @@ markers. `terminal_enter_uboot` watches raw bytes inside the Host, avoiding mode
 short countdown window. Its [contract](../reference/mcp-tools.md#terminal_enter_uboot) includes
 board-dependent arguments and limits.
 
+Prepare these settings before resetting the board. Read retained output with `terminal_read`
+(hex/base64 if it is not valid UTF-8), or reuse settings verified for the same board and firmware.
+The caller or AI client selects the arguments; the tool does not discover them or pause to ask
+questions during execution. When evidence is missing, ask for the specific missing setting.
+The MCP tool descriptions carry this guidance even without an installed skill. Reuse settings and
+answers already established, and do not ask again for an action the user has explicitly requested.
+If current evidence establishes that U-Boot is already idle, use `terminal_write` for authorized
+commands instead of starting an entry operation. Historical prompts alone do not establish that
+state, and an empty Enter is not a neutral probe: it may repeat a previous command.
+
+These examples illustrate parameter selection, not universal board defaults:
+
+| Observed output or verified configuration | Argument choice |
+| --- | --- |
+| `Hit any key to stop autoboot: 3` | A fixed countdown marker can omit the number; the explicit any-key instruction permits `interrupt_data_hex: "20"` (space). |
+| `Autoboot in 3 seconds` | `countdown_pattern: "Autoboot in "` matches the fixed portion. This message alone does not identify the interrupt input; ask or inspect firmware configuration. |
+| Firmware explicitly requires the non-secret string `stop` | `interrupt_data_hex: "73746f70"` sends exactly that string, once, with no appended Enter. |
+| Firmware explicitly requires Esc | `interrupt_data_hex: "1b"` sends that key, not a space. |
+
+Patterns are literal, not regular expressions or wildcards. Choose distinctive markers and preserve
+the full prompt's spaces. A generic U-Boot banner is not evidence that kernel boot has started.
+Do not cycle through keys, infer them from a board model, or treat a timeout as proof of a wrong key.
+Password handling has no dedicated credential-protection workflow; raw evidence and tool arguments
+must not be treated as a secret store.
+
+The entry flow requires a fresh countdown followed by a prompt. An already-idle U-Boot, a silent
+countdown, and firmware that disables interruption are not covered by that flow. Learning settings
+from a first boot may miss its window; prepare a later reset only within the user's authorized scope.
+
 First read `terminal_session_events` and retain its `next` cursor to exclude old readiness events.
 For manual reset, call with `mode: "wait_reset"`, observe a new `OPERATION_STATE` ready
 event in another client/request, then reset the board. For an authorized software reboot from a
