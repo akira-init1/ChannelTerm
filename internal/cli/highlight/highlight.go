@@ -228,27 +228,34 @@ func (r *Renderer) writeLine(line []byte, raw bool) error {
 }
 
 func splitLineEnding(line []byte) ([]byte, []byte) {
-	if bytes.HasSuffix(line, []byte("\r\n")) {
-		return line[:len(line)-2], line[len(line)-2:]
-	}
 	if bytes.HasSuffix(line, []byte("\n")) {
-		return line[:len(line)-1], line[len(line)-1:]
+		start := len(line) - 1
+		// Serial console output may acquire more than one CR during newline
+		// translation. Keep the entire ending intact and outside prompt matching.
+		for start > 0 && line[start-1] == '\r' {
+			start--
+		}
+		return line[:start], line[start:]
 	}
 	return line, nil
 }
 
 // containsScreenControl identifies bytes whose presentation cannot be safely
-// reconstructed by a line-oriented renderer. Tab, newline, and CRLF line
-// endings are retained; standalone carriage returns still force raw output.
+// reconstructed by a line-oriented renderer. Tab, newline, and CR runs directly
+// before LF are retained; carriage returns within text still force raw output.
 func containsScreenControl(data []byte) bool {
 	if !utf8.Valid(data) {
 		return true
 	}
-	for index, value := range data {
+	for index := 0; index < len(data); index++ {
+		value := data[index]
 		if value == '\t' || value == '\n' {
 			continue
 		}
 		if value == '\r' {
+			for index+1 < len(data) && data[index+1] == '\r' {
+				index++
+			}
 			if index+1 < len(data) && data[index+1] == '\n' {
 				continue
 			}

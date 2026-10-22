@@ -487,16 +487,18 @@ func TestAttachInputDispatcherCancelsExternallyOwnedFileTransfer(t *testing.T) {
 			case <-time.After(time.Second):
 				t.Fatal("external confirmation was not resolved")
 			}
+			// The fake reports resolution before the dispatcher writes its local
+			// status. Wait for the dispatcher to finish before checking output.
+			if err := inputWriter.Close(); err != nil {
+				t.Fatal(err)
+			}
+			waitForSignal(t, done, "dispatcher exit")
 			if got := attached.writtenData(); len(got) != 0 {
 				t.Fatalf("board input = %x, external transfer Ctrl+C must stay local", got)
 			}
 			if !tt.wantCancel && !strings.Contains(output.String(), "File transfer resumed") {
 				t.Fatalf("output = %q, want resumed status", output.String())
 			}
-			if err := inputWriter.Close(); err != nil {
-				t.Fatal(err)
-			}
-			waitForSignal(t, done, "dispatcher exit")
 		})
 	}
 }

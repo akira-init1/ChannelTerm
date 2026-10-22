@@ -96,6 +96,9 @@ func (r *promptTimestampRenderer) Write(data []byte) error {
 				return err
 			}
 			r.pending = nil
+			// Once part of a controlled or oversized line has been forwarded,
+			// its suffix may be a prompt or key echo. Do not buffer it again.
+			r.rawUntilNewline = true
 			return nil
 		}
 		if !complete {

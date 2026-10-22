@@ -3,8 +3,73 @@ package command
 import (
 	"bytes"
 	"fmt"
+	"regexp"
+	"strings"
 	"testing"
+
+	"github.com/akira-init1/ChannelTerm/internal/cli/highlight"
 )
+
+func TestBootOutputThroughPresentation(t *testing.T) {
+	const probe = "\x1b7\x1b[r\x1b[999;999H\x1b[6n\x1b8"
+	const input = "hwclock: can't open '/dev/misc/rtc': No such file or directory\r\r\n" +
+		"Starting tcf-agent: OK\r\n\r\n" + probe + "root@board:~# "
+	stripStyles := regexp.MustCompile(`\x1b\[[0-9;]*m`)
+	for _, timestamps := range []bool{false, true} {
+		for size := 1; size <= len(input); size++ {
+			t.Run(fmt.Sprintf("timestamps=%t/chunk=%d", timestamps, size), func(t *testing.T) {
+				var output bytes.Buffer
+				highlighter := highlight.New(&output)
+				renderer := newPromptTimestampRenderer(terminalOutputWriter(&output, highlighter), terminalOutputFlusher(highlighter), fixedPromptTimestampClock)
+				if timestamps {
+					if _, err := renderer.Toggle(); err != nil {
+						t.Fatal(err)
+					}
+				}
+				for start := 0; start < len(input); start += size {
+					if err := renderer.Write([]byte(input[start:min(start+size, len(input))])); err != nil {
+						t.Fatal(err)
+					}
+				}
+				for _, token := range []string{
+					"\x1b[38;2;255;95;95mcan't open\x1b[0m",
+					"\x1b[38;2;255;95;95mNo such\x1b[0m",
+					"\x1b[31mroot\x1b[0m",
+				} {
+					if !strings.Contains(output.String(), token) {
+						t.Fatalf("missing styled token %q in %q", token, &output)
+					}
+				}
+				// Cursor controls bypass timestamp insertion, but both modes must
+				// preserve every remote byte and allow downstream highlighting.
+				plain := stripStyles.ReplaceAllString(output.String(), "")
+				if plain != input {
+					t.Fatalf("remote bytes changed or delayed: got %q want %q", plain, input)
+				}
+				beforeEcho := output.String()
+				for _, key := range []byte("echo No") {
+					if err := renderer.Write([]byte{key}); err != nil {
+						t.Fatal(err)
+					}
+					beforeEcho += string(key)
+					if output.String() != beforeEcho {
+						t.Fatalf("echo delayed or styled: %q", &output)
+					}
+				}
+				if err := renderer.Write([]byte("\r\nroot@board:~# ")); err != nil {
+					t.Fatal(err)
+				}
+				wantSuffix := "\r\nroot@board:~# "
+				if timestamps {
+					wantSuffix = "\r\n[14:05:01] root@board:~# "
+				}
+				if got := stripStyles.ReplaceAllString(output.String(), ""); !strings.HasSuffix(got, wantSuffix) {
+					t.Fatalf("next prompt did not recover: %q", got)
+				}
+			})
+		}
+	}
+}
 
 // TestBootloaderPromptEchoThroughPresentation covers the two buffering layers
 // together: neither may wait for Enter before exposing a prompt or echoed key.

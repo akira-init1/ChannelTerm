@@ -214,6 +214,8 @@ Side effects and lifecycle:
   `Ctrl+] t` toggles this CLI instance's prompt timestamps, which are off by default. The timestamp
   uses local `[HH:MM:SS]` format and appears only before conservatively recognized shell prompts,
   not ordinary output lines. This feedback is not Session output.
+  Lines containing cursor controls bypass timestamp recognition through the next line boundary,
+  so a split prompt or subsequent key echo is forwarded without waiting for Enter.
 - Received Session bytes remain raw. Highlighting is enabled by default only for a color-capable
   terminal output and prompt timestamps are applied only while writing this CLI's output.
 - Common bootloader prompts (`=> ` or a name using ASCII letters, digits, `.`, `_`, or `-`
@@ -227,11 +229,18 @@ Side effects and lifecycle:
   selects TrueColor, 256-color, or 16-color output from local terminal capabilities. `NO_COLOR`
   disables generated colors, `CLICOLOR_FORCE` can force color for a non-terminal destination, and
   ordinary redirected output remains unstyled.
+  Negative words and phrases such as `can't open`, `No such`, `not`, and `disabled` are red.
+  Serial lines ending in repeated carriage returns before a newline (for example, CR CR LF)
+  remain eligible for highlighting; the original line-ending bytes are preserved.
 - Remote ANSI/VT takes precedence. Escape-containing output is byte-transparent, including sequences
   split across reads. Persistent SGR attributes and the alternate screen keep the attachment in raw
   presentation; semantic highlighting resumes only after remote state is reset and a safe line
   boundary is reached. Full-screen programs such as `vim` and `htop` are therefore not mixed with
   semantic styling.
+  The startup size probe `ESC 7`, `CSI r`, `CSI 999;999 H`, `CSI 6 n`, `ESC 8` is also preserved.
+  When this exact sequence starts at a fresh line with default attributes outside the alternate
+  screen, its cursor restoration allows the first shell prompt to be highlighted immediately.
+  Incomplete probes and other cursor-control sequences remain raw until a safe boundary.
 
 Examples:
 
