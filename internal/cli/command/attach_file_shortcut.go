@@ -617,12 +617,34 @@ func (s nonClosingAttachSession) AcquireFileTransferLease(ctx context.Context) e
 	return lease.AcquireFileTransferLease(ctx)
 }
 
+// RenewFileTransferLease preserves the Host heartbeat through the shortcut's
+// non-owning wrapper so active transfers do not expire after the lease TTL.
+func (s nonClosingAttachSession) RenewFileTransferLease(ctx context.Context) error {
+	renewer, ok := s.attachSession.(fileLeaseRenewSession)
+	if !ok {
+		return nil
+	}
+	return renewer.RenewFileTransferLease(ctx)
+}
+
 func (s nonClosingAttachSession) ReleaseFileTransferLease(ctx context.Context) error {
 	lease, ok := s.attachSession.(fileLeaseSession)
 	if !ok {
 		return nil
 	}
 	return lease.ReleaseFileTransferLease(ctx)
+}
+
+// AbortFileTransferRecovery retains the explicit Session-close escape hatch
+// after a recovery timeout. Ordinary Close still leaves the attachment open.
+func (s nonClosingAttachSession) AbortFileTransferRecovery(ctx context.Context) error {
+	aborter, ok := s.attachSession.(interface {
+		AbortFileTransferRecovery(context.Context) error
+	})
+	if !ok {
+		return errors.New("attached Session does not support file-transfer recovery abort")
+	}
+	return aborter.AbortFileTransferRecovery(ctx)
 }
 
 func (s nonClosingAttachSession) ReportFileTransferEvent(ctx context.Context, typ session.EventType, metadata map[string]any) error {
