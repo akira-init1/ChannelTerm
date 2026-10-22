@@ -92,7 +92,7 @@ type FileTransferResult struct {
 // SendFile streams size bytes from source through terminal into remotePath.
 //
 // The remote endpoint must be an idle POSIX-compatible Linux shell providing
-// stty, dd with iflag=fullblock, wc, sha256sum, and sleep. Each payload chunk is
+// stty, dd, wc, sha256sum, and sleep. Each payload chunk is
 // sent through Session.Write and acknowledged only after dd appends it. The
 // final byte count and SHA-256 digest are independently computed by the remote
 // shell.
@@ -695,8 +695,14 @@ func parseVerifiedFile(fields []string) (int64, string, error) {
 	return size, digest, nil
 }
 
+// fileTransferSendDDSetup selects full-block reads when available. Minimal
+// BusyBox builds instead count one-byte input blocks, which remain exact across
+// fragmented serial reads. Both paths retain the raw-input timeout and verify
+// the appended byte count before acknowledging a chunk.
+const fileTransferSendDDSetup = `{ if printf x | dd of=/dev/null bs=1 count=1 iflag=fullblock 2>/dev/null; then ct_dd_fullblock=1; elif printf x | dd of=/dev/null bs=1 count=1 2>/dev/null; then ct_dd_fullblock=0; else false; fi; }`
+
 func sendInitCommand(token, destination, directory string) string {
-	return fmt.Sprintf("t='%s'; d=%s; if ! mkdir -p \"$d\" 2>/dev/null; then printf '\\n@CTERM:%%s:ERROR:directory\\n' \"$t\"; elif command -v stty >/dev/null 2>&1 && command -v dd >/dev/null 2>&1 && command -v wc >/dev/null 2>&1 && command -v sha256sum >/dev/null 2>&1 && printf x | dd of=/dev/null bs=1 count=1 iflag=fullblock 2>/dev/null; then if (set -C; : > %s) 2>/dev/null; then printf '\\n@CTERM:%%s:INIT:OK\\n' \"$t\"; else printf '\\n@CTERM:%%s:ERROR:exists\\n' \"$t\"; fi; else printf '\\n@CTERM:%%s:ERROR:tools\\n' \"$t\"; fi", token, directory, destination)
+	return fmt.Sprintf("t='%s'; d=%s; if ! mkdir -p \"$d\" 2>/dev/null; then printf '\\n@CTERM:%%s:ERROR:directory\\n' \"$t\"; elif command -v stty >/dev/null 2>&1 && command -v dd >/dev/null 2>&1 && command -v wc >/dev/null 2>&1 && command -v sha256sum >/dev/null 2>&1 && "+fileTransferSendDDSetup+"; then if (set -C; : > %s) 2>/dev/null; then printf '\\n@CTERM:%%s:INIT:OK\\n' \"$t\"; else printf '\\n@CTERM:%%s:ERROR:exists\\n' \"$t\"; fi; else printf '\\n@CTERM:%%s:ERROR:tools\\n' \"$t\"; fi", token, directory, destination)
 }
 
 func remotePathStatusCommand(token, path string) string {
@@ -704,7 +710,7 @@ func remotePathStatusCommand(token, path string) string {
 }
 
 func sendChunkCommand(token, path string, size int64) string {
-	return fmt.Sprintf("t='%s'; n=%d; p=%s; if before=$(wc -c < \"$p\" 2>/dev/null) && exec 3>> \"$p\"; then saved=$(stty -g 2>/dev/null); if [ -n \"$saved\" ] && stty raw -echo min 0 time 100; then printf '\\n@CTERM:%%s:READY:%%s\\n' \"$t\" \"$n\"; dd bs=\"$n\" count=1 iflag=fullblock 2>/dev/null >&3; status=$?; exec 3>&-; stty \"$saved\"; if [ \"$status\" = 0 ] && after=$(wc -c < \"$p\" 2>/dev/null) && [ \"$((after-before))\" = \"$n\" ]; then printf '\\n@CTERM:%%s:ACK:%%s\\n' \"$t\" \"$n\"; else printf '\\n@CTERM:%%s:ERROR:write\\n' \"$t\"; fi; else exec 3>&-; printf '\\n@CTERM:%%s:ERROR:tty\\n' \"$t\"; fi; else printf '\\n@CTERM:%%s:ERROR:open\\n' \"$t\"; fi", token, size, path)
+	return fmt.Sprintf("t='%s'; n=%d; p=%s; if before=$(wc -c < \"$p\" 2>/dev/null) && exec 3>> \"$p\"; then saved=$(stty -g 2>/dev/null); if [ -n \"$saved\" ] && stty raw -echo min 0 time 100; then printf '\\n@CTERM:%%s:READY:%%s\\n' \"$t\" \"$n\"; if [ \"$ct_dd_fullblock\" = 1 ]; then dd bs=\"$n\" count=1 iflag=fullblock 2>/dev/null >&3; else dd bs=1 count=\"$n\" 2>/dev/null >&3; fi; status=$?; exec 3>&-; stty \"$saved\"; if [ \"$status\" = 0 ] && after=$(wc -c < \"$p\" 2>/dev/null) && [ \"$((after-before))\" = \"$n\" ]; then printf '\\n@CTERM:%%s:ACK:%%s\\n' \"$t\" \"$n\"; else printf '\\n@CTERM:%%s:ERROR:write\\n' \"$t\"; fi; else exec 3>&-; printf '\\n@CTERM:%%s:ERROR:tty\\n' \"$t\"; fi; else printf '\\n@CTERM:%%s:ERROR:open\\n' \"$t\"; fi", token, size, path)
 }
 
 func verifyCommand(token, path string) string {
@@ -724,7 +730,7 @@ func remotePathKindCommand(token, path string) string {
 }
 
 func directorySendInitCommand(token, archive, directory string) string {
-	return fmt.Sprintf("t='%s'; a=%s; d=%s; if ! mkdir -p \"$d\" 2>/dev/null; then printf '\\n@CTERM:%%s:ERROR:directory\\n' \"$t\"; elif ! command -v tar >/dev/null 2>&1; then printf '\\n@CTERM:%%s:ERROR:tar\\n' \"$t\"; elif command -v stty >/dev/null 2>&1 && command -v dd >/dev/null 2>&1 && command -v wc >/dev/null 2>&1 && command -v sha256sum >/dev/null 2>&1 && printf x | dd of=/dev/null bs=1 count=1 iflag=fullblock 2>/dev/null && (set -C; : > \"$a\") 2>/dev/null; then printf '\\n@CTERM:%%s:INIT:OK\\n' \"$t\"; else printf '\\n@CTERM:%%s:ERROR:stage\\n' \"$t\"; fi", token, archive, directory)
+	return fmt.Sprintf("t='%s'; a=%s; d=%s; if ! mkdir -p \"$d\" 2>/dev/null; then printf '\\n@CTERM:%%s:ERROR:directory\\n' \"$t\"; elif ! command -v tar >/dev/null 2>&1; then printf '\\n@CTERM:%%s:ERROR:tar\\n' \"$t\"; elif command -v stty >/dev/null 2>&1 && command -v dd >/dev/null 2>&1 && command -v wc >/dev/null 2>&1 && command -v sha256sum >/dev/null 2>&1 && "+fileTransferSendDDSetup+" && (set -C; : > \"$a\") 2>/dev/null; then printf '\\n@CTERM:%%s:INIT:OK\\n' \"$t\"; else printf '\\n@CTERM:%%s:ERROR:stage\\n' \"$t\"; fi", token, archive, directory)
 }
 
 func directorySendFinishCommand(token, destination, staging, archive string, size int64, expectedDigest string) string {

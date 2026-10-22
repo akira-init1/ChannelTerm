@@ -629,7 +629,7 @@ state, ChannelTerm closes the Host Session and the endpoint must be reopened. Ex
 and failure behavior are documented in the
 [file-transfer workflow](../getting-started/file-transfer.md#protocol-and-concurrency-limits).
 
-The remote shell must provide `mkdir`, `stty`, `dd` with `iflag=fullblock`, `wc`, `sha256sum`, and
+The remote shell must provide `mkdir`, `stty`, `dd`, `wc`, `sha256sum`, and
 `sleep`; directory transfer additionally requires `tar`. A transfer uses one non-interactive child
 shell. Bash removes the bootstrap from its current in-memory history; another POSIX shell may retain
 one recognizable bootstrap entry.

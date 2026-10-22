@@ -16,8 +16,10 @@ interop, local paths and the HTTP credential belong to the OS running the chosen
 ## Preconditions
 
 - The remote shell is idle and accepts POSIX-style shell commands.
-- The board provides `mkdir`, `stty`, `dd` with `iflag=fullblock`, `wc`, `sha256sum`, and `sleep`.
-  BusyBox or GNU userland may provide these commands. Directory transfer also requires `tar`;
+- The board provides `mkdir`, `stty`, `dd`, `wc`, `sha256sum`, and `sleep`.
+  BusyBox or GNU userland may provide these commands. Send uses `iflag=fullblock` when available;
+  minimal BusyBox builds use one-byte input blocks to count the exact payload without that option.
+  Directory transfer also requires `tar`;
   ChannelTerm checks `command -v tar` and does not install it.
 - The serial settings already match the board. File transfer does not change baud rate, data bits,
   parity, stop bits, or flow control.

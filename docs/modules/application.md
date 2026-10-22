@@ -291,6 +291,8 @@ mode around each raw `dd` operation, and performs end-to-end SHA-256 verificatio
 and directory tar streams. A target-side send block uses a 10-second serial-input idle timeout and
 verifies the exact file-size increase after restoring the saved TTY. A killed transfer process
 therefore cannot leave `dd` waiting indefinitely in raw mode or acknowledge a short block.
+Send initialization probes `dd iflag=fullblock`; a minimal `dd` instead reads one-byte blocks with
+`count` equal to the announced chunk size. The timeout, size check, and final hash apply to both paths.
 
 A cancelled or failed operation uses independent recovery contexts to pad or drain its active raw
 block, consume a pending acknowledgement, and remove directory-transfer staging data. Each recovery
