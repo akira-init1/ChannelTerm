@@ -12,6 +12,8 @@ Con GDB, la IA puede establecer puntos de interrupción, recorrer programas Linu
 > fuente actual y `channelterm --help` son la referencia para el comportamiento, las opciones y la
 > compatibilidad.
 
+Para ventanas de arranque cortas, el Host puede interrumpir U-Boot y verificar el prompt. Exporte un ZIP de diagnóstico con bytes sin procesar opcionales para investigar fallos. [Flujo de U-Boot y diagnóstico](docs/getting-started/serial-terminal.md#enter-u-boot-and-export-evidence).
+
 ## ¿Por qué ChannelTerm?
 
 Mantenga su terminal abierto mientras la IA usa la misma conexión al dispositivo:

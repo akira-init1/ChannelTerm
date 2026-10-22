@@ -2,6 +2,12 @@
 
 ChannelTerm exposes the same terminal Tool Registry over MCP stdio and stateless Streamable HTTP.
 
+For short bootloader windows, use the Host-side U-Boot operation and
+[diagnostic export workflow](serial-terminal.md#enter-u-boot-and-export-evidence). Keep the owning
+Host alive while downloading archives. These tools use the existing authenticated MCP connection;
+they do not open a separate logs service. Check `isError` before consuming tool results, including
+structured partial evidence on failure.
+
 ## Configure supported MCP clients
 
 To add ChannelTerm to installed or already configured Codex, Claude Code, OpenCode, and Zoo Code

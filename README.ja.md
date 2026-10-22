@@ -11,6 +11,8 @@ GDB を使えば、AI にブレークポイント設定、Linux プログラム�
 > この文書は日本語版の入口です。動作、オプション、互換性については、英語版
 > [README](README.md)、現在のソースコード、および `channelterm --help` が基準です。
 
+短い起動待ち時間でも、Host が U-Boot を中断し、プロンプトを確認できます。障害調査用の診断 ZIP を出力でき、生バイトの収録は任意です。[U-Boot と診断の手順](docs/getting-started/serial-terminal.md#enter-u-boot-and-export-evidence)。
+
 ## ChannelTerm を使う理由
 
 端末を開いたまま、AI と同じデバイス接続を使えます。

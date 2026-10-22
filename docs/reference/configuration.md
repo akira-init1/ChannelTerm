@@ -4,6 +4,11 @@ ChannelTerm keeps three independent user-configuration responsibilities in one `
 connection configuration, connection policy, and user preferences. It separately stores
 automatically managed device identity state.
 
+Diagnostic archives are ephemeral Host memory, not files under the configuration directory.
+Their fixed retention limits and explicit raw-content opt-in are documented in the
+[diagnostic export contract](mcp-tools.md#terminal_export_diagnostics). There are no new persistent
+configuration fields or automatic raw-terminal logging settings.
+
 ## Paths
 
 The default directory is the platform directory returned by Go's `os.UserConfigDir`, followed by

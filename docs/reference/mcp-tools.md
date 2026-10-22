@@ -18,7 +18,12 @@ properties are present on every successful result; optional properties describe 
 such as connection-decision reasons, active leases, and completed file-transfer paths. Successful
 calls return both schema-matching structured content and an equivalent JSON text content item.
 Recoverable tool failures return an MCP tool result with `isError: true` and text beginning
-`<tool-name> failed:`. Structured inputs decoded by the terminal adapter reject unknown fields.
+`<tool-name> failed:`. They also include `structuredContent.error` with `code`, `tool`, and
+`message`; an operation can include partial evidence in `structuredContent.result`. Check
+`isError` before decoding content: error text is not JSON. Codes include `timeout`, `cancelled`,
+`session_closed`, `invalid_utf8`, and fallback `tool_error`; U-Boot adds its operation states,
+`invalid_input`, `session_busy`, and `session_not_found`. Successful result shapes are unchanged.
+Structured inputs decoded by the terminal adapter reject unknown fields.
 
 Every advertised tool also includes MCP behavioral annotations. These are planning hints, not
 authorization or safety enforcement:
@@ -41,6 +46,9 @@ and logs. The `terminal_*` name remains the stable machine-readable compatibilit
 
 | Tool name | Display title |
 | --- | --- |
+| `terminal_enter_uboot` | Enter U-Boot |
+| `terminal_export_diagnostics` | Export Session Diagnostics |
+| `terminal_read_diagnostic` | Download Diagnostic Archive |
 | `terminal_list_sessions` | List Terminal Sessions |
 | `terminal_read` | Read Terminal Output |
 | `terminal_read_activity` | Read Session Activity |
@@ -476,6 +484,113 @@ uses the stable `reason` value `user_cancelled`. A successful regular-file compl
 carries full lowercase `local_sha256` and `remote_sha256` values; because completion follows
 verification, they match. Directory completion uses the same fields for the verified tar-stream
 digest.
+
+## `terminal_enter_uboot`
+
+Purpose: interrupt one serial boot countdown in the Host and confirm a fresh U-Boot prompt.
+This is a write-capable, non-idempotent operation that can reboot the target. It uses the existing
+terminal lease and refuses competing managed operations. Stay within explicit user authorization;
+an existing request to enter U-Boot need not be reconfirmed, but does not authorize repeated resets.
+
+Required inputs: `session_id`, `mode` (`wait_reset` or `reboot`), `countdown_pattern`,
+`prompt_pattern`, `boot_started_patterns`, and `interrupt_data_hex`. Patterns are literal strings
+of 1..256 bytes; the prompt is one exact line including spaces. Supply 1..8 boot-start patterns.
+The interrupt is 1..32 bytes encoded as complete hexadecimal pairs without whitespace.
+It may be a single key or a complete non-secret string; there is no default key or appended CR/LF.
+Matching uses raw bytes, not rendered terminal text, regular expressions, or wildcards.
+The client must derive settings from observed output or verified board/firmware configuration,
+and ask the user about missing settings before calling. Countdown text alone does not identify
+the required interrupt input. See [parameter selection examples](../getting-started/serial-terminal.md#enter-u-boot-and-export-evidence).
+The tool does not auto-detect settings, ask questions during execution, or provide a dedicated
+credential-protection workflow. Already-idle prompts and silent countdowns are outside its fresh
+countdown-then-prompt confirmation flow.
+Tool discovery includes this preparation and clarification guidance without requiring an installed
+skill. `terminal_read`, `terminal_write`, and `terminal_exec` descriptions also distinguish countdown
+interruption from commands at an already-idle U-Boot prompt. Use raw writes for the latter, never
+Bash execution; an empty Enter is not a neutral probe because it may repeat the previous command.
+
+Optional inputs: `reboot_command` (required only in reboot mode; one printable Bash command),
+`timeout_ms` (1..180000, default 60000), and `diagnostics` (`metadata`, default, or `capture`).
+Reboot requires a caller-verified idle interactive Bash prompt. No command is assumed by default.
+The bootstrap preserves echo, removes its own Bash history entry, and does not wait for a shell
+completion marker after reboot. A failed or non-rebooting command can therefore time out.
+
+```json
+{"session_id":"SER-1","mode":"wait_reset","countdown_pattern":"Hit any key","prompt_pattern":"Zynq> ","boot_started_patterns":["Starting kernel"],"interrupt_data_hex":"20","timeout_ms":60000,"diagnostics":"capture"}
+```
+
+This example is board-dependent. Before manual reset, observe the matching `OPERATION_STATE`
+event with `operation: "uboot"`, `status: "ready"`, `operation_id`, and `output_cursor` through
+`terminal_session_events`. Readiness means the observer cursor is armed, not that the device reset.
+Clients must allow the requested call duration and can observe events in a separate request.
+Save the event cursor before starting the operation and ignore older readiness events. Completion
+events include the diagnostic ID when capture succeeded, allowing another client to retrieve it
+after request cancellation. The archive's independently sampled event snapshot can precede this
+completion event; its manifest records the operation outcome directly.
+
+Result fields: `operation_id`, full `session_id`, `status`, `output_start`, `output_end`,
+`countdown_cursor`, `prompt_cursor`, `countdown_matched`, `prompt_matched`, `bytes_written`, `elapsed_ms`, `dropped`, and optional
+`diagnostic_id` / `diagnostic_error`. Bytes written include the reboot bootstrap when used. Cursors
+count raw bytes; matched flags distinguish a real match at cursor zero from no match.
+Only `entered` is confirmed entry.
+Failure statuses include `boot_started`, `timeout`, `cancelled`, `session_closed`, `output_lost`,
+`write_failed`, `input_pending`, `unsupported_shell`, `cleanup_failed`, and fallback `failed`.
+Failed calls carry partial results under `structuredContent.result` with `isError: true`.
+
+Old buffered prompts cannot succeed. Binary noise and split markers are handled without UTF-8
+decoding. Retained backlog is drained before acting; observed boot-start evidence takes precedence
+over countdown/prompt matches. Output loss stops automatic writes. The Host sends the configured
+interrupt at most once. A successful write without a fresh prompt is not success. Device/USB/OS
+latency can still miss a window, and firmware may disable interruption entirely.
+
+Cancellation/timeout stop further writes and release ownership without Ctrl-C, Enter, automatic
+retry, persistent environment changes, or closing a healthy shared Session. Already submitted
+reboot commands cannot be undone. Raw capture is opt-in and bounded; archive creation failure is
+reported separately from the boot outcome. Metadata mode records operation events/results only.
+
+## `terminal_export_diagnostics`
+
+Purpose: create a ZIP of retained Session evidence. Required: `session_id`. Optional:
+`include_raw` (default false). It never writes to the device. Raw output and write payload can
+contain sensitive data; true explicitly opts into retaining them. Event metadata uses an allowlist
+and excludes command text, arbitrary errors, credentials and lease owner capabilities.
+
+Returns `diagnostic_id`, ZIP `size`, lowercase `sha256`, and UTC `expires_at`. Archives are held in
+the owning Application's memory, shared under the existing Host authorization. There are no new
+listeners, arbitrary Host path arguments, or automatic uploads. At most four archives, each at most
+16 MiB, are retained for 15 minutes with oldest eviction. Expired data is reclaimed on store access;
+expired IDs cannot be read. Host exit loses all archives. Download promptly to persist evidence.
+
+Archive contents:
+
+- `manifest.json`: format version, Host build/OS/architecture, known Session metadata, unknown
+  serial parameters explicitly marked, per-file hashes, cursor ranges and completeness limits.
+- `activity.jsonl`: at most 256 recent writes; actual payload is included only with raw opt-in,
+  up to 256 KiB total, with per-record truncation flags.
+- `events.jsonl`: at most 256 recent lifecycle/operation events with bounded allowlisted metadata.
+- `errors.jsonl`: operation status for a captured U-Boot failure; otherwise empty. No historical
+  MCP error journal is implied; `historical_errors_available` is false.
+- With raw opt-in, `terminal.bin`, `terminal.hex` (pure hexadecimal), and `terminal.log` (derived
+  view escaping controls and invalid UTF-8 with bin offsets). Output is capped at 2 MiB.
+- U-Boot capture additionally supplies `rx-index.jsonl` with file-offset/Session-cursor segments
+  and application observation times. There are at most 4096 segments. Snapshot export supplies
+  cursor mapping in the manifest and does not invent reception times.
+
+Buffers are sampled independently, not as one transaction. Gaps, byte/segment limits, unavailable
+buffers, retained-start cursors and payload truncation are explicit. A snapshot is not a complete
+recording. Operation capture survives a later unavailable Session buffer, preserving bytes already
+observed. Raw archives are lossless within their declared retained ranges, not automatically
+redacted shareable reports. No transport timing or hardware health is inferred from them.
+
+## `terminal_read_diagnostic`
+
+Required: `diagnostic_id`, `offset` (nonnegative ZIP byte offset). Optional `max_bytes`
+(1..65536, default 65536). Returns `data` (Base64), `encoding: "base64"`, `bytes_read`, `next`,
+`eof`, total `size`, and `sha256`. Unknown/expired/evicted IDs and invalid ranges fail. Offset
+equal to archive size returns an empty EOF chunk. These offsets are not Session cursors.
+
+Use `next` until EOF, then verify total size and SHA-256. A CLI on another machine can save the
+same archive with `channelterm diagnostics --diagnostic-id ID --output capture.zip --endpoint URL`.
 
 ## `terminal_exec`
 

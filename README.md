@@ -8,6 +8,8 @@ ChannelTerm lets you and your AI client share a live serial or SSH terminal. Rea
 
 Use GDB to let AI set breakpoints, step through Linux programs, and inspect variables. Connect the serial port on Windows and run GDB in WSL2, or keep the shared console open while GDB uses the board's Ethernet connection. [Choose a debugging setup](#gdb-debugging).
 
+For short boot windows, let the Host interrupt U-Boot and verify the prompt. Export a diagnostic ZIP with optional raw bytes when investigating failures. [U-Boot and diagnostic workflow](docs/getting-started/serial-terminal.md#enter-u-boot-and-export-evidence).
+
 ## Why ChannelTerm?
 
 Keep your terminal open while the AI works with the same device connection:

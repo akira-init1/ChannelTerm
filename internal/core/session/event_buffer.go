@@ -23,6 +23,9 @@ var (
 type EventType string
 
 const (
+	// EventOperationState reports application operation readiness and completion.
+	// Metadata contains operation IDs and states, never payloads or capabilities.
+	EventOperationState EventType = "OPERATION_STATE"
 	// EventDebugState records a debug lifecycle transition without owner secrets.
 	EventDebugState EventType = "DEBUG_STATE"
 	// EventDebugClientReport carries explicitly reported external-debugger text.

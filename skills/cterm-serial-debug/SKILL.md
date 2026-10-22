@@ -29,12 +29,35 @@ Treat `cterm` as an alias for ChannelTerm. Use ChannelTerm's MCP tools to work t
 - Use `terminal_exec` only for one non-interactive command at a known idle Bash prompt. Each call uses a fresh child, so combine dependent shell steps in one command. Do not use it while a foreground or interactive program owns the terminal.
 - Use `terminal_write` for a bare MCU, RTOS console, bootloader, REPL, password prompt, interactive program, raw keys, control characters, or binary protocol.
 - For files or debugging ELFs, follow `cterm-file-transfer` and run `channelterm file send/receive` against the existing Session. Do not implement Base64/heredoc uploads with raw writes. If execution, local-file, or Host access is unavailable, report the limitation.
-- For Linux source-level debugging, use `cterm-gdb-debug` when installed; it covers gdbserver checks, target preparation, bridge ownership, independent GDB control, reporting, and recovery. Preserve the intended Session and Host. Otherwise consult the [debugging workflow](../../docs/getting-started/gdb-debugging.md#external-gdb-over-a-prepared-serial-session) and installed MCP schemas before taking over the serial stream.
+- For Linux source-level debugging, use `cterm-gdb-debug` when installed; it covers gdbserver checks, target preparation, bridge ownership, independent GDB control, reporting, and recovery. Preserve the intended Session and Host. Otherwise consult the [debugging workflow on GitHub](https://github.com/akira-init1/ChannelTerm/blob/main/docs/getting-started/gdb-debugging.md#external-gdb-over-a-prepared-serial-session) and installed MCP schemas before taking over the serial stream.
 - Observe the response before choosing the next action. Do not invent device-specific commands.
-- Obtain explicit approval before an operation that may reset a device, enter a bootloader, erase or flash storage, change persistent configuration, or otherwise interrupt the user's hardware workflow.
+- Keep resets, bootloader entry, flashing, and persistent configuration changes within explicit user authorization. Reuse authorization already given; ask before expanding the scope, rather than reconfirming the same requested action.
 - Use leases and `terminal_write_leased` only for a deliberately managed multi-step operation. Renew and release an acquired lease; do not add lease machinery to ordinary reads or writes.
 
+## Prepare U-Boot Entry
+
+For an authorized U-Boot entry, use `terminal_enter_uboot` on the owning Host instead of model-side
+polling during the countdown. Its MCP description and argument schema are self-contained; use
+them for parameter selection, supported modes, result interpretation, and limits.
+
+- Prepare from logs or settings verified for the same firmware before resetting. Ask only for
+  missing information and reuse previous answers; observing an unknown first boot may miss its window.
+- For manual reset, save the event cursor, start the entry call, and observe its matching ready
+  event in another request before asking the user to reset. Preserve the owning Host throughout.
+- Report the result and evidence. Do not expand one entry request into repeated reboots or trials
+  of different keys. Once current evidence establishes an idle U-Boot, route authorized commands
+  to raw writes instead of re-entering or using Bash execution.
+
+See the [serial workflow on GitHub](https://github.com/akira-init1/ChannelTerm/blob/main/docs/getting-started/serial-terminal.md)
+for examples.
+These links track main; use installed MCP schemas and CLI help for the running version.
+
 ## Preserve Shared Ownership
+
+Check MCP isError before parsing content. Preserve the last successful cursor on timeout; use
+hex/base64 for boot output. Diagnostic raw capture requires explicit opt-in because it retains
+terminal contents. Download a diagnostic_id before expiry/eviction using the diagnostic tools or
+CLI; do not interpret a Host identifier as a client-local file path.
 
 - Assume other clients may be attached to the same Session. A complete write payload is serialized, but ordinary writers do not receive semantic shell ownership.
 - Prefer leaving the Session open after diagnosis. `terminal_session_detach` only records a client departure on the Session event stream. The client must stop its own attachment I/O through its exit or detach action; calling the tool does not disconnect it. `terminal_close` closes the shared Session for every client and requires clear user intent.

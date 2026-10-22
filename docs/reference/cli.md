@@ -7,6 +7,7 @@ help. Run the following against the binary you are using whenever exact flags or
 channelterm --help
 channelterm attach --help
 channelterm events --help
+channelterm diagnostics --help
 channelterm file --help
 channelterm gdb-list --help
 channelterm init --help
@@ -20,6 +21,20 @@ channelterm uninstall --help
 
 The current parser also implements `channelterm connect --help`, although `connect` is not listed in
 the current top-level help text.
+
+## Diagnostic export
+
+`channelterm diagnostics` uses an existing MCP Host and writes a ZIP on the calling machine. It
+never opens a serial connection. Select a Session for a new snapshot or an existing diagnostic ID
+for download; see `channelterm diagnostics --help` for syntax. Raw content requires explicit
+`--include-raw` on snapshot creation. Existing operation archives retain the capture policy chosen
+when the operation ran. Flags precede positional arguments; this command has no positional inputs.
+
+The output file is created exclusively and never overwritten. Partial files created by a failed
+download are removed. Total size, chunk progression, and SHA-256 are verified before success is
+reported. Host errors, expiry/eviction, permission/disk errors, cancellation, or integrity failures
+return an error. Archive IDs and Host paths are not client-local paths. Retention and evidence
+limits belong to the [diagnostic tool contract](mcp-tools.md#terminal_export_diagnostics).
 
 ## Top-level command
 
@@ -201,6 +216,11 @@ Side effects and lifecycle:
   not ordinary output lines. This feedback is not Session output.
 - Received Session bytes remain raw. Highlighting is enabled by default only for a color-capable
   terminal output and prompt timestamps are applied only while writing this CLI's output.
+- Common bootloader prompts (`=> ` or a name using ASCII letters, digits, `.`, `_`, or `-`
+  followed by `> `, such as `Zynq> `)
+  and subsequent input echo are displayed without waiting for a newline, even with highlighting
+  or prompt timestamps enabled. These prompts remain unstyled and do not receive timestamps.
+  Recognition is a local presentation heuristic, not confirmation of the device's boot state.
 - The highlighter assigns non-bold semantic colors to status words, boot headings, field names,
   embedded interface/protocol identifiers, addresses, versions, timestamps, numbers, units, quoted
   values, structural `()`, `[]`, and `{}` delimiters, and recognized shell-prompt components. It

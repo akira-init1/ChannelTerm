@@ -77,8 +77,11 @@ The main ownership distinctions are deliberate:
   configuration discovery and installation. `internal/install` owns per-user executable placement,
   short-command aliases, PATH changes, and the installation ownership manifest. These packages may
   depend inward; Core may not depend on them.
-- **Application:** `internal/core/app` orchestrates adapter-neutral use cases and the lifetime of managed debug operations; it does not own the Host process
-  lifetime or presentation. `internal/core/debugger` owns GDB/MI, pinned TLS connection endpoints, and the RSP relay through a minimal
+- **Application:** `internal/core/app` orchestrates adapter-neutral use cases and managed debug
+  operations; it does not own the Host process lifetime or presentation.
+  It also owns serial U-Boot entry orchestration and bounded diagnostic archive retention/download
+  use cases. These reuse Session cursors and application leases without adding Transport ownership.
+  `internal/core/debugger` owns GDB/MI, pinned TLS connection endpoints, and the RSP relay through a minimal
   cursor-read/leased-write service; it never opens a terminal Transport. Application separately owns the pure external bridge lifecycle and its managed debug lease; the CLI `rsp-client` adapts external GDB pipe I/O and answers control heartbeats on the same authenticated endpoint.
 - **Core services:** `internal/core/channel`, `session`, `config`, `connectionpolicy`, `device`, and
   `tool` own their protocol-neutral responsibilities. Channel owns established stream I/O and

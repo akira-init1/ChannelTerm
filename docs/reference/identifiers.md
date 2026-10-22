@@ -3,6 +3,12 @@
 ChannelTerm exposes several identifiers with different ownership and lifetimes. They are not
 interchangeable.
 
+U-Boot `operation_id` values (`BOOT-...`) correlate a single call with readiness/completion events.
+Diagnostic `diagnostic_id` values (`DIAG-...`) identify an immutable archive in its owning Host,
+valid only until expiry, eviction, or Host exit. Neither is a Session identifier or filesystem
+path. Diagnostic download offsets count ZIP bytes; they are unrelated to output, activity, and
+event cursors. See [diagnostic tools](mcp-tools.md#terminal_export_diagnostics).
+
 | Value | Identifies | Example |
 | --- | --- | --- |
 | Native serial target | A currently discoverable local endpoint | `COM8`, `/dev/ttyUSB0` |

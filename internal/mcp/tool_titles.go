@@ -4,6 +4,12 @@ package mcp
 // MCP tool. Machine-readable terminal_* names remain the compatibility key.
 func terminalToolTitle(name string) (string, bool) {
 	switch name {
+	case "terminal_enter_uboot":
+		return "Enter U-Boot", true
+	case "terminal_export_diagnostics":
+		return "Export Session Diagnostics", true
+	case "terminal_read_diagnostic":
+		return "Download Diagnostic Archive", true
 	case "debug_bridge_list":
 		return "List External GDB Bridge Ports", true
 	case "debug_bridge_report":

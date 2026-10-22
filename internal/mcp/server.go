@@ -340,7 +340,7 @@ func newAdapter(registry *tool.Registry) (*adapter, error) {
 		{name: "terminal_get_connection_decision", target: connectionDecision.Name(), description: connectionDecision.Description(), schema: connectionDecision.InputSchema()},
 		{name: "terminal_close", target: closeTool.Name(), description: closeTool.Description(), schema: closeTool.InputSchema()},
 	}
-	for _, name := range []string{"debug_start", "debug_command", "debug_events", "debug_stop", "debug_bridge_list", "debug_bridge_start", "debug_bridge_status", "debug_bridge_renew", "debug_bridge_close", "debug_bridge_restore", "debug_bridge_report"} {
+	for _, name := range []string{"terminal_enter_uboot", "terminal_export_diagnostics", "terminal_read_diagnostic", "debug_start", "debug_command", "debug_events", "debug_stop", "debug_bridge_list", "debug_bridge_start", "debug_bridge_status", "debug_bridge_renew", "debug_bridge_close", "debug_bridge_restore", "debug_bridge_report"} {
 		if registered, ok := registry.Get(name); ok {
 			exposed = append(exposed, exposedTool{name: name, target: name, description: registered.Description(), schema: registered.InputSchema()})
 		}
@@ -394,7 +394,11 @@ func (a *adapter) handler(exposed exposedTool) protocol.ToolHandler {
 		}
 		result, err := a.registry.Call(ctx, exposed.target, input)
 		if err != nil {
-			return errorResult(exposed.name, err), nil
+			failure := errorResult(exposed.name, err)
+			if result != nil {
+				failure.StructuredContent.(map[string]any)["result"] = result
+			}
+			return failure, nil
 		}
 		return successResult(result)
 	}
@@ -429,8 +433,21 @@ func successResult(result tool.Result) (*protocol.CallToolResult, error) {
 
 // errorResult preserves the underlying error in concise Agent-facing text.
 func errorResult(name string, err error) *protocol.CallToolResult {
+	code := "tool_error"
+	var classified interface{ ErrorCode() string }
+	switch {
+	case errors.As(err, &classified):
+		code = classified.ErrorCode()
+	case errors.Is(err, context.DeadlineExceeded):
+		code = "timeout"
+	case errors.Is(err, context.Canceled):
+		code = "cancelled"
+	case errors.Is(err, io.EOF):
+		code = "session_closed"
+	}
 	return &protocol.CallToolResult{
-		Content: []protocol.Content{&protocol.TextContent{Text: fmt.Sprintf("%s failed: %v", name, err)}},
-		IsError: true,
+		StructuredContent: map[string]any{"error": map[string]any{"code": code, "tool": name, "message": err.Error()}},
+		Content:           []protocol.Content{&protocol.TextContent{Text: fmt.Sprintf("%s failed: %v", name, err)}},
+		IsError:           true,
 	}
 }

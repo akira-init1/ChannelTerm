@@ -2,11 +2,47 @@ package highlight
 
 import (
 	"bytes"
+	"io"
 	"strings"
 	"testing"
 
 	"github.com/muesli/termenv"
 )
+
+func TestBootloaderPromptRecognitionRequiresLinePrefixAndSpace(t *testing.T) {
+	for _, input := range []string{"Zynq>", "Zynq>help", "log: Zynq> ", "value > 3", "\r\nZynq> "} {
+		if HasBootloaderPromptPrefix([]byte(input)) {
+			t.Errorf("recognized incomplete or embedded prompt %q", input)
+		}
+	}
+}
+
+type bootloaderErrorWriter struct{}
+
+func (bootloaderErrorWriter) Write([]byte) (int, error) { return 0, io.ErrClosedPipe }
+
+func TestBootloaderPromptPropagatesOutputFailure(t *testing.T) {
+	if _, err := New(bootloaderErrorWriter{}).Write([]byte("Zynq> ")); err != io.ErrClosedPipe {
+		t.Fatalf("Write error = %v, want %v", err, io.ErrClosedPipe)
+	}
+}
+
+func TestBootloaderEchoDoesNotDependOnReadBoundaries(t *testing.T) {
+	input := []byte("Zynq> help 123\r\nERROR\r\n=> ")
+	want := "Zynq> help 123\r\n" + string(styleError) + "ERROR" + string(styleReset) + "\r\n=> "
+	for split := 0; split <= len(input); split++ {
+		var output bytes.Buffer
+		renderer := New(&output)
+		for _, chunk := range [][]byte{input[:split], input[split:]} {
+			if _, err := renderer.Write(chunk); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if output.String() != want {
+			t.Fatalf("split %d: got %q want %q", split, output.String(), want)
+		}
+	}
+}
 
 func TestRendererHighlightsNegativePhrasesAcrossChunks(t *testing.T) {
 	var output bytes.Buffer

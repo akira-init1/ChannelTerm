@@ -197,6 +197,9 @@ func sessionToolsForApplication(application *app.Application) []tool.Tool {
 	}
 	return []tool.Tool{
 		&listSessionsTool{sessionTools: dependencies},
+		&enterUBootTool{sessionTools: dependencies},
+		&exportDiagnosticsTool{sessionTools: dependencies},
+		&readDiagnosticTool{sessionTools: dependencies},
 		&readTool{sessionTools: dependencies},
 		&readActivityTool{sessionTools: dependencies},
 		&readSessionEventsTool{sessionTools: dependencies},
@@ -580,7 +583,7 @@ func (*readTool) Name() string { return "terminal_read" }
 
 // Description explains that cursor reads can wait for future terminal output.
 func (*readTool) Description() string {
-	return "Read retained terminal output immediately when cursor is omitted; use terminal_wait to wait for new bytes after a known cursor."
+	return "Read retained terminal output immediately when cursor is omitted; use terminal_wait to wait for new bytes after a known cursor. For U-Boot entry, use this to inspect evidence and prepare terminal_enter_uboot; let that Host-side tool interrupt the countdown rather than polling and sending keys from the client. Retained prompts alone do not establish current device state."
 }
 
 // InputSchema describes a session ID and optional cursor-based read controls.
@@ -631,6 +634,9 @@ func (t *readTool) Call(ctx context.Context, input json.RawMessage) (tool.Result
 	}
 	data, encoding, err := encodeOutput(chunk.Data, args.Encoding)
 	if err != nil {
+		if errors.Is(err, ErrInvalidUTF8Output) {
+			return nil, codedTerminalError{"invalid_utf8", fmt.Errorf("encode session %q output: %w", args.SessionID, err)}
+		}
 		return nil, fmt.Errorf("encode session %q output: %w", args.SessionID, err)
 	}
 	return tool.Result{
@@ -1050,7 +1056,7 @@ func (*executeCommandTool) Name() string { return "terminal_exec" }
 // Description explains that terminal_exec is the history-free alternative to
 // raw writes when an Agent intends to run one non-interactive Bash command.
 func (*executeCommandTool) Description() string {
-	return "Execute one non-interactive command through an idle Bash prompt without adding it to Bash history; use terminal_write for raw keys or interactive programs."
+	return "Execute one non-interactive command through an idle Bash prompt without adding it to Bash history; use terminal_write for raw keys or interactive programs. Never use this at a U-Boot prompt: use terminal_write for U-Boot commands, or terminal_enter_uboot to interrupt a fresh boot countdown."
 }
 
 // InputSchema describes one printable command and its bounded total timeout.
@@ -1099,7 +1105,7 @@ func (*writeTool) Name() string { return "terminal_write" }
 
 // Description explains that the Tool sends lossless byte input to an active terminal session.
 func (*writeTool) Description() string {
-	return "Write raw UTF-8, hexadecimal, or base64 bytes for keys or interactive programs; shell lines follow target history, so use terminal_exec at an idle Bash prompt. For files/ELFs use CLI channelterm file send/receive with --session and the owning --endpoint, then terminal_wait_file_transfer. Do not construct Base64/heredoc uploads with this tool. Run the CLI where the local file and Host are accessible; if unavailable, report the limitation."
+	return "Write raw UTF-8, hexadecimal, or base64 bytes for keys or interactive programs; shell lines follow target history, so use terminal_exec at an idle Bash prompt. Use this for authorized commands at a verified idle U-Boot prompt; use terminal_enter_uboot for countdown interruption. Do not send an empty Enter merely to probe U-Boot: it may repeat the previous command. For files/ELFs use CLI channelterm file send/receive with --session and the owning --endpoint, then terminal_wait_file_transfer. Do not construct Base64/heredoc uploads with this tool. Run the CLI where the local file and Host are accessible; if unavailable, report the limitation."
 }
 
 // InputSchema describes the session ID and text payload required for a write.

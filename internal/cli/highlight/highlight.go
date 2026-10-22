@@ -68,8 +68,8 @@ func New(output io.Writer, options ...Option) *Renderer {
 // sequences switch presentation to byte-transparent output until their line
 // and any persistent SGR or alternate-screen state safely end.
 //
-// A recognized shell prompt is emitted before a newline so a remote shell can
-// remain interactive. The following echoed command is deliberately forwarded
+// A recognized shell or bootloader prompt is emitted before a newline so the
+// remote console remains interactive. The following echoed command is forwarded
 // unchanged until its newline.
 func (r *Renderer) Write(p []byte) (int, error) {
 	writtenInput := len(p)
@@ -165,7 +165,7 @@ func (r *Renderer) Flush() error {
 	return nil
 }
 
-// drain emits complete lines and the special no-newline shell prompt while
+// drain emits complete lines and recognized no-newline console prompts while
 // keeping a bounded suffix for output that arrives in arbitrary read chunks.
 func (r *Renderer) drain() error {
 	for len(r.pending) > 0 {
@@ -191,7 +191,15 @@ func (r *Renderer) drain() error {
 			r.pending = nil
 			continue
 		}
-		if rendered, ok := r.renderPrompt(r.pending); ok {
+		if HasBootloaderPromptPrefix(r.pending) {
+			// Bootloader prompts have no newline. Emit them and their echo raw
+			// rather than holding the interactive line until the user presses Enter.
+			if err := writeAll(r.output, r.pending); err != nil {
+				return err
+			}
+			r.pending = nil
+			r.rawUntilNewline = true
+		} else if rendered, ok := r.renderPrompt(r.pending); ok {
 			if err := writeAll(r.output, rendered); err != nil {
 				return err
 			}
@@ -206,7 +214,7 @@ func (r *Renderer) drain() error {
 // writeLine chooses raw forwarding for unsafe or echoed input and otherwise
 // applies the built-in rules to one complete logical line.
 func (r *Renderer) writeLine(line []byte, raw bool) error {
-	if raw || containsScreenControl(line) {
+	if raw || containsScreenControl(line) || HasBootloaderPromptPrefix(line) {
 		return writeAll(r.output, line)
 	}
 	content, ending := splitLineEnding(line)
@@ -523,6 +531,17 @@ var builtinRules = []rule{
 }
 
 var promptPattern = regexp.MustCompile(`^(?:\[[0-9]{2}:[0-9]{2}:[0-9]{2}\][ \t]+)?(?:\([^)\r\n]+\)[ \t]+)?([A-Za-z0-9_.-]+)@([A-Za-z0-9_.-]+):([^ \t\r\n]+)([$#])[ \t]*`)
+
+// HasBootloaderPromptPrefix recognizes a plain line starting with "=> " or a
+// name followed by "> ", including an already echoed command. Trailing prompt
+// whitespace is required so an incomplete marker cannot trigger recognition.
+// This is only a presentation heuristic, never evidence of device boot state.
+// Timestamp and highlighting renderers share it to avoid buffering each other.
+func HasBootloaderPromptPrefix(line []byte) bool {
+	return bootloaderPromptPattern.Match(line)
+}
+
+var bootloaderPromptPattern = regexp.MustCompile(`^(?:=>|[A-Za-z0-9_.-]+>)[ \t]+`)
 
 var defaultTheme = newTheme(termenv.TrueColor)
 

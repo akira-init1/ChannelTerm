@@ -1,5 +1,75 @@
 # Serial Terminal
 
+## Enter U-Boot and export evidence
+
+Use an existing shared serial Session and its owning MCP Host. Record the board's serial settings
+and verify its actual countdown text, prompt (including spaces), interrupt key, and boot-start
+markers. `terminal_enter_uboot` watches raw bytes inside the Host, avoiding model round trips in a
+short countdown window. Its [contract](../reference/mcp-tools.md#terminal_enter_uboot) includes
+board-dependent arguments and limits.
+
+Prepare these settings before resetting the board. Read retained output with `terminal_read`
+(hex/base64 if it is not valid UTF-8), or reuse settings verified for the same board and firmware.
+The caller or AI client selects the arguments; the tool does not discover them or pause to ask
+questions during execution. When evidence is missing, ask for the specific missing setting.
+The MCP tool descriptions carry this guidance even without an installed skill. Reuse settings and
+answers already established, and do not ask again for an action the user has explicitly requested.
+If current evidence establishes that U-Boot is already idle, use `terminal_write` for authorized
+commands instead of starting an entry operation. Historical prompts alone do not establish that
+state, and an empty Enter is not a neutral probe: it may repeat a previous command.
+
+These examples illustrate parameter selection, not universal board defaults:
+
+| Observed output or verified configuration | Argument choice |
+| --- | --- |
+| `Hit any key to stop autoboot: 3` | A fixed countdown marker can omit the number; the explicit any-key instruction permits `interrupt_data_hex: "20"` (space). |
+| `Autoboot in 3 seconds` | `countdown_pattern: "Autoboot in "` matches the fixed portion. This message alone does not identify the interrupt input; ask or inspect firmware configuration. |
+| Firmware explicitly requires the non-secret string `stop` | `interrupt_data_hex: "73746f70"` sends exactly that string, once, with no appended Enter. |
+| Firmware explicitly requires Esc | `interrupt_data_hex: "1b"` sends that key, not a space. |
+
+Patterns are literal, not regular expressions or wildcards. Choose distinctive markers and preserve
+the full prompt's spaces. A generic U-Boot banner is not evidence that kernel boot has started.
+Do not cycle through keys, infer them from a board model, or treat a timeout as proof of a wrong key.
+Password handling has no dedicated credential-protection workflow; raw evidence and tool arguments
+must not be treated as a secret store.
+
+The entry flow requires a fresh countdown followed by a prompt. An already-idle U-Boot, a silent
+countdown, and firmware that disables interruption are not covered by that flow. Learning settings
+from a first boot may miss its window; prepare a later reset only within the user's authorized scope.
+
+First read `terminal_session_events` and retain its `next` cursor to exclude old readiness events.
+For manual reset, call with `mode: "wait_reset"`, observe a new `OPERATION_STATE` ready
+event in another client/request, then reset the board. For an authorized software reboot from a
+known idle Bash prompt, use `mode: "reboot"` with an explicit command such as `sync && reboot`.
+Do not use reboot mode in U-Boot, a foreground program, or with an unsubmitted human command.
+
+Only `status: "entered"` confirms the fresh prompt. `boot_started` means the observed window was
+missed; timeout, dropped output or write failure is not success. Do not automatically reboot again.
+Cancellation stops this operation without closing the shared Session; an already sent reboot can
+still proceed. Normal U-Boot commands use raw terminal writes, not Bash-only `terminal_exec`.
+
+Set `diagnostics: "capture"` only when retaining raw terminal contents is intended. Completion
+events also contain the diagnostic ID, so another observer can recover it after a cancelled MCP
+request whose response is no longer delivered. A returned
+diagnostic ID can be downloaded on the caller's machine, including WSL:
+
+```powershell
+channelterm diagnostics --diagnostic-id DIAG-EXAMPLE --output boot-evidence.zip --endpoint http://127.0.0.1:37099/mcp
+```
+
+Replace the example ID with the actual returned value. To create a fresh retained-buffer snapshot:
+
+```powershell
+channelterm diagnostics --session SER-1 --output session-evidence.zip --include-raw --endpoint http://127.0.0.1:37099/mcp
+```
+
+Omit `--include-raw` for metadata only. Files are never overwritten, and the CLI verifies download
+size and SHA-256. Download before the 15-minute expiry, earlier cache eviction, or Host exit.
+The manifest describes truncation and missing evidence. Snapshot export has no receive timestamps;
+operation capture times describe Host observation, not exact UART arrival. Review sensitive raw
+contents before sharing. An error response must be checked through `isError` before parsing text;
+use hex/base64 for ordinary reads during boot and preserve cursors across timeouts.
+
 ## Find a port
 
 List currently detected serial targets without querying MCP:

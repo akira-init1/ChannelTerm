@@ -11,6 +11,8 @@ Avec GDB, l’IA peut poser des points d’arrêt, parcourir un programme Linux 
 > Ce document est la page d’entrée en français. Le [README anglais](README.md), le code source
 > actuel et `channelterm --help` font autorité pour le comportement, les options et la compatibilité.
 
+Pour les courtes fenêtres de démarrage, le Host peut interrompre U-Boot et vérifier l’invite. Exportez un ZIP de diagnostic, avec les octets bruts en option, pour analyser les échecs. [Procédure U-Boot et diagnostic](docs/getting-started/serial-terminal.md#enter-u-boot-and-export-evidence).
+
 ## Pourquoi ChannelTerm ?
 
 Gardez votre terminal ouvert pendant que l’IA utilise la même connexion à l’appareil :
