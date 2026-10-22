@@ -7,6 +7,11 @@ import (
 
 const maxCSIParameterBytes = 128
 
+// shellSizeProbe saves the cursor, resets margins, queries the bottom-right
+// position, and restores the cursor before the first prompt. Recognize only
+// this complete sequence; arbitrary cursor movement is still raw output.
+const shellSizeProbe = "\x1b7\x1b[r\x1b[999;999H\x1b[6n\x1b8"
+
 type vtParserState uint8
 
 const (
@@ -44,12 +49,27 @@ type vtTracker struct {
 	alternateScreen bool
 	sgrAttributes   uint16
 	lineHasText     bool
+	sizeProbeOffset int
 }
 
 // feed consumes one VT byte and reports whether a presentation-neutral
 // sequence at the start of a logical line established a safe point for prompt recognition.
-// Cursor/screen controls deliberately do not produce that signal.
+// Cursor/screen controls produce no signal except for the complete shell size
+// probe, which restores the cursor without writing text.
 func (t *vtTracker) feed(value byte) bool {
+	probeComplete := false
+	if t.sizeProbeOffset > 0 && value == shellSizeProbe[t.sizeProbeOffset] {
+		t.sizeProbeOffset++
+		if t.sizeProbeOffset == len(shellSizeProbe) {
+			t.sizeProbeOffset = 0
+			probeComplete = true
+		}
+	} else {
+		t.sizeProbeOffset = 0
+		if value == '\x1b' && !t.lineHasText && t.canResumeHighlighting() {
+			t.sizeProbeOffset = 1
+		}
+	}
 	if value == 0x18 || value == 0x1a { // CAN and SUB abort an in-progress sequence.
 		t.state = vtGround
 		t.csiParameters = t.csiParameters[:0]
@@ -67,6 +87,9 @@ func (t *vtTracker) feed(value byte) bool {
 		}
 	case vtEscape:
 		switch value {
+		case '8':
+			t.state = vtGround
+			return probeComplete && !t.lineHasText && t.canResumeHighlighting()
 		case '[':
 			t.state = vtCSI
 			t.csiParameters = t.csiParameters[:0]

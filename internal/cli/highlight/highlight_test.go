@@ -3,6 +3,7 @@ package highlight
 import (
 	"bytes"
 	"io"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -136,6 +137,98 @@ func TestRendererHighlightsNegativeWordsAndPhrases(t *testing.T) {
 	}
 	if bytes.Contains(output.Bytes(), []byte(styleError+"file or directory"+styleReset)) {
 		t.Errorf("rendered output = %q, want only the negative marker rather than its trailing description styled red", output.String())
+	}
+}
+
+func TestRendererHighlightsBootLinesWithRepeatedCarriageReturns(t *testing.T) {
+	stripStyles := regexp.MustCompile(`\x1b\[[0-9;]*m`)
+	for _, ending := range []string{"\r\r\n", "\r\r\r\n"} {
+		input := "hwclock: can't open '/dev/misc/rtc': No such file or directory" + ending +
+			"root@board:~# " + ending + "root@board:~# "
+		for split := 0; split <= len(input); split++ {
+			var output bytes.Buffer
+			renderer := New(&output)
+			for _, part := range []string{input[:split], input[split:]} {
+				if _, err := renderer.Write([]byte(part)); err != nil {
+					t.Fatal(err)
+				}
+			}
+			for _, phrase := range []string{"can't open", "No such"} {
+				if !strings.Contains(output.String(), string(styleError)+phrase+string(styleReset)) {
+					t.Fatalf("ending %q split %d: missing red %q in %q", ending, split, phrase, &output)
+				}
+			}
+			if got := bytes.Count(output.Bytes(), []byte(stylePromptUser+"root"+styleReset)); got != 2 {
+				t.Fatalf("ending %q split %d: styled prompts = %d, want 2", ending, split, got)
+			}
+			if got := stripStyles.ReplaceAllString(output.String(), ""); got != input {
+				t.Fatalf("ending %q split %d: original bytes changed: %q", ending, split, got)
+			}
+		}
+	}
+}
+
+func TestRendererBootOutputPropagatesWriteFailure(t *testing.T) {
+	for _, input := range []string{
+		"hwclock: can't open device: No such file\r\r\n",
+		"\x1b7\x1b[r\x1b[999;999H\x1b[6n\x1b8root@board:~# ",
+	} {
+		if _, err := New(bootloaderErrorWriter{}).Write([]byte(input)); err != io.ErrClosedPipe {
+			t.Fatalf("Write(%q) error = %v, want %v", input, err, io.ErrClosedPipe)
+		}
+	}
+}
+
+func TestRendererStylesFirstPromptAfterTerminalSizeProbe(t *testing.T) {
+	const probe = "\x1b7\x1b[r\x1b[999;999H\x1b[6n\x1b8"
+	const prompt = "root@board:~# "
+	input := "startup complete\r\r\n\r\n" + probe + prompt
+	wantPrompt, ok := New(nil).renderPrompt([]byte(prompt))
+	if !ok {
+		t.Fatal("expected recognized prompt")
+	}
+	want := "startup complete\r\r\n\r\n" + probe + string(wantPrompt)
+	for size := 1; size <= len(input); size++ {
+		var output bytes.Buffer
+		renderer := New(&output)
+		for start := 0; start < len(input); start += size {
+			if _, err := renderer.Write([]byte(input[start:min(start+size, len(input))])); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if output.String() != want {
+			t.Fatalf("chunk size %d: first prompt = %q, want %q", size, &output, want)
+		}
+		for _, echo := range []string{"e", "cho No", "\b \b"} {
+			if _, err := renderer.Write([]byte(echo)); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if output.String() != want+"echo No\b \b" {
+			t.Fatalf("chunk size %d: echo delayed or styled: %q", size, &output)
+		}
+	}
+}
+
+func TestRendererKeepsUnsafeTerminalSizeProbesRaw(t *testing.T) {
+	const probe = "\x1b7\x1b[r\x1b[999;999H\x1b[6n\x1b8"
+	for _, input := range []string{
+		"existing text" + probe + "root@board:~# ",
+		"\x1b[31m" + probe + "root@board:~# ",
+		"\x1b[?1049h" + probe + "root@board:~# ",
+		strings.Replace(probe, "\x1b[6n", "screen text", 1) + "root@board:~# ",
+		strings.TrimSuffix(probe, "\x1b8") + "root@board:~# ",
+		"\x1b8root@board:~# ",
+		"progress\rERROR\r\r\n",
+	} {
+		var output bytes.Buffer
+		renderer := New(&output)
+		if _, err := renderer.Write([]byte(input)); err != nil {
+			t.Fatal(err)
+		}
+		if output.String() != input {
+			t.Fatalf("unsafe stream changed: got %q want %q", &output, input)
+		}
 	}
 }
 
