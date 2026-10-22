@@ -351,9 +351,9 @@ func TestFileTransferRecoveryReadsHaveDeadline(t *testing.T) {
 		},
 		{
 			name:   "receive drain",
-			output: "payload",
+			output: "payload\n@CTERM:abc123:ACK:7\n",
 			recover: func(protocol *fileProtocol) error {
-				return protocol.finishReceiveChunk(make([]byte, len("payload")))
+				return protocol.finishReceiveChunk(make([]byte, len("payload")), 7)
 			},
 		},
 	}

@@ -172,6 +172,9 @@ func SendFileWithCancellation(ctx context.Context, terminal FileTransferSession,
 			return FileTransferResult{}, err
 		}
 		if _, err := protocol.expect(ctx, "READY", strconv.FormatInt(chunkSize, 10)); err != nil {
+			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+				err = errors.Join(err, protocol.finishUnconfirmedSendChunk(chunkSize))
+			}
 			return FileTransferResult{}, fmt.Errorf("prepare remote file chunk at byte %d: %w", transferred, err)
 		}
 		written, err := writeFilePayload(ctx, terminal, chunk)
@@ -181,7 +184,7 @@ func SendFileWithCancellation(ctx context.Context, terminal FileTransferSession,
 		}
 		if _, err := protocol.expect(ctx, "ACK", strconv.FormatInt(chunkSize, 10)); err != nil {
 			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-				_ = protocol.finishPendingMarker("ACK", strconv.FormatInt(chunkSize, 10))
+				err = errors.Join(err, protocol.finishPendingMarker("ACK", strconv.FormatInt(chunkSize, 10)))
 			}
 			return FileTransferResult{}, fmt.Errorf("confirm remote file chunk at byte %d: %w", transferred, err)
 		}
@@ -351,17 +354,23 @@ func ReceiveFileWithCancellation(ctx context.Context, terminal FileTransferSessi
 			return FileTransferResult{}, err
 		}
 		if _, err := protocol.expect(ctx, "DATA", strconv.FormatInt(chunkSize, 10)); err != nil {
+			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+				err = errors.Join(err, protocol.finishUnconfirmedReceiveChunk(chunkSize))
+			}
 			return FileTransferResult{}, fmt.Errorf("start remote file chunk at byte %d: %w", transferred, err)
 		}
 		chunk := buffer[:int(chunkSize)]
 		read, err := protocol.readExact(ctx, chunk)
 		if err != nil {
 			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-				_ = protocol.finishReceiveChunk(chunk[int(read):])
+				err = errors.Join(err, protocol.finishReceiveChunk(chunk[int(read):], chunkSize))
 			}
 			return FileTransferResult{}, fmt.Errorf("receive remote file chunk at byte %d: %w", transferred, err)
 		}
 		if _, err := protocol.expect(ctx, "ACK", strconv.FormatInt(chunkSize, 10)); err != nil {
+			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+				err = errors.Join(err, protocol.finishPendingMarker("ACK", strconv.FormatInt(chunkSize, 10)))
+			}
 			return FileTransferResult{}, fmt.Errorf("confirm received file chunk at byte %d: %w", transferred, err)
 		}
 		if err := writeAllTo(destination, chunk); err != nil {
@@ -560,6 +569,24 @@ func (p *fileProtocol) readExact(ctx context.Context, destination []byte) (int, 
 	return read, nil
 }
 
+// finishUnconfirmedSendChunk resolves a cancelled READY wait before padding the
+// announced block. Sending shell cleanup directly could feed it to dd as data.
+func (p *fileProtocol) finishUnconfirmedSendChunk(size int64) error {
+	if err := p.finishPendingMarker("READY", strconv.FormatInt(size, 10)); err != nil {
+		return err
+	}
+	return p.finishSendChunk(size, size)
+}
+
+// finishUnconfirmedReceiveChunk resolves a cancelled DATA wait before draining
+// the block, so marker bytes cannot be mistaken for payload or an idle shell.
+func (p *fileProtocol) finishUnconfirmedReceiveChunk(size int64) error {
+	if err := p.finishPendingMarker("DATA", strconv.FormatInt(size, 10)); err != nil {
+		return err
+	}
+	return p.finishReceiveChunk(make([]byte, int(size)), size)
+}
+
 // finishSendChunk pads only an already-started raw dd block after cancellation
 // or a short write. Completing that bounded block lets the shell restore its
 // saved TTY mode; the caller still receives the original transfer failure.
@@ -575,15 +602,17 @@ func (p *fileProtocol) finishSendChunk(remaining, acknowledgedSize int64) error 
 	return p.finishPendingMarker("ACK", strconv.FormatInt(acknowledgedSize, 10))
 }
 
-// finishReceiveChunk drains an already-started bounded dd output so the remote
-// shell can finish the command and restore its saved TTY mode.
-func (p *fileProtocol) finishReceiveChunk(remaining []byte) error {
+// finishReceiveChunk drains an already-started bounded dd output and waits for
+// its acknowledgement. Payload completion alone does not prove stty restored
+// the saved TTY; sending shell cleanup before ACK can lose that input.
+func (p *fileProtocol) finishReceiveChunk(remaining []byte, acknowledgedSize int64) error {
 	cleanupCtx, cancel := fileTransferRecoveryContext()
 	defer cancel()
 	if _, err := p.readExact(cleanupCtx, remaining); err != nil {
 		return p.recoveryError(fmt.Errorf("drain interrupted receive chunk: %w", err))
 	}
-	return nil
+	_, err := p.expect(cleanupCtx, "ACK", strconv.FormatInt(acknowledgedSize, 10))
+	return p.recoveryError(err)
 }
 
 func (p *fileProtocol) finishPendingMarker(phase, argument string) error {

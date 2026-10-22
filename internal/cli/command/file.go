@@ -28,6 +28,8 @@ var (
 
 const fileTransferUserCancelled = "user_cancelled"
 
+const fileTransferWriteCancelGrace = 15 * time.Second
+
 type fileCommandDependencies struct {
 	newAttach               attachSessionFactory
 	listSessions            func(context.Context, string) ([]mcpListedSession, error)
@@ -65,14 +67,47 @@ func (s internalFileTransferSession) Write(request session.WriteRequest) (int, e
 	return s.attachSession.Write(request)
 }
 
-// WriteContext retains cancellation for an MCP-backed attachment while applying
-// the same internal-operation classification as Write.
+// WriteContext classifies protocol writes and preserves their acknowledged byte
+// count. Cancelling an in-flight MCP call can hide a completed remote write, so
+// cancellation allows a bounded response grace before closing an uncertain Session.
 func (s internalFileTransferSession) WriteContext(ctx context.Context, request session.WriteRequest) (int, error) {
+	if err := ctx.Err(); err != nil {
+		return 0, err
+	}
 	request.Actor = session.ActorSystem
 	if contextual, ok := s.attachSession.(interface {
 		WriteContext(context.Context, session.WriteRequest) (int, error)
 	}); ok {
-		return contextual.WriteContext(ctx, request)
+		writeCtx, stopWrite := context.WithCancel(context.WithoutCancel(ctx))
+		defer stopWrite()
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			select {
+			case <-ctx.Done():
+				timer := time.NewTimer(fileTransferWriteCancelGrace)
+				defer timer.Stop()
+				select {
+				case <-timer.C:
+					stopWrite()
+				case <-writeCtx.Done():
+				}
+			case <-writeCtx.Done():
+			}
+		}()
+		count, err := contextual.WriteContext(writeCtx, request)
+		uncertain := writeCtx.Err() != nil
+		stopWrite()
+		<-done
+		if uncertain {
+			// Never pad/retry a write whose remote byte count is unknown. Closing
+			// ownership first prevents later cleanup bytes from reaching the board.
+			abortCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			abortErr := s.AbortFileTransferRecovery(abortCtx)
+			return count, errors.Join(fmt.Errorf("file-transfer write acknowledgement timed out: %w", context.DeadlineExceeded), err, abortErr)
+		}
+		return count, err
 	}
 	return s.attachSession.Write(request)
 }
@@ -519,7 +554,10 @@ func withFileTransferLease(ctx context.Context, attached attachSession, identifi
 	}()
 	operationCtx, cancelOperation := context.WithCancel(ctx)
 	defer cancelOperation()
-	stopHeartbeat, heartbeatResult := startFileTransferLeaseHeartbeat(operationCtx, attached, identifier, cancelOperation)
+	// Cancellation stops payload work, but recovery still owns the terminal.
+	// Renew until operation returns after cleanup; otherwise a slow recovery can
+	// outlive the Host TTL and lose the lease while restoring the remote TTY.
+	stopHeartbeat, heartbeatResult := startFileTransferLeaseHeartbeat(context.WithoutCancel(operationCtx), attached, identifier, cancelOperation)
 	err = operation(operationCtx)
 	close(stopHeartbeat)
 	if heartbeatErr := <-heartbeatResult; heartbeatErr != nil {
@@ -580,7 +618,7 @@ func reportFailedFileTransfer(ctx context.Context, attached attachSession, metad
 
 func fileTransferFailureMetadata(metadata map[string]any, operationErr error) map[string]any {
 	failureMetadata := copyFileTransferMetadata(metadata)
-	if errors.Is(operationErr, context.Canceled) {
+	if errors.Is(operationErr, context.Canceled) && !errors.Is(operationErr, context.DeadlineExceeded) {
 		failureMetadata["error"] = fileTransferUserCancelled
 		failureMetadata["reason"] = fileTransferUserCancelled
 		return failureMetadata
@@ -913,7 +951,7 @@ func finishFileTransferPresentation(output io.Writer, progress *fileTransferRepo
 	if operationErr == nil {
 		return nil
 	}
-	if errors.Is(operationErr, context.Canceled) {
+	if errors.Is(operationErr, context.Canceled) && !errors.Is(operationErr, context.DeadlineExceeded) {
 		_, _ = fmt.Fprintln(output, "Transfer cancelled.")
 	} else {
 		_, _ = fmt.Fprintf(output, "Transfer failed: %v\n", operationErr)

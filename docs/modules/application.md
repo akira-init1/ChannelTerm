@@ -273,8 +273,10 @@ lease owner capability.
 
 File transfer uses the same Session write and output-cursor semantics. It obtains a `file-transfer`
 lease before its first protocol command, renews it every 10 seconds, and releases it on success,
-failure, or cancellation. A send creates a missing remote destination hierarchy before payload
-transmission and reuses an existing hierarchy. Destination collision selection remains the first
+failure, or cancellation. Bundled clients continue renewing during cancellation cleanup until the
+operation returns, then stop the heartbeat before releasing ownership. A send creates a missing
+remote destination hierarchy before payload transmission and reuses an existing hierarchy.
+Destination collision selection remains the first
 free `_N` sibling.
 
 The interactive target shell receives one `CTERM_FT=<token> sh -c ...` bootstrap command. On Bash, the
@@ -304,12 +306,18 @@ Send initialization probes `dd iflag=fullblock`; a minimal `dd` instead reads on
 `count` equal to the announced chunk size. The timeout, size check, and final hash apply to both paths.
 
 A cancelled or failed operation uses independent recovery contexts to pad or drain its active raw
-block, consume a pending acknowledgement, and remove directory-transfer staging data. Each recovery
+block and consume the post-restoration acknowledgement before sending further shell commands.
+Recovery also removes directory-transfer staging data. Each recovery
 I/O operation has a 15-second deadline and does not inherit the cancelled operation context. If
 recovery reaches that deadline, the bundled MCP attachment invokes `terminal_close` with a separate
 five-second-bounded request. This releases an in-flight Host write and prevents an unusable protocol
 state from retaining the Session or lease. Recovery timeout errors are joined with the original
 failure. Independent readers continue to see raw output, including received file bytes.
+
+The CLI transfer adapter lets an in-flight write return its acknowledged byte count after cancellation,
+with a 15-second response grace. Abandoning an MCP response immediately could mistake delivered bytes
+for an unwritten block and duplicate them during padding. If the grace expires, the adapter closes
+the Session before attempting further recovery because the remote byte count is unknown.
 
 ## Session close
 

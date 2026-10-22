@@ -16,6 +16,77 @@ import (
 	"github.com/akira-init1/ChannelTerm/internal/core/session"
 )
 
+// TestFileTransferCancellationBeforeRawMarker recovers a command that reached
+// the board even when cancellation hides its READY/DATA response from the caller.
+func TestFileTransferCancellationBeforeRawMarker(t *testing.T) {
+	for _, send := range []bool{false, true} {
+		phase := ":DATA:"
+		if send {
+			phase = ":READY:"
+		}
+		t.Run(phase, func(t *testing.T) {
+			terminal := &interruptedRawMarkerSession{fileTransferTestSession: newFileTransferTestSession([]byte("payload")), phase: phase}
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+			defer cancel()
+			var err error
+			if send {
+				_, err = SendFile(ctx, terminal, strings.NewReader("payload"), 7, "/tmp/payload", nil)
+			} else {
+				var destination bytes.Buffer
+				_, err = ReceiveFile(ctx, terminal, &destination, "/tmp/payload", nil)
+			}
+			if !errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+				t.Fatalf("transfer = %v, want recovered cancellation", err)
+			}
+			if !terminal.recoveryAcknowledged || terminal.pendingSend != 0 || terminal.shellActive {
+				t.Fatalf("incomplete recovery: acknowledged=%t pending=%d shell=%t", terminal.recoveryAcknowledged, terminal.pendingSend, terminal.shellActive)
+			}
+		})
+	}
+}
+
+type interruptedRawMarkerSession struct {
+	*fileTransferTestSession
+	phase                string
+	interrupted          bool
+	recoveryAcknowledged bool
+}
+
+func (s *interruptedRawMarkerSession) ReadOutput(ctx context.Context, next session.OutputCursor, limit int) (session.OutputChunk, error) {
+	chunk, err := s.fileTransferTestSession.ReadOutput(ctx, next, limit)
+	if !s.interrupted && bytes.Contains(chunk.Data, []byte(s.phase)) {
+		s.interrupted = true
+		return session.OutputChunk{}, context.Canceled
+	}
+	if s.interrupted && bytes.Contains(chunk.Data, []byte(":ACK:")) {
+		s.recoveryAcknowledged = true
+	}
+	return chunk, err
+}
+
+// TestReceiveRecoveryWaitsForTTYRestoration requires the post-stty ACK before
+// recovery considers a drained raw block safe for subsequent shell commands.
+func TestReceiveRecoveryWaitsForTTYRestoration(t *testing.T) {
+	for _, acknowledgement := range []string{"ACK:7", "ERROR:read"} {
+		t.Run(acknowledgement, func(t *testing.T) {
+			terminal := newFileTransferTestSession(nil)
+			terminal.output = []byte("\n@CTERM:abc123:" + acknowledgement + "\n")
+			shell := &shellFileTransferSession{terminal: terminal}
+			protocol := &fileProtocol{terminal: shell, token: "abc123", pending: []byte("payload")}
+			err := protocol.finishReceiveChunk(make([]byte, 7), 7)
+			if acknowledgement == "ACK:7" && err != nil {
+				t.Fatal(err)
+			}
+			if acknowledgement == "ERROR:read" && (err == nil || !strings.Contains(err.Error(), "read")) {
+				t.Fatalf("recovery error = %v, want remote read failure", err)
+			}
+			if !shell.idle || protocol.cursor != session.OutputCursor(len(terminal.output)) || len(protocol.pending) != 0 {
+				t.Fatalf("recovery returned before consuming the post-stty result: idle=%t cursor=%d pending=%q", shell.idle, protocol.cursor, protocol.pending)
+			}
+		})
+	}
+}
+
 // TestFileTransferLeaseRejectsPendingShellInput covers typed and recalled lines,
 // rejection without target writes, and a retry after the user clears the line.
 func TestFileTransferLeaseRejectsPendingShellInput(t *testing.T) {

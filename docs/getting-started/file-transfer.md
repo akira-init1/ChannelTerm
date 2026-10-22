@@ -103,6 +103,7 @@ Existing history entries from older clients or ordinary terminal input are not r
 
 Child-shell startup has a 15-second deadline. A missing readiness response triggers bounded recovery
 instead of keeping terminal input locked indefinitely; an unresponsive recovery closes the Session.
+Startup/recovery timeouts are reported as failures even when closing the Session also cancels the attachment.
 This startup deadline does not limit transfer duration. Ordinary commands typed or sent with
 `terminal_write` retain the shell's normal history behavior. Agents requiring history-free command
 execution at an idle Bash prompt should use `terminal_exec`.
