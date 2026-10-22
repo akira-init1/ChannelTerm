@@ -3,6 +3,7 @@ package command
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 	"sync"
 
@@ -107,9 +108,7 @@ func (p *fileTransferPresentation) handle(event session.Event, local bool, write
 			if p.openStart != nil {
 				if cursor, ok := fileTransferEventCursor(event.Metadata); ok && cursor >= *p.openStart {
 					outputRange := fileTransferOutputRange{start: *p.openStart, end: cursor}
-					if len(p.ranges) == 0 || p.ranges[len(p.ranges)-1] != outputRange {
-						p.ranges = append(p.ranges, outputRange)
-					}
+					p.addHiddenRange(outputRange)
 				}
 				p.openStart = nil
 			}
@@ -261,9 +260,27 @@ func (p *fileTransferPresentation) addTerminalCommandHiddenRange(metadata map[st
 		return
 	}
 	outputRange := fileTransferOutputRange{start: start, end: end}
-	if len(p.ranges) == 0 || p.ranges[len(p.ranges)-1] != outputRange {
-		p.ranges = append(p.ranges, outputRange)
+	p.addHiddenRange(outputRange)
+}
+
+// addHiddenRange keeps suppression intervals ordered and merged. Retained event
+// snapshots are replayed before every raw read, so checking only the last range
+// would accumulate the same earlier intervals indefinitely. Callers hold p.mu.
+func (p *fileTransferPresentation) addHiddenRange(hidden fileTransferOutputRange) {
+	if hidden.end <= hidden.start {
+		return
 	}
+	first := 0
+	for first < len(p.ranges) && p.ranges[first].end < hidden.start {
+		first++
+	}
+	last := first
+	for last < len(p.ranges) && p.ranges[last].start <= hidden.end {
+		hidden.start = min(hidden.start, p.ranges[last].start)
+		hidden.end = max(hidden.end, p.ranges[last].end)
+		last++
+	}
+	p.ranges = slices.Replace(p.ranges, first, last, hidden)
 }
 
 func terminalCommandEventCursor(metadata map[string]any, key string) (session.OutputCursor, bool) {
@@ -277,9 +294,7 @@ func (p *fileTransferPresentation) closeTerminalCommandRange(metadata map[string
 	cursor, ok := fileTransferEventCursor(metadata)
 	if ok && cursor >= *p.commandOpenStart {
 		outputRange := fileTransferOutputRange{start: *p.commandOpenStart, end: cursor}
-		if len(p.ranges) == 0 || p.ranges[len(p.ranges)-1] != outputRange {
-			p.ranges = append(p.ranges, outputRange)
-		}
+		p.addHiddenRange(outputRange)
 	}
 	p.commandOpenStart = nil
 }

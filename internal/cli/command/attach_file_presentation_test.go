@@ -391,6 +391,36 @@ func TestFileTransferPresentationSuppressesLeaseRangeWithoutFilteringUserContent
 	}
 }
 
+// TestFileTransferPresentationRetainedRefreshDoesNotAccumulateRanges covers
+// repeated history refreshes before raw rendering after multiple transfers.
+func TestFileTransferPresentationRetainedRefreshDoesNotAccumulateRanges(t *testing.T) {
+	presentation := newFileTransferPresentation()
+	for repeat := 0; repeat < 100; repeat++ {
+		for _, cursor := range []uint64{2, 4, 6, 8} {
+			typ := session.EventLeaseAcquired
+			if cursor == 4 || cursor == 8 {
+				typ = session.EventLeaseReleased
+			}
+			if err := presentation.handle(session.Event{Type: typ, Metadata: map[string]any{
+				"type": "file-transfer", "output_cursor": cursor,
+			}}, true, nil); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	if got := len(presentation.ranges); got != 2 {
+		t.Fatalf("retained refresh accumulated %d ranges, want 2", got)
+	}
+	var visible bytes.Buffer
+	_, err := writeAttachedTerminalOutputAt(presentation, func(data []byte) error {
+		_, err := visible.Write(data)
+		return err
+	}, 10, []byte("abXXcdYYef"))
+	if err != nil || visible.String() != "abcdef" {
+		t.Fatalf("visible history = %q, error=%v", visible.String(), err)
+	}
+}
+
 func TestFileTransferPresentationSuppressesDelayedBootstrapEchoAfterCompletion(t *testing.T) {
 	presentation := newFileTransferPresentation()
 	var output bytes.Buffer
