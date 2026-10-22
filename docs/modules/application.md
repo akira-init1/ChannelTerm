@@ -220,6 +220,11 @@ Application owns one exclusive lease per managed Session. Supported lease types 
 opaque owner capability and rejects a missing, released, expired, or replacement lease with
 `ErrLeaseNotOwned`.
 
+File-transfer acquisition checks retained input activity after claiming writer ownership. An
+unsubmitted command or recalled history line returns `ErrTerminalCommandInputPending` with recovery
+guidance, releases the unpublished lease, and sends no shell bytes. A caller must clear that line
+before retrying; Application never executes or discards the pending command automatically.
+
 Every lease has a 30-second Host-side TTL and an `expires_at` timestamp. `RenewLease` extends that
 deadline only for the matching owner. Expiry atomically releases writer ownership, wakes pending
 cancellation waits, and prevents a stale owner or timer from affecting a replacement lease. If
@@ -272,8 +277,9 @@ failure, or cancellation. A send creates a missing remote destination hierarchy 
 transmission and reuses an existing hierarchy. Destination collision selection remains the first
 free `_N` sibling.
 
-The interactive target shell receives one `CTERM_FT=1 sh -c ...` bootstrap command. On Bash, the
-bootstrap removes its own current in-memory history entry without changing earlier user history.
+The interactive target shell receives one `CTERM_FT=<token> sh -c ...` bootstrap command. On Bash, the
+bootstrap removes its own current in-memory history entry only when its fresh token matches that
+entry. Ignored commands and disabled Bash history leave earlier user history unchanged.
 Shells without Bash-compatible history deletion retain the bootstrap as one recognizable entry. The
 bootstrap temporarily disables target-terminal input echo, and initialization clears the displayed
 command after the child starts. The non-interactive child runs path probing, per-chunk commands,
@@ -285,6 +291,9 @@ explicitly stop the watchdog, restore terminal echo, and exit the child before t
 lease is released. The bootstrap emits its final confirmation from the interactive parent only after
 the child exits; this keeps all earlier command echo inside the lease's suppressed presentation
 cursor range.
+
+Startup has a separate 15-second deadline for the echo-disabled and child-ready markers. Failure
+uses the existing bounded recovery path. This deadline does not limit the later payload transfer.
 
 The protocol reads or writes at most 8 KiB of payload per chunk, saves and restores the remote TTY
 mode around each raw `dd` operation, and performs end-to-end SHA-256 verification for regular files

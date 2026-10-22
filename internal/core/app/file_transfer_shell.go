@@ -13,12 +13,12 @@ import (
 )
 
 const (
-	fileTransferShellBootstrapCommand = "if [ -n \"$BASH_VERSION\" ];then " + bashDeleteCurrentHistoryEntry + ";fi;stty -echo;printf '\\036\\037';CTERM_FT=1 sh -c 'while read -r x;do eval \"$x\";done';stty echo;printf '\\035\\034'"
 	fileTransferShellEchoHiddenMarker = "\x1e\x1f"
 	fileTransferShellExitedMarker     = "\x1d\x1c"
 	fileTransferShellIdleTimeout      = 30 * time.Second
 	fileTransferShellHeartbeat        = 5 * time.Second
 	fileTransferShellWriteTimeout     = 5 * time.Second
+	fileTransferShellStartTimeout     = 15 * time.Second
 )
 
 // WithFileTransferShell runs operation inside one non-interactive target-side
@@ -83,10 +83,16 @@ func newShellFileTransferSession(ctx context.Context, terminal FileTransferSessi
 		stop:     make(chan struct{}),
 		done:     make(chan struct{}),
 	}
-	if err := shell.start(ctx); err != nil {
+	// A missing shell prompt or readiness marker must not hold the write lease
+	// indefinitely. This deadline covers setup only; large transfers keep the
+	// caller's lifetime and continue renewing their lease.
+	startCtx, cancelStart := context.WithTimeout(ctx, fileTransferShellStartTimeout)
+	startErr := shell.start(startCtx)
+	cancelStart()
+	if startErr != nil {
 		closeCtx, cancel := fileTransferRecoveryContext()
 		defer cancel()
-		return nil, errors.Join(err, shell.close(closeCtx))
+		return nil, errors.Join(startErr, shell.close(closeCtx))
 	}
 	shell.heartbeatOn = true
 	go shell.heartbeatLoop()
@@ -98,7 +104,7 @@ func (s *shellFileTransferSession) start(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("initialize file-transfer shell cursor: %w", err)
 	}
-	if _, err := writeFilePayload(ctx, s.terminal, []byte(fileTransferShellBootstrapCommand+"\n")); err != nil {
+	if _, err := writeFilePayload(ctx, s.terminal, []byte(fileTransferShellBootstrapCommand(s.token)+"\n")); err != nil {
 		return fmt.Errorf("start remote file-transfer shell: %w", err)
 	}
 	s.started = true
@@ -310,6 +316,13 @@ func (s *shellFileTransferSession) recoveryError(err error) error {
 		return err
 	}
 	return (&fileProtocol{terminal: s.terminal}).recoveryError(err)
+}
+
+// fileTransferShellBootstrapCommand deletes only its fresh token's history
+// entry. HISTIGNORE or disabled history must not turn cleanup into deletion of
+// the previous user command. The token also marks the child environment.
+func fileTransferShellBootstrapCommand(token string) string {
+	return bashDeleteTokenHistoryEntry(token) + "stty -echo;printf '\\036\\037';CTERM_FT=" + quoteSplitTerminalCommandToken(token) + " sh -c 'while read -r x;do eval \"$x\";done';stty echo;printf '\\035\\034'"
 }
 
 func fileTransferShellInitCommand(token string) string {

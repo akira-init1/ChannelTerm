@@ -345,7 +345,8 @@ func (a *Application) writeSession(ctx context.Context, identifier, owner string
 
 // AcquireLease creates one exclusive application-level lease for an active
 // Session. Readers and raw output are unaffected. An expired debug lease closes
-// the Session because restoring its terminal state cannot be assumed.
+// the Session because restoring its terminal state cannot be assumed. File
+// transfers reject pending interactive input before publishing lease acquisition.
 func (a *Application) AcquireLease(identifier, owner string, typ LeaseType) (SessionLease, error) {
 	terminal, err := a.session(identifier)
 	if err != nil {
@@ -355,6 +356,19 @@ func (a *Application) AcquireLease(identifier, owner string, typ LeaseType) (Ses
 	lease, err := a.leases.acquire(terminal.ID(), owner, typ)
 	if err != nil {
 		return SessionLease{}, err
+	}
+	if typ == LeaseTypeFileTransfer {
+		// Inspect after acquiring ownership so another client cannot append input
+		// between validation and the transfer bootstrap. Never clear or execute a
+		// user's unfinished command merely to make a transfer possible.
+		pending, inspectErr := terminalHasPendingInteractiveInput(terminal)
+		if inspectErr != nil || pending {
+			_, _, _, releaseErr := a.leases.release(terminal.ID(), lease.Owner)
+			if inspectErr == nil {
+				inspectErr = fmt.Errorf("%w; clear the shell line with Ctrl+C before starting file transfer", ErrTerminalCommandInputPending)
+			}
+			return SessionLease{}, errors.Join(inspectErr, releaseErr)
+		}
 	}
 	terminal.PublishEvent(session.Event{
 		Type:  session.EventLeaseAcquired,

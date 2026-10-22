@@ -80,7 +80,7 @@ func TestSendFileStreamsLargeInputInBoundedChunks(t *testing.T) {
 	if terminal.maxPayload > FileTransferChunkSize {
 		t.Errorf("largest Session payload = %d, want <= %d", terminal.maxPayload, FileTransferChunkSize)
 	}
-	if got := terminal.interactiveCommands; len(got) != 1 || got[0] != fileTransferShellBootstrapCommand {
+	if got := terminal.interactiveCommands; len(got) != 1 || !strings.Contains(got[0], "CTERM_FT=") {
 		t.Errorf("interactive shell history = %v, want one file-transfer entry", got)
 	}
 	if terminal.shellActive {
@@ -130,12 +130,12 @@ func TestFileTransferShellCommandsBoundIdleLifetime(t *testing.T) {
 			t.Errorf("file-transfer shell initialization missing %q: %s", required, initCommand)
 		}
 	}
-	if len(fileTransferShellBootstrapCommand) > 192 {
-		t.Errorf("file-transfer shell bootstrap is not a short recognizable entry: %s", fileTransferShellBootstrapCommand)
+	if len(fileTransferShellBootstrapCommand("00112233445566778899aabb")) > 1024 {
+		t.Errorf("file-transfer shell bootstrap is not a short recognizable entry: %s", fileTransferShellBootstrapCommand("00112233445566778899aabb"))
 	}
-	for _, required := range []string{"$BASH_VERSION", bashDeleteCurrentHistoryEntry, "stty -echo", "printf '\\036\\037'", "CTERM_FT=1", "stty echo", "printf '\\035\\034'"} {
-		if !strings.Contains(fileTransferShellBootstrapCommand, required) {
-			t.Errorf("file-transfer shell bootstrap missing %q: %s", required, fileTransferShellBootstrapCommand)
+	for _, required := range []string{"${BASH_VERSION-}", bashDeleteCurrentHistoryEntry, "stty -echo", "printf '\\036\\037'", "CTERM_FT=", "stty echo", "printf '\\035\\034'"} {
+		if !strings.Contains(fileTransferShellBootstrapCommand("00112233445566778899aabb"), required) {
+			t.Errorf("file-transfer shell bootstrap missing %q: %s", required, fileTransferShellBootstrapCommand("00112233445566778899aabb"))
 		}
 	}
 	closeCommand := fileTransferShellCloseCommand()
@@ -154,7 +154,7 @@ func TestFileTransferShellCommandsHaveValidShellSyntax(t *testing.T) {
 		t.Skip("POSIX shell syntax check is unavailable on Windows")
 	}
 	commands := map[string]string{
-		"bootstrap":  fileTransferShellBootstrapCommand,
+		"bootstrap":  fileTransferShellBootstrapCommand("00112233445566778899aabb"),
 		"initialize": fileTransferShellInitCommand("abc123"),
 		"close":      fileTransferShellCloseCommand(),
 	}
@@ -172,7 +172,7 @@ func TestFileTransferShellBootstrapConfirmsParentResumed(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("POSIX shell execution is unavailable on Windows")
 	}
-	command := exec.Command("sh", "-c", fileTransferShellBootstrapCommand)
+	command := exec.Command("sh", "-c", fileTransferShellBootstrapCommand("00112233445566778899aabb"))
 	command.Stdin = strings.NewReader("exit\n")
 	output, err := command.Output()
 	if err != nil {
@@ -194,12 +194,12 @@ func TestFileTransferShellBootstrapDeletesItsBashHistoryEntry(t *testing.T) {
 	}
 	command := exec.Command(bash, "--noprofile", "--norc", "-i")
 	command.Env = append(os.Environ(), "HISTFILE=/dev/null")
-	command.Stdin = strings.NewReader("echo USER_COMMAND_BEFORE_TRANSFER\n" + fileTransferShellBootstrapCommand + "\nexit\nhistory\nexit\n")
+	command.Stdin = strings.NewReader("echo USER_COMMAND_BEFORE_TRANSFER\n" + fileTransferShellBootstrapCommand("00112233445566778899aabb") + "\nexit\nhistory\nexit\n")
 	output, err := command.CombinedOutput()
 	if err != nil {
 		t.Fatalf("interactive Bash history check error = %v, output = %q", err, output)
 	}
-	if regexp.MustCompile(`(?m)^\s*[0-9]+\s+.*CTERM_FT=1`).Match(output) {
+	if regexp.MustCompile(`(?m)^\s*[0-9]+\s+.*CTERM_FT=`).Match(output) {
 		t.Fatalf("interactive Bash history retained bootstrap: %q", output)
 	}
 	if !strings.Contains(string(output), "echo USER_COMMAND_BEFORE_TRANSFER") {
@@ -689,7 +689,7 @@ func (s *fileTransferTestSession) Write(request session.WriteRequest) (int, erro
 		return count, nil
 	}
 	command := string(data)
-	if command == fileTransferShellBootstrapCommand+"\n" {
+	if strings.Contains(command, "CTERM_FT=") && strings.Contains(command, "while read -r x;do eval") {
 		if s.shellActive {
 			return 0, errors.New("test file-transfer shell is already active")
 		}

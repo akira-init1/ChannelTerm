@@ -15,7 +15,9 @@ interop, local paths and the HTTP credential belong to the OS running the chosen
 
 ## Preconditions
 
-- The remote shell is idle and accepts POSIX-style shell commands.
+- The remote shell is idle, its input line is empty, and it accepts POSIX-style shell commands.
+  A recalled history command or other unsubmitted input is rejected before transfer starts. Press
+  `Ctrl+C` at the ordinary shell prompt to clear that line, then reopen the transfer menu.
 - The board provides `mkdir`, `stty`, `dd`, `wc`, `sha256sum`, and `sleep`.
   BusyBox or GNU userland may provide these commands. Send uses `iflag=fullblock` when available;
   minimal BusyBox builds use one-byte input blocks to count the exact payload without that option.
@@ -93,9 +95,17 @@ but does not provide TLS or per-tool authorization. The feature does not change 
 default listener.
 
 Each transfer uses one non-interactive child shell. Interactive Bash removes the bootstrap from its
-current in-memory history without changing earlier entries. Other POSIX shells may retain one
+current in-memory history only when its fresh token identifies that entry; `HISTIGNORE` and disabled
+history never cause deletion of an earlier user command. Other POSIX shells may retain one
 recognizable bootstrap entry. Internal probing, chunking, verification, and cleanup commands run in
 the child rather than becoming separate interactive-history entries.
+Existing history entries from older clients or ordinary terminal input are not retroactively removed.
+
+Child-shell startup has a 15-second deadline. A missing readiness response triggers bounded recovery
+instead of keeping terminal input locked indefinitely; an unresponsive recovery closes the Session.
+This startup deadline does not limit transfer duration. Ordinary commands typed or sent with
+`terminal_write` retain the shell's normal history behavior. Agents requiring history-free command
+execution at an idle Bash prompt should use `terminal_exec`.
 
 ## Attach shortcut
 

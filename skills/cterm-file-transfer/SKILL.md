@@ -48,7 +48,7 @@ channelterm scp user@host.example get /tmp/log.txt ./log.txt --verify=sha256
 
 ### Preconditions and start
 
-The target must be at an idle POSIX-style Linux shell with `mkdir`, `stty`, `dd`, `wc`, `sha256sum`, and `sleep`. Directories also require `tar` and temporary archive/staging space. The CLI supports minimal `dd` without `iflag=fullblock` and performs the preflight. Do not probe unknown MCU or bootloader input with shell commands.
+The target must be at an idle POSIX-style Linux shell with an empty input line and `mkdir`, `stty`, `dd`, `wc`, `sha256sum`, and `sleep`. The CLI supports minimal `dd` without `iflag=fullblock` and performs the preflight. If it rejects unsubmitted input, have the user clear the shell line before retrying. Directories also require `tar` and temporary archive/staging space. Do not probe unknown MCU or bootloader input with shell commands.
 
 Reuse the intended Session. Obtain its opaque `session_id` or short reference and its owning HTTP endpoint; a port or label is not a Session ID. If no Session exists, establish it using the actual serial settings, optionally following `cterm-serial-debug` when installed. Never guess communication settings. `file` neither opens the serial port nor starts a Host. Keep the attachment that owns a temporary Host running.
 
