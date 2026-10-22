@@ -654,7 +654,9 @@ func (d *attachInputDispatcher) finishTransfer(err error) {
 		}
 		return
 	}
-	if cancelled || errors.Is(err, context.Canceled) {
+	// Recovery may close the Session and cancel the attachment after a timeout.
+	// Preserve that failure instead of blaming the user for the resulting cancel.
+	if (cancelled || errors.Is(err, context.Canceled)) && !errors.Is(err, context.DeadlineExceeded) {
 		_ = d.writeTransferStatus(fileTransferCancelledSummaryText(time.Now(), progress))
 		return
 	}

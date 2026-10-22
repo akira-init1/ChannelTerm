@@ -35,7 +35,7 @@ var (
 	// ErrTerminalCommandControlCharacter prevents multiline input and terminal
 	// control bytes from escaping the structured Agent presentation boundary.
 	ErrTerminalCommandControlCharacter = errors.New("terminal command must be one printable line")
-	// ErrTerminalCommandInputPending prevents an isolated command bootstrap from
+	// ErrTerminalCommandInputPending prevents an automated shell bootstrap from
 	// being appended to bytes already waiting in the interactive line editor.
 	ErrTerminalCommandInputPending = errors.New("terminal has unsubmitted interactive input")
 	// ErrTerminalCommandRequiresBash reports that zero-history execution cannot

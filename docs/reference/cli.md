@@ -629,10 +629,13 @@ state, ChannelTerm closes the Host Session and the endpoint must be reopened. Ex
 and failure behavior are documented in the
 [file-transfer workflow](../getting-started/file-transfer.md#protocol-and-concurrency-limits).
 
-The remote shell must provide `mkdir`, `stty`, `dd` with `iflag=fullblock`, `wc`, `sha256sum`, and
-`sleep`; directory transfer additionally requires `tar`. A transfer uses one non-interactive child
-shell. Bash removes the bootstrap from its current in-memory history; another POSIX shell may retain
-one recognizable bootstrap entry.
+The remote shell must provide `mkdir`, `stty`, `dd`, `wc`, `sha256sum`, and `sleep`; directory transfer
+additionally requires `tar`. The input line must be empty, including any recalled history command.
+See the [file-transfer preconditions](../getting-started/file-transfer.md#preconditions) for minimal
+BusyBox compatibility and clearing pending input. A transfer uses one non-interactive child shell.
+Bash removes only the bootstrap's matching history entry; another POSIX shell may retain one
+recognizable bootstrap entry. Startup and cancellation recovery are bounded as described in the
+[file-transfer workflow](../getting-started/file-transfer.md).
 
 File-transfer events use the same path fields in both directions: `source_path` is the source
 location, `requested_path` is the user- or Agent-requested destination before collision handling,

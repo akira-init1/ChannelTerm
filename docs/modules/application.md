@@ -220,6 +220,11 @@ Application owns one exclusive lease per managed Session. Supported lease types 
 opaque owner capability and rejects a missing, released, expired, or replacement lease with
 `ErrLeaseNotOwned`.
 
+File-transfer acquisition checks retained input activity after claiming writer ownership. An
+unsubmitted command or recalled history line returns `ErrTerminalCommandInputPending` with recovery
+guidance, releases the unpublished lease, and sends no shell bytes. A caller must clear that line
+before retrying; Application never executes or discards the pending command automatically.
+
 Every lease has a 30-second Host-side TTL and an `expires_at` timestamp. `RenewLease` extends that
 deadline only for the matching owner. Expiry atomically releases writer ownership, wakes pending
 cancellation waits, and prevents a stale owner or timer from affecting a replacement lease. If
@@ -268,12 +273,15 @@ lease owner capability.
 
 File transfer uses the same Session write and output-cursor semantics. It obtains a `file-transfer`
 lease before its first protocol command, renews it every 10 seconds, and releases it on success,
-failure, or cancellation. A send creates a missing remote destination hierarchy before payload
-transmission and reuses an existing hierarchy. Destination collision selection remains the first
+failure, or cancellation. Bundled clients continue renewing during cancellation cleanup until the
+operation returns, then stop the heartbeat before releasing ownership. A send creates a missing
+remote destination hierarchy before payload transmission and reuses an existing hierarchy.
+Destination collision selection remains the first
 free `_N` sibling.
 
-The interactive target shell receives one `CTERM_FT=1 sh -c ...` bootstrap command. On Bash, the
-bootstrap removes its own current in-memory history entry without changing earlier user history.
+The interactive target shell receives one `CTERM_FT=<token> sh -c ...` bootstrap command. On Bash, the
+bootstrap removes its own current in-memory history entry only when its fresh token matches that
+entry. Ignored commands and disabled Bash history leave earlier user history unchanged.
 Shells without Bash-compatible history deletion retain the bootstrap as one recognizable entry. The
 bootstrap temporarily disables target-terminal input echo, and initialization clears the displayed
 command after the child starts. The non-interactive child runs path probing, per-chunk commands,
@@ -286,19 +294,30 @@ lease is released. The bootstrap emits its final confirmation from the interacti
 the child exits; this keeps all earlier command echo inside the lease's suppressed presentation
 cursor range.
 
+Startup has a separate 15-second deadline for the echo-disabled and child-ready markers. Failure
+uses the existing bounded recovery path. This deadline does not limit the later payload transfer.
+
 The protocol reads or writes at most 8 KiB of payload per chunk, saves and restores the remote TTY
 mode around each raw `dd` operation, and performs end-to-end SHA-256 verification for regular files
 and directory tar streams. A target-side send block uses a 10-second serial-input idle timeout and
 verifies the exact file-size increase after restoring the saved TTY. A killed transfer process
 therefore cannot leave `dd` waiting indefinitely in raw mode or acknowledge a short block.
+Send initialization probes `dd iflag=fullblock`; a minimal `dd` instead reads one-byte blocks with
+`count` equal to the announced chunk size. The timeout, size check, and final hash apply to both paths.
 
 A cancelled or failed operation uses independent recovery contexts to pad or drain its active raw
-block, consume a pending acknowledgement, and remove directory-transfer staging data. Each recovery
+block and consume the post-restoration acknowledgement before sending further shell commands.
+Recovery also removes directory-transfer staging data. Each recovery
 I/O operation has a 15-second deadline and does not inherit the cancelled operation context. If
 recovery reaches that deadline, the bundled MCP attachment invokes `terminal_close` with a separate
 five-second-bounded request. This releases an in-flight Host write and prevents an unusable protocol
 state from retaining the Session or lease. Recovery timeout errors are joined with the original
 failure. Independent readers continue to see raw output, including received file bytes.
+
+The CLI transfer adapter lets an in-flight write return its acknowledged byte count after cancellation,
+with a 15-second response grace. Abandoning an MCP response immediately could mistake delivered bytes
+for an unwritten block and duplicate them during padding. If the grace expires, the adapter closes
+the Session before attempting further recovery because the remote byte count is unknown.
 
 ## Session close
 

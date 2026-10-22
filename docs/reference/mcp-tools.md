@@ -698,6 +698,10 @@ Only one lease may be active for a Session. Readers and their cursors continue n
 ordinary writers fail immediately; a separate Session is unaffected. A lease expires 30 seconds
 after acquire or its latest successful renewal.
 
+A `file-transfer` acquisition rejects unsubmitted interactive input, including a recalled shell
+history line. The error instructs the user to clear the line with `Ctrl+C` at the normal prompt
+before retrying. Rejection writes no terminal bytes and leaves no active lease.
+
 Expiry releases writer ownership without the original owner capability. For file transfer, it also
 publishes a failed terminal result with `reason: lease_expired` before
 `LEASE_RELEASED(state=expired)`. If a leased Channel write remains in flight at expiry, the Host
