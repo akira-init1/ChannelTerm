@@ -292,6 +292,12 @@ func runAttachSessionWithInputEnd(ctx context.Context, args []string, input io.R
 		return writeAll(output, promptTimestampStatusText(enabled))
 	}
 	presentation := newFileTransferPresentation()
+	stopFlush := startPresentationFlush(attachCtx, &outputMu, promptTimestamps, renderer, cancel)
+	defer func() {
+		if flushErr := stopFlush(); err == nil && flushErr != nil {
+			err = flushErr
+		}
+	}()
 	if owner, ok := attached.(localFileTransferPresentation); ok {
 		owner.setFileTransferPresentation(presentation)
 	}
@@ -358,6 +364,9 @@ func runAttachSessionWithInputEnd(ctx context.Context, args []string, input io.R
 		chunk, err := attached.ReadOutput(attachCtx, cursor, 32*1024)
 		if err != nil {
 			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+				if flushErr := stopFlush(); flushErr != nil {
+					return flushErr
+				}
 				// The Activity observer shares the local Writer. Wait for its context
 				// cancellation before emitting the detach status so local-only blocks
 				// cannot interleave with this final terminal status line.

@@ -16,7 +16,8 @@ const maxPromptTimestampPendingBytes = 8 * 1024
 // Session read boundaries cannot change detection. The bytes it forwards are
 // otherwise unchanged and it never owns Session output.
 //
-// Callers serialize Write, Toggle, and Flush with their local output writer.
+// Callers serialize Write, Toggle, Flush, and releasePending with their local
+// output writer. Interactive callers periodically release incomplete candidates.
 type promptTimestampRenderer struct {
 	write           func([]byte) error
 	flush           func() error
@@ -104,8 +105,8 @@ func (r *promptTimestampRenderer) Write(data []byte) error {
 		if !complete {
 			return nil
 		}
-		if highlight.HasBootloaderPromptPrefix(visible) {
-			// Timestamp only supported shell prompts, but never hold a bootloader
+		if highlight.HasInteractivePromptPrefix(visible) {
+			// Timestamp only supported shell prompts, but never hold an interactive
 			// prompt or its echo while waiting for a newline that needs user input.
 			if err := r.write(r.pending); err != nil {
 				return err
@@ -132,6 +133,22 @@ func (r *promptTimestampRenderer) Write(data []byte) error {
 // orderly disconnect.
 func (r *promptTimestampRenderer) Flush() error {
 	return r.flushPending()
+}
+
+// releasePending abandons timestamp recognition for this incomplete line.
+// Echo must remain raw until its line boundary; resetting state as Flush does
+// would just buffer the next key again. The caller also releases the downstream
+// highlighter, without resetting either renderer's presentation boundary.
+func (r *promptTimestampRenderer) releasePending() error {
+	if len(r.pending) == 0 {
+		return nil
+	}
+	if err := r.write(r.pending); err != nil {
+		return err
+	}
+	r.pending = nil
+	r.rawUntilNewline = true
+	return nil
 }
 
 func (r *promptTimestampRenderer) flushPending() error {
@@ -180,4 +197,6 @@ func promptVisibleText(data []byte) (visible []byte, complete, safe bool) {
 	return visible, true, true
 }
 
-var promptPattern = regexp.MustCompile(`^(?:[A-Za-z0-9_.-]+@[A-Za-z0-9_.-]+:[^ \t\r\n]+[$#]|(?:ba)?sh-[0-9]+(?:\.[0-9]+)*#|/[ \t]+#|\[[A-Za-z0-9_.-]+@[A-Za-z0-9_.-]+[ \t]+[^ \t\r\n\]]+\]#)[ \t]*$`)
+// Recognize a prompt even when the same read already contains command echo.
+// Require whitespace before that echo while retaining prompts with no suffix.
+var promptPattern = regexp.MustCompile(`^(?:[A-Za-z0-9_.-]+@[A-Za-z0-9_.-]+:[^ \t\r\n]+[$#]|(?:ba)?sh-[0-9]+(?:\.[0-9]+)*[$#]|/[ \t]+#|\[[A-Za-z0-9_.-]+@[A-Za-z0-9_.-]+[ \t]+[^ \t\r\n\]]+\][$#])(?:[ \t]+|$)`)

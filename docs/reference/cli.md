@@ -218,11 +218,39 @@ Side effects and lifecycle:
   so a split prompt or subsequent key echo is forwarded without waiting for Enter.
 - Received Session bytes remain raw. Highlighting is enabled by default only for a color-capable
   terminal output and prompt timestamps are applied only while writing this CLI's output.
+- Minimal shell prompts such as `sh-5.1# `, `bash-5.2# `, `/ # `, and `[root@board ~]# `
+  pass through highlighting unchanged. Their received command echo is displayed before Enter,
+  including when the prompt and echo arrive in the same read with prompt timestamps enabled.
+  The versioned Bash/sh and bracketed user/host forms also accept the ordinary-user `$` marker.
+  This displays remote echo; it does not enable local echo or change the remote shell's settings.
 - Common bootloader prompts (`=> ` or a name using ASCII letters, digits, `.`, `_`, or `-`
   followed by `> `, such as `Zynq> `)
   and subsequent input echo are displayed without waiting for a newline, even with highlighting
   or prompt timestamps enabled. These prompts remain unstyled and do not receive timestamps.
   Recognition is a local presentation heuristic, not confirmation of the device's boot state.
+- Additional interactive prompts pass through immediately without generated colors or timestamps.
+  Echo remains remote-controlled; these examples describe display recognition only.
+
+  | Console | Recognized examples |
+  | --- | --- |
+  | POSIX primary and continuation | `# `, `$ `, `> ` |
+  | U-Boot variants | `BBG U-Boot > `, `U-Boot > `, `=>`, `Zynq>` (no trailing space required) |
+  | barebox | `barebox@Radxa ROCK3 Model A:/ ` |
+  | GRUB rescue | `grub rescue> ` |
+  | UEFI filesystem shell | `fs0:\> `, `FS12:\EFI\BOOT>` |
+  | Cisco ROMMON | `rommon 1 > `, `IR1800 rommon 9 > ` |
+  | Zephyr | `uart:~$ `, `rtt:~$ `, `usb:~$ ` |
+  | RT-Thread | `msh />`, `msh /sdcard>` |
+  | MicroPython REPL | `>>> `, `... `, `=== ` |
+  | Remote login | `login: `, `board login: `, `Password: ` (no local password echo) |
+  | initramfs recovery | `(initramfs) ` |
+  | Interactive GDB | `(gdb) ` (terminal display only) |
+- Unknown or incomplete prompts also remain usable: `serial`, `connect`, `attach`, and `ssh`
+  release pending display bytes on a 50 ms timer, without waiting for remote output or a keypress.
+  Scheduling and a blocked local output writer can delay delivery. Released fragments and subsequent
+  echo remain unstyled until newline; a slowly arriving prompt may therefore receive no timestamp.
+  Both presentation layers use this fallback, preserving bytes and remote ANSI/VT state. Display
+  errors stop the local CLI operation with an error; its existing Session ownership rules apply.
 - The highlighter assigns non-bold semantic colors to status words, boot headings, field names,
   embedded interface/protocol identifiers, addresses, versions, timestamps, numbers, units, quoted
   values, structural `()`, `[]`, and `{}` delimiters, and recognized shell-prompt components. It

@@ -42,6 +42,9 @@ func TestPromptTimestampRendererAddsTimestampOnlyToPrompts(t *testing.T) {
 		{name: "user prompt", chunks: [][]byte{[]byte("user@host:/path$ ")}, want: "[14:05:01] user@host:/path$ "},
 		{name: "busybox prompt", chunks: [][]byte{[]byte("/ # ")}, want: "[14:05:01] / # "},
 		{name: "bracket prompt", chunks: [][]byte{[]byte("[root@board ~]# ")}, want: "[14:05:01] [root@board ~]# "},
+		{name: "init shell prompt", chunks: [][]byte{[]byte("sh-5.1# ")}, want: "[14:05:01] sh-5.1# "},
+		{name: "prompt and echo in one read", chunks: [][]byte{[]byte("root@board:~# ls")}, want: "[14:05:01] root@board:~# ls"},
+		{name: "init shell prompt and echo in one read", chunks: [][]byte{[]byte("sh-5.1# ls")}, want: "[14:05:01] sh-5.1# ls"},
 		{name: "prompt split across reads", chunks: [][]byte{[]byte("\r\nroot@pd"), []byte("prj:~"), []byte("# ")}, want: "\r\n[14:05:01] root@pdprj:~# "},
 		{name: "colored prompt preserves bytes", chunks: [][]byte{[]byte("\x1b[32mroot@board\x1b[0m:~# ")}, want: "[14:05:01] \x1b[32mroot@board\x1b[0m:~# "},
 	}

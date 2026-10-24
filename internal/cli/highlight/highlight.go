@@ -37,7 +37,8 @@ func WithColorProfile(profile termenv.Profile) Option {
 //
 // Renderer is not safe for concurrent use. One attached terminal client must
 // own one Renderer and serialize Write and Flush calls around any unrelated
-// local status output. It never modifies the caller's input slice.
+// local status output. ReleasePending must use the same serialization. It never
+// modifies the caller's input slice.
 type Renderer struct {
 	output          io.Writer
 	pending         []byte
@@ -165,6 +166,22 @@ func (r *Renderer) Flush() error {
 	return nil
 }
 
+// ReleasePending emits an incomplete line raw and keeps subsequent bytes raw
+// until newline. Interactive callers use it periodically so an unknown prompt
+// never waits indefinitely for Enter. Unlike Flush, this does not establish a
+// local status boundary or reset remote VT state. An empty buffer is a no-op.
+func (r *Renderer) ReleasePending() error {
+	if len(r.pending) == 0 {
+		return nil
+	}
+	if err := writeAll(r.output, r.pending); err != nil {
+		return err
+	}
+	r.pending = nil
+	r.rawUntilNewline = true
+	return nil
+}
+
 // drain emits complete lines and recognized no-newline console prompts while
 // keeping a bounded suffix for output that arrives in arbitrary read chunks.
 func (r *Renderer) drain() error {
@@ -191,8 +208,8 @@ func (r *Renderer) drain() error {
 			r.pending = nil
 			continue
 		}
-		if HasBootloaderPromptPrefix(r.pending) {
-			// Bootloader prompts have no newline. Emit them and their echo raw
+		if HasInteractivePromptPrefix(r.pending) {
+			// Interactive prompts have no newline. Emit them and their echo raw
 			// rather than holding the interactive line until the user presses Enter.
 			if err := writeAll(r.output, r.pending); err != nil {
 				return err
@@ -214,7 +231,7 @@ func (r *Renderer) drain() error {
 // writeLine chooses raw forwarding for unsafe or echoed input and otherwise
 // applies the built-in rules to one complete logical line.
 func (r *Renderer) writeLine(line []byte, raw bool) error {
-	if raw || containsScreenControl(line) || HasBootloaderPromptPrefix(line) {
+	if raw || containsScreenControl(line) || HasInteractivePromptPrefix(line) {
 		return writeAll(r.output, line)
 	}
 	content, ending := splitLineEnding(line)
@@ -290,12 +307,15 @@ func renderText(line []byte, colors theme) []byte {
 	return renderMatches(line, matches)
 }
 
-// renderPrompt recognizes common POSIX and BusyBox prompt forms and styles
-// their user, host, path, and privilege marker separately. The path uses bright
-// blue because normal ANSI blue is low contrast on default dark backgrounds.
+// renderPrompt styles user@host prompts and forwards minimal shell prompts raw.
+// Both forms must end line buffering so subsequent key echo is visible before
+// Enter. The styled path uses bright blue for contrast on dark backgrounds.
 func (r *Renderer) renderPrompt(line []byte) ([]byte, bool) {
 	index := promptPattern.FindSubmatchIndex(line)
 	if index == nil {
+		if minimalShellPromptPattern.Match(line) {
+			return append([]byte(nil), line...), true
+		}
 		return nil, false
 	}
 	userStart, userEnd := index[2], index[3]
@@ -538,6 +558,11 @@ var builtinRules = []rule{
 }
 
 var promptPattern = regexp.MustCompile(`^(?:\[[0-9]{2}:[0-9]{2}:[0-9]{2}\][ \t]+)?(?:\([^)\r\n]+\)[ \t]+)?([A-Za-z0-9_.-]+)@([A-Za-z0-9_.-]+):([^ \t\r\n]+)([$#])[ \t]*`)
+
+// Minimal prompts are kept unstyled. Accept a local
+// timestamp and already echoed input, but require whitespace before that input
+// so ordinary text beginning with a similar marker does not become a prompt.
+var minimalShellPromptPattern = regexp.MustCompile(`^(?:\[[0-9]{2}:[0-9]{2}:[0-9]{2}\][ \t]+)?(?:(?:ba)?sh-[0-9]+(?:\.[0-9]+)*[$#]|/[ \t]+#|\[[A-Za-z0-9_.-]+@[A-Za-z0-9_.-]+[ \t]+[^ \t\r\n\]]+\][$#])(?:[ \t]+|$)`)
 
 // HasBootloaderPromptPrefix recognizes a plain line starting with "=> " or a
 // name followed by "> ", including an already echoed command. Trailing prompt

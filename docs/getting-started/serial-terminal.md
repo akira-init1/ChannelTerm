@@ -148,6 +148,10 @@ color-capable terminal. Use `--highlight=false` when ChannelTerm must not add pr
 
 Highlighting is presentation-only. Session buffers and MCP reads keep the original bytes.
 
+Unknown prompts and received key echo also appear without waiting for Enter. See the
+[CLI reference](../reference/cli.md#serial) for recognized forms and the bounded buffering fallback.
+Remote-controlled password suppression is preserved; ChannelTerm does not add local input echo.
+
 ## Current serial constraints
 
 `data-bits` accepts 5, 6, 7, or 8; parity accepts `none`, `odd`, `even`, `mark`, or `space`; stop
