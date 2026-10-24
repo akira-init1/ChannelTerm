@@ -230,9 +230,20 @@ func TestSSHRealAuthenticationTrustAndSharedLifecycle(t *testing.T) {
 			if _, err := application.WriteSession(ctx, opened.ID, session.WriteRequest{Data: []byte("echo\n"), Actor: "user"}); err != nil {
 				t.Fatal(err)
 			}
-			chunk, err := application.ReadSession(ctx, opened.ID, nil, 1024)
-			if err != nil || len(chunk.Data) == 0 {
-				t.Fatalf("shared read: %v", err)
+			// A nil cursor is an immediate history snapshot, not a wait for the
+			// asynchronous SSH reader. Wait for the echo across arbitrary chunks.
+			cursor := session.OutputCursor(0)
+			var received []byte
+			for !bytes.Contains(received, []byte("echo\n")) {
+				chunk, err := application.ReadSession(ctx, opened.ID, &cursor, 1024)
+				if err != nil {
+					t.Fatalf("shared echo read: %v (received %q)", err, received)
+				}
+				cursor = chunk.Next
+				received = append(received, chunk.Data...)
+				if chunk.Dropped || len(received) > 1024 {
+					t.Fatal("unexpected or dropped SSH fixture output")
+				}
 			}
 			w = request(h, http.MethodPost, string(body))
 			if w.Code != 200 {
