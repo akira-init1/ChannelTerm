@@ -48,6 +48,8 @@ export interface Attachment {
 }
 export interface Output {
   data: number[];
+  /** Optional client-decoded text; raw bytes remain available for hex inspection. */
+  text?: string;
   dropped: boolean;
 }
 

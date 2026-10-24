@@ -138,12 +138,27 @@ channelterm attach SER-1 --encoding gb18030
 channelterm attach SER-1 --view hex
 ```
 
-`serial`, `connect`, and `attach` accept `--encoding utf-8|gbk|gb18030` (default `utf-8`),
+`serial`, `connect`, and `attach` accept `--encoding NAME` (default `utf-8`),
 `--view text|hex` (default `text`), and `--description`. These are local invocation settings,
 not serial electrical parameters or shared Session metadata. `--save` does not persist them.
 The description is a single line, up to 512 UTF-8 bytes, without control characters.
 
-Text mode decodes received GBK/GB18030 bytes for the local UTF-8 console and encodes typed
+Supported terminal encodings are ASCII, UTF-8, GBK, GB18030, Big5 (including HKSCS),
+Shift_JIS, EUC-JP, EUC-KR, Windows-874, Windows-1250 through Windows-1258,
+ISO-8859-1 through ISO-8859-10 and ISO-8859-13 through ISO-8859-16, KOI8-R/U,
+and CP437/850/866. Names are case-insensitive. Common aliases include `utf8`, `us-ascii`,
+`cp936`, `cp950`, `sjis`, `cp932`, `cp949`, `cp1252`, `latin1`, and `ibm437`.
+CLI help lists canonical values. UTF-16/32 and stateful encodings such as ISO-2022-JP
+are not enabled. ISO-8859-11 is not offered; Thai Windows-874 is a separate supported encoding.
+ASCII rejects non-ASCII input and displays invalid received bytes as replacement characters.
+ISO-8859-1 retains its C1 mappings rather than silently aliasing to Windows-1252.
+
+These are transport-independent attachment settings: for example,
+`channelterm attach SSH-1 --encoding shift_jis` uses the same client codec. They do not
+change the remote shell locale or SSH transport. Encoding-specific glyph availability still
+depends on the local terminal font.
+
+Text mode decodes received legacy bytes for the local UTF-8 console and encodes typed
 UTF-8 input for the device. Split characters are buffered across reads. Unrepresentable or
 invalid input is rejected without replacement or automatic replay. The default UTF-8 path
 preserves the existing raw console behavior. Invalid device sequences in legacy encodings

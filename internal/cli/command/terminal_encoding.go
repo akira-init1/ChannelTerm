@@ -9,7 +9,6 @@ import (
 
 	"github.com/akira-init1/ChannelTerm/internal/core/session"
 	"golang.org/x/text/encoding"
-	"golang.org/x/text/encoding/simplifiedchinese"
 	"golang.org/x/text/transform"
 )
 
@@ -20,7 +19,7 @@ type terminalPreferences struct {
 
 func defineTerminalFlags(flags *flag.FlagSet) *terminalPreferences {
 	p := &terminalPreferences{}
-	flags.StringVar(&p.encoding, "encoding", "utf-8", "terminal character encoding: utf-8, gbk, gb18030 (client-local)")
+	flags.StringVar(&p.encoding, "encoding", "utf-8", "client-local terminal encoding: "+terminalEncodingNames())
 	flags.StringVar(&p.view, "view", "text", "terminal display: text or read-only hex (client-local)")
 	flags.StringVar(&p.description, "description", "", "local connection description; not sent to the device or saved in Host metadata")
 	return p
@@ -37,16 +36,12 @@ func (p *terminalPreferences) codec() (*terminalCodec, error) {
 	if !utf8.ValidString(p.description) || len(p.description) > 512 || strings.IndexFunc(p.description, func(r rune) bool { return r < 32 || r == 127 }) >= 0 {
 		return nil, errors.New("--description must be a single line of at most 512 UTF-8 bytes without control characters")
 	}
-	c := &terminalCodec{hex: p.view == "hex"}
-	switch p.encoding {
-	case "utf-8":
-	case "gbk":
-		c.encoding = simplifiedchinese.GBK
-	case "gb18030":
-		c.encoding = simplifiedchinese.GB18030
-	default:
-		return nil, errors.New("--encoding must be utf-8, gbk or gb18030")
+	name, codec, ok := resolveTerminalEncoding(p.encoding)
+	if !ok {
+		return nil, fmt.Errorf("unsupported --encoding %q; supported encodings: %s", p.encoding, terminalEncodingNames())
 	}
+	p.encoding = name
+	c := &terminalCodec{hex: p.view == "hex", ascii: name == "ascii", encoding: codec}
 	if c.encoding != nil {
 		c.decoder = c.encoding.NewDecoder()
 	}
@@ -64,6 +59,7 @@ type terminalCodec struct {
 	decoder               *encoding.Decoder
 	inputTail, outputTail []byte
 	hex                   bool
+	ascii                 bool
 	offset                uint64
 }
 
@@ -92,6 +88,17 @@ func (c *terminalCodec) output(data []byte, eof bool) ([]byte, error) {
 			out.WriteString("|\r\n")
 			c.offset += uint64(n)
 			data = data[n:]
+		}
+		return []byte(out.String()), nil
+	}
+	if c.ascii {
+		var out strings.Builder
+		for _, b := range data {
+			if b < 128 {
+				out.WriteByte(b)
+			} else {
+				out.WriteRune(utf8.RuneError)
+			}
 		}
 		return []byte(out.String()), nil
 	}
@@ -124,6 +131,14 @@ func (c *terminalCodec) resetOutput() {
 func (c *terminalCodec) input(data []byte) ([]byte, error) {
 	if c.hex {
 		return nil, errors.New("hex view is read-only; use --view text for terminal input")
+	}
+	if c.ascii {
+		for _, b := range data {
+			if b >= 128 {
+				return nil, errors.New("input cannot be represented in ASCII")
+			}
+		}
+		return data, nil
 	}
 	if c.encoding == nil {
 		return data, nil

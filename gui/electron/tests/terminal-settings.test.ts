@@ -7,6 +7,12 @@ import {
 import { TerminalPresentation } from "../src/renderer/terminal/presentation";
 import { HostClient } from "../src/main/host/client";
 import { startFixture } from "./fixture";
+import { TerminalCodec } from "../src/main/host/terminal-codec";
+import {
+  terminalEncodings,
+  normalizeTerminalEncoding,
+  type TerminalEncoding,
+} from "../src/shared/terminal-encodings";
 
 test("local settings reject control characters, excess bytes, unknown fields and malformed Unicode", () => {
   assert.ok(isTerminalSettings(defaultTerminalSettings));
@@ -27,25 +33,77 @@ test("local settings reject control characters, excess bytes, unknown fields and
     );
 });
 
-test("renderer decodes split GBK/GB18030 characters and discards state across missing output", () => {
+test("Main decodes split GBK/GB18030 characters and discards state across missing output", () => {
   for (const encoding of ["gbk", "gb18030"] as const) {
     const wire =
       encoding === "gbk" ? [0xd6, 0xd0, 0xce, 0xc4] : [0x94, 0x39, 0xfc, 0x36];
     const expected = encoding === "gbk" ? "中文" : "😀";
     for (let split = 0; split <= wire.length; split++) {
-      const p = new TerminalPresentation({
-        ...defaultTerminalSettings,
-        encoding,
-      });
+      const p = new TerminalCodec(encoding);
       assert.equal(
-        String(p.output(Uint8Array.from(wire.slice(0, split)))) +
-          String(p.output(Uint8Array.from(wire.slice(split)))),
+        p.decode(wire.slice(0, split)) + p.decode(wire.slice(split)),
         expected,
       );
-      p.output(Uint8Array.from([0xd6]));
+      p.decode([0xd6]);
       p.reset();
-      assert.equal(p.output(Uint8Array.from([65])), "A");
+      assert.equal(p.decode([65]), "A");
     }
+  }
+});
+
+test("all registered terminal encodings preserve controls and normalize aliases", () => {
+  for (const entry of terminalEncodings) {
+    assert.ok(
+      isTerminalSettings({ ...defaultTerminalSettings, encoding: entry.name }),
+    );
+    for (const alias of [entry.name, ...entry.aliases])
+      assert.equal(
+        normalizeTerminalEncoding(` ${alias.toUpperCase()} `),
+        entry.name,
+      );
+    const codec = new TerminalCodec(entry.name);
+    const sample = "abc\r\n\x1b[31m\t";
+    assert.equal(codec.encode(sample).toString("ascii"), sample);
+    assert.equal(codec.decode([...Buffer.from(sample)]), sample);
+  }
+  assert.equal(normalizeTerminalEncoding("utf-16"), undefined);
+  assert.throws(() => new TerminalCodec("ascii").encode("é"), {
+    code: "invalid_input",
+  });
+  assert.equal(new TerminalCodec("ascii").decode([0x80]), "\ufffd");
+});
+
+test("legacy text uses actual codepages instead of browser aliases", () => {
+  const samples: [TerminalEncoding, string, number[]][] = [
+    ["big5", "中", [0xa4, 0xa4]],
+    ["big5", "𠕇", [0xfa, 0x40]],
+    ["shift_jis", "あ", [0x82, 0xa0]],
+    ["euc-jp", "あ", [0xa4, 0xa2]],
+    ["euc-kr", "가", [0xb0, 0xa1]],
+    ["windows-1251", "Я", [0xdf]],
+    ["cp437", "é", [0x82]],
+    ["cp850", "é", [0x82]],
+    ["cp866", "Я", [0x9f]],
+    ["koi8-r", "Я", [0xf1]],
+    ["koi8-u", "Я", [0xf1]],
+    ["iso-8859-1", "\u0080", [0x80]],
+    ["windows-1252", "€", [0x80]],
+  ];
+  for (const [name, text, wire] of samples) {
+    const codec = new TerminalCodec(name);
+    assert.deepEqual([...codec.encode(text)], wire, name);
+    assert.equal(codec.decode(wire), text, name);
+    const fragmented = new TerminalCodec(name);
+    assert.equal(
+      wire.map((byte) => fragmented.decode([byte])).join(""),
+      text,
+      name,
+    );
+    const view = new TerminalPresentation({
+      ...defaultTerminalSettings,
+      encoding: name,
+    });
+    assert.equal(view.output(Uint8Array.from(wire), text), text);
   }
 });
 
@@ -86,6 +144,9 @@ test("real Host keeps raw bytes while Main encodes client input and rejects hex/
           ? [0xd6, 0xd0, 0xce, 0xc4]
           : [0x94, 0x39, 0xfc, 0x36];
       await client.write(attachment.id, input);
+      const rendered = await client.read(attachment.id);
+      assert.equal(rendered.text, input);
+      assert.deepEqual(rendered.data, expected);
       assert.deepEqual((await observer.read(second.id)).data, expected);
       if (encoding === "gbk") {
         await assert.rejects(client.write(attachment.id, "prefix😀"), {

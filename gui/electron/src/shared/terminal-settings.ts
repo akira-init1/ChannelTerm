@@ -1,6 +1,11 @@
+import {
+  normalizeTerminalEncoding,
+  type TerminalEncoding,
+} from "./terminal-encodings";
+
 /** Client-local presentation only; never serialized into Host Session metadata. */
 export interface TerminalSettings {
-  encoding: "utf-8" | "gbk" | "gb18030";
+  encoding: TerminalEncoding;
   view: "text" | "hex";
   description: string;
 }
@@ -19,9 +24,8 @@ export function isTerminalSettings(value: unknown): value is TerminalSettings {
     Object.keys(v).every((key) =>
       ["encoding", "view", "description"].includes(key),
     ) &&
-    (v.encoding === "utf-8" ||
-      v.encoding === "gbk" ||
-      v.encoding === "gb18030") &&
+    typeof v.encoding === "string" &&
+    normalizeTerminalEncoding(v.encoding) === v.encoding &&
     (v.view === "text" || v.view === "hex") &&
     typeof v.description === "string" &&
     v.description.length <= 512 &&

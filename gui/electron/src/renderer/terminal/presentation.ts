@@ -1,21 +1,14 @@
 import type { TerminalSettings } from "../../shared/terminal-settings";
 
-/** One decoder per attachment. Transfer suppression happens in Main before these bytes arrive. */
+/** Local hex formatting only. Main supplies decoded legacy text after transfer suppression. */
 export class TerminalPresentation {
-  private decoder: TextDecoder;
   private offset = 0;
-  constructor(private readonly settings: TerminalSettings) {
-    this.decoder = new TextDecoder(settings.encoding);
-  }
+  constructor(private readonly settings: TerminalSettings) {}
   reset() {
-    this.decoder = new TextDecoder(this.settings.encoding);
     this.offset = 0;
   }
-  output(data: Uint8Array): string | Uint8Array {
-    if (this.settings.view === "text")
-      return this.settings.encoding === "utf-8"
-        ? data
-        : this.decoder.decode(data, { stream: true });
+  output(data: Uint8Array, text?: string): string | Uint8Array {
+    if (this.settings.view === "text") return text ?? data;
     let result = "";
     for (let start = 0; start < data.length; start += 16) {
       const row = data.subarray(start, start + 16);

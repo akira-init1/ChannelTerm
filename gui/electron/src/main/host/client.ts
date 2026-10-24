@@ -1,5 +1,5 @@
 import { TransferEvents } from "./transfer-events";
-import iconv from "iconv-lite";
+import { TerminalCodec } from "./terminal-codec";
 import {
   defaultTerminalSettings,
   isTerminalSettings,
@@ -32,6 +32,7 @@ import {
 
 type ActiveAttachment = Attachment & {
   settings: TerminalSettings;
+  codec: TerminalCodec;
   cursor?: number;
   controller: AbortController;
   reading: boolean;
@@ -443,6 +444,7 @@ export class HostClient {
         throw new HostError("cancelled", "Attachment cancelled.");
       const active: ActiveAttachment = {
         settings: preferences,
+        codec: new TerminalCodec(preferences.encoding),
         id: randomUUID(),
         sessionId,
         controller: new AbortController(),
@@ -537,9 +539,15 @@ export class HostClient {
       );
       this.attachment(id);
       active.cursor = next;
+      const dropped = result.dropped || filtered.dropped;
+      if (dropped) active.codec.reset();
       return {
         data: filtered.data,
-        dropped: result.dropped || filtered.dropped,
+        dropped,
+        ...(active.settings.view === "text" &&
+        active.settings.encoding !== "utf-8"
+          ? { text: active.codec.decode(filtered.data) }
+          : {}),
       };
     } catch (error) {
       if (error instanceof ToolFailure && error.code === "timeout")
@@ -556,15 +564,7 @@ export class HostClient {
     if (active.settings.view === "hex")
       throw new HostError("invalid_input", "Hex view is read-only.");
     const legacy = active.settings.encoding !== "utf-8";
-    const encoded = legacy
-      ? iconv.encode(data, active.settings.encoding)
-      : Buffer.from(data, "utf8");
-    // Reject lossy conversion before queueing; never substitute '?' or retry input.
-    if (legacy && iconv.decode(encoded, active.settings.encoding) !== data)
-      throw new HostError(
-        "invalid_input",
-        "Input cannot be represented in the selected encoding.",
-      );
+    const encoded = active.codec.encode(data);
     const bytes = encoded.length;
     if (active.queuedBytes + bytes > 65536)
       throw new HostError(

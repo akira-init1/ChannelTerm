@@ -148,3 +148,52 @@ func TestTerminalRejectedWriteIsNotReplayed(t *testing.T) {
 		t.Fatal("rejected input retained")
 	}
 }
+
+func TestTerminalEncodingRegistryAndLegacySamples(t *testing.T) {
+	for _, entry := range terminalEncodings {
+		for _, alias := range append([]string{entry.name}, entry.aliases...) {
+			name, _, ok := resolveTerminalEncoding(" " + strings.ToUpper(alias) + " ")
+			if !ok || name != entry.name {
+				t.Fatalf("alias %q resolved to %q", alias, name)
+			}
+		}
+		c := testTerminalCodec(t, entry.name, "text")
+		sample := []byte("abc\r\n\x1b[31m\t")
+		input, err := c.input(sample)
+		if err != nil || !bytes.Equal(input, sample) {
+			t.Fatalf("%s input: %x %v", entry.name, input, err)
+		}
+		output, err := c.output(sample, true)
+		if err != nil || !bytes.Equal(output, sample) {
+			t.Fatalf("%s output: %x %v", entry.name, output, err)
+		}
+	}
+	for _, tc := range []struct {
+		name, text string
+		wire       []byte
+	}{
+		{"big5", "中", []byte{0xa4, 0xa4}}, {"big5", "𠕇", []byte{0xfa, 0x40}}, {"shift_jis", "あ", []byte{0x82, 0xa0}},
+		{"euc-jp", "あ", []byte{0xa4, 0xa2}}, {"euc-kr", "가", []byte{0xb0, 0xa1}},
+		{"windows-1251", "Я", []byte{0xdf}}, {"cp437", "é", []byte{0x82}},
+		{"cp850", "é", []byte{0x82}}, {"cp866", "Я", []byte{0x9f}},
+		{"koi8-r", "Я", []byte{0xf1}}, {"koi8-u", "Я", []byte{0xf1}},
+		{"iso-8859-1", "\u0080", []byte{0x80}}, {"windows-1252", "€", []byte{0x80}},
+	} {
+		c := testTerminalCodec(t, tc.name, "text")
+		input, err := c.input([]byte(tc.text))
+		if err != nil || !bytes.Equal(input, tc.wire) {
+			t.Fatalf("%s input: %x %v", tc.name, input, err)
+		}
+		output, err := c.output(tc.wire, true)
+		if err != nil || string(output) != tc.text {
+			t.Fatalf("%s output: %q %v", tc.name, output, err)
+		}
+	}
+	c := testTerminalCodec(t, "ascii", "text")
+	if _, err := c.input([]byte("é")); err == nil {
+		t.Fatal("ASCII accepted non-ASCII input")
+	}
+	if output, err := c.output([]byte{0x80}, true); err != nil || string(output) != "\ufffd" {
+		t.Fatalf("ASCII output: %q %v", output, err)
+	}
+}

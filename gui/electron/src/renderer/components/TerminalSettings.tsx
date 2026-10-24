@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { terminalEncodings } from "../../shared/terminal-encodings";
 import {
   defaultTerminalSettings,
   isTerminalSettings,
@@ -21,9 +22,11 @@ export function TerminalSettingsFields({
         <label>
           {t("terminal.encoding")}
           <select name="encoding" defaultValue={value.encoding}>
-            <option value="utf-8">UTF-8</option>
-            <option value="gbk">GBK</option>
-            <option value="gb18030">GB18030</option>
+            {terminalEncodings.map(({ name }) => (
+              <option key={name} value={name}>
+                {name.toUpperCase()}
+              </option>
+            ))}
           </select>
         </label>
         <label>

@@ -84,7 +84,7 @@ from 1 to 4,000,000. The default
 remains 115200. Presets are suggestions, not a guarantee that a particular driver or device can
 use the rate; Host validation remains authoritative. Data bits, parity, stop bits and flow control
 retain their finite selectors. The CLI already accepts custom rates through `--baud`.
-Serial presentation includes character encoding (UTF-8, GBK or GB18030), text/read-only hex view,
+Serial presentation includes the [common terminal encodings](../getting-started/serial-terminal.md#character-encoding-description-and-hexadecimal-view), text/read-only hex view,
 and an optional local description. The compact encoding button in the attached serial header
 opens the same presentation settings. Applying them reattaches this client and replays only
 retained Host output; it does not clear Host buffers, reset the device, or close the shared Session.
@@ -92,7 +92,12 @@ Up to 64 Session preferences are retained per window until Host disconnection; t
 saved profiles or shared metadata. Descriptions allow one line of at most 512 UTF-8 bytes without
 control characters. No SSH setup, electrical serial settings, or MCP schemas change.
 
-Renderer uses a streaming decoder for GBK/GB18030 after Main's transfer-byte suppression.
+Main's attachment-local codec decodes legacy bytes after transfer-byte suppression and adds
+optional text to the bounded output response; the original bytes remain available for inspection.
+It uses native streaming CJK decoders, complete-pair Big5/HKSCS decoding, and iconv-lite single-byte
+codepages to preserve split supplementary characters and avoid browser ISO/DOS alias limitations.
+Renderer formats hex or renders the supplied text; no Node codec dependency enters Renderer.
+The finite encoding catalog and codec are independent of Serial/SSH connection setup.
 The UTF-8 path still passes raw bytes to xterm. Missing output resets decoder and parser state;
 malformed device text uses replacement characters. Hex view prints received bytes and safe ASCII,
 never interpreting remote escapes; offsets count observed bytes and restart after a gap. Rows may

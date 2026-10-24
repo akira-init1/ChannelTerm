@@ -151,7 +151,7 @@ export function TerminalView({
             await new Promise<void>((done) => {
               finishRender = done;
               terminal.write(
-                presentation.output(new Uint8Array(output.data)),
+                presentation.output(new Uint8Array(output.data), output.text),
                 done,
               );
             });
