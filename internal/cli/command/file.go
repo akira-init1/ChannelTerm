@@ -181,6 +181,8 @@ func runFileWithDependencies(ctx context.Context, args []string, output io.Write
 	switch args[0] {
 	case "send":
 		return runFileSend(ctx, args[1:], output, dependencies)
+	case "browse":
+		return runFileBrowse(ctx, args[1:], output, dependencies)
 	case "receive":
 		return runFileReceive(ctx, args[1:], output, dependencies)
 	default:
@@ -202,6 +204,7 @@ func runFileSend(ctx context.Context, args []string, output io.Writer, dependenc
 	if err != nil || options.help {
 		return err
 	}
+	output = machineFileOutput(output, options.json)
 	info, err := os.Lstat(localPath)
 	if err != nil {
 		return fmt.Errorf("stat local source %q: %w", localPath, err)
@@ -388,6 +391,7 @@ func runFileReceive(ctx context.Context, args []string, output io.Writer, depend
 	if err != nil || options.help {
 		return err
 	}
+	output = machineFileOutput(output, options.json)
 	attached, identifier, err := attachFileSession(ctx, options, output, dependencies)
 	if err != nil {
 		return err
@@ -640,6 +644,7 @@ func fileTransferFailureMetadata(metadata map[string]any, operationErr error) ma
 }
 
 type fileOptions struct {
+	json     bool
 	session  string
 	endpoint string
 	help     bool
@@ -647,6 +652,7 @@ type fileOptions struct {
 
 func parseFileOptions(name string, args []string, output io.Writer, usage func(io.Writer)) (fileOptions, error) {
 	flags := flag.NewFlagSet(name, flag.ContinueOnError)
+	flags.Bool("json", false, "emit structured transfer records instead of terminal progress")
 	flags.SetOutput(output)
 	identifier := flags.String("session", "", "shared Session ID or short reference; omit when exactly one Session is open")
 	endpoint := flags.String("endpoint", defaultMCPEndpoint, "Session Host endpoint")
@@ -665,11 +671,12 @@ func parseFileOptions(name string, args []string, output io.Writer, usage func(i
 	if flags.NArg() != 0 {
 		return fileOptions{}, fmt.Errorf("unexpected file argument %q", flags.Arg(0))
 	}
+	machine := flags.Lookup("json").Value.String() == "true"
 	showHelp := *help || *shortHelp
 	if showHelp {
 		flags.Usage()
 	}
-	return fileOptions{session: strings.TrimSpace(*identifier), endpoint: strings.TrimSpace(*endpoint), help: showHelp}, nil
+	return fileOptions{json: machine, session: strings.TrimSpace(*identifier), endpoint: strings.TrimSpace(*endpoint), help: showHelp}, nil
 }
 
 func attachFileSession(ctx context.Context, options fileOptions, output io.Writer, dependencies fileCommandDependencies) (attachSession, string, error) {
@@ -722,29 +729,41 @@ type fileTransferSnapshot struct {
 // fileTransferReporter renders confirmed protocol progress locally and reports
 // the same snapshot to the Session event stream.
 type fileTransferReporter struct {
-	ctx      context.Context
-	output   io.Writer
-	attached attachSession
-	base     map[string]any
-	started  time.Time
-	rendered bool
-	finished bool
-	final    fileTransferSnapshot
-	hasFinal bool
+	machineError error
+	ctx          context.Context
+	output       io.Writer
+	attached     attachSession
+	base         map[string]any
+	started      time.Time
+	rendered     bool
+	finished     bool
+	final        fileTransferSnapshot
+	hasFinal     bool
 }
 
 func newFileTransferProgress(ctx context.Context, output io.Writer, attached attachSession, base map[string]any) *fileTransferReporter {
-	return &fileTransferReporter{
+	p := &fileTransferReporter{
 		ctx:      ctx,
 		output:   output,
 		attached: attached,
 		base:     base,
 		started:  time.Now(),
 	}
+	if machine, ok := output.(*fileMachineWriter); ok {
+		id := ""
+		if owner, ok := attached.(interface{ FileTransferID() string }); ok {
+			id = owner.FileTransferID()
+		}
+		p.machineError = machine.emit(map[string]any{"type": "started", "transfer_id": id})
+	}
+	return p
 }
 
 // Report renders and publishes one confirmed transfer progress update.
 func (p *fileTransferReporter) Report(transferred, total int64) error {
+	if p.machineError != nil {
+		return p.machineError
+	}
 	snapshot := p.snapshot(transferred, total)
 	p.base["total"] = total
 	if p.base["direction"] == "receive" {
@@ -783,6 +802,9 @@ func (p *fileTransferReporter) Start(total int64) error {
 // Complete ensures every successful transfer has rendered its final 100%
 // state, including a zero-byte transfer.
 func (p *fileTransferReporter) Complete(total int64) error {
+	if p.machineError != nil {
+		return p.machineError
+	}
 	if p.hasFinal && p.final.transferred == total && p.final.total == total {
 		return p.render(p.final)
 	}
@@ -911,6 +933,9 @@ func formatFileTransferETA(transferred, total int64, speed float64) string {
 // digest and destination fields. Core returns the digest only after comparing
 // both endpoints, so the local and remote values are known to be identical.
 func writeFileTransferVerificationSummary(output io.Writer, digest, savedPath string) error {
+	if machine, ok := output.(*fileMachineWriter); ok {
+		return machine.emit(map[string]any{"type": "verified", "sha256": digest, "resolved_path": savedPath})
+	}
 	summary := formatFileTransferVerificationSummary(digest, digest, savedPath, "\n")
 	if deferred, ok := output.(interface {
 		deferFileTransferVerificationSummary(string) bool
@@ -1072,6 +1097,7 @@ func splitLocalFilenameExtension(filename string) (string, string) {
 func writeFileUsage(output io.Writer) {
 	fmt.Fprintln(output, "Usage: channelterm file send LOCAL_PATH [REMOTE_PATH] [options]")
 	fmt.Fprintln(output, "       channelterm file receive REMOTE_PATH LOCAL_PATH [options]")
+	fmt.Fprintln(output, "       channelterm file browse [REMOTE_DIRECTORY] [options] (JSON directory snapshot)")
 	fmt.Fprintln(output)
 	fmt.Fprintln(output, "Stream a file through an existing shared Session and verify it with SHA-256.")
 	fmt.Fprintln(output, "When exactly one Session is open, --session may be omitted.")

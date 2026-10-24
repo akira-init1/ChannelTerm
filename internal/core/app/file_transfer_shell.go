@@ -379,7 +379,8 @@ func fileTransferShellCloseCommand() string {
 
 // isFileTransferCommandComplete keeps the shell busy across each raw block:
 // READY and DATA announce that dd still owns the terminal, while every other
-// protocol phase is emitted at a safe command boundary.
+// protocol phase is emitted at a safe command boundary. LIST is a multi-record
+// directory response; its reader explicitly completes the command after DONE.
 func isFileTransferCommandComplete(phase string) bool {
-	return !strings.EqualFold(phase, "READY") && !strings.EqualFold(phase, "DATA")
+	return !strings.EqualFold(phase, "READY") && !strings.EqualFold(phase, "DATA") && !strings.EqualFold(phase, "LIST")
 }

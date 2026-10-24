@@ -191,6 +191,13 @@ terminal-command semantics.
 
 ## Writer leases and transfer cancellation
 
+`ListSerialDirectory` reuses `WithFileTransferShell` and the independent tokenized output cursor
+under a caller-held file-transfer lease. A `.` query inherits the interactive cwd; directory
+changes affect only the child shell. The result is capped at 256 entries, with hex-encoded UTF-8
+names, explicit entry kinds and truncation. It rejects malformed paths/records, does not parse
+`ls`, and applies existing child-shell cleanup on errors. Adapters must bound the operation lifetime
+and require a known idle POSIX prompt. This adds no Session, Transport, or filesystem-mount owner.
+
 ### U-Boot entry and diagnostic evidence
 
 `EnterUBoot` is a serial-only application operation using the existing terminal lease. It validates

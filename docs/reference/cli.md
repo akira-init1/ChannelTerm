@@ -634,6 +634,22 @@ change `attach`, `terminal_read`, or another observer's cursor.
 
 ## `file`
 
+`send` and `receive` accept optional `--json` for desktop integration. Default human output is
+unchanged. JSON mode suppresses the local ANSI progress bar and emits newline-delimited records:
+`{"type":"started","transfer_id":"FT-..."}` after acquiring the Host lease, and
+`{"type":"verified","sha256":"...","resolved_path":"..."}` after verification. A verified
+record alone does not prove lease release: consumers must also wait for successful process exit
+or the Host's matching final result. Failures retain a nonzero exit status and stderr; stderr is
+not a machine-readable protocol. Structured Host events remain the progress authority.
+
+`channelterm file browse [REMOTE_DIRECTORY] --session SESSION [--endpoint URL]` returns one JSON
+object with `path`, `entries` (`name`, `kind`: `file`, `directory`, or `other`), and `truncated`.
+Omitting the directory selects `.` in a temporary child shell; it does not change the interactive
+parent's working directory. The query uses the existing file-transfer lease, never opens a port,
+and requires an idle POSIX shell, `stty`, `sleep`, `od`, and `tr`. It returns at most 256 direct
+children, including hidden entries. Its 30-second deadline is followed by existing bounded recovery.
+See the [file-transfer workflow](../getting-started/file-transfer.md).
+
 Purpose: stream one regular file or directory through an existing shared Session. Files retain
 end-to-end SHA-256 verification; directories use a standard tar stream and staged extraction.
 

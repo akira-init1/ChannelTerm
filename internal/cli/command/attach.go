@@ -1395,3 +1395,6 @@ func writeDetachStatus(output io.Writer, lastOutputEndedLine bool) error {
 	}
 	return writeAll(output, []byte("Detached.\r\n"))
 }
+
+// FileTransferID returns the public correlation ID, never the owner capability.
+func (s *mcpAttachSession) FileTransferID() string { return s.transferID }
