@@ -2,7 +2,7 @@
 
 The existing dark workbench keeps its 32 px, logo-free menu strip. Its six groups are
 **Connection, Session, Terminal, View, Settings, Help**. The maximum depth is three levels,
-currently used only by **Settings > Language > language name**.
+used by **Settings > Language > language name** and **Connection > New connection > Serial / SSH**.
 This reference describes implemented menu behavior, not additional Host capabilities. See
 [GUI architecture](../architecture/electron-gui.md) for process boundaries and
 [GUI development](../development/electron-gui.md) for startup and verification.
@@ -21,6 +21,7 @@ This reference describes implemented menu behavior, not additional Host capabili
 | Terminal > Clear local display; terminal context menu | `terminal.clear` | Use xterm's local clear operation; requires a current idle attachment, including a read-only/closed view. |
 | Terminal > Resume input; error notice | `terminal.resume` | Visible in menus only while input is paused; enabled only for an open, unleased, idle attachment. Does not replay queued input. |
 | View > Session sidebar; activity rail | `view.sidebar` | Toggle navigation without detaching. Checkmark reflects visibility. |
+| Connection > New connection > Serial / SSH | `connection.serial` / `connection.ssh` | Open a connection form on a connected idle Host. SSH additionally requires the desktop API capability. |
 | Settings > Language | `language.change` | Switch to one of the nine supported menu languages listed below. Checkmark reflects the active language. |
 | Help > Quick help | `help.quick` | Open a local, translated usage dialog. No external navigation. |
 
@@ -52,7 +53,7 @@ Session against the Host before replacing an attachment. A missing/rejected targ
 previous attachment in place. After reattachment, callbacks holding the previous attachment
 handle cannot clear, focus, resume, or close the new view.
 
-Offline state disables refresh, disconnect, and attachment actions. A connected empty list
+Offline state disables connection creation, refresh, disconnect, and attachment actions. A connected empty list
 still allows refresh and disconnect. Closed rows cannot attach; an existing closed view can
 still be cleared locally or detached. Pending connection/attachment changes disable conflicting
 actions. Local terminal actions do not require a lease because they send no device bytes.
@@ -116,7 +117,7 @@ These are placement decisions only, not runtime menu entries or commitments to i
 
 | Proposed category | Unimplemented scope / prerequisite |
 | --- | --- |
-| Connection | Serial discovery/open and SSH creation need explicitly scoped GUI workflows over supported authoritative interfaces. No connection wizard is included here. |
+| Connection | Automatic Host startup, saved profiles and recent connections remain outside the explicit serial/SSH forms. |
 | Session | Closing a shared Session needs a separately reviewed destructive action, explicit target/confirmation semantics, and Host authority. Multiple tabs and recent history are also absent. |
 | Terminal | Split panes, remote PTY resize, and transfer orchestration need their own supported lifecycle/capability work. |
 | View | MCP activity and transfer panels retain only their documented layout reservations. |

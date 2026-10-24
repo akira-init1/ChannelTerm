@@ -1,4 +1,5 @@
 import type { Action, MenuState } from "./menus";
+import type { ConnectionRequest, OpenedConnection } from "./connections";
 
 /** Display-only snapshots. The Host remains authoritative for lifecycle and leases. */
 export interface SessionSummary {
@@ -31,6 +32,7 @@ export type Result<T> =
 export interface HostInfo {
   endpoint: string;
   lifetime: "persistent" | "attachment" | "unknown";
+  sshAvailable?: boolean;
 }
 export interface Attachment {
   id: string;
@@ -47,6 +49,8 @@ export interface DesktopAPI {
   connect(): Promise<Result<HostInfo>>;
   disconnect(): Promise<Result<void>>;
   list(): Promise<Result<SessionSummary[]>>;
+  serialPorts(): Promise<Result<string[]>>;
+  openConnection(request: ConnectionRequest): Promise<Result<OpenedConnection>>;
   attach(sessionId: string): Promise<Result<Attachment>>;
   detach(attachmentId: string): Promise<Result<void>>;
   read(attachmentId: string): Promise<Result<Output>>;
@@ -61,6 +65,8 @@ export const channels = {
   connect: "host:connect",
   disconnect: "host:disconnect",
   list: "host:list",
+  serialPorts: "host:serial-ports",
+  openConnection: "host:open-connection",
   attach: "host:attach",
   detach: "host:detach",
   read: "host:read",

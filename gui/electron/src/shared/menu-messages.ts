@@ -3,6 +3,47 @@ import type { MessageDescriptor } from "@lingui/core";
 // Lingui 5 extracts these official annotated descriptors without a runtime macro
 // transform. Translations belong in PO catalogs; this file owns IDs and English defaults.
 export const menuMessages = [
+  /* i18n */ { id: "connection.new", message: "New connection" },
+  /* i18n */ { id: "connection.serial", message: "Serial connection" },
+  /* i18n */ { id: "connection.ssh", message: "SSH connection" },
+  /* i18n */ { id: "connection.port", message: "Port" },
+  /* i18n */ { id: "connection.baud", message: "Baud rate" },
+  /* i18n */ { id: "connection.dataBits", message: "Data bits" },
+  /* i18n */ { id: "connection.parity", message: "Parity" },
+  /* i18n */ { id: "connection.stopBits", message: "Stop bits" },
+  /* i18n */ { id: "connection.flowControl", message: "Flow control" },
+  /* i18n */ { id: "connection.label", message: "Label (optional)" },
+  /* i18n */ { id: "connection.scan", message: "Scan ports" },
+  /* i18n */ { id: "connection.scanning", message: "Scanning…" },
+  /* i18n */ {
+    id: "connection.invalid",
+    message: "Check the connection settings.",
+  },
+  /* i18n */ { id: "connection.host", message: "Host name or IP" },
+  /* i18n */ { id: "connection.user", message: "User name" },
+  /* i18n */ { id: "connection.auth", message: "Authentication" },
+  /* i18n */ { id: "connection.key", message: "Private key" },
+  /* i18n */ { id: "connection.password", message: "Password" },
+  /* i18n */ {
+    id: "connection.identities",
+    message: "Key files on Host (one per line; blank uses defaults)",
+  },
+  /* i18n */ {
+    id: "connection.passphrase",
+    message: "Key passphrase (optional)",
+  },
+  /* i18n */ {
+    id: "connection.knownHosts",
+    message: "Host known_hosts file (blank uses default)",
+  },
+  /* i18n */ {
+    id: "connection.trust",
+    message:
+      "Only trusted host keys are accepted. Verify and install the server key in the Host known_hosts file first. Credentials are not saved.",
+  },
+  /* i18n */ { id: "connection.cancel", message: "Cancel" },
+  /* i18n */ { id: "connection.opening", message: "Connecting…" },
+  /* i18n */ { id: "connection.open", message: "Connect" },
   /* i18n */ {
     id: "menu.connection",
     message: "Connection",
@@ -100,7 +141,7 @@ export const menuMessages = [
   /* i18n */ {
     id: "help.connect",
     message:
-      "Connect to an existing Host, then select an open Session. Create serial or SSH connections with the CLI.",
+      "Connect to a Host, then use Connection > New connection to open serial or SSH Sessions. SSH creation requires an updated standalone Host.",
   },
   /* i18n */ {
     id: "help.detach",

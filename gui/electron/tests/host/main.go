@@ -19,8 +19,11 @@ import (
 
 	"github.com/akira-init1/ChannelTerm/internal/core/app"
 	"github.com/akira-init1/ChannelTerm/internal/core/channel"
+	"github.com/akira-init1/ChannelTerm/internal/core/config"
 	"github.com/akira-init1/ChannelTerm/internal/core/session"
 	"github.com/akira-init1/ChannelTerm/internal/core/tool"
+	serialtransport "github.com/akira-init1/ChannelTerm/internal/core/transport/serial"
+	"github.com/akira-init1/ChannelTerm/internal/guiapi"
 	"github.com/akira-init1/ChannelTerm/internal/mcp"
 	"github.com/akira-init1/ChannelTerm/internal/mcp/terminal"
 )
@@ -47,7 +50,25 @@ func run() error {
 	}
 	manager := session.NewManager()
 	defer manager.Close()
-	application, err := app.New(app.Dependencies{Manager: manager})
+	application, err := app.New(app.Dependencies{Manager: manager,
+		ListSerialPorts: func() ([]serialtransport.Port, error) { return []serialtransport.Port{{Name: "COM-FIXTURE"}}, nil },
+		Serial: app.SerialDependencies{
+			ConfigPath: func() (string, error) { return "fixture-config", nil },
+			LoadConfig: func(string) (config.File, error) { return config.File{}, nil },
+			NewSession: func(id string, c serialtransport.Config) (app.ConnectedSession, error) {
+				if c.Port != "COM-FIXTURE" {
+					return nil, fmt.Errorf("fixture port unavailable")
+				}
+				local, remote := net.Pipe()
+				go func() {
+					defer remote.Close()
+					_, _ = remote.Write([]byte("Serial fixture ready\r\n"))
+					_, _ = io.Copy(remote, remote)
+				}()
+				return session.New(id, echoTransport{local})
+			},
+		},
+	})
 	if err != nil {
 		return err
 	}
@@ -100,9 +121,20 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	sshPort, trust, stopSSH, err := startSSHFixture()
+	if err != nil {
+		_ = listener.Close()
+		return err
+	}
+	defer stopSSH()
+	sshHandler := guiapi.NewSSHHandler(application)
 	server := &http.Server{ReadHeaderTimeout: 5 * time.Second, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if subtle.ConstantTimeCompare([]byte(r.Header.Get("Authorization")), []byte("Bearer "+token)) != 1 {
 			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		if r.URL.Path == guiapi.SSHPath {
+			sshHandler.ServeHTTP(w, r)
 			return
 		}
 		if r.URL.Path != "/mcp" {
@@ -114,7 +146,7 @@ func run() error {
 	defer server.Close()
 	go func() { _ = server.Serve(listener) }()
 	encoder := json.NewEncoder(os.Stdout)
-	if err := encoder.Encode(map[string]string{"endpoint": "http://" + listener.Addr().String() + "/mcp"}); err != nil {
+	if err := encoder.Encode(map[string]string{"endpoint": "http://" + listener.Addr().String() + "/mcp", "ssh_port": sshPort, "known_hosts": trust}); err != nil {
 		return err
 	}
 	// Test controls travel over the fixture's private stdin, not a product API.

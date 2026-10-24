@@ -198,5 +198,9 @@ import-boundary enforcement or coverage that the current checks do not provide.
 - Keep keyboard navigation scoped to focused menus and ignore IME composition. Do not add native
   accelerators, default roles, or global key handlers that consume terminal/editor input. Any later
   shortcut needs an explicit focus/composition policy and regression coverage.
+- Connection forms send bounded typed intent through Main. Serial setup uses existing Host tools;
+  SSH setup uses the authenticated [desktop Host API](../../docs/reference/gui-host-api.md).
+  Never expose an arbitrary URL/tool/command, bypass host-key checks, persist credentials, or retry
+  uncertain setup automatically. The Host's Application remains the sole creation authority.
 - Test offline/empty/closed states, non-current and expired context targets, detach/exit without
   shared-Session closure, local-only clear, translation sync, and terminal/IME input boundaries.

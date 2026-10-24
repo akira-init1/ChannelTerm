@@ -85,6 +85,9 @@ function registerIPC(): void {
     },
     [channels.disconnect]: disconnectHost,
     [channels.list]: () => currentHost().list(),
+    [channels.serialPorts]: () => currentHost().serialPorts(),
+    [channels.openConnection]: (request) =>
+      currentHost().openConnection(request),
     [channels.attach]: (id) => {
       identifier(id);
       return currentHost().attach(id);
@@ -123,6 +126,7 @@ function registerIPC(): void {
                     channels.detach,
                     channels.read,
                     channels.menuState,
+                    channels.openConnection,
                   ].includes(channel as typeof channels.attach)
                 ? 1
                 : 0;

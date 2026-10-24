@@ -17,6 +17,8 @@ export type Action =
       id:
         | "host.connect"
         | "host.disconnect"
+        | "connection.serial"
+        | "connection.ssh"
         | "session.refresh"
         | "view.sidebar"
         | "help.quick"
@@ -33,6 +35,7 @@ export type Action =
 export interface MenuState {
   locale: MenuLocale;
   connected: boolean;
+  sshAvailable: boolean;
   busy: boolean;
   sidebarVisible: boolean;
   attachment?: Attachment;
@@ -53,6 +56,7 @@ export interface MenuEntry {
 export const initialMenuState: MenuState = {
   locale: "en",
   connected: false,
+  sshAvailable: false,
   busy: false,
   sidebarVisible: true,
   currentOpen: false,
@@ -92,6 +96,24 @@ export function applicationMenu(state: MenuState): MenuEntry[] {
           label: "host.disconnect",
           enabled: state.connected && !state.busy,
           action: { id: "host.disconnect" },
+        },
+        {
+          id: "connection.new",
+          label: "connection.new",
+          children: [
+            {
+              id: "connection.serial",
+              label: "connection.serial",
+              action: { id: "connection.serial" },
+              enabled: state.connected && !state.busy,
+            },
+            {
+              id: "connection.ssh",
+              label: "connection.ssh",
+              action: { id: "connection.ssh" },
+              enabled: state.connected && state.sshAvailable && !state.busy,
+            },
+          ],
         },
         { id: "app.quit", label: "app.quit", action: { id: "app.quit" } },
       ],
@@ -227,6 +249,8 @@ export function isAction(value: unknown): value is Action {
   switch (value.id) {
     case "host.connect":
     case "host.disconnect":
+    case "connection.serial":
+    case "connection.ssh":
     case "session.refresh":
     case "view.sidebar":
     case "help.quick":
@@ -253,6 +277,7 @@ export function isMenuState(value: unknown): value is MenuState {
     !exact(value, [
       "locale",
       "connected",
+      "sshAvailable",
       "busy",
       "sidebarVisible",
       "attachment",
@@ -266,6 +291,7 @@ export function isMenuState(value: unknown): value is MenuState {
     isMenuLocale(value.locale) &&
     [
       "connected",
+      "sshAvailable",
       "busy",
       "sidebarVisible",
       "currentOpen",
@@ -281,7 +307,10 @@ export function actionEnabled(action: Action, state: MenuState): boolean {
   switch (action.id) {
     case "host.connect":
       return !state.connected && !state.busy;
+    case "connection.ssh":
+      return state.connected && state.sshAvailable && !state.busy;
     case "host.disconnect":
+    case "connection.serial":
     case "session.refresh":
     case "session.attach":
       return state.connected && !state.busy;

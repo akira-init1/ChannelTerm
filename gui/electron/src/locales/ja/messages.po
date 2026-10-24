@@ -20,6 +20,131 @@ msgstr "GUI を終了"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "connection.auth"
+msgstr "認証方式"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.baud"
+msgstr "ボーレート"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.cancel"
+msgstr "キャンセル"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.dataBits"
+msgstr "データビット"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.flowControl"
+msgstr "フロー制御"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.host"
+msgstr "ホスト名または IP"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.identities"
+msgstr "Host 上の秘密鍵ファイル（1 行に 1 つ、空欄は既定値）"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.invalid"
+msgstr "接続設定を確認してください。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.key"
+msgstr "秘密鍵"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.knownHosts"
+msgstr "Host の known_hosts ファイル（空欄は既定値）"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.label"
+msgstr "ラベル（任意）"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.new"
+msgstr "新しい接続"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.open"
+msgstr "接続"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.opening"
+msgstr "接続中…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.parity"
+msgstr "パリティ"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.passphrase"
+msgstr "鍵のパスフレーズ（任意）"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.password"
+msgstr "パスワード"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.port"
+msgstr "ポート"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.scan"
+msgstr "ポートを検索"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.scanning"
+msgstr "検索中…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.serial"
+msgstr "シリアル接続"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.ssh"
+msgstr "SSH 接続"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.stopBits"
+msgstr "ストップビット"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.trust"
+msgstr "信頼済みのホスト鍵のみ受け入れます。事前にサーバーの鍵を検証して Host の known_hosts に登録してください。認証情報は保存しません。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.user"
+msgstr "ユーザー名"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "help.clear"
 msgstr "ローカル表示のクリアは現在行より上のローカル履歴を消去します。clear/reset コマンドは送信せず、Host の履歴も変更しません。"
 
@@ -31,7 +156,7 @@ msgstr "ヘルプを閉じる"
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
 msgid "help.connect"
-msgstr "既存の Host に接続して、開いているセッションを選択します。シリアルや SSH 接続は CLI で作成してください。"
+msgstr "Host に接続し、接続 > 新しい接続からシリアルまたは SSH セッションを開きます。SSH の作成には更新済みの独立した Host が必要です."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

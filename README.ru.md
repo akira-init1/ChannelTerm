@@ -370,7 +370,7 @@ channelterm serial --config ./channelterm.toml --profile board
 ## Документация
 
 - [Индекс документации](docs/README.md)
-- [Прототип Electron GUI и разработка](docs/development/electron-gui.md)
+- [Прототип Electron GUI и разработка](docs/development/electron-gui.md) — Создавайте последовательные и SSH-сеансы через работающий Host с аутентификацией.
 - [Работа с последовательным терминалом](docs/getting-started/serial-terminal.md)
 - [Работа с SSH-оболочкой](docs/getting-started/ssh-terminal.md)
 - [Совместное использование Session](docs/getting-started/shared-session.md)

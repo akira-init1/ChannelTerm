@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { _electron as electron, expect } from "@playwright/test";
 import { startFixture } from "../tests/fixture.ts";
 import { HostClient } from "../src/main/host/client.ts";
+import { checkConnections } from "./connection-checks.mjs";
 import { randomBytes } from "node:crypto";
 import { createServer } from "vite";
 import { buildProcesses } from "./build.mjs";
@@ -405,8 +406,9 @@ try {
     recoveryPage.getByRole("heading", { name: "Host unavailable" }),
   ).toBeVisible();
   await checkLayout(desktop, recoveryPage, "failed");
+  await checkConnections(desktopEnvironment);
   console.log(
-    "PASS: native workbench at 760/1180/1500px, disconnected/empty/selection/attached/failure states, long lists, sandbox, authenticated attach/input/output, lease blocking, overwrite, reconnect, detach/reattach, native close, surviving Host/observer, Session close and Host loss/retry. Empty/large lists use test-only IPC snapshots; I/O uses the real isolated Host.",
+    "PASS: native workbench at 760/1180/1500px, hover/keyboard flyouts, serial and SSH creation, authentication failure, shared I/O and lifetime, disconnected/empty/selection/attached/failure states, long lists, sandbox, lease blocking, overwrite, reconnect, detach/reattach, native close, surviving Host/observer, Session close and Host loss/retry. Empty/large lists use test-only IPC snapshots; connections use the real isolated Host with fake serial I/O and loopback SSH.",
   );
 } finally {
   await desktop?.close();

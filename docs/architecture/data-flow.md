@@ -7,7 +7,9 @@ runtime communication from source dependencies. React/xterm calls the isolated P
 validated IPC reaches Main's Host Client, which calls existing authenticated MCP tools on the
 independent Go Host. Reads use a Main-owned output cursor. Ordinary GUI writes reach the same
 Application lease checks and Session write serialization as other shared clients. A closed GUI
-cancels its client requests without closing the Host or Session. No Transport is opened by the GUI.
+cancels its client requests without closing the Host or Session. Main can also submit explicit creation intent to the Host: serial through existing MCP tools,
+and SSH through the authenticated [desktop Host API](../reference/gui-host-api.md).
+Application opens the Transport; the GUI never owns it.
 
 ## Serial output
 
@@ -147,8 +149,9 @@ Session retains the existing reader, buffers, cursors, and serialized writes.
 Key parsing, host-key verification, and all SSH-library objects stay inside SSH Transport;
 Application and CLI exchange ordinary settings, paths, and context-aware interaction callbacks.
 Transport verifies host identity and persists explicitly approved unknown keys; CLI handles fingerprint
-confirmation and hidden password entry through cancellable local-console adapters. A future GUI can
-provide those callbacks without terminal I/O. Channel and Session remain library-neutral.
+confirmation and hidden password entry through cancellable local-console adapters. The desktop
+HTTP adapter supplies ephemeral password/passphrase callbacks but rejects unknown keys instead
+of providing trust confirmation. Channel and Session remain library-neutral.
 
 The foreground SSH command owns the Manager and Host. Exiting that command closes its Sessions;
 closing a secondary attachment only detaches that client. The default sharing listener is

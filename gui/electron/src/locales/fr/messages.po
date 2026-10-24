@@ -20,6 +20,131 @@ msgstr "Quitter la GUI"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "connection.auth"
+msgstr "Authentification"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.baud"
+msgstr "Débit en bauds"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.cancel"
+msgstr "Annuler"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.dataBits"
+msgstr "Bits de données"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.flowControl"
+msgstr "Contrôle de flux"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.host"
+msgstr "Nom d’hôte ou IP"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.identities"
+msgstr "Fichiers de clés sur le Host (un par ligne ; vide pour les valeurs par défaut)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.invalid"
+msgstr "Vérifiez les paramètres de connexion."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.key"
+msgstr "Clé privée"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.knownHosts"
+msgstr "Fichier known_hosts du Host (vide pour celui par défaut)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.label"
+msgstr "Libellé (facultatif)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.new"
+msgstr "Nouvelle connexion"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.open"
+msgstr "Connecter"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.opening"
+msgstr "Connexion…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.parity"
+msgstr "Parité"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.passphrase"
+msgstr "Phrase secrète de la clé (facultative)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.password"
+msgstr "Mot de passe"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.port"
+msgstr "Port"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.scan"
+msgstr "Rechercher les ports"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.scanning"
+msgstr "Recherche…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.serial"
+msgstr "Connexion série"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.ssh"
+msgstr "Connexion SSH"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.stopBits"
+msgstr "Bits d’arrêt"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.trust"
+msgstr "Seules les clés d’hôte approuvées sont acceptées. Vérifiez et installez d’abord la clé du serveur dans le fichier known_hosts du Host. Les identifiants ne sont pas enregistrés."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.user"
+msgstr "Nom d’utilisateur"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "help.clear"
 msgstr "Effacer l’affichage local supprime l’historique de défilement local au-dessus de la ligne actuelle. Aucune commande clear/reset n’est envoyée et l’historique du Host reste intact."
 
@@ -31,7 +156,7 @@ msgstr "Fermer l’aide"
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
 msgid "help.connect"
-msgstr "Connectez-vous à un Host existant, puis sélectionnez une session ouverte. Créez les connexions série ou SSH avec la CLI."
+msgstr "Connectez-vous à un Host, puis utilisez Connexion > Nouvelle connexion pour ouvrir des sessions série ou SSH. La création SSH nécessite un Host autonome à jour."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

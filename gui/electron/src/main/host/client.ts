@@ -10,6 +10,10 @@ import type {
 import { HostError } from "./errors";
 import { hostEndpoint } from "./config";
 import {
+  isConnectionRequest,
+  type OpenedConnection,
+} from "../../shared/connections";
+import {
   identifier,
   incompatible,
   input,
@@ -41,6 +45,7 @@ export class HostClient {
   private connection = new AbortController();
   private active?: ActiveAttachment;
   private changing = false;
+  private sshAvailable = false;
   private readonly endpoint: URL;
 
   constructor(
@@ -51,7 +56,11 @@ export class HostClient {
   }
 
   info(): HostInfo {
-    return { endpoint: this.endpoint.href, lifetime: this.lifetime };
+    return {
+      endpoint: this.endpoint.href,
+      lifetime: this.lifetime,
+      sshAvailable: this.sshAvailable,
+    };
   }
 
   async connect(): Promise<HostInfo> {
@@ -111,6 +120,17 @@ export class HostClient {
       if (client.getServerVersion()?.name !== "channelterm")
         throw incompatible();
       await this.list();
+      // Older/foreground Hosts may expose MCP only. Probe a fixed same-origin
+      // route; never derive a URL or credential from Renderer input.
+      try {
+        const response = await this.sshRequest("GET");
+        this.sshAvailable =
+          response.ok && object(await response.json()).available === true;
+      } catch {
+        this.sshAvailable = false;
+      }
+      if (signal.aborted)
+        throw new HostError("cancelled", "Connection cancelled.");
       return this.info();
     } catch (error) {
       await this.disconnect();
@@ -141,6 +161,117 @@ export class HostClient {
 
   async list(): Promise<SessionSummary[]> {
     return sessions(await this.call("terminal_list_sessions", {}));
+  }
+
+  private sshRequest(method: "GET" | "POST", body?: string): Promise<Response> {
+    return fetch(new URL("/gui/v1/ssh", this.endpoint), {
+      method,
+      body,
+      redirect: "error",
+      headers: {
+        Authorization: `Bearer ${this.token}`,
+        "Content-Type": "application/json",
+      },
+      signal: AbortSignal.any([
+        this.connection.signal,
+        AbortSignal.timeout(method === "GET" ? 2000 : 20000),
+      ]),
+    });
+  }
+
+  async serialPorts(): Promise<string[]> {
+    const result = await this.call("terminal_list_serial_ports", {});
+    if (!Array.isArray(result.ports) || result.ports.length > 10000)
+      throw incompatible();
+    return result.ports.map((port) => {
+      const name = text(object(port).name);
+      identifier(name);
+      return name;
+    });
+  }
+
+  /** Create through the authoritative Host once. An uncertain result is never replayed. */
+  async openConnection(request: unknown): Promise<OpenedConnection> {
+    if (!isConnectionRequest(request))
+      throw new HostError("invalid_input", "Invalid connection settings.");
+    if (!this.client || this.connection.signal.aborted)
+      throw new HostError("disconnected", "Connect to a Host first.");
+    if (this.changing)
+      throw new HostError(
+        "busy",
+        "A connection change is already in progress.",
+      );
+    if (request.kind === "ssh" && !this.sshAvailable)
+      throw new HostError(
+        "incompatible",
+        "This Host does not provide SSH creation. Start an updated standalone Host.",
+      );
+    this.changing = true;
+    const signal = this.connection.signal;
+    try {
+      let result: Record<string, unknown>;
+      if (request.kind === "serial") {
+        result = await this.call(
+          "terminal_open_serial",
+          {
+            port: request.port,
+            baud: request.baud,
+            data_bits: request.dataBits,
+            parity: request.parity,
+            stop_bits: request.stopBits,
+            flow_control: request.flowControl,
+            label: request.label,
+            wake: false,
+          },
+          signal,
+        );
+      } else {
+        const response = await this.sshRequest(
+          "POST",
+          JSON.stringify({
+            host: request.host,
+            user: request.user,
+            port: request.port,
+            label: request.label,
+            identity_files: request.identityFiles,
+            known_hosts_file: request.knownHostsFile,
+            password: request.password,
+            key_passphrase: request.keyPassphrase,
+          }),
+        );
+        if (response.status === 401 || response.status === 403)
+          throw new HostError("unauthorized", "Host rejected SSH creation.");
+        if (!response.ok) {
+          const code = object(await response.json()).error;
+          const message =
+            code === "host_key_rejected"
+              ? "Host key rejected. Verify and install the server key in the Host known_hosts file before connecting."
+              : code === "authentication_failed"
+                ? "SSH authentication failed. Check the selected identity, password or passphrase."
+                : "SSH creation failed. Check Host settings and refresh Sessions before trying again.";
+          throw new HostError("tool_error", message);
+        }
+        result = object(await response.json());
+      }
+      if (signal.aborted)
+        throw new HostError(
+          "cancelled",
+          "Connection request cancelled; refresh Sessions to check its result.",
+        );
+      identifier(result.session_id);
+      if (typeof result.reused !== "boolean") throw incompatible();
+      return { sessionId: result.session_id, reused: result.reused };
+    } catch (error) {
+      if (error instanceof HostError) throw error;
+      throw new HostError(
+        "tool_error",
+        error instanceof ToolFailure
+          ? "Host could not open this connection. Check settings and refresh Sessions before trying again."
+          : "Connection result is uncertain. Refresh Sessions before trying again; the request was not replayed.",
+      );
+    } finally {
+      this.changing = false;
+    }
   }
 
   async attach(sessionId: string): Promise<Attachment> {
@@ -381,5 +512,6 @@ export class HostClient {
     this.connection.abort();
     await client?.close().catch(() => {});
     this.lifetime = "unknown";
+    this.sshAvailable = false;
   }
 }

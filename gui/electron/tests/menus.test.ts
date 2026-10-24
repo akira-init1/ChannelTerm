@@ -76,6 +76,23 @@ test("offline, closed, busy and leased menus are display hints with explicit att
   };
   assert.equal(actionEnabled({ id: "host.connect" }, initialMenuState), true);
   assert.equal(
+    actionEnabled({ id: "connection.serial" }, initialMenuState),
+    false,
+  );
+  assert.equal(actionEnabled({ id: "connection.serial" }, live), true);
+  assert.equal(actionEnabled({ id: "connection.ssh" }, live), false);
+  assert.equal(
+    actionEnabled({ id: "connection.ssh" }, { ...live, sshAvailable: true }),
+    true,
+  );
+  assert.equal(
+    actionEnabled(
+      { id: "connection.ssh" },
+      { ...live, sshAvailable: true, busy: true },
+    ),
+    false,
+  );
+  assert.equal(
     actionEnabled({ id: "session.refresh" }, initialMenuState),
     false,
   );

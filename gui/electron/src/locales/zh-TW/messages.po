@@ -20,6 +20,131 @@ msgstr "結束 GUI"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "connection.auth"
+msgstr "驗證方式"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.baud"
+msgstr "鮑率"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.cancel"
+msgstr "取消"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.dataBits"
+msgstr "資料位元"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.flowControl"
+msgstr "流量控制"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.host"
+msgstr "主機名稱或 IP"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.identities"
+msgstr "Host 上的私密金鑰檔案（每行一個，留空使用預設值）"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.invalid"
+msgstr "請檢查連線設定。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.key"
+msgstr "私密金鑰"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.knownHosts"
+msgstr "Host 上的 known_hosts 檔案（留空使用預設值）"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.label"
+msgstr "名稱（選填）"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.new"
+msgstr "新增連線"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.open"
+msgstr "連線"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.opening"
+msgstr "正在連線…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.parity"
+msgstr "同位檢查"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.passphrase"
+msgstr "私密金鑰密語（選填）"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.password"
+msgstr "密碼"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.port"
+msgstr "連接埠"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.scan"
+msgstr "掃描序列埠"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.scanning"
+msgstr "正在掃描…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.serial"
+msgstr "序列埠連線"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.ssh"
+msgstr "SSH 連線"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.stopBits"
+msgstr "停止位元"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.trust"
+msgstr "僅接受受信任的主機金鑰。請先核對並將伺服器金鑰加入 Host 的 known_hosts 檔案。不會儲存憑證。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.user"
+msgstr "使用者名稱"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "help.clear"
 msgstr "清除本機顯示會移除目前行上方的本機捲動歷史。不會傳送遠端 clear/reset 指令，也不會刪除 Host 的歷史記錄。"
 
@@ -31,7 +156,7 @@ msgstr "關閉說明"
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
 msgid "help.connect"
-msgstr "連線至現有的 Host，然後選取開啟中的工作階段。請透過 CLI 建立序列埠或 SSH 連線。"
+msgstr "連線至 Host 後，透過「連線 > 新增連線」開啟序列埠或 SSH 工作階段。新增 SSH 需要更新後的獨立 Host。"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

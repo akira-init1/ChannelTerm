@@ -1,0 +1,140 @@
+import assert from "node:assert/strict";
+import { _electron as electron, expect } from "@playwright/test";
+import { startFixture } from "../tests/fixture.ts";
+import { HostClient } from "../src/main/host/client.ts";
+
+/** Real GUI -> trusted IPC -> authenticated Host -> Application connection setup. */
+export async function checkConnections(environment) {
+  const fixture = await startFixture();
+  const observer = new HostClient(fixture.endpoint, fixture.token);
+  let desktop;
+  try {
+    desktop = await electron.launch({
+      args: ["."],
+      env: {
+        ...environment,
+        CHANNELTERM_GUI_ENDPOINT: fixture.endpoint,
+        CHANNELTERM_HTTP_AUTH_TOKEN: fixture.token,
+      },
+    });
+    const page = await desktop.firstWindow();
+    const errors = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    const popup = page.getByRole("menu", {
+      name: "Workbench menu",
+      exact: true,
+    });
+    async function open(kind) {
+      await page.locator('[data-menu="connection"]').click();
+      await popup
+        .getByRole("menuitem", { name: "New connection", exact: true })
+        .hover();
+      await popup.getByRole("menuitem", { name: kind, exact: true }).click();
+      await expect(page.getByRole("dialog")).toBeVisible();
+      return page.getByRole("dialog");
+    }
+    await page.locator('[data-menu="connection"]').click();
+    await popup
+      .getByRole("menuitem", { name: "New connection", exact: true })
+      .hover();
+    await expect(
+      popup.getByRole("menuitem", { name: "Serial connection", exact: true }),
+    ).toBeDisabled();
+    await page.keyboard.press("Escape");
+    await page
+      .getByRole("button", { name: "Connect to Host", exact: true })
+      .click();
+    await expect(
+      page.getByText("Host connected", { exact: true }),
+    ).toBeVisible();
+    await observer.connect();
+    let dialog = await open("Serial connection");
+    await dialog
+      .getByRole("button", { name: "Scan ports", exact: true })
+      .click();
+    await expect(dialog.locator("datalist option")).toHaveAttribute(
+      "value",
+      "COM-FIXTURE",
+    );
+    await dialog.locator('[name="port"]').fill("MISSING");
+    await dialog.getByRole("button", { name: "Connect", exact: true }).click();
+    await expect(dialog.getByRole("alert")).toContainText(
+      "Host could not open",
+    );
+    await dialog.locator('[name="port"]').fill("COM-FIXTURE");
+    await dialog.locator('[name="label"]').fill("Created serial");
+    await page.screenshot({ path: "test-results/connection-serial.png" });
+    await dialog.getByRole("button", { name: "Connect", exact: true }).click();
+    await expect(dialog).not.toBeVisible();
+    await expect(page.locator(".terminal-tab")).toContainText("Created serial");
+    await expect(page.locator(".xterm-screen")).toBeVisible();
+    const serial = (await observer.list()).find(
+      (s) => s.label === "Created serial",
+    );
+    assert.ok(serial);
+    dialog = await open("SSH connection");
+    await dialog
+      .getByRole("combobox", { name: "Authentication", exact: true })
+      .selectOption("password");
+    await dialog.locator('[name="host"]').fill("127.0.0.1");
+    await dialog.locator('[name="port"]').fill(String(fixture.sshPort));
+    await dialog.locator('[name="user"]').fill("fixture-user");
+    await dialog.locator('[name="knownHostsFile"]').fill(fixture.knownHosts);
+    await dialog.locator('[name="password"]').fill("wrong-fixture-password");
+    await dialog.getByRole("button", { name: "Connect", exact: true }).click();
+    await expect(dialog.getByRole("alert")).toContainText(
+      "authentication failed",
+    );
+    await expect(dialog.locator('[name="password"]')).toHaveValue("");
+    await expect(page.locator(".terminal-tab")).toContainText("Created serial");
+    await dialog.locator('[name="password"]').fill("fixture-password");
+    await dialog.locator('[name="label"]').fill("Created SSH");
+    await desktop.evaluate(({ BrowserWindow }) =>
+      BrowserWindow.getAllWindows()[0].setSize(760, 500),
+    );
+    await dialog
+      .getByRole("button", { name: "Connect", exact: true })
+      .scrollIntoViewIfNeeded();
+    await expect(
+      dialog.getByRole("button", { name: "Connect", exact: true }),
+    ).toBeInViewport();
+    await page.screenshot({ path: "test-results/connection-ssh.png" });
+    await dialog.getByRole("button", { name: "Connect", exact: true }).click();
+    await expect(dialog).not.toBeVisible();
+    await expect(page.locator(".terminal-tab")).toContainText("Created SSH");
+    const ssh = (await observer.list()).find((s) => s.label === "Created SSH");
+    assert.ok(ssh);
+    const attachment = await observer.attach(ssh.session_id);
+    await page.locator(".xterm-helper-textarea").focus();
+    await page.keyboard.type("gui-ssh-input");
+    await page.keyboard.press("Enter");
+    let output = "";
+    await expect
+      .poll(async () => {
+        output += Buffer.from(
+          (await observer.read(attachment.id)).data,
+        ).toString();
+        return output;
+      })
+      .toContain("gui-ssh-input");
+    await page
+      .getByRole("button", { name: "Close tab (detach)", exact: true })
+      .click();
+    await expect(page.locator(".xterm-screen")).toHaveCount(0);
+    assert.equal(
+      (await observer.list()).find((s) => s.session_id === ssh.session_id)
+        ?.state,
+      "open",
+    );
+    assert.equal(
+      (await observer.list()).find((s) => s.session_id === serial.session_id)
+        ?.state,
+      "open",
+    );
+    assert.deepEqual(errors, []);
+  } finally {
+    await desktop?.close();
+    await observer.disconnect();
+    await fixture.stop();
+  }
+}

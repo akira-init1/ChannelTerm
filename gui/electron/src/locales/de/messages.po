@@ -20,6 +20,131 @@ msgstr "GUI beenden"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "connection.auth"
+msgstr "Authentifizierung"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.baud"
+msgstr "Baudrate"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.cancel"
+msgstr "Abbrechen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.dataBits"
+msgstr "Datenbits"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.flowControl"
+msgstr "Flusssteuerung"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.host"
+msgstr "Hostname oder IP"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.identities"
+msgstr "Schlüsseldateien auf dem Host (eine pro Zeile; leer für Standardwerte)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.invalid"
+msgstr "Prüfen Sie die Verbindungseinstellungen."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.key"
+msgstr "Privater Schlüssel"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.knownHosts"
+msgstr "known_hosts-Datei auf dem Host (leer für Standard)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.label"
+msgstr "Bezeichnung (optional)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.new"
+msgstr "Neue Verbindung"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.open"
+msgstr "Verbinden"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.opening"
+msgstr "Verbindung wird hergestellt…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.parity"
+msgstr "Parität"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.passphrase"
+msgstr "Schlüsselpassphrase (optional)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.password"
+msgstr "Passwort"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.port"
+msgstr "Port"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.scan"
+msgstr "Ports suchen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.scanning"
+msgstr "Suche…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.serial"
+msgstr "Serielle Verbindung"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.ssh"
+msgstr "SSH-Verbindung"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.stopBits"
+msgstr "Stoppbits"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.trust"
+msgstr "Nur vertrauenswürdige Hostschlüssel werden akzeptiert. Prüfen und hinterlegen Sie den Serverschlüssel zuerst in der known_hosts-Datei des Hosts. Zugangsdaten werden nicht gespeichert."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.user"
+msgstr "Benutzername"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "help.clear"
 msgstr "Das Leeren der lokalen Anzeige entfernt den lokalen Scrollback oberhalb der aktuellen Zeile. Es sendet keinen clear/reset-Befehl und lässt den Host-Verlauf unverändert."
 
@@ -31,7 +156,7 @@ msgstr "Hilfe schließen"
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
 msgid "help.connect"
-msgstr "Verbinden Sie sich mit einem vorhandenen Host und wählen Sie eine offene Sitzung aus. Serielle oder SSH-Verbindungen werden über die CLI erstellt."
+msgstr "Verbinden Sie sich mit einem Host und öffnen Sie unter Verbindung > Neue Verbindung eine serielle oder SSH-Sitzung. SSH erfordert einen aktualisierten eigenständigen Host."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

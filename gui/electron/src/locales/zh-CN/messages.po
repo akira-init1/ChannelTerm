@@ -20,6 +20,131 @@ msgstr "退出 GUI"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "connection.auth"
+msgstr "认证方式"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.baud"
+msgstr "波特率"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.cancel"
+msgstr "取消"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.dataBits"
+msgstr "数据位"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.flowControl"
+msgstr "流控"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.host"
+msgstr "主机名或 IP"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.identities"
+msgstr "Host 上的私钥文件（每行一个，留空使用默认值）"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.invalid"
+msgstr "请检查连接设置。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.key"
+msgstr "私钥"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.knownHosts"
+msgstr "Host 上的 known_hosts 文件（留空使用默认值）"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.label"
+msgstr "名称（可选）"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.new"
+msgstr "新建连接"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.open"
+msgstr "连接"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.opening"
+msgstr "正在连接…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.parity"
+msgstr "校验位"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.passphrase"
+msgstr "私钥口令（可选）"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.password"
+msgstr "密码"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.port"
+msgstr "端口"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.scan"
+msgstr "扫描串口"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.scanning"
+msgstr "正在扫描…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.serial"
+msgstr "串口连接"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.ssh"
+msgstr "SSH 连接"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.stopBits"
+msgstr "停止位"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.trust"
+msgstr "仅接受可信的主机密钥。请先核对并将服务器密钥加入 Host 的 known_hosts 文件。凭据不会保存。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.user"
+msgstr "用户名"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "help.clear"
 msgstr "清理本地显示会移除当前行上方的本地滚动记录；不会发送 clear/reset 命令，也不会删除 Host 历史。"
 
@@ -31,7 +156,7 @@ msgstr "关闭帮助"
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
 msgid "help.connect"
-msgstr "连接现有 Host，然后选择已打开的会话。串口或 SSH 连接请通过 CLI 创建。"
+msgstr "连接 Host 后，通过“连接 > 新建连接”打开串口或 SSH 会话。新建 SSH 需要更新后的独立 Host。"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

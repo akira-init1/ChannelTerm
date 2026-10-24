@@ -114,6 +114,11 @@ need no additional array element or per-message language structure change.
 
 ## Connect to an existing Host
 
+Use an updated standalone HTTP Host for GUI SSH creation; older Hosts and a foreground
+CLI `ssh` owner's sharing endpoint support attachment but do not offer the new creation API.
+After rebuilding the Go executable, restart the intended standalone Host before reconnecting
+the GUI. Host shutdown closes its Sessions, so finish work in those Sessions first.
+
 Keep the already-running Host that owns the intended Session. Follow the
 [MCP Host workflow](../getting-started/mcp-server.md) or the
 [shared Session workflow](../getting-started/shared-session.md) to start it when necessary; do not
@@ -136,7 +141,23 @@ Main reads the Host's existing credential. Supply a custom token through the pro
 using your normal secret-handling procedure;
 never put it in React code, a `VITE_` variable, source control, or URL parameters.
 
-1. Select **Connect to Host** in the bottom-left Host panel, then a Session in the sidebar. The initial screen
+**Connection > New connection** opens a serial or SSH form after Host connection:
+
+- Serial: scan the Host's available ports or enter a port manually, set baud/framing/flow control,
+  and press Connect. Scanning is read-only. The default form is 115200, 8N1, no flow control;
+  no wake byte is sent. Successful setup refreshes the shared list and attaches the new/reused Session.
+- SSH: enter host, port and user, then choose password or private-key authentication. Key paths
+  and `known_hosts` paths refer to files on the Host. Blank key paths use existing default
+  identities; encrypted keys accept a passphrase. Blank trust path uses the Host user's
+  `.ssh/known_hosts`. Unknown, changed and revoked keys fail: verify and install the server key
+  beforehand. Password inputs clear on submission and credentials are never saved as preferences.
+
+Creation failures keep the existing attachment. An uncertain result is not automatically retried;
+refresh Sessions before making another explicit attempt. See the [desktop Host API](../reference/gui-host-api.md)
+for the exact security, capability and lifetime boundaries.
+
+1. Select **Connect to Host** in the bottom-left Host panel, then a Session in the sidebar or
+   **Connection > New connection** to create one. The initial terminal screen
    contains a recent output snapshot, not an unlimited log.
 2. Type in the terminal. Input goes through `terminal_write` with actor `user`; Ctrl+C is ordinary
    terminal input when input is enabled. No command delimiter is added by the adapter.
@@ -153,7 +174,7 @@ for the current window. Menus close with Escape or an outside click. See the
 Search filters Session references, labels,
 endpoints, and transport names; Serial/SSH/Other group headers expand or collapse their rows.
 An empty connected Host shows
-**No Sessions available**; open one with the CLI and use **Refresh**. On connection failure,
+**No Sessions available**; use **Connection > New connection** or open one with the CLI and use **Refresh**. On connection failure,
 review the safe error notice, check the configured Host, and select **Retry connection**.
 The bottom status bar distinguishes attached input, paused input, and lease read-only state.
 See [workbench layout and display states](../architecture/electron-gui.md#workbench-layout-and-display-states)
@@ -182,7 +203,9 @@ and disconnect, stale attachment rejection, lease contention and recovery, buffe
 close, Host disconnect, credential redaction, redirect refusal, IPC source/argument checks, and
 independent client survival. They do not prove hardware or remote-network behavior.
 Native desktop tests switch through all nine catalogs and verify renderer/native labels and
-exclusive language checkmarks. Translation tests run the pinned CLI against disposable PO copies: new-message and new-locale
+exclusive language checkmarks, hover flyouts, edge placement and keyboard navigation.
+Connection tests use in-memory serial I/O and a temporary loopback SSH server with disposable
+credentials to verify creation, authentication failure, automatic attachment and shared lifetime. Translation tests run the pinned CLI against disposable PO copies: new-message and new-locale
 extraction, translation preservation, strict rejection, and English fallback. Notice-collection
 tests distinguish absent optional platform packages from missing required packages/licenses.
 
@@ -223,7 +246,7 @@ in normal Go package compilation without invoking npm. No Node tool is needed to
 | --- | --- |
 | Token unavailable | Start the intended Host under the same user, or supply its existing token to Main. GUI does not create tokens. |
 | Authentication rejected | Verify the configured endpoint and Main environment match the intended Host. Do not disable authentication or change CORS/Origin rules. |
-| No Sessions | Open a Session through an existing CLI/MCP workflow on that Host, then refresh. GUI cannot open a device. |
+| No Sessions | Use Connection > New connection, or open a Session through an existing CLI/MCP workflow and refresh. SSH creation requires the updated standalone Host API. |
 | Lease busy | Continue reading; wait for the owning operation. GUI neither steals nor releases leases. |
 | Output overwritten | Earlier bytes are unavailable. xterm resets and continues from retained output; the warning remains while attached. Detaching removes that view's notice. |
 | Session closed | Refresh and select an open Session. Reattachment cannot reopen a closed device. |

@@ -1,7 +1,7 @@
 # Electron GUI Architecture
 
 The Electron prototype is an independent desktop client of an already-running ChannelTerm Host.
-It attaches to existing Sessions only. The Go Host retains the authoritative Application, leases,
+It attaches to shared Sessions and can request serial or SSH creation from the Host. The Go Host retains the authoritative Application, leases,
 Session Manager, Channels, and device connections. See the [overall architecture](overview.md)
 and [repository map](repository-map.md) for Go ownership and the detailed source layout.
 
@@ -92,7 +92,7 @@ No baud rate, throughput, recent-connection history, or other unavailable metada
 | Host disconnected | Compact terminal hint to connect; Session refresh is disabled. |
 | Connecting / attaching / detaching / disconnecting | Named progress text; connection and Session actions are disabled until the operation completes. |
 | Host connection failed or lost | Safe error notice, offline status, and **Retry connection**; stale Session entries are removed on connection loss. |
-| Connected with no Sessions | **No Sessions available** and a hint to open one with the CLI, then refresh; no GUI creation control. |
+| Connected with no Sessions | **No Sessions available** and **Connection > New connection**; serial setup is available, while SSH requires the standalone Host API. |
 | Connected with Sessions but no attachment | **Select a Session**; open Sessions are selectable, closed entries are disabled. |
 | Attached | xterm occupies the workspace, the selected Session is marked, and **Close tab (detach)** is available. |
 | Lease / rejected input / closed Session / output loss | Existing notices and recovery semantics remain visible; input status reflects the available snapshot. Output-loss notices only belong to the attached view. |
@@ -160,7 +160,9 @@ MCP adapter -> Tool Registry -> authoritative Application
   -> Session / Manager -> Channel (established I/O)
 ```
 
-Application owns leases and use cases. The HTTP transport is MCP Streamable HTTP.
+Application owns leases and use cases. Session I/O uses MCP Streamable HTTP. SSH creation uses
+the separate authenticated [desktop Host API](../reference/gui-host-api.md) and the same
+Application; serial scanning/creation uses existing MCP tools.
 
 A Transport establishes the Channel before attachment; it is not an additional hop for every byte.
 Preload is an isolated context, not a third application process. The Go Host is not a child owned
@@ -173,6 +175,8 @@ is disabled. The production UI is served through a restricted `channelterm://app
 | --- | --- |
 | Connect | SDK initialization; require server name `channelterm`; authenticated Session listing |
 | Refresh | `terminal_list_sessions`; project display metadata and public lease summary only |
+| Scan / create serial | `terminal_list_serial_ports` / `terminal_open_serial`, explicit settings and `wake:false` |
+| Create SSH | Main POSTs bounded settings to the fixed authenticated `/gui/v1/ssh` route; no MCP schema changes |
 | Attach / detach | `terminal_session_attach` / `terminal_session_detach` with actor `user` |
 | Initial output | `terminal_read` without cursor, Base64, at most 64 KiB |
 | Further output | `terminal_read` with Main-owned cursor and a one-second Host wait |
@@ -207,7 +211,8 @@ stop the affected work and are surfaced to the UI. Reconnection is explicit.
 Main reads the existing Host token or process environment override. No credential goes through
 Preload, React, URL parameters, local storage, or renderer error messages. The prototype permits
 only numeric loopback HTTP endpoints, refuses redirects, bounds request durations, and requires
-the expected MCP server identity. It does not scan endpoints, open devices, or start a Host.
+the expected MCP server identity. It never opens devices directly or starts a Host;
+explicit scanning/creation requests are forwarded to the authoritative Host.
 The existing Host authentication, CORS, and Origin checks are unchanged.
 
 Every IPC call checks the exact owning WebContents, its main frame and trusted page URL, argument
@@ -248,8 +253,8 @@ or arm64 compatibility. See [GUI development](../development/electron-gui.md) fo
 
 ## Current gaps
 
-No MCP SSH-open, remote PTY resize, or client-file transfer orchestration API exists. The prototype
-therefore offers no new connection setup, remote resize, or file-transfer UI. Local xterm fitting
+No MCP SSH-open, remote PTY resize, or client-file transfer orchestration API exists. SSH creation
+uses the separate desktop Host API. There is no remote resize or file-transfer UI. Local xterm fitting
 does not resize the Host's SSH PTY. Existing file-transfer and debug leases are observed, not managed.
 There is no built-in Agent, automatic Host startup, installer, persistence of terminal output, or
 multi-tab terminal UI. None of these gaps is filled by bypassing Application or changing MCP schemas.

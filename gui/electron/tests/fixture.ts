@@ -52,6 +52,8 @@ export async function startFixture() {
   return {
     endpoint: ready.endpoint,
     token,
+    sshPort: Number(ready.ssh_port),
+    knownHosts: ready.known_hosts!,
     process,
     async command(action: string, data?: string) {
       process.stdin.write(JSON.stringify({ action, data }) + "\n");

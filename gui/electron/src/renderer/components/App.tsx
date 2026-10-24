@@ -28,6 +28,8 @@ import {
   type MenuState,
 } from "../../shared/menus";
 import { menuCatalogs } from "../../locales/catalogs";
+import { ConnectionDialog } from "./ConnectionDialog";
+import type { ConnectionRequest } from "../../shared/connections";
 
 /**
  * App composes Host snapshots and local attachment controls into the workbench.
@@ -40,7 +42,7 @@ export function App() {
   // Collapsing navigation changes available space, not the active attachment.
   const [sidebarVisible, setSidebarVisible] = useState(true);
   const [operation, setOperation] = useState<
-    "connecting" | "disconnecting" | "attaching" | "detaching"
+    "connecting" | "disconnecting" | "attaching" | "detaching" | "opening"
   >();
   const working = operation !== undefined;
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
@@ -56,6 +58,8 @@ export function App() {
   );
   const t = (id: string) => i18n._(id);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [connectionKind, setConnectionKind] =
+    useState<ConnectionRequest["kind"]>();
   const [menuContext, setMenuContext] = useState<MenuPopupRequest>();
   const terminal = useRef<TerminalControls>(null);
   // Synchronous exclusion covers two menu/toolbar clicks before React rerenders.
@@ -71,6 +75,7 @@ export function App() {
     () => ({
       locale,
       connected,
+      sshAvailable: !!info?.sshAvailable,
       busy: working,
       sidebarVisible,
       attachment,
@@ -81,6 +86,7 @@ export function App() {
     [
       locale,
       connected,
+      info?.sshAvailable,
       working,
       sidebarVisible,
       attachment,
@@ -158,6 +164,7 @@ export function App() {
   }
 
   async function disconnect() {
+    setConnectionKind(undefined);
     setOperation("disconnecting");
     generation.current++;
     setAttachment(undefined);
@@ -209,6 +216,41 @@ export function App() {
     }
   }
 
+  async function openConnection(request: ConnectionRequest) {
+    if (!connected || working || actionBusy.current)
+      throw {
+        code: "busy",
+        message: "Connect to an idle Host first.",
+      } satisfies ClientError;
+    actionBusy.current = true;
+    setOperation("opening");
+    const version = generation.current;
+    try {
+      const opened = await unwrap(host.openConnection(request));
+      const entries = await unwrap(host.list());
+      if (version !== generation.current)
+        throw {
+          code: "cancelled",
+          message:
+            "Host changed. Refresh Sessions to check the connection result.",
+        } satisfies ClientError;
+      setSessions(entries);
+      const target = entries.find(
+        (entry) => entry.session_id === opened.sessionId,
+      );
+      if (!target || target.state !== "open")
+        throw {
+          code: "closed",
+          message:
+            "The created Session is unavailable. Refresh Sessions before trying again.",
+        } satisfies ClientError;
+      await select(target);
+    } finally {
+      actionBusy.current = false;
+      setOperation(undefined);
+    }
+  }
+
   function enabled(action: Action): boolean {
     if (
       !actionEnabled(action, {
@@ -230,6 +272,12 @@ export function App() {
   async function execute(action: Action) {
     if (!isAction(action) || !enabled(action)) return;
     switch (action.id) {
+      case "connection.serial":
+        setConnectionKind("serial");
+        return;
+      case "connection.ssh":
+        setConnectionKind("ssh");
+        return;
       case "view.sidebar":
         setSidebarVisible((visible) => !visible);
         return;
@@ -326,6 +374,7 @@ export function App() {
         disconnecting: "Disconnecting Host…",
         attaching: "Attaching Session…",
         detaching: "Detaching Session…",
+        opening: "Opening connection…",
       }[operation]
     : !connected
       ? error
@@ -343,11 +392,20 @@ export function App() {
         ? "Check that your configured Host is running, then retry the connection."
         : "Connect to your running Host using the Host panel."
       : sessions.length === 0
-        ? "Open a Session with the CLI, then refresh the list."
+        ? "Use Connection > New connection to open a Session."
         : "Choose an open Session from the sidebar to view output and send input.";
 
   return (
     <div className={`app ${sidebarVisible ? "" : "sidebar-hidden"}`}>
+      {connectionKind && connected && (
+        <ConnectionDialog
+          key={connectionKind}
+          kind={connectionKind}
+          t={t}
+          onOpen={openConnection}
+          onClose={() => setConnectionKind(undefined)}
+        />
+      )}
       <WorkbenchMenu
         state={menuState}
         t={t}

@@ -163,6 +163,71 @@ p {
 .help-dialog button {
   margin-top: 16px;
 }
+.connection-dialog {
+  width: 480px;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+  padding: 20px;
+  color: var(--foreground);
+  background: var(--panel-background);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.connection-dialog::backdrop {
+  background: #0006;
+}
+.connection-dialog h2 {
+  font-size: 15px;
+  margin-bottom: 16px;
+}
+.connection-dialog fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+.connection-dialog label {
+  display: grid;
+  gap: 5px;
+  margin-bottom: 12px;
+  min-width: 0;
+}
+.connection-dialog input,
+.connection-dialog select,
+.connection-dialog textarea {
+  min-width: 0;
+  width: 100%;
+  font: inherit;
+  color: var(--foreground);
+  background: var(--editor-background);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 7px;
+}
+.connection-port {
+  display: flex;
+  gap: 8px;
+}
+.connection-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.connection-dialog footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+.connection-hint {
+  color: var(--muted);
+  line-height: 1.5;
+  margin-bottom: 12px;
+}
+.connection-dialog [role="alert"] {
+  color: #f3b6a6;
+  line-height: 1.5;
+}
 .workspace {
   min-height: 0;
   display: grid;
