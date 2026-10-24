@@ -226,12 +226,16 @@ guidance, releases the unpublished lease, and sends no shell bytes. A caller mus
 before retrying; Application never executes or discards the pending command automatically.
 
 Every lease has a 30-second Host-side TTL and an `expires_at` timestamp. `RenewLease` extends that
-deadline only for the matching owner. Expiry atomically releases writer ownership, wakes pending
-cancellation waits, and prevents a stale owner or timer from affecting a replacement lease. If
-expiry occurs while a leased Channel write is still in flight, the Host closes and removes that
-Session. The protocol-neutral Channel has no generic write-cancellation capability, so closing it is
-the portable way to release the blocked write without allowing a replacement lease to race stale
-bytes.
+deadline only for the matching owner. Expiry wakes pending cancellation waits and rejects stale
+leased writes. File-transfer expiry atomically marks the Session unavailable for writes and new
+leases before asynchronously closing and removing its original registration. This applies even
+while waiting for READY, ACK, or receive data with no write in flight. A release arriving after the
+deadline follows expiry, not normal unlock. Delayed file-transfer closure uses the original
+Manager reference, and exclusion cleanup matches its transfer ID rather than a replacement lease.
+Debug expiry also closes the Session; terminal expiry retains its existing policy of closing only
+when a leased write is still in flight. Channel has no generic write cancellation, so Close releases
+blocked I/O. Already delivered bytes cannot be rolled back. Local closure does not prove that a
+device-side program exited, its TTY recovered, or reconnecting is safe.
 
 Acquiring a `file-transfer` lease allocates a non-secret process-local `transfer_id`. Lease
 acquire/release and every transfer event carry it, while the owner capability is never published. An
@@ -287,8 +291,9 @@ bootstrap temporarily disables target-terminal input echo, and initialization cl
 command after the child starts. The non-interactive child runs path probing, per-chunk commands,
 verification, and cleanup without additional interactive history entries. The child is kept alive
 every five seconds while no protocol command is active and has a 30-second remote idle watchdog. A
-killed client therefore leaves no Bash entry, or at most the one fallback entry on another shell,
-and the child exits after its keepalives stop. Normal completion and safe-boundary cancellation
+killed client therefore leaves no Bash entry, or at most the one fallback entry on another shell.
+The watchdog operates only at idle shell boundaries; it is not evidence of recovery when the Host
+lease expires. Normal completion and safe-boundary cancellation
 explicitly stop the watchdog, restore terminal echo, and exit the child before the file-transfer
 lease is released. The bootstrap emits its final confirmation from the interactive parent only after
 the child exits; this keeps all earlier command echo inside the lease's suppressed presentation
@@ -300,8 +305,8 @@ uses the existing bounded recovery path. This deadline does not limit the later 
 The protocol reads or writes at most 8 KiB of payload per chunk, saves and restores the remote TTY
 mode around each raw `dd` operation, and performs end-to-end SHA-256 verification for regular files
 and directory tar streams. A target-side send block uses a 10-second serial-input idle timeout and
-verifies the exact file-size increase after restoring the saved TTY. A killed transfer process
-therefore cannot leave `dd` waiting indefinitely in raw mode or acknowledge a short block.
+verifies the exact file-size increase after restoring the saved TTY. This bounds the intended
+raw-input wait and prevents acknowledging a short block; Host closure does not verify its outcome.
 Send initialization probes `dd iflag=fullblock`; a minimal `dd` instead reads one-byte blocks with
 `count` equal to the announced chunk size. The timeout, size check, and final hash apply to both paths.
 

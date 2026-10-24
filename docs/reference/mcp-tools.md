@@ -704,9 +704,14 @@ before retrying. Rejection writes no terminal bytes and leaves no active lease.
 
 Expiry releases writer ownership without the original owner capability. For file transfer, it also
 publishes a failed terminal result with `reason: lease_expired` before
-`LEASE_RELEASED(state=expired)`. If a leased Channel write remains in flight at expiry, the Host
-closes and removes the Session to release that write safely; otherwise the Session remains available
-for a replacement lease.
+`LEASE_RELEASED(state=expired)`. File-transfer expiry blocks ordinary and stale leased writes and
+new leases before closing/removing the original Session, including when no write is in flight.
+This replaces the previous behavior that allowed another operation after idle file-transfer expiry.
+A release received after that deadline cannot turn expiry into normal unlock. Debug expiry also
+closes the Session; terminal expiry retains its existing in-flight-write policy. Closure is local
+access revocation, not proof of remote program exit, TTY restoration, or safe reconnection. Final
+events may be lost to observers when closure releases the retained buffers; `lease_released` does
+not mean the Session is reusable.
 
 Important errors: missing Session, invalid owner/type, or an already active lease. Safety: an owner
 is a bearer capability and should be generated randomly, retained only for the operation, and never

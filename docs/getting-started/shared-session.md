@@ -119,10 +119,12 @@ released, and a later open can create a new Session for the reconnected device. 
 the failed Session receive the original stream error and should list Sessions again before
 reconnecting.
 
-An expired writer lease normally leaves the Session open for another writer. If expiry occurs while
-a leased Channel write is still blocked, the Host closes and removes that Session. Clients should
-list Sessions and reopen the endpoint before retrying. The implementation rationale and exact lease
-timing are documented in [Application Module](../modules/application.md).
+Expired file-transfer and debug leases close and remove the original Session even when no write
+is in flight. They never reopen it for another writer. A terminal lease retains its existing expiry
+policy: an in-flight leased write causes closure; otherwise writer ownership is released. Closure
+does not establish remote program exit or TTY recovery. Verify device state through an appropriate
+independent recovery procedure before reconnecting; reopening alone is not proof of safety. See
+[Application Module](../modules/application.md) for exact lease timing and lifecycle behavior.
 
 See [Identifiers](../reference/identifiers.md) before passing serial targets, Session references, or
 `session_id` values between commands.

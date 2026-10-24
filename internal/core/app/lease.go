@@ -68,6 +68,9 @@ type SessionLease struct {
 	// ExpiresAt is the deadline by which the owner must renew the lease.
 	ExpiresAt time.Time
 	State     string
+	// sessionReference binds delayed file-transfer expiry to one Manager
+	// registration. References are never reused, unlike caller-supplied IDs.
+	sessionReference string
 }
 
 // FileTransferCancelRequest describes a Host-owned cancellation confirmation.
@@ -134,7 +137,7 @@ type leaseCoordinator struct {
 	gates             map[string]*sync.Mutex
 	fileTransfers     map[string]*fileTransferControl
 	activeWrites      map[string]int
-	recovering        map[string]bool
+	recovering        map[string]SessionLease
 	nextCancelRequest uint64
 	nextTransferID    uint64
 	ttl               time.Duration
@@ -152,12 +155,16 @@ func newLeaseCoordinatorWithTTL(ttl time.Duration) *leaseCoordinator {
 		gates:         make(map[string]*sync.Mutex),
 		fileTransfers: make(map[string]*fileTransferControl),
 		activeWrites:  make(map[string]int),
-		recovering:    make(map[string]bool),
+		recovering:    make(map[string]SessionLease),
 		ttl:           ttl,
 	}
 }
 
 func (c *leaseCoordinator) acquire(sessionID, owner string, typ LeaseType) (SessionLease, error) {
+	return c.acquireReferenced(sessionID, owner, typ, "")
+}
+
+func (c *leaseCoordinator) acquireReferenced(sessionID, owner string, typ LeaseType, reference string) (SessionLease, error) {
 	owner = strings.TrimSpace(owner)
 	if owner == "" {
 		return SessionLease{}, ErrInvalidLeaseOwner
@@ -169,9 +176,9 @@ func (c *leaseCoordinator) acquire(sessionID, owner string, typ LeaseType) (Sess
 	gate.Lock()
 	defer gate.Unlock()
 	c.mu.Lock()
-	if c.recovering[sessionID] {
+	if _, recovering := c.recovering[sessionID]; recovering {
 		c.mu.Unlock()
-		return SessionLease{}, fmt.Errorf("%w: Session %s is closing after an expired in-flight write", ErrSessionBusy, sessionID)
+		return SessionLease{}, fmt.Errorf("%w: Session %s is closing after lease expiry", ErrSessionBusy, sessionID)
 	}
 	if active, exists := c.leases[sessionID]; exists {
 		if time.Now().UTC().Before(active.ExpiresAt) {
@@ -187,7 +194,7 @@ func (c *leaseCoordinator) acquire(sessionID, owner string, typ LeaseType) (Sess
 		c.mu.Lock()
 	}
 	now := time.Now().UTC()
-	lease := SessionLease{SessionID: sessionID, Owner: owner, Type: typ, CreatedAt: now, ExpiresAt: now.Add(c.ttl), State: "active"}
+	lease := SessionLease{SessionID: sessionID, Owner: owner, Type: typ, CreatedAt: now, ExpiresAt: now.Add(c.ttl), State: "active", sessionReference: reference}
 	if typ == LeaseTypeFileTransfer {
 		c.nextTransferID++
 		lease.TransferID = fmt.Sprintf("FT-%d", c.nextTransferID)
@@ -230,12 +237,25 @@ func (c *leaseCoordinator) release(sessionID, owner string) (SessionLease, bool,
 	gate.Lock()
 	defer gate.Unlock()
 	c.mu.Lock()
-	defer c.mu.Unlock()
+	var expired SessionLease
+	var abortSession bool
+	defer func() {
+		c.mu.Unlock()
+		if expired.SessionID != "" {
+			c.notifyExpired(expired, abortSession)
+		}
+	}()
 	active, exists := c.leases[sessionID]
 	if !exists {
 		return SessionLease{}, false, nil, nil
 	}
 	if active.Owner != owner {
+		return SessionLease{}, false, nil, ErrLeaseNotOwned
+	}
+	// A delayed timer must not let deferred cleanup turn an expired transfer
+	// into a normal release. Keep terminal/debug release policy unchanged.
+	if active.Type == LeaseTypeFileTransfer && !time.Now().UTC().Before(active.ExpiresAt) {
+		expired, abortSession = c.expireLocked(sessionID)
 		return SessionLease{}, false, nil, ErrLeaseNotOwned
 	}
 	c.stopExpiryLocked(sessionID)
@@ -302,14 +322,16 @@ func (c *leaseCoordinator) expireLocked(sessionID string) (SessionLease, bool) {
 	lease := c.leases[sessionID]
 	delete(c.leases, sessionID)
 	delete(c.timers, sessionID)
-	abortSession := c.activeWrites[sessionID] > 0 || lease.Type == LeaseTypeDebug
+	abortSession := c.activeWrites[sessionID] > 0 || lease.Type == LeaseTypeDebug || lease.Type == LeaseTypeFileTransfer
 	if abortSession {
 		// A Channel write has no generic context or deadline capability. Mark the
 		// Session as recovering until Application closes it, which is the only
 		// portable way to release a blocked write without allowing a replacement
-		// lease to race the stale operation. An expired debug lease also requires
-		// closure: protocol bytes may still arrive even with no write in flight.
-		c.recovering[sessionID] = true
+		// lease to race the stale operation. File-transfer and debug expiry also
+		// require closure without an active write: the peer may still own the
+		// terminal or await payload. Mark exclusion before dropping c.mu, so
+		// asynchronous closure never creates an ordinary-write admission window.
+		c.recovering[sessionID] = lease
 	}
 	if control := c.fileTransfers[sessionID]; control != nil {
 		control.state = "expired"
@@ -504,12 +526,12 @@ func (c *leaseCoordinator) write(sessionID, owner, displayID string, operation f
 	gate.Lock()
 	defer gate.Unlock()
 	c.mu.Lock()
-	if c.recovering[sessionID] {
+	if _, recovering := c.recovering[sessionID]; recovering {
 		c.mu.Unlock()
 		if requireLease {
 			return 0, ErrLeaseNotOwned
 		}
-		return 0, fmt.Errorf("%w: Session %s is closing after an expired in-flight write", ErrSessionBusy, displayID)
+		return 0, fmt.Errorf("%w: Session %s is closing after lease expiry", ErrSessionBusy, displayID)
 	}
 	lease, exists := c.leases[sessionID]
 	if exists && !time.Now().UTC().Before(lease.ExpiresAt) {
@@ -549,11 +571,25 @@ func (c *leaseCoordinator) write(sessionID, owner, displayID string, operation f
 }
 
 func (c *leaseCoordinator) remove(sessionID string) {
+	c.removeRegistration(sessionID, "")
+}
+
+// removeRegistration fences delayed explicit closure against a replacement
+// Manager registration. Empty reference retains internal coordinator cleanup.
+func (c *leaseCoordinator) removeRegistration(sessionID, reference string) {
 	gate := c.gate(sessionID)
 	gate.Lock()
 	defer gate.Unlock()
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	if reference != "" {
+		if lease, ok := c.leases[sessionID]; ok && lease.sessionReference != reference {
+			return
+		}
+		if lease, ok := c.recovering[sessionID]; ok && lease.sessionReference != reference {
+			return
+		}
+	}
 	c.stopExpiryLocked(sessionID)
 	delete(c.leases, sessionID)
 	delete(c.activeWrites, sessionID)
@@ -562,6 +598,20 @@ func (c *leaseCoordinator) remove(sessionID string) {
 		close(control.released)
 		close(control.changed)
 		delete(c.fileTransfers, sessionID)
+	}
+}
+
+// finishFileTransferExpiry clears only the expired operation's exclusion after
+// its original registration has been closed. A delayed closer must not remove
+// a later lease or its timer, even if a Session ID was registered again.
+func (c *leaseCoordinator) finishFileTransferExpiry(lease SessionLease) {
+	gate := c.gate(lease.SessionID)
+	gate.Lock()
+	defer gate.Unlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if current, ok := c.recovering[lease.SessionID]; ok && current.TransferID == lease.TransferID {
+		delete(c.recovering, lease.SessionID)
 	}
 }
 

@@ -62,6 +62,10 @@ attachment. The transfer owner blocks at its next safe boundary while the Host k
 negative answer resumes it, while a positive answer stops it before the next block and waits for
 lease release. A locally confirmed cancellation also cancels an outstanding protocol-marker read;
 raw-block cleanup uses an independent context so it can restore the remote TTY before release.
+File-transfer lease expiry instead marks the original Session unavailable for writes and new
+operations before asynchronous closure. Loss of writer ownership is not proof of remote
+recovery. The
+[Application lifecycle](../modules/application.md) owns these decisions above Session serialization.
 `Ctrl+]` commands remain local. Prompt timestamps are per-CLI presentation state and are inserted
 only before recognized shell prompts after Session reads, so they never enter the Ring Buffer or MCP
 cursor path. Session serializes each complete write, including short-write retries, so concurrent
