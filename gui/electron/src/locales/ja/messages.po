@@ -295,5 +295,15 @@ msgstr "入力を再開"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "view.resizeSidebar"
+msgstr "セッションサイドバーの幅を変更"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "view.resizeSidebarHelp"
+msgstr "ドラッグまたは矢印キーで幅を変更します。ダブルクリックで元に戻します。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "view.sidebar"
 msgstr "セッションサイドバー"

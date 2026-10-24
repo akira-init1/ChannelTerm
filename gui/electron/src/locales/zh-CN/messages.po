@@ -295,5 +295,15 @@ msgstr "恢复输入"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "view.resizeSidebar"
+msgstr "调整会话侧栏宽度"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "view.resizeSidebarHelp"
+msgstr "拖动或使用方向键调整宽度，双击恢复默认。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "view.sidebar"
 msgstr "会话侧边栏"

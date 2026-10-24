@@ -108,10 +108,11 @@ export function SessionList({
                         />
                       </span>
                       <span className="session-label">
-                        {session.endpoint || session.session_ref}
-                      </span>
-                      <span className="session-meta">
-                        {session.session_ref} · {session.state}
+                        {session.endpoint}
+                        {session.label && session.label !== session.session_ref
+                          ? ` · ${session.session_ref}`
+                          : ""}
+                        {` · ${session.state}`}
                         {session.lease ? ` · busy: ${session.lease.type}` : ""}
                       </span>
                     </span>

@@ -3,6 +3,11 @@ import type { MessageDescriptor } from "@lingui/core";
 // Lingui 5 extracts these official annotated descriptors without a runtime macro
 // transform. Translations belong in PO catalogs; this file owns IDs and English defaults.
 export const menuMessages = [
+  /* i18n */ { id: "view.resizeSidebar", message: "Resize Session sidebar" },
+  /* i18n */ {
+    id: "view.resizeSidebarHelp",
+    message: "Drag or use arrow keys to resize. Double-click to reset.",
+  },
   /* i18n */ { id: "connection.new", message: "New connection" },
   /* i18n */ { id: "connection.serial", message: "Serial connection" },
   /* i18n */ { id: "connection.ssh", message: "SSH connection" },

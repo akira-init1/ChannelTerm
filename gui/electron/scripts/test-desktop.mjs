@@ -4,6 +4,7 @@ import { startFixture } from "../tests/fixture.ts";
 import { HostClient } from "../src/main/host/client.ts";
 import { checkConnections } from "./connection-checks.mjs";
 import { checkStartup } from "./startup-checks.mjs";
+import { checkCompactLayout } from "./layout-checks.mjs";
 import { randomBytes } from "node:crypto";
 import { createServer } from "vite";
 import { buildProcesses } from "./build.mjs";
@@ -212,6 +213,7 @@ try {
     page.getByText("Attached · Input enabled", { exact: true }),
   ).toBeVisible();
   await checkLayout(desktop, page, "attached");
+  await checkCompactLayout(desktop, page);
   // Searching/collapsing navigation only changes presentation, never attachment.
   await page
     .getByRole("searchbox", { name: "Search Sessions" })

@@ -295,5 +295,15 @@ msgstr "입력 재개"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "view.resizeSidebar"
+msgstr "세션 사이드바 너비 조절"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "view.resizeSidebarHelp"
+msgstr "드래그하거나 방향키로 너비를 조절하세요. 두 번 클릭하면 기본값으로 돌아갑니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "view.sidebar"
 msgstr "세션 사이드바"

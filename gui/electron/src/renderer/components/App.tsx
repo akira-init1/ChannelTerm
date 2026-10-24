@@ -5,6 +5,7 @@ import {
   useRef,
   useState,
   type MouseEvent,
+  type CSSProperties,
 } from "react";
 import { setupI18n } from "@lingui/core";
 import type {
@@ -29,6 +30,7 @@ import {
 } from "../../shared/menus";
 import { menuCatalogs } from "../../locales/catalogs";
 import { ConnectionDialog } from "./ConnectionDialog";
+import { SidebarResizer } from "./SidebarResizer";
 import type { ConnectionRequest } from "../../shared/connections";
 
 /**
@@ -41,6 +43,19 @@ export function App() {
   const [connected, setConnected] = useState(false);
   // Collapsing navigation changes available space, not the active attachment.
   const [sidebarVisible, setSidebarVisible] = useState(true);
+  const [sidebarWidth, setSidebarWidth] = useState<number>();
+  const [viewportWidth, setViewportWidth] = useState(window.innerWidth);
+  const defaultSidebarWidth = viewportWidth <= 900 ? 210 : 260;
+  const maximumSidebarWidth = Math.max(180, Math.min(480, viewportWidth - 400));
+  const visibleSidebarWidth = Math.min(
+    sidebarWidth ?? defaultSidebarWidth,
+    maximumSidebarWidth,
+  );
+  useEffect(() => {
+    const resize = () => setViewportWidth(window.innerWidth);
+    window.addEventListener("resize", resize);
+    return () => window.removeEventListener("resize", resize);
+  }, []);
   const [operation, setOperation] = useState<
     "connecting" | "disconnecting" | "attaching" | "detaching" | "opening"
   >();
@@ -438,7 +453,12 @@ export function App() {
         helpOpen={helpOpen}
         onHelpClose={() => setHelpOpen(false)}
       />
-      <div className="workspace">
+      <div
+        className="workspace"
+        style={
+          { "--sidebar-width": `${visibleSidebarWidth}px` } as CSSProperties
+        }
+      >
         <div className="activity-rail" aria-label="Workspace navigation">
           <button
             className="rail-button"
@@ -530,6 +550,16 @@ export function App() {
             </button>
             <p className="host-hint">Detaching leaves Sessions running.</p>
           </section>
+          {sidebarVisible && (
+            <SidebarResizer
+              width={visibleSidebarWidth}
+              maximum={maximumSidebarWidth}
+              defaultWidth={defaultSidebarWidth}
+              label={t("view.resizeSidebar")}
+              hint={t("view.resizeSidebarHelp")}
+              onResize={setSidebarWidth}
+            />
+          )}
         </aside>
         <main aria-label="Terminal workspace">
           <div className="terminal-toolbar">
@@ -572,9 +602,6 @@ export function App() {
                 </button>
               )}
             </div>
-            <span className="terminal-target">
-              {current?.session_ref || "No Session attached"}
-            </span>
           </div>
           <div className="notices" aria-label="Terminal notices">
             {info?.lifetime === "attachment" && connected && (
@@ -645,19 +672,6 @@ export function App() {
               </div>
             </div>
           )}
-          <div className="terminal-input-hint">
-            <Icon name="terminal" />
-            <span>
-              {attachment
-                ? writable
-                  ? "Type directly in the terminal · Enter sends input"
-                  : "Terminal input is paused · Output remains visible"
-                : "Attach a Session to use terminal input"}
-            </span>
-            <span className="input-mode">
-              {attachment && writable ? "Direct input" : "Read-only"}
-            </span>
-          </div>
         </main>
       </div>
       <footer className="statusbar" aria-label="Workbench status">

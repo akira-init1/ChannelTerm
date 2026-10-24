@@ -240,6 +240,11 @@ terminal fitting, and no document overflow. They cover disconnected, connected-e
 attached, and failure/retry views, plus long labels, closed entries, and a scrolling 40-Session list.
 They also check transport grouping, case-insensitive search, no-match feedback, group collapse
 across refresh, and continued attachment/input after hiding and reopening navigation.
+Compact-layout checks verify the 32 px terminal header, 24 px status bar, two-line Session rows,
+and absence of redundant input/target elements. They drag the sidebar divider, exercise keyboard
+limits and composition guards, shrink the window, cancel pointer capture, and double-click to
+reset width while retaining the attachment and fitted terminal. Screenshots are saved as
+`test-results/workbench-compact-layout.png` and `workbench-compact-resized.png`.
 Menu checks cover native/renderer language and checkmark synchronization, sidebar actions,
 keyboard opening, Escape/focus restoration, outside-click dismissal, and disabled offline/empty/
 closed actions. They reject stale attachment callbacks and missing non-current context targets,

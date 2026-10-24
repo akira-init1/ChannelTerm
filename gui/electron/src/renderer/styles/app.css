@@ -64,7 +64,7 @@ p {
 .app {
   height: 100vh;
   display: grid;
-  grid-template-rows: 32px minmax(0, 1fr) 32px;
+  grid-template-rows: 32px minmax(0, 1fr) 24px;
   overflow: hidden;
 }
 .topbar {
@@ -231,7 +231,7 @@ p {
 .workspace {
   min-height: 0;
   display: grid;
-  grid-template-columns: 48px 260px minmax(0, 1fr);
+  grid-template-columns: 48px var(--sidebar-width, 260px) minmax(0, 1fr);
 }
 .activity-rail {
   display: flex;
@@ -266,6 +266,7 @@ p {
   margin-bottom: 18px;
 }
 .sidebar {
+  position: relative;
   min-height: 0;
   min-width: 0;
   background: var(--sidebar-background);
@@ -280,15 +281,15 @@ p {
   grid-template-columns: 48px minmax(0, 1fr);
 }
 .section-heading {
-  height: 52px;
-  padding: 0 14px;
+  height: 36px;
+  padding: 0 10px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-shrink: 0;
 }
 .section-heading h2 {
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 600;
 }
 .session-count {
@@ -317,9 +318,9 @@ p {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin: 0 12px 12px;
+  margin: 0 8px 6px;
   padding: 0 9px;
-  height: 34px;
+  height: 28px;
   border: 1px solid var(--border);
   border-radius: 5px;
   color: var(--muted);
@@ -346,7 +347,7 @@ p {
   scrollbar-color: #424f61 transparent;
 }
 .session-group {
-  margin-bottom: 12px;
+  margin-bottom: 6px;
 }
 .session-group summary {
   display: flex;
@@ -354,7 +355,7 @@ p {
   gap: 7px;
   cursor: pointer;
   list-style: none;
-  padding: 7px 4px;
+  padding: 5px 4px;
   color: #bdc8d7;
 }
 .session-group summary::-webkit-details-marker {
@@ -370,10 +371,10 @@ p {
 .session {
   display: flex;
   align-items: flex-start;
-  gap: 11px;
+  gap: 8px;
   width: 100%;
   text-align: left;
-  padding: 10px 12px;
+  padding: 6px 8px;
   margin: 2px 0;
   background: transparent;
   border-color: transparent;
@@ -397,13 +398,13 @@ p {
   color: #50ca90;
 }
 .session-symbol .icon {
-  width: 22px;
-  height: 22px;
+  width: 18px;
+  height: 18px;
 }
 .session-content {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
   min-width: 0;
   flex: 1;
 }
@@ -413,13 +414,13 @@ p {
   justify-content: space-between;
   gap: 8px;
   font-size: 12px;
+  line-height: 16px;
 }
 .session-title strong {
   font-weight: 500;
 }
 .session-title strong,
-.session-label,
-.session-meta {
+.session-label {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -427,10 +428,7 @@ p {
 .session-label {
   color: var(--muted);
   font-size: 11px;
-}
-.session-meta {
-  font-size: 10px;
-  color: var(--muted);
+  line-height: 14px;
 }
 .empty-list {
   color: var(--muted);
@@ -439,7 +437,7 @@ p {
   padding: 10px 6px;
 }
 .host-panel {
-  padding: 14px;
+  padding: 10px;
   border-top: 1px solid var(--border);
   background: #171c24;
   flex-shrink: 0;
@@ -447,7 +445,7 @@ p {
 .host-panel h2 {
   font-size: 13px;
   font-weight: 600;
-  margin-bottom: 14px;
+  margin-bottom: 6px;
   display: flex;
   align-items: center;
   gap: 14px;
@@ -461,9 +459,9 @@ p {
 .host-connection {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   min-width: 0;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 .connection {
   display: flex;
@@ -487,11 +485,12 @@ p {
   gap: 9px;
   width: 100%;
   font-size: 12px;
+  padding: 5px 8px;
 }
 .host-hint {
   font-size: 10px;
   color: var(--muted);
-  margin-top: 10px;
+  margin-top: 6px;
 }
 .dot {
   display: inline-block;
@@ -527,27 +526,26 @@ main {
   background: var(--editor-background);
 }
 .terminal-toolbar {
-  height: 52px;
+  height: 32px;
   display: flex;
   align-items: stretch;
-  gap: 16px;
-  padding: 6px 12px 0 0;
+  padding: 0;
   flex-shrink: 0;
   border-bottom: 1px solid var(--border);
   background: var(--panel-background);
 }
 .terminal-tab {
-  min-width: 120px;
+  min-width: 100px;
   max-width: 75%;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 0 12px;
+  gap: 8px;
+  padding: 0 8px;
   border-bottom: 2px solid transparent;
 }
 .terminal-tab.attached {
   background: #232d3b;
-  border-radius: 6px 6px 0 0;
+  border-radius: 0;
   border-bottom-color: #71bcf7;
 }
 .terminal-tab > .icon {
@@ -567,15 +565,6 @@ main {
 .terminal-tab .icon-button .icon {
   width: 14px;
   height: 14px;
-}
-.terminal-target {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--muted);
-  font-size: 11px;
-  align-self: center;
 }
 .terminal-empty {
   flex: 1;
@@ -609,7 +598,7 @@ main {
 .terminal-view {
   flex: 1;
   min-height: 0;
-  margin: 12px 12px 4px;
+  margin: 8px;
   overflow: hidden;
 }
 .terminal-view .xterm {
@@ -640,24 +629,6 @@ main {
   margin-left: 12px;
   font-size: 11px;
   padding: 3px 8px;
-}
-.terminal-input-hint {
-  margin: 10px 16px 16px;
-  padding: 10px 12px;
-  border: 1px solid #354458;
-  border-radius: 5px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  color: var(--muted);
-  font-size: 11px;
-  flex-shrink: 0;
-}
-.input-mode {
-  margin-left: auto;
-  white-space: nowrap;
-  font-size: 10px;
-  color: #becce0;
 }
 .statusbar {
   display: flex;
@@ -695,7 +666,7 @@ main {
 }
 @media (max-width: 900px) {
   .workspace {
-    grid-template-columns: 40px 210px minmax(0, 1fr);
+    grid-template-columns: 40px var(--sidebar-width, 210px) minmax(0, 1fr);
   }
   .sidebar-hidden .workspace {
     grid-template-columns: 40px minmax(0, 1fr);
@@ -707,17 +678,11 @@ main {
     padding: 10px 12px;
   }
   .host-panel h2 {
-    margin-bottom: 9px;
+    margin-bottom: 6px;
   }
   .host-hint,
-  .input-mode,
   .status-session {
     display: none;
-  }
-  .terminal-input-hint {
-    margin: 6px 10px 10px;
-    padding: 8px;
-    font-size: 10px;
   }
   .statusbar {
     gap: 10px;
@@ -727,4 +692,21 @@ main {
   .input-status {
     padding-left: 10px;
   }
+}
+
+/* Pointer capture keeps dragging stable across xterm and beyond the window edge. */
+.sidebar-resizer {
+  position: absolute;
+  inset: 0 -3px 0 auto;
+  width: 6px;
+  z-index: 2;
+  cursor: col-resize;
+  touch-action: none;
+  user-select: none;
+}
+.sidebar-resizer:hover,
+.sidebar-resizer:focus-visible,
+.sidebar-resizer.dragging {
+  background: var(--accent);
+  outline: none;
 }

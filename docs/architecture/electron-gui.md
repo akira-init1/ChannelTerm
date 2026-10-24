@@ -59,7 +59,7 @@ Native window chrome is requested in dark mode independently of the OS theme; th
 theme switcher or custom window-control API. This is application-defined styling.
 
 The native title bar and minimum window size (760 × 500) remain unchanged. The application
-area has a 32 px application menu bar, a flexible workspace, and a 32 px full-width status bar.
+area has a 32 px application menu bar, a flexible workspace, and a 24 px full-width status bar.
 The menu bar contains only menus, without an application name, logo, or preview banner.
 **Connection, Session, Terminal, View, Settings, Help** expose the implemented actions described
 in the [menu reference](../reference/gui-menus.md). Renderer popovers and the native Electron
@@ -69,23 +69,30 @@ strip remains the visible Windows/Linux menu surface; macOS also has its native 
 The official Lingui CLI maintains PO catalogs and compiles shared resource imports before both
 esbuild and Vite run. Each process owns its own Lingui instance; there is no cross-process
 translation loader or credential access. See the [maintenance workflow](../development/electron-gui.md#menu-translations-lingui-590).
-A 48 px activity rail toggles the 260 px Session sidebar without changing the attachment.
-At viewport widths of 900 px or less, the rail/sidebar shrink to 40/210 px and secondary
-labels are hidden. The terminal takes the remaining width and height; its 52 px header
-shows the single current attachment as a tab-shaped title. The close icon performs **Close tab (detach)**,
+A 48 px activity rail toggles the Session sidebar without changing the attachment. The sidebar
+defaults to 260 px, or 210 px with a 40 px rail at viewport widths of 900 px or less. Its edge
+is a draggable, keyboard-focusable separator: Left/Right adjust by 10 px, Home/End select the
+allowed limits, and double-click restores the current viewport's default. Width is clamped
+between 180 and 480 px with additional viewport bounds to keep the terminal usable. This is
+window-local view state; hiding the sidebar preserves it, while reopening the GUI resets it.
+The terminal takes the remaining width and height; its 32 px header shows the single current
+attachment once as a tab-shaped title. The close icon performs **Close tab (detach)**,
 not Session close. There is no multi-tab state or background terminal.
 
 The sidebar provides case-insensitive local search by reference, label, endpoint, or transport,
 and collapsible Serial, SSH, and Other groups. Group counts reflect the filtered rows; the
 overall count still reflects all Host Sessions. Filtering or collapsing rows never detaches
 the selected Session. Group expansion and search are temporary view state, not saved profiles.
-The list scrolls independently, keeping search and the bottom Host panel visible. Host status,
+Rows use two compact lines: label/reference, then endpoint and state. A reference is shown on
+the second line only when a distinct custom label occupies the first; there is no duplicate
+reference-only third line. The list scrolls independently, keeping search and the compact bottom Host panel visible. Host status,
 configured endpoint, and connect/disconnect live in that panel. Reopen a collapsed sidebar
 using the activity rail to access these controls. Long endpoints and Session labels truncate
 visually with their full value available on hover.
 The status bar distinguishes no attachment, enabled input, paused input, lease read-only,
 and an unavailable Session. These labels report client snapshots, not write authority. The
-bottom terminal hint describes direct xterm input; it is not a separate command composer.
+terminal has no separate input-hint box or command composer. Input remains directly in xterm.
+Dragging only refits local xterm cells; it neither detaches nor sends a remote resize request.
 No baud rate, throughput, recent-connection history, or other unavailable metadata is invented.
 
 | State | Display and supported next action |

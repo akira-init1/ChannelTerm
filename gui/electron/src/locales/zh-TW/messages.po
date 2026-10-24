@@ -295,5 +295,15 @@ msgstr "恢復輸入"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "view.resizeSidebar"
+msgstr "調整工作階段側欄寬度"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "view.resizeSidebarHelp"
+msgstr "拖曳或使用方向鍵調整寬度，按兩下恢復預設。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "view.sidebar"
 msgstr "工作階段側邊欄"

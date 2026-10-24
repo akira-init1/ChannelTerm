@@ -295,5 +295,15 @@ msgstr "Eingabe fortsetzen"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "view.resizeSidebar"
+msgstr "Sitzungsseitenleiste skalieren"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "view.resizeSidebarHelp"
+msgstr "Zum Skalieren ziehen oder Pfeiltasten verwenden. Doppelklicken zum Zurücksetzen."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "view.sidebar"
 msgstr "Sitzungsseitenleiste"
