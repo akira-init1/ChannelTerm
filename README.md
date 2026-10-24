@@ -368,6 +368,7 @@ validation, and persistence behavior.
 ## Documentation
 
 - [Documentation index](docs/README.md)
+- [Electron GUI prototype and development](docs/development/electron-gui.md)
 - [Serial terminal workflow](docs/getting-started/serial-terminal.md)
 - [SSH shell workflow](docs/getting-started/ssh-terminal.md)
 - [Shared Session workflow](docs/getting-started/shared-session.md)

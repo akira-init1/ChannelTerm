@@ -371,6 +371,7 @@ unterstützt außerdem `--connection-policy ask|auto|deny`. `--config` ändert n
 ## Dokumentation
 
 - [Dokumentationsindex](docs/README.md)
+- [Electron-GUI-Prototyp und Entwicklung](docs/development/electron-gui.md)
 - [Seriellen Terminalablauf verwenden](docs/getting-started/serial-terminal.md)
 - [SSH-Shell verwenden](docs/getting-started/ssh-terminal.md)
 - [Eine Session teilen](docs/getting-started/shared-session.md)

@@ -1,5 +1,8 @@
 # Development Setup
 
+The independent Electron frontend has its own [GUI setup guide](electron-gui.md). Node/npm are
+needed only for that frontend; the Go CLI setup and build below remain independent.
+
 Install Go 1.26 or newer, using a currently supported patched toolchain for ordinary development,
 and clone the repository on Windows, Linux, or macOS. The canonical Go module path is
 `github.com/akira-init1/ChannelTerm`. The supported desktop architectures are `amd64` and `arm64`.

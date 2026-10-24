@@ -1,0 +1,17 @@
+ChannelTerm Electron is licensed under the repository's Apache License 2.0.
+
+The independent npm dependency graph is pinned in package-lock.json. The current
+runtime JavaScript dependencies use MIT, ISC, BSD-2-Clause, and BSD-3-Clause
+licenses. Electron uses MIT and includes Chromium and other third-party code
+with their own notices.
+
+npm run build collects the installed runtime dependency license texts, including
+the Electron npm package license, into dist/THIRD_PARTY_NOTICES.txt and copies the
+ChannelTerm license into dist/LICENSE. Redistribution of the bundled JavaScript
+must retain those files. The generated notices cover the installed production
+dependency graph, including packages that the client bundle may not use.
+
+A future desktop package must additionally retain Electron's distributed LICENSE
+and LICENSES.chromium.html and any accompanying runtime notices, and include the
+repository THIRD_PARTY_NOTICES when bundling a Go Host. This prototype does not
+produce an installer or redistribute an Electron runtime archive.

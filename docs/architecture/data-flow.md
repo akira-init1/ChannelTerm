@@ -1,5 +1,14 @@
 # Runtime Data Flow
 
+## Electron attachment
+
+The [Electron process and IPC diagram](electron-gui.md#processes-and-communication) separates
+runtime communication from source dependencies. React/xterm calls the isolated Preload bridge;
+validated IPC reaches Main's Host Client, which calls existing authenticated MCP tools on the
+independent Go Host. Reads use a Main-owned output cursor. Ordinary GUI writes reach the same
+Application lease checks and Session write serialization as other shared clients. A closed GUI
+cancels its client requests without closing the Host or Session. No Transport is opened by the GUI.
+
 ## Serial output
 
 The single reader stores raw bytes independently of client presentation:

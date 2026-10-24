@@ -50,6 +50,7 @@ for command-line flags and defaults, the running program's `--help` output remai
 
 - [Architecture overview](architecture/overview.md)
 - [Repository map](architecture/repository-map.md)
+- [Electron GUI architecture](architecture/electron-gui.md)
 - [Runtime data flow](architecture/data-flow.md)
 
 ## Modules
@@ -65,6 +66,7 @@ for command-line flags and defaults, the running program's `--help` output remai
 ## Development
 
 - [Development setup](development/setup.md)
+- [Electron GUI development and checks](development/electron-gui.md)
 - [Building and testing](development/building-and-testing.md)
 - [Code style](development/code-style.md)
 - [Known issues and pending investigations](development/known-issues.md)

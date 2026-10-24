@@ -14,6 +14,8 @@ ChannelTerm/
 |-- cmd/
 |   `-- channelterm/
 |       `-- main.go                 Process entry point and composition root
+|-- gui/
+|   `-- electron/                   Independent Electron frontend (detailed ownership below)
 |-- internal/
 |   |-- cli/
 |   |   |-- command/                Commands, flags, local output, host/client wiring
@@ -104,3 +106,41 @@ The main ownership distinctions are deliberate:
 
 Update this map when a top-level directory or `internal` package is added, removed, moved, or
 assigned a materially different stable responsibility.
+
+## Electron source ownership
+
+```text
+gui/electron/
+|-- AGENTS.md                       Electron-specific layering, security, performance, and review rules
+|-- src/
+|   |-- main/
+|   |   |-- index.ts                Window lifecycle, static application scheme, validated IPC
+|   |   |-- security.ts             Trusted caller and content-policy checks
+|   |   `-- host/                   Main-only credentials, MCP client, validation, safe errors
+|   |-- preload/                   Narrow contextBridge methods; no business decisions
+|   |-- renderer/
+|   |   |-- components/            React application shell and view state
+|   |   |-- sessions/              Session selection and display metadata
+|   |   |-- terminal/              xterm presentation, bounded input, output render pacing
+|   |   |-- styles/                Desktop presentation
+|   |   |-- host.ts                Renderer adapter for the typed Preload bridge
+|   |   `-- main.tsx               React entry point
+|   `-- shared/                    GUI bridge types and fixed channel names
+|-- scripts/                       Independent build/start/dev/notices and desktop test runners
+|-- tests/
+|   |-- host/                      Disposable Go composition using the real Host with fake I/O
+|   `-- *.ts                       Host Client integration, security checks, fixture lifecycle
+|-- package.json                   Independent npm dependency graph and commands
+|-- package-lock.json              Exact resolved dependencies
+|-- tsconfig.json                  Strict TypeScript checks
+|-- vite.config.ts                 Renderer build and loopback development server
+|-- index.html                     Renderer document
+|-- THIRD_PARTY_NOTICES             GUI redistribution obligations and generated notice location
+`-- .gitignore                     Local dependencies, build output, and test artifacts
+```
+
+Main's Host Client calls existing authenticated MCP tools; it does not import Go source, own a
+Session, or manage leases. The Go fixture is test composition only, not a second production Host
+or Core implementation. It opens no hardware and is not included in GUI production assets.
+The `gui/` boundary can accommodate a future independent frontend; no Qt project is present.
+See [GUI architecture](electron-gui.md) and [GUI development](../development/electron-gui.md).

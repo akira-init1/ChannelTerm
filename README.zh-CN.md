@@ -352,6 +352,7 @@ channelterm serial --config ./channelterm.toml --profile board
 ## 文档
 
 - [文档索引](docs/README.md)
+- [Electron GUI 原型与开发](docs/development/electron-gui.md)
 - [串口终端流程](docs/getting-started/serial-terminal.md)
 - [SSH shell 使用流程](docs/getting-started/ssh-terminal.md)
 - [共享 Session](docs/getting-started/shared-session.md)

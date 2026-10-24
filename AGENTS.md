@@ -49,6 +49,7 @@ Place code by responsibility, using these stable boundaries:
 | `internal/mcp/`, `internal/mcp/terminal/` | MCP hosting, schemas, translation to application use cases; no competing Core lifecycle/business logic |
 | `scripts/`, `.github/workflows/` | Local automation and hosted CI/tagged releases respectively; no product behavior |
 | `skills/` | AI workflows over public interfaces; no product logic, schemas, or duplicated reference docs |
+| `gui/electron/` | Independent Electron client, safe IPC, terminal presentation, authenticated Host adapter; no Core or lease authority |
 | `docs/` | Durable public technical documentation |
 
 Mandatory architecture rules:

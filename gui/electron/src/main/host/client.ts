@@ -1,0 +1,379 @@
+import { randomUUID } from "node:crypto";
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import type {
+  Attachment,
+  HostInfo,
+  Output,
+  SessionSummary,
+} from "../../shared/api";
+import { HostError } from "./errors";
+import { hostEndpoint } from "./config";
+import {
+  identifier,
+  incompatible,
+  input,
+  integer,
+  object,
+  sessions,
+  text,
+} from "./validation";
+
+type ActiveAttachment = Attachment & {
+  cursor?: number;
+  controller: AbortController;
+  reading: boolean;
+  queuedBytes: number;
+  writeVersion: number;
+  writes: Promise<void>;
+};
+
+class ToolFailure extends Error {
+  constructor(readonly code: string) {
+    super("Host tool failed");
+  }
+}
+
+/** An MCP client only: owns cursors/cancellation, never Session or lease authority. */
+export class HostClient {
+  private client?: Client;
+  private lifetime: HostInfo["lifetime"] = "unknown";
+  private connection = new AbortController();
+  private active?: ActiveAttachment;
+  private changing = false;
+  private readonly endpoint: URL;
+
+  constructor(
+    endpoint: string,
+    private readonly token: string,
+  ) {
+    this.endpoint = hostEndpoint(endpoint);
+  }
+
+  info(): HostInfo {
+    return { endpoint: this.endpoint.href, lifetime: this.lifetime };
+  }
+
+  async connect(): Promise<HostInfo> {
+    if (this.client || this.changing)
+      throw new HostError(
+        "invalid_input",
+        "Disconnect before connecting again.",
+      );
+    this.changing = true;
+    this.connection = new AbortController();
+    const signal = this.connection.signal;
+    const client = new Client({
+      name: "channelterm-electron",
+      version: "0.1.0",
+    });
+    this.client = client;
+    const transport = new StreamableHTTPClientTransport(this.endpoint, {
+      // Never follow redirects with a credential or accept a renderer-supplied URL.
+      fetch: async (url, init) => {
+        const requested = new URL(url.toString());
+        if (requested.href !== this.endpoint.href)
+          throw new HostError(
+            "unauthorized",
+            "Host attempted to redirect the client.",
+          );
+        const response = await fetch(url, {
+          ...init,
+          redirect: "error",
+          headers: {
+            ...Object.fromEntries(new Headers(init?.headers)),
+            Authorization: `Bearer ${this.token}`,
+          },
+          signal: AbortSignal.any([
+            signal,
+            AbortSignal.timeout(10000),
+            ...(init?.signal ? [init.signal] : []),
+          ]),
+        });
+        if (response.status === 401 || response.status === 403) {
+          await response.body?.cancel();
+          throw new HostError(
+            "unauthorized",
+            "Host rejected authentication. Check the Main process credential and endpoint.",
+          );
+        }
+        this.lifetime =
+          response.headers.get("X-ChannelTerm-Host-Lifetime") === "attachment"
+            ? "attachment"
+            : "persistent";
+        return response;
+      },
+    });
+    try {
+      await client.connect(transport);
+      if (signal.aborted)
+        throw new HostError("cancelled", "Connection cancelled.");
+      if (client.getServerVersion()?.name !== "channelterm")
+        throw incompatible();
+      await this.list();
+      return this.info();
+    } catch (error) {
+      await this.disconnect();
+      throw error;
+    } finally {
+      this.changing = false;
+    }
+  }
+
+  private async call(
+    name: string,
+    args: Record<string, unknown>,
+    signal?: AbortSignal,
+  ): Promise<Record<string, unknown>> {
+    const client = this.client;
+    if (!client || this.connection.signal.aborted)
+      throw new HostError("disconnected", "Connect to a Host first.");
+    const result = await client.callTool({ name, arguments: args }, undefined, {
+      signal,
+      timeout: 10000,
+    });
+    if (result.isError) {
+      const details = object(object(result.structuredContent).error);
+      throw new ToolFailure(text(details.code));
+    }
+    return object(result.structuredContent);
+  }
+
+  async list(): Promise<SessionSummary[]> {
+    return sessions(await this.call("terminal_list_sessions", {}));
+  }
+
+  async attach(sessionId: string): Promise<Attachment> {
+    identifier(sessionId);
+    if (this.changing)
+      throw new HostError(
+        "invalid_input",
+        "An attachment change is already in progress.",
+      );
+    this.changing = true;
+    const connection = this.connection;
+    try {
+      await this.detach();
+      const entry = (await this.list()).find(
+        (entry) => entry.session_id === sessionId,
+      );
+      if (!entry || entry.state !== "open")
+        throw new HostError(
+          "closed",
+          "Session is no longer open. Refresh the Session list.",
+        );
+      const attached = await this.call("terminal_session_attach", {
+        session_id: sessionId,
+        actor: "user",
+      });
+      if (attached.attached !== true) throw incompatible();
+      if (connection.signal.aborted)
+        throw new HostError("cancelled", "Attachment cancelled.");
+      const active: ActiveAttachment = {
+        id: randomUUID(),
+        sessionId,
+        controller: new AbortController(),
+        reading: false,
+        queuedBytes: 0,
+        writeVersion: 0,
+        writes: Promise.resolve(),
+      };
+      this.active = active;
+      return { id: active.id, sessionId };
+    } finally {
+      this.changing = false;
+    }
+  }
+
+  private attachment(id: string): ActiveAttachment {
+    identifier(id);
+    if (
+      !this.active ||
+      this.active.id !== id ||
+      this.active.controller.signal.aborted
+    ) {
+      throw new HostError("cancelled", "This attachment has ended.");
+    }
+    return this.active;
+  }
+
+  async detach(id?: string): Promise<void> {
+    if (id !== undefined) {
+      identifier(id);
+      if (this.active?.id !== id) return;
+    }
+    const active = this.active;
+    this.active = undefined;
+    if (!active) return;
+    active.controller.abort();
+    // This records a lifecycle event only. No terminal_close, lease release, or Host shutdown.
+    try {
+      await this.call(
+        "terminal_session_detach",
+        { session_id: active.sessionId, actor: "user" },
+        AbortSignal.timeout(1000),
+      );
+    } catch {
+      /* Best effort when the Host or Session has already gone away. */
+    }
+  }
+
+  async read(id: string): Promise<Output> {
+    const active = this.attachment(id);
+    if (active.reading)
+      throw new HostError(
+        "invalid_input",
+        "Only one output read may be outstanding.",
+      );
+    active.reading = true;
+    try {
+      const result = await this.call(
+        "terminal_read",
+        {
+          session_id: active.sessionId,
+          encoding: "base64",
+          max_bytes: 65536,
+          ...(active.cursor === undefined
+            ? {}
+            : { cursor: active.cursor, timeout_ms: 1000 }),
+        },
+        active.controller.signal,
+      );
+      this.attachment(id);
+      const next = integer(result.next);
+      const count = integer(result.bytes_read);
+      const encoded = text(result.data);
+      if (
+        result.encoding !== "base64" ||
+        typeof result.dropped !== "boolean" ||
+        count > 65536 ||
+        encoded.length > 87384
+      )
+        throw incompatible();
+      const bytes = Buffer.from(encoded, "base64");
+      if (
+        bytes.length !== count ||
+        bytes.toString("base64") !== encoded ||
+        next < count ||
+        (active.cursor !== undefined && next < active.cursor)
+      )
+        throw incompatible();
+      active.cursor = next;
+      return { data: Array.from(bytes), dropped: result.dropped };
+    } catch (error) {
+      if (error instanceof ToolFailure && error.code === "timeout")
+        return { data: [], dropped: false };
+      throw await this.classify(error, active);
+    } finally {
+      active.reading = false;
+    }
+  }
+
+  async write(id: string, data: string): Promise<void> {
+    input(data);
+    const active = this.attachment(id);
+    const bytes = Buffer.byteLength(data, "utf8");
+    if (active.queuedBytes + bytes > 65536)
+      throw new HostError(
+        "invalid_input",
+        "Input queue is full; wait before sending more.",
+      );
+    active.queuedBytes += bytes;
+    const version = active.writeVersion;
+    const write = active.writes
+      .then(async () => {
+        this.attachment(id);
+        if (version !== active.writeVersion)
+          throw new HostError(
+            "cancelled",
+            "Queued input discarded after a failed write.",
+          );
+        const result = await this.call(
+          "terminal_write",
+          {
+            session_id: active.sessionId,
+            data,
+            encoding: "utf8",
+            actor: "user",
+          },
+          active.controller.signal,
+        );
+        if (integer(result.bytes_written) !== bytes)
+          throw new HostError(
+            "tool_error",
+            "Incomplete write. Input was not retried; check the remote terminal.",
+          );
+      })
+      .catch(async (error: unknown) => {
+        active.writeVersion++;
+        throw await this.classify(error, active);
+      })
+      .finally(() => {
+        active.queuedBytes -= bytes;
+      });
+    active.writes = write.catch(() => {});
+    return write;
+  }
+
+  private async classify(
+    error: unknown,
+    active: ActiveAttachment,
+  ): Promise<unknown> {
+    if (active.controller.signal.aborted || this.connection.signal.aborted)
+      return new HostError("cancelled", "Attachment cancelled.");
+    if (!(error instanceof ToolFailure)) return error;
+    if (error.code === "session_closed" || error.code === "session_not_found")
+      return new HostError(
+        "closed",
+        "Session closed. Refresh and select an open Session.",
+      );
+    if (error.code === "cancelled")
+      return new HostError("cancelled", "Host cancelled this request.");
+    // Ordinary terminal_write currently returns tool_error for contention. Query
+    // authoritative structured state instead of parsing human-readable error text.
+    const entry = (await this.list()).find(
+      (entry) => entry.session_id === active.sessionId,
+    );
+    if (!entry || entry.state !== "open")
+      return new HostError(
+        "closed",
+        "Session closed. Refresh and select an open Session.",
+      );
+    if (entry.lease || error.code === "session_busy")
+      return new HostError(
+        "busy",
+        "Host reports an active writer lease. Input was discarded; reading remains available.",
+      );
+    return new HostError(
+      "tool_error",
+      "Host rejected the operation. Input was not retried; check Session state before continuing.",
+    );
+  }
+
+  async disconnect(): Promise<void> {
+    // Abort immediately, including an in-progress handshake. Detach is advisory;
+    // a disconnected MCP client never owns the underlying Session lifetime.
+    const active = this.active;
+    this.active = undefined;
+    active?.controller.abort();
+    const client = this.client;
+    this.client = undefined;
+    if (active && client && !this.connection.signal.aborted) {
+      try {
+        await client.callTool(
+          {
+            name: "terminal_session_detach",
+            arguments: { session_id: active.sessionId, actor: "user" },
+          },
+          undefined,
+          { signal: AbortSignal.timeout(500), timeout: 500 },
+        );
+      } catch {
+        /* Host may be unreachable. */
+      }
+    }
+    this.connection.abort();
+    await client?.close().catch(() => {});
+    this.lifetime = "unknown";
+  }
+}

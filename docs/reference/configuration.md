@@ -156,6 +156,17 @@ malformed records, and unsupported versions are returned as errors without silen
 original file. Version 1 does not implement cross-process file locking; one Core process should own
 a given state file.
 
+## Electron client settings
+
+The independent Electron frontend does not add TOML fields or alter Host configuration.
+`CHANNELTERM_GUI_ENDPOINT` is a GUI Main-process override for the existing MCP endpoint, defaulting
+to `http://127.0.0.1:37099/mcp`. The prototype accepts numeric loopback HTTP addresses only
+(`127.0.0.1` or `::1`), without URL credentials, query, fragment, or redirects. Main reuses
+`CHANNELTERM_HTTP_AUTH_TOKEN` or reads the existing default `http-auth-token`; it never creates one.
+No token is passed to React or stored in GUI preferences. Development runner variables prefixed
+`CHANNELTERM_GUI_DEV_` are internal and not Host configuration. See the
+[GUI workflow](../development/electron-gui.md#connect-to-an-existing-host).
+
 ## SSH CLI settings
 
 SSH connections use explicit CLI options and do not add TOML fields or saved profiles. The CLI

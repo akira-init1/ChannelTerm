@@ -15,6 +15,14 @@ relevant to implementation work.
 - Avoid global mutable state and unnecessary dependencies.
 - Keep OS-specific behavior in small files with appropriate build constraints.
 
+## TypeScript style
+
+For `gui/electron`, use strict TypeScript and the project's Prettier commands. Keep credentials,
+MCP calls, runtime validation, and privileged APIs in Main; Preload exposes individual typed
+methods, while React and xterm remain presentation code. Review cancellation, stale attachments,
+bounded queues, and safe IPC errors when changing those boundaries. See
+[GUI architecture](../architecture/electron-gui.md) for the ownership and security contract.
+
 ## Documentation comments
 
 Every exported package, type, interface, function, method, constant, and variable requires an

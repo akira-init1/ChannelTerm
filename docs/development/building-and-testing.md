@@ -56,6 +56,11 @@ go test -run '^$' -bench . -benchmem ./internal/core/session
 
 ## Build scripts
 
+The Electron GUI is a separate build target with its own dependency lock and build output under
+`gui/electron/`. Its [development guide](electron-gui.md#checks-and-isolated-host) owns the npm
+checks and native desktop acceptance test. CLI commands below never invoke Node or npm; the GUI
+production build does not compile or copy Go Core. Existing tagged CLI releases remain unchanged.
+
 PowerShell:
 
 ```powershell

@@ -1,0 +1,415 @@
+import assert from "node:assert/strict";
+import { _electron as electron, expect } from "@playwright/test";
+import { startFixture } from "../tests/fixture.ts";
+import { HostClient } from "../src/main/host/client.ts";
+import { randomBytes } from "node:crypto";
+import { createServer } from "vite";
+import { buildProcesses } from "./build.mjs";
+
+// Resize the native window rather than emulating a browser viewport. Check that
+// chrome stays visible and xterm follows its container without body scrolling.
+async function checkLayout(desktop, page, state) {
+  for (const [width, height] of [
+    [760, 500],
+    [1180, 780],
+    [1500, 900],
+  ]) {
+    await desktop.evaluate(
+      ({ BrowserWindow }, size) => {
+        BrowserWindow.getAllWindows()[0].setSize(...size);
+      },
+      [width, height],
+    );
+    await expect.poll(() => page.evaluate(() => window.outerWidth)).toBe(width);
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const rect = (selector) =>
+            document.querySelector(selector).getBoundingClientRect();
+          const top = rect(".topbar");
+          const side = rect(".sidebar");
+          const main = rect("main");
+          const bottom = rect(".statusbar");
+          const surface = rect(".terminal-view, .terminal-empty");
+          const screen = document
+            .querySelector(".xterm-screen")
+            ?.getBoundingClientRect();
+          return {
+            top: top.top === 0,
+            sidebar: side.top === top.bottom && main.left === side.right,
+            bottom: bottom.bottom <= innerHeight && bottom.top === main.bottom,
+            right: main.right <= innerWidth,
+            width: surface.width > innerWidth * 0.6,
+            height: surface.height > innerHeight * 0.5,
+            scroll:
+              document.documentElement.scrollWidth <= innerWidth &&
+              document.documentElement.scrollHeight <= innerHeight,
+            terminal:
+              !screen ||
+              (screen.right <= surface.right &&
+                screen.bottom <= surface.bottom),
+          };
+        }),
+      )
+      .toEqual({
+        top: true,
+        sidebar: true,
+        bottom: true,
+        right: true,
+        width: true,
+        height: true,
+        scroll: true,
+        terminal: true,
+      })
+      .catch(async (error) => {
+        console.error(
+          state,
+          width,
+          height,
+          await page.evaluate(() =>
+            [".terminal-view", ".xterm", ".xterm-screen"].map((selector) => ({
+              selector,
+              rect: document
+                .querySelector(selector)
+                ?.getBoundingClientRect()
+                .toJSON(),
+            })),
+          ),
+        );
+        await page.screenshot({
+          path: "test-results/workbench-layout-failure.png",
+        });
+        throw error;
+      });
+    await expect(
+      page.getByRole("button", {
+        name: /Connect to Host|Disconnect Host|Retry connection/,
+      }),
+    ).toBeInViewport();
+    await expect(
+      page.getByRole("searchbox", { name: "Search Sessions" }),
+    ).toBeInViewport();
+    if (width === 760) {
+      await page.screenshot({
+        path: `test-results/workbench-${state}-compact.png`,
+      });
+    }
+  }
+  await desktop.evaluate(({ BrowserWindow }) =>
+    BrowserWindow.getAllWindows()[0].setSize(1180, 780),
+  );
+}
+
+const fixture = await startFixture();
+const observer = new HostClient(fixture.endpoint, fixture.token);
+const desktopEnvironment = {
+  ...process.env,
+  CHANNELTERM_GUI_ENDPOINT: fixture.endpoint,
+  CHANNELTERM_HTTP_AUTH_TOKEN: fixture.token,
+  CHANNELTERM_GUI_DEV_URL: "",
+};
+delete desktopEnvironment.ELECTRON_RUN_AS_NODE;
+let desktop;
+let devServer;
+try {
+  if (process.argv.includes("--dev")) {
+    await buildProcesses();
+    const nonce = randomBytes(16).toString("hex");
+    devServer = await createServer({ html: { cspNonce: nonce } });
+    await devServer.listen();
+    desktopEnvironment.CHANNELTERM_GUI_DEV_URL = "http://127.0.0.1:5173";
+    desktopEnvironment.CHANNELTERM_GUI_DEV_NONCE = nonce;
+  }
+  await observer.connect();
+  const sessionId = (await observer.list())[0].session_id;
+  const attachment = await observer.attach(sessionId);
+  desktop = await electron.launch({
+    args: ["."],
+    env: desktopEnvironment,
+  });
+  const page = await desktop.firstWindow();
+  const errors = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await expect(
+    page.getByRole("navigation", { name: "Application menu", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "ChannelTerm", exact: true }),
+  ).toHaveCount(0);
+  await expect(page.locator(".topbar")).toHaveCSS("height", "32px");
+  await expect(page.locator(".brand-mark")).toHaveCount(0);
+  await expect(page.getByText("Desktop preview", { exact: true })).toHaveCount(
+    0,
+  );
+  await expect(
+    page.getByText("Terminal workspace", { exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Settings (not available yet)" }),
+  ).toBeDisabled();
+  await page.getByRole("button", { name: "View", exact: true }).click();
+  await page.getByRole("button", { name: "Hide Session sidebar" }).click();
+  await expect(page.locator(".sidebar")).not.toBeVisible();
+  await expect(page.locator("#view-options")).not.toBeVisible();
+  await page.getByRole("button", { name: "View", exact: true }).click();
+  await page.getByRole("button", { name: "Show Session sidebar" }).click();
+  await expect(page.locator(".sidebar")).toBeVisible();
+  // Keyboard opening and Escape use native popover focus restoration.
+  await page.getByRole("button", { name: "Help", exact: true }).focus();
+  await page.keyboard.press("Enter");
+  await expect(
+    page.getByRole("heading", { name: "Using ChannelTerm" }),
+  ).toBeVisible();
+  await page.screenshot({ path: "test-results/workbench-menu.png" });
+  await page.keyboard.press("Escape");
+  await expect(page.locator("#help-panel")).not.toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Help", exact: true }),
+  ).toBeFocused();
+  await page.getByRole("button", { name: "Help", exact: true }).click();
+  await page.locator(".terminal-toolbar").click();
+  await expect(page.locator("#help-panel")).not.toBeVisible();
+  await expect
+    .poll(() =>
+      desktop.evaluate(({ BrowserWindow }) =>
+        BrowserWindow.getAllWindows()[0].isVisible(),
+      ),
+    )
+    .toBe(true);
+  const preferences = await desktop.evaluate(({ BrowserWindow }) =>
+    BrowserWindow.getAllWindows()[0].webContents.getLastWebPreferences(),
+  );
+  assert.equal(preferences.sandbox, true);
+  assert.equal(preferences.contextIsolation, true);
+  assert.equal(preferences.nodeIntegration, false);
+  assert.deepEqual(
+    await page.evaluate(() => [typeof window.require, typeof window.process]),
+    ["undefined", "undefined"],
+  );
+  assert.equal(
+    await page.evaluate(
+      async () => (await window.channelterm.attach({})).error.code,
+    ),
+    "invalid_input",
+  );
+  await expect(
+    page.getByRole("heading", { name: "No Host connected" }),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Refresh" })).toBeDisabled();
+  await expect(
+    page.getByText("Connect a Host to list Sessions."),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", {
+      name: /MCP|transfer|Agent|Start Host|New Session/i,
+    }),
+  ).toHaveCount(0);
+  await checkLayout(desktop, page, "disconnected");
+  await page.screenshot({ path: "test-results/workbench-disconnected.png" });
+  await page.getByRole("button", { name: "Connect to Host" }).click();
+  await expect(page.getByText("Host connected", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Select a Session" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: /SER-1/ }).click();
+  await expect(page.locator(".xterm-screen")).toBeVisible();
+  // FitAddon reads the container's size. Wrapper spacing must neither inflate
+  // that size nor leak onto xterm's own .terminal class and clip fitted cells.
+  await expect(page.locator(".terminal-view")).toHaveCSS("padding", "0px");
+  await expect(page.locator(".xterm")).toHaveCSS("padding", "0px");
+  await expect(page.getByRole("button", { name: /SER-1/ })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await expect(
+    page.getByText("Attached · Input enabled", { exact: true }),
+  ).toBeVisible();
+  await checkLayout(desktop, page, "attached");
+  // Searching/collapsing navigation only changes presentation, never attachment.
+  await page
+    .getByRole("searchbox", { name: "Search Sessions" })
+    .fill("no-such-session");
+  await expect(page.getByText("No matching Sessions.")).toBeVisible();
+  await expect(page.locator(".xterm-screen")).toBeVisible();
+  await page
+    .getByRole("searchbox", { name: "Search Sessions" })
+    .fill("ISOLATED");
+  await expect(page.locator(".session")).toHaveCount(1);
+  await page.getByRole("searchbox", { name: "Search Sessions" }).fill("");
+  await page.locator(".session-group summary").click();
+  await expect(page.locator(".session")).not.toBeVisible();
+  await page.getByRole("button", { name: "Refresh", exact: true }).click();
+  await expect(page.locator(".session")).not.toBeVisible();
+  await page.locator(".session-group summary").click();
+  const beforeCollapse = await page.locator(".terminal-view").boundingBox();
+  await page.getByRole("button", { name: "Toggle Session sidebar" }).click();
+  await expect(
+    page.getByRole("complementary", { name: "Session sidebar" }),
+  ).not.toBeVisible();
+  await expect
+    .poll(
+      async () => (await page.locator(".terminal-view").boundingBox()).width,
+    )
+    .toBeGreaterThan(beforeCollapse.width);
+  await expect(page.locator(".xterm-screen")).toBeVisible();
+  await page.getByRole("button", { name: "Toggle Session sidebar" }).click();
+  await expect(page.getByRole("button", { name: /SER-1/ })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await page.screenshot({ path: "test-results/workbench-reference.png" });
+  await page.locator(".xterm-helper-textarea").focus();
+  await page.keyboard.type("desktop-roundtrip");
+  let received = "";
+  await expect
+    .poll(async () => {
+      received += Buffer.from(
+        (await observer.read(attachment.id)).data,
+      ).toString();
+      return received;
+    })
+    .toContain("desktop-roundtrip");
+  await fixture.command("lease");
+  await expect(page.getByText(/Lease busy/)).toBeVisible();
+  await expect(
+    page.getByText("Read-only · Lease active", { exact: true }),
+  ).toBeVisible();
+  await fixture.command("output", "\r\nread-while-leased\r\n");
+  await expect(page.locator(".xterm-rows")).toContainText("read-while-leased");
+  await page.locator(".xterm-helper-textarea").focus();
+  await page.keyboard.type("blocked-by-busy");
+  await page.screenshot({ path: "test-results/desktop.png" });
+  await fixture.command("release");
+  await expect(page.getByText(/Lease busy/)).toHaveCount(0);
+  assert.ok(
+    !Buffer.from((await observer.read(attachment.id)).data)
+      .toString()
+      .includes("blocked-by-busy"),
+  );
+  await fixture.command("flood");
+  await expect(
+    page.getByText(/Output overwritten in the Host buffer/),
+  ).toBeVisible();
+  await expect(page.locator(".xterm-rows")).toContainText(
+    "retained-after-overwrite",
+  );
+  await page.getByRole("button", { name: "Detach", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Select a Session" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText(/Output overwritten in the Host buffer/),
+  ).toHaveCount(0);
+  await page.getByRole("button", { name: /SER-1/ }).click();
+  await expect(page.locator(".xterm-screen")).toBeVisible();
+  await page.getByRole("button", { name: "Disconnect Host" }).click();
+  await expect(
+    page.getByText("Host disconnected", { exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Connect to Host" }).click();
+  await page.getByRole("button", { name: /SER-1/ }).click();
+  await expect(page.locator(".xterm-screen")).toBeVisible();
+  // Closing the native window leaves the independent Go Host and observer alive.
+  await desktop.evaluate(({ BrowserWindow }) =>
+    BrowserWindow.getAllWindows()[0].close(),
+  );
+  await desktop.close();
+  desktop = undefined;
+  assert.equal((await observer.list())[0].state, "open");
+  await observer.write(attachment.id, "after-window-close");
+  assert.match(
+    Buffer.from((await observer.read(attachment.id)).data).toString(),
+    /after-window-close/,
+  );
+  assert.deepEqual(errors, []);
+  // Test-only IPC snapshots exercise empty/large lists without adding Host
+  // controls or opening hardware. A fresh process below restores real IPC.
+  desktop = await electron.launch({ args: ["."], env: desktopEnvironment });
+  const listPage = await desktop.firstWindow();
+  const listErrors = [];
+  listPage.on("pageerror", (error) => listErrors.push(error.message));
+  await desktop.evaluate(({ ipcMain }) => {
+    ipcMain.removeHandler("host:list");
+    ipcMain.handle("host:list", () => ({ ok: true, value: [] }));
+  });
+  await listPage.getByRole("button", { name: "Connect to Host" }).click();
+  await expect(
+    listPage.getByRole("heading", { name: "No Sessions available" }),
+  ).toBeVisible();
+  await expect(
+    listPage.getByText("Host connected", { exact: true }),
+  ).toBeVisible();
+  await expect(listPage.getByRole("button", { name: "Refresh" })).toBeEnabled();
+  await expect(listPage.getByText("0 Sessions", { exact: true })).toBeVisible();
+  await checkLayout(desktop, listPage, "empty");
+  await desktop.evaluate(({ ipcMain }) => {
+    ipcMain.removeHandler("host:list");
+    ipcMain.handle("host:list", () => ({
+      ok: true,
+      value: Array.from({ length: 40 }, (_, index) => ({
+        session_id: `display-fixture-${index}`,
+        session_ref: `SER-${index + 1}`,
+        transport: index % 2 === 0 ? "serial" : "ssh",
+        label: "Long display label ".repeat(20),
+        endpoint: "in-memory",
+        state: index === 0 ? "closed" : "open",
+      })),
+    }));
+  });
+  await listPage.getByRole("button", { name: "Refresh" }).click();
+  await expect(listPage.locator(".session")).toHaveCount(40);
+  await expect(listPage.locator(".session-group summary")).toHaveText([
+    "Serial (20)",
+    "SSH (20)",
+  ]);
+  await listPage
+    .getByRole("searchbox", { name: "Search Sessions" })
+    .fill("ssh");
+  await expect(listPage.locator(".session")).toHaveCount(20);
+  await expect(listPage.locator(".session-group summary")).toHaveText([
+    "SSH (20)",
+  ]);
+  await listPage.getByRole("searchbox", { name: "Search Sessions" }).fill("");
+  await expect(listPage.locator(".session").first()).toBeDisabled();
+  await checkLayout(desktop, listPage, "long-list");
+  await listPage.locator(".session").last().scrollIntoViewIfNeeded();
+  await expect(listPage.locator(".session").last()).toBeInViewport();
+  await expect(listPage.locator(".statusbar")).toBeInViewport();
+  assert.deepEqual(listErrors, []);
+  await desktop.close();
+  desktop = undefined;
+  // A new window observes Session loss and then Host loss without taking ownership.
+  desktop = await electron.launch({ args: ["."], env: desktopEnvironment });
+  const recoveryPage = await desktop.firstWindow();
+  await recoveryPage.getByRole("button", { name: "Connect to Host" }).click();
+  await recoveryPage.getByRole("button", { name: /SER-1/ }).click();
+  await expect(recoveryPage.locator(".xterm-screen")).toBeVisible();
+  await fixture.command("close");
+  await expect(recoveryPage.getByText(/Session closed/).first()).toBeVisible();
+  await fixture.stop();
+  await expect(
+    recoveryPage.getByText("Host connection failed", { exact: true }),
+  ).toBeVisible();
+  await expect(recoveryPage.getByRole("alert")).toBeVisible();
+  await expect(
+    recoveryPage.getByRole("heading", { name: "Host unavailable" }),
+  ).toBeVisible();
+  await expect(recoveryPage.locator(".session")).toHaveCount(0);
+  await expect(recoveryPage.locator(".xterm-screen")).toHaveCount(0);
+  await recoveryPage.getByRole("button", { name: "Retry connection" }).click();
+  await expect(
+    recoveryPage.getByRole("button", { name: "Retry connection" }),
+  ).toBeEnabled();
+  await expect(
+    recoveryPage.getByRole("heading", { name: "Host unavailable" }),
+  ).toBeVisible();
+  await checkLayout(desktop, recoveryPage, "failed");
+  console.log(
+    "PASS: native workbench at 760/1180/1500px, disconnected/empty/selection/attached/failure states, long lists, sandbox, authenticated attach/input/output, lease blocking, overwrite, reconnect, detach/reattach, native close, surviving Host/observer, Session close and Host loss/retry. Empty/large lists use test-only IPC snapshots; I/O uses the real isolated Host.",
+  );
+} finally {
+  await desktop?.close();
+  await observer.disconnect();
+  await fixture.stop();
+  await devServer?.close();
+}

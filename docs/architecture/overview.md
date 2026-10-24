@@ -108,7 +108,7 @@ writes use the Host tools. Local `serial` and private attachment use an Applicat
 Manager. Discovery/target-resolution Applications do not write shared Sessions. The serial wake
 write occurs on a connection candidate before Manager registration, outside shared-client access.
 
-A future GUI must preserve these boundaries:
+The Electron client and any future GUI must preserve these boundaries:
 
 - An external GUI can use the existing authenticated MCP HTTP Host tools for shared access,
   including reads/events, writes, leases, and file-transfer controls. CLI attachment code provides
@@ -123,8 +123,9 @@ A future GUI must preserve these boundaries:
   not enforce operation ownership. Query Host lease state rather than treating a local cache as
   permission to write. Close and resize retain their existing policies.
 
-There is no GUI implementation or GUI integration test. Existing interfaces also do not supply
-an MCP SSH-open or resize tool, or a tool that starts CLI file-send/receive orchestration; those
+The [Electron GUI](electron-gui.md) attaches to existing Sessions through authenticated MCP HTTP,
+with integration coverage using a disposable Go Host and in-memory terminal. Existing interfaces
+do not supply an MCP SSH-open or resize tool, or a tool that starts CLI file-send/receive orchestration; those
 operations currently have CLI/Core entry points. GUI file selection, transfer orchestration,
 and a reusable public client SDK are not implemented here. These gaps do not require a second
 arbitrator or a new GUI protocol in the current architecture.
@@ -134,8 +135,9 @@ arbitrator or a new GUI protocol in the current architecture.
 Serial and SSH PTY shells are concrete Transports. SSH is opened by the CLI and shared through
 the existing authenticated HTTP Host and Session tools; no SSH-specific MCP tool is added.
 Stream Channel categories such as file and debug/JTAG are representable but not implemented. The
-repository has no public Go SDK, GUI/TUI adapter, or persistent terminal log. Session lifecycle and
-file-transfer state are available through the bounded Session Event Stream; it is not a Channel
+repository has no public Go SDK, TUI adapter, or persistent terminal log. The Electron frontend is
+independent of the CLI build; Qt is a possible future frontend, not an implementation. Session
+lifecycle and file-transfer state are available through the bounded Session Event Stream; it is not a Channel
 multiplexer or a persistent event log.
 
 ## Future direction

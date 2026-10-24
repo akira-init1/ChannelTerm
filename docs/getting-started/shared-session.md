@@ -129,6 +129,13 @@ independent recovery procedure before reconnecting; reopening alone is not proof
 See [Identifiers](../reference/identifiers.md) before passing serial targets, Session references, or
 `session_id` values between commands.
 
+## Electron GUI attachment
+
+For a desktop view, the [Electron client](../development/electron-gui.md#connect-to-an-existing-host)
+can attach to an existing Session on the same Host. It shows raw output and ordinary input with
+Host-authoritative lease checks. Detaching or closing that GUI leaves the Host and other clients
+running; it does not provide the CLI's managed transfer/debug presentation or cancellation controls.
+
 ## Shared SSH shell
 
 `channelterm ssh user@host.example` opens an SSH PTY shell and hosts it as `SSH-1` by default.

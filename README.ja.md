@@ -365,6 +365,7 @@ channelterm serial --config ./channelterm.toml --profile board
 ## ドキュメント
 
 - [ドキュメント索引](docs/README.md)
+- [Electron GUI プロトタイプと開発](docs/development/electron-gui.md)
 - [シリアル端末ワークフロー](docs/getting-started/serial-terminal.md)
 - [SSH シェルワークフロー](docs/getting-started/ssh-terminal.md)
 - [共有 Session](docs/getting-started/shared-session.md)

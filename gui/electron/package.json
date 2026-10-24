@@ -1,0 +1,43 @@
+{
+  "name": "@channelterm/electron",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Independent desktop client for an existing ChannelTerm Host",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "dist/main/index.cjs",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "build": "npm run typecheck && node scripts/build.mjs",
+    "start": "node scripts/start.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "node scripts/build-fixture.mjs && tsx --test tests/*.test.ts",
+    "test:desktop": "npm run build && node scripts/build-fixture.mjs && node --import tsx scripts/test-desktop.mjs",
+    "test:desktop:dev": "node scripts/build-fixture.mjs && node --import tsx scripts/test-desktop.mjs --dev",
+    "format": "prettier --write src tests scripts *.json *.ts *.html",
+    "format:check": "prettier --check src tests scripts *.json *.ts *.html"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "@xterm/addon-fit": "0.11.0",
+    "@xterm/xterm": "6.0.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "@types/node": "26.6.5",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.2",
+    "electron": "45.0.0",
+    "esbuild": "0.28.2",
+    "prettier": "3.9.10",
+    "tsx": "4.23.15",
+    "typescript": "7.0.2",
+    "vite": "8.3.5"
+  }
+}

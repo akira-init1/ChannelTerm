@@ -371,6 +371,7 @@ seleccionado, no los archivos predeterminados `state.json` ni `http-auth-token`.
 ## Documentación
 
 - [Índice de documentación](docs/README.md)
+- [Prototipo GUI Electron y desarrollo](docs/development/electron-gui.md)
 - [Uso del terminal serie](docs/getting-started/serial-terminal.md)
 - [Flujo de shell SSH](docs/getting-started/ssh-terminal.md)
 - [Compartir una Session](docs/getting-started/shared-session.md)
