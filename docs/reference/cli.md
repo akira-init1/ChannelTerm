@@ -238,6 +238,7 @@ Side effects and lifecycle:
   | barebox | `barebox@Radxa ROCK3 Model A:/ ` |
   | GRUB rescue | `grub rescue> ` |
   | UEFI filesystem shell | `fs0:\> `, `FS12:\EFI\BOOT>` |
+  | Cisco ROMMON | `rommon 1 > `, `IR1800 rommon 9 > ` |
 - The highlighter assigns non-bold semantic colors to status words, boot headings, field names,
   embedded interface/protocol identifiers, addresses, versions, timestamps, numbers, units, quoted
   values, structural `()`, `[]`, and `{}` delimiters, and recognized shell-prompt components. It

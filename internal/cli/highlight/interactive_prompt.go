@@ -29,4 +29,6 @@ var interactivePromptPatterns = []*regexp.Regexp{
 	regexp.MustCompile(`^grub[ \t]+rescue>`),
 	// UEFI filesystem shell.
 	regexp.MustCompile(`(?i)^fs[0-9]+:\\[^>\r\n]*>`),
+	// Cisco ROMMON.
+	regexp.MustCompile(`^(?:[A-Za-z0-9_.-]+[ \t]+)?rommon[ \t]+(?:[0-9]+[ \t]*)?>`),
 }
