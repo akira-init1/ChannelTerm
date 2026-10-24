@@ -253,26 +253,30 @@ Wählen Sie, wie der Debugger Ihr Linux-Programm erreicht. Jeder Weg benötigt z
 
 **Windows verbindet den seriellen Port, WSL2 führt GDB aus, die KI koordiniert das Remote-Debugging.** Der Windows-Host von ChannelTerm hält COM-Port und gemeinsame Session offen. Ein zielkompatibles GDB in WSL2 verbindet sich über den Linux-Helfer `channelterm rsp-client` und die authentifizierte TLS/TCP-Brücke mit dem Linux-gdbserver des Boards.
 
+**Steuerung und Beobachtung**
+
 ```mermaid
-flowchart LR
+flowchart TB
     AI["KI-Client"]
     Human["Menschliches Terminal"]
-    subgraph Windows
-        Host["ChannelTerm Host"]
-        COM["COM-Port"]
-        Host <--> COM
-    end
-    subgraph WSL2["WSL2 / Linux"]
-        GDB["Zielkompatibles GDB"]
-        Helper["Linux channelterm rsp-client"]
-        GDB <--> Helper
-    end
-    Board["Linux-Board / gdbserver"]
-    AI -->|"MCP: vorbereiten und verwalten"| Host
-    AI -->|"Prozesswerkzeug: GDB-Befehle"| GDB
+    Host["Windows<br/>ChannelTerm Host"]
+    GDB["WSL2 / Linux<br/>Zielkompatibles<br/>GDB"]
+    AI -->|"MCP:<br/>vorbereiten und verwalten"| Host
+    AI -->|"Prozesswerkzeug:<br/>GDB-Befehle"| GDB
     Human ---|"attach / KI-Berichte"| Host
+```
+
+**RSP-Datenpfad**
+
+```mermaid
+flowchart TB
+    GDB["WSL2 / Linux<br/>Zielkompatibles<br/>GDB"]
+    Helper["Linux channelterm<br/>rsp-client"]
+    Host["Windows ChannelTerm Host<br/>COM-Port"]
+    Board["Linux-Board<br/>gdbserver"]
+    GDB <--> Helper
     Helper <-->|"TLS/TCP"| Host
-    COM <-->|"Serielles RSP"| Board
+    Host <-->|"Serielles RSP"| Board
 ```
 
 Behalten Sie Windows-Treiber und Linux-Toolchain: Das serielle Gerät bleibt unter Windows, und das Board benötigt keinen Netzwerk-GDB-Port.
@@ -301,11 +305,11 @@ Bei dieser seriellen Brücke kann die KI tatsächliche Befehle und Beobachtungen
 Die serielle Konsole bleibt für gemeinsame Logs und Shell-Arbeit verfügbar, während GDB das Netzwerk nutzt. Serieller Host und GDB können auf demselben oder auf verschiedenen Rechnern laufen; Treiber und Ziel-Toolchain lassen sich unabhängig wählen.
 
 ```mermaid
-flowchart LR
+flowchart TB
     AI["KI-Client"]
     Human["Menschliches Terminal"]
     Host["ChannelTerm Host"]
-    GDB["Workstation-GDB: WSL2 / Linux / Windows / macOS"]
+    GDB["Workstation-GDB<br/>WSL2 / Linux<br/>Windows / macOS"]
     subgraph Board["Linux-Board"]
         Console["Serielle Shell / Logs"]
         Server["gdbserver"]

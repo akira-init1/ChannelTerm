@@ -329,12 +329,22 @@ restoring/closing active bridges; shutting down the Host closes its Sessions.
 
 The two connections serve different purposes:
 
-```text
-Codex -- authenticated MCP HTTP :37099 --> Windows ChannelTerm
-                                             |
-WSL2 GDB --> Linux rsp-client -- TLS/TCP --> RSP bridge
-                              data + control  |
-                                       Serial Session --> COM --> Linux board / gdbserver
+Bridge management:
+
+```mermaid
+flowchart TB
+    codex["Codex"] -->|"Authenticated MCP HTTP<br/>:37099"| host["Windows<br/>ChannelTerm Host"]
+    host -->|"Creates / manages"| bridge["RSP bridge"]
+```
+
+Debugger traffic and helper liveness:
+
+```mermaid
+flowchart TB
+    gdb["WSL2 / Linux GDB"] --> helper["Linux rsp-client"]
+    helper -->|"TLS/TCP:<br/>data + control"| bridge["Windows RSP bridge"]
+    bridge --> session["Serial Session / COM"]
+    session --> board["Linux board / gdbserver"]
 ```
 
 MCP creates/manages the bridge. GDB's data and helper control connections use the bridge's actual

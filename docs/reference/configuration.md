@@ -86,18 +86,19 @@ rejected before a physical open.
 
 Serial settings resolve in three steps:
 
+1. Select the named profile, otherwise the default profile, otherwise no profile:
+
 ```mermaid
-flowchart TD
-    A{"Explicit profile name supplied?"}
-    A -->|Yes| B["Select named profile"]
-    A -->|No| C{"serial.default configured?"}
-    C -->|Yes| D["Select default profile"]
-    C -->|No| E["Use no profile"]
-    B --> F["Fill omitted fields from built-in serial defaults"]
-    D --> F
-    E --> F
-    F --> G["Apply explicitly supplied CLI/MCP overrides"]
+flowchart TB
+    named{"Named profile?"}
+    named -->|"Yes"| selected["Select named profile"]
+    named -->|"No"| fallback{"Default profile?"}
+    fallback -->|"Yes"| defaults["Select default profile"]
+    fallback -->|"No"| empty["Use no profile"]
 ```
+
+2. Fill omitted fields from built-in serial defaults.
+3. Apply explicitly supplied CLI/MCP overrides.
 
 Named and default profiles are alternatives, not inheritance layers. For example, if the default
 profile uses 9600 baud but a different explicitly selected profile omits baud, the selected profile

@@ -250,26 +250,30 @@ Choose how the debugger reaches your Linux program. Each path needs tools and sy
 
 **Windows connects the serial port; WSL2 runs GDB; the AI coordinates remote debugging.** The Windows ChannelTerm Host keeps the COM port and shared Session open. A target-compatible GDB in WSL2 connects through the Linux `channelterm rsp-client` helper and the authenticated TLS/TCP bridge to the board's Linux gdbserver.
 
+**Control and observation**
+
 ```mermaid
-flowchart LR
+flowchart TB
     AI["AI client"]
     Human["Human terminal"]
-    subgraph Windows
-        Host["ChannelTerm Host"]
-        COM["COM port"]
-        Host <--> COM
-    end
-    subgraph WSL2["WSL2 / Linux"]
-        GDB["Target-compatible GDB"]
-        Helper["Linux channelterm rsp-client"]
-        GDB <--> Helper
-    end
-    Board["Linux board / gdbserver"]
-    AI -->|"MCP: prepare and manage"| Host
-    AI -->|"Process tool: GDB commands"| GDB
+    Host["Windows<br/>ChannelTerm Host"]
+    GDB["WSL2 / Linux<br/>Target-compatible<br/>GDB"]
+    AI -->|"MCP:<br/>prepare and manage"| Host
+    AI -->|"Process tool:<br/>GDB commands"| GDB
     Human ---|"attach / AI reports"| Host
+```
+
+**RSP data path**
+
+```mermaid
+flowchart TB
+    GDB["WSL2 / Linux<br/>Target-compatible<br/>GDB"]
+    Helper["Linux channelterm<br/>rsp-client"]
+    Host["Windows ChannelTerm Host<br/>COM port"]
+    Board["Linux board<br/>gdbserver"]
+    GDB <--> Helper
     Helper <-->|"TLS/TCP"| Host
-    COM <-->|"Serial RSP"| Board
+    Host <-->|"Serial RSP"| Board
 ```
 
 Keep your Windows serial driver and Linux toolchain: the serial device stays on Windows, and the board needs no network GDB port.
@@ -298,18 +302,18 @@ For this serial bridge, AI can publish actual commands and observations through 
 Keep the serial console available for shared logs and shell work while GDB uses the network. The serial Host and GDB can be on the same computer or different computers; choose each environment's serial driver and target toolchain independently.
 
 ```mermaid
-flowchart LR
+flowchart TB
     AI["AI client"]
     Human["Human terminal"]
     Host["ChannelTerm Host"]
-    GDB["Workstation GDB: WSL2 / Linux / Windows / macOS"]
+    GDB["Workstation GDB<br/>WSL2 / Linux<br/>Windows / macOS"]
     subgraph Board["Linux board"]
         Console["Serial shell / logs"]
         Server["gdbserver"]
     end
     Human ---|"attach"| Host
     AI -->|"MCP"| Host
-    AI -->|"Process tool: GDB commands"| GDB
+    AI -->|"Process tool:<br/>GDB commands"| GDB
     Host <-->|"Serial"| Console
     GDB <-->|"TCP / Ethernet"| Server
 ```

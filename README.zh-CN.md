@@ -236,26 +236,30 @@ channelterm file receive /var/log/myapp ./myapp --session SER-1
 
 **Windows 连串口，WSL2 跑 GDB，AI 协调远程调试。** Windows 上的 ChannelTerm Host 持有 COM 口和共享 Session；WSL2 中支持目标架构的 GDB，通过 Linux 版 `channelterm rsp-client` 和认证的 TLS/TCP 桥接，连接板端 Linux gdbserver。
 
+**控制与观察**
+
 ```mermaid
-flowchart LR
+flowchart TB
     AI["AI 客户端"]
     Human["人类终端"]
-    subgraph Windows
-        Host["ChannelTerm Host"]
-        COM["COM 串口"]
-        Host <--> COM
-    end
-    subgraph WSL2["WSL2 / Linux"]
-        GDB["匹配目标架构的 GDB"]
-        Helper["Linux channelterm rsp-client"]
-        GDB <--> Helper
-    end
-    Board["Linux 开发板 / gdbserver"]
-    AI -->|"MCP：准备和管理桥接"| Host
-    AI -->|"进程工具：操作 GDB"| GDB
+    Host["Windows<br/>ChannelTerm Host"]
+    GDB["WSL2 / Linux<br/>匹配目标架构的<br/>GDB"]
+    AI -->|"MCP：<br/>准备和管理桥接"| Host
+    AI -->|"进程工具：<br/>操作 GDB"| GDB
     Human ---|"attach / AI 报告"| Host
+```
+
+**RSP 数据通路**
+
+```mermaid
+flowchart TB
+    GDB["WSL2 / Linux<br/>匹配目标架构的<br/>GDB"]
+    Helper["Linux channelterm<br/>rsp-client"]
+    Host["Windows ChannelTerm Host<br/>COM 串口"]
+    Board["Linux 开发板<br/>gdbserver"]
+    GDB <--> Helper
     Helper <-->|"TLS/TCP"| Host
-    COM <-->|"串口 RSP"| Board
+    Host <-->|"串口 RSP"| Board
 ```
 
 继续使用 Windows 串口驱动和 Linux 工具链：串口设备留在 Windows，板端也无需开放网络 GDB 端口。
@@ -284,11 +288,11 @@ flowchart LR
 串口供人和 AI 共享日志与 shell 操作，GDB 调试数据使用网口传输。串口 Host 与 GDB 可以在同一台电脑，也可以在不同电脑上，串口驱动与目标工具链可按各自环境选择。
 
 ```mermaid
-flowchart LR
+flowchart TB
     AI["AI 客户端"]
     Human["人类终端"]
     Host["ChannelTerm Host"]
-    GDB["工作站 GDB: WSL2 / Linux / Windows / macOS"]
+    GDB["工作站 GDB<br/>WSL2 / Linux<br/>Windows / macOS"]
     subgraph Board["Linux 开发板"]
         Console["串口 Shell / 日志"]
         Server["gdbserver"]

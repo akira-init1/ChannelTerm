@@ -236,26 +236,30 @@ channelterm file receive /var/log/myapp ./myapp --session SER-1
 
 **Windows 連序列埠，WSL2 跑 GDB，AI 協調遠端除錯。** Windows 上的 ChannelTerm Host 持有 COM 埠與共享 Session；WSL2 中支援目標架構的 GDB，透過 Linux 版 `channelterm rsp-client` 與經驗證的 TLS/TCP 橋接，連接板端 Linux gdbserver。
 
+**控制與觀察**
+
 ```mermaid
-flowchart LR
+flowchart TB
     AI["AI 用戶端"]
     Human["人類終端機"]
-    subgraph Windows
-        Host["ChannelTerm Host"]
-        COM["COM 序列埠"]
-        Host <--> COM
-    end
-    subgraph WSL2["WSL2 / Linux"]
-        GDB["符合目標架構的 GDB"]
-        Helper["Linux channelterm rsp-client"]
-        GDB <--> Helper
-    end
-    Board["Linux 開發板 / gdbserver"]
-    AI -->|"MCP：準備與管理橋接"| Host
-    AI -->|"程序工具：操作 GDB"| GDB
+    Host["Windows<br/>ChannelTerm Host"]
+    GDB["WSL2 / Linux<br/>符合目標架構的<br/>GDB"]
+    AI -->|"MCP：<br/>準備與管理橋接"| Host
+    AI -->|"程序工具：<br/>操作 GDB"| GDB
     Human ---|"attach / AI 報告"| Host
+```
+
+**RSP 資料通路**
+
+```mermaid
+flowchart TB
+    GDB["WSL2 / Linux<br/>符合目標架構的<br/>GDB"]
+    Helper["Linux channelterm<br/>rsp-client"]
+    Host["Windows ChannelTerm Host<br/>COM 序列埠"]
+    Board["Linux 開發板<br/>gdbserver"]
+    GDB <--> Helper
     Helper <-->|"TLS/TCP"| Host
-    COM <-->|"序列埠 RSP"| Board
+    Host <-->|"序列埠 RSP"| Board
 ```
 
 繼續使用 Windows 序列埠驅動程式與 Linux 工具鏈：序列埠裝置留在 Windows，板端也無需開放網路 GDB 連接埠。
@@ -284,11 +288,11 @@ flowchart LR
 序列埠供人與 AI 共享日誌與 shell 操作，GDB 除錯資料使用網路傳輸。序列埠 Host 與 GDB 可以在同一台電腦，也可以在不同電腦上，序列埠驅動程式與目標工具鏈可依各自環境選擇。
 
 ```mermaid
-flowchart LR
+flowchart TB
     AI["AI 用戶端"]
     Human["人類終端機"]
     Host["ChannelTerm Host"]
-    GDB["工作站 GDB: WSL2 / Linux / Windows / macOS"]
+    GDB["工作站 GDB<br/>WSL2 / Linux<br/>Windows / macOS"]
     subgraph Board["Linux 開發板"]
         Console["序列埠 Shell / 日誌"]
         Server["gdbserver"]

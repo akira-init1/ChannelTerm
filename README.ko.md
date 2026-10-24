@@ -246,26 +246,30 @@ channelterm file receive /var/log/myapp ./myapp --session SER-1
 
 **Windows가 직렬 포트에 연결하고, WSL2가 GDB를 실행하며, AI가 원격 디버깅을 진행합니다.** Windows ChannelTerm Host는 COM 포트와 공유 Session을 유지합니다. WSL2의 대상 호환 GDB가 Linux용 `channelterm rsp-client`와 인증된 TLS/TCP 브리지를 거쳐 보드의 Linux gdbserver에 연결합니다.
 
+**제어 및 관찰**
+
 ```mermaid
-flowchart LR
+flowchart TB
     AI["AI 클라이언트"]
     Human["사용자 터미널"]
-    subgraph Windows
-        Host["ChannelTerm Host"]
-        COM["COM 포트"]
-        Host <--> COM
-    end
-    subgraph WSL2["WSL2 / Linux"]
-        GDB["대상 호환 GDB"]
-        Helper["Linux channelterm rsp-client"]
-        GDB <--> Helper
-    end
-    Board["Linux 보드 / gdbserver"]
-    AI -->|"MCP: 준비 및 관리"| Host
-    AI -->|"프로세스 도구: GDB 명령"| GDB
+    Host["Windows<br/>ChannelTerm Host"]
+    GDB["WSL2 / Linux<br/>대상 호환<br/>GDB"]
+    AI -->|"MCP:<br/>준비 및 관리"| Host
+    AI -->|"프로세스 도구:<br/>GDB 명령"| GDB
     Human ---|"attach / AI 보고서"| Host
+```
+
+**RSP 데이터 경로**
+
+```mermaid
+flowchart TB
+    GDB["WSL2 / Linux<br/>대상 호환<br/>GDB"]
+    Helper["Linux channelterm<br/>rsp-client"]
+    Host["Windows ChannelTerm Host<br/>COM 포트"]
+    Board["Linux 보드<br/>gdbserver"]
+    GDB <--> Helper
     Helper <-->|"TLS/TCP"| Host
-    COM <-->|"직렬 RSP"| Board
+    Host <-->|"직렬 RSP"| Board
 ```
 
 Windows 직렬 드라이버와 Linux 도구 모음을 계속 사용할 수 있습니다. 직렬 장치는 Windows에 남고 보드에 네트워크 GDB 포트를 열 필요가 없습니다.
@@ -294,11 +298,11 @@ Windows 직렬 드라이버와 Linux 도구 모음을 계속 사용할 수 있�
 직렬 콘솔에서 로그와 셸 작업을 공유하면서 GDB는 네트워크로 통신합니다. 직렬 Host와 GDB는 같은 컴퓨터나 서로 다른 컴퓨터에 둘 수 있으며, 드라이버와 대상 도구 모음을 각 환경에 맞게 선택할 수 있습니다.
 
 ```mermaid
-flowchart LR
+flowchart TB
     AI["AI 클라이언트"]
     Human["사용자 터미널"]
     Host["ChannelTerm Host"]
-    GDB["워크스테이션 GDB: WSL2 / Linux / Windows / macOS"]
+    GDB["워크스테이션 GDB<br/>WSL2 / Linux<br/>Windows / macOS"]
     subgraph Board["Linux 보드"]
         Console["직렬 셸 / 로그"]
         Server["gdbserver"]

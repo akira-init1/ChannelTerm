@@ -156,28 +156,24 @@ state independently before reconnecting. A new connection alone does not establi
 
 ## Transfer flow
 
-```text
-Local file
-   |
-   | bounded 8 KiB reads
-   v
-CLI file command
-   |
-   | existing Session Write / independent output cursor
-   v
-Shared Session -> Serial Channel -> serial driver -> Linux TTY
-                                                       |
-                                               stty raw/no-echo
-                                                       |
-                                           dd reads or writes a chunk
-                                                       |
-                                              restore saved TTY mode
-                                                       |
-                                               wc -c + sha256sum
-                                                       |
-                                                       v
-                                               verified remote file
+The client uses the existing shared terminal path:
+
+```mermaid
+flowchart TB
+    local["Local file"] <-->|"Bounded 8 KiB blocks"| cli["CLI file command"]
+    cli <-->|"Session Write /<br/>independent output cursor"| session["Shared Session"]
+    session <--> channel["Serial Channel / driver"]
+    channel <--> tty["Linux target TTY"]
 ```
+
+On the target, each block follows a short shell sequence:
+
+```text
+Save TTY mode -> stty raw/no-echo -> dd reads or writes a chunk
+  -> restore saved TTY mode -> acknowledge the block
+```
+
+Final verification uses `wc -c` and `sha256sum`; send and receive differ as described below.
 
 The Serial Transport established the Channel before transfer; ongoing I/O uses that Channel.
 For each chunk, the shell saves its TTY mode, enters raw/no-echo mode, transfers one bounded block,

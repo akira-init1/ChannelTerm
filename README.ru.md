@@ -252,26 +252,30 @@ channelterm file receive /var/log/myapp ./myapp --session SER-1
 
 **Windows подключает последовательный порт, WSL2 запускает GDB, ИИ координирует удалённую отладку.** Windows Host ChannelTerm держит открытыми COM-порт и общую Session. Совместимый с целью GDB в WSL2 подключается к Linux gdbserver платы через Linux-помощник `channelterm rsp-client` и аутентифицированный мост TLS/TCP.
 
+**Управление и наблюдение**
+
 ```mermaid
-flowchart LR
+flowchart TB
     AI["ИИ-клиент"]
     Human["Терминал человека"]
-    subgraph Windows
-        Host["ChannelTerm Host"]
-        COM["COM-порт"]
-        Host <--> COM
-    end
-    subgraph WSL2["WSL2 / Linux"]
-        GDB["GDB для целевой архитектуры"]
-        Helper["Linux channelterm rsp-client"]
-        GDB <--> Helper
-    end
-    Board["Плата Linux / gdbserver"]
-    AI -->|"MCP: подготовка и управление"| Host
-    AI -->|"Инструмент процессов: команды GDB"| GDB
+    Host["Windows<br/>ChannelTerm Host"]
+    GDB["WSL2 / Linux<br/>GDB для<br/>целевой архитектуры"]
+    AI -->|"MCP:<br/>подготовка и управление"| Host
+    AI -->|"Инструмент процессов:<br/>команды GDB"| GDB
     Human ---|"attach / отчёты ИИ"| Host
+```
+
+**Путь данных RSP**
+
+```mermaid
+flowchart TB
+    GDB["WSL2 / Linux<br/>GDB для<br/>целевой архитектуры"]
+    Helper["Linux channelterm<br/>rsp-client"]
+    Host["Windows ChannelTerm Host<br/>COM-порт"]
+    Board["Плата Linux<br/>gdbserver"]
+    GDB <--> Helper
     Helper <-->|"TLS/TCP"| Host
-    COM <-->|"Последовательный RSP"| Board
+    Host <-->|"Последовательный RSP"| Board
 ```
 
 Сохраните драйвер Windows и инструментарий Linux: последовательное устройство остаётся в Windows, а плате не нужен сетевой порт GDB.
@@ -300,11 +304,11 @@ flowchart LR
 Последовательная консоль остаётся доступной для общих журналов и команд оболочки, пока GDB использует сеть. Последовательный Host и GDB могут работать на одном или разных компьютерах; драйверы и целевой инструментарий выбираются независимо.
 
 ```mermaid
-flowchart LR
+flowchart TB
     AI["ИИ-клиент"]
     Human["Терминал человека"]
     Host["ChannelTerm Host"]
-    GDB["GDB рабочей станции: WSL2 / Linux / Windows / macOS"]
+    GDB["GDB рабочей станции<br/>WSL2 / Linux<br/>Windows / macOS"]
     subgraph Board["Плата Linux"]
         Console["Последовательная оболочка / журналы"]
         Server["gdbserver"]

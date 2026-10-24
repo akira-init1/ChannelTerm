@@ -2,24 +2,23 @@
 
 ## Serial output
 
+The single reader stores raw bytes independently of client presentation:
+
 ```text
-OS serial driver
-      |
-      v
-Serial Channel.Read
-      |
-      v
-Session reader goroutine
-      |
-      v
-16 MiB receive Ring Buffer
-      |
-      v
-Application.ReadSession
-      |
-      +--> CLI cursor --> optional prompt timestamping and ANSI highlighting --> stdout
-      |
-      `--> MCP cursor --> utf8 / hex / base64 result
+OS serial driver -> Serial Channel.Read -> Session reader goroutine
+  -> 16 MiB receive Ring Buffer
+```
+
+Clients then read through Application with independent cursors:
+
+```mermaid
+flowchart TB
+    buffer["Receive Ring Buffer"] --> application["Application.ReadSession"]
+    application --> cli["CLI cursor"]
+    application --> mcp["MCP cursor"]
+    cli --> presentation["Optional prompt timestamps<br/>and ANSI highlighting"]
+    presentation --> stdout["stdout"]
+    mcp --> result["utf8 / hex / base64 result"]
 ```
 
 One Session goroutine is the only continuous reader of a Channel. Consumers copy bounded chunks by
@@ -34,26 +33,16 @@ its Manager to release a blocked Channel write, then joins the worker before res
 state. File shortcuts wait for earlier queued input. Ordinary attachments remain synchronous;
 Session still owns write serialization and no Core contract depends on this presentation choice.
 
-```text
-CLI raw input                 MCP JSON input
-      |                            |
-Ctrl+] local controller       size preflight, then decode
-      |                            |
-      +------------+---------------+
-                   |
-                   v
-          Application.WriteSession
-                   |
-                   v
-       Session serialized Write loop
-                   |
-          +--------+---------+
-          |                  |
-          v                  v
-  Activity Buffer      Channel.Write
-                             |
-                             v
-                       serial device
+```mermaid
+flowchart TB
+    cli["CLI raw input"] --> controller["Ctrl+] local controller"]
+    mcp["MCP JSON input"] --> decode["Size preflight, then decode"]
+    controller --> application["Application.WriteSession"]
+    decode --> application
+    application --> writer["Session serialized Write loop"]
+    writer --> activity["Activity Buffer"]
+    writer --> channel["Channel.Write"]
+    channel --> device["Serial device"]
 ```
 
 `Ctrl+C` is ordinary remote data in the normal CLI raw-input path. While the Host reports an active
@@ -96,22 +85,22 @@ path.
 
 ## Serial open and reuse
 
+Resolve settings before asking the Manager to open or reuse a Session:
+
 ```text
-CLI flags or MCP input
-          |
-          v
-Application.OpenSerial
-          |
-          +--> load/create TOML --> resolve profile --> apply explicit overrides
-          |                                      |
-          |                                      `--> optional save
-          v
-Session Manager.GetOrCreate(transport, endpoint)
-          |
-          +--> active Session exists --> return it with reused=true
-          |
-          `--> create Serial Transport --> open Serial Channel --> Session reader
-                                      --> optional wake --> Manager registration
+CLI flags / MCP input -> Application.OpenSerial
+  -> load/create TOML and resolve profile -> apply explicit overrides
+  -> save resolved profile if requested -> Manager.GetOrCreate
+```
+
+```mermaid
+flowchart TB
+    manager["Manager.GetOrCreate<br/>(transport, endpoint)"] --> exists{"Active Session?"}
+    exists -->|"Yes"| reused["Return existing Session<br/>reused=true"]
+    exists -->|"No"| transport["Create Serial Transport<br/>and open Channel"]
+    transport --> reader["Start Session reader"]
+    reader --> wake["Send wake byte if enabled"]
+    wake --> register["Manager registration"]
 ```
 
 Concurrent opens for the same exact endpoint wait on one in-progress open. Failed and closed
@@ -119,25 +108,32 @@ Sessions do not permanently reserve the endpoint.
 
 ## SSH open and sharing
 
+The CLI validates settings and reserves its sharing listener before opening SSH:
+
 ```text
 channelterm ssh USER@HOST
-          |
-          +--> CLI resolves key/trust paths, validates config via Transport, reserves loopback listener
-          v
-Application.OpenSSH -> Manager.GetOrCreate(ssh, user@host:port)
-          |
-          v
-SSH Transport: private key/trust loading -> TCP -> authentication -> PTY -> shell
-          |
-          v
-private SSH Channel (channel.Stream lifecycle + optional channel.Resizer)
-          |
-          v
-existing Session reader / buffers / cursors / serialized writes
-          |
-          +--> foreground CLI attachment
-          `--> other attachments via existing authenticated HTTP Host tools
+  -> resolve key/trust paths and validate config via Transport
+  -> reserve loopback listener -> Application.OpenSSH -> Manager.GetOrCreate
 ```
+
+```mermaid
+flowchart TB
+    manager["Manager.GetOrCreate<br/>(ssh, user@host:port)"] -->|"New connection"| transport["SSH Transport setup"]
+    transport --> channel["Private SSH Channel"]
+    channel --> session["Shared Session"]
+    manager -->|"Reuse active Session"| session
+    session --> foreground["Foreground CLI attachment"]
+    session --> others["Other attachments<br/>via authenticated HTTP"]
+```
+
+Only a new connection runs the Transport setup sequence:
+
+```text
+Private key / trust loading -> TCP -> authentication -> PTY -> shell
+  -> private SSH Channel (channel.Stream, optional channel.Resizer)
+```
+
+Session retains the existing reader, buffers, cursors, and serialized writes.
 
 Key parsing, host-key verification, and all SSH-library objects stay inside SSH Transport;
 Application and CLI exchange ordinary settings, paths, and context-aware interaction callbacks.
@@ -190,21 +186,14 @@ The Channel and Session base interfaces, shared byte path, and MCP tools are unc
 
 ## Device discovery
 
-```text
-periodic Serial.ListPorts
-          |
-          v
-Device Registry scan comparison
-          |
-          +--> current Device snapshot
-          +--> bounded appeared/disappeared events
-          `--> conservative state.json identity matching
-                            |
-                            v
-               Application.ConnectionDecision
-                            |
-                            v
-                    ask / connect / deny / none
+```mermaid
+flowchart TB
+    scan["Periodic Serial.ListPorts"] --> registry["Device Registry scan comparison"]
+    registry --> snapshot["Current Device snapshot"]
+    registry --> events["Bounded appeared/disappeared events"]
+    registry --> identity["Conservative state.json identity matching"]
+    identity --> decision["Application.ConnectionDecision"]
+    decision --> outcome["ask / connect / deny / none"]
 ```
 
 The first successful scan is a baseline and emits no appearance events. A transient later scan
@@ -279,18 +268,22 @@ and [File Transfer](../getting-started/file-transfer.md) for the user workflow.
 
 ## User-space GDB
 
+Management and write authorization:
+
+```mermaid
+flowchart TB
+    mcp["MCP debug_*"] --> operation["Application debug operation"]
+    operation --> gdb["GDB/MI subprocess"]
+    operation --> lease["Managed debug lease"]
+    lease -.->|"Authorizes writes"| relay["Binary RSP relay"]
+```
+
+The RSP byte path uses the existing Session and Channel:
+
 ```text
-MCP debug_* -> Application debug operation -> GDB/MI subprocess
-                        |                         |
-                  managed debug lease      private Unix socket
-                        |                         |
-                        +---- binary RSP relay ---+
-                                      |
-                           Session cursor / leased Write
-                                      |
-                       existing Channel and sole reader
-                                      |
-                     Bash PTY -> gdbserver stdio -> inferior
+GDB/MI subprocess -> private Unix socket -> binary RSP relay
+  -> Session cursor / leased Write -> existing Channel and sole reader
+  -> Bash PTY -> gdbserver stdio -> inferior
 ```
 
 The relay preserves binary bytes and ACKs; an overwritten cursor is fatal. Inferior standard I/O
@@ -302,14 +295,22 @@ for timeout, final-ACK, recovery, and subprocess ownership details.
 
 ## External GDB bridge
 
+Management and write authorization:
+
+```mermaid
+flowchart TB
+    mcp["MCP debug_bridge_*"] --> operation["Application bridge operation"]
+    operation --> lease["Exclusive debug lease"]
+    operation --> endpoint["Pinned TLS/TCP endpoint"]
+    endpoint --> relay["Existing binary RSP relay"]
+    lease -.->|"Authorizes writes"| relay
+```
+
+External debugger traffic follows this separate byte path:
+
 ```text
-MCP debug_bridge_* -> Application bridge operation -> exclusive debug lease
-                                  |
-External GDB -> rsp-client -> pinned TLS/TCP endpoint -> existing binary RSP relay
-                                                              |
-                                                   Session cursor / leased Write
-                                                              |
-                                              existing serial Channel -> target
+External GDB -> rsp-client -> pinned TLS/TCP endpoint -> binary RSP relay
+  -> Session cursor / leased Write -> existing serial Channel -> target
 ```
 
 Authentication precedes all Session I/O. Only one authorized data connection is admitted; the acceptor

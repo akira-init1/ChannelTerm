@@ -252,26 +252,30 @@ Elija cómo llega el depurador al programa Linux. Cada opción requiere herramie
 
 **Windows conecta el puerto serie; WSL2 ejecuta GDB; la IA coordina la depuración remota.** El Host de ChannelTerm en Windows mantiene abiertos el puerto COM y la Session compartida. Un GDB compatible con el destino en WSL2 se conecta al gdbserver Linux de la placa mediante el auxiliar Linux `channelterm rsp-client` y el puente TLS/TCP autenticado.
 
+**Control y observación**
+
 ```mermaid
-flowchart LR
+flowchart TB
     AI["Cliente IA"]
     Human["Terminal humano"]
-    subgraph Windows
-        Host["ChannelTerm Host"]
-        COM["Puerto COM"]
-        Host <--> COM
-    end
-    subgraph WSL2["WSL2 / Linux"]
-        GDB["GDB compatible con el destino"]
-        Helper["Linux channelterm rsp-client"]
-        GDB <--> Helper
-    end
-    Board["Placa Linux / gdbserver"]
-    AI -->|"MCP: preparar y gestionar"| Host
-    AI -->|"Herramienta de procesos: comandos GDB"| GDB
+    Host["Windows<br/>ChannelTerm Host"]
+    GDB["WSL2 / Linux<br/>GDB compatible<br/>con el destino"]
+    AI -->|"MCP:<br/>preparar y gestionar"| Host
+    AI -->|"Herramienta de procesos:<br/>comandos GDB"| GDB
     Human ---|"attach / informes IA"| Host
+```
+
+**Ruta de datos RSP**
+
+```mermaid
+flowchart TB
+    GDB["WSL2 / Linux<br/>GDB compatible<br/>con el destino"]
+    Helper["Linux channelterm<br/>rsp-client"]
+    Host["Windows ChannelTerm Host<br/>Puerto COM"]
+    Board["Placa Linux<br/>gdbserver"]
+    GDB <--> Helper
     Helper <-->|"TLS/TCP"| Host
-    COM <-->|"RSP serie"| Board
+    Host <-->|"RSP serie"| Board
 ```
 
 Conserve el controlador serie Windows y el toolchain Linux: el dispositivo serie permanece en Windows y la placa no necesita un puerto GDB de red.
@@ -300,11 +304,11 @@ En este puente serie, la IA puede publicar comandos reales y observaciones media
 La consola serie sigue disponible para registros y trabajo de shell compartidos mientras GDB utiliza la red. El Host serie y GDB pueden estar en el mismo equipo o en equipos distintos; los controladores y el toolchain de destino se eligen por separado.
 
 ```mermaid
-flowchart LR
+flowchart TB
     AI["Cliente IA"]
     Human["Terminal humano"]
     Host["ChannelTerm Host"]
-    GDB["GDB de la estación de trabajo: WSL2 / Linux / Windows / macOS"]
+    GDB["GDB de la estación de trabajo<br/>WSL2 / Linux<br/>Windows / macOS"]
     subgraph Board["Placa Linux"]
         Console["Shell serie / registros"]
         Server["gdbserver"]

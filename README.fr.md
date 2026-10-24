@@ -255,26 +255,30 @@ Choisissez comment le débogueur atteint votre programme Linux. Chaque voie néc
 
 **Windows connecte le port série ; WSL2 exécute GDB ; l’IA coordonne le débogage distant.** Le Host ChannelTerm Windows garde le port COM et la Session partagée ouverts. Un GDB compatible avec la cible dans WSL2 se connecte au gdbserver Linux de la carte via l’auxiliaire Linux `channelterm rsp-client` et le pont TLS/TCP authentifié.
 
+**Contrôle et observation**
+
 ```mermaid
-flowchart LR
+flowchart TB
     AI["Client IA"]
     Human["Terminal humain"]
-    subgraph Windows
-        Host["ChannelTerm Host"]
-        COM["Port COM"]
-        Host <--> COM
-    end
-    subgraph WSL2["WSL2 / Linux"]
-        GDB["GDB compatible avec la cible"]
-        Helper["Linux channelterm rsp-client"]
-        GDB <--> Helper
-    end
-    Board["Carte Linux / gdbserver"]
-    AI -->|"MCP : préparer et gérer"| Host
-    AI -->|"Outil de processus : commandes GDB"| GDB
+    Host["Windows<br/>ChannelTerm Host"]
+    GDB["WSL2 / Linux<br/>GDB compatible<br/>avec la cible"]
+    AI -->|"MCP :<br/>préparer et gérer"| Host
+    AI -->|"Outil de processus :<br/>commandes GDB"| GDB
     Human ---|"attach / rapports IA"| Host
+```
+
+**Chemin des données RSP**
+
+```mermaid
+flowchart TB
+    GDB["WSL2 / Linux<br/>GDB compatible<br/>avec la cible"]
+    Helper["Linux channelterm<br/>rsp-client"]
+    Host["Windows ChannelTerm Host<br/>Port COM"]
+    Board["Carte Linux<br/>gdbserver"]
+    GDB <--> Helper
     Helper <-->|"TLS/TCP"| Host
-    COM <-->|"RSP série"| Board
+    Host <-->|"RSP série"| Board
 ```
 
 Conservez le pilote série Windows et la chaîne Linux : le périphérique série reste sous Windows et la carte n’a pas besoin de port GDB réseau.
@@ -303,11 +307,11 @@ Pour ce pont série, l’IA peut publier ses commandes réelles et observations 
 La console série reste disponible pour les journaux et le shell partagés pendant que GDB utilise le réseau. Host série et GDB peuvent être sur le même ordinateur ou sur des machines différentes ; pilotes et chaîne d’outils cible se choisissent indépendamment.
 
 ```mermaid
-flowchart LR
+flowchart TB
     AI["Client IA"]
     Human["Terminal humain"]
     Host["ChannelTerm Host"]
-    GDB["GDB du poste de travail: WSL2 / Linux / Windows / macOS"]
+    GDB["GDB du poste de travail<br/>WSL2 / Linux<br/>Windows / macOS"]
     subgraph Board["Carte Linux"]
         Console["Shell série / journaux"]
         Server["gdbserver"]

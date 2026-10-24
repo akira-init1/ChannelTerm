@@ -4,22 +4,16 @@ ChannelTerm is shared terminal-session infrastructure for human and AI access to
 transports. The current implementation is serial-first and is primarily focused on hardware,
 embedded-system, and terminal debugging, while the Core remains transport-neutral.
 
-```text
-CLI Adapter -------------------+
-                               |
-MCP Adapter -> Tool Registry --+--> internal/core/app.Application
-                                            |
-                              +-------------+-------------+
-                              |                           |
-                              v                           v
-                    Session / Manager              Device Registry
-                         |         ^                      |
-                         |         |               Connection Policy
-                         v         |
-                  Transport        |
-                         |         |
-                         v         |
-                      Channel -----+
+```mermaid
+flowchart TB
+    cli["CLI Adapter"] --> application["internal/core/app.Application"]
+    mcp["MCP Adapter"] --> tools["Tool Registry"] --> application
+    application --> sessions["Session / Manager"]
+    application --> devices["Device Registry"]
+    application --> policy["Connection Policy"]
+    sessions -.->|"Connection setup"| transport["Transport"]
+    transport -->|"Establishes and transfers the stream"| channel["Channel"]
+    sessions <-->|"Established I/O"| channel
 ```
 
 The Transport-to-Channel arrows show connection establishment and ownership transfer. Once open,

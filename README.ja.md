@@ -247,26 +247,30 @@ channelterm file receive /var/log/myapp ./myapp --session SER-1
 
 **Windows でシリアル接続、WSL2 で GDB 実行、AI がリモートデバッグを進めます。** Windows の ChannelTerm Host が COM ポートと共有 Session を保持します。WSL2 のターゲット対応 GDB は、Linux 版 `channelterm rsp-client` と認証付き TLS/TCP ブリッジを経由して、ボード上の Linux gdbserver に接続します。
 
+**制御と監視**
+
 ```mermaid
-flowchart LR
+flowchart TB
     AI["AI クライアント"]
     Human["人間の端末"]
-    subgraph Windows
-        Host["ChannelTerm Host"]
-        COM["COM ポート"]
-        Host <--> COM
-    end
-    subgraph WSL2["WSL2 / Linux"]
-        GDB["ターゲット対応 GDB"]
-        Helper["Linux channelterm rsp-client"]
-        GDB <--> Helper
-    end
-    Board["Linux ボード / gdbserver"]
-    AI -->|"MCP：準備と管理"| Host
-    AI -->|"プロセスツール：GDB 操作"| GDB
+    Host["Windows<br/>ChannelTerm Host"]
+    GDB["WSL2 / Linux<br/>ターゲット対応<br/>GDB"]
+    AI -->|"MCP：<br/>準備と管理"| Host
+    AI -->|"プロセスツール：<br/>GDB 操作"| GDB
     Human ---|"attach / AI レポート"| Host
+```
+
+**RSP データ経路**
+
+```mermaid
+flowchart TB
+    GDB["WSL2 / Linux<br/>ターゲット対応<br/>GDB"]
+    Helper["Linux channelterm<br/>rsp-client"]
+    Host["Windows ChannelTerm Host<br/>COM ポート"]
+    Board["Linux ボード<br/>gdbserver"]
+    GDB <--> Helper
     Helper <-->|"TLS/TCP"| Host
-    COM <-->|"シリアル RSP"| Board
+    Host <-->|"シリアル RSP"| Board
 ```
 
 Windows のシリアルドライバーと Linux ツールチェーンをそのまま利用できます。シリアル機器は Windows 側に置き、ボード側のネットワーク GDB ポートは不要です。
@@ -295,11 +299,11 @@ Windows のシリアルドライバーと Linux ツールチェーンをその�
 シリアルコンソールでログやシェル操作を共有しながら、GDB の通信にはネットワークを利用できます。シリアル Host と GDB は同じコンピューターでも別々でも構いません。ドライバーとターゲット用ツールチェーンを各環境に合わせて選べます。
 
 ```mermaid
-flowchart LR
+flowchart TB
     AI["AI クライアント"]
     Human["人間の端末"]
     Host["ChannelTerm Host"]
-    GDB["ワークステーション GDB: WSL2 / Linux / Windows / macOS"]
+    GDB["ワークステーション GDB<br/>WSL2 / Linux<br/>Windows / macOS"]
     subgraph Board["Linux ボード"]
         Console["シリアルシェル / ログ"]
         Server["gdbserver"]
