@@ -1,5 +1,7 @@
 golang.org/x/crypto (SSH implementation)
+golang.org/x/text (client terminal character encoding)
 https://go.googlesource.com/crypto
+https://go.googlesource.com/text
 
 Copyright 2009 The Go Authors.
 

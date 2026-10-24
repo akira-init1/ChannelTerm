@@ -763,6 +763,7 @@ func runSerial(ctx context.Context, args []string, input io.Reader, output io.Wr
 // while the serial command intentionally retains its established output.
 func runSerialWithTarget(ctx context.Context, args []string, input io.Reader, output io.Writer, newSession serialSessionFactory, target string) (err error) {
 	flags := flag.NewFlagSet("serial", flag.ContinueOnError)
+	presentationOptions := defineTerminalFlags(flags)
 	flags.SetOutput(output)
 	port := flags.String("port", "", "serial port name, for example COM3")
 	baudRate := flags.Int("baud", 115200, "serial baud rate")
@@ -799,7 +800,11 @@ func runSerialWithTarget(ctx context.Context, args []string, input io.Reader, ou
 	if flags.NArg() != 0 {
 		return fmt.Errorf("unexpected serial argument %q", flags.Arg(0))
 	}
-	renderer := resolveHighlightRenderer(*highlightEnabled, output)
+	codec, err := presentationOptions.codec()
+	if err != nil {
+		return err
+	}
+	renderer := resolveHighlightRenderer(*highlightEnabled && !codec.hex, output)
 	var outputMu sync.Mutex
 	promptTimestamps := newPromptTimestampRenderer(terminalOutputWriter(output, renderer), terminalOutputFlusher(renderer), time.Now)
 	writeLocalOutput := func(data []byte) error {
@@ -813,11 +818,22 @@ func runSerialWithTarget(ctx context.Context, args []string, input io.Reader, ou
 	writeTerminalOutput := func(data []byte) error {
 		outputMu.Lock()
 		defer outputMu.Unlock()
-		return promptTimestamps.Write(data)
+		decoded, err := codec.output(data, false)
+		if err != nil {
+			return err
+		}
+		return promptTimestamps.Write(decoded)
 	}
 	flushTerminalOutput := func() error {
 		outputMu.Lock()
 		defer outputMu.Unlock()
+		tail, err := codec.output(nil, true)
+		if err != nil {
+			return err
+		}
+		if err = promptTimestamps.Write(tail); err != nil {
+			return err
+		}
 		return promptTimestamps.Flush()
 	}
 	togglePromptTimestamps := func() error {
@@ -883,6 +899,11 @@ func runSerialWithTarget(ctx context.Context, args []string, input io.Reader, ou
 			return fmt.Errorf("write target status: %w", err)
 		}
 	}
+	if presentationOptions.description != "" {
+		if err := writeLocalOutput([]byte("Description: " + presentationOptions.description + "\r\n")); err != nil {
+			return err
+		}
+	}
 	// Input has an independent goroutine because a blocked serial Write must not
 	// delay output forwarding. Session's dedicated reader and bounded buffer keep
 	// an independently slow stdout consumer from blocking serial Read. Raw mode
@@ -893,7 +914,7 @@ func runSerialWithTarget(ctx context.Context, args []string, input io.Reader, ou
 	inputDone = inputFinished
 	go func() {
 		defer close(inputFinished)
-		forwardInputWithPromptTimestampContext(sessionCtx, input, terminal, writeLocalOutput, togglePromptTimestamps, cancel)
+		forwardInputWithPromptTimestampContext(sessionCtx, input, encodedTerminalWriter{target: terminal, codec: codec}, writeLocalOutput, togglePromptTimestamps, cancel)
 	}()
 
 	cursor := session.OutputCursor(0)
@@ -922,6 +943,11 @@ func runSerialWithTarget(ctx context.Context, args []string, input io.Reader, ou
 			return fmt.Errorf("read serial output: %w", err)
 		}
 		cursor = chunk.Next
+		if chunk.Dropped {
+			outputMu.Lock()
+			codec.resetOutput()
+			outputMu.Unlock()
+		}
 		if len(chunk.Data) == 0 {
 			continue
 		}

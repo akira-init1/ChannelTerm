@@ -108,6 +108,9 @@ profile is an error rather than a fallback to another profile.
 Only explicitly present flags or JSON properties override profile values. The port in a target-first
 `connect` or `attach` operation is always selected by that native serial target.
 
+Terminal `--encoding`, `--view`, and `--description` are client-local invocation settings;
+they are not profile fields and are not persisted by `--save`.
+
 `--save NAME` or MCP `save` writes the final resolved profile before opening the transport. It
 creates or replaces `serial.profiles.NAME`. If `serial.default` is empty, the saved name becomes the
 default. Existing configuration is otherwise read-only.

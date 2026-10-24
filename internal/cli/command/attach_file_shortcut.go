@@ -125,10 +125,13 @@ func forwardAttachInputWithInterrupts(ctx context.Context, input io.Reader, term
 
 // forwardAttachInputWithPresentation routes input while keeping ordinary local
 // UI text distinct from status blocks that must begin at a line boundary.
-func forwardAttachInputWithPresentation(ctx context.Context, input io.Reader, terminal attachSession, writeLocal func([]byte) error, writeStatus func([]byte) error, togglePromptTimestamp func() error, cancel context.CancelFunc, interrupts <-chan os.Signal) {
+func forwardAttachInputWithPresentation(ctx context.Context, input io.Reader, terminal attachSession, writeLocal func([]byte) error, writeStatus func([]byte) error, togglePromptTimestamp func() error, cancel context.CancelFunc, interrupts <-chan os.Signal, remoteWriter ...func([]byte) error) {
 	pump := newAttachInputPumpContext(ctx, input)
 	dispatcher := newAttachInputDispatcherWithPumpAndInterrupts(ctx, &pump, terminal, writeLocal, togglePromptTimestamp, cancel, runAttachShortcutFileTransfer, interrupts)
 	dispatcher.writeStatus = writeStatus
+	if len(remoteWriter) > 0 {
+		dispatcher.writeRemote = remoteWriter[0]
+	}
 	dispatcher.run()
 }
 

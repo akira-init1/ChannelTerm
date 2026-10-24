@@ -194,6 +194,7 @@ channelterm serial [--profile NAME] [--port PORT] [options]
 | `--flow-control` | `none` | Values: `none`, `software`, `hardware`; the backend supports only `none`. |
 | `--wake` | false | Sends one carriage return after a newly opened Session connects. |
 | `--highlight` | true | Style plain text; use `--highlight=false` to disable it. |
+| `--encoding`, `--view`, `--description` | UTF-8 text, no description | Client-local terminal presentation; see [encoding and hex view](../getting-started/serial-terminal.md#character-encoding-description-and-hexadecimal-view). |
 | `--profile` | none | Named profile from the selected TOML file. |
 | `--config` | default path | Alternate TOML configuration path. Missing files are created for an opening workflow. |
 | `--save` | none | Saves resolved settings under a non-empty profile name before opening. |
@@ -499,6 +500,7 @@ The normal target-first forms are:
 | `--endpoint` | `http://127.0.0.1:37099/mcp` | Complete Streamable HTTP MCP endpoint. |
 | `--private`, `--no-mcp` | false | Open a serial target locally; valid only for a native serial target. |
 | `--highlight` | true | Same local highlighting as `serial`; set false for raw presentation. |
+| `--encoding`, `--view`, `--description` | as for `serial` | Client-local settings, also valid for an existing Session reference. |
 | `--profile`, `--config`, `--save` | as for `serial` | Used only with a serial target. |
 | `--baud`, `--data-bits`, `--parity` | as for `serial` | Used only with a serial target. |
 | `--stop-bits`, `--flow-control`, `--wake` | as for `serial` | Used only with a serial target. |

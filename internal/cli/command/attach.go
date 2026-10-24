@@ -162,6 +162,7 @@ func runAttachSessionWithInterrupts(ctx context.Context, args []string, input io
 // drain queued input before the Host and its Sessions are closed.
 func runAttachSessionWithInputEnd(ctx context.Context, args []string, input io.Reader, output io.Writer, newAttach attachSessionFactory, interrupts <-chan os.Signal, onInputEnd func()) (err error) {
 	flags := flag.NewFlagSet("attach", flag.ContinueOnError)
+	presentationOptions := defineTerminalFlags(flags)
 	flags.SetOutput(output)
 	endpoint := flags.String("endpoint", defaultMCPEndpoint, "MCP Streamable HTTP endpoint")
 	highlightEnabled := flags.Bool("highlight", true, "apply semantic colors to plain terminal text")
@@ -189,7 +190,11 @@ func runAttachSessionWithInputEnd(ctx context.Context, args []string, input io.R
 	if flags.NArg() > 1 {
 		return fmt.Errorf("unexpected attach argument %q", flags.Arg(1))
 	}
-	renderer := resolveHighlightRenderer(*highlightEnabled, output)
+	codec, err := presentationOptions.codec()
+	if err != nil {
+		return err
+	}
+	renderer := resolveHighlightRenderer(*highlightEnabled && !codec.hex, output)
 	if newAttach == nil {
 		return errors.New("attach session factory must not be nil")
 	}
@@ -279,11 +284,22 @@ func runAttachSessionWithInputEnd(ctx context.Context, args []string, input io.R
 	writeTerminalOutput := func(data []byte) error {
 		outputMu.Lock()
 		defer outputMu.Unlock()
-		return promptTimestamps.Write(data)
+		decoded, err := codec.output(data, false)
+		if err != nil {
+			return err
+		}
+		return promptTimestamps.Write(decoded)
 	}
 	flushTerminalOutput := func() error {
 		outputMu.Lock()
 		defer outputMu.Unlock()
+		tail, err := codec.output(nil, true)
+		if err != nil {
+			return err
+		}
+		if err = promptTimestamps.Write(tail); err != nil {
+			return err
+		}
 		return promptTimestamps.Flush()
 	}
 	togglePromptTimestamps := func() error {
@@ -305,6 +321,11 @@ func runAttachSessionWithInputEnd(ctx context.Context, args []string, input io.R
 	if owner, ok := attached.(localFileTransferPresentation); ok {
 		owner.setFileTransferPresentation(presentation)
 	}
+	if presentationOptions.description != "" {
+		if err := writeLocalStatus([]byte("Description: " + presentationOptions.description)); err != nil {
+			return err
+		}
+	}
 	if onInputEnd != nil {
 		ownerInputDone = make(chan struct{})
 		go func() {
@@ -312,7 +333,10 @@ func runAttachSessionWithInputEnd(ctx context.Context, args []string, input io.R
 			forwardSSHOwnerInput(attachCtx, input, attached, writeLocalOutput, writeLocalStatus, togglePromptTimestamps, cancel, interrupts, onInputEnd)
 		}()
 	} else {
-		go forwardAttachInputWithPresentation(attachCtx, input, attached, writeLocalOutput, writeLocalStatus, togglePromptTimestamps, cancel, interrupts)
+		writer := encodedTerminalWriter{target: attached, codec: codec}
+		go forwardAttachInputWithPresentation(attachCtx, input, attached, writeLocalOutput, writeLocalStatus, togglePromptTimestamps, cancel, interrupts, func(data []byte) error {
+			return writeSession(writer, session.ActorUser, data)
+		})
 	}
 	events, hasEvents := attached.(attachEventSession)
 	if hasEvents {
@@ -387,6 +411,11 @@ func runAttachSessionWithInputEnd(ctx context.Context, args []string, input io.R
 			return fmt.Errorf("read attached session output: %w", err)
 		}
 		cursor = chunk.Next
+		if chunk.Dropped {
+			outputMu.Lock()
+			codec.resetOutput()
+			outputMu.Unlock()
+		}
 		if len(chunk.Data) == 0 {
 			continue
 		}
@@ -410,6 +439,7 @@ func runAttachTargetFirst(ctx context.Context, target string, args []string, inp
 
 func runAttachTargetFirstWithInterrupts(ctx context.Context, target string, args []string, input io.Reader, output io.Writer, newAttach attachSessionFactory, interrupts <-chan os.Signal) error {
 	flags := flag.NewFlagSet("attach", flag.ContinueOnError)
+	presentationOptions := defineTerminalFlags(flags)
 	flags.SetOutput(output)
 	endpoint := flags.String("endpoint", defaultMCPEndpoint, "Session Host endpoint")
 	private := flags.Bool("private", false, "open a private local connection without Session Host or MCP")
@@ -436,10 +466,14 @@ func runAttachTargetFirstWithInterrupts(ctx context.Context, target string, args
 	if flags.NArg() != 0 {
 		return fmt.Errorf("unexpected attach argument %q", flags.Arg(0))
 	}
+	if _, err := presentationOptions.codec(); err != nil {
+		return err
+	}
 	if classifyAttachDestination(target) == attachSerialDestination {
 		serialArgs := stripAttachControlFlags(args)
 		if *private {
 			serialArgs = append(serialArgs, fmt.Sprintf("--highlight=%t", *highlightEnabled))
+			serialArgs = append(serialArgs, presentationOptions.args()...)
 			return runApplicationConnect(ctx, append([]string{target}, serialArgs...), input, output, nil)
 		}
 		opened, reused, startedHost, err := openSharedSerialTarget(ctx, strings.TrimSpace(*endpoint), target, serialArgs)
@@ -456,7 +490,7 @@ func runAttachTargetFirstWithInterrupts(ctx context.Context, target string, args
 		if _, err := fmt.Fprintf(output, "Shared Session %s: %s (%s)\r\n", state, opened.Reference, opened.ID); err != nil {
 			return err
 		}
-		return runAttachSessionWithInterrupts(ctx, []string{"--endpoint", *endpoint, fmt.Sprintf("--highlight=%t", *highlightEnabled), opened.ID}, input, output, newAttach, interrupts)
+		return runAttachSessionWithInterrupts(ctx, append(append([]string{"--endpoint", *endpoint, fmt.Sprintf("--highlight=%t", *highlightEnabled)}, presentationOptions.args()...), opened.ID), input, output, newAttach, interrupts)
 	}
 	if *private {
 		return errors.New("--private requires a serial target such as COM8 or /dev/ttyUSB0")
@@ -464,7 +498,7 @@ func runAttachTargetFirstWithInterrupts(ctx context.Context, target string, args
 	if hasAttachSerialOption(flags) {
 		return errors.New("serial options require a serial target such as COM8 or /dev/ttyUSB0")
 	}
-	return runAttachSessionWithInterrupts(ctx, []string{"--endpoint", *endpoint, fmt.Sprintf("--highlight=%t", *highlightEnabled), target}, input, output, newAttach, interrupts)
+	return runAttachSessionWithInterrupts(ctx, append(append([]string{"--endpoint", *endpoint, fmt.Sprintf("--highlight=%t", *highlightEnabled)}, presentationOptions.args()...), target), input, output, newAttach, interrupts)
 }
 
 // writeAutoStartedHostNotice explains the attachment-owned Host lifecycle.
@@ -534,13 +568,13 @@ func stripAttachControlFlags(args []string) []string {
 		switch arg {
 		case "--private", "--no-mcp":
 			continue
-		case "--endpoint":
+		case "--endpoint", "--encoding", "--view", "--description":
 			index++
 			continue
 		case "--highlight":
 			continue
 		}
-		if strings.HasPrefix(arg, "--endpoint=") || strings.HasPrefix(arg, "--highlight=") {
+		if strings.HasPrefix(arg, "--endpoint=") || strings.HasPrefix(arg, "--highlight=") || strings.HasPrefix(arg, "--encoding=") || strings.HasPrefix(arg, "--view=") || strings.HasPrefix(arg, "--description=") {
 			continue
 		}
 		serialArgs = append(serialArgs, arg)

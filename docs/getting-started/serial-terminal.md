@@ -128,6 +128,33 @@ On Windows Console hosts, navigation keys are sent as standard VT sequences: for
 Use `--wake` only when a known, already-running shell is idle without a prompt. It sends exactly one
 carriage return after a new connection succeeds. It is not enabled by default.
 
+## Character encoding, description, and hexadecimal view
+
+Serial bytes have no inherent character set. Select the encoding used by the device's shell:
+
+```powershell
+channelterm attach COM8 --baud 115200 --encoding gbk --description "Debug console"
+channelterm attach SER-1 --encoding gb18030
+channelterm attach SER-1 --view hex
+```
+
+`serial`, `connect`, and `attach` accept `--encoding utf-8|gbk|gb18030` (default `utf-8`),
+`--view text|hex` (default `text`), and `--description`. These are local invocation settings,
+not serial electrical parameters or shared Session metadata. `--save` does not persist them.
+The description is a single line, up to 512 UTF-8 bytes, without control characters.
+
+Text mode decodes received GBK/GB18030 bytes for the local UTF-8 console and encodes typed
+UTF-8 input for the device. Split characters are buffered across reads. Unrepresentable or
+invalid input is rejected without replacement or automatic replay. The default UTF-8 path
+preserves the existing raw console behavior. Invalid device sequences in legacy encodings
+display replacement characters; after an output gap, partial decoding state is discarded.
+
+Hex mode is read-only and shows offsets, hexadecimal bytes, and printable ASCII; escape
+sequences are shown as data. Offsets count bytes observed by this attachment and reset after
+an output gap. Rows may end at read boundaries. Local escape commands, including detach, remain
+available. Return to `--view text` to type into the terminal. File transfers, Host buffers,
+MCP results, and other clients retain their original bytes regardless of these settings.
+
 ## Local highlighting
 
 `serial`, `connect`, and `attach` enable semantic highlighting by default when stdout is a
