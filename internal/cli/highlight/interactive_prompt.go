@@ -21,4 +21,6 @@ func HasInteractivePromptPrefix(line []byte) bool {
 var interactivePromptPatterns = []*regexp.Regexp{
 	// Minimal POSIX primary prompts and the secondary continuation prompt.
 	regexp.MustCompile(`^[$#>](?:[ \t]+|$)`),
+	// U-Boot variants.
+	regexp.MustCompile(`^(?:=>|(?:[A-Za-z0-9_.-]+[ \t]+)*U-Boot[ \t]*>|Zynq(?:MP)?[ \t]*>)`),
 }
