@@ -25,4 +25,6 @@ var interactivePromptPatterns = []*regexp.Regexp{
 	regexp.MustCompile(`^(?:=>|(?:[A-Za-z0-9_.-]+[ \t]+)*U-Boot[ \t]*>|Zynq(?:MP)?[ \t]*>)`),
 	// barebox.
 	regexp.MustCompile(`^barebox@[^:\r\n]+:[^ \t\r\n]+(?:[ \t]+|$)`),
+	// GRUB rescue.
+	regexp.MustCompile(`^grub[ \t]+rescue>`),
 }

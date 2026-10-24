@@ -6,7 +6,7 @@ import (
 )
 
 func TestInteractivePromptRejectsOrdinaryText(t *testing.T) {
-	for _, input := range []string{"barebox booting", "log: barebox@board:/ ", "$variable", "#heading", ">comparison", "log: > ", "log: BBG U-Boot > ", "BBG U-Boot version "} {
+	for _, input := range []string{"grub rescue failed", "log: grub rescue> ", "barebox booting", "log: barebox@board:/ ", "$variable", "#heading", ">comparison", "log: > ", "log: BBG U-Boot > ", "BBG U-Boot version "} {
 		if HasInteractivePromptPrefix([]byte(input)) {
 			t.Errorf("recognized ordinary output %q", input)
 		}
