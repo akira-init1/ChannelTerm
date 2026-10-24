@@ -35,4 +35,6 @@ var interactivePromptPatterns = []*regexp.Regexp{
 	regexp.MustCompile(`^(?:uart|rtt|usb):[^ \t\r\n]*[$#](?:[ \t]+|$)`),
 	// RT-Thread.
 	regexp.MustCompile(`^(?:msh|finsh)[ \t]+[^>\r\n]*>`),
+	// MicroPython REPL.
+	regexp.MustCompile(`^(?:>>>|\.\.\.|===)(?:[ \t]+|$)`),
 }

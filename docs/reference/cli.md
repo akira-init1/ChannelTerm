@@ -241,6 +241,7 @@ Side effects and lifecycle:
   | Cisco ROMMON | `rommon 1 > `, `IR1800 rommon 9 > ` |
   | Zephyr | `uart:~$ `, `rtt:~$ `, `usb:~$ ` |
   | RT-Thread | `msh />`, `msh /sdcard>` |
+  | MicroPython REPL | `>>> `, `... `, `=== ` |
 - The highlighter assigns non-bold semantic colors to status words, boot headings, field names,
   embedded interface/protocol identifiers, addresses, versions, timestamps, numbers, units, quoted
   values, structural `()`, `[]`, and `{}` delimiters, and recognized shell-prompt components. It
