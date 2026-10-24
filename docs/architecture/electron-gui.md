@@ -41,7 +41,7 @@ The permitted import direction follows these boundaries:
 | Preload | Shared contracts and Electron contextBridge/IPC; no Host Client or business policy. |
 | Main | Electron/system APIs, shared contracts, and Host Client; no renderer implementation. |
 | Host Client | Shared contracts, MCP SDK, and required Node APIs; no React, xterm, or view state. |
-| Shared contracts | Serializable types, pure menu descriptions/validators, and literal catalogs; no React, Electron, Node runtime, or process-specific imports. |
+| Shared contracts and locale resources | Serializable types, pure menu descriptions/validators, English message definitions, and generated catalog data; no React, Electron, Node runtime, or process-specific imports. |
 
 Renderer currently has `terminal` and `sessions` features; `components/App` composes their views.
 Feature-local hooks, state, and tests can be added when responsibility or verification requires
@@ -65,6 +65,9 @@ in the [menu reference](../reference/gui-menus.md). Renderer popovers and the na
 application menu share finite action IDs, state hints, and Lingui catalogs. Language switching
 updates English, Simplified Chinese, and Japanese menus without resizing xterm. The renderer
 strip remains the visible Windows/Linux menu surface; macOS also has its native system menu.
+The official Lingui CLI maintains PO catalogs and compiles shared resource imports before both
+esbuild and Vite run. Each process owns its own Lingui instance; there is no cross-process
+translation loader or credential access. See the [maintenance workflow](../development/electron-gui.md#menu-translations-lingui-590).
 A 48 px activity rail toggles the 260 px Session sidebar without changing the attachment.
 At viewport widths of 900 px or less, the rail/sidebar shrink to 40/210 px and secondary
 labels are hidden. The terminal takes the remaining width and height; its 52 px header

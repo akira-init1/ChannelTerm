@@ -122,7 +122,7 @@ let desktop;
 let devServer;
 try {
   if (process.argv.includes("--dev")) {
-    await buildProcesses();
+    await buildProcesses({ strictCatalogs: false });
     const nonce = randomBytes(16).toString("hex");
     devServer = await createServer({ html: { cspNonce: nonce } });
     await devServer.listen();

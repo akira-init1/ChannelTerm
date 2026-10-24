@@ -119,6 +119,7 @@ gui/electron/
 |   |   |-- menu.ts                 Native menu rendering from bounded display hints
 |   |   `-- host/                   Main-only credentials, MCP client, validation, safe errors
 |   |-- preload/                   Narrow contextBridge methods; no business decisions
+|   |-- locales/                   Per-locale PO sources, ignored compiled modules, process-neutral resource imports
 |   |-- renderer/
 |   |   |-- components/            React application shell and view state
 |   |   |-- sessions/              Session selection and display metadata
@@ -126,7 +127,7 @@ gui/electron/
 |   |   |-- styles/                Desktop presentation
 |   |   |-- host.ts                Renderer adapter for the typed Preload bridge
 |   |   `-- main.tsx               React entry point
-|   `-- shared/                    GUI bridge types, fixed channels, pure menu model and literal catalogs
+|   `-- shared/                    GUI bridge types, fixed channels, pure menu model and English message definitions
 |-- scripts/                       Independent build/start/dev/notices and desktop test runners
 |-- tests/
 |   |-- host/                      Disposable Go composition using the real Host with fake I/O
@@ -135,9 +136,11 @@ gui/electron/
 |-- package-lock.json              Exact resolved dependencies
 |-- tsconfig.json                  Strict TypeScript checks
 |-- vite.config.ts                 Renderer build and loopback development server
+|-- lingui.config.ts               Official message extraction, PO format, locales and compilation policy
 |-- index.html                     Renderer document
 |-- THIRD_PARTY_NOTICES             GUI redistribution obligations and generated notice location
-`-- .gitignore                     Local dependencies, build output, and test artifacts
+|-- .prettierignore                Excludes generated Lingui modules from formatting
+`-- .gitignore                     Local dependencies, build output, compiled catalogs and test artifacts
 ```
 
 Main's Host Client calls existing authenticated MCP tools; it does not import Go source, own a

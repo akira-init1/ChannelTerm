@@ -24,7 +24,7 @@ On Linux/macOS use `cd gui/electron` and `npm` in place of `npm.cmd`. The `.cmd`
 PowerShell script-execution policy errors without changing system policy. Electron may download its
 platform runtime on first launch; dependency and runtime downloads require network access.
 
-`dev` builds Main/Preload once, starts Vite on `127.0.0.1:5173`, and opens the native desktop window.
+`dev` compiles PO catalogs, builds Main/Preload once, starts Vite on `127.0.0.1:5173`, and opens the native desktop window.
 Renderer changes use Vite refresh. Restart `dev` after Main, Preload, shared bridge, or build-script
 changes; a renderer reload disconnects its Host client. Closing Electron also stops this development
 server. Port 5173 is strict: a conflict fails startup rather than loading an unrelated server.
@@ -36,12 +36,80 @@ npm.cmd run build
 npm.cmd start
 ```
 
-`build` type-checks TypeScript, bundles Main and sandbox-compatible Preload with esbuild, builds
+`build` strictly compiles PO catalogs, type-checks TypeScript, bundles Main and sandbox-compatible Preload with esbuild, builds
 the React/xterm renderer with Vite, and collects runtime license texts into `dist/`. `start` loads
 those assets through the local application scheme. This produces runnable application assets,
 not an installer. Node/npm are development requirements; a future packaged GUI includes its own
 Electron runtime and can include a platform-matched Go Host. See the
 [release boundaries](../architecture/electron-gui.md#multiple-frontends-and-release-boundaries).
+
+## Menu translations (Lingui 5.9.0)
+
+Core, CLI, configuration helpers, and the PO formatter are pinned to **5.9.0**. Use the local
+commands below; newer Lingui documentation may describe `check` commands unavailable in this
+version. The [menu reference](../reference/gui-menus.md#translation-and-keyboard-behavior) owns
+language-selection behavior. The repository map owns source locations.
+
+`src/shared/menu-messages.ts` defines stable IDs and English defaults with Lingui's official
+[annotated `MessageDescriptor` form](https://lingui.dev/ref/macro), verified against the pinned
+5.9 extractor:
+
+```typescript
+/* i18n */ { id: "help.quick", message: "Quick help" }
+```
+
+Keep the annotation and unquoted `id`/`message` property names, as shown; the 5.9 extractor reads
+these descriptors directly. Menu code continues to reference stable IDs. No runtime macro or
+Vite-only Babel transform is necessary, and source descriptors are not imported into either
+runtime bundle. Translate messages in `src/locales/en/messages.po`, `zh-CN/messages.po`, and
+`ja/messages.po`; each PO uses the existing explicit ID as `msgid`. English defaults are filled
+for new source entries. Do not edit compiled arrays or keep translations in TypeScript logic.
+
+From `gui/electron`, after adding or changing a message:
+
+```powershell
+npm.cmd run i18n:extract
+# Edit the PO translations, then check and compile:
+npm.cmd run i18n:check
+npm.cmd test
+```
+
+Extraction scans `src`, merges new messages into each configured catalog, preserves existing
+translations, and removes obsolete entries with `--clean`. Review PO changes. To deliberately
+replace existing English translations after changing English defaults, run
+`npm.cmd run i18n:extract -- --overwrite`; it does not overwrite Chinese/Japanese translations.
+The extraction regression test uses disposable copies to prove that a new message and fourth
+locale preserve old translations. No translation service or account is used.
+
+`i18n:check` runs the official `lingui compile --strict`; it rejects missing target translations
+and invalid message syntax. Extract first: Lingui 5's compile command validates catalogs, not
+source/catalog synchronization. Menu tests additionally require every defined/menu ID to exist
+in the compiled catalogs. `fallbackLocales: false` intentionally prevents explicit fallback
+configuration from masking missing translations in strict mode.
+
+`npm.cmd run i18n:compile` is the non-strict development command. In Lingui 5, missing target
+translations fall back to `sourceLocale: "en"` during compilation; an entirely unknown ID falls
+back to the ID. This permits a local preview but does not pass the production gate. Tests cover
+both the strict failure and the English fallback, including an ICU placeholder.
+
+The official compiler writes ignored `src/locales/*/messages.ts`; these files are also excluded
+from Prettier. `src/locales/catalogs.ts` only imports/registers these generated resources. Main
+and Renderer each create their own Lingui instance from their bundled copies. Preload does not
+load catalogs or translation tooling.
+
+`pretypecheck` and `pretest` strictly compile catalogs so those commands work on a fresh checkout.
+The process build helper also compiles before esbuild starts: production is strict, while `dev`
+and `test:desktop:dev` allow English development fallbacks. Vite consumes the same generated
+TypeScript through ordinary imports; its config does not affect Main. `start` uses existing
+production assets. Restart `npm.cmd run dev` after changing PO files or definitions so both
+processes load the same revision; running compilation alone may refresh Renderer but cannot
+replace the already-bundled Main catalog.
+
+To add a language, extend `locales` in `src/shared/menus.ts`, add its generated-module import
+and registration in `src/locales/catalogs.ts`, and define one `language.<locale>` picker label.
+The Lingui config derives its locale list from the shared list. Extract, translate the new PO
+catalog and picker label, check, and extend language-switch tests. Existing message definitions
+need no additional array element or per-message language structure change.
 
 ## Connect to an existing Host
 
@@ -112,6 +180,9 @@ The Node tests cover authenticated list/attach/read/write, timeout and cancellat
 and disconnect, stale attachment rejection, lease contention and recovery, buffer overwrite, Session
 close, Host disconnect, credential redaction, redirect refusal, IPC source/argument checks, and
 independent client survival. They do not prove hardware or remote-network behavior.
+Translation tests run the pinned CLI against disposable PO copies: new-message and new-locale
+extraction, translation preservation, strict rejection, and English fallback. Notice-collection
+tests distinguish absent optional platform packages from missing required packages/licenses.
 
 `test:desktop` builds the production bundle and uses Playwright's Electron driver to launch a real
 visible native window against that fixture. It checks isolation settings, missing Node globals,

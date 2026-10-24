@@ -27,7 +27,7 @@ import {
   type MenuLocale,
   type MenuState,
 } from "../../shared/menus";
-import { menuCatalogs } from "../../shared/menu-messages";
+import { menuCatalogs } from "../../locales/catalogs";
 
 /**
  * App composes Host snapshots and local attachment controls into the workbench.

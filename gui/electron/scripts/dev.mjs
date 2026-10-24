@@ -4,7 +4,7 @@ import electron from "electron";
 import { createServer } from "vite";
 import { buildProcesses } from "./build.mjs";
 
-await buildProcesses();
+await buildProcesses({ strictCatalogs: false });
 const nonce = randomBytes(16).toString("hex");
 const server = await createServer({ html: { cspNonce: nonce } });
 await server.listen();

@@ -66,16 +66,18 @@ Host client resources.
 
 ## Translation and keyboard behavior
 
-Lingui Core runs in Main and Renderer with the same finite literal catalogs. Renderer owns the
+Lingui Core runs in Main and Renderer with separate instances of the same compiled PO catalogs. Renderer owns the
 active menu locale and synchronizes it with native labels/checks; open context-menu labels and
 help content also use that locale. The preference lasts for the current window only and defaults
 to English. This is menu/help localization, not a claim that Host diagnostics or the entire
 workbench have been translated. Adding a message requires all three translations.
 
-Catalogs contain literal compiled messages and need no runtime ICU compiler, extraction plugin,
-network service, or executable translation content. Lingui 5.9 is pinned to preserve the existing
-Node 22.12 minimum; its runtime dependencies are JavaScript, with MIT/BSD notices collected by
-the normal build. There is no native module or change to Go dependencies or CGO requirements.
+The official Lingui 5.9.0 CLI extracts annotated message definitions into independent PO files
+and compiles them before both process builds. Generated modules are not maintained by hand.
+Strict production checks reject missing target translations; non-strict development compilation
+uses the English source fallback. See the [translation maintenance workflow](../development/electron-gui.md#menu-translations-lingui-590).
+No runtime ICU compiler or translation service is added. The Node 22.12 minimum, Go dependencies,
+and CGO requirements are unchanged; build tooling and its notices remain GUI-local.
 
 Menus register no Electron accelerators, mnemonic markers, default action roles, or global
 keyboard listeners. On Windows/Linux, the native application menu model is installed but its

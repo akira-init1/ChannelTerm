@@ -10,7 +10,7 @@ import {
   type MenuEntry,
   type MenuState,
 } from "../shared/menus";
-import { menuCatalogs } from "../shared/menu-messages";
+import { menuCatalogs } from "../locales/catalogs";
 
 /** Rebuild native labels/checks from bounded display hints, never authorization. */
 export function updateApplicationMenu(

@@ -173,7 +173,7 @@ import-boundary enforcement or coverage that the current checks do not provide.
   action inventory and explicitly unimplemented planning boundaries; planning never grants a capability.
 - Use a finite, typed action set and a shared menu description. Menu, toolbar, and keyboard
   activation must reuse the existing action dispatcher; do not duplicate Host/business handlers.
-  Shared menu builders, validators, and literal catalogs must remain pure and process-independent.
+  Shared menu builders, validators, and message definitions must remain pure and process-independent.
 - Keep close-tab/detach, GUI disconnect, shared-Session close, and app exit distinct. Bind context
   actions to the clicked opaque Session/attachment and revalidate before execution. Stale callbacks
   must never fall back to the selected Session or a replacement attachment.
@@ -182,7 +182,19 @@ import-boundary enforcement or coverage that the current checks do not provide.
   Local display cleanup must not issue remote commands or alter Host buffers.
 - Menu labels/help use Lingui and complete English, Simplified Chinese, and Japanese catalogs.
   Keep native menus, renderer menus, open context menus, and checked language state synchronized.
-  Catalogs are data, never executable expressions or arbitrary menu/IPC capabilities.
+  Follow the [translation workflow](../../docs/development/electron-gui.md#menu-translations-lingui-590):
+  define stable IDs and English defaults with Lingui's annotated message descriptors, run official
+  extraction, and maintain translations only in per-locale PO files. Do not assemble catalogs with
+  language tuples, array indices, or handwritten compiled messages.
+- Keep the CLI, config, PO formatter, and Core on the pinned compatible Lingui version. Run
+  `i18n:extract` after message changes, `i18n:check` before handoff, and the extraction regression
+  test when changing tooling. Do not conceal untranslated target entries with explicit fallback
+  locales; strict builds must fail. Non-strict development uses the English source fallback.
+- Compiled `messages.ts` files are ignored build output, never hand-edited, formatted, or committed.
+  Compile before both Main/esbuild and Renderer/Vite resolve catalogs; Vite configuration alone
+  cannot transform Main. Each process owns its Lingui instance and bundles the same generated data.
+  Catalogs never expose executable expressions or arbitrary menu/IPC capabilities. Restart development
+  after PO changes so Main and Renderer load the same revision; preserve window-scoped locale behavior.
 - Keep keyboard navigation scoped to focused menus and ignore IME composition. Do not add native
   accelerators, default roles, or global key handlers that consume terminal/editor input. Any later
   shortcut needs an explicit focus/composition policy and regression coverage.

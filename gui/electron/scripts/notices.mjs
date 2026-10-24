@@ -10,7 +10,16 @@ export async function writeNotices() {
   for (const [directory, entry] of Object.entries(lock.packages)) {
     if (!directory || (entry.dev && directory !== "node_modules/electron"))
       continue;
-    const names = (await readdir(directory)).filter((name) =>
+    let files;
+    try {
+      files = await readdir(directory);
+    } catch (error) {
+      // npm locks optional packages for other OS/CPU targets without installing
+      // them. They are not redistributed; required or installed licenses still fail closed.
+      if (entry.optional && error.code === "ENOENT") continue;
+      throw error;
+    }
+    const names = files.filter((name) =>
       /^(license|licence|copying|notice)(\.|$|-)/i.test(name),
     );
     const texts = [];

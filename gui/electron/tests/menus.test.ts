@@ -12,7 +12,8 @@ import {
   terminalMenu,
   type MenuEntry,
 } from "../src/shared/menus";
-import { menuCatalogs } from "../src/shared/menu-messages";
+import { menuCatalogs } from "../src/locales/catalogs";
+import { menuMessages } from "../src/shared/menu-messages";
 
 function flatten(items: MenuEntry[]): MenuEntry[] {
   return items.flatMap((item) => [item, ...flatten(item.children ?? [])]);
@@ -31,6 +32,13 @@ test("menu catalogs cover every implemented item in all three languages and dept
   for (const [index, locale] of locales.entries()) {
     const i18n = setupI18n({ locale, messages: menuCatalogs });
     assert.equal(i18n._("menu.connection"), expected[index]);
+    for (const message of menuMessages) {
+      assert.ok(
+        Object.hasOwn(menuCatalogs[locale], message.id),
+        `Extract and translate ${message.id} for ${locale}`,
+      );
+      if (locale === "en") assert.equal(i18n._(message.id), message.message);
+    }
     const entries = [
       ...flatten(applicationMenu({ ...initialMenuState, locale })),
       ...sessionMenu(initialMenuState, "opaque", false),

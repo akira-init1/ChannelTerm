@@ -1,77 +1,113 @@
-import type { Messages } from "@lingui/core";
-import type { MenuLocale } from "./menus";
+import type { MessageDescriptor } from "@lingui/core";
 
-// These catalogs contain only literal text. Single-string compiled messages need
-// no ICU compiler, extraction plugin, network translation, or dynamic evaluation.
-const translations: Record<string, [string, string, string]> = {
-  "menu.connection": ["Connection", "连接", "接続"],
-  "menu.session": ["Session", "会话", "セッション"],
-  "menu.terminal": ["Terminal", "终端", "ターミナル"],
-  "menu.view": ["View", "视图", "表示"],
-  "menu.settings": ["Settings", "设置", "設定"],
-  "menu.help": ["Help", "帮助", "ヘルプ"],
-  "menu.language": ["Language", "语言", "言語"],
-  "host.connect": ["Connect to Host", "连接到 Host", "Host に接続"],
-  "host.disconnect": [
-    "Disconnect GUI from Host",
-    "断开 GUI 与 Host",
-    "GUI を Host から切断",
-  ],
-  "session.refresh": [
-    "Refresh Sessions",
-    "刷新会话列表",
-    "セッション一覧を更新",
-  ],
-  "session.attach": ["Attach Session", "附加此会话", "このセッションに接続"],
-  "tab.close": [
-    "Close tab (detach)",
-    "关闭标签（分离）",
-    "タブを閉じる（切り離す）",
-  ],
-  "terminal.clear": [
-    "Clear local display",
-    "清理本地显示",
-    "ローカル表示をクリア",
-  ],
-  "terminal.focus": ["Focus terminal", "聚焦终端", "ターミナルにフォーカス"],
-  "terminal.resume": ["Resume input", "恢复输入", "入力を再開"],
-  "view.sidebar": ["Session sidebar", "会话侧边栏", "セッションサイドバー"],
-  "language.en": ["English", "English", "English"],
-  "language.zh-CN": ["简体中文", "简体中文", "简体中文"],
-  "language.ja": ["日本語", "日本語", "日本語"],
-  "help.quick": ["Quick help", "使用帮助", "使い方"],
-  "app.quit": ["Exit GUI", "退出 GUI", "GUI を終了"],
-  "help.title": [
-    "Using ChannelTerm",
-    "使用 ChannelTerm",
-    "ChannelTerm の使い方",
-  ],
-  "help.connect": [
-    "Connect to an existing Host, then select an open Session. Create serial or SSH connections with the CLI.",
-    "连接现有 Host，然后选择已打开的会话。串口或 SSH 连接请通过 CLI 创建。",
-    "既存の Host に接続して、開いているセッションを選択します。シリアルや SSH 接続は CLI で作成してください。",
-  ],
-  "help.detach": [
-    "Closing a tab detaches only this view. Disconnecting the GUI or exiting it leaves the shared Host and Sessions running.",
-    "关闭标签只分离当前视图。断开或退出 GUI 不会关闭共享 Host 和会话。",
-    "タブを閉じると、このビューだけが切り離されます。GUI の切断や終了でも共有 Host とセッションは動作を続けます。",
-  ],
-  "help.clear": [
-    "Clear local display removes local scrollback above the current line. It sends no clear/reset command and leaves Host history intact.",
-    "清理本地显示会移除当前行上方的本地滚动记录；不会发送 clear/reset 命令，也不会删除 Host 历史。",
-    "ローカル表示のクリアは現在行より上のローカル履歴を消去します。clear/reset コマンドは送信せず、Host の履歴も変更しません。",
-  ],
-  "help.close": ["Close help", "关闭帮助", "ヘルプを閉じる"],
-};
-
-export const menuCatalogs: Record<MenuLocale, Messages> = Object.fromEntries(
-  (["en", "zh-CN", "ja"] as const).map((locale, index) => [
-    locale,
-    Object.fromEntries(
-      Object.entries(translations).map(([id, values]) => [
-        id,
-        [values[index]!],
-      ]),
-    ),
-  ]),
-) as Record<MenuLocale, Messages>;
+// Lingui 5 extracts these official annotated descriptors without a runtime macro
+// transform. Translations belong in PO catalogs; this file owns IDs and English defaults.
+export const menuMessages = [
+  /* i18n */ {
+    id: "menu.connection",
+    message: "Connection",
+  },
+  /* i18n */ {
+    id: "menu.session",
+    message: "Session",
+  },
+  /* i18n */ {
+    id: "menu.terminal",
+    message: "Terminal",
+  },
+  /* i18n */ {
+    id: "menu.view",
+    message: "View",
+  },
+  /* i18n */ {
+    id: "menu.settings",
+    message: "Settings",
+  },
+  /* i18n */ {
+    id: "menu.help",
+    message: "Help",
+  },
+  /* i18n */ {
+    id: "menu.language",
+    message: "Language",
+  },
+  /* i18n */ {
+    id: "host.connect",
+    message: "Connect to Host",
+  },
+  /* i18n */ {
+    id: "host.disconnect",
+    message: "Disconnect GUI from Host",
+  },
+  /* i18n */ {
+    id: "session.refresh",
+    message: "Refresh Sessions",
+  },
+  /* i18n */ {
+    id: "session.attach",
+    message: "Attach Session",
+  },
+  /* i18n */ {
+    id: "tab.close",
+    message: "Close tab (detach)",
+  },
+  /* i18n */ {
+    id: "terminal.clear",
+    message: "Clear local display",
+  },
+  /* i18n */ {
+    id: "terminal.focus",
+    message: "Focus terminal",
+  },
+  /* i18n */ {
+    id: "terminal.resume",
+    message: "Resume input",
+  },
+  /* i18n */ {
+    id: "view.sidebar",
+    message: "Session sidebar",
+  },
+  /* i18n */ {
+    id: "language.en",
+    message: "English",
+  },
+  /* i18n */ {
+    id: "language.zh-CN",
+    message: "简体中文",
+  },
+  /* i18n */ {
+    id: "language.ja",
+    message: "日本語",
+  },
+  /* i18n */ {
+    id: "help.quick",
+    message: "Quick help",
+  },
+  /* i18n */ {
+    id: "app.quit",
+    message: "Exit GUI",
+  },
+  /* i18n */ {
+    id: "help.title",
+    message: "Using ChannelTerm",
+  },
+  /* i18n */ {
+    id: "help.connect",
+    message:
+      "Connect to an existing Host, then select an open Session. Create serial or SSH connections with the CLI.",
+  },
+  /* i18n */ {
+    id: "help.detach",
+    message:
+      "Closing a tab detaches only this view. Disconnecting the GUI or exiting it leaves the shared Host and Sessions running.",
+  },
+  /* i18n */ {
+    id: "help.clear",
+    message:
+      "Clear local display removes local scrollback above the current line. It sends no clear/reset command and leaves Host history intact.",
+  },
+  /* i18n */ {
+    id: "help.close",
+    message: "Close help",
+  },
+] satisfies MessageDescriptor[];

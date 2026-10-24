@@ -18,7 +18,12 @@
     "test:desktop": "npm run build && node scripts/build-fixture.mjs && node --import tsx scripts/test-desktop.mjs",
     "test:desktop:dev": "node scripts/build-fixture.mjs && node --import tsx scripts/test-desktop.mjs --dev",
     "format": "prettier --write src tests scripts *.json *.ts *.html",
-    "format:check": "prettier --check src tests scripts *.json *.ts *.html"
+    "format:check": "prettier --check src tests scripts *.json *.ts *.html",
+    "i18n:extract": "lingui extract --clean --workers 1",
+    "i18n:compile": "lingui compile --workers 1",
+    "i18n:check": "lingui compile --strict --workers 1",
+    "pretypecheck": "npm run i18n:check",
+    "pretest": "npm run i18n:check"
   },
   "dependencies": {
     "@lingui/core": "5.9.0",
@@ -29,6 +34,9 @@
     "react-dom": "19.3.1"
   },
   "devDependencies": {
+    "@lingui/cli": "5.9.0",
+    "@lingui/conf": "5.9.0",
+    "@lingui/format-po": "5.9.0",
     "@playwright/test": "1.64.1",
     "@types/node": "26.6.5",
     "@types/react": "19.3.0",

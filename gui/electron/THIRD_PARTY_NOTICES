@@ -1,12 +1,16 @@
 ChannelTerm Electron is licensed under the repository's Apache License 2.0.
 
 The independent npm dependency graph is pinned in package-lock.json. The current
-runtime JavaScript dependencies use MIT, ISC, BSD-2-Clause, and BSD-3-Clause
+installed JavaScript dependency notices include MIT, ISC, BSD-2-Clause, BSD-3-Clause, and Apache-2.0
 licenses. Electron uses MIT and includes Chromium and other third-party code
 with their own notices.
 
 Menu localization uses Lingui Core 5.9.0 (MIT). Its installed dependency licenses
 are included by the same notice collection; no translation service is contacted.
+The matching Lingui CLI/config/PO tools are build dependencies, not application
+services. npm may also install optional build-tool peers; their installed notices
+are retained conservatively. Absent optional packages for other platforms are skipped;
+missing required packages or license texts in installed packages remain build errors.
 
 npm run build collects the installed runtime dependency license texts, including
 the Electron npm package license, into dist/THIRD_PARTY_NOTICES.txt and copies the
