@@ -344,16 +344,20 @@ func (a *Application) writeSession(ctx context.Context, identifier, owner string
 }
 
 // AcquireLease creates one exclusive application-level lease for an active
-// Session. Readers and raw output are unaffected. An expired debug lease closes
-// the Session because restoring its terminal state cannot be assumed. File
-// transfers reject pending interactive input before publishing lease acquisition.
+// Session. Readers and raw output are unaffected. Expired file-transfer and
+// debug leases close the Session because terminal restoration is unconfirmed.
+// File transfers reject pending interactive input before publishing acquisition.
 func (a *Application) AcquireLease(identifier, owner string, typ LeaseType) (SessionLease, error) {
 	terminal, err := a.session(identifier)
 	if err != nil {
 		return SessionLease{}, err
 	}
 	presentationCursor := sessionOutputCursor(terminal)
-	lease, err := a.leases.acquire(terminal.ID(), owner, typ)
+	reference, ok := a.manager.Reference(terminal.ID())
+	if !ok {
+		return SessionLease{}, ErrSessionNotFound
+	}
+	lease, err := a.leases.acquireReferenced(terminal.ID(), owner, typ, reference)
 	if err != nil {
 		return SessionLease{}, err
 	}
@@ -455,14 +459,30 @@ func fileTransferLeaseEventMetadata(lease SessionLease, metadata map[string]any)
 }
 
 func (a *Application) publishExpiredLease(lease SessionLease, abortSession bool) {
+	identifier := lease.SessionID
+	if lease.Type == LeaseTypeFileTransfer {
+		identifier = lease.sessionReference
+	}
 	if abortSession {
 		// Expiry must not wait for the per-Session lease gate: the active write
 		// holds it until Channel.Write returns. Close runs asynchronously so the
 		// Channel is released first, which unblocks the write and lets lease-state
 		// cleanup acquire the gate afterward.
-		defer func() { go a.closeSessionAfterExpiredWrite(lease.SessionID) }()
+		defer func() {
+			go func() {
+				if lease.Type == LeaseTypeFileTransfer {
+					if removed, _ := a.removeAndCloseSession(identifier); removed {
+						a.leases.finishFileTransferExpiry(lease)
+					}
+					// Another closer may have removed the registration but not
+					// closed its Channel yet. It owns exclusion cleanup too.
+					return
+				}
+				a.closeSessionAfterExpiredWrite(lease.SessionID)
+			}()
+		}()
 	}
-	terminal, err := a.session(lease.SessionID)
+	terminal, err := a.session(identifier)
 	if err != nil {
 		return
 	}
@@ -502,7 +522,9 @@ func (a *Application) closeSessionAfterExpiredWrite(sessionID string) {
 
 // BeginFileTransferCancel atomically opens a confirmation request only when
 // identifier currently has an active file-transfer lease. Ordinary terminal
-// input can therefore preserve its existing Ctrl+C byte semantics.
+// input can therefore preserve its existing Ctrl+C byte semantics. The Host
+// withdraws an unanswered request after FileTransferCancelConfirmationTimeout,
+// independently of client disconnection and lease renewal.
 func (a *Application) BeginFileTransferCancel(identifier string) (FileTransferCancelRequest, error) {
 	terminal, err := a.session(identifier)
 	if err != nil {
@@ -513,7 +535,8 @@ func (a *Application) BeginFileTransferCancel(identifier string) (FileTransferCa
 
 // ResolveFileTransferCancel answers a Host-owned confirmation. A negative
 // answer resumes immediately. A positive answer waits until the transfer owner
-// restores protocol state and releases its lease.
+// restores protocol state and releases its lease. Answers after the confirmation
+// deadline are rejected; a confirmed cancellation never times out into resume.
 func (a *Application) ResolveFileTransferCancel(ctx context.Context, identifier, requestID string, cancel bool) (FileTransferCancelResolution, error) {
 	terminal, err := a.session(identifier)
 	if err != nil {
@@ -523,13 +546,31 @@ func (a *Application) ResolveFileTransferCancel(ctx context.Context, identifier,
 }
 
 // FileTransferCheckpoint blocks a lease owner at a safe protocol boundary
-// while a user confirmation is pending, then returns continue or cancel.
+// while a user confirmation is pending, then returns continue or cancel. An
+// unanswered confirmation expires independently; continuation still requires
+// the original transfer's valid lease.
 func (a *Application) FileTransferCheckpoint(ctx context.Context, identifier, owner string) (FileTransferControlAction, error) {
 	terminal, err := a.session(identifier)
 	if err != nil {
 		return "", err
 	}
-	return a.leases.fileTransferCheckpoint(ctx, terminal.ID(), owner)
+	reference, ok := a.manager.Reference(terminal.ID())
+	if !ok {
+		return "", ErrSessionNotFound
+	}
+	action, err := a.leases.fileTransferCheckpoint(ctx, terminal.ID(), owner)
+	if err != nil {
+		return "", err
+	}
+	// A confirmation can outlive Manager removal or a direct stream closure.
+	// Waking a checkpoint must not report continuation of that old Session.
+	if current, ok := a.manager.Reference(terminal.ID()); !ok || current != reference {
+		return "", ErrSessionNotFound
+	}
+	if terminal.State() != session.StateOpen {
+		return "", session.ErrNotOpen
+	}
+	return action, nil
 }
 
 // sessionOutputCursor snapshots the current raw-output tail for presentation
@@ -565,11 +606,11 @@ func (a *Application) CloseSession(identifier string) (session.SessionInfo, erro
 		if info.ID != identifier && info.Metadata.Reference != identifier {
 			continue
 		}
-		closed, closeErr := a.removeAndCloseSession(identifier)
+		closed, closeErr := a.removeAndCloseSession(info.Metadata.Reference)
 		if !closed {
 			return session.SessionInfo{}, ErrSessionNotFound
 		}
-		a.leases.remove(info.ID)
+		a.leases.removeRegistration(info.ID, info.Metadata.Reference)
 		if closeErr != nil {
 			return session.SessionInfo{}, closeErr
 		}

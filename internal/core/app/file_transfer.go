@@ -27,7 +27,7 @@ const (
 	// idle timeout while bounding local TTY restoration and cleanup waits.
 	fileTransferRecoveryTimeout = 15 * time.Second
 	// fileTransferRecoveryAbortTimeout bounds the last-resort request that closes
-	// a shared Session after recovery itself reaches its deadline.
+	// a shared Session when protocol recovery cannot be confirmed.
 	fileTransferRecoveryAbortTimeout = 5 * time.Second
 )
 
@@ -41,6 +41,10 @@ var (
 	// ErrFileTransferChecksumMismatch is returned when SHA-256 verification
 	// differs between the sending and receiving endpoints.
 	ErrFileTransferChecksumMismatch = errors.New("file transfer SHA-256 mismatch")
+	// ErrFileTransferRecoveryUnconfirmed means cleanup could not establish a
+	// safe terminal boundary. Callers must not release ownership for reuse;
+	// close the original Session, or let its file-transfer lease expire closed.
+	ErrFileTransferRecoveryUnconfirmed = errors.New("file transfer recovery is unconfirmed; remote state is unknown")
 )
 
 // FileTransferSession is the cursor-based Session view required by file
@@ -66,6 +70,14 @@ type fileTransferCancellationCheckpointer interface {
 type fileTransferRecoveryAborter interface {
 	AbortFileTransferRecovery(context.Context) error
 }
+
+// fileTransferRemoteError distinguishes a completed peer command's failure
+// from a lost or malformed response. A post-block read/write failure permits
+// outer shell-exit recovery; it is not itself proof of final shell restoration.
+type fileTransferRemoteError struct{ reason string }
+
+// Error preserves the existing diagnostic for a completed peer command failure.
+func (e *fileTransferRemoteError) Error() string { return "remote file transfer failed: " + e.reason }
 
 // FileTransferProgress receives transfer byte counts and the total size. A
 // receive operation first invokes it with zero bytes after remote metadata is
@@ -520,7 +532,7 @@ func (p *fileProtocol) expectPhase(ctx context.Context, phase string) ([]string,
 					shell.commandCompleted()
 				}
 				if fields[0] == "ERROR" {
-					return nil, fmt.Errorf("remote file transfer failed: %s", strings.Join(fields[1:], ":"))
+					return nil, &fileTransferRemoteError{reason: strings.Join(fields[1:], ":")}
 				}
 				if fields[0] != phase {
 					return nil, fmt.Errorf("%w: received %s while waiting for %s", ErrFileTransferProtocol, fields[0], phase)
@@ -622,14 +634,24 @@ func (p *fileProtocol) finishPendingMarker(phase, argument string) error {
 	return p.recoveryError(err)
 }
 
-// recoveryError closes a shared Session only when bounded recovery itself times
-// out. A timed-out Channel write cannot be interrupted through the protocol-
-// neutral Channel interface; closing the owning Session is the portable escape
-// hatch that releases Host-side write serialization and lease state.
+// recoveryError handles failed recovery, not ordinary transfer failures. Lost
+// output and malformed acknowledgements leave terminal state unconfirmed; a
+// completed peer command can still reach outer shell-exit recovery. Closing
+// stops local access; it does not prove remote cleanup. The marker also prevents
+// release if the close request fails, leaving expiry as the Host-side fallback.
 func (p *fileProtocol) recoveryError(err error) error {
-	if err == nil || !errors.Is(err, context.DeadlineExceeded) {
+	if err == nil {
 		return err
 	}
+	if remote, ok := err.(*fileTransferRemoteError); ok && (remote.reason == "read" || remote.reason == "write") {
+		// These markers follow the raw block's TTY restore attempt. Preserve
+		// the transfer failure, then require the outer shell's exit marker.
+		return err
+	}
+	if shell, ok := p.terminal.(*shellFileTransferSession); ok {
+		return shell.recoveryError(err)
+	}
+	err = errors.Join(ErrFileTransferRecoveryUnconfirmed, err)
 	aborter, ok := p.terminal.(fileTransferRecoveryAborter)
 	if !ok {
 		return err
@@ -637,7 +659,7 @@ func (p *fileProtocol) recoveryError(err error) error {
 	abortCtx, cancel := context.WithTimeout(context.Background(), fileTransferRecoveryAbortTimeout)
 	defer cancel()
 	if abortErr := aborter.AbortFileTransferRecovery(abortCtx); abortErr != nil {
-		return errors.Join(err, fmt.Errorf("close Session after file-transfer recovery timeout: %w", abortErr))
+		return errors.Join(err, fmt.Errorf("close Session after unconfirmed file-transfer recovery: %w", abortErr))
 	}
 	return err
 }

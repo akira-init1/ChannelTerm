@@ -102,9 +102,15 @@ func TestLeaseCoordinatorExpiresAbandonedLeaseAndProtectsReplacement(t *testing.
 	}
 
 	time.Sleep(2 * leaseTTL)
+	if _, err := coordinator.acquire("session-1", "replacement-owner", LeaseTypeFileTransfer); !errors.Is(err, ErrSessionBusy) {
+		t.Fatalf("expired transfer admitted replacement before closure: %v", err)
+	}
+	// Only closing/removing the original registration permits a new Session
+	// with this test ID. Expiry alone no longer permits replacement ownership.
+	coordinator.remove("session-1")
 	replacement, err := coordinator.acquire("session-1", "replacement-owner", LeaseTypeFileTransfer)
 	if err != nil {
-		t.Fatalf("acquire replacement lease after TTL: %v", err)
+		t.Fatalf("acquire replacement lease after removal: %v", err)
 	}
 	if replacement.Owner != "replacement-owner" || replacement.TransferID == first.TransferID {
 		t.Fatalf("replacement lease = %#v, first = %#v", replacement, first)
@@ -285,10 +291,12 @@ func TestApplicationPublishesFileTransferExpiryBeforeLeaseRelease(t *testing.T) 
 	}
 
 	time.Sleep(40 * time.Millisecond)
-	if _, err := application.AcquireLease("SER-1", "replacement-owner", LeaseTypeFileTransfer); err != nil {
-		t.Fatalf("AcquireLease() after expiry error = %v", err)
+	if _, err := application.AcquireLease("SER-1", "replacement-owner", LeaseTypeFileTransfer); err == nil {
+		t.Fatal("AcquireLease() reopened expired transfer Session")
 	}
-	events, err := application.ReadSessionEvents(context.Background(), "SER-1", nil, 8)
+	// The fake retains events after Close so publication order can be checked
+	// even though the original registration is no longer publicly readable.
+	events, err := terminal.ReadRecentEvents(8)
 	if err != nil {
 		t.Fatal(err)
 	}

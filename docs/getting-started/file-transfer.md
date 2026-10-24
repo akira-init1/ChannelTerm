@@ -134,10 +134,25 @@ Normal attach `Ctrl+C` goes to the board. During a transfer, ordinary keys are d
 other answer resumes. The Host retains its lease while the question is pending, so another
 ChannelTerm writer cannot enter the shell protocol.
 
+When cancelling a transfer owned by another client, the Host gives the confirmation request 30
+seconds. An unanswered request is withdrawn even if the prompting client disappears and the
+transfer owner continues renewing its lease. The owner may continue only if its original transfer
+and lease remain valid; it may instead have completed, expired, or closed independently. This
+confirmation timeout does not cancel the transfer, release the lease, or close the Session. A
+confirmed cancellation is never undone by that timer.
+
+The CLI also limits its local answer window and rejects late answers. After its timeout notice,
+the next key only dismisses the notice and is not sent to the device. The Host remains authoritative:
+if a request is no longer valid, the CLI reports the rejection or unavailable status rather than
+claiming that transfer resumed. Start a new confirmation only for a still-active transfer.
+
 A confirmed cancellation stops at a safe block boundary, restores the target TTY, removes temporary
 transfer data, releases the lease, and reports the last confirmed byte count. If the transfer client
-disappears, lease expiry releases an idle operation; an in-flight blocked write instead causes the
-Host to close the Session. Reopen the endpoint before retrying after such a forced close.
+disappears, lease expiry blocks new input and operations, then closes the original Session even
+while it is waiting for READY, ACK, or receive data. An unconfirmed recovery also closes the Session,
+including output loss or protocol errors rather than only timeouts. This stops local access; it
+does not establish that the remote program exited or its TTY recovered. Inspect and recover device
+state independently before reconnecting. A new connection alone does not establish safety.
 
 ## Transfer flow
 
@@ -197,7 +212,11 @@ complete in-memory value.
 Session still guarantees byte serialization for each individual write. Above it, the Host holds one
 exclusive `file-transfer` lease for the complete CLI command. Other ChannelTerm writers fail
 immediately with a clear locked-session error, while the leased command uses its opaque owner
-capability for every write. The lease is released after success, failure, or cancellation. It cannot
+capability for every write. Confirmed cleanup releases the lease after success, failure, or
+cancellation and preserves the connection. If cleanup cannot be confirmed, the client requests
+closure and does not release the lease for reuse. If the close request fails, renewal stops and
+Host-side lease expiry closes the Session. Unlike earlier behavior, an expired file-transfer lease
+never permits a replacement operation on the original Session. These controls cannot
 stop shell prompt hooks, unsolicited device output, or writers that bypass ChannelTerm, so keep the
 endpoint itself quiescent. Independent `attach`, `terminal_read`, and `terminal_wait` readers remain
 valid, although a receive transfer's raw file bytes are visible in their raw Session output and may

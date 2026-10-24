@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/akira-init1/ChannelTerm/internal/cli/interactive"
+	"github.com/akira-init1/ChannelTerm/internal/core/app"
 	"github.com/akira-init1/ChannelTerm/internal/core/session"
 )
 
@@ -74,6 +75,8 @@ type attachInputDispatcher struct {
 	transferCancellation         *fileTransferCancellation
 	transferSummary              *fileTransferSummaryBuffer
 	externalCancelRequest        string
+	externalCancelTimer          *time.Timer
+	externalCancelDeadline       time.Time
 	inputIgnoredAnnounced        bool
 	commandInputIgnoredAnnounced bool
 	// ignoreControlCUntil prevents keyboard auto-repeat and the duplicate
@@ -145,6 +148,8 @@ func (d *attachInputDispatcher) run() {
 			continue
 		}
 		select {
+		case <-d.externalConfirmationTimeout():
+			d.expireExternalConfirmation()
 		case interrupt := <-d.interrupts:
 			if !d.dispatchInterrupt(interrupt) {
 				return
@@ -501,6 +506,9 @@ func (d *attachInputDispatcher) beginExternalTransferCancellationConfirmation() 
 	if !ok {
 		return false
 	}
+	// Start the local presentation deadline before the RPC. The Host remains
+	// authoritative; network latency must not extend this client's answer window.
+	deadline := time.Now().Add(app.FileTransferCancelConfirmationTimeout)
 	requestID, active, err := controller.BeginFileTransferCancel(d.ctx)
 	if err != nil {
 		if d.writeLocal != nil {
@@ -512,6 +520,8 @@ func (d *attachInputDispatcher) beginExternalTransferCancellationConfirmation() 
 		return false
 	}
 	d.externalCancelRequest = requestID
+	d.externalCancelDeadline = deadline
+	d.externalCancelTimer = time.NewTimer(time.Until(deadline))
 	d.mode = attachInputModeFileTransferCancelConfirm
 	d.ignoreControlCUntil = time.Now().Add(controlCRecoveryWindow)
 	presenter, presentsProgress := d.terminal.(fileTransferCancelPromptPresenter)
@@ -521,7 +531,8 @@ func (d *attachInputDispatcher) beginExternalTransferCancellationConfirmation() 
 		// which one acknowledged block can overwrite the [y/N] question.
 		presenter.fileTransferCancelPromptStarted()
 	}
-	if d.writeLocal == nil || d.writeLocal(fileTransferCancelConfirmationText) != nil {
+	notice := []byte(fmt.Sprintf("\r\n[ChannelTerm] Confirmation limit: %s; unanswered requests are withdrawn.\r\n", app.FileTransferCancelConfirmationTimeout))
+	if d.writeLocal == nil || d.writeLocal(notice) != nil || d.writeLocal(fileTransferCancelConfirmationText) != nil {
 		d.abandonExternalTransferCancellation()
 		d.cancelAttach()
 	}
@@ -558,6 +569,11 @@ func (d *attachInputDispatcher) resolveExternalTransferCancellationConfirmation(
 		d.mode = attachInputModeAttach
 		return
 	}
+	if !time.Now().Before(d.externalCancelDeadline) {
+		d.expireExternalConfirmation()
+		return
+	}
+	d.stopExternalConfirmationTimer()
 	if d.writeLocal != nil && cancel {
 		_ = d.writeLocal([]byte("\r\n"))
 	}
@@ -572,7 +588,7 @@ func (d *attachInputDispatcher) resolveExternalTransferCancellationConfirmation(
 		if presenter, ok := d.terminal.(fileTransferCancelPromptPresenter); ok {
 			presenter.fileTransferCancelPromptFinished()
 		}
-		_ = d.writeLocal([]byte("\r\n[ChannelTerm] File transfer cancellation failed: " + err.Error() + "\r\n"))
+		_ = d.writeLocal([]byte("\r\n[ChannelTerm] Cancellation answer could not be confirmed (the request may have expired or ended): " + err.Error() + "\r\n"))
 		return
 	}
 	if !cancel && state == "resumed" {
@@ -580,10 +596,65 @@ func (d *attachInputDispatcher) resolveExternalTransferCancellationConfirmation(
 		if presenter, ok := d.terminal.(fileTransferCancelPromptPresenter); ok {
 			presenter.fileTransferCancelPromptFinished()
 		}
+	} else if state == "completed" {
+		_ = d.writeLocal([]byte("\r\n[ChannelTerm] File transfer already completed.\r\n"))
+		if presenter, ok := d.terminal.(fileTransferCancelPromptPresenter); ok {
+			presenter.fileTransferCancelPromptFinished()
+		}
+	}
+}
+
+// externalConfirmationTimeout only wakes the input dispatcher for presentation.
+// Host correctness never depends on this timer or on a successful cleanup RPC.
+func (d *attachInputDispatcher) externalConfirmationTimeout() <-chan time.Time {
+	if d.externalCancelTimer == nil {
+		return nil
+	}
+	return d.externalCancelTimer.C
+}
+
+func (d *attachInputDispatcher) stopExternalConfirmationTimer() {
+	if d.externalCancelTimer != nil {
+		d.externalCancelTimer.Stop()
+		d.externalCancelTimer = nil
+	}
+}
+
+// expireExternalConfirmation invalidates the local question before cleanup.
+// Keep confirmation input mode until one key dismisses the notice, so a late
+// y/Y or pasted answer cannot become remote shell input after expiry.
+func (d *attachInputDispatcher) expireExternalConfirmation() {
+	requestID := d.externalCancelRequest
+	d.externalCancelRequest = ""
+	d.stopExternalConfirmationTimer()
+	if requestID == "" {
+		return
+	}
+	state := ""
+	var err error
+	if controller, ok := d.terminal.(fileTransferCancelController); ok {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		state, err = controller.ResolveFileTransferCancel(ctx, requestID, false)
+		cancel()
+	}
+	if presenter, ok := d.terminal.(fileTransferCancelPromptPresenter); ok {
+		presenter.fileTransferCancelPromptFinished()
+	}
+	if d.writeLocal != nil {
+		status := "Transfer status is unconfirmed."
+		if err != nil {
+			status += " " + err.Error()
+		} else if state == "completed" {
+			status = "File transfer already completed."
+		} else if state == "resumed" {
+			status = "Pending request withdrawn; the transfer may continue."
+		}
+		_ = d.writeLocal([]byte("\r\n[ChannelTerm] Cancellation confirmation window ended. " + status + " Press any key to dismiss.\r\n"))
 	}
 }
 
 func (d *attachInputDispatcher) abandonExternalTransferCancellation() {
+	d.stopExternalConfirmationTimer()
 	if d.externalCancelRequest == "" {
 		return
 	}
@@ -654,9 +725,9 @@ func (d *attachInputDispatcher) finishTransfer(err error) {
 		}
 		return
 	}
-	// Recovery may close the Session and cancel the attachment after a timeout.
+	// Unconfirmed recovery may close the Session and cancel the attachment.
 	// Preserve that failure instead of blaming the user for the resulting cancel.
-	if (cancelled || errors.Is(err, context.Canceled)) && !errors.Is(err, context.DeadlineExceeded) {
+	if (cancelled || errors.Is(err, context.Canceled)) && !errors.Is(err, context.DeadlineExceeded) && !errors.Is(err, app.ErrFileTransferRecoveryUnconfirmed) {
 		_ = d.writeTransferStatus(fileTransferCancelledSummaryText(time.Now(), progress))
 		return
 	}

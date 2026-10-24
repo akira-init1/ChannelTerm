@@ -226,12 +226,16 @@ guidance, releases the unpublished lease, and sends no shell bytes. A caller mus
 before retrying; Application never executes or discards the pending command automatically.
 
 Every lease has a 30-second Host-side TTL and an `expires_at` timestamp. `RenewLease` extends that
-deadline only for the matching owner. Expiry atomically releases writer ownership, wakes pending
-cancellation waits, and prevents a stale owner or timer from affecting a replacement lease. If
-expiry occurs while a leased Channel write is still in flight, the Host closes and removes that
-Session. The protocol-neutral Channel has no generic write-cancellation capability, so closing it is
-the portable way to release the blocked write without allowing a replacement lease to race stale
-bytes.
+deadline only for the matching owner. Expiry wakes pending cancellation waits and rejects stale
+leased writes. File-transfer expiry atomically marks the Session unavailable for writes and new
+leases before asynchronously closing and removing its original registration. This applies even
+while waiting for READY, ACK, or receive data with no write in flight. A release arriving after the
+deadline follows expiry, not normal unlock. Delayed file-transfer closure uses the original
+Manager reference, and exclusion cleanup matches its transfer ID rather than a replacement lease.
+Debug expiry also closes the Session; terminal expiry retains its existing policy of closing only
+when a leased write is still in flight. Channel has no generic write cancellation, so Close releases
+blocked I/O. Already delivered bytes cannot be rolled back. Local closure does not prove that a
+device-side program exited, its TTY recovered, or reconnecting is safe.
 
 Acquiring a `file-transfer` lease allocates a non-secret process-local `transfer_id`. Lease
 acquire/release and every transfer event carry it, while the owner capability is never published. An
@@ -241,10 +245,28 @@ lease owner with the matching transfer ID and rejects a completed event without 
 requested, resolved, and renamed fields.
 
 Each `file-transfer` lease also owns cancellation state. `BeginFileTransferCancel` changes `running`
-to `confirming` only for that lease. `FileTransferCheckpoint` blocks its owner at a safe boundary
-until `ResolveFileTransferCancel` resumes, cancels, or the lease expires. A confirmed cancellation
-normally returns after the owner releases the lease and publishes `FILE_TRANSFER_CANCELLED`; an
-abandoned owner instead returns the expired resolution at the TTL.
+to `confirming` only for that lease, with a fixed 30-second Host confirmation deadline. This allows
+time for a human answer while bounding a pause if the initiating client disappears. Lease renewal
+does not extend this deadline. An unanswered request returns to `running`, invalidates its request
+ID, and wakes checkpoints; continuation still requires the original Transfer ID, an unexpired
+lease, and the original open Session registration. Confirmation expiry neither cancels the transfer
+nor releases its lease or closes its Session. It is separate from file-transfer lease expiry,
+which still closes the original Session.
+
+`ResolveFileTransferCancel(false)` withdraws a current request immediately. A timely `true` changes
+it to `cancelled`, stops the confirmation timer, and waits for existing cleanup and lease release.
+Late answers use the existing invalid-request error; an already accepted cancellation cannot be
+withdrawn by a delayed timer. Decisions, timeout, release, and removal share the coordinator lock.
+Callbacks match both the original control object and request ID; checkpoints cannot join a later
+transfer even if its Session ID and owner token are reused. Begin, resolve, and checkpoint also
+check deadlines directly, so a delayed timer cannot extend the answer window.
+
+Normal release, lease expiry, and Application closure stop the confirmation timer and wake waiters.
+If release wins before an answer, the existing `completed` result remains available to that prompt,
+without a timer, until it is consumed, the Session closes, or a new transfer replaces it. A confirmed
+cancellation normally returns after the owner releases its lease and publishes
+`FILE_TRANSFER_CANCELLED`; an abandoned owner instead returns the expired resolution at the lease
+TTL. Cancellation cleanup itself has no new timeout in this change.
 
 File receive invokes its local progress callback with zero bytes after remote metadata is known and
 before the first payload. This callback is presentation-facing and does not alter the file-transfer
@@ -272,9 +294,11 @@ lease owner capability.
 ## Shared Session file transfer
 
 File transfer uses the same Session write and output-cursor semantics. It obtains a `file-transfer`
-lease before its first protocol command, renews it every 10 seconds, and releases it on success,
-failure, or cancellation. Bundled clients continue renewing during cancellation cleanup until the
-operation returns, then stop the heartbeat before releasing ownership. A send creates a missing
+lease before its first protocol command, renews it every 10 seconds, and releases it after confirmed
+shell recovery on success, failure, or cancellation. Bundled clients continue renewing during
+cancellation cleanup until the operation returns, then stop the heartbeat. Unconfirmed recovery or
+renewal failure requests closure instead of releasing the lease for reuse; if that request fails,
+Host-side expiry remains the fallback. A send creates a missing
 remote destination hierarchy before payload transmission and reuses an existing hierarchy.
 Destination collision selection remains the first
 free `_N` sibling.
@@ -287,8 +311,9 @@ bootstrap temporarily disables target-terminal input echo, and initialization cl
 command after the child starts. The non-interactive child runs path probing, per-chunk commands,
 verification, and cleanup without additional interactive history entries. The child is kept alive
 every five seconds while no protocol command is active and has a 30-second remote idle watchdog. A
-killed client therefore leaves no Bash entry, or at most the one fallback entry on another shell,
-and the child exits after its keepalives stop. Normal completion and safe-boundary cancellation
+killed client therefore leaves no Bash entry, or at most the one fallback entry on another shell.
+The watchdog operates only at idle shell boundaries; it is not evidence of recovery when the Host
+lease expires. Normal completion and safe-boundary cancellation
 explicitly stop the watchdog, restore terminal echo, and exit the child before the file-transfer
 lease is released. The bootstrap emits its final confirmation from the interactive parent only after
 the child exits; this keeps all earlier command echo inside the lease's suppressed presentation
@@ -300,19 +325,23 @@ uses the existing bounded recovery path. This deadline does not limit the later 
 The protocol reads or writes at most 8 KiB of payload per chunk, saves and restores the remote TTY
 mode around each raw `dd` operation, and performs end-to-end SHA-256 verification for regular files
 and directory tar streams. A target-side send block uses a 10-second serial-input idle timeout and
-verifies the exact file-size increase after restoring the saved TTY. A killed transfer process
-therefore cannot leave `dd` waiting indefinitely in raw mode or acknowledge a short block.
+verifies the exact file-size increase after restoring the saved TTY. This bounds the intended
+raw-input wait and prevents acknowledging a short block; Host closure does not verify its outcome.
 Send initialization probes `dd iflag=fullblock`; a minimal `dd` instead reads one-byte blocks with
 `count` equal to the announced chunk size. The timeout, size check, and final hash apply to both paths.
 
 A cancelled or failed operation uses independent recovery contexts to pad or drain its active raw
 block and consume the post-restoration acknowledgement before sending further shell commands.
 Recovery also removes directory-transfer staging data. Each recovery
-I/O operation has a 15-second deadline and does not inherit the cancelled operation context. If
-recovery reaches that deadline, the bundled MCP attachment invokes `terminal_close` with a separate
-five-second-bounded request. This releases an in-flight Host write and prevents an unusable protocol
-state from retaining the Session or lease. Recovery timeout errors are joined with the original
-failure. Independent readers continue to see raw output, including received file bytes.
+I/O operation has a 15-second deadline and does not inherit the cancelled operation context.
+Unconfirmed recovery, including overwritten output, invalid recovery acknowledgements, or an
+unconfirmed child-shell exit, invokes `terminal_close` with a separate five-second-bounded request.
+`ErrFileTransferRecoveryUnconfirmed` preserves the underlying error and prevents deferred release
+even if closure fails. Further shell cleanup writes stop after this failure. A peer read/write
+failure marker emitted after the raw block can still proceed to outer shell-exit confirmation;
+ordinary transfer errors with confirmed recovery retain the connection. Independent readers see
+raw output while the Session remains open, including received file bytes. Closing discards retained
+buffers, so delivery of final events to every observer is not guaranteed.
 
 The CLI transfer adapter lets an in-flight write return its acknowledged byte count after cancellation,
 with a 15-second response grace. Abandoning an MCP response immediately could mistake delivered bytes

@@ -649,7 +649,7 @@ Sessions require an explicit selection. `--endpoint` defaults to `http://127.0.0
 `/tmp/cterm/mcp-files/<local-basename>`. An explicit remote path remains authoritative.
 
 The command requires no AI client. It joins an already-open host-owned Session, acquires a temporary
-`file-transfer` lease, and leaves the Session open afterward. It does not open a Serial Transport or
+`file-transfer` lease, and leaves the Session open after confirmed cleanup. It does not open a Serial Transport or
 start a Host itself. The default `attach` workflow starts the local Host when needed.
 
 Both directions use acknowledged 8 KiB chunks and display confirmed progress on one refreshed line.
@@ -662,9 +662,19 @@ While the transfer lease is active, other ChannelTerm writers fail immediately. 
 bundled attachment opens a default-No confirmation; only `y` or `Y` cancels. Cancellation waits for
 a safe block boundary, restores the target TTY, removes temporary transfer data, and releases the
 lease before publishing its final result. If bounded recovery cannot restore a usable protocol
-state, ChannelTerm closes the Host Session and the endpoint must be reopened. Exact recovery timing
+state, or the file-transfer lease expires, ChannelTerm closes the original Host Session. This also
+applies to non-timeout recovery failures such as overwritten output or invalid acknowledgements.
+Closure does not prove remote program exit or TTY restoration; verify and recover device state
+independently before reconnecting. Exact recovery timing
 and failure behavior are documented in the
 [file-transfer workflow](../getting-started/file-transfer.md#protocol-and-concurrency-limits).
+
+For a transfer owned by another client, cancellation confirmation has a 30-second Host deadline
+that lease renewal cannot extend. Unanswered requests are withdrawn, allowing only a still-valid
+original transfer to continue. This is not lease expiry and does not close the Session. The CLI
+invalidates its local question at its answer deadline; the next key dismisses the notice without
+becoming device input. A late answer rejected by the Host does not imply that transfer resumed:
+it may have completed or closed. Already accepted cancellation continues through normal cleanup.
 
 The remote shell must provide `mkdir`, `stty`, `dd`, `wc`, `sha256sum`, and `sleep`; directory transfer
 additionally requires `tar`. The input line must be empty, including any recalled history command.

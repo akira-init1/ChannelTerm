@@ -113,7 +113,7 @@ func (s internalFileTransferSession) WriteContext(ctx context.Context, request s
 }
 
 // AbortFileTransferRecovery asks a capable attachment to close the shared
-// Session after bounded protocol recovery itself times out.
+// Session when protocol recovery cannot be confirmed.
 func (s internalFileTransferSession) AbortFileTransferRecovery(ctx context.Context) error {
 	aborter, ok := s.attachSession.(interface {
 		AbortFileTransferRecovery(context.Context) error
@@ -535,8 +535,9 @@ func runFileReceiveDirectory(ctx context.Context, terminal app.FileTransferSessi
 }
 
 // withFileTransferLease holds a Host-side file-transfer lease for one complete
-// command, including all protocol cleanup. It releases with a fresh bounded
-// context so cancellation of the transfer cannot leave the Session locked.
+// command, including all protocol cleanup. Confirmed recovery releases with a
+// fresh bounded context. Unconfirmed recovery retains ownership until closure
+// or Host-side expiry instead of permitting another writer into unknown state.
 func withFileTransferLease(ctx context.Context, attached attachSession, identifier string, operation func(context.Context) error) (err error) {
 	lease, ok := attached.(fileLeaseSession)
 	if !ok {
@@ -546,6 +547,11 @@ func withFileTransferLease(ctx context.Context, attached attachSession, identifi
 		return fmt.Errorf("acquire file transfer lease for Session %q: %w", identifier, err)
 	}
 	defer func() {
+		if errors.Is(err, app.ErrFileTransferRecoveryUnconfirmed) {
+			// Recovery already attempted closure. If its RPC failed, stop
+			// renewing and retain exclusion until Host-side expiry closes it.
+			return
+		}
 		releaseCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		if releaseErr := lease.ReleaseFileTransferLease(releaseCtx); releaseErr != nil && err == nil {
@@ -561,7 +567,13 @@ func withFileTransferLease(ctx context.Context, attached attachSession, identifi
 	err = operation(operationCtx)
 	close(stopHeartbeat)
 	if heartbeatErr := <-heartbeatResult; heartbeatErr != nil {
-		err = errors.Join(err, heartbeatErr)
+		var abortErr error
+		if !errors.Is(err, app.ErrFileTransferRecoveryUnconfirmed) {
+			abortCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			abortErr = (internalFileTransferSession{attached}).AbortFileTransferRecovery(abortCtx)
+		}
+		err = errors.Join(err, heartbeatErr, app.ErrFileTransferRecoveryUnconfirmed, abortErr)
 	}
 	return err
 }
@@ -618,7 +630,7 @@ func reportFailedFileTransfer(ctx context.Context, attached attachSession, metad
 
 func fileTransferFailureMetadata(metadata map[string]any, operationErr error) map[string]any {
 	failureMetadata := copyFileTransferMetadata(metadata)
-	if errors.Is(operationErr, context.Canceled) && !errors.Is(operationErr, context.DeadlineExceeded) {
+	if errors.Is(operationErr, context.Canceled) && !errors.Is(operationErr, context.DeadlineExceeded) && !errors.Is(operationErr, app.ErrFileTransferRecoveryUnconfirmed) {
 		failureMetadata["error"] = fileTransferUserCancelled
 		failureMetadata["reason"] = fileTransferUserCancelled
 		return failureMetadata
