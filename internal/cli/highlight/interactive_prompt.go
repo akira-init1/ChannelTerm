@@ -1,0 +1,24 @@
+package highlight
+
+import "regexp"
+
+// HasInteractivePromptPrefix recognizes prompts that must be emitted raw,
+// without adding a shell timestamp. It is a local presentation heuristic, not
+// evidence of boot state or permission to send input. Both presentation layers
+// share this predicate so neither withholds a recognized interactive line.
+func HasInteractivePromptPrefix(line []byte) bool {
+	if HasBootloaderPromptPrefix(line) {
+		return true
+	}
+	for _, pattern := range interactivePromptPatterns {
+		if pattern.Match(line) {
+			return true
+		}
+	}
+	return false
+}
+
+var interactivePromptPatterns = []*regexp.Regexp{
+	// Minimal POSIX primary prompts and the secondary continuation prompt.
+	regexp.MustCompile(`^[$#>](?:[ \t]+|$)`),
+}

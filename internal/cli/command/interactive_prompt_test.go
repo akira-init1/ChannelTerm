@@ -17,6 +17,7 @@ func TestInteractivePromptFamilies(t *testing.T) {
 		stamped bool
 	}{
 		{name: "BashUser", prompts: []string{"sh-5.1$ ", "bash-5.2$ ", "[user@board ~]$ "}, stamped: true},
+		{name: "POSIXAndContinuation", prompts: []string{"# ", "$ ", "> "}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

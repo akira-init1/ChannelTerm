@@ -104,8 +104,8 @@ func (r *promptTimestampRenderer) Write(data []byte) error {
 		if !complete {
 			return nil
 		}
-		if highlight.HasBootloaderPromptPrefix(visible) {
-			// Timestamp only supported shell prompts, but never hold a bootloader
+		if highlight.HasInteractivePromptPrefix(visible) {
+			// Timestamp only supported shell prompts, but never hold an interactive
 			// prompt or its echo while waiting for a newline that needs user input.
 			if err := r.write(r.pending); err != nil {
 				return err

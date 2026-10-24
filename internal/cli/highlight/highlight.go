@@ -191,8 +191,8 @@ func (r *Renderer) drain() error {
 			r.pending = nil
 			continue
 		}
-		if HasBootloaderPromptPrefix(r.pending) {
-			// Bootloader prompts have no newline. Emit them and their echo raw
+		if HasInteractivePromptPrefix(r.pending) {
+			// Interactive prompts have no newline. Emit them and their echo raw
 			// rather than holding the interactive line until the user presses Enter.
 			if err := writeAll(r.output, r.pending); err != nil {
 				return err
@@ -214,7 +214,7 @@ func (r *Renderer) drain() error {
 // writeLine chooses raw forwarding for unsafe or echoed input and otherwise
 // applies the built-in rules to one complete logical line.
 func (r *Renderer) writeLine(line []byte, raw bool) error {
-	if raw || containsScreenControl(line) || HasBootloaderPromptPrefix(line) {
+	if raw || containsScreenControl(line) || HasInteractivePromptPrefix(line) {
 		return writeAll(r.output, line)
 	}
 	content, ending := splitLineEnding(line)

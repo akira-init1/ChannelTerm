@@ -228,6 +228,12 @@ Side effects and lifecycle:
   and subsequent input echo are displayed without waiting for a newline, even with highlighting
   or prompt timestamps enabled. These prompts remain unstyled and do not receive timestamps.
   Recognition is a local presentation heuristic, not confirmation of the device's boot state.
+- Additional interactive prompts pass through immediately without generated colors or timestamps.
+  Echo remains remote-controlled; these examples describe display recognition only.
+
+  | Console | Recognized examples |
+  | --- | --- |
+  | POSIX primary and continuation | `# `, `$ `, `> ` |
 - The highlighter assigns non-bold semantic colors to status words, boot headings, field names,
   embedded interface/protocol identifiers, addresses, versions, timestamps, numbers, units, quoted
   values, structural `()`, `[]`, and `{}` delimiters, and recognized shell-prompt components. It
