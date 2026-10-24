@@ -290,12 +290,15 @@ func renderText(line []byte, colors theme) []byte {
 	return renderMatches(line, matches)
 }
 
-// renderPrompt recognizes common POSIX and BusyBox prompt forms and styles
-// their user, host, path, and privilege marker separately. The path uses bright
-// blue because normal ANSI blue is low contrast on default dark backgrounds.
+// renderPrompt styles user@host prompts and forwards minimal shell prompts raw.
+// Both forms must end line buffering so subsequent key echo is visible before
+// Enter. The styled path uses bright blue for contrast on dark backgrounds.
 func (r *Renderer) renderPrompt(line []byte) ([]byte, bool) {
 	index := promptPattern.FindSubmatchIndex(line)
 	if index == nil {
+		if minimalShellPromptPattern.Match(line) {
+			return append([]byte(nil), line...), true
+		}
 		return nil, false
 	}
 	userStart, userEnd := index[2], index[3]
@@ -538,6 +541,11 @@ var builtinRules = []rule{
 }
 
 var promptPattern = regexp.MustCompile(`^(?:\[[0-9]{2}:[0-9]{2}:[0-9]{2}\][ \t]+)?(?:\([^)\r\n]+\)[ \t]+)?([A-Za-z0-9_.-]+)@([A-Za-z0-9_.-]+):([^ \t\r\n]+)([$#])[ \t]*`)
+
+// Minimal prompts are kept unstyled. Accept a local
+// timestamp and already echoed input, but require whitespace before that input
+// so ordinary text beginning with a similar marker does not become a prompt.
+var minimalShellPromptPattern = regexp.MustCompile(`^(?:\[[0-9]{2}:[0-9]{2}:[0-9]{2}\][ \t]+)?(?:(?:ba)?sh-[0-9]+(?:\.[0-9]+)*#|/[ \t]+#|\[[A-Za-z0-9_.-]+@[A-Za-z0-9_.-]+[ \t]+[^ \t\r\n\]]+\]#)(?:[ \t]+|$)`)
 
 // HasBootloaderPromptPrefix recognizes a plain line starting with "=> " or a
 // name followed by "> ", including an already echoed command. Trailing prompt

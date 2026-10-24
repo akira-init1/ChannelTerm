@@ -28,6 +28,54 @@ func TestBootloaderPromptPropagatesOutputFailure(t *testing.T) {
 	}
 }
 
+func TestMinimalShellPromptPreservesBytesAndEcho(t *testing.T) {
+	for _, prompt := range []string{"sh-5.1# ", "bash-5.2# ", "/ # ", "[root@board ~]# ", "[14:05:01] sh-5.1# "} {
+		var output bytes.Buffer
+		renderer := New(&output)
+		for _, value := range []byte(prompt) {
+			if _, err := renderer.Write([]byte{value}); err != nil {
+				t.Fatal(err)
+			}
+		}
+		want := prompt
+		if output.String() != want {
+			t.Fatalf("prompt withheld: got %q want %q", output.String(), want)
+		}
+		for _, echo := range []string{"e", "cho ERROR 123", "\b \b", "\r", "\n"} {
+			if _, err := renderer.Write([]byte(echo)); err != nil {
+				t.Fatal(err)
+			}
+			want += echo
+			if output.String() != want {
+				t.Fatalf("echo changed or withheld: got %q want %q", output.String(), want)
+			}
+		}
+		if _, err := renderer.Write([]byte("ERROR\n")); err != nil {
+			t.Fatal(err)
+		}
+		want += string(styleError) + "ERROR" + string(styleReset) + "\n"
+		if output.String() != want {
+			t.Fatalf("highlighting did not recover: got %q want %q", output.String(), want)
+		}
+	}
+}
+
+func TestMinimalShellPromptRejectsSimilarOutput(t *testing.T) {
+	for _, input := range []string{"sh-5.1", "sh-5.1#suffix", "log: sh-5.1# ", "bash-x# ", "/ #suffix", "[root@board ~]#suffix"} {
+		if _, ok := New(nil).renderPrompt([]byte(input)); ok {
+			t.Errorf("recognized non-prompt %q", input)
+		}
+	}
+}
+
+func TestMinimalShellPromptPropagatesOutputFailure(t *testing.T) {
+	for _, input := range []string{"sh-5.1# ", "[14:05:01] sh-5.1# ls", "sh-5.1# echo ERROR\r\n"} {
+		if _, err := New(bootloaderErrorWriter{}).Write([]byte(input)); err != io.ErrClosedPipe {
+			t.Errorf("Write(%q) error = %v, want %v", input, err, io.ErrClosedPipe)
+		}
+	}
+}
+
 func TestBootloaderEchoDoesNotDependOnReadBoundaries(t *testing.T) {
 	input := []byte("Zynq> help 123\r\nERROR\r\n=> ")
 	want := "Zynq> help 123\r\n" + string(styleError) + "ERROR" + string(styleReset) + "\r\n=> "

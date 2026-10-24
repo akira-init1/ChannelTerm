@@ -164,6 +164,52 @@ func TestColoredPromptEchoThroughPresentation(t *testing.T) {
 	}
 }
 
+// TestMinimalShellPromptEchoThroughPresentation covers init shells without a
+// user@host prompt, including reads that already contain part of the command.
+func TestMinimalShellPromptEchoThroughPresentation(t *testing.T) {
+	for _, timestamps := range []bool{false, true} {
+		for _, prompt := range []string{"sh-5.1# ", "bash-5.2# ", "/ # ", "[root@board ~]# "} {
+			input := prompt + "ls"
+			for split := 0; split <= len(input); split++ {
+				t.Run(fmt.Sprintf("timestamps=%t/prompt=%q/split=%d", timestamps, prompt, split), func(t *testing.T) {
+					var output bytes.Buffer
+					highlighter := highlight.New(&output)
+					renderer := newPromptTimestampRenderer(terminalOutputWriter(&output, highlighter), terminalOutputFlusher(highlighter), fixedPromptTimestampClock)
+					stamp := ""
+					if timestamps {
+						if _, err := renderer.Toggle(); err != nil {
+							t.Fatal(err)
+						}
+						stamp = "[14:05:01] "
+					}
+					// Repeat after a command response to verify prompt state recovers.
+					want := ""
+					for range 2 {
+						for _, chunk := range []string{input[:split], input[split:]} {
+							if err := renderer.Write([]byte(chunk)); err != nil {
+								t.Fatal(err)
+							}
+						}
+						want += stamp + input
+						if output.String() != want {
+							t.Fatalf("prompt/echo withheld before Enter: got %q want %q", output.String(), want)
+						}
+						for _, echo := range []string{" ", "1", "\b \b", "\r", "\n", "bin  dev  etc\r\n"} {
+							if err := renderer.Write([]byte(echo)); err != nil {
+								t.Fatal(err)
+							}
+							want += echo
+							if output.String() != want {
+								t.Fatalf("delayed or changed echo: got %q want %q", output.String(), want)
+							}
+						}
+					}
+				})
+			}
+		}
+	}
+}
+
 func TestResolveHighlightRendererUsesEnvironmentColorPolicy(t *testing.T) {
 	tests := []struct {
 		name      string

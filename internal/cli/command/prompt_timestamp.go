@@ -180,4 +180,6 @@ func promptVisibleText(data []byte) (visible []byte, complete, safe bool) {
 	return visible, true, true
 }
 
-var promptPattern = regexp.MustCompile(`^(?:[A-Za-z0-9_.-]+@[A-Za-z0-9_.-]+:[^ \t\r\n]+[$#]|(?:ba)?sh-[0-9]+(?:\.[0-9]+)*#|/[ \t]+#|\[[A-Za-z0-9_.-]+@[A-Za-z0-9_.-]+[ \t]+[^ \t\r\n\]]+\]#)[ \t]*$`)
+// Recognize a prompt even when the same read already contains command echo.
+// Require whitespace before that echo while retaining prompts with no suffix.
+var promptPattern = regexp.MustCompile(`^(?:[A-Za-z0-9_.-]+@[A-Za-z0-9_.-]+:[^ \t\r\n]+[$#]|(?:ba)?sh-[0-9]+(?:\.[0-9]+)*#|/[ \t]+#|\[[A-Za-z0-9_.-]+@[A-Za-z0-9_.-]+[ \t]+[^ \t\r\n\]]+\]#)(?:[ \t]+|$)`)
