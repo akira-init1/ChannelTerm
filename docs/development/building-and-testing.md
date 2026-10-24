@@ -11,6 +11,11 @@ go vet ./...
 go test -race ./...
 ```
 
+The pinned serial dependency has a local flow-control patch in a nested module. Also run
+`go test go.bug.st/serial -run TestFlowControl -count=1` (with `-race` on Linux).
+These tests use flag structures and disposable Linux PTYs, not physical ports. See the
+[patch maintenance instructions](../../third_party/serial/CHANNELTERM.md).
+
 Documentation-only changes do not require formatting unchanged Go files but still require repository
 tests and vet before completion.
 

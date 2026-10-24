@@ -75,7 +75,7 @@ files or serial behavior.
 | `data_bits` | `5`, `6`, `7`, or `8`. | 8 |
 | `parity` | `none`, `odd`, `even`, `mark`, or `space`. | `none` |
 | `stop_bits` | `1`, `1.5`, or `2`. | `1` |
-| `flow_control` | `none`, `software`, or `hardware`. | `none`; only `none` is implemented |
+| `flow_control` | `none`, `software` (XON/XOFF), or `hardware` (RTS/CTS). | `none` |
 | `wake` | Send one carriage return after a new connection. | false |
 | `connection.default_policy` | Discovery response policy: `ask`, `auto`, or `deny`. | `ask` |
 

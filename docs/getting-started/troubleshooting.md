@@ -33,11 +33,12 @@ ChannelTerm intentionally sends nothing on a normal connection. If the device is
 idle interactive shell, reconnect with `--wake` or explicitly write a carriage return. Do not send
 wake input to an unknown bootloader or device state.
 
-## Flow control is rejected
+## Flow control fails or output stalls
 
-Although the public values are `none`, `software`, and `hardware`, the current serial backend can
-configure only `none` portably. Software or hardware flow control returns an unsupported error
-before opening the port.
+`software` selects XON/XOFF and `hardware` selects RTS/CTS. A driver may reject unsupported
+settings. Check that the peer uses the same flow mode and that RTS/CTS wires are connected for
+hardware flow. A received XOFF or low CTS intentionally pauses writes. Close the shared Session
+explicitly to stop blocked I/O; do not automatically resend an uncertain write after reconnecting.
 
 ## MCP will not start
 

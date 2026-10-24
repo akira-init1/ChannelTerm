@@ -182,8 +182,6 @@ func TestNewValidatesConfigAndAppliesDefaults(t *testing.T) {
 		{name: "invalid parity", config: Config{Port: "COM3", BaudRate: 115200, Parity: "bad"}, wantErr: ErrInvalidParity},
 		{name: "invalid stop bits", config: Config{Port: "COM3", BaudRate: 115200, StopBits: "3"}, wantErr: ErrInvalidStopBits},
 		{name: "invalid flow control", config: Config{Port: "COM3", BaudRate: 115200, FlowControl: "invalid"}, wantErr: ErrInvalidFlowControl},
-		{name: "software flow control unsupported", config: Config{Port: "COM3", BaudRate: 115200, FlowControl: FlowControlSoftware}, wantErr: ErrFlowControlUnsupported},
-		{name: "hardware flow control unsupported", config: Config{Port: "COM3", BaudRate: 115200, FlowControl: FlowControlHardware}, wantErr: ErrFlowControlUnsupported},
 		{name: "defaults", config: Config{Port: "COM3", BaudRate: 115200}},
 	}
 
@@ -263,6 +261,40 @@ func TestTransportConnectReadWriteAndClose(t *testing.T) {
 	}
 	if _, err := stream.Read(data); !errors.Is(err, channel.ErrNotOpen) {
 		t.Errorf("Read() after Close error = %v, want channel.ErrNotOpen", err)
+	}
+}
+
+func TestTransportFlowControlReachesDriverAndPreservesCancellation(t *testing.T) {
+	for _, tc := range []struct {
+		flow FlowControl
+		mode goserial.FlowControl
+	}{
+		{FlowControlNone, goserial.NoFlowControl},
+		{FlowControlSoftware, goserial.SoftwareFlowControl},
+		{FlowControlHardware, goserial.HardwareFlowControl},
+	} {
+		t.Run(string(tc.flow), func(t *testing.T) {
+			transport, err := New(Config{Port: "fake", BaudRate: 115200, FlowControl: tc.flow})
+			if err != nil {
+				t.Fatal(err)
+			}
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			port := newFakePort()
+			transport.open = func(_ string, mode *goserial.Mode) (goserial.Port, error) {
+				if mode.FlowControl != tc.mode {
+					t.Fatalf("flow: %v", mode.FlowControl)
+				}
+				cancel()
+				return port, nil
+			}
+			if stream, err := transport.Connect(ctx); stream != nil || !errors.Is(err, context.Canceled) {
+				t.Fatalf("cancelled open: %v %v", stream, err)
+			}
+			if port.closeCount() != 1 {
+				t.Fatal("cancelled port leaked")
+			}
+		})
 	}
 }
 

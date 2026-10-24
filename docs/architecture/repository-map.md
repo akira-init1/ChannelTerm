@@ -53,19 +53,25 @@ ChannelTerm/
 |   |-- cterm-serial-debug/          Shared serial-debugging workflow for AI clients
 |   `-- cterm-ssh-debug/             Shared SSH shell diagnosis workflow for AI clients
 |-- docs/                           Public English technical documentation
+|-- third_party/serial/             Pinned serial dependency with reviewed native flow-control patch
 |-- .gitattributes                  Cross-platform text line-ending policy
 |-- .gitignore                      Local/build/generated-state ignore policy
 |-- AGENTS.md                       Repository engineering rules
 |-- CLAUDE.md                       Repository-specific assistant context
 |-- README.md                       Public landing page
 |-- LICENSE                         Apache License 2.0
-|-- THIRD_PARTY_NOTICES              Required SSH dependency redistribution notice
+|-- THIRD_PARTY_NOTICES              Required dependency redistribution notices
 |-- go.mod
 `-- go.sum
 ```
 
 Tests use `*_test.go` beside the packages they exercise. The repository does not expose packages
 outside `internal/`; consumers use the executable's CLI and MCP boundaries.
+
+`third_party/serial` is a private dependency replacement, not a ChannelTerm public Go API.
+Its [provenance and patch instructions](../../third_party/serial/CHANNELTERM.md) identify the
+upstream revision, license and native flow-control changes. Session/Transport ownership remains
+in the existing internal packages.
 
 The main ownership distinctions are deliberate:
 

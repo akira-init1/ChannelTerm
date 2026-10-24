@@ -40,6 +40,7 @@ jobs:
           go-version: ${{ matrix.go }}
           cache-dependency-path: go.sum
       - run: go test ./...
+      - run: go test go.bug.st/serial -run TestFlowControl -count=1
       - name: Validate PowerShell release build
         if: runner.os == 'Windows'
         shell: pwsh
@@ -112,5 +113,6 @@ jobs:
           done
       - run: go vet ./...
       - run: go test -race ./...
+      - run: go test -race go.bug.st/serial -run TestFlowControl -count=1
       - run: ./scripts/build.sh
       - run: go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...

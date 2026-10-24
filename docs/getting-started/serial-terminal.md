@@ -197,9 +197,12 @@ Remote-controlled password suppression is preserved; ChannelTerm does not add lo
 ## Current serial constraints
 
 `data-bits` accepts 5, 6, 7, or 8; parity accepts `none`, `odd`, `even`, `mark`, or `space`; stop
-bits accept `1`, `1.5`, or `2`. The schema also accepts flow control values `none`, `software`, and
-`hardware`, but the current cross-platform backend only implements `none`; the other values fail
-before opening the port.
+bits accept `1`, `1.5`, or `2`. Flow control accepts `none`, `software` (XON/XOFF), and
+`hardware` (RTS/CTS). For example, `channelterm attach COM8 --baud 115200 --flow-control hardware`.
+CLI, GUI and MCP use the same backend configuration. Reusing an open Session preserves its
+original settings; close it explicitly and open a new Session to change physical settings.
+RTS/CTS requires both handshake wires and compatible peer configuration. XON/XOFF reserves
+bytes `0x11` and `0x13`, so raw binary protocols require a different flow mode. No default changes.
 
 Physical serial connections do not support terminal resize operations. See the
 [CLI reference](../reference/cli.md) and [Transport module](../modules/transport.md) for details.

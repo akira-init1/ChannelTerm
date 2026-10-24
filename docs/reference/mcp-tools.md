@@ -250,7 +250,7 @@ input unless `wake` resolves to true, in which case one system-attributed carria
 after connect. `save` persists the resolved profile before the physical open.
 
 Important errors: missing port after resolution, unknown profile, invalid serial settings,
-unsupported non-`none` flow control, control characters in `label`, configuration read/write
+driver-rejected framing or flow control, control characters in `label`, configuration read/write
 failure, busy/missing/inaccessible port, cancellation, connection failure, or repeated ID collision.
 Safety: this tool can open real hardware and `wake` can transmit data. For a discovery-driven open,
 call it only after user approval or a decision action of `connect`.

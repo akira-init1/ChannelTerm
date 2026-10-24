@@ -770,7 +770,7 @@ func runSerialWithTarget(ctx context.Context, args []string, input io.Reader, ou
 	dataBits := flags.Int("data-bits", 8, "serial data bits: 5, 6, 7, or 8")
 	parity := flags.String("parity", string(serialtransport.ParityNone), "serial parity: none, odd, even, mark, or space")
 	stopBits := flags.String("stop-bits", string(serialtransport.StopBitsOne), "serial stop bits: 1, 1.5, or 2")
-	flowControl := flags.String("flow-control", string(serialtransport.FlowControlNone), "serial flow control: none, software, or hardware")
+	flowControl := flags.String("flow-control", string(serialtransport.FlowControlNone), "serial flow control: none, software (XON/XOFF), or hardware (RTS/CTS)")
 	wake := flags.Bool("wake", false, "send one carriage return after connecting to an already-open shell with no prompt")
 	highlightEnabled := flags.Bool("highlight", true, "apply semantic colors to plain terminal text")
 	profileName := flags.String("profile", "", "named serial profile to use")

@@ -26,8 +26,8 @@ var (
 	ErrInvalidStopBits = errors.New("serial stop bits must be 1, 1.5, or 2")
 	// ErrInvalidFlowControl is returned when a serial configuration uses an unknown flow control mode.
 	ErrInvalidFlowControl = errors.New("serial flow control must be none, software, or hardware")
-	// ErrFlowControlUnsupported is returned when the selected flow control mode
-	// cannot be configured by the cross-platform serial backend.
+	// ErrFlowControlUnsupported is retained for callers of older backends.
+	// Deprecated: the native backend now configures both modes and returns driver errors.
 	ErrFlowControlUnsupported = errors.New("serial flow control is unsupported by the serial backend")
 )
 
@@ -76,9 +76,8 @@ const (
 // Port is the platform port name, such as COM3 on Windows, /dev/ttyUSB0 on
 // Linux, or /dev/cu.usbserial-123 on macOS. BaudRate must be positive. Zero
 // DataBits, empty Parity, empty StopBits, and empty FlowControl select the
-// conventional 8-N-1 configuration with no flow control. Software and hardware
-// FlowControl are validated but currently return ErrFlowControlUnsupported;
-// go.bug.st/serial v1.6.2 does not expose a portable way to configure them.
+// conventional 8-N-1 configuration with no flow control. Software uses XON/XOFF;
+// hardware requires RTS/CTS wiring and support from the driver and peer.
 type Config struct {
 	Port        string
 	BaudRate    int
@@ -307,12 +306,6 @@ func validateConfig(config *Config) error {
 	if config.FlowControl != FlowControlNone && config.FlowControl != FlowControlSoftware && config.FlowControl != FlowControlHardware {
 		return ErrInvalidFlowControl
 	}
-	if config.FlowControl != FlowControlNone {
-		// go.bug.st/serial v1.6.2 exposes neither XON/XOFF nor RTS/CTS in
-		// Mode. Its native open paths explicitly disable both, so accepting the
-		// setting would falsely report a configured device.
-		return fmt.Errorf("%w: %s", ErrFlowControlUnsupported, config.FlowControl)
-	}
 	return nil
 }
 
@@ -321,11 +314,18 @@ func validateConfig(config *Config) error {
 func toMode(config Config) *goserial.Mode {
 	parity, _ := parityMode(config.Parity)
 	stopBits, _ := stopBitsMode(config.StopBits)
+	flow := goserial.NoFlowControl
+	if config.FlowControl == FlowControlSoftware {
+		flow = goserial.SoftwareFlowControl
+	} else if config.FlowControl == FlowControlHardware {
+		flow = goserial.HardwareFlowControl
+	}
 	return &goserial.Mode{
-		BaudRate: config.BaudRate,
-		DataBits: config.DataBits,
-		Parity:   parity,
-		StopBits: stopBits,
+		FlowControl: flow,
+		BaudRate:    config.BaudRate,
+		DataBits:    config.DataBits,
+		Parity:      parity,
+		StopBits:    stopBits,
 	}
 }
 

@@ -191,7 +191,7 @@ channelterm serial [--profile NAME] [--port PORT] [options]
 | `--data-bits` | 8 | `5`, `6`, `7`, or `8`. |
 | `--parity` | `none` | `none`, `odd`, `even`, `mark`, or `space`. |
 | `--stop-bits` | `1` | `1`, `1.5`, or `2`. |
-| `--flow-control` | `none` | Values: `none`, `software`, `hardware`; the backend supports only `none`. |
+| `--flow-control` | `none` | `none`, `software` (XON/XOFF), or `hardware` (RTS/CTS); peer settings and wiring must match. |
 | `--wake` | false | Sends one carriage return after a newly opened Session connects. |
 | `--highlight` | true | Style plain text; use `--highlight=false` to disable it. |
 | `--encoding`, `--view`, `--description` | UTF-8 text, no description | Client-local terminal presentation; see [encoding and hex view](../getting-started/serial-terminal.md#character-encoding-description-and-hexadecimal-view). |

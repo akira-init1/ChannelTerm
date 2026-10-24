@@ -43,8 +43,10 @@ to enumerate and open operating-system endpoints.
 
 Validated configuration includes port, positive baud rate, 5-8 data bits, supported parity,
 supported stop bits, and flow control. Empty optional values normalize to 8-N-1 with no flow
-control. Although `software` and `hardware` are stable accepted names, the current backend cannot
-configure portable XON/XOFF or RTS/CTS and returns `ErrFlowControlUnsupported` for both.
+control. `software` enables native bidirectional XON/XOFF (DC1/DC3); `hardware` enables RTS/CTS.
+The pinned [serial patch](../../third_party/serial/CHANNELTERM.md) applies Windows DCB and Unix
+termios flags. Driver rejection is returned to the caller; framing and physical wiring must match
+the peer. Software flow control consumes control bytes and is not transparent to raw binary data.
 
 Serial `Connect` checks context before and immediately after the operating-system open. The
 library's blocking open itself cannot be interrupted after it starts; if cancellation is detected
@@ -55,6 +57,10 @@ Channel `Read` and `Write` delegate to the driver. Channel `Close` closes the dr
 exactly once, causes later operations to fail immediately, and unblocks an active read through the
 driver. A Serial Transport can open another independent Channel after the first closes, although
 normal ChannelTerm Session workflows create a new Transport for a new lifecycle.
+
+Unix writes use nonblocking syscalls and the existing close-signal pipe so Close can release
+a flow-stopped writer without resuming transmission. The fd stays owned until active I/O has
+left; partial writes report their committed prefix and are never replayed automatically.
 
 Serial Channels do not implement `channel.Resizer` because physical serial ports have no terminal
 dimensions. Transport connection itself never sends wake or line-ending bytes; Application sends an

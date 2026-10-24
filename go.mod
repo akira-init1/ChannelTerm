@@ -2,6 +2,9 @@ module github.com/akira-init1/ChannelTerm
 
 go 1.26.0
 
+// Pinned upstream with the reviewed native flow-control patch; see its provenance.
+replace go.bug.st/serial => ./third_party/serial
+
 require (
 	github.com/gofrs/flock v0.13.0
 	github.com/google/jsonschema-go v0.4.3

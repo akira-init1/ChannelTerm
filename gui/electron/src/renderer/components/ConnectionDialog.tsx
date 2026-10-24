@@ -125,7 +125,13 @@ export function ConnectionDialog({
       {t(id)}
       <select name={name} defaultValue={defaultValue}>
         {options.map((value) => (
-          <option key={value}>{value}</option>
+          <option key={value} value={value}>
+            {name === "flowControl" && value !== "none"
+              ? value === "software"
+                ? "XON/XOFF"
+                : "RTS/CTS"
+              : value}
+          </option>
         ))}
       </select>
     </label>

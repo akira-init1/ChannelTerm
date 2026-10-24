@@ -530,7 +530,7 @@ func defineAttachSerialFlags(flags *flag.FlagSet) {
 	flags.Int("data-bits", 8, "serial data bits: 5, 6, 7, or 8")
 	flags.String("parity", string(serialtransport.ParityNone), "serial parity: none, odd, even, mark, or space")
 	flags.String("stop-bits", string(serialtransport.StopBitsOne), "serial stop bits: 1, 1.5, or 2")
-	flags.String("flow-control", string(serialtransport.FlowControlNone), "serial flow control: none, software, or hardware")
+	flags.String("flow-control", string(serialtransport.FlowControlNone), "serial flow control: none, software (XON/XOFF), or hardware (RTS/CTS)")
 	flags.Bool("wake", false, "send one carriage return after creating a session")
 	flags.String("label", "", "display label for a newly created shared session")
 	flags.String("save", "", "save resolved settings as a named serial profile")
