@@ -37,4 +37,6 @@ var interactivePromptPatterns = []*regexp.Regexp{
 	regexp.MustCompile(`^(?:msh|finsh)[ \t]+[^>\r\n]*>`),
 	// MicroPython REPL.
 	regexp.MustCompile(`^(?:>>>|\.\.\.|===)(?:[ \t]+|$)`),
+	// Remote login.
+	regexp.MustCompile(`(?i)^(?:(?:[A-Za-z0-9_.-]+[ \t]+)?login:|password:)(?:[ \t]+|$)`),
 }

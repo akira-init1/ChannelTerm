@@ -26,6 +26,7 @@ func TestInteractivePromptFamilies(t *testing.T) {
 		{name: "Zephyr", prompts: []string{"uart:~$ ", "rtt:~$ ", "usb:~$ "}},
 		{name: "RTThread", prompts: []string{"msh />", "msh /sdcard>", "finsh /> "}},
 		{name: "MicroPython", prompts: []string{">>> ", "... ", "=== "}},
+		{name: "Login", prompts: []string{"login: ", "board login: ", "Password: ", "Login: "}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

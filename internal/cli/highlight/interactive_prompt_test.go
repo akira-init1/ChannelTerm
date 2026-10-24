@@ -6,7 +6,7 @@ import (
 )
 
 func TestInteractivePromptRejectsOrdinaryText(t *testing.T) {
-	for _, input := range []string{"===header", "...text", "msh status", "log: msh />", "uart: received", "log: uart:~$ ", "rommon 1 loading", "log: rommon 1 > ", "fs0: device", "log: fs0:\\> ", "grub rescue failed", "log: grub rescue> ", "barebox booting", "log: barebox@board:/ ", "$variable", "#heading", ">comparison", "log: > ", "log: BBG U-Boot > ", "BBG U-Boot version "} {
+	for _, input := range []string{"system last login: today", "Password policy: ", "===header", "...text", "msh status", "log: msh />", "uart: received", "log: uart:~$ ", "rommon 1 loading", "log: rommon 1 > ", "fs0: device", "log: fs0:\\> ", "grub rescue failed", "log: grub rescue> ", "barebox booting", "log: barebox@board:/ ", "$variable", "#heading", ">comparison", "log: > ", "log: BBG U-Boot > ", "BBG U-Boot version "} {
 		if HasInteractivePromptPrefix([]byte(input)) {
 			t.Errorf("recognized ordinary output %q", input)
 		}
