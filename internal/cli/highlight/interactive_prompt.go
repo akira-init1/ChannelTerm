@@ -39,4 +39,6 @@ var interactivePromptPatterns = []*regexp.Regexp{
 	regexp.MustCompile(`^(?:>>>|\.\.\.|===)(?:[ \t]+|$)`),
 	// Remote login.
 	regexp.MustCompile(`(?i)^(?:(?:[A-Za-z0-9_.-]+[ \t]+)?login:|password:)(?:[ \t]+|$)`),
+	// initramfs recovery.
+	regexp.MustCompile(`^\(initramfs\)`),
 }
