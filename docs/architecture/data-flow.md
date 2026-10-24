@@ -240,6 +240,12 @@ shared Channel and its underlying serial resource.
 
 ## CLI file transfer
 
+Electron reuses this same path: a typed file intent crosses Preload to Main, which launches
+the fixed CLI file client with native-selected local paths. Directory snapshots use an
+Application child-shell query under the same lease; Host Session events drive GUI progress
+and local output suppression. See [Electron file operations](electron-gui.md#file-operations)
+for process boundaries, bounded observation, and lifecycle guards.
+
 ```text
 local file <--> bounded CLI chunks
                      |

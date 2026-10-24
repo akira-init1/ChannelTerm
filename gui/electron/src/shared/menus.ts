@@ -24,7 +24,7 @@ export type Action =
         | "help.quick"
         | "app.quit";
     }
-  | { id: "session.attach"; sessionId: string }
+  | { id: "session.attach" | "file.send" | "file.receive"; sessionId: string }
   | {
       id: "tab.close" | "terminal.clear" | "terminal.focus" | "terminal.resume";
       attachment: Attachment;
@@ -40,6 +40,7 @@ export interface MenuState {
   sidebarVisible: boolean;
   attachment?: Attachment;
   currentOpen: boolean;
+  currentSerial: boolean;
   inputPaused: boolean;
   leased: boolean;
 }
@@ -60,6 +61,7 @@ export const initialMenuState: MenuState = {
   busy: false,
   sidebarVisible: true,
   currentOpen: false,
+  currentSerial: false,
   inputPaused: false,
   leased: false,
 };
@@ -128,6 +130,11 @@ export function applicationMenu(state: MenuState): MenuEntry[] {
           enabled: state.connected && !state.busy,
           action: { id: "session.refresh" },
         },
+        ...fileMenu(
+          state,
+          state.attachment?.sessionId,
+          state.currentOpen && state.currentSerial && !state.leased,
+        ),
         attachedAction(state, "tab.close"),
       ],
     },
@@ -188,11 +195,25 @@ export function terminalMenu(state: MenuState): MenuEntry[] {
   return items;
 }
 
+function fileMenu(
+  state: MenuState,
+  sessionId: string | undefined,
+  available: boolean,
+): MenuEntry[] {
+  return (["file.send", "file.receive"] as const).map((id) => ({
+    id,
+    label: id,
+    enabled: !!sessionId && available && state.connected && !state.busy,
+    action: sessionId ? { id, sessionId } : undefined,
+  }));
+}
+
 /** Capture the clicked opaque ID, never substitute the current selection at execution. */
 export function sessionMenu(
   state: MenuState,
   sessionId: string,
   open: boolean,
+  serial = false,
 ): MenuEntry[] {
   return [
     {
@@ -216,6 +237,7 @@ export function sessionMenu(
           ? { id: "tab.close", attachment: { ...state.attachment } }
           : undefined,
     },
+    ...fileMenu(state, sessionId, open && serial),
   ];
 }
 
@@ -256,6 +278,8 @@ export function isAction(value: unknown): value is Action {
     case "help.quick":
     case "app.quit":
       return exact(value, ["id"]);
+    case "file.send":
+    case "file.receive":
     case "session.attach":
       return exact(value, ["id", "sessionId"]) && identifier(value.sessionId);
     case "tab.close":
@@ -282,6 +306,7 @@ export function isMenuState(value: unknown): value is MenuState {
       "sidebarVisible",
       "attachment",
       "currentOpen",
+      "currentSerial",
       "inputPaused",
       "leased",
     ])
@@ -295,6 +320,7 @@ export function isMenuState(value: unknown): value is MenuState {
       "busy",
       "sidebarVisible",
       "currentOpen",
+      "currentSerial",
       "inputPaused",
       "leased",
     ].every((key) => typeof value[key] === "boolean") &&
@@ -312,6 +338,8 @@ export function actionEnabled(action: Action, state: MenuState): boolean {
     case "host.disconnect":
     case "connection.serial":
     case "session.refresh":
+    case "file.send":
+    case "file.receive":
     case "session.attach":
       return state.connected && !state.busy;
     case "tab.close":

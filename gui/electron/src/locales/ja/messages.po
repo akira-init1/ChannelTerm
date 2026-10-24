@@ -145,6 +145,151 @@ msgstr "ユーザー名"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "file.cancel"
+msgstr "転送をキャンセル"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.cancelled"
+msgstr "キャンセル済み"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.cancelQuestion"
+msgstr "このファイル転送をキャンセルしますか？"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.chooseFile"
+msgstr "ファイルを選択"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.chooseFolder"
+msgstr "フォルダーを選択"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.cleaning"
+msgstr "終了処理中"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.closeHint"
+msgstr "ファイル処理を完了するか転送パネルでキャンセルしてから閉じてください。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.completed"
+msgstr "完了"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.continue"
+msgstr "続行"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.directory"
+msgstr "フォルダー"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.failed"
+msgstr "失敗"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.file"
+msgstr "ファイル"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.idleHint"
+msgstr "待機中のLinuxシェルが必要です。フォルダーをダブルクリックで開きます。ターミナルの現在の場所は変わりません。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.loading"
+msgstr "ディレクトリを読み込み中…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.open"
+msgstr "開く"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.other"
+msgstr "未対応"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.parent"
+msgstr "上へ"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.receive"
+msgstr "デバイスから受信"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.receiveFolder"
+msgstr "このフォルダーを受信"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.remotePath"
+msgstr "デバイスのパス"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.running"
+msgstr "処理中"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.saveFolder"
+msgstr "保存先を選択"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.send"
+msgstr "デバイスへ送信"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.terminalDirectory"
+msgstr "ターミナルの現在の場所"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.transferring"
+msgstr "転送中"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.transfers"
+msgstr "ファイル転送"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.truncated"
+msgstr "先頭の256件を表示しています。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.unknown"
+msgstr "状態不明"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.verifying"
+msgstr "検証中"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "help.clear"
 msgstr "ローカル表示のクリアは現在行より上のローカル履歴を消去します。clear/reset コマンドは送信せず、Host の履歴も変更しません。"
 

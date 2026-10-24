@@ -145,6 +145,151 @@ msgstr "Benutzername"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "file.cancel"
+msgstr "Übertragung abbrechen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.cancelled"
+msgstr "Abgebrochen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.cancelQuestion"
+msgstr "Diese Dateiübertragung abbrechen?"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.chooseFile"
+msgstr "Datei auswählen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.chooseFolder"
+msgstr "Ordner auswählen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.cleaning"
+msgstr "Wird abgeschlossen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.closeHint"
+msgstr "Vor dem Schließen den Dateivorgang abschließen oder im Übertragungspanel abbrechen."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.completed"
+msgstr "Abgeschlossen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.continue"
+msgstr "Fortsetzen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.directory"
+msgstr "Ordner"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.failed"
+msgstr "Fehlgeschlagen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.file"
+msgstr "Datei"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.idleHint"
+msgstr "Erfordert eine freie Linux-Shell. Ordner per Doppelklick öffnen; das Terminalverzeichnis bleibt unverändert."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.loading"
+msgstr "Verzeichnis wird gelesen…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.open"
+msgstr "Öffnen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.other"
+msgstr "Nicht unterstützt"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.parent"
+msgstr "Übergeordnet"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.receive"
+msgstr "Vom Gerät empfangen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.receiveFolder"
+msgstr "Diesen Ordner empfangen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.remotePath"
+msgstr "Gerätepfad"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.running"
+msgstr "Vorgang läuft"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.saveFolder"
+msgstr "Zielordner auswählen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.send"
+msgstr "An Gerät senden"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.terminalDirectory"
+msgstr "Terminalverzeichnis"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.transferring"
+msgstr "Wird übertragen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.transfers"
+msgstr "Dateiübertragungen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.truncated"
+msgstr "Die ersten 256 Einträge werden angezeigt."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.unknown"
+msgstr "Status unbekannt"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.verifying"
+msgstr "Wird geprüft"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "help.clear"
 msgstr "Das Leeren der lokalen Anzeige entfernt den lokalen Scrollback oberhalb der aktuellen Zeile. Es sendet keinen clear/reset-Befehl und lässt den Host-Verlauf unverändert."
 

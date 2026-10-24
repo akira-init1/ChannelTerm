@@ -49,6 +49,23 @@ To update it after Go source changes, finish shared Session work, stop that Host
 its own Electron runtime and the platform-matched Host under `resources/host/`. See the
 [release boundaries](../architecture/electron-gui.md#multiple-frontends-and-release-boundaries).
 
+## File client build and verification
+
+File operations use another build of the same CLI at `dist/files/channelterm[.exe]`. Main invokes
+only its fixed file subcommands with argument arrays and no shell. This separate path lets the
+file client be updated while Windows keeps the persistent Host executable locked. After changing
+the Go file client, run `npm.cmd run files:build`; it does not stop or replace the running Host.
+`start`/`dev` prepare it only when missing, including with a custom loopback Host endpoint. A
+packaged application must include the platform-matched executable under `resources/files/` as well
+as `resources/host/`. File features require the new client; the MCP Host protocol is unchanged.
+
+The native suite checks external transfer progress and binary-output suppression against the real
+isolated Host, plus file-picker navigation/target binding using explicitly test-only IPC snapshots.
+Screenshots: `test-results/file-transfer-progress.png` and `file-receive-browser.png`. These snapshots
+do not prove a physical board's shell/tools or native file-dialog selection. Hardware acceptance
+must separately round-trip a disposable binary and directory, compare SHA-256, verify cwd isolation,
+and test cancellation without replay. See the [transfer workflow](../getting-started/file-transfer.md#electron-file-picker-and-progress).
+
 ## Menu translations (Lingui 5.9.0)
 
 Core, CLI, configuration helpers, and the PO formatter are pinned to **5.9.0**. Use the local

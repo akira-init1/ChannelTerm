@@ -1,3 +1,9 @@
+import type {
+  LocalSelection,
+  RemoteDirectory,
+  TransferRequest,
+  TransferStatus,
+} from "./transfers";
 import type { Action, MenuState } from "./menus";
 import type { ConnectionRequest, OpenedConnection } from "./connections";
 
@@ -46,6 +52,25 @@ export interface Output {
 
 /** One method per IPC channel; no arbitrary tool, URL, file, or process access. */
 export interface DesktopAPI {
+  chooseTransferPath(
+    sessionId: string,
+    direction: "send" | "receive",
+    kind: "file" | "directory",
+  ): Promise<Result<LocalSelection | undefined>>;
+  browseDirectory(
+    sessionId: string,
+    path: string,
+  ): Promise<Result<RemoteDirectory>>;
+  startTransfer(request: TransferRequest): Promise<Result<void>>;
+  transfers(sessionId: string): Promise<Result<TransferStatus[]>>;
+  cancelTransfer(
+    sessionId: string,
+    transferId: string,
+  ): Promise<Result<string>>;
+  resolveTransferCancel(
+    confirmationId: string,
+    confirm: boolean,
+  ): Promise<Result<void>>;
   info(): Promise<Result<HostInfo>>;
   connect(): Promise<Result<HostInfo>>;
   disconnect(): Promise<Result<void>>;
@@ -62,6 +87,12 @@ export interface DesktopAPI {
 }
 
 export const channels = {
+  chooseTransferPath: "files:choose",
+  browseDirectory: "files:browse",
+  startTransfer: "files:transfer",
+  transfers: "files:status",
+  cancelTransfer: "files:cancel",
+  resolveTransferCancel: "files:cancel-answer",
   info: "host:info",
   connect: "host:connect",
   disconnect: "host:disconnect",

@@ -371,7 +371,7 @@ unterstützt außerdem `--connection-policy ask|auto|deny`. `--config` ändert n
 ## Dokumentation
 
 - [Dokumentationsindex](docs/README.md)
-- [Electron-GUI-Prototyp und Entwicklung](docs/development/electron-gui.md) — Der lokale Standard-Host wird automatisch verbunden oder gestartet; serielle und SSH-Sitzungen lassen sich direkt in der GUI erstellen.
+- [Electron-GUI-Prototyp und Entwicklung](docs/development/electron-gui.md) — Der lokale Standard-Host wird automatisch verbunden oder gestartet; serielle und SSH-Sitzungen lassen sich direkt in der GUI erstellen. Geräteverzeichnisse durchsuchen und Dateien/Ordner seriell in beide Richtungen mit GUI-Fortschritt übertragen.
 - [Seriellen Terminalablauf verwenden](docs/getting-started/serial-terminal.md)
 - [SSH-Shell verwenden](docs/getting-started/ssh-terminal.md)
 - [Eine Session teilen](docs/getting-started/shared-session.md)

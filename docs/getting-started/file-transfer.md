@@ -108,6 +108,44 @@ This startup deadline does not limit transfer duration. Ordinary commands typed 
 `terminal_write` retain the shell's normal history behavior. Agents requiring history-free command
 execution at an idle Bash prompt should use `terminal_exec`.
 
+## Electron file picker and progress
+
+On an open serial Session, choose **Session > Send to device** or **Receive from device**;
+the Session context menu binds the same actions to the clicked Session. These actions require
+an idle POSIX Linux shell and the preconditions above, not a bootloader or an arbitrary serial
+protocol. The picker initially queries `.` in a temporary child shell, inheriting the terminal's
+actual current directory. Double-click a directory, use Up, or enter a device path. This navigation
+does not run `cd` in the interactive parent. **Terminal directory** queries its current location
+again rather than guessing it from prompt text. Queries briefly reserve the existing file-transfer
+lease. Pending interactive input is rejected; clear it yourself at the ordinary prompt first.
+
+For send, choose a local file or folder and browse the destination directory. For receive, select
+a device file/folder and choose a local destination folder; without an entry selected, the action
+receives the displayed directory. Existing targets retain the CLI's `_N` collision policy. Regular
+files and directories are supported; links and special entries are disabled. Listings include hidden
+entries, show at most 256 entries with a truncation notice, and require `od` and `tr` in addition
+to the existing shell tools. Listing has a 30-second operation deadline plus bounded cleanup.
+UTF-8 names are supported; control-character names and unsafe local Windows aliases are rejected.
+There is no remote rename/delete, pagination, filesystem watch, or persistent browser state.
+
+The collapsible GUI panel renders confirmed byte progress from Host events, including transfers
+started by other CLI/AI clients through the existing managed workflow. It does not embed a CLI
+progress bar or render the transfer's raw payload into xterm. The final result waits for verification
+and lease release. The GUI observes up to 16 listed open serial Sessions, keeps at most 64 local
+status rows, and displays the latest eight. Event loss is reported as unknown rather than invented
+success. This is bounded live observation, not a durable task history.
+
+Cancel opens a dark in-app confirmation using the Host's confirmation and safe-boundary protocol.
+Continue is initially focused; Escape or dismissing the overlay continues the transfer. Only the
+explicit Cancel transfer button confirms cancellation. Main binds the answer to the original
+Host request and Session, consumes it once, and withdraws pending confirmation on disconnect or
+window reload/close. An expired request is rejected rather than applied to a replacement transfer.
+While a GUI file operation is
+running, disconnect/reconnect and app exit are rejected until it finishes or is cancelled. Closing
+a tab still only detaches the view. A crash or lost Host connection cannot guarantee target cleanup;
+the existing lease-expiry and recovery rules below remain authoritative. No uncertain operation is
+automatically retried. File dialog errors do not imply that restarting a transfer is safe.
+
 ## Attach shortcut
 
 While attached, press `Ctrl+] f` to open a local file-transfer menu. It uses the same shared

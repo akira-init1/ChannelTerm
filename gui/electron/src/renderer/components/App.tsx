@@ -1,3 +1,6 @@
+import { FileDialog } from "../transfers/FileDialog";
+import { TransferPanel } from "../transfers/TransferPanel";
+import type { TransferRequest, TransferStatus } from "../../shared/transfers";
 import {
   useCallback,
   useEffect,
@@ -77,6 +80,73 @@ export function App() {
     useState<ConnectionRequest["kind"]>();
   const [menuContext, setMenuContext] = useState<MenuPopupRequest>();
   const terminal = useRef<TerminalControls>(null);
+  const [fileDialog, setFileDialog] = useState<{
+    sessionId: string;
+    name: string;
+    direction: "send" | "receive";
+  }>();
+  const [filePending, setFilePending] = useState(false);
+  const [fileError, setFileError] = useState("");
+  const [transferJobs, setTransferJobs] = useState<TransferStatus[]>([]);
+  const observedSessions = sessions
+    .filter((entry) => entry.state === "open" && entry.transport === "serial")
+    .slice(0, 16)
+    .map((entry) => entry.session_id)
+    .join(",");
+  useEffect(() => {
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout>;
+    if (!connected) {
+      setFileDialog(undefined);
+      setTransferJobs((previous) =>
+        previous.map((job) =>
+          job.released ? job : { ...job, state: "unknown" },
+        ),
+      );
+      return;
+    }
+    async function poll() {
+      const jobs: TransferStatus[] = [];
+      const unavailable = new Set<string>();
+      for (const id of observedSessions.split(",").filter(Boolean)) {
+        try {
+          jobs.push(...(await unwrap(host.transfers(id))));
+        } catch {
+          // Do not leave a stale progress snapshot looking authoritative.
+          unavailable.add(id);
+        }
+        if (stopped) return;
+      }
+      setTransferJobs((previous) => {
+        const retained = new Map(
+          previous.map((job) => [job.sessionId + ":" + job.id, job]),
+        );
+        for (const job of jobs) retained.set(job.sessionId + ":" + job.id, job);
+        return [...retained.values()]
+          .slice(-64)
+          .map((job) =>
+            !job.released &&
+            (!observedSessions.split(",").includes(job.sessionId) ||
+              unavailable.has(job.sessionId))
+              ? { ...job, state: "unknown" }
+              : job,
+          );
+      });
+      timer = setTimeout(() => void poll(), 750);
+    }
+    void poll();
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+    };
+  }, [connected, observedSessions]);
+  function startTransfer(request: TransferRequest) {
+    setFilePending(true);
+    setFileError("");
+    void unwrap(host.startTransfer(request))
+      .catch((error: ClientError) => setFileError(error.message))
+      .finally(() => setFilePending(false));
+  }
   // Synchronous exclusion covers two menu/toolbar clicks before React rerenders.
   const actionBusy = useRef(false);
   // Invalidate list snapshots and pending attachment results across Host changes.
@@ -92,10 +162,11 @@ export function App() {
       locale,
       connected,
       sshAvailable: !!info?.sshAvailable,
-      busy: working,
+      busy: working || !!fileDialog || filePending,
       sidebarVisible,
       attachment,
       currentOpen: current?.state === "open",
+      currentSerial: current?.transport === "serial",
       inputPaused,
       leased: !!current?.lease,
     }),
@@ -104,6 +175,9 @@ export function App() {
       connected,
       info?.sshAvailable,
       working,
+      fileDialog,
+      filePending,
+      current?.transport,
       sidebarVisible,
       attachment,
       current?.state,
@@ -292,7 +366,7 @@ export function App() {
     if (
       !actionEnabled(action, {
         ...menuState,
-        busy: working || actionBusy.current,
+        busy: working || actionBusy.current || !!fileDialog || filePending,
       })
     )
       return false;
@@ -309,6 +383,23 @@ export function App() {
   async function execute(action: Action) {
     if (!isAction(action) || !enabled(action)) return;
     switch (action.id) {
+      case "file.send":
+      case "file.receive": {
+        const target = sessions.find(
+          (entry) =>
+            entry.session_id === action.sessionId &&
+            entry.state === "open" &&
+            entry.transport === "serial" &&
+            !entry.lease,
+        );
+        if (target)
+          setFileDialog({
+            sessionId: target.session_id,
+            name: target.label || target.session_ref,
+            direction: action.id === "file.send" ? "send" : "receive",
+          });
+        return;
+      }
       case "connection.serial":
         setConnectionKind("serial");
         return;
@@ -434,6 +525,15 @@ export function App() {
 
   return (
     <div className={`app ${sidebarVisible ? "" : "sidebar-hidden"}`}>
+      {fileDialog && connected && (
+        <FileDialog
+          key={fileDialog.sessionId + fileDialog.direction}
+          {...fileDialog}
+          t={t}
+          onStart={startTransfer}
+          onClose={() => setFileDialog(undefined)}
+        />
+      )}
       {connectionKind && connected && (
         <ConnectionDialog
           key={connectionKind}
@@ -512,7 +612,12 @@ export function App() {
             onContextMenu={(event, item) =>
               openContext(
                 event,
-                sessionMenu(menuState, item.session_id, item.state === "open"),
+                sessionMenu(
+                  menuState,
+                  item.session_id,
+                  item.state === "open" && !item.lease,
+                  item.transport === "serial",
+                ),
               )
             }
           />
@@ -573,7 +678,8 @@ export function App() {
                     sessionMenu(
                       menuState,
                       attachment.sessionId,
-                      current?.state === "open",
+                      current?.state === "open" && !current.lease,
+                      current?.transport === "serial",
                     ),
                   );
               }}
@@ -635,7 +741,7 @@ export function App() {
               </div>
             )}
             {current?.lease && (
-              <div role="status" className="notice">
+              <div role="status" className="notice notice-lease">
                 Lease busy · {current.lease.type}. Reading continues; input is
                 disabled.
               </div>
@@ -652,7 +758,7 @@ export function App() {
               ref={terminal}
               key={attachment.id}
               attachment={attachment}
-              writable={writable}
+              writable={writable && !fileDialog && !filePending}
               onError={report}
               onDropped={() => setDropped(true)}
               onContextMenu={(event) =>
@@ -672,6 +778,19 @@ export function App() {
               </div>
             </div>
           )}
+          <TransferPanel
+            jobs={transferJobs}
+            connected={connected}
+            sessionNames={Object.fromEntries(
+              sessions.map((session) => [
+                session.session_id,
+                session.label || session.session_ref,
+              ]),
+            )}
+            pending={filePending}
+            error={fileError}
+            t={t}
+          />
         </main>
       </div>
       <footer className="statusbar" aria-label="Workbench status">

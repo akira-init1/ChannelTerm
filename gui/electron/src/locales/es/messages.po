@@ -145,6 +145,151 @@ msgstr "Nombre de usuario"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "file.cancel"
+msgstr "Cancelar transferencia"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.cancelled"
+msgstr "Cancelado"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.cancelQuestion"
+msgstr "¿Cancelar esta transferencia?"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.chooseFile"
+msgstr "Elegir archivo"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.chooseFolder"
+msgstr "Elegir carpeta"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.cleaning"
+msgstr "Finalizando"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.closeHint"
+msgstr "Finalice o cancele la operación en el panel antes de cerrar."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.completed"
+msgstr "Completado"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.continue"
+msgstr "Continuar"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.directory"
+msgstr "Carpeta"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.failed"
+msgstr "Error"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.file"
+msgstr "Archivo"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.idleHint"
+msgstr "Requiere una shell Linux inactiva. Abra carpetas con doble clic; no cambia el directorio del terminal."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.loading"
+msgstr "Leyendo carpeta…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.open"
+msgstr "Abrir"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.other"
+msgstr "No compatible"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.parent"
+msgstr "Subir"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.receive"
+msgstr "Recibir del dispositivo"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.receiveFolder"
+msgstr "Recibir esta carpeta"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.remotePath"
+msgstr "Ruta del dispositivo"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.running"
+msgstr "Operación en curso"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.saveFolder"
+msgstr "Elegir carpeta de destino"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.send"
+msgstr "Enviar al dispositivo"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.terminalDirectory"
+msgstr "Carpeta del terminal"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.transferring"
+msgstr "Transfiriendo"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.transfers"
+msgstr "Transferencias"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.truncated"
+msgstr "Se muestran las primeras 256 entradas."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.unknown"
+msgstr "Estado desconocido"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.verifying"
+msgstr "Verificando"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "help.clear"
 msgstr "Limpiar la vista local elimina el historial de desplazamiento local situado por encima de la línea actual. No envía comandos clear/reset y conserva el historial del Host."
 

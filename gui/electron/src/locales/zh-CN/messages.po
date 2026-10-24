@@ -145,6 +145,151 @@ msgstr "用户名"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "file.cancel"
+msgstr "取消传输"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.cancelled"
+msgstr "已取消"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.cancelQuestion"
+msgstr "取消这次文件传输？"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.chooseFile"
+msgstr "选择文件"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.chooseFolder"
+msgstr "选择文件夹"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.cleaning"
+msgstr "正在收尾"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.closeHint"
+msgstr "请先完成文件操作或在传输面板中取消，再关闭窗口。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.completed"
+msgstr "已完成"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.continue"
+msgstr "继续"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.directory"
+msgstr "文件夹"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.failed"
+msgstr "失败"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.file"
+msgstr "文件"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.idleHint"
+msgstr "需要空闲的 Linux Shell。双击文件夹进入；此处浏览不改变终端当前目录。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.loading"
+msgstr "正在读取目录…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.open"
+msgstr "打开"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.other"
+msgstr "不支持"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.parent"
+msgstr "上级目录"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.receive"
+msgstr "从设备接收"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.receiveFolder"
+msgstr "接收当前文件夹"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.remotePath"
+msgstr "设备路径"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.running"
+msgstr "操作进行中"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.saveFolder"
+msgstr "选择保存文件夹"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.send"
+msgstr "发送到设备"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.terminalDirectory"
+msgstr "终端当前目录"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.transferring"
+msgstr "传输中"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.transfers"
+msgstr "文件传输"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.truncated"
+msgstr "仅显示前 256 项。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.unknown"
+msgstr "状态未知"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.verifying"
+msgstr "校验中"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "help.clear"
 msgstr "清理本地显示会移除当前行上方的本地滚动记录；不会发送 clear/reset 命令，也不会删除 Host 历史。"
 

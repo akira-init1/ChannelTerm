@@ -145,6 +145,151 @@ msgstr "Имя пользователя"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "file.cancel"
+msgstr "Отменить передачу"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.cancelled"
+msgstr "Отменено"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.cancelQuestion"
+msgstr "Отменить эту передачу?"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.chooseFile"
+msgstr "Выбрать файл"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.chooseFolder"
+msgstr "Выбрать папку"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.cleaning"
+msgstr "Завершение"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.closeHint"
+msgstr "Перед закрытием завершите или отмените операцию на панели передачи."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.completed"
+msgstr "Завершено"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.continue"
+msgstr "Продолжить"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.directory"
+msgstr "Папка"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.failed"
+msgstr "Ошибка"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.file"
+msgstr "Файл"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.idleHint"
+msgstr "Нужна свободная оболочка Linux. Двойной щелчок открывает папку; каталог терминала не меняется."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.loading"
+msgstr "Чтение каталога…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.open"
+msgstr "Открыть"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.other"
+msgstr "Не поддерживается"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.parent"
+msgstr "Вверх"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.receive"
+msgstr "Получить с устройства"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.receiveFolder"
+msgstr "Получить эту папку"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.remotePath"
+msgstr "Путь на устройстве"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.running"
+msgstr "Выполняется операция"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.saveFolder"
+msgstr "Выбрать папку сохранения"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.send"
+msgstr "Отправить на устройство"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.terminalDirectory"
+msgstr "Каталог терминала"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.transferring"
+msgstr "Передача"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.transfers"
+msgstr "Передача файлов"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.truncated"
+msgstr "Показаны первые 256 записей."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.unknown"
+msgstr "Статус неизвестен"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.verifying"
+msgstr "Проверка"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "help.clear"
 msgstr "Очистка локального экрана удаляет локальную историю прокрутки выше текущей строки. Команды clear/reset не отправляются, история Host сохраняется."
 

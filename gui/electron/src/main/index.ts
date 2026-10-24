@@ -1,5 +1,9 @@
+import { setupI18n } from "@lingui/core";
+import { menuCatalogs } from "../locales/catalogs";
+import { DesktopFiles, TransferConfirmation } from "./files";
 import {
   app,
+  dialog,
   BrowserWindow,
   ipcMain,
   nativeTheme,
@@ -41,6 +45,7 @@ const development =
   process.env.CHANNELTERM_GUI_DEV_URL === developmentURL.slice(0, -1) &&
   !app.isPackaged;
 let window: BrowserWindow | undefined;
+const messages = setupI18n({ locale: "en", messages: menuCatalogs });
 let host: HostClient | undefined;
 let connecting = false;
 let quitting = false;
@@ -52,12 +57,23 @@ const startup = localHostStartup(
   ),
 );
 
+const transferConfirmation = new TransferConfirmation();
+const files = new DesktopFiles(
+  join(
+    app.isPackaged ? process.resourcesPath : resolve(__dirname, ".."),
+    "files",
+    process.platform === "win32" ? "channelterm.exe" : "channelterm",
+  ),
+);
+
 function requestQuit(): void {
   // Return an IPC reply before normal before-quit cleanup closes the renderer.
   setImmediate(() => app.quit());
 }
 
 function disconnectHost(): Promise<void> {
+  transferConfirmation.dismiss();
+  files.clearSelections();
   connectionVersion++;
   startupController.abort();
   return host?.disconnect() ?? Promise.resolve();
@@ -78,6 +94,11 @@ function registerIPC(): void {
         defaultHostEndpoint,
     }),
     [channels.connect]: async () => {
+      if (files.busy)
+        throw new HostError(
+          "busy",
+          "Finish or cancel the file operation before reconnecting.",
+        );
       if (connecting)
         throw new HostError("invalid_input", "Connection already in progress.");
       connecting = true;
@@ -103,7 +124,54 @@ function registerIPC(): void {
         connecting = false;
       }
     },
-    [channels.disconnect]: disconnectHost,
+    [channels.disconnect]: () => {
+      if (files.busy)
+        throw new HostError(
+          "busy",
+          "Finish or cancel the file operation before disconnecting.",
+        );
+      return disconnectHost();
+    },
+    [channels.chooseTransferPath]: async (id, direction, kind) => {
+      identifier(id);
+      if (
+        (direction !== "send" && direction !== "receive") ||
+        (kind !== "file" && kind !== "directory") ||
+        !window
+      )
+        throw new HostError("invalid_input", "Invalid file selection.");
+      const selectedHost = currentHost();
+      await selectedHost.validateSerial(id);
+      const result = await dialog.showOpenDialog(window, {
+        properties: [
+          direction === "receive" || kind === "directory"
+            ? "openDirectory"
+            : "openFile",
+        ],
+      });
+      if (result.canceled || !result.filePaths[0]) return undefined;
+      if (host !== selectedHost)
+        throw new HostError("cancelled", "Host changed during file selection.");
+      await selectedHost.validateSerial(id);
+      return files.remember(result.filePaths[0], id, direction);
+    },
+    [channels.browseDirectory]: (id, path) => {
+      identifier(id);
+      return files.browse(currentHost(), id, path);
+    },
+    [channels.startTransfer]: (request) =>
+      files.transfer(currentHost(), request),
+    [channels.transfers]: (id) => {
+      identifier(id);
+      return currentHost().transfers(id);
+    },
+    [channels.cancelTransfer]: (id, transferId) => {
+      identifier(id);
+      identifier(transferId);
+      return transferConfirmation.begin(currentHost(), id, transferId);
+    },
+    [channels.resolveTransferCancel]: (id, confirm) =>
+      transferConfirmation.resolve(id, confirm),
     [channels.list]: () => currentHost().list(),
     [channels.serialPorts]: () => currentHost().serialPorts(),
     [channels.openConnection]: (request) =>
@@ -128,6 +196,7 @@ function registerIPC(): void {
     [channels.menuState]: (state) => {
       if (!isMenuState(state))
         throw new HostError("invalid_input", "Invalid menu state.");
+      messages.activate(state.locale);
       if (window) updateApplicationMenu(window, state, requestQuit);
     },
     [channels.quit]: requestQuit,
@@ -138,15 +207,23 @@ function registerIPC(): void {
       async (event, ...args: unknown[]): Promise<Result<unknown>> => {
         try {
           validateSender(event, window?.webContents, development);
-          const expected =
-            channel === channels.write
-              ? 2
+          const expected = [
+            channels.write,
+            channels.browseDirectory,
+            channels.cancelTransfer,
+            channels.resolveTransferCancel,
+          ].includes(channel as typeof channels.write)
+            ? 2
+            : channel === channels.chooseTransferPath
+              ? 3
               : [
                     channels.attach,
                     channels.detach,
                     channels.read,
                     channels.menuState,
                     channels.openConnection,
+                    channels.startTransfer,
+                    channels.transfers,
                   ].includes(channel as typeof channels.attach)
                 ? 1
                 : 0;
@@ -201,6 +278,15 @@ async function createWindow(): Promise<void> {
       }
     },
   );
+  created.on("close", (event) => {
+    if (files.busy) {
+      event.preventDefault();
+      void dialog.showMessageBox(created, {
+        type: "info",
+        message: messages._("file.closeHint"),
+      });
+    }
+  });
   created.on("closed", () => {
     updateApplicationMenu(created, initialMenuState, requestQuit);
     window = undefined;
@@ -274,6 +360,14 @@ app.on("window-all-closed", () => {
 app.on("before-quit", (event) => {
   if (quitting) return;
   event.preventDefault();
+  if (files.busy) {
+    if (window)
+      void dialog.showMessageBox(window, {
+        type: "info",
+        message: messages._("file.closeHint"),
+      });
+    return;
+  }
   quitting = true;
   void disconnectHost().finally(() => app.quit());
 });

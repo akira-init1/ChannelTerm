@@ -374,7 +374,7 @@ sélectionné, pas les fichiers `state.json` ou `http-auth-token` par défaut. C
 ## Documentation
 
 - [Index de la documentation](docs/README.md)
-- [Prototype GUI Electron et développement](docs/development/electron-gui.md) — Le Host local par défaut est connecté ou démarré automatiquement ; créez des sessions série et SSH directement dans la GUI.
+- [Prototype GUI Electron et développement](docs/development/electron-gui.md) — Le Host local par défaut est connecté ou démarré automatiquement ; créez des sessions série et SSH directement dans la GUI. Parcourez les dossiers de l’appareil et transférez fichiers et dossiers par liaison série dans les deux sens avec progression dans la GUI.
 - [Utiliser le terminal série](docs/getting-started/serial-terminal.md)
 - [Utiliser un shell SSH](docs/getting-started/ssh-terminal.md)
 - [Partager une Session](docs/getting-started/shared-session.md)

@@ -625,6 +625,10 @@ main {
   background: #35252b;
   color: #f49b97;
 }
+.notice-lease {
+  font-size: 15px;
+  font-weight: 500;
+}
 .notice button {
   margin-left: 12px;
   font-size: 11px;
@@ -709,4 +713,127 @@ main {
 .sidebar-resizer.dragging {
   background: var(--accent);
   outline: none;
+}
+
+.file-dialog {
+  width: min(700px, 94vw);
+}
+.file-hint {
+  color: var(--muted);
+  margin: 8px 0;
+  font-size: 12px;
+}
+.file-path,
+.file-selection {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin: 8px 0;
+}
+.file-path input {
+  min-width: 0;
+  flex: 1;
+}
+.file-path button,
+.file-selection button {
+  white-space: nowrap;
+  font-size: 11px;
+}
+.remote-entries {
+  height: min(280px, 35vh);
+  overflow: auto;
+  border: 1px solid var(--border);
+}
+.remote-entries button {
+  display: flex;
+  width: 100%;
+  gap: 10px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  text-align: left;
+}
+.remote-entries button[aria-selected="true"] {
+  background: #2b3545;
+}
+.remote-entries small {
+  margin-left: auto;
+  color: var(--muted);
+}
+.transfer-panel {
+  flex-shrink: 0;
+  border-top: 1px solid var(--border);
+  background: var(--panel-background);
+  min-height: 30px;
+  max-height: 45%;
+  overflow: auto;
+  resize: vertical;
+}
+.transfer-heading {
+  display: block;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  padding: 5px 10px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.transfer-jobs {
+  padding: 0 10px 8px;
+}
+.transfer-job {
+  padding: 6px 0;
+  border-top: 1px solid var(--border);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.transfer-job small {
+  font-size: inherit;
+}
+.transfer-job > div {
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  align-items: center;
+}
+.transfer-job strong,
+.transfer-destination {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.transfer-job progress {
+  display: block;
+  width: 100%;
+  height: 12px;
+  margin: 8px 0;
+  appearance: none;
+  border: 0;
+  border-radius: 3px;
+  overflow: hidden;
+  accent-color: var(--accent);
+}
+.transfer-job progress::-webkit-progress-bar {
+  background: var(--border);
+  border-radius: 3px;
+}
+.transfer-job progress::-webkit-progress-value {
+  background: var(--accent);
+  border-radius: 3px;
+}
+.transfer-job button {
+  padding: 4px 10px;
+  font-size: 14px;
+}
+.transfer-confirmation {
+  width: 420px;
+  font-size: 14px;
+}
+.transfer-confirmation-target {
+  margin: 0;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+  line-height: 1.5;
 }

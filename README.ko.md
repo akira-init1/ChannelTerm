@@ -364,7 +364,7 @@ channelterm serial --config ./channelterm.toml --profile board
 ## 문서
 
 - [문서 색인](docs/README.md)
-- [Electron GUI 프로토타입 및 개발](docs/development/electron-gui.md) — 기본 로컬 Host에 자동으로 연결하거나 시작하며, GUI에서 직렬 및 SSH 세션을 직접 생성할 수 있습니다.
+- [Electron GUI 프로토타입 및 개발](docs/development/electron-gui.md) — 기본 로컬 Host에 자동으로 연결하거나 시작하며, GUI에서 직렬 및 SSH 세션을 직접 생성할 수 있습니다. 장치 폴더를 탐색하고 직렬 연결로 파일과 폴더를 양방향 전송하며 GUI에서 진행 상황을 확인할 수 있습니다.
 - [시리얼 터미널 워크플로](docs/getting-started/serial-terminal.md)
 - [SSH 셸 워크플로](docs/getting-started/ssh-terminal.md)
 - [공유 Session](docs/getting-started/shared-session.md)

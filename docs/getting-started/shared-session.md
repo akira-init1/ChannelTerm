@@ -48,7 +48,7 @@ Each reader owns its own output and activity cursors. One Client reading output 
 for another Client. Session writes are serialized as complete payloads, including retries after
 short Transport writes, so concurrent payload bytes do not interleave.
 
-An existing shared Session can also carry a CLI-only [file transfer](file-transfer.md). Use
+An existing shared Session can also carry a managed [file transfer](file-transfer.md). Use
 `Ctrl+] f` in an attachment for a guided local flow, or run `channelterm file send` /
 `channelterm file receive` from another terminal. While a `file-transfer` lease is active, `Ctrl+C`
 in any bundled attachment opens a default-No local cancellation confirmation instead of calling
@@ -134,7 +134,7 @@ See [Identifiers](../reference/identifiers.md) before passing serial targets, Se
 For a desktop view, the [Electron client](../development/electron-gui.md#connect-to-an-existing-host)
 can attach to an existing Session on the same Host. It shows raw output and ordinary input with
 Host-authoritative lease checks. Detaching or closing that GUI leaves the Host and other clients
-running; it does not provide the CLI's managed transfer/debug presentation or cancellation controls.
+running. Its serial file picker and progress panel reuse the [managed file workflow](file-transfer.md#electron-file-picker-and-progress), including safe cancellation. A GUI-owned file operation must finish or be cancelled before disconnect/exit. Debug presentation and controls remain outside this GUI scope.
 
 ## Shared SSH shell
 

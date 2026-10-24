@@ -53,7 +53,7 @@ Electron-specific review rules. Do not duplicate the source tree or Go/MCP contr
 
 ## 3. Renderer features and component responsibilities
 
-- Organize implemented features by responsibility, currently `terminal` and `sessions`. Add
+- Organize implemented features by responsibility, currently `terminal`, `sessions`, and `transfers`. Add
   `devices`, an MCP-related view, or another feature only when it has actual supported behavior;
   a renderer MCP view still accesses Host capabilities through the bridge, not the MCP SDK.
 - Keep feature components, hooks, state, and tests together when useful. Split files for distinct
@@ -162,7 +162,7 @@ use future extensibility as the sole reason for abstractions or broad refactors.
 canonical architecture and development docs when their responsibilities or procedures change.
 
 Electron and a possible future Qt frontend remain independent clients of public Go Host abilities.
-There is no Qt project, file-management GUI, or built-in Agent implied by this policy. If Qt is
+There is no Qt project, general filesystem manager, or built-in Agent implied by this policy. If Qt is
 implemented later, its technical rules belong in `gui/qt/AGENTS.md`, not in this Electron scope.
 
 Before completion, review dependency direction, state/Lease authority, IPC input and permission
@@ -208,3 +208,7 @@ import-boundary enforcement or coverage that the current checks do not provide.
   uncertain setup automatically. The Host's Application remains the sole creation authority.
 - Test offline/empty/closed states, non-current and expired context targets, detach/exit without
   shared-Session closure, local-only clear, translation sync, and terminal/IME input boundaries.
+- File operations use Main-owned native selection capabilities and the fixed bundled CLI's
+  structured file interface. Do not parse human progress or pass arbitrary commands/paths through
+  IPC. Host events own progress and cursor suppression; browser navigation stays in the transfer
+  child shell. Preserve safe cancellation, bounded state, stale-target rejection and close guards.

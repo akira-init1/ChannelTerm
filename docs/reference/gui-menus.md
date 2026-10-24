@@ -13,7 +13,7 @@ This reference describes implemented menu behavior, not additional Host capabili
 | --- | --- | --- |
 | Connection > Connect to Host; Host panel | `host.connect` | Connect to the configured existing Host; enabled while disconnected and idle. Does not start a Host. |
 | Connection > Disconnect GUI from Host; Host panel | `host.disconnect` | Release this GUI's connection and attachment; enabled while connected and idle. |
-| Connection > Exit GUI | `app.quit` | Exit the Electron app through its normal cleanup path, including while a client operation is pending. |
+| Connection > Exit GUI | `app.quit` | Exit the Electron app through its normal cleanup path, subject to the active file-operation close guard. |
 | Session > Refresh Sessions; refresh button | `session.refresh` | Refresh the Host snapshot while connected and idle. |
 | Session > Close tab (detach); tab close icon; attached row/tab context menu | `tab.close` | Detach the captured local attachment. Still available for a closed Session so its view can be dismissed. |
 | Session row context menu > Attach Session; row click | `session.attach` | Attach the clicked open Session by opaque ID. Unavailable for the current attachment, closed/missing rows, offline state, or a pending operation. |
@@ -111,6 +111,16 @@ the focused menu and ignore composition/229 events. Terminal Ctrl+C/Ctrl+L/Ctrl+
 function keys, and IME composition remain in the terminal input path. OS-reserved shortcuts and
 real IME candidate-window behavior require native platform checks.
 
+## File actions
+
+**Session > Send to device / Receive from device** (`file.send` / `file.receive`) are also
+available on serial Session context menus. They bind the clicked opaque ID, require an open
+serial Session, and revalidate Host lease state before local selection or client startup.
+The dialog browses child-shell directory snapshots and uses native local file/folder selection;
+the transfer panel renders Host events from all observed clients. Main rejects disconnect,
+reconnect and app/window exit during a GUI-owned file operation until completion or cancellation.
+See the [file workflow](../getting-started/file-transfer.md#electron-file-picker-and-progress).
+
 ## Planning boundaries (not implemented)
 
 These are placement decisions only, not runtime menu entries or commitments to implement them.
@@ -119,8 +129,8 @@ These are placement decisions only, not runtime menu entries or commitments to i
 | --- | --- |
 | Connection | Saved profiles and recent connections remain outside the explicit serial/SSH forms. Default-local Host startup is automatic; other endpoints remain explicit. |
 | Session | Closing a shared Session needs a separately reviewed destructive action, explicit target/confirmation semantics, and Host authority. Multiple tabs and recent history are also absent. |
-| Terminal | Split panes, remote PTY resize, and transfer orchestration need their own supported lifecycle/capability work. |
-| View | MCP activity and transfer panels retain only their documented layout reservations. |
+| Terminal | Split panes and remote PTY resize need their own supported lifecycle/capability work. |
+| View | A separate MCP activity panel remains unimplemented. |
 | Settings | Persistent preferences, endpoint editing, and Host process management are not provided by language switching. |
 | Help | Online documentation navigation, updates, and diagnostic export require separate capability/security review. |
 

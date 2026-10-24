@@ -87,7 +87,8 @@ The main ownership distinctions are deliberate:
   depend inward; Core may not depend on them.
 - **Application:** `internal/core/app` orchestrates adapter-neutral use cases and managed debug
   operations; it does not own the Host process lifetime or presentation.
-  It also owns serial U-Boot entry orchestration and bounded diagnostic archive retention/download
+  It also owns bounded serial directory snapshots in the existing transfer child shell,
+  serial U-Boot entry orchestration and bounded diagnostic archive retention/download
   use cases. These reuse Session cursors and application leases without adding Transport ownership.
   `internal/core/debugger` owns GDB/MI, pinned TLS connection endpoints, and the RSP relay through a minimal
   cursor-read/leased-write service; it never opens a terminal Transport. Application separately owns the pure external bridge lifecycle and its managed debug lease; the CLI `rsp-client` adapts external GDB pipe I/O and answers control heartbeats on the same authenticated endpoint.
@@ -122,6 +123,7 @@ gui/electron/
 |   |-- main/
 |   |   |-- index.ts                Window lifecycle, static application scheme, validated IPC
 |   |   |-- security.ts             Trusted caller and content-policy checks
+|   |   |-- files.ts                Native selections and fixed structured CLI file operations
 |   |   |-- menu.ts                 Native menu rendering from bounded display hints
 |   |   `-- host/                   Main-only credentials, MCP client, bounded local companion startup, validation, safe errors
 |   |-- preload/                   Narrow contextBridge methods; no business decisions
@@ -129,6 +131,7 @@ gui/electron/
 |   |-- renderer/
 |   |   |-- components/            React application shell and view state
 |   |   |-- sessions/              Session selection and display metadata
+|   |   |-- transfers/             Directory picker and structured transfer progress
 |   |   |-- terminal/              xterm presentation, bounded input, output render pacing
 |   |   |-- styles/                Desktop presentation
 |   |   |-- host.ts                Renderer adapter for the typed Preload bridge

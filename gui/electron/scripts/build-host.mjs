@@ -4,9 +4,16 @@ import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
 
 /** Developer preparation only: Electron never executes Go or searches PATH for a Host. */
-export async function buildHost({ onlyIfMissing = false } = {}) {
+export async function buildHost({
+  onlyIfMissing = false,
+  fileClient = false,
+} = {}) {
   const root = fileURLToPath(new URL("../../../", import.meta.url));
-  const directory = resolve(root, "gui/electron/dist/host");
+  const directory = resolve(
+    root,
+    "gui/electron/dist",
+    fileClient ? "files" : "host",
+  );
   const executable = resolve(
     directory,
     process.platform === "win32" ? "channelterm.exe" : "channelterm",
@@ -43,6 +50,13 @@ export async function buildHost({ onlyIfMissing = false } = {}) {
 
 /** Missing developer tooling must not prevent reuse of an already-running Host. */
 export async function prepareHost() {
+  // A running Windows Host locks its executable. Keep the independently updatable
+  // file client in a separate fixed location; both are built from the same CLI.
+  await buildHost({ onlyIfMissing: true, fileClient: true }).catch(() => {
+    console.error(
+      "File companion unavailable. Run npm run files:build before using file operations.",
+    );
+  });
   if (
     process.env.CHANNELTERM_GUI_ENDPOINT &&
     process.env.CHANNELTERM_GUI_ENDPOINT !== "http://127.0.0.1:37099/mcp"
@@ -59,4 +73,4 @@ if (
   process.argv[1] &&
   resolve(process.argv[1]) === fileURLToPath(import.meta.url)
 )
-  await buildHost();
+  await buildHost({ fileClient: process.argv.includes("--files") });

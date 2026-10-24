@@ -170,6 +170,7 @@ func run() error {
 		return err
 	}
 	// Test controls travel over the fixture's private stdin, not a product API.
+	var transferID string
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
 		var command struct {
@@ -181,6 +182,35 @@ func run() error {
 		}
 		var actionErr error
 		switch command.Action {
+		case "transfer-start":
+			var lease app.SessionLease
+			lease, actionErr = application.AcquireLease(core.ID(), "fixture-file-owner", app.LeaseTypeFileTransfer)
+			if actionErr == nil {
+				transferID = lease.TransferID
+				metadata := map[string]any{"direction": "send", "source_path": "fixture.bin", "requested_path": "/tmp/fixture.bin", "total": 1024, "sent": 512, "percent": 50, "speed": 256}
+				actionErr = application.ReportFileTransferEvent(core.ID(), "fixture-file-owner", transferID, session.EventFileTransferStarted, "user", metadata)
+				if actionErr == nil {
+					actionErr = application.ReportFileTransferEvent(core.ID(), "fixture-file-owner", transferID, session.EventFileTransferProgress, "user", metadata)
+				}
+				writeOutput([]byte("BINARY-PROTOCOL-MUST-NOT-RENDER"))
+			}
+		case "transfer-finish":
+			actionErr = application.ReportFileTransferEvent(core.ID(), "fixture-file-owner", transferID, session.EventFileTransferCompleted, "user", map[string]any{"direction": "send", "source_path": "fixture.bin", "requested_path": "/tmp/fixture.bin", "resolved_path": "/tmp/fixture.bin", "renamed": false, "total": 1024, "sent": 1024, "percent": 100, "sha256": strings.Repeat("a", 64)})
+			if actionErr == nil {
+				actionErr = application.ReleaseLease(core.ID(), "fixture-file-owner")
+			}
+			writeOutput([]byte("transfer-finished\r\n"))
+		case "transfer-cancel":
+			checkpointCtx, cancel := context.WithTimeout(context.Background(), time.Second)
+			var action app.FileTransferControlAction
+			action, actionErr = application.FileTransferCheckpoint(checkpointCtx, core.ID(), "fixture-file-owner")
+			cancel()
+			if actionErr == nil && action != app.FileTransferCancel {
+				actionErr = fmt.Errorf("expected confirmed cancellation, got %q", action)
+			}
+			if actionErr == nil {
+				actionErr = application.ReleaseLease(core.ID(), "fixture-file-owner")
+			}
 		case "lease":
 			_, actionErr = application.AcquireLease(core.ID(), "fixture-owner", app.LeaseTypeTerminal)
 		case "release":

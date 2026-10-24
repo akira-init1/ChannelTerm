@@ -1,3 +1,4 @@
+import { TransferEvents } from "./transfer-events";
 import { randomUUID } from "node:crypto";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
@@ -46,6 +47,127 @@ export class HostClient {
   private active?: ActiveAttachment;
   private changing = false;
   private sshAvailable = false;
+  private transferEvents = new Map<string, TransferEvents>();
+  private eventReads = new Map<string, Promise<TransferEvents>>();
+
+  private async events(
+    sessionId: string,
+    fresh = false,
+  ): Promise<TransferEvents> {
+    const existing = this.eventReads.get(sessionId);
+    if (existing) {
+      if (!fresh) return existing;
+      await existing;
+      return this.events(sessionId, true);
+    }
+    let events = this.transferEvents.get(sessionId);
+    if (!events) {
+      if (this.transferEvents.size >= 64)
+        throw new HostError(
+          "busy",
+          "Too many observed Sessions. Reconnect to reset observation.",
+        );
+      events = new TransferEvents(sessionId);
+      this.transferEvents.set(sessionId, events);
+    }
+    const state = events;
+    const pending = (async () => {
+      // Read after raw output: the Host publishes the lease boundary before protocol writes.
+      for (let page = 0; page < 4; page++) {
+        let result: Record<string, unknown>;
+        try {
+          result = await this.call(
+            "terminal_session_events",
+            {
+              session_id: sessionId,
+              cursor: state.cursor,
+              max_events: 1024,
+              timeout_ms: 1,
+            },
+            this.connection.signal,
+          );
+        } catch (error) {
+          if (error instanceof ToolFailure && error.code === "timeout")
+            return state;
+          throw error;
+        }
+        state.apply(result);
+        if ((result.events as unknown[]).length < 1024) return state;
+      }
+      throw new HostError(
+        "busy",
+        "Session events are changing too quickly; output is held for safety.",
+      );
+    })();
+    this.eventReads.set(sessionId, pending);
+    try {
+      return await pending;
+    } finally {
+      this.eventReads.delete(sessionId);
+    }
+  }
+
+  async transfers(sessionId: string) {
+    identifier(sessionId);
+    return (await this.events(sessionId)).snapshots();
+  }
+
+  async validateSerial(sessionId: string): Promise<void> {
+    identifier(sessionId);
+    const entry = (await this.list()).find(
+      (entry) => entry.session_id === sessionId,
+    );
+    if (!entry || entry.state !== "open" || entry.transport !== "serial")
+      throw new HostError("closed", "An open serial Session is required.");
+    if (entry.lease)
+      throw new HostError(
+        "busy",
+        "Session is busy. Wait for the current operation.",
+      );
+  }
+
+  async beginTransferCancel(
+    sessionId: string,
+    transferId: string,
+  ): Promise<string> {
+    identifier(sessionId);
+    identifier(transferId);
+    const jobs = await this.transfers(sessionId);
+    if (!jobs.some((job) => job.id === transferId && !job.released))
+      throw new HostError("closed", "Transfer is no longer active.");
+    const result = await this.call("terminal_begin_file_transfer_cancel", {
+      session_id: sessionId,
+    });
+    if (result.active !== true)
+      throw new HostError("closed", "Transfer is no longer active.");
+    const requestId = text(result.request_id);
+    try {
+      if ((await this.events(sessionId, true)).activeTransferId !== transferId)
+        throw new HostError("closed", "Transfer changed before confirmation.");
+    } catch (error) {
+      await this.resolveTransferCancel(sessionId, requestId, false).catch(
+        () => {},
+      );
+      throw error;
+    }
+    // The Host binds request_id to the exact lease, so late confirmation cannot cancel its replacement.
+    return text(result.request_id);
+  }
+
+  async resolveTransferCancel(
+    sessionId: string,
+    requestId: string,
+    confirm: boolean,
+  ): Promise<void> {
+    identifier(sessionId);
+    identifier(requestId);
+    await this.call("terminal_resolve_file_transfer_cancel", {
+      session_id: sessionId,
+      request_id: requestId,
+      cancel: confirm,
+    });
+  }
+
   private readonly endpoint: URL;
 
   constructor(
@@ -395,8 +517,16 @@ export class HostClient {
         (active.cursor !== undefined && next < active.cursor)
       )
         throw incompatible();
+      const filtered = (await this.events(active.sessionId, true)).filter(
+        bytes,
+        next,
+      );
+      this.attachment(id);
       active.cursor = next;
-      return { data: Array.from(bytes), dropped: result.dropped };
+      return {
+        data: filtered.data,
+        dropped: result.dropped || filtered.dropped,
+      };
     } catch (error) {
       if (error instanceof ToolFailure && error.code === "timeout")
         return { data: [], dropped: false };
@@ -513,5 +643,7 @@ export class HostClient {
     await client?.close().catch(() => {});
     this.lifetime = "unknown";
     this.sshAvailable = false;
+    this.transferEvents.clear();
+    this.eventReads.clear();
   }
 }

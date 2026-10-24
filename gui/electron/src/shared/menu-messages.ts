@@ -3,6 +3,46 @@ import type { MessageDescriptor } from "@lingui/core";
 // Lingui 5 extracts these official annotated descriptors without a runtime macro
 // transform. Translations belong in PO catalogs; this file owns IDs and English defaults.
 export const menuMessages = [
+  /* i18n */ { id: "file.send", message: "Send to device" },
+  /* i18n */ { id: "file.receive", message: "Receive from device" },
+  /* i18n */ { id: "file.parent", message: "Up" },
+  /* i18n */ { id: "file.open", message: "Open" },
+  /* i18n */ { id: "file.remotePath", message: "Device path" },
+  /* i18n */ { id: "file.terminalDirectory", message: "Terminal directory" },
+  /* i18n */ { id: "file.file", message: "File" },
+  /* i18n */ { id: "file.directory", message: "Folder" },
+  /* i18n */ { id: "file.other", message: "Unsupported" },
+  /* i18n */ { id: "file.loading", message: "Reading directory\u2026" },
+  /* i18n */ { id: "file.truncated", message: "First 256 entries shown." },
+  /* i18n */ { id: "file.chooseFile", message: "Choose file" },
+  /* i18n */ { id: "file.chooseFolder", message: "Choose folder" },
+  /* i18n */ { id: "file.saveFolder", message: "Choose save folder" },
+  /* i18n */ { id: "file.receiveFolder", message: "Receive this folder" },
+  /* i18n */ { id: "file.transfers", message: "File transfers" },
+  /* i18n */ { id: "file.running", message: "Operation running" },
+  /* i18n */ { id: "file.transferring", message: "Transferring" },
+  /* i18n */ { id: "file.verifying", message: "Verifying" },
+  /* i18n */ { id: "file.cleaning", message: "Finishing" },
+  /* i18n */ { id: "file.completed", message: "Completed" },
+  /* i18n */ { id: "file.cancelled", message: "Cancelled" },
+  /* i18n */ { id: "file.failed", message: "Failed" },
+  /* i18n */ { id: "file.unknown", message: "Status unknown" },
+  /* i18n */ {
+    id: "file.cancelQuestion",
+    message: "Cancel this file transfer?",
+  },
+  /* i18n */ { id: "file.continue", message: "Continue" },
+  /* i18n */ { id: "file.cancel", message: "Cancel transfer" },
+  /* i18n */ {
+    id: "file.closeHint",
+    message:
+      "Finish or cancel the file operation in the transfer panel before closing.",
+  },
+  /* i18n */ {
+    id: "file.idleHint",
+    message:
+      "Requires an idle Linux shell. Double-click a folder to browse; navigation does not change the terminal directory.",
+  },
   /* i18n */ { id: "view.resizeSidebar", message: "Resize Session sidebar" },
   /* i18n */ {
     id: "view.resizeSidebarHelp",

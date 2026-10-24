@@ -1,3 +1,4 @@
+import { checkFiles } from "./file-checks.mjs";
 import assert from "node:assert/strict";
 import { _electron as electron, expect } from "@playwright/test";
 import { startFixture } from "../tests/fixture.ts";
@@ -214,6 +215,7 @@ try {
   ).toBeVisible();
   await checkLayout(desktop, page, "attached");
   await checkCompactLayout(desktop, page);
+  await checkFiles(desktop, page, fixture);
   // Searching/collapsing navigation only changes presentation, never attachment.
   await page
     .getByRole("searchbox", { name: "Search Sessions" })

@@ -44,7 +44,7 @@ The permitted import direction follows these boundaries:
 | Host Client | Shared contracts, MCP SDK, and required Node APIs; no React, xterm, or view state. |
 | Shared contracts and locale resources | Serializable types, pure menu descriptions/validators, English message definitions, and generated catalog data; no React, Electron, Node runtime, or process-specific imports. |
 
-Renderer currently has `terminal` and `sessions` features; `components/App` composes their views.
+Renderer currently has `terminal`, `sessions`, and `transfers` features; `components/App` composes their views.
 Feature-local hooks, state, and tests can be added when responsibility or verification requires
 them. Cross-feature reusable UI belongs in `components`; feature internals are not a shared
 service layer. Devices or MCP-related views require actual supported functionality before new
@@ -112,11 +112,9 @@ The measured terminal container has no padding; spacing sits outside it so FitAd
 overestimate the available cell area. Application styles do not target xterm's internal
 `.terminal` class.
 
-The layout leaves the right edge of the workspace as the design location for a future MCP
-activity panel and the area above the status bar for a future file-transfer manager. These
-are design reservations only: no blank panels, inactive tabs, feature modules, buttons, or Host
-capabilities are implemented. Any later panel must preserve terminal space and use supported
-Host contracts through the existing Main/Preload boundary.
+The right edge remains reserved for a future MCP activity panel, with no placeholder controls.
+The implemented transfer panel occupies the area above the status bar only when operations or
+results exist. It is collapsible and vertically resizable within 45% of the terminal workspace.
 
 ## State ownership
 
@@ -132,6 +130,30 @@ Client queues and attachment generations coordinate local work only. They are no
 writer arbiter or Session Manager. Reattachment and cleanup must reject stale completions; a
 write whose result is uncertain is not replayed automatically. xterm's visible state and the
 Host's bounded retained bytes do not establish a complete historical terminal-state snapshot.
+
+## File operations
+
+Main's file adapter owns native local selection capabilities and one in-flight desktop file
+operation. Renderer receives an opaque selection ID and display basename, not unrestricted file
+access. IDs are bound to Session/direction, expire after ten minutes, are cleared on disconnect, and are consumed on start.
+The adapter invokes the fixed app-owned CLI using argument arrays and a Main-only credential
+environment, without a shell or PATH lookup. It reads bounded JSON records, never human progress
+or stderr. The CLI reuses Application transfers and the existing authenticated Host/Lease path.
+No new MCP tool, HTTP upload endpoint, raw device connection, or TypeScript transfer protocol is added.
+
+Host Client separately reads structured Session events for UI progress and cursor-based terminal
+presentation. It refreshes events after each raw read before exposing bytes, so a published Lease
+boundary precedes suppression. Event loss suppresses uncertain bytes and reports display loss;
+Evicting old hidden ranges conservatively suppresses the older prefix and reports display loss.
+Host buffers and other clients' raw cursors remain unchanged. State is bounded to 64 observed
+Sessions, 32 transfer records and 1024 hidden ranges per Session. The GUI panel is collapsible and
+vertically resizable; terminal space remains primary. Completion requires lease release as well as
+verification. Cancellation uses Host confirmation IDs, rechecks the actual transfer after opening
+confirmation, and cannot silently target a replacement. The themed Renderer dialog receives only
+a single-use Main confirmation ID; Main retains the Host request and Session binding. Escape and
+dialog dismissal are negative answers, as are disconnect/reload/close cleanup; Host expiry remains
+the fallback if cleanup cannot reach the server. Running owned operations block disconnect,
+reconnect and window/app close; abnormal process exit still relies on existing Host recovery.
 
 ## Processes and communication
 
@@ -269,7 +291,8 @@ or arm64 compatibility. See [GUI development](../development/electron-gui.md) fo
 ## Current gaps
 
 No MCP SSH-open, remote PTY resize, or client-file transfer orchestration API exists. SSH creation
-uses the separate desktop Host API. There is no remote resize or file-transfer UI. Local xterm fitting
-does not resize the Host's SSH PTY. Existing file-transfer and debug leases are observed, not managed.
+uses the separate desktop Host API. The serial file UI invokes the existing CLI and observes Host
+events; it adds no upload API. Local xterm fitting does not resize the Host's SSH PTY. Debug leases
+are observed, not managed; serial transfer cancellation uses existing Host control tools.
 There is no built-in Agent, installer, persistence of terminal output, or
 multi-tab terminal UI. None of these gaps is filled by bypassing Application or changing MCP schemas.
