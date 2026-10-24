@@ -221,6 +221,8 @@ channelterm file receive /var/log/myapp ./myapp --session SER-1
 GUI 和 CLI 文件传输默认使用 Base64，设备需提供 `base64` 和 `tr`。
 仅在不使用 XON/XOFF 的兼容八位链路上选择 `--wire raw`；文件内容保持不变。
 
+可选断点续传支持文件和文件夹双向传输，GUI／Host 重启后也可手动恢复。勾选 GUI 保留断点，或使用 `--resumable`，再执行 `file resume JOB_ID --session SESSION`。快照、校验和最终发布结果不确定时的处理见[续传流程](docs/getting-started/file-transfer.md#manual-resume-for-serial-files-and-directories)。
+
 <a id="gdb-debugging"></a>
 
 ## 使用 GDB 远程调试

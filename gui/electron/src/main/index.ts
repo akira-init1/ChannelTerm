@@ -161,6 +161,14 @@ function registerIPC(): void {
     },
     [channels.startTransfer]: (request) =>
       files.transfer(currentHost(), request),
+    [channels.transferCheckpoints]: (id) => {
+      identifier(id);
+      return files.checkpoints(currentHost(), id);
+    },
+    [channels.resumeTransfer]: (id, checkpointId) => {
+      identifier(id);
+      return files.resume(currentHost(), id, checkpointId);
+    },
     [channels.transfers]: (id) => {
       identifier(id);
       return currentHost().transfers(id);
@@ -213,6 +221,7 @@ function registerIPC(): void {
             channels.browseDirectory,
             channels.cancelTransfer,
             channels.resolveTransferCancel,
+            channels.resumeTransfer,
           ].includes(channel as typeof channels.write)
             ? 2
             : channel === channels.chooseTransferPath
@@ -224,6 +233,7 @@ function registerIPC(): void {
                     channels.openConnection,
                     channels.startTransfer,
                     channels.transfers,
+                    channels.transferCheckpoints,
                   ].includes(channel as typeof channels.detach)
                 ? 1
                 : 0;

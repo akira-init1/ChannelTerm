@@ -41,6 +41,16 @@ func DefaultStatePath() (string, error) {
 	return filepath.Join(directory, applicationDirectory, stateFile), nil
 }
 
+// DefaultTransferPath returns the private client checkpoint directory beside
+// config.toml. It holds file snapshots and resume records, never credentials.
+func DefaultTransferPath() (string, error) {
+	configuration, err := DefaultPath()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(filepath.Dir(configuration), "transfers"), nil
+}
+
 // Load reads and decodes a TOML configuration file at path.
 //
 // It begins with DefaultPreferences so fields added in future releases can

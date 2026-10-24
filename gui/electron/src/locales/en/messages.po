@@ -225,6 +225,11 @@ msgstr "Reading directory…"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "file.noCheckpoints"
+msgstr "No saved transfers for this endpoint."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "file.open"
 msgstr "Open"
 
@@ -240,6 +245,11 @@ msgstr "Up"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "file.publicationUncertain"
+msgstr "Publication is uncertain. Inspect the destination manually; this transfer will not be replayed."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "file.receive"
 msgstr "Receive from device"
 
@@ -252,6 +262,21 @@ msgstr "Receive this folder"
 #: src/shared/menu-messages.ts
 msgid "file.remotePath"
 msgstr "Device path"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.resumable"
+msgstr "Keep a checkpoint for manual resume"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.resume"
+msgstr "Resume transfer"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.resumeHint"
+msgstr "Snapshots use additional disk space. Resume on the same Host and serial endpoint after reconnecting manually. Source and confirmed bytes are checked; writes are never replayed automatically."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

@@ -231,6 +231,8 @@ channelterm file receive /var/log/myapp ./myapp --session SER-1
 GUI와 CLI 파일 전송은 기본적으로 Base64를 사용하며 장치에 `base64`와 `tr`이 필요합니다.
 `--wire raw`는 XON/XOFF를 사용하지 않는 호환 8비트 연결에서만 사용하세요. 파일 내용은 변경되지 않습니다.
 
+선택적 이어받기는 파일과 폴더의 양방향 전송을 지원하며 GUI/Host 재시작 후에도 수동으로 재개할 수 있습니다. GUI 체크포인트 옵션을 켜거나 `--resumable`을 사용한 뒤 `file resume JOB_ID --session SESSION`으로 재개하세요. 스냅샷, 검증, 불확실한 게시 결과는 [재개 절차](docs/getting-started/file-transfer.md#manual-resume-for-serial-files-and-directories)를 참조하세요.
+
 <a id="gdb-debugging"></a>
 
 ## GDB 원격 디버깅

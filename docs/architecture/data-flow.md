@@ -240,6 +240,15 @@ shared Channel and its underlying serial resource.
 
 ## CLI file transfer
 
+For opt-in resumable serial transfers, the client creates a private checkpoint and snapshot while
+holding the existing Host Lease; even local snapshot preparation observes Host cancellation.
+An explicit `file resume` reloads that intent, checks the selected Host/physical endpoint, acquires
+the existing Host Lease, validates source and confirmed prefix, and then enters the same bounded
+streaming path. The saved ID is not a Session ID or an authorization capability. Host restarts may
+replace Session IDs; only the user reconnects and selects the replacement. GUI Main invokes this
+same fixed CLI interface and renders Host events. It does not own a competing transfer protocol.
+Checkpoint publication state prevents uncertain final operations from being automatically repeated.
+
 Electron reuses this same path: a typed file intent crosses Preload to Main, which launches
 the fixed CLI file client with native-selected local paths. Directory snapshots use an
 Application child-shell query under the same lease; Host Session events drive GUI progress

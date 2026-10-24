@@ -31,6 +31,7 @@ const fileTransferUserCancelled = "user_cancelled"
 const fileTransferWriteCancelGrace = 15 * time.Second
 
 type fileCommandDependencies struct {
+	transferRoot            func() (string, error)
 	newAttach               attachSessionFactory
 	listSessions            func(context.Context, string) ([]mcpListedSession, error)
 	transferCancelRequested func() bool
@@ -188,6 +189,10 @@ func runFileWithDependencies(ctx context.Context, args []string, output io.Write
 		return errors.New("file command dependencies must not be nil")
 	}
 	switch args[0] {
+	case "jobs":
+		return runFileJobs(ctx, args[1:], output, dependencies)
+	case "resume":
+		return runFileResume(ctx, args[1:], output, dependencies)
 	case "send":
 		return runFileSend(ctx, args[1:], output, dependencies)
 	case "browse":
@@ -212,6 +217,9 @@ func runFileSend(ctx context.Context, args []string, output io.Writer, dependenc
 	options, err := parseFileOptions("file send", optionArgs, output, writeFileSendUsage)
 	if err != nil || options.help {
 		return err
+	}
+	if options.resumable {
+		return runNewResumableFile(ctx, "send", localPath, remotePath, options, output, dependencies)
 	}
 	output = machineFileOutput(output, options.json)
 	info, err := os.Lstat(localPath)
@@ -399,6 +407,9 @@ func runFileReceive(ctx context.Context, args []string, output io.Writer, depend
 	options, err := parseFileOptions("file receive", args[2:], output, writeFileReceiveUsage)
 	if err != nil || options.help {
 		return err
+	}
+	if options.resumable {
+		return runNewResumableFile(ctx, "receive", requestedLocalPath, remotePath, options, output, dependencies)
 	}
 	output = machineFileOutput(output, options.json)
 	attached, identifier, err := attachFileSession(ctx, options, output, dependencies)
@@ -653,15 +664,17 @@ func fileTransferFailureMetadata(metadata map[string]any, operationErr error) ma
 }
 
 type fileOptions struct {
-	wire     app.FileTransferWireEncoding
-	json     bool
-	session  string
-	endpoint string
-	help     bool
+	resumable bool
+	wire      app.FileTransferWireEncoding
+	json      bool
+	session   string
+	endpoint  string
+	help      bool
 }
 
 func parseFileOptions(name string, args []string, output io.Writer, usage func(io.Writer)) (fileOptions, error) {
 	flags := flag.NewFlagSet(name, flag.ContinueOnError)
+	resumable := flags.Bool("resumable", false, "retain a snapshot and confirmed offset for manual file resume after interruption (absolute device path required)")
 	flags.Bool("json", false, "emit structured transfer records instead of terminal progress")
 	flags.SetOutput(output)
 	wire := flags.String("wire", string(app.FileTransferWireBase64), "file wire encoding: base64 (requires peer base64 and tr) or raw (never with XON/XOFF)")
@@ -690,7 +703,7 @@ func parseFileOptions(name string, args []string, output io.Writer, usage func(i
 	if !showHelp && *wire != string(app.FileTransferWireRaw) && *wire != string(app.FileTransferWireBase64) {
 		return fileOptions{}, errors.New("--wire must be base64 or raw")
 	}
-	return fileOptions{wire: app.FileTransferWireEncoding(*wire), json: machine, session: strings.TrimSpace(*identifier), endpoint: strings.TrimSpace(*endpoint), help: showHelp}, nil
+	return fileOptions{resumable: *resumable, wire: app.FileTransferWireEncoding(*wire), json: machine, session: strings.TrimSpace(*identifier), endpoint: strings.TrimSpace(*endpoint), help: showHelp}, nil
 }
 
 func attachFileSession(ctx context.Context, options fileOptions, output io.Writer, dependencies fileCommandDependencies) (attachSession, string, error) {
@@ -743,6 +756,7 @@ type fileTransferSnapshot struct {
 // fileTransferReporter renders confirmed protocol progress locally and reports
 // the same snapshot to the Session event stream.
 type fileTransferReporter struct {
+	resumed      int64 // Confirmed bytes from an earlier invocation are not current throughput.
 	machineError error
 	ctx          context.Context
 	output       io.Writer
@@ -839,7 +853,7 @@ func (p *fileTransferReporter) snapshot(transferred, total int64) fileTransferSn
 	percent = min(100, max(0, percent))
 	speed := float64(0)
 	if elapsed := time.Since(p.started).Seconds(); elapsed > 0 {
-		speed = float64(transferred) / elapsed
+		speed = float64(max(0, transferred-p.resumed)) / elapsed
 	}
 	return fileTransferSnapshot{transferred: transferred, total: total, percent: percent, speed: speed}
 }
@@ -1112,9 +1126,12 @@ func writeFileUsage(output io.Writer) {
 	fmt.Fprintln(output, "Usage: channelterm file send LOCAL_PATH [REMOTE_PATH] [options]")
 	fmt.Fprintln(output, "       channelterm file receive REMOTE_PATH LOCAL_PATH [options]")
 	fmt.Fprintln(output, "       channelterm file browse [REMOTE_DIRECTORY] [options] (JSON directory snapshot)")
+	fmt.Fprintln(output, "       channelterm file jobs [--json] [--session SESSION] [--endpoint URL]")
+	fmt.Fprintln(output, "       channelterm file resume JOB_ID --session SESSION [--endpoint URL] [--json]")
 	fmt.Fprintln(output)
 	fmt.Fprintln(output, "Stream a file through an existing shared Session and verify it with SHA-256.")
 	fmt.Fprintln(output, "When exactly one Session is open, --session may be omitted.")
+	fmt.Fprintln(output, "Use --resumable with send/receive to keep an immutable snapshot and confirmed offsets. Resume requires an explicitly selected serial Session; it never reconnects automatically.")
 }
 
 func writeFileSendUsage(output io.Writer) {

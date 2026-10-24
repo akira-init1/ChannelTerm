@@ -232,6 +232,8 @@ channelterm file receive /var/log/myapp ./myapp --session SER-1
 GUI と CLI のファイル転送は標準で Base64 を使用し、デバイス側に `base64` と `tr` が必要です。
 `--wire raw` は XON/XOFF を使わない互換性のある 8 ビット接続でのみ使用してください。ファイル内容は変更しません。
 
+任意の断点再開はファイルとフォルダーの双方向転送に対応し、GUI／Host の再起動後も手動で再開できます。GUI のチェックポイントを有効にするか、`--resumable` を指定し、`file resume JOB_ID --session SESSION` で再開します。スナップショット、検証、公開結果が不明な場合の扱いは[再開手順](docs/getting-started/file-transfer.md#manual-resume-for-serial-files-and-directories)を参照してください。
+
 <a id="gdb-debugging"></a>
 
 ## GDB によるリモートデバッグ

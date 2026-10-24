@@ -225,6 +225,11 @@ msgstr "Lecture du dossier…"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "file.noCheckpoints"
+msgstr "Aucun transfert enregistré pour ce port."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "file.open"
 msgstr "Ouvrir"
 
@@ -240,6 +245,11 @@ msgstr "Dossier parent"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "file.publicationUncertain"
+msgstr "Publication incertaine. Vérifiez manuellement la destination ; ce transfert ne sera pas répété."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "file.receive"
 msgstr "Recevoir de l’appareil"
 
@@ -252,6 +262,21 @@ msgstr "Recevoir ce dossier"
 #: src/shared/menu-messages.ts
 msgid "file.remotePath"
 msgstr "Chemin sur l’appareil"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.resumable"
+msgstr "Conserver un point de reprise manuel"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.resume"
+msgstr "Reprendre le transfert"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.resumeHint"
+msgstr "Les instantanés utilisent un espace disque supplémentaire. Reconnectez-vous manuellement au même Host et port série. La source et les octets confirmés sont vérifiés ; aucune écriture ne sera répétée automatiquement."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

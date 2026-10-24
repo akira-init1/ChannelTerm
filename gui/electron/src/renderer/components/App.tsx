@@ -1,4 +1,5 @@
 import { FileDialog } from "../transfers/FileDialog";
+import { ResumeDialog } from "../transfers/ResumeDialog";
 import { TransferPanel } from "../transfers/TransferPanel";
 import type { TransferRequest, TransferStatus } from "../../shared/transfers";
 import {
@@ -96,6 +97,10 @@ export function App() {
     direction: "send" | "receive";
   }>();
   const [filePending, setFilePending] = useState(false);
+  const [resumeTarget, setResumeTarget] = useState<{
+    sessionId: string;
+    name: string;
+  }>();
   const [fileError, setFileError] = useState("");
   const [transferJobs, setTransferJobs] = useState<TransferStatus[]>([]);
   const observedSessions = sessions
@@ -110,6 +115,7 @@ export function App() {
       preferences.current.clear();
       setSettingsTarget(undefined);
       setFileDialog(undefined);
+      setResumeTarget(undefined);
       setTransferJobs((previous) =>
         previous.map((job) =>
           job.released ? job : { ...job, state: "unknown" },
@@ -156,6 +162,14 @@ export function App() {
     setFilePending(true);
     setFileError("");
     void unwrap(host.startTransfer(request))
+      .catch((error: ClientError) => setFileError(error.message))
+      .finally(() => setFilePending(false));
+  }
+  function resumeTransfer(sessionId: string, id: string) {
+    setResumeTarget(undefined);
+    setFilePending(true);
+    setFileError("");
+    void unwrap(host.resumeTransfer(sessionId, id))
       .catch((error: ClientError) => setFileError(error.message))
       .finally(() => setFilePending(false));
   }
@@ -412,6 +426,7 @@ export function App() {
     if (!isAction(action) || !enabled(action)) return;
     switch (action.id) {
       case "file.send":
+      case "file.resume":
       case "file.receive": {
         const target = sessions.find(
           (entry) =>
@@ -420,6 +435,13 @@ export function App() {
             entry.transport === "serial" &&
             !entry.lease,
         );
+        if (target && action.id === "file.resume") {
+          setResumeTarget({
+            sessionId: target.session_id,
+            name: target.label || target.session_ref,
+          });
+          return;
+        }
         if (target)
           setFileDialog({
             sessionId: target.session_id,
@@ -553,6 +575,14 @@ export function App() {
 
   return (
     <div className={`app ${sidebarVisible ? "" : "sidebar-hidden"}`}>
+      {resumeTarget && connected && (
+        <ResumeDialog
+          {...resumeTarget}
+          t={t}
+          onResume={resumeTransfer}
+          onClose={() => setResumeTarget(undefined)}
+        />
+      )}
       {fileDialog && connected && (
         <FileDialog
           key={fileDialog.sessionId + fileDialog.direction}

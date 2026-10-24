@@ -240,6 +240,8 @@ Les transferts nécessitent un shell Linux inactif et les outils indiqués dans 
 Les transferts de fichiers GUI et CLI utilisent Base64 par défaut et nécessitent `base64` et `tr` sur le périphérique.
 Utilisez `--wire raw` uniquement sur des liaisons compatibles 8 bits sans XON/XOFF ; le contenu du fichier reste inchangé.
 
+La reprise facultative prend en charge les fichiers et dossiers dans les deux sens, même après un redémarrage de la GUI ou du Host. Activez le point de reprise dans la GUI ou utilisez `--resumable`, puis `file resume JOB_ID --session SESSION`. Consultez le [guide de reprise](docs/getting-started/file-transfer.md#manual-resume-for-serial-files-and-directories) pour les instantanés, la vérification et la publication incertaine.
+
 <a id="gdb-debugging"></a>
 
 ## Débogage distant avec GDB

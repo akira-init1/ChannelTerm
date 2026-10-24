@@ -225,6 +225,11 @@ msgstr "Verzeichnis wird gelesen…"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "file.noCheckpoints"
+msgstr "Keine gespeicherten Übertragungen für diesen Anschluss."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "file.open"
 msgstr "Öffnen"
 
@@ -240,6 +245,11 @@ msgstr "Übergeordnet"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "file.publicationUncertain"
+msgstr "Veröffentlichung ungewiss. Ziel manuell prüfen; diese Übertragung wird nicht wiederholt."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "file.receive"
 msgstr "Vom Gerät empfangen"
 
@@ -252,6 +262,21 @@ msgstr "Diesen Ordner empfangen"
 #: src/shared/menu-messages.ts
 msgid "file.remotePath"
 msgstr "Gerätepfad"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.resumable"
+msgstr "Prüfpunkt zur manuellen Fortsetzung behalten"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.resume"
+msgstr "Übertragung fortsetzen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.resumeHint"
+msgstr "Momentaufnahmen benötigen zusätzlichen Speicherplatz. Nach manueller Wiederverbindung am selben Host und seriellen Anschluss fortsetzen. Quelle und bestätigte Bytes werden geprüft; Schreibvorgänge werden nie automatisch wiederholt."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

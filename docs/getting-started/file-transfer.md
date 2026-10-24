@@ -85,6 +85,60 @@ channelterm file receive /tmp/log.txt ./log.txt --session SER-1
 opens a Serial Transport itself; it attaches to an already-open Session and leaves that Session open
 afterward.
 
+### Manual resume for serial files and directories
+
+Opt in when starting a transfer. Without `--resumable`, the existing cleanup behavior is unchanged.
+
+```powershell
+channelterm file send .\build\release /tmp/release --session SER-1 --resumable
+channelterm file receive /var/log/myapp .\myapp --session SER-1 --resumable
+channelterm file jobs --json
+channelterm file resume JOB_ID --session SER-2
+```
+
+Replace `JOB_ID` with the printed checkpoint ID. In Electron, enable **Keep a checkpoint for
+manual resume** in the send/receive dialog. After interruption, reconnect the Host and open the
+same serial endpoint manually, then choose **Session > Resume transfer** (also available in a
+Session's context menu). The list is filtered by Host URL and serial endpoint, not the old Session
+ID or `SER-N` reference. It shows up to 128 incomplete records; each start still acquires the
+ordinary Host file-transfer Lease. Neither GUI nor CLI reconnects or retries writes automatically.
+The GUI progress bar uses Host events for these operations, including transfers initiated by CLI/MCP
+clients using the CLI workflow.
+
+Resume requires an absolute device path. Uploads keep a local immutable snapshot; directory
+snapshots are tar archives. Later edits to the original local source do not alter that snapshot.
+Directory downloads retain a remote tar snapshot under `/tmp/.channelterm-transfer-JOB_ID/`;
+file downloads reread the original remote file and reject any size or SHA-256 change. Snapshots
+require additional free disk space, potentially as large as the source, plus publication staging.
+Board reboot or `/tmp` cleanup can destroy a remote directory snapshot; this is not recoverable.
+GUI/Host restarts preserve client checkpoints, but do not preserve or reopen the live Session.
+
+Before resuming, the source snapshot and confirmed prefix are verified. Downloads sync local
+bytes before recording progress; uploads record only acknowledged 8 KiB boundaries. An incomplete
+final block is not counted as confirmed. Unconfirmed trailing bytes are trimmed only after prefix
+verification and an explicit resume request; the remaining source is then transferred. File
+contents, checksums and progress count original bytes, independent of Base64 framing. Resume
+uses the saved wire mode; `file resume` rejects attempts to change it with `--wire`.
+
+Uploads stage beside the destination in `.channelterm-transfer-JOB_ID/`. Resumable file publication
+requires peer `ln -T`; directory publication requires `mv -nT` and `tar`. These options prevent a
+newly appearing directory from turning publication into an unintended nested copy. Unsupported
+tools fail closed; the required publication flags are probed in owned staging before payload streaming.
+Other processes must not modify the source, staging or destination during the
+operation; a ChannelTerm Lease does not lock the board filesystem against unrelated programs.
+Downloads stage beside the local destination and use an exclusive rename on supported desktop
+platforms; filesystems without that operation fail closed. Existing names select an unused `_N`
+sibling, and publication refuses replacement.
+
+The checkpoint is marked `publishing` before the final filesystem operation. If its outcome is
+uncertain, the job remains visible with **inspect the destination manually**, and Resume is disabled.
+Inspect the final path and retained snapshot before starting a new job; ChannelTerm does not repeat
+the rename/extraction or declare success from an unconfirmed result. A successful publication leaves
+a small completion receipt and removes owned payload staging. Cleanup failure is reported separately
+from the recorded completed state. Interrupted jobs retain their payloads until explicitly dealt with;
+there is no automatic expiry or background resume. See [checkpoint storage](../reference/configuration.md#paths)
+before manually removing an abandoned job; never remove its published destination as cleanup.
+
 ### Transfer encoding and compatibility
 
 GUI and CLI transfers default to `base64`. The application sends bounded ASCII payload records

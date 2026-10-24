@@ -225,6 +225,11 @@ msgstr "Leyendo carpeta…"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "file.noCheckpoints"
+msgstr "No hay transferencias guardadas para este puerto."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "file.open"
 msgstr "Abrir"
 
@@ -240,6 +245,11 @@ msgstr "Subir"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "file.publicationUncertain"
+msgstr "Publicación incierta. Revisa el destino manualmente; esta transferencia no se repetirá."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "file.receive"
 msgstr "Recibir del dispositivo"
 
@@ -252,6 +262,21 @@ msgstr "Recibir esta carpeta"
 #: src/shared/menu-messages.ts
 msgid "file.remotePath"
 msgstr "Ruta del dispositivo"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.resumable"
+msgstr "Guardar un punto de control para reanudar manualmente"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.resume"
+msgstr "Reanudar transferencia"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.resumeHint"
+msgstr "Las instantáneas ocupan espacio adicional. Reconecta manualmente al mismo Host y puerto serie. Se verifican el origen y los bytes confirmados; nunca se repiten escrituras automáticamente."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

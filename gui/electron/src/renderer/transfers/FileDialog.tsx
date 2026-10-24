@@ -32,6 +32,7 @@ export function FileDialog({
   const [local, setLocal] = useState<LocalSelection>();
   const [error, setError] = useState("");
   const [wire, setWire] = useState<"base64" | "raw">("base64");
+  const [resumable, setResumable] = useState(false);
   useEffect(() => {
     dialog.current?.showModal();
     void browse(".");
@@ -171,6 +172,16 @@ export function FileDialog({
         </select>
       </label>
       <p className="file-hint">{t("file.wireHint")}</p>
+      <label className="file-resumable">
+        <input
+          type="checkbox"
+          checked={resumable}
+          disabled={busy}
+          onChange={(event) => setResumable(event.target.checked)}
+        />
+        {t("file.resumable")}
+      </label>
+      {resumable && <p className="file-hint">{t("file.resumeHint")}</p>}
       <footer>
         <button disabled={busy} onClick={onClose}>
           {t("connection.cancel")}
@@ -182,6 +193,7 @@ export function FileDialog({
             if (!local || !directory) return;
             onStart({
               wire,
+              resumable,
               sessionId,
               direction,
               selectionId: local.id,

@@ -225,6 +225,11 @@ msgstr "正在讀取目錄…"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "file.noCheckpoints"
+msgstr "此序列埠沒有儲存的傳輸。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "file.open"
 msgstr "開啟"
 
@@ -240,6 +245,11 @@ msgstr "上層目錄"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "file.publicationUncertain"
+msgstr "最終發佈結果不確定，請人工核對目標；此工作不會再次執行。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "file.receive"
 msgstr "從裝置接收"
 
@@ -252,6 +262,21 @@ msgstr "接收目前資料夾"
 #: src/shared/menu-messages.ts
 msgid "file.remotePath"
 msgstr "裝置路徑"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.resumable"
+msgstr "保留斷點，供手動恢復"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.resume"
+msgstr "恢復傳輸"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.resumeHint"
+msgstr "快照會佔用額外磁碟空間。手動重新連線同一 Host 和序列埠後再恢復；恢復前校驗來源及已確認位元組，不自動重播寫入。"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

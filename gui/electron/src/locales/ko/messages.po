@@ -225,6 +225,11 @@ msgstr "폴더 읽는 중…"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "file.noCheckpoints"
+msgstr "이 포트에 저장된 전송이 없습니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "file.open"
 msgstr "열기"
 
@@ -240,6 +245,11 @@ msgstr "상위 폴더"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "file.publicationUncertain"
+msgstr "게시 결과가 불확실합니다. 대상을 직접 확인하세요. 이 전송은 반복하지 않습니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "file.receive"
 msgstr "장치에서 받기"
 
@@ -252,6 +262,21 @@ msgstr "현재 폴더 받기"
 #: src/shared/menu-messages.ts
 msgid "file.remotePath"
 msgstr "장치 경로"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.resumable"
+msgstr "수동 재개를 위한 체크포인트 보관"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.resume"
+msgstr "전송 재개"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.resumeHint"
+msgstr "스냅샷에는 추가 디스크 공간이 필요합니다. 같은 Host와 직렬 포트에 수동으로 다시 연결한 후 재개하세요. 원본과 확인된 바이트를 검증하며 쓰기를 자동으로 반복하지 않습니다."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

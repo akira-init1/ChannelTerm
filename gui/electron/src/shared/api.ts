@@ -3,6 +3,7 @@ import type {
   RemoteDirectory,
   TransferRequest,
   TransferStatus,
+  TransferCheckpoint,
 } from "./transfers";
 import type { Action, MenuState } from "./menus";
 import type { ConnectionRequest, OpenedConnection } from "./connections";
@@ -65,6 +66,11 @@ export interface DesktopAPI {
     path: string,
   ): Promise<Result<RemoteDirectory>>;
   startTransfer(request: TransferRequest): Promise<Result<void>>;
+  transferCheckpoints(sessionId: string): Promise<Result<TransferCheckpoint[]>>;
+  resumeTransfer(
+    sessionId: string,
+    checkpointId: string,
+  ): Promise<Result<void>>;
   transfers(sessionId: string): Promise<Result<TransferStatus[]>>;
   cancelTransfer(
     sessionId: string,
@@ -96,6 +102,8 @@ export const channels = {
   chooseTransferPath: "files:choose",
   browseDirectory: "files:browse",
   startTransfer: "files:transfer",
+  transferCheckpoints: "files:checkpoints",
+  resumeTransfer: "files:resume",
   transfers: "files:status",
   cancelTransfer: "files:cancel",
   resolveTransferCancel: "files:cancel-answer",

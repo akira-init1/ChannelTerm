@@ -225,6 +225,11 @@ msgstr "ディレクトリを読み込み中…"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "file.noCheckpoints"
+msgstr "このポートに保存済みの転送はありません。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "file.open"
 msgstr "開く"
 
@@ -240,6 +245,11 @@ msgstr "上へ"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "file.publicationUncertain"
+msgstr "公開結果が不明です。転送先を手動で確認してください。この転送は再実行しません。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "file.receive"
 msgstr "デバイスから受信"
 
@@ -252,6 +262,21 @@ msgstr "このフォルダーを受信"
 #: src/shared/menu-messages.ts
 msgid "file.remotePath"
 msgstr "デバイスのパス"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.resumable"
+msgstr "手動再開用のチェックポイントを保持"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.resume"
+msgstr "転送を再開"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.resumeHint"
+msgstr "スナップショットには追加のディスク容量が必要です。同じ Host とシリアルポートに手動で再接続して再開します。ソースと確認済みデータを検証し、書き込みを自動で再実行しません。"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

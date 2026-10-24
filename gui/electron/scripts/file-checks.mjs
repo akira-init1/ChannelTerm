@@ -89,6 +89,11 @@ export async function checkFiles(desktop, page, fixture) {
   await wire.selectOption("raw");
   await expect(wire).toHaveValue("raw");
   await wire.selectOption("base64");
+  const resumable = dialog.getByRole("checkbox", {
+    name: "Keep a checkpoint for manual resume",
+  });
+  await expect(resumable).not.toBeChecked();
+  await resumable.check();
   await expect(dialog.getByRole("textbox")).toHaveValue("/home/root");
   await dialog.getByRole("option", { name: /logs/ }).dblclick();
   await expect(dialog.getByRole("textbox")).toHaveValue("/home/root/logs");
@@ -111,6 +116,61 @@ export async function checkFiles(desktop, page, fixture) {
   assert.equal(request.remotePath, "/home/root/firmware.bin");
   assert.equal(request.selectionId, "test-selection");
   assert.equal(request.wire, "base64");
+  assert.equal(request.resumable, true);
+  await desktop.evaluate(({ ipcMain }) => {
+    ipcMain.removeHandler("files:checkpoints");
+    ipcMain.handle("files:checkpoints", () => ({
+      ok: true,
+      value: [
+        {
+          id: "a".repeat(24),
+          name: "firmware.bin",
+          direction: "send",
+          kind: "file",
+          offset: 8192,
+          total: 16384,
+          phase: "transferring",
+        },
+        {
+          id: "b".repeat(24),
+          name: "uncertain-folder",
+          direction: "receive",
+          kind: "directory",
+          offset: 10240,
+          total: 10240,
+          phase: "publishing",
+        },
+      ],
+    }));
+    ipcMain.removeHandler("files:resume");
+    ipcMain.handle("files:resume", (_event, sessionId, id) => {
+      globalThis.resumedFile = { sessionId, id };
+      return { ok: true };
+    });
+  });
+  await expect
+    .poll(() =>
+      desktop.evaluate(
+        ({ Menu }) =>
+          Menu.getApplicationMenu().getMenuItemById("file.resume").enabled,
+      ),
+    )
+    .toBe(true);
+  await desktop.evaluate(({ Menu }) =>
+    Menu.getApplicationMenu().getMenuItemById("file.resume").click(),
+  );
+  const resumeDialog = page.getByRole("dialog", { name: "Resume transfer" });
+  await expect(resumeDialog).toBeVisible();
+  await expect(
+    resumeDialog.getByRole("button", { name: "Resume transfer" }),
+  ).toHaveCount(1);
+  await expect(resumeDialog).toContainText("Publication is uncertain.");
+  await page.screenshot({ path: "test-results/file-resume-dialog.png" });
+  await resumeDialog.getByRole("button", { name: "Resume transfer" }).click();
+  await expect(resumeDialog).not.toBeVisible();
+  const resumed = await desktop.evaluate(() => globalThis.resumedFile);
+  assert.equal(resumed.id, "a".repeat(24));
+  assert.equal(resumed.sessionId, request.sessionId);
   // No path navigation is typed through the terminal input channel.
   await expect(page.locator(".xterm-rows")).not.toContainText("cd /home");
   await fixture.command("transfer-start");

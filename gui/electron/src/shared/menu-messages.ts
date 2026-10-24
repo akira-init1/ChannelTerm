@@ -3,6 +3,25 @@ import type { MessageDescriptor } from "@lingui/core";
 // Lingui 5 extracts these official annotated descriptors without a runtime macro
 // transform. Translations belong in PO catalogs; this file owns IDs and English defaults.
 export const menuMessages = [
+  /* i18n */ { id: "file.resume", message: "Resume transfer" },
+  /* i18n */ {
+    id: "file.resumable",
+    message: "Keep a checkpoint for manual resume",
+  },
+  /* i18n */ {
+    id: "file.resumeHint",
+    message:
+      "Snapshots use additional disk space. Resume on the same Host and serial endpoint after reconnecting manually. Source and confirmed bytes are checked; writes are never replayed automatically.",
+  },
+  /* i18n */ {
+    id: "file.noCheckpoints",
+    message: "No saved transfers for this endpoint.",
+  },
+  /* i18n */ {
+    id: "file.publicationUncertain",
+    message:
+      "Publication is uncertain. Inspect the destination manually; this transfer will not be replayed.",
+  },
   /* i18n */ { id: "connection.custom", message: "Custom…" },
   /* i18n */ { id: "connection.customBaud", message: "Custom baud rate" },
   /* i18n */ { id: "terminal.settings", message: "Terminal settings" },

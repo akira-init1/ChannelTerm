@@ -237,6 +237,8 @@ Las transferencias requieren una shell Linux inactiva y las herramientas del [fl
 Las transferencias de archivos de GUI y CLI usan Base64 de forma predeterminada y requieren `base64` y `tr` en el dispositivo.
 Use `--wire raw` solo en enlaces compatibles de 8 bits sin XON/XOFF; el contenido del archivo no cambia.
 
+La reanudación opcional admite archivos y carpetas en ambas direcciones, incluso después de reiniciar la GUI o el Host. Activa el punto de control en la GUI o usa `--resumable` y luego `file resume JOB_ID --session SESSION`. Consulta el [flujo de reanudación](docs/getting-started/file-transfer.md#manual-resume-for-serial-files-and-directories) para las instantáneas, la verificación y la publicación incierta.
+
 <a id="gdb-debugging"></a>
 
 ## Depuración remota con GDB

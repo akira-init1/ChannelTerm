@@ -235,6 +235,8 @@ Transfers require an idle Linux shell with the utilities listed in the [file-tra
 GUI and CLI file transfers default to Base64, requiring `base64` and `tr` on the device.
 Use `--wire raw` only for compatible eight-bit links without XON/XOFF; file contents remain unchanged.
 
+Opt-in resumable transfers support files and directories in both directions, including manual recovery after GUI/Host restart. Enable the GUI checkpoint option or use `--resumable`, then `file resume JOB_ID --session SESSION`. See the [resume workflow](docs/getting-started/file-transfer.md#manual-resume-for-serial-files-and-directories) for snapshots, validation and uncertain publication.
+
 <a id="gdb-debugging"></a>
 
 ## Remote debugging with GDB

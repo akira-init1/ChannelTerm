@@ -17,6 +17,22 @@ The default directory is the platform directory returned by Go's `os.UserConfigD
 - User configuration: `config.toml`
 - Managed device identity state: `state.json`
 - Streamable HTTP bearer credential: `http-auth-token`
+- Opt-in client transfer snapshots and checkpoints: `transfers/<24-hex-job-id>/`
+
+Transfer checkpoints are separate from connection configuration and Host Session state. They contain
+local/device paths, a non-secret Host/serial endpoint binding, wire mode, byte counts and SHA-256
+digests; never credentials. Upload snapshots and download partial files are stored as `payload`;
+`checkpoint.json` is replaced from a synced temporary file and an OS-backed `lock` excludes another
+worker. POSIX directories/files use owner-only permissions; Windows uses the user's profile ACL.
+GUI and CLI on the same OS/user share these records. WSL and Windows have separate user directories.
+`--config` does not relocate checkpoints. Storage survives process restarts; this is not a guarantee
+against power loss or storage corruption. Hash failures stop recovery.
+
+Successful jobs retain a small completion receipt but are hidden from `file jobs`; their payloads
+are removed. Interrupted jobs do not expire automatically. To abandon one, stop its worker, inspect
+its destination if publication was uncertain, and remove only that job's local directory and its
+owned remote staging directory described in the [resume workflow](../getting-started/file-transfer.md#manual-resume-for-serial-files-and-directories).
+No CLI/GUI action recursively removes arbitrary device paths or a published destination.
 
 CLI and MCP serial opens use `LoadOrCreate`, which creates a minimal `config.toml` with owner-only
 file permissions where the platform honors them. `channelterm list` treats a missing configuration

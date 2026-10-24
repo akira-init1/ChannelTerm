@@ -225,6 +225,11 @@ msgstr "正在读取目录…"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "file.noCheckpoints"
+msgstr "此串口没有保存的传输。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "file.open"
 msgstr "打开"
 
@@ -240,6 +245,11 @@ msgstr "上级目录"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "file.publicationUncertain"
+msgstr "最终发布结果不确定，请人工核对目标；此任务不会再次执行。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "file.receive"
 msgstr "从设备接收"
 
@@ -252,6 +262,21 @@ msgstr "接收当前文件夹"
 #: src/shared/menu-messages.ts
 msgid "file.remotePath"
 msgstr "设备路径"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.resumable"
+msgstr "保留断点，供手动恢复"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.resume"
+msgstr "恢复传输"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.resumeHint"
+msgstr "快照会占用额外磁盘空间。手动重新连接同一 Host 和串口后再恢复；恢复前校验源数据及已确认字节，不自动重放写入。"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

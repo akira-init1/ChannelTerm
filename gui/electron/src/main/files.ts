@@ -7,6 +7,53 @@ import type { HostClient } from "./host/client";
 import { loadToken } from "./host/config";
 import { HostError } from "./host/errors";
 import { identifier, object, text, incompatible } from "./host/validation";
+import type { TransferCheckpoint } from "../shared/transfers";
+
+export function checkpointIdentifier(value: unknown): string {
+  if (typeof value !== "string" || !/^[a-f0-9]{24}$/.test(value))
+    throw new HostError("invalid_input", "Invalid transfer checkpoint.");
+  return value;
+}
+
+/** Validate bounded companion output before exposing a saved job to Renderer. */
+export function checkpointResult(value: unknown): TransferCheckpoint[] {
+  const result = object(value);
+  if (!Array.isArray(result.jobs) || result.jobs.length > 128)
+    throw incompatible();
+  const seen = new Set<string>();
+  return result.jobs.map((raw): TransferCheckpoint => {
+    const row = object(raw);
+    const id = checkpointIdentifier(row.id);
+    if (seen.has(id)) throw incompatible();
+    seen.add(id);
+    const name = text(row.name);
+    if (
+      !name ||
+      name.length > 4096 ||
+      (row.direction !== "send" && row.direction !== "receive") ||
+      (row.kind !== "file" && row.kind !== "directory") ||
+      (row.phase !== "preparing" &&
+        row.phase !== "transferring" &&
+        row.phase !== "publishing") ||
+      typeof row.offset !== "number" ||
+      typeof row.total !== "number" ||
+      !Number.isSafeInteger(row.offset) ||
+      !Number.isSafeInteger(row.total) ||
+      row.offset < 0 ||
+      row.total < row.offset
+    )
+      throw incompatible();
+    return {
+      id,
+      name,
+      direction: row.direction,
+      kind: row.kind,
+      offset: row.offset,
+      total: row.total,
+      phase: row.phase,
+    };
+  });
+}
 
 /** One Main-owned confirmation, bound to the original Host request and Session. */
 export class TransferConfirmation {
@@ -206,6 +253,7 @@ export class DesktopFiles {
             "selectionId",
             "remotePath",
             "wire",
+            "resumable",
           ].includes(key),
       )
     )
@@ -213,6 +261,11 @@ export class DesktopFiles {
     identifier(request.sessionId);
     identifier(request.selectionId);
     const wire = request.wire ?? "base64";
+    if (
+      request.resumable !== undefined &&
+      typeof request.resumable !== "boolean"
+    )
+      throw new HostError("invalid_input", "Invalid resume setting.");
     if (wire !== "base64" && wire !== "raw")
       throw new HostError("invalid_input", "Invalid transfer wire encoding.");
     if (request.direction !== "send" && request.direction !== "receive")
@@ -239,7 +292,15 @@ export class DesktopFiles {
       host,
       request.sessionId,
       request.direction === "send"
-        ? ["file", "send", selected.path, path, "--wire", wire]
+        ? [
+            "file",
+            "send",
+            selected.path,
+            path,
+            "--wire",
+            wire,
+            ...(request.resumable ? ["--resumable"] : []),
+          ]
         : [
             "file",
             "receive",
@@ -247,9 +308,37 @@ export class DesktopFiles {
             join(selected.path, downloadName(path)),
             "--wire",
             wire,
+            ...(request.resumable ? ["--resumable"] : []),
           ],
       false,
     );
+  }
+
+  async checkpoints(
+    host: HostClient,
+    sessionId: string,
+  ): Promise<TransferCheckpoint[]> {
+    identifier(sessionId);
+    return checkpointResult(
+      await this.run(host, sessionId, ["file", "jobs"], true),
+    );
+  }
+
+  async resume(
+    host: HostClient,
+    sessionId: string,
+    value: unknown,
+  ): Promise<void> {
+    identifier(sessionId);
+    const id = checkpointIdentifier(value);
+    const jobs = await this.checkpoints(host, sessionId);
+    const job = jobs.find((entry) => entry.id === id);
+    if (!job || job.phase === "publishing")
+      throw new HostError(
+        "invalid_input",
+        "Checkpoint is unavailable or publication needs manual inspection.",
+      );
+    await this.run(host, sessionId, ["file", "resume", id], false);
   }
 
   private async run(
@@ -310,6 +399,8 @@ export class DesktopFiles {
               if (browse) {
                 if (result) throw incompatible();
                 result = record;
+              } else if (record.type === "checkpoint") {
+                checkpointIdentifier(record.checkpoint_id);
               } else if (record.type === "started") {
                 if (job.transferId) throw incompatible();
                 identifier(record.transfer_id);
@@ -343,6 +434,13 @@ export class DesktopFiles {
         child.once("close", (code) => {
           if (code === 0 && result && !invalid && !pending.trim())
             resolve(result);
+          else if (!browse && result && !invalid && !pending.trim())
+            reject(
+              new HostError(
+                "tool_error",
+                "File was verified and published, but final cleanup did not complete. Inspect staging and Session state before another operation.",
+              ),
+            );
           else
             reject(
               new HostError(

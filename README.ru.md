@@ -237,6 +237,8 @@ channelterm file receive /var/log/myapp ./myapp --session SER-1
 Передача файлов в GUI и CLI по умолчанию использует Base64; на устройстве нужны `base64` и `tr`.
 Используйте `--wire raw` только для совместимых 8-битных соединений без XON/XOFF; содержимое файла не меняется.
 
+Возобновляемая передача по выбору поддерживает файлы и каталоги в обоих направлениях, в том числе ручное восстановление после перезапуска GUI/Host. Включите контрольную точку в GUI или используйте `--resumable`, затем `file resume JOB_ID --session SESSION`. Снимки, проверки и неопределённая публикация описаны в [инструкции по возобновлению](docs/getting-started/file-transfer.md#manual-resume-for-serial-files-and-directories).
+
 <a id="gdb-debugging"></a>
 
 ## Удалённая отладка с GDB

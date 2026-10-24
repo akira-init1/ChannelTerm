@@ -225,6 +225,11 @@ msgstr "Чтение каталога…"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "file.noCheckpoints"
+msgstr "Для этого порта нет сохранённых передач."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "file.open"
 msgstr "Открыть"
 
@@ -240,6 +245,11 @@ msgstr "Вверх"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "file.publicationUncertain"
+msgstr "Результат публикации неизвестен. Проверьте назначение вручную; передача не будет повторена."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "file.receive"
 msgstr "Получить с устройства"
 
@@ -252,6 +262,21 @@ msgstr "Получить эту папку"
 #: src/shared/menu-messages.ts
 msgid "file.remotePath"
 msgstr "Путь на устройстве"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.resumable"
+msgstr "Сохранить контрольную точку для ручного возобновления"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.resume"
+msgstr "Возобновить передачу"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.resumeHint"
+msgstr "Снимки занимают дополнительное место. Подключитесь вручную к тому же Host и последовательному порту. Источник и подтверждённые байты проверяются; запись никогда не повторяется автоматически."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

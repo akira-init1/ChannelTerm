@@ -341,6 +341,26 @@ oversized commands and malformed/incorrectly sized encoded records. Progress and
 refer to original bytes, including directory tar streams. Control records are bounded to 64 KiB.
 No Session transformation, additional Transport, or MCP schema is introduced.
 
+`CreateTransferCheckpoint`, `ListTransferCheckpoints`, and `RunResumableTransfer` provide opt-in
+client-side persistence above the same transfer protocol. The CLI supplies the private store path,
+validates the saved Host/serial endpoint against an explicit live Session, and retains Host Lease
+authority. Application owns snapshot creation, prefix/source SHA-256 validation, per-job OS locks,
+synced offset records, streaming and final publication. It stores no credential or live Session
+capability. Uploads snapshot files/tar locally; directory downloads snapshot tar on the board;
+file downloads validate the original source before and after streaming. Cancelled resumable jobs
+keep these snapshots, unlike ordinary directory-transfer cleanup.
+
+Checkpoint progress advances only after remote ACK or local file Sync and successful checkpoint
+replacement. Resume verifies the source and confirmed prefix before trimming any unconfirmed tail.
+It never changes Host protocol, opens a Transport, or schedules retries. The `publishing` phase is
+saved before final filesystem publication; a later invocation returns
+`ErrTransferPublicationUncertain` without touching a Session. Desktop publication uses exclusive
+same-filesystem OS rename; unsupported filesystems fail closed. Remote file publication uses
+`ln -T`, directories use `mv -nT`; the board filesystem is not globally locked against other processes.
+Completed records remain as small receipts; only app-owned payload staging is cleaned. See the
+[resume workflow](../getting-started/file-transfer.md#manual-resume-for-serial-files-and-directories)
+and [storage contract](../reference/configuration.md#paths) for limits and recovery.
+
 The raw protocol reads or writes at most 8 KiB of payload per chunk, saves and restores the remote TTY
 mode around each raw `dd` operation, and performs end-to-end SHA-256 verification for regular files
 and directory tar streams. A target-side send block uses a 10-second serial-input idle timeout and

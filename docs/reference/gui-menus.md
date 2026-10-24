@@ -9,6 +9,12 @@ This reference describes implemented menu behavior, not additional Host capabili
 
 ## Implemented actions
 
+**Session > Resume transfer** (`file.resume`) also appears on a serial Session's context menu.
+It binds to that clicked open, unleased Session and lists saved jobs for its Host/endpoint. Execution
+revalidates the job and target in Main and CLI before acquiring the existing Host Lease. A saved
+`publishing` job is visible for inspection with no enabled Resume button. Starting a new transfer
+only saves resumable data when **Keep a checkpoint for manual resume** is checked.
+
 | Menu / surface | Action ID | Behavior and availability |
 | --- | --- | --- |
 | Connection > Connect to Host; Host panel | `host.connect` | Connect to the configured existing Host; enabled while disconnected and idle. Does not start a Host. |

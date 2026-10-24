@@ -171,6 +171,14 @@ environment, without a shell or PATH lookup. It reads bounded JSON records, neve
 or stderr. The CLI reuses Application transfers and the existing authenticated Host/Lease path.
 No new MCP tool, HTTP upload endpoint, raw device connection, or TypeScript transfer protocol is added.
 
+Optional resumable transfers use the same companion and Lease. Main adds a finite `resumable`
+boolean, lists bounded checkpoint summaries using `file jobs --json`, and resumes only a validated
+24-hex job ID on the captured Session. Paths and peer bindings remain in the Go client checkpoint
+store; Renderer receives only basename, direction, kind, confirmed bytes, total and phase. The CLI
+revalidates Host/serial endpoint binding and source/prefix checksums after GUI or Host restart.
+The separate Resume dialog never reconnects, grants authority or replays an uncertain publication.
+All menu surfaces share `file.resume`; unknown/closed/leased targets stay unavailable.
+
 Host Client separately reads structured Session events for UI progress and cursor-based terminal
 presentation. It refreshes events after each raw read before exposing bytes, so a published Lease
 boundary precedes suppression. Event loss suppresses uncertain bytes and reports display loss;

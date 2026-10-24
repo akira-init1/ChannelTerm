@@ -24,7 +24,10 @@ export type Action =
         | "help.quick"
         | "app.quit";
     }
-  | { id: "session.attach" | "file.send" | "file.receive"; sessionId: string }
+  | {
+      id: "session.attach" | "file.send" | "file.receive" | "file.resume";
+      sessionId: string;
+    }
   | {
       id: "tab.close" | "terminal.clear" | "terminal.focus" | "terminal.resume";
       attachment: Attachment;
@@ -200,7 +203,7 @@ function fileMenu(
   sessionId: string | undefined,
   available: boolean,
 ): MenuEntry[] {
-  return (["file.send", "file.receive"] as const).map((id) => ({
+  return (["file.send", "file.receive", "file.resume"] as const).map((id) => ({
     id,
     label: id,
     enabled: !!sessionId && available && state.connected && !state.busy,
@@ -280,6 +283,7 @@ export function isAction(value: unknown): value is Action {
       return exact(value, ["id"]);
     case "file.send":
     case "file.receive":
+    case "file.resume":
     case "session.attach":
       return exact(value, ["id", "sessionId"]) && identifier(value.sessionId);
     case "tab.close":
@@ -340,6 +344,7 @@ export function actionEnabled(action: Action, state: MenuState): boolean {
     case "session.refresh":
     case "file.send":
     case "file.receive":
+    case "file.resume":
     case "session.attach":
       return state.connected && !state.busy;
     case "tab.close":

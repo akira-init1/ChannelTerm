@@ -238,6 +238,8 @@ channelterm file receive /var/log/myapp ./myapp --session SER-1
 Dateiübertragungen in GUI und CLI verwenden standardmäßig Base64 und benötigen `base64` und `tr` auf dem Gerät.
 Verwenden Sie `--wire raw` nur bei kompatiblen 8-Bit-Verbindungen ohne XON/XOFF; der Dateiinhalt bleibt unverändert.
 
+Optionale fortsetzbare Übertragungen unterstützen Dateien und Verzeichnisse in beide Richtungen, auch nach einem GUI-/Host-Neustart. Aktivieren Sie den GUI-Prüfpunkt oder verwenden Sie `--resumable` und danach `file resume JOB_ID --session SESSION`. Details zu Momentaufnahmen, Prüfung und ungewisser Veröffentlichung stehen im [Resume-Ablauf](docs/getting-started/file-transfer.md#manual-resume-for-serial-files-and-directories).
+
 <a id="gdb-debugging"></a>
 
 ## Remote-Debugging mit GDB

@@ -7,9 +7,40 @@ import {
   directoryResult,
   remotePath,
   downloadName,
+  checkpointResult,
+  checkpointIdentifier,
 } from "../src/main/files";
 import { HostClient } from "../src/main/host/client";
 import { startFixture } from "./fixture";
+
+test("saved transfer summaries are bounded and never expose paths or credentials", () => {
+  const row = {
+    id: "a".repeat(24),
+    name: "file.bin",
+    direction: "send",
+    kind: "file",
+    offset: 8192,
+    total: 16384,
+    phase: "transferring",
+    local_path: "private",
+    peer: "private",
+  };
+  const [result] = checkpointResult({ jobs: [row] });
+  assert.ok(result);
+  assert.equal(result.offset, 8192);
+  assert.equal("local_path" in result, false);
+  assert.equal("peer" in result, false);
+  for (const bad of ["../file", "a".repeat(25), "--endpoint", null])
+    assert.throws(() => checkpointIdentifier(bad));
+  for (const jobs of [
+    [row, row],
+    [{ ...row, total: -1 }],
+    [{ ...row, phase: "auto-retry" }],
+    [{ ...row, offset: 1.5 }],
+    Array(129).fill(row),
+  ])
+    assert.throws(() => checkpointResult({ jobs }));
+});
 
 test("custom cancellation confirmation is single-use and retains its original Host target", async () => {
   const confirmation = new TransferConfirmation();
