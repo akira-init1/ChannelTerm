@@ -221,6 +221,7 @@ Side effects and lifecycle:
 - Minimal shell prompts such as `sh-5.1# `, `bash-5.2# `, `/ # `, and `[root@board ~]# `
   pass through highlighting unchanged. Their received command echo is displayed before Enter,
   including when the prompt and echo arrive in the same read with prompt timestamps enabled.
+  The versioned Bash/sh and bracketed user/host forms also accept the ordinary-user `$` marker.
   This displays remote echo; it does not enable local echo or change the remote shell's settings.
 - Common bootloader prompts (`=> ` or a name using ASCII letters, digits, `.`, `_`, or `-`
   followed by `> `, such as `Zynq> `)

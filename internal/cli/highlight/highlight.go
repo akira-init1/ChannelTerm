@@ -545,7 +545,7 @@ var promptPattern = regexp.MustCompile(`^(?:\[[0-9]{2}:[0-9]{2}:[0-9]{2}\][ \t]+
 // Minimal prompts are kept unstyled. Accept a local
 // timestamp and already echoed input, but require whitespace before that input
 // so ordinary text beginning with a similar marker does not become a prompt.
-var minimalShellPromptPattern = regexp.MustCompile(`^(?:\[[0-9]{2}:[0-9]{2}:[0-9]{2}\][ \t]+)?(?:(?:ba)?sh-[0-9]+(?:\.[0-9]+)*#|/[ \t]+#|\[[A-Za-z0-9_.-]+@[A-Za-z0-9_.-]+[ \t]+[^ \t\r\n\]]+\]#)(?:[ \t]+|$)`)
+var minimalShellPromptPattern = regexp.MustCompile(`^(?:\[[0-9]{2}:[0-9]{2}:[0-9]{2}\][ \t]+)?(?:(?:ba)?sh-[0-9]+(?:\.[0-9]+)*[$#]|/[ \t]+#|\[[A-Za-z0-9_.-]+@[A-Za-z0-9_.-]+[ \t]+[^ \t\r\n\]]+\][$#])(?:[ \t]+|$)`)
 
 // HasBootloaderPromptPrefix recognizes a plain line starting with "=> " or a
 // name followed by "> ", including an already echoed command. Trailing prompt
