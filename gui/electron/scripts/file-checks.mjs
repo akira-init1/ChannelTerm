@@ -84,6 +84,11 @@ export async function checkFiles(desktop, page, fixture) {
   );
   const dialog = page.getByRole("dialog", { name: "Receive from device" });
   await expect(dialog).toBeVisible();
+  const wire = dialog.getByRole("combobox", { name: "Transfer encoding" });
+  await expect(wire).toHaveValue("base64");
+  await wire.selectOption("raw");
+  await expect(wire).toHaveValue("raw");
+  await wire.selectOption("base64");
   await expect(dialog.getByRole("textbox")).toHaveValue("/home/root");
   await dialog.getByRole("option", { name: /logs/ }).dblclick();
   await expect(dialog.getByRole("textbox")).toHaveValue("/home/root/logs");
@@ -105,6 +110,7 @@ export async function checkFiles(desktop, page, fixture) {
   assert.equal(request.direction, "receive");
   assert.equal(request.remotePath, "/home/root/firmware.bin");
   assert.equal(request.selectionId, "test-selection");
+  assert.equal(request.wire, "base64");
   // No path navigation is typed through the terminal input channel.
   await expect(page.locator(".xterm-rows")).not.toContainText("cd /home");
   await fixture.command("transfer-start");

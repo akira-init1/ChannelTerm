@@ -58,7 +58,16 @@ type fileTransferEventReporter interface {
 // internalFileTransferSession preserves the existing byte and cursor path
 // while classifying protocol writes as ChannelTerm-owned operations. This lets
 // presentation distinguish them from both local users and ordinary MCP agents.
-type internalFileTransferSession struct{ attachSession }
+type internalFileTransferSession struct {
+	attachSession
+	wire app.FileTransferWireEncoding
+}
+
+// FileTransferWireEncoding supplies this operation's framing without changing
+// shared Session metadata or the terminal character codec.
+func (s internalFileTransferSession) FileTransferWireEncoding() app.FileTransferWireEncoding {
+	return s.wire
+}
 
 // Write marks file-transfer protocol bytes as internal before forwarding them
 // through the attachment's existing Session write path.
@@ -241,7 +250,7 @@ func runFileSend(ctx context.Context, args []string, output io.Writer, dependenc
 	var progress *fileTransferReporter
 	operationErr := withFileTransferLease(ctx, attached, identifier, func(operationCtx context.Context) (operationErr error) {
 		ctx = operationCtx
-		terminal := internalFileTransferSession{attachSession: attached}
+		terminal := internalFileTransferSession{attachSession: attached, wire: options.wire}
 		started := false
 		metadata := fileTransferPathMetadata("send", localPath, remotePath)
 		metadata["total"] = info.Size()
@@ -325,7 +334,7 @@ func runFileSendDirectory(ctx context.Context, localPath, remotePath string, opt
 	}()
 	return withFileTransferLease(ctx, attached, identifier, func(operationCtx context.Context) (operationErr error) {
 		ctx = operationCtx
-		terminal := internalFileTransferSession{attachSession: attached}
+		terminal := internalFileTransferSession{attachSession: attached, wire: options.wire}
 		metadata := fileTransferPathMetadata("send", localPath, remotePath)
 		metadata["kind"] = "directory"
 		metadata["total"] = archiveSize
@@ -405,7 +414,7 @@ func runFileReceive(ctx context.Context, args []string, output io.Writer, depend
 	var progress *fileTransferReporter
 	operationErr := withFileTransferLease(ctx, attached, identifier, func(operationCtx context.Context) (operationErr error) {
 		ctx = operationCtx
-		baseTerminal := internalFileTransferSession{attachSession: attached}
+		baseTerminal := internalFileTransferSession{attachSession: attached, wire: options.wire}
 		return app.WithFileTransferShell(ctx, baseTerminal, func(terminal app.FileTransferSession) (operationErr error) {
 			kind, kindErr := app.DetectRemotePath(ctx, terminal, remotePath)
 			if kindErr != nil {
@@ -575,7 +584,7 @@ func withFileTransferLease(ctx context.Context, attached attachSession, identifi
 		if !errors.Is(err, app.ErrFileTransferRecoveryUnconfirmed) {
 			abortCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
-			abortErr = (internalFileTransferSession{attached}).AbortFileTransferRecovery(abortCtx)
+			abortErr = (internalFileTransferSession{attachSession: attached}).AbortFileTransferRecovery(abortCtx)
 		}
 		err = errors.Join(err, heartbeatErr, app.ErrFileTransferRecoveryUnconfirmed, abortErr)
 	}
@@ -644,6 +653,7 @@ func fileTransferFailureMetadata(metadata map[string]any, operationErr error) ma
 }
 
 type fileOptions struct {
+	wire     app.FileTransferWireEncoding
 	json     bool
 	session  string
 	endpoint string
@@ -654,6 +664,7 @@ func parseFileOptions(name string, args []string, output io.Writer, usage func(i
 	flags := flag.NewFlagSet(name, flag.ContinueOnError)
 	flags.Bool("json", false, "emit structured transfer records instead of terminal progress")
 	flags.SetOutput(output)
+	wire := flags.String("wire", string(app.FileTransferWireBase64), "file wire encoding: base64 (requires peer base64 and tr) or raw (never with XON/XOFF)")
 	identifier := flags.String("session", "", "shared Session ID or short reference; omit when exactly one Session is open")
 	endpoint := flags.String("endpoint", defaultMCPEndpoint, "Session Host endpoint")
 	help := flags.Bool("help", false, "show help and exit")
@@ -676,7 +687,10 @@ func parseFileOptions(name string, args []string, output io.Writer, usage func(i
 	if showHelp {
 		flags.Usage()
 	}
-	return fileOptions{json: machine, session: strings.TrimSpace(*identifier), endpoint: strings.TrimSpace(*endpoint), help: showHelp}, nil
+	if !showHelp && *wire != string(app.FileTransferWireRaw) && *wire != string(app.FileTransferWireBase64) {
+		return fileOptions{}, errors.New("--wire must be base64 or raw")
+	}
+	return fileOptions{wire: app.FileTransferWireEncoding(*wire), json: machine, session: strings.TrimSpace(*identifier), endpoint: strings.TrimSpace(*endpoint), help: showHelp}, nil
 }
 
 func attachFileSession(ctx context.Context, options fileOptions, output io.Writer, dependencies fileCommandDependencies) (attachSession, string, error) {

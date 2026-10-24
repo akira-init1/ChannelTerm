@@ -228,6 +228,9 @@ channelterm file receive /var/log/myapp ./myapp --session SER-1
 
 전송에는 유휴 Linux 셸과 [파일 전송 안내](docs/getting-started/file-transfer.md)에 나열된 도구가 필요합니다. SHA-256을 검증하고 기존 대상을 덮어쓰지 않도록 새 이름을 선택합니다. 전송 중 공유 연결에서 `Ctrl+C`를 누르면 취소 여부를 묻습니다. 정리가 끝나 임대를 해제할 때까지 다른 쓰기는 차단됩니다.
 
+GUI와 CLI 파일 전송은 기본적으로 Base64를 사용하며 장치에 `base64`와 `tr`이 필요합니다.
+`--wire raw`는 XON/XOFF를 사용하지 않는 호환 8비트 연결에서만 사용하세요. 파일 내용은 변경되지 않습니다.
+
 <a id="gdb-debugging"></a>
 
 ## GDB 원격 디버깅

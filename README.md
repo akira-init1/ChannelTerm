@@ -232,6 +232,9 @@ channelterm file receive /var/log/myapp ./myapp --session SER-1
 
 Transfers require an idle Linux shell with the utilities listed in the [file-transfer workflow](docs/getting-started/file-transfer.md). They verify SHA-256 and select a new name instead of overwriting an existing destination. During a transfer, `Ctrl+C` in a shared attachment asks for cancellation; other writers remain blocked until cleanup releases the lease.
 
+GUI and CLI file transfers default to Base64, requiring `base64` and `tr` on the device.
+Use `--wire raw` only for compatible eight-bit links without XON/XOFF; file contents remain unchanged.
+
 <a id="gdb-debugging"></a>
 
 ## Remote debugging with GDB

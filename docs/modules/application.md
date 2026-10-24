@@ -333,7 +333,15 @@ cursor range.
 Startup has a separate 15-second deadline for the echo-disabled and child-ready markers. Failure
 uses the existing bounded recovery path. This deadline does not limit the later payload transfer.
 
-The protocol reads or writes at most 8 KiB of payload per chunk, saves and restores the remote TTY
+The optional client `FileTransferWireEncoding` selector chooses Base64 or raw framing;
+existing application callers without the selector retain raw compatibility. CLI/GUI explicitly
+default to Base64. Base64 checks peer tools before destination creation, sends 2 KiB ASCII
+sub-blocks inside the 8 KiB streaming loop, and preserves peer TTY flow settings. It rejects
+oversized commands and malformed/incorrectly sized encoded records. Progress and SHA-256 always
+refer to original bytes, including directory tar streams. Control records are bounded to 64 KiB.
+No Session transformation, additional Transport, or MCP schema is introduced.
+
+The raw protocol reads or writes at most 8 KiB of payload per chunk, saves and restores the remote TTY
 mode around each raw `dd` operation, and performs end-to-end SHA-256 verification for regular files
 and directory tar streams. A target-side send block uses a 10-second serial-input idle timeout and
 verifies the exact file-size increase after restoring the saved TTY. This bounds the intended

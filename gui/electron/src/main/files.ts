@@ -200,14 +200,21 @@ export class DesktopFiles {
     if (
       Object.keys(request).some(
         (key) =>
-          !["sessionId", "direction", "selectionId", "remotePath"].includes(
-            key,
-          ),
+          ![
+            "sessionId",
+            "direction",
+            "selectionId",
+            "remotePath",
+            "wire",
+          ].includes(key),
       )
     )
       throw new HostError("invalid_input", "Invalid transfer request.");
     identifier(request.sessionId);
     identifier(request.selectionId);
+    const wire = request.wire ?? "base64";
+    if (wire !== "base64" && wire !== "raw")
+      throw new HostError("invalid_input", "Invalid transfer wire encoding.");
     if (request.direction !== "send" && request.direction !== "receive")
       throw new HostError("invalid_input", "Invalid transfer direction.");
     const selected = this.selections.get(request.selectionId);
@@ -232,8 +239,15 @@ export class DesktopFiles {
       host,
       request.sessionId,
       request.direction === "send"
-        ? ["file", "send", selected.path, path]
-        : ["file", "receive", path, join(selected.path, downloadName(path))],
+        ? ["file", "send", selected.path, path, "--wire", wire]
+        : [
+            "file",
+            "receive",
+            path,
+            join(selected.path, downloadName(path)),
+            "--wire",
+            wire,
+          ],
       false,
     );
   }

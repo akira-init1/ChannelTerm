@@ -19,6 +19,7 @@ interop, local paths and the HTTP credential belong to the OS running the chosen
   A recalled history command or other unsubmitted input is rejected before transfer starts. Press
   `Ctrl+C` at the ordinary shell prompt to clear that line, then reopen the transfer menu.
 - The board provides `mkdir`, `stty`, `dd`, `wc`, `sha256sum`, and `sleep`.
+  The default Base64 mode also requires `base64` (including `-d`) and `tr`.
   BusyBox or GNU userland may provide these commands. Send uses `iflag=fullblock` when available;
   minimal BusyBox builds use one-byte input blocks to count the exact payload without that option.
   Directory transfer also requires `tar`;
@@ -83,6 +84,29 @@ channelterm file receive /tmp/log.txt ./log.txt --session SER-1
 `--endpoint` selects a non-default Session Host endpoint. The file command never starts a host or
 opens a Serial Transport itself; it attaches to an already-open Session and leaves that Session open
 afterward.
+
+### Transfer encoding and compatibility
+
+GUI and CLI transfers default to `base64`. The application sends bounded ASCII payload records
+through the same Session and lease, confirms each block, and verifies SHA-256 over the original
+file bytes. Terminal character encoding does not affect files. Base64 adds roughly one third to
+payload size plus framing overhead. The device's existing TTY flow-control settings are preserved,
+so configure XON/XOFF consistently at both ends. Missing peer Base64 tools fail before file
+creation; there is no automatic fallback or write replay.
+
+For a compatible eight-bit link without XON/XOFF, select **Raw** in the GUI file dialog or use:
+
+```powershell
+channelterm file send firmware.bin /tmp/firmware.bin --session SER-1 --wire raw
+channelterm file receive /tmp/log.txt ./log.txt --session SER-1 --wire raw
+```
+
+`--wire base64` selects the default explicitly. This intentional default change requires older
+devices without Base64 support to use `--wire raw`; no remote tools are installed automatically.
+Raw mode retains its original 8 KiB byte protocol and is unsafe with XON/XOFF because DC1/DC3
+are flow signals. Base64 uses 2 KiB sub-blocks within the same bounded streaming loop; progress
+still counts confirmed original bytes. Extremely long quoted paths that would exceed the safe
+command-line bound are rejected in Base64 mode. No MCP tool name, parameter, or result changes.
 
 For every send, ChannelTerm creates a missing remote parent hierarchy with `mkdir -p` before it
 writes the file or directory. An existing hierarchy is reused. `send` and `receive` never silently
@@ -204,7 +228,8 @@ flowchart TB
     channel <--> tty["Linux target TTY"]
 ```
 
-On the target, each block follows a short shell sequence:
+On the target, Base64 records decode/encode a bounded block and acknowledge it without
+entering raw TTY mode. Explicit raw mode follows this sequence:
 
 ```text
 Save TTY mode -> stty raw/no-echo -> dd reads or writes a chunk
@@ -214,8 +239,8 @@ Save TTY mode -> stty raw/no-echo -> dd reads or writes a chunk
 Final verification uses `wc -c` and `sha256sum`; send and receive differ as described below.
 
 The Serial Transport established the Channel before transfer; ongoing I/O uses that Channel.
-For each chunk, the shell saves its TTY mode, enters raw/no-echo mode, transfers one bounded block,
-restores the saved mode, and acknowledges the block with a per-transfer token. Progress advances
+For each raw chunk, the shell saves its TTY mode, enters raw/no-echo mode, transfers one bounded block,
+restores the saved mode, and acknowledges the block with a per-transfer token. In both modes progress advances
 only after acknowledgement. Start, progress, completion, cancellation, and failure are published as
 structured Session events rather than inserted into raw terminal output.
 
@@ -240,8 +265,8 @@ checks do not lock the filesystem against unrelated writers.
 ## Protocol and concurrency limits
 
 The protocol is deliberately shell-oriented rather than a new board agent. Control markers are ASCII
-lines containing a random token; file payload bytes are raw and are never encoded or loaded as one
-complete in-memory value.
+lines containing a random token; payloads use Base64 by default or raw bytes with `--wire raw`.
+Neither mode loads the complete file into memory. Control records are bounded to 64 KiB.
 
 Session still guarantees byte serialization for each individual write. Above it, the Host holds one
 exclusive `file-transfer` lease for the complete CLI command. Other ChannelTerm writers fail
@@ -253,10 +278,10 @@ Host-side lease expiry closes the Session. Unlike earlier behavior, an expired f
 never permits a replacement operation on the original Session. These controls cannot
 stop shell prompt hooks, unsolicited device output, or writers that bypass ChannelTerm, so keep the
 endpoint itself quiescent. Independent `attach`, `terminal_read`, and `terminal_wait` readers remain
-valid, although a receive transfer's raw file bytes are visible in their raw Session output and may
+valid, although a receive transfer's wire records are visible in their raw Session output and may
 not be suitable for terminal rendering.
 
-If the command is interrupted while a send chunk is waiting for bytes, ChannelTerm pads only that
+In raw mode, if the command is interrupted while a send chunk is waiting for bytes, ChannelTerm pads only that
 announced 8 KiB-or-smaller interval and waits for the shell to restore its saved TTY mode before
 releasing the lease. Directory transfers use the same acknowledged block boundary, then remove their
 temporary target archive instead of draining the untransferred remainder. If the Session or device

@@ -237,6 +237,9 @@ channelterm file receive /var/log/myapp ./myapp --session SER-1
 
 Les transferts nécessitent un shell Linux inactif et les outils indiqués dans le [guide de transfert](docs/getting-started/file-transfer.md). Ils vérifient SHA-256 et choisissent un nouveau nom au lieu d’écraser une destination existante. Pendant un transfert, `Ctrl+C` dans un attachement partagé demande confirmation de l’annulation ; les autres écritures restent bloquées jusqu’à la fin du nettoyage et à la libération du bail.
 
+Les transferts de fichiers GUI et CLI utilisent Base64 par défaut et nécessitent `base64` et `tr` sur le périphérique.
+Utilisez `--wire raw` uniquement sur des liaisons compatibles 8 bits sans XON/XOFF ; le contenu du fichier reste inchangé.
+
 <a id="gdb-debugging"></a>
 
 ## Débogage distant avec GDB

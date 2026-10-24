@@ -20,6 +20,24 @@ import (
 	protocol "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
+func TestFileWireOptionsDefaultCompatibilityAndValidation(t *testing.T) {
+	for _, tc := range []struct {
+		args    []string
+		want    app.FileTransferWireEncoding
+		invalid bool
+	}{
+		{nil, app.FileTransferWireBase64, false},
+		{[]string{"--wire", "raw"}, app.FileTransferWireRaw, false},
+		{[]string{"--wire", "base64"}, app.FileTransferWireBase64, false},
+		{[]string{"--wire", "auto"}, "", true},
+	} {
+		options, err := parseFileOptions("send", tc.args, io.Discard, func(io.Writer) {})
+		if (err != nil) != tc.invalid || options.wire != tc.want {
+			t.Fatalf("%v: %+v %v", tc.args, options, err)
+		}
+	}
+}
+
 func TestNextAvailableLocalPathPreservesExtensionsAndAvoidsOverwrite(t *testing.T) {
 	directory := t.TempDir()
 	tests := []struct {

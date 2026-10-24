@@ -300,6 +300,16 @@ msgstr "Verifying"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "file.wire"
+msgstr "Transfer encoding"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.wireHint"
+msgstr "Base64 requires base64 and tr on the device. Raw is for compatible 8-bit links without XON/XOFF. File contents are unchanged."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "help.clear"
 msgstr "Clear local display removes local scrollback above the current line. It sends no clear/reset command and leaves Host history intact."
 

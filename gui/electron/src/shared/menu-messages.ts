@@ -219,4 +219,10 @@ export const menuMessages = [
     id: "help.close",
     message: "Close help",
   },
+  /* i18n */ { id: "file.wire", message: "Transfer encoding" },
+  /* i18n */ {
+    id: "file.wireHint",
+    message:
+      "Base64 requires base64 and tr on the device. Raw is for compatible 8-bit links without XON/XOFF. File contents are unchanged.",
+  },
 ] satisfies MessageDescriptor[];

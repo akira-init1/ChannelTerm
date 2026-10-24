@@ -300,6 +300,16 @@ msgstr "Проверка"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "file.wire"
+msgstr "Кодирование передачи"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.wireHint"
+msgstr "Base64 требует base64 и tr на устройстве. Raw предназначен для совместимых 8-битных соединений без XON/XOFF. Содержимое файла не меняется."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "help.clear"
 msgstr "Очистка локального экрана удаляет локальную историю прокрутки выше текущей строки. Команды clear/reset не отправляются, история Host сохраняется."
 

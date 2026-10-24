@@ -235,6 +235,9 @@ channelterm file receive /var/log/myapp ./myapp --session SER-1
 
 Übertragungen benötigen eine wartende Linux-Shell und die im [Dateitransfer-Workflow](docs/getting-started/file-transfer.md) genannten Programme. Sie prüfen SHA-256 und wählen einen neuen Namen, statt ein vorhandenes Ziel zu überschreiben. Während einer Übertragung fragt `Ctrl+C` in einem gemeinsamen Attachment nach einer Abbruchbestätigung; andere Schreibzugriffe bleiben bis zur Bereinigung und Lease-Freigabe gesperrt.
 
+Dateiübertragungen in GUI und CLI verwenden standardmäßig Base64 und benötigen `base64` und `tr` auf dem Gerät.
+Verwenden Sie `--wire raw` nur bei kompatiblen 8-Bit-Verbindungen ohne XON/XOFF; der Dateiinhalt bleibt unverändert.
+
 <a id="gdb-debugging"></a>
 
 ## Remote-Debugging mit GDB

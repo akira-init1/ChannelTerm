@@ -300,6 +300,16 @@ msgstr "Vérification"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "file.wire"
+msgstr "Encodage du transfert"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.wireHint"
+msgstr "Base64 nécessite base64 et tr sur cet appareil. Raw convient aux liaisons compatibles 8 bits sans XON/XOFF. Le contenu du fichier reste inchangé."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "help.clear"
 msgstr "Effacer l’affichage local supprime l’historique de défilement local au-dessus de la ligne actuelle. Aucune commande clear/reset n’est envoyée et l’historique du Host reste intact."
 

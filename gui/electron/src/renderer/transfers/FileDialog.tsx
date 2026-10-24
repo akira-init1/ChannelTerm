@@ -31,6 +31,7 @@ export function FileDialog({
   const [selected, setSelected] = useState("");
   const [local, setLocal] = useState<LocalSelection>();
   const [error, setError] = useState("");
+  const [wire, setWire] = useState<"base64" | "raw">("base64");
   useEffect(() => {
     dialog.current?.showModal();
     void browse(".");
@@ -156,6 +157,20 @@ export function FileDialog({
         <span>{local?.name}</span>
       </div>
       {error && <p role="alert">{error}</p>}
+      <label>
+        {t("file.wire")}
+        <select
+          value={wire}
+          disabled={busy}
+          onChange={(event) =>
+            setWire(event.target.value === "raw" ? "raw" : "base64")
+          }
+        >
+          <option value="base64">Base64</option>
+          <option value="raw">Raw</option>
+        </select>
+      </label>
+      <p className="file-hint">{t("file.wireHint")}</p>
       <footer>
         <button disabled={busy} onClick={onClose}>
           {t("connection.cancel")}
@@ -166,6 +181,7 @@ export function FileDialog({
           onClick={() => {
             if (!local || !directory) return;
             onStart({
+              wire,
               sessionId,
               direction,
               selectionId: local.id,

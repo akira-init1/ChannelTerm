@@ -98,6 +98,9 @@ It uses native streaming CJK decoders, complete-pair Big5/HKSCS decoding, and ic
 codepages to preserve split supplementary characters and avoid browser ISO/DOS alias limitations.
 Renderer formats hex or renders the supplied text; no Node codec dependency enters Renderer.
 The finite encoding catalog and codec are independent of Serial/SSH connection setup.
+The file dialog's Base64/raw selector is separate from terminal character encoding. Main validates
+the finite wire value and passes a fixed `--wire` argument to the companion CLI; no new command
+execution capability or MCP interface is exposed. Base64 is the default for both clients.
 The UTF-8 path still passes raw bytes to xterm. Missing output resets decoder and parser state;
 malformed device text uses replacement characters. Hex view prints received bytes and safe ASCII,
 never interpreting remote escapes; offsets count observed bytes and restart after a gap. Rows may

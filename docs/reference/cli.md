@@ -571,7 +571,7 @@ receive immediately; the key is echoed locally after `Select:` and no Enter is n
 and menu `Esc` remain local. Send defaults to POSIX `/tmp/cterm/user-files/<local-basename>` and
 receive defaults to local `./<remote-basename>`. During an active shortcut transfer, `Ctrl+C` starts
 a new line and prints the untimestamped prompt `[ChannelTerm] Cancel file transfer? [y/N]:`. The
-worker pauses at its next safe 8 KiB block boundary while the prompt is pending, and the
+worker pauses at its next safe block boundary while the prompt is pending, and the
 `file-transfer` lease remains held so ordinary AI/MCP `terminal_write` calls stay blocked. The
 attachment closes its progress redraw gate before printing the prompt, so a concurrent acknowledged
 block cannot overwrite the question. Only `y` or `Y` confirms cancellation. Printable answers are
@@ -670,7 +670,10 @@ The command requires no AI client. It joins an already-open host-owned Session, 
 `file-transfer` lease, and leaves the Session open after confirmed cleanup. It does not open a Serial Transport or
 start a Host itself. The default `attach` workflow starts the local Host when needed.
 
-Both directions use acknowledged 8 KiB chunks and display confirmed progress on one refreshed line.
+`--wire base64|raw` defaults to `base64`, requiring peer `base64 -d` and `tr`; explicit `raw`
+retains compatibility for eight-bit links without XON/XOFF. See
+[transfer encoding](../getting-started/file-transfer.md#transfer-encoding-and-compatibility).
+Both directions use bounded acknowledged blocks and display confirmed progress on one refreshed line.
 The 20-cell ASCII progress bar includes percentage, transferred and total sizes, speed, and ETA. A
 successful regular-file transfer finishes with `Local SHA-256`, `Remote SHA-256`, `Verify`, and
 `Saved`; cancellation and failure instead finish the progress line and report the last confirmed

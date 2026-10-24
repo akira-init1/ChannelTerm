@@ -29,6 +29,8 @@ export interface TransferStatus {
   released: boolean;
 }
 export interface TransferRequest {
+  /** Omitted older requests use the safe Base64 default. */
+  wire?: "base64" | "raw";
   sessionId: string;
   direction: "send" | "receive";
   selectionId: string;

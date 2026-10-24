@@ -300,6 +300,16 @@ msgstr "検証中"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "file.wire"
+msgstr "転送エンコーディング"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.wireHint"
+msgstr "Base64 にはデバイス側の base64 と tr が必要です。Raw は XON/XOFF を使わない互換性のある 8 ビット接続用です。ファイル内容は変更しません。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "help.clear"
 msgstr "ローカル表示のクリアは現在行より上のローカル履歴を消去します。clear/reset コマンドは送信せず、Host の履歴も変更しません。"
 

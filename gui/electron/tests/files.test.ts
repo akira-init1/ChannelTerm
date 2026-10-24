@@ -193,6 +193,16 @@ test("directory and local selection boundaries reject unsafe or stale targets", 
   const selection = files.remember("fake-file", "original", "send");
   await assert.rejects(
     files.transfer(host, {
+      sessionId: "original",
+      direction: "send",
+      selectionId: selection.id,
+      remotePath: "/tmp/a",
+      wire: "shell-command",
+    }),
+    { code: "invalid_input" },
+  );
+  await assert.rejects(
+    files.transfer(host, {
       sessionId: "replacement",
       direction: "send",
       selectionId: selection.id,

@@ -234,6 +234,9 @@ channelterm file receive /var/log/myapp ./myapp --session SER-1
 
 Las transferencias requieren una shell Linux inactiva y las herramientas del [flujo de transferencia](docs/getting-started/file-transfer.md). Verifican SHA-256 y eligen un nombre nuevo en lugar de sobrescribir un destino existente. Durante una transferencia, `Ctrl+C` en una conexión compartida pide confirmar la cancelación; las demás escrituras siguen bloqueadas hasta que la limpieza libera la concesión.
 
+Las transferencias de archivos de GUI y CLI usan Base64 de forma predeterminada y requieren `base64` y `tr` en el dispositivo.
+Use `--wire raw` solo en enlaces compatibles de 8 bits sin XON/XOFF; el contenido del archivo no cambia.
+
 <a id="gdb-debugging"></a>
 
 ## Depuración remota con GDB

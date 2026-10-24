@@ -300,6 +300,16 @@ msgstr "Verificando"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "file.wire"
+msgstr "Codificación de transferencia"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.wireHint"
+msgstr "Base64 requiere base64 y tr en el dispositivo. Raw es para enlaces compatibles de 8 bits sin XON/XOFF. El contenido del archivo no cambia."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "help.clear"
 msgstr "Limpiar la vista local elimina el historial de desplazamiento local situado por encima de la línea actual. No envía comandos clear/reset y conserva el historial del Host."
 

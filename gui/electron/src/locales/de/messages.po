@@ -300,6 +300,16 @@ msgstr "Wird geprüft"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "file.wire"
+msgstr "Übertragungskodierung"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.wireHint"
+msgstr "Base64 benötigt base64 und tr auf dem Gerät. Raw ist für kompatible 8-Bit-Verbindungen ohne XON/XOFF vorgesehen. Der Dateiinhalt bleibt unverändert."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "help.clear"
 msgstr "Das Leeren der lokalen Anzeige entfernt den lokalen Scrollback oberhalb der aktuellen Zeile. Es sendet keinen clear/reset-Befehl und lässt den Host-Verlauf unverändert."
 

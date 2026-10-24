@@ -218,6 +218,9 @@ channelterm file receive /var/log/myapp ./myapp --session SER-1
 
 傳輸需要閒置的 Linux shell，以及[檔案傳輸流程](docs/getting-started/file-transfer.md)列出的工具。傳輸會驗證 SHA-256，並選擇新名稱以避免覆寫既有目標。傳輸期間，在共用附件中按 `Ctrl+C` 會詢問是否取消；清理完成並釋放租約前，其他寫入者仍被阻擋。
 
+GUI 與 CLI 檔案傳輸預設使用 Base64，裝置需提供 `base64` 和 `tr`。
+僅在不使用 XON/XOFF 的相容八位元連線上選擇 `--wire raw`；檔案內容保持不變。
+
 <a id="gdb-debugging"></a>
 
 ## 使用 GDB 遠端除錯

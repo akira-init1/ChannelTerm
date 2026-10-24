@@ -180,25 +180,8 @@ func SendFileWithCancellation(ctx context.Context, terminal FileTransferSession,
 		if _, err := io.ReadFull(source, chunk); err != nil {
 			return FileTransferResult{}, fmt.Errorf("read local file at byte %d: %w", transferred, err)
 		}
-		if err := protocol.command(ctx, sendChunkCommand(protocol.token, quotedPath, chunkSize)); err != nil {
-			return FileTransferResult{}, err
-		}
-		if _, err := protocol.expect(ctx, "READY", strconv.FormatInt(chunkSize, 10)); err != nil {
-			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-				err = errors.Join(err, protocol.finishUnconfirmedSendChunk(chunkSize))
-			}
-			return FileTransferResult{}, fmt.Errorf("prepare remote file chunk at byte %d: %w", transferred, err)
-		}
-		written, err := writeFilePayload(ctx, terminal, chunk)
-		if err != nil {
-			cleanupErr := protocol.finishSendChunk(chunkSize-int64(written), chunkSize)
-			return FileTransferResult{}, errors.Join(fmt.Errorf("send file chunk at byte %d: %w", transferred, err), cleanupErr)
-		}
-		if _, err := protocol.expect(ctx, "ACK", strconv.FormatInt(chunkSize, 10)); err != nil {
-			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-				err = errors.Join(err, protocol.finishPendingMarker("ACK", strconv.FormatInt(chunkSize, 10)))
-			}
-			return FileTransferResult{}, fmt.Errorf("confirm remote file chunk at byte %d: %w", transferred, err)
+		if err := protocol.sendBlock(ctx, quotedPath, chunk); err != nil {
+			return FileTransferResult{}, fmt.Errorf("send file chunk at byte %d: %w", transferred, err)
 		}
 		if _, err := hasher.Write(chunk); err != nil {
 			return FileTransferResult{}, err
@@ -362,28 +345,9 @@ func ReceiveFileWithCancellation(ctx context.Context, terminal FileTransferSessi
 		if remaining := size - transferred; remaining < chunkSize {
 			chunkSize = remaining
 		}
-		if err := protocol.command(ctx, receiveChunkCommand(protocol.token, quotedPath, blockIndex, chunkSize)); err != nil {
-			return FileTransferResult{}, err
-		}
-		if _, err := protocol.expect(ctx, "DATA", strconv.FormatInt(chunkSize, 10)); err != nil {
-			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-				err = errors.Join(err, protocol.finishUnconfirmedReceiveChunk(chunkSize))
-			}
-			return FileTransferResult{}, fmt.Errorf("start remote file chunk at byte %d: %w", transferred, err)
-		}
 		chunk := buffer[:int(chunkSize)]
-		read, err := protocol.readExact(ctx, chunk)
-		if err != nil {
-			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-				err = errors.Join(err, protocol.finishReceiveChunk(chunk[int(read):], chunkSize))
-			}
-			return FileTransferResult{}, fmt.Errorf("receive remote file chunk at byte %d: %w", transferred, err)
-		}
-		if _, err := protocol.expect(ctx, "ACK", strconv.FormatInt(chunkSize, 10)); err != nil {
-			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-				err = errors.Join(err, protocol.finishPendingMarker("ACK", strconv.FormatInt(chunkSize, 10)))
-			}
-			return FileTransferResult{}, fmt.Errorf("confirm received file chunk at byte %d: %w", transferred, err)
+		if err := protocol.receiveBlock(ctx, quotedPath, blockIndex, chunk); err != nil {
+			return FileTransferResult{}, fmt.Errorf("receive file chunk at byte %d: %w", transferred, err)
 		}
 		if err := writeAllTo(destination, chunk); err != nil {
 			return FileTransferResult{}, fmt.Errorf("write local file at byte %d: %w", transferred, err)
@@ -449,6 +413,7 @@ func fileTransferCancellationCheckpoint(ctx context.Context, terminal FileTransf
 // read beyond a control marker. That pending buffer is essential for receive:
 // one Channel read can contain the DATA marker, raw payload, and ACK together.
 type fileProtocol struct {
+	wire     FileTransferWireEncoding
 	terminal FileTransferSession
 	token    string
 	cursor   session.OutputCursor
@@ -469,7 +434,25 @@ func newFileProtocol(ctx context.Context, terminal FileTransferSession) (*filePr
 	if err != nil {
 		return nil, fmt.Errorf("initialize file transfer output cursor: %w", err)
 	}
-	return &fileProtocol{terminal: terminal, token: token, cursor: recent.Next}, nil
+	p := &fileProtocol{terminal: terminal, token: token, cursor: recent.Next, wire: FileTransferWireRaw}
+	if selector, ok := terminal.(fileTransferWireSelector); ok {
+		if selected := selector.FileTransferWireEncoding(); selected != "" {
+			p.wire = selected
+		}
+	}
+	if p.wire != FileTransferWireRaw && p.wire != FileTransferWireBase64 {
+		return nil, errors.New("unsupported file transfer wire encoding")
+	}
+	if p.wire == FileTransferWireBase64 {
+		command := fmt.Sprintf("t='%s'; if command -v base64 >/dev/null 2>&1 && command -v tr >/dev/null 2>&1 && [ \"$(printf 'eA==' | base64 -d 2>/dev/null)\" = x ]; then printf '\\n@CTERM:%%s:WIRE:OK\\n' \"$t\"; else printf '\\n@CTERM:%%s:ERROR:base64-tools\\n' \"$t\"; fi", token)
+		if err := p.command(ctx, command); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(ctx, "WIRE", "OK"); err != nil {
+			return nil, err
+		}
+	}
+	return p, nil
 }
 
 func newFileTransferToken() (string, error) {
@@ -519,6 +502,9 @@ func (p *fileProtocol) expect(ctx context.Context, phase string, arguments ...st
 func (p *fileProtocol) expectPhase(ctx context.Context, phase string) ([]string, error) {
 	prefix := []byte("@CTERM:" + p.token + ":")
 	for {
+		if len(p.pending) > 2*fileProtocolReadSize {
+			return nil, fmt.Errorf("%w: oversized control record", ErrFileTransferProtocol)
+		}
 		if start := bytes.Index(p.pending, prefix); start >= 0 {
 			if end := bytes.IndexByte(p.pending[start:], '\n'); end >= 0 {
 				end += start

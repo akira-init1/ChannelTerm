@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -502,7 +503,9 @@ var (
 )
 
 type fileTransferTestSession struct {
-	mu sync.Mutex
+	wire                           FileTransferWireEncoding
+	missingBase64, malformedBase64 bool
+	mu                             sync.Mutex
 
 	output []byte
 	notify chan struct{}
@@ -525,6 +528,8 @@ type fileTransferTestSession struct {
 	shellActive           bool
 	interactiveCommands   []string
 }
+
+func (s *fileTransferTestSession) FileTransferWireEncoding() FileTransferWireEncoding { return s.wire }
 
 type cancelAfterFirstSendChunk struct{ *fileTransferTestSession }
 
@@ -712,6 +717,32 @@ func (s *fileTransferTestSession) Write(request session.WriteRequest) (int, erro
 	}
 	s.token = tokenMatch[1]
 	switch {
+	case strings.Contains(command, ":WIRE:OK"):
+		if s.missingBase64 {
+			s.emitLocked(fmt.Sprintf("\n@CTERM:%s:ERROR:base64-tools\n", s.token))
+		} else {
+			s.emitLocked(fmt.Sprintf("\n@CTERM:%s:WIRE:OK\n", s.token))
+		}
+	case strings.Contains(command, " | base64 -d >> "):
+		encoded := regexp.MustCompile(`printf '%s' '([A-Za-z0-9+/=]*)'`).FindStringSubmatch(command)
+		if len(encoded) != 2 {
+			return 0, errors.New("missing encoded payload")
+		}
+		decoded, err := base64.StdEncoding.Strict().DecodeString(encoded[1])
+		if err != nil {
+			return 0, err
+		}
+		s.received = append(s.received, decoded...)
+		s.emitLocked(fmt.Sprintf("\n@CTERM:%s:ACK:%d\n", s.token, len(decoded)))
+	case strings.Contains(command, ":B64:"):
+		index := mustFileTestNumber(command, regexp.MustCompile(` skip=([0-9]+) `))
+		start := index * fileTransferASCIIBlockSize
+		end := min(start+fileTransferASCIIBlockSize, len(s.remote))
+		encoded := base64.StdEncoding.EncodeToString(s.remote[start:end])
+		if s.malformedBase64 {
+			encoded = "!!!="
+		}
+		s.emitLocked(fmt.Sprintf("\n@CTERM:%s:B64:%s\n", s.token, encoded))
 	case s.failSleep && strings.Contains(command, ":SHELL:READY"):
 		s.emitLocked(fmt.Sprintf("\n@CTERM:%s:SHELL:ERROR:sleep\n", s.token))
 		s.shellActive = false

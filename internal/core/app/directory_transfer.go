@@ -472,25 +472,8 @@ func copyDirectoryStream(ctx context.Context, protocol *fileProtocol, source io.
 		if _, err := io.ReadFull(source, chunk); err != nil {
 			return fmt.Errorf("read local tar stream at byte %d: %w", transferred, err)
 		}
-		if err := protocol.command(ctx, sendChunkCommand(protocol.token, archive, chunkSize)); err != nil {
-			return err
-		}
-		if _, err := protocol.expect(ctx, "READY", strconv.FormatInt(chunkSize, 10)); err != nil {
-			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-				err = errors.Join(err, protocol.finishUnconfirmedSendChunk(chunkSize))
-			}
-			return fmt.Errorf("prepare remote tar chunk at byte %d: %w", transferred, err)
-		}
-		written, err := writeFilePayload(ctx, protocol.terminal, chunk)
-		if err != nil {
-			cleanupErr := protocol.finishSendChunk(chunkSize-int64(written), chunkSize)
-			return errors.Join(fmt.Errorf("send tar stream at byte %d: %w", transferred, err), cleanupErr)
-		}
-		if _, err := protocol.expect(ctx, "ACK", strconv.FormatInt(chunkSize, 10)); err != nil {
-			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-				err = errors.Join(err, protocol.finishPendingMarker("ACK", strconv.FormatInt(chunkSize, 10)))
-			}
-			return fmt.Errorf("confirm remote tar chunk at byte %d: %w", transferred, err)
+		if err := protocol.sendBlock(ctx, archive, chunk); err != nil {
+			return fmt.Errorf("send tar stream at byte %d: %w", transferred, err)
 		}
 		transferred += chunkSize
 		if progress != nil {
@@ -525,27 +508,8 @@ func receiveDirectoryStream(ctx context.Context, protocol *fileProtocol, destina
 			chunkSize = remaining
 		}
 		chunk := buffer[:int(chunkSize)]
-		if err := protocol.command(ctx, receiveChunkCommand(protocol.token, archive, blockIndex, chunkSize)); err != nil {
-			return err
-		}
-		if _, err := protocol.expect(ctx, "DATA", strconv.FormatInt(chunkSize, 10)); err != nil {
-			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-				err = errors.Join(err, protocol.finishUnconfirmedReceiveChunk(chunkSize))
-			}
-			return fmt.Errorf("start remote tar chunk at byte %d: %w", transferred, err)
-		}
-		read, err := protocol.readExact(ctx, chunk)
-		if err != nil {
-			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-				err = errors.Join(err, protocol.finishReceiveChunk(chunk[int(read):], chunkSize))
-			}
+		if err := protocol.receiveBlock(ctx, archive, blockIndex, chunk); err != nil {
 			return fmt.Errorf("receive tar stream at byte %d: %w", transferred, err)
-		}
-		if _, err := protocol.expect(ctx, "ACK", strconv.FormatInt(chunkSize, 10)); err != nil {
-			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-				err = errors.Join(err, protocol.finishPendingMarker("ACK", strconv.FormatInt(chunkSize, 10)))
-			}
-			return fmt.Errorf("confirm remote tar chunk at byte %d: %w", transferred, err)
 		}
 		if err := writeAllTo(destination, chunk); err != nil {
 			return fmt.Errorf("extract tar stream at byte %d: %w", transferred, err)

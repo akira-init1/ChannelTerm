@@ -300,6 +300,16 @@ msgstr "校验中"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "file.wire"
+msgstr "传输编码"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.wireHint"
+msgstr "Base64 需要设备提供 base64 和 tr。Raw 仅适用于不使用 XON/XOFF 的兼容 8 位链路。文件内容保持不变。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "help.clear"
 msgstr "清理本地显示会移除当前行上方的本地滚动记录；不会发送 clear/reset 命令，也不会删除 Host 历史。"
 

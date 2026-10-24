@@ -229,6 +229,9 @@ channelterm file receive /var/log/myapp ./myapp --session SER-1
 
 転送には、待機中の Linux シェルと[ファイル転送ガイド](docs/getting-started/file-transfer.md)に記載されたツールが必要です。SHA-256 を検証し、既存の宛先を上書きせず新しい名前を選びます。転送中に共有アタッチメントで `Ctrl+C` を押すとキャンセルの確認が表示されます。後処理がリースを解放するまで、他の書き込みはブロックされます。
 
+GUI と CLI のファイル転送は標準で Base64 を使用し、デバイス側に `base64` と `tr` が必要です。
+`--wire raw` は XON/XOFF を使わない互換性のある 8 ビット接続でのみ使用してください。ファイル内容は変更しません。
+
 <a id="gdb-debugging"></a>
 
 ## GDB によるリモートデバッグ

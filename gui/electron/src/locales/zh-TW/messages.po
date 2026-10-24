@@ -300,6 +300,16 @@ msgstr "驗證中"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "file.wire"
+msgstr "傳輸編碼"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.wireHint"
+msgstr "Base64 需要裝置提供 base64 和 tr。Raw 僅適用於不使用 XON/XOFF 的相容 8 位元連線。檔案內容保持不變。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "help.clear"
 msgstr "清除本機顯示會移除目前行上方的本機捲動歷史。不會傳送遠端 clear/reset 指令，也不會刪除 Host 的歷史記錄。"
 

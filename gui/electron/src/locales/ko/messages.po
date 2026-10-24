@@ -300,6 +300,16 @@ msgstr "검증 중"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "file.wire"
+msgstr "전송 인코딩"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.wireHint"
+msgstr "Base64는 장치에 base64와 tr이 필요합니다. Raw는 XON/XOFF를 사용하지 않는 호환 8비트 연결용입니다. 파일 내용은 변경되지 않습니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "help.clear"
 msgstr "로컬 화면 지우기는 현재 줄 위의 로컬 스크롤 기록을 제거합니다. 원격 clear/reset 명령을 보내지 않으며 Host의 기록은 그대로 유지됩니다."
 
