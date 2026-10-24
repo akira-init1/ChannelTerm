@@ -9,6 +9,7 @@ import (
 	"testing/synctest"
 	"time"
 
+	"github.com/akira-init1/ChannelTerm/internal/core/app"
 	"github.com/akira-init1/ChannelTerm/internal/core/session"
 )
 
@@ -159,8 +160,15 @@ func TestShortcutFileTransferLeaseHeartbeat(t *testing.T) {
 			if tt.err != nil && !errors.Is(err, context.Canceled) {
 				t.Errorf("transfer error = %v, want operation cancellation", err)
 			}
-			if attached.acquires != 1 || attached.renews != 1 || attached.releases != 1 {
-				t.Errorf("lease lifecycle = %d/%d/%d, want acquire/renew/release 1/1/1", attached.acquires, attached.renews, attached.releases)
+			wantReleases := 1
+			if tt.err != nil {
+				wantReleases = 0
+				if !errors.Is(err, app.ErrFileTransferRecoveryUnconfirmed) || attached.abortCtx == nil {
+					t.Fatalf("renewal failure did not request closure: %v", err)
+				}
+			}
+			if attached.acquires != 1 || attached.renews != 1 || attached.releases != wantReleases {
+				t.Errorf("lease lifecycle = %d/%d/%d, want acquire/renew/release 1/1/%d", attached.acquires, attached.renews, attached.releases, wantReleases)
 			}
 			if err := wrapped.Close(); err != nil {
 				t.Fatal(err)
@@ -168,8 +176,10 @@ func TestShortcutFileTransferLeaseHeartbeat(t *testing.T) {
 			if attached.closeCount() != 0 {
 				t.Fatal("shortcut closed the shared attachment")
 			}
-			if _, err := attached.Write(session.WriteRequest{Actor: session.ActorUser, Data: []byte("echo ready\r")}); err != nil {
-				t.Fatalf("input after transfer: %v", err)
+			if tt.err == nil {
+				if _, err := attached.Write(session.WriteRequest{Actor: session.ActorUser, Data: []byte("echo ready\r")}); err != nil {
+					t.Fatalf("input after successful transfer: %v", err)
+				}
 			}
 		})
 	}

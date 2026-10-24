@@ -97,8 +97,42 @@ func TestMCPAttachRecoveryAbortClosesHostSession(t *testing.T) {
 	if _, ok := host.manager.Get("board"); ok {
 		t.Fatal("Host Session remains registered after recovery abort")
 	}
+	if err := mcpSession.AbortFileTransferRecovery(ctx); err != nil {
+		t.Fatalf("duplicate recovery abort: %v", err)
+	}
 	if err := attached.Close(); err != nil {
 		t.Fatalf("Close() after recovery abort error = %v", err)
+	}
+}
+
+func TestMCPAttachDelayedRecoveryAbortDoesNotCloseReplacement(t *testing.T) {
+	host := newAttachTestHost(t)
+	defer host.close()
+	attached, err := newMCPAttachSession(context.Background(), host.server.URL, "board")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer attached.Close()
+	original, ok := host.manager.Remove("board")
+	if !ok {
+		t.Fatal("original Session missing")
+	}
+	_ = original.Close()
+	replacement, err := session.New("board", newAttachTestTransport())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := replacement.Connect(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if err := host.manager.Register(replacement); err != nil {
+		t.Fatal(err)
+	}
+	if err := attached.(*mcpAttachSession).AbortFileTransferRecovery(context.Background()); err == nil {
+		t.Fatal("delayed close unexpectedly resolved the old reference")
+	}
+	if replacement.State() != session.StateOpen {
+		t.Fatal("delayed recovery closed replacement")
 	}
 }
 

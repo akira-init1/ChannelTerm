@@ -74,12 +74,16 @@ type attachSessionFactory func(context.Context, string, string) (attachSession, 
 // existing MCP terminal tools. The remote Manager continues to own the actual
 // Session and its single Transport reader.
 type mcpAttachSession struct {
-	id            string
-	client        *protocol.ClientSession
-	leaseOwner    string
-	transferID    string
-	attached      bool
-	temporaryHost bool
+	id         string
+	client     *protocol.ClientSession
+	leaseOwner string
+	transferID string
+	// recoveryReference identifies the original Host registration for delayed
+	// file-transfer cleanup, even if a caller-supplied Session ID is reused.
+	recoveryReference string
+	recoveryAborted   bool
+	attached          bool
+	temporaryHost     bool
 	// fileTransferPresentationMu protects the transfer goroutine's local-owner
 	// state from the concurrent structured-event observer.
 	fileTransferPresentationMu    sync.RWMutex
@@ -815,6 +819,7 @@ func (s *mcpAttachSession) verify(ctx context.Context) error {
 	}
 	for _, candidate := range listed.Sessions {
 		if candidate.ID == s.id || candidate.Reference == s.id {
+			s.recoveryReference = candidate.Reference
 			return nil
 		}
 	}
@@ -958,16 +963,24 @@ func (s *mcpAttachSession) ReleaseFileTransferLease(ctx context.Context) error {
 // cannot restore a usable protocol state. Ordinary attachment Close still only
 // detaches and never invokes terminal_close.
 func (s *mcpAttachSession) AbortFileTransferRecovery(ctx context.Context) error {
+	if s.recoveryAborted {
+		return nil
+	}
+	identifier := s.recoveryReference
+	if identifier == "" {
+		identifier = s.id
+	}
 	var result struct {
 		Closed bool `json:"closed"`
 	}
-	if err := s.call(ctx, "terminal_close", map[string]any{"session_id": s.id}, &result); err != nil {
+	if err := s.call(ctx, "terminal_close", map[string]any{"session_id": identifier}, &result); err != nil {
 		return err
 	}
 	if !result.Closed {
 		return errors.New("file-transfer recovery abort did not close the Session")
 	}
 	s.attached = false
+	s.recoveryAborted = true
 	return nil
 }
 

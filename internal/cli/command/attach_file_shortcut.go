@@ -636,7 +636,7 @@ func (s nonClosingAttachSession) ReleaseFileTransferLease(ctx context.Context) e
 }
 
 // AbortFileTransferRecovery retains the explicit Session-close escape hatch
-// after a recovery timeout. Ordinary Close still leaves the attachment open.
+// after unconfirmed recovery. Ordinary Close still leaves the attachment open.
 func (s nonClosingAttachSession) AbortFileTransferRecovery(ctx context.Context) error {
 	aborter, ok := s.attachSession.(interface {
 		AbortFileTransferRecovery(context.Context) error

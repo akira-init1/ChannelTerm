@@ -70,6 +70,10 @@ type shellFileTransferSession struct {
 	stopOnce     sync.Once
 	stop         chan struct{}
 	done         chan struct{}
+	// Recovery must close a blocked heartbeat without waiting for writeMu.
+	// No Channel I/O or abort RPC runs while recoveryMu is held.
+	recoveryMu  sync.Mutex
+	recoveryErr error
 }
 
 func newShellFileTransferSession(ctx context.Context, terminal FileTransferSession) (*shellFileTransferSession, error) {
@@ -105,7 +109,8 @@ func (s *shellFileTransferSession) start(ctx context.Context) error {
 		return fmt.Errorf("initialize file-transfer shell cursor: %w", err)
 	}
 	if _, err := writeFilePayload(ctx, s.terminal, []byte(fileTransferShellBootstrapCommand(s.token)+"\n")); err != nil {
-		return fmt.Errorf("start remote file-transfer shell: %w", err)
+		// A partial bootstrap cannot safely accept an appended cleanup command.
+		return s.recoveryError(fmt.Errorf("start remote file-transfer shell: %w", err))
 	}
 	s.started = true
 	if err := waitForFileTransferShellMarker(ctx, s.terminal, recent.Next, fileTransferShellEchoHiddenMarker); err != nil {
@@ -167,9 +172,6 @@ func waitForFileTransferShellMarker(ctx context.Context, terminal FileTransferSe
 }
 
 func (s *shellFileTransferSession) close(ctx context.Context) error {
-	if !s.started {
-		return nil
-	}
 	s.stopOnce.Do(func() { close(s.stop) })
 	if s.heartbeatOn {
 		select {
@@ -180,6 +182,14 @@ func (s *shellFileTransferSession) close(ctx context.Context) error {
 	}
 
 	s.writeMu.Lock()
+	if err := s.failedRecovery(); err != nil {
+		s.writeMu.Unlock()
+		return err
+	}
+	if !s.started {
+		s.writeMu.Unlock()
+		return nil
+	}
 	if s.closed {
 		s.writeMu.Unlock()
 		return nil
@@ -218,7 +228,7 @@ func (s *shellFileTransferSession) heartbeatLoop() {
 func (s *shellFileTransferSession) heartbeat() {
 	s.writeMu.Lock()
 	defer s.writeMu.Unlock()
-	if !s.idle || s.closed || s.heartbeatErr != nil {
+	if !s.idle || s.closed || s.heartbeatErr != nil || s.failedRecovery() != nil {
 		return
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), fileTransferShellWriteTimeout)
@@ -232,6 +242,9 @@ func (s *shellFileTransferSession) heartbeat() {
 func (s *shellFileTransferSession) writeCommand(ctx context.Context, command string) error {
 	s.writeMu.Lock()
 	defer s.writeMu.Unlock()
+	if err := s.failedRecovery(); err != nil {
+		return err
+	}
 	if s.closed {
 		return errors.New("remote file-transfer shell is closed")
 	}
@@ -265,6 +278,9 @@ func (s *shellFileTransferSession) ReadOutput(ctx context.Context, cursor sessio
 func (s *shellFileTransferSession) Write(request session.WriteRequest) (int, error) {
 	s.writeMu.Lock()
 	defer s.writeMu.Unlock()
+	if err := s.failedRecovery(); err != nil {
+		return 0, err
+	}
 	if s.closed {
 		return 0, errors.New("remote file-transfer shell is closed")
 	}
@@ -277,6 +293,9 @@ func (s *shellFileTransferSession) Write(request session.WriteRequest) (int, err
 func (s *shellFileTransferSession) WriteContext(ctx context.Context, request session.WriteRequest) (int, error) {
 	s.writeMu.Lock()
 	defer s.writeMu.Unlock()
+	if err := s.failedRecovery(); err != nil {
+		return 0, err
+	}
 	if s.closed {
 		return 0, errors.New("remote file-transfer shell is closed")
 	}
@@ -312,10 +331,31 @@ func (s *shellFileTransferSession) FileTransferCancellationCheckpoint(ctx contex
 }
 
 func (s *shellFileTransferSession) recoveryError(err error) error {
-	if err == nil || !errors.Is(err, context.DeadlineExceeded) {
+	if err == nil {
 		return err
 	}
-	return (&fileProtocol{terminal: s.terminal}).recoveryError(err)
+	// Prevent outer deferred cleanup and idle heartbeats from sending more
+	// bytes after a failed raw-block recovery. Repeated cleanup reuses the
+	// original failure instead of closing a later operation's Session.
+	s.recoveryMu.Lock()
+	if s.recoveryErr != nil {
+		previous := s.recoveryErr
+		s.recoveryMu.Unlock()
+		return errors.Join(previous, err)
+	}
+	s.recoveryErr = errors.Join(ErrFileTransferRecoveryUnconfirmed, err)
+	s.recoveryMu.Unlock()
+	result := (&fileProtocol{terminal: s.terminal}).recoveryError(err)
+	s.recoveryMu.Lock()
+	s.recoveryErr = result
+	s.recoveryMu.Unlock()
+	return result
+}
+
+func (s *shellFileTransferSession) failedRecovery() error {
+	s.recoveryMu.Lock()
+	defer s.recoveryMu.Unlock()
+	return s.recoveryErr
 }
 
 // fileTransferShellBootstrapCommand deletes only its fresh token's history

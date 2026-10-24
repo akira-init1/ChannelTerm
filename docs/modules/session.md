@@ -28,7 +28,7 @@ caller must not run `Connect` concurrently with `Close`.
 
 Application may deliberately remove and close a Manager-owned Session when an application lease
 expires during an in-flight Channel write, a file-transfer lease expires even without an active
-write, or bounded file-transfer recovery times out. Application prevents new writes before
+write, or file-transfer recovery cannot be confirmed. Application prevents new writes before
 asynchronous expiry closure. This uses the existing `Close` contract to interrupt an otherwise
 non-cancellable Channel write; it does
 not add context or deadline semantics to the protocol-neutral Channel interface. Closure stops

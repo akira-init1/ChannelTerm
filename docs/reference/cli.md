@@ -649,7 +649,7 @@ Sessions require an explicit selection. `--endpoint` defaults to `http://127.0.0
 `/tmp/cterm/mcp-files/<local-basename>`. An explicit remote path remains authoritative.
 
 The command requires no AI client. It joins an already-open host-owned Session, acquires a temporary
-`file-transfer` lease, and normally leaves the Session open afterward. It does not open a Serial Transport or
+`file-transfer` lease, and leaves the Session open after confirmed cleanup. It does not open a Serial Transport or
 start a Host itself. The default `attach` workflow starts the local Host when needed.
 
 Both directions use acknowledged 8 KiB chunks and display confirmed progress on one refreshed line.
@@ -662,7 +662,8 @@ While the transfer lease is active, other ChannelTerm writers fail immediately. 
 bundled attachment opens a default-No confirmation; only `y` or `Y` cancels. Cancellation waits for
 a safe block boundary, restores the target TTY, removes temporary transfer data, and releases the
 lease before publishing its final result. If bounded recovery cannot restore a usable protocol
-state, or the file-transfer lease expires, ChannelTerm closes the original Host Session.
+state, or the file-transfer lease expires, ChannelTerm closes the original Host Session. This also
+applies to non-timeout recovery failures such as overwritten output or invalid acknowledgements.
 Closure does not prove remote program exit or TTY restoration; verify and recover device state
 independently before reconnecting. Exact recovery timing
 and failure behavior are documented in the

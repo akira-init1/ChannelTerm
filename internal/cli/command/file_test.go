@@ -403,8 +403,21 @@ func TestWithFileTransferLeaseCancelsOperationWhenHeartbeatFails(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "renew file transfer lease") {
 		t.Fatalf("withFileTransferLease() error = %v, want heartbeat failure", err)
 	}
-	if attached.acquires != 1 || attached.renews != 1 || attached.releases != 1 {
-		t.Errorf("lease lifecycle = acquire:%d renew:%d release:%d, want 1/1/1", attached.acquires, attached.renews, attached.releases)
+	if attached.acquires != 1 || attached.renews != 1 || attached.releases != 0 || !errors.Is(err, app.ErrFileTransferRecoveryUnconfirmed) {
+		t.Errorf("lost lease was released for reuse: acquire:%d renew:%d release:%d error:%v", attached.acquires, attached.renews, attached.releases, err)
+	}
+}
+
+func TestWithFileTransferLeaseDoesNotReleaseUnconfirmedRecovery(t *testing.T) {
+	attached := &leaseTrackingAttachSession{}
+	want := errors.Join(app.ErrFileTransferRecoveryUnconfirmed, app.ErrFileTransferProtocol)
+	err := withFileTransferLease(context.Background(), attached, "SER-1", func(context.Context) error { return want })
+	if !errors.Is(err, want) || attached.releases != 0 {
+		t.Fatalf("unconfirmed recovery released ownership: releases=%d err=%v", attached.releases, err)
+	}
+	metadata := fileTransferFailureMetadata(nil, errors.Join(want, context.Canceled))
+	if metadata["reason"] == fileTransferUserCancelled {
+		t.Fatal("unconfirmed recovery reported a safely completed cancellation")
 	}
 }
 

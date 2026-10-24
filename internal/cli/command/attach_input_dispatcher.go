@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/akira-init1/ChannelTerm/internal/cli/interactive"
+	"github.com/akira-init1/ChannelTerm/internal/core/app"
 	"github.com/akira-init1/ChannelTerm/internal/core/session"
 )
 
@@ -654,9 +655,9 @@ func (d *attachInputDispatcher) finishTransfer(err error) {
 		}
 		return
 	}
-	// Recovery may close the Session and cancel the attachment after a timeout.
+	// Unconfirmed recovery may close the Session and cancel the attachment.
 	// Preserve that failure instead of blaming the user for the resulting cancel.
-	if (cancelled || errors.Is(err, context.Canceled)) && !errors.Is(err, context.DeadlineExceeded) {
+	if (cancelled || errors.Is(err, context.Canceled)) && !errors.Is(err, context.DeadlineExceeded) && !errors.Is(err, app.ErrFileTransferRecoveryUnconfirmed) {
 		_ = d.writeTransferStatus(fileTransferCancelledSummaryText(time.Now(), progress))
 		return
 	}

@@ -276,9 +276,11 @@ lease owner capability.
 ## Shared Session file transfer
 
 File transfer uses the same Session write and output-cursor semantics. It obtains a `file-transfer`
-lease before its first protocol command, renews it every 10 seconds, and releases it on success,
-failure, or cancellation. Bundled clients continue renewing during cancellation cleanup until the
-operation returns, then stop the heartbeat before releasing ownership. A send creates a missing
+lease before its first protocol command, renews it every 10 seconds, and releases it after confirmed
+shell recovery on success, failure, or cancellation. Bundled clients continue renewing during
+cancellation cleanup until the operation returns, then stop the heartbeat. Unconfirmed recovery or
+renewal failure requests closure instead of releasing the lease for reuse; if that request fails,
+Host-side expiry remains the fallback. A send creates a missing
 remote destination hierarchy before payload transmission and reuses an existing hierarchy.
 Destination collision selection remains the first
 free `_N` sibling.
@@ -313,11 +315,15 @@ Send initialization probes `dd iflag=fullblock`; a minimal `dd` instead reads on
 A cancelled or failed operation uses independent recovery contexts to pad or drain its active raw
 block and consume the post-restoration acknowledgement before sending further shell commands.
 Recovery also removes directory-transfer staging data. Each recovery
-I/O operation has a 15-second deadline and does not inherit the cancelled operation context. If
-recovery reaches that deadline, the bundled MCP attachment invokes `terminal_close` with a separate
-five-second-bounded request. This releases an in-flight Host write and prevents an unusable protocol
-state from retaining the Session or lease. Recovery timeout errors are joined with the original
-failure. Independent readers continue to see raw output, including received file bytes.
+I/O operation has a 15-second deadline and does not inherit the cancelled operation context.
+Unconfirmed recovery, including overwritten output, invalid recovery acknowledgements, or an
+unconfirmed child-shell exit, invokes `terminal_close` with a separate five-second-bounded request.
+`ErrFileTransferRecoveryUnconfirmed` preserves the underlying error and prevents deferred release
+even if closure fails. Further shell cleanup writes stop after this failure. A peer read/write
+failure marker emitted after the raw block can still proceed to outer shell-exit confirmation;
+ordinary transfer errors with confirmed recovery retain the connection. Independent readers see
+raw output while the Session remains open, including received file bytes. Closing discards retained
+buffers, so delivery of final events to every observer is not guaranteed.
 
 The CLI transfer adapter lets an in-flight write return its acknowledged byte count after cancellation,
 with a 15-second response grace. Abandoning an MCP response immediately could mistake delivered bytes
