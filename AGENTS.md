@@ -262,6 +262,43 @@ commit dates, rebase shared branches, delete branches, delete/modify tags, creat
 create/modify releases, change the license, or run `git reset --hard`, `git clean`,
 `git checkout -- <file>`, or `git restore <file>`. Never discard unrelated changes for convenience.
 
+### Development Tasks and Git Branches
+
+1. **Task boundaries**
+   - One independently verifiable feature, bug fix, or refactor should generally be treated as one development task.
+   - Related implementation, tests, CLI help, and documentation belong to the same task.
+   - Minor fixes and follow-up changes should remain in the current task when they share the same acceptance criteria.
+   - Split unrelated objectives into separate tasks.
+
+2. **Branch workflow**
+   - `main` is the primary integration branch.
+   - Develop independent features and fixes on short-lived branches.
+   - After validation and approval, merge completed work into `main`.
+   - Create subsequent feature branches from the latest `main` whenever practical.
+   - Do not use permanent branches for individual GUI frameworks or features.
+   - Do not automatically create, rename, switch, merge, or delete branches without explicit authorization.
+
+3. **Branch naming**
+   - `feat/<scope>-<feature>` — new functionality.
+   - `fix/<scope>-<issue>` — bug fixes.
+   - `refactor/<scope>-<goal>` — refactoring.
+   - `test/<scope>-<goal>` — tests.
+   - `docs/<scope>-<goal>` — documentation.
+   - `build/<scope>-<goal>` — build and release tooling.
+   - Prefer names describing a concrete deliverable, not an indefinite development area.
+
+4. **Multiple frontends**
+   - CLI, Electron GUI, and potential future GUI implementations must remain independently buildable.
+   - GUI implementations should reside in separate directories.
+   - Frontends should reuse the existing Go Host/Core rather than duplicate its business logic.
+   - A new frontend does not require a permanent Git branch or a separate repository.
+   - Future GUI frameworks must not be treated as implemented until actual code exists.
+
+5. **Completion and integration**
+   - Run relevant tests and checks before recommending integration.
+   - Report changes, test results, compatibility impact, and remaining limitations.
+   - Do not automatically stage, commit, push, merge, or publish without explicit user approval.
+
 ## 9. Maintaining This File
 
 `AGENTS.md` owns long-lived governance and necessary current high-level facts, not a detailed tree,
