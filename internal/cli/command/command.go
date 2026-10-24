@@ -883,10 +883,19 @@ func runSerialWithTarget(ctx context.Context, args []string, input io.Reader, ou
 
 	cursor := session.OutputCursor(0)
 	lastOutputEndedLine := true
+	stopFlush := startPresentationFlush(sessionCtx, &outputMu, promptTimestamps, renderer, cancel)
+	defer func() {
+		if flushErr := stopFlush(); err == nil && flushErr != nil {
+			err = flushErr
+		}
+	}()
 	for {
 		chunk, err := terminal.ReadOutput(sessionCtx, cursor, 32*1024)
 		if err != nil {
 			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+				if flushErr := stopFlush(); flushErr != nil {
+					return flushErr
+				}
 				if flushErr := flushTerminalOutput(); flushErr != nil {
 					return fmt.Errorf("flush serial output: %w", flushErr)
 				}

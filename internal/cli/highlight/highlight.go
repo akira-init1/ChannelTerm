@@ -37,7 +37,8 @@ func WithColorProfile(profile termenv.Profile) Option {
 //
 // Renderer is not safe for concurrent use. One attached terminal client must
 // own one Renderer and serialize Write and Flush calls around any unrelated
-// local status output. It never modifies the caller's input slice.
+// local status output. ReleasePending must use the same serialization. It never
+// modifies the caller's input slice.
 type Renderer struct {
 	output          io.Writer
 	pending         []byte
@@ -162,6 +163,22 @@ func (r *Renderer) Flush() error {
 	r.rawUntilNewline = false
 	// Local status output establishes a new prompt presentation boundary.
 	r.vt.lineHasText = false
+	return nil
+}
+
+// ReleasePending emits an incomplete line raw and keeps subsequent bytes raw
+// until newline. Interactive callers use it periodically so an unknown prompt
+// never waits indefinitely for Enter. Unlike Flush, this does not establish a
+// local status boundary or reset remote VT state. An empty buffer is a no-op.
+func (r *Renderer) ReleasePending() error {
+	if len(r.pending) == 0 {
+		return nil
+	}
+	if err := writeAll(r.output, r.pending); err != nil {
+		return err
+	}
+	r.pending = nil
+	r.rawUntilNewline = true
 	return nil
 }
 

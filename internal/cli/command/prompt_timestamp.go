@@ -16,7 +16,8 @@ const maxPromptTimestampPendingBytes = 8 * 1024
 // Session read boundaries cannot change detection. The bytes it forwards are
 // otherwise unchanged and it never owns Session output.
 //
-// Callers serialize Write, Toggle, and Flush with their local output writer.
+// Callers serialize Write, Toggle, Flush, and releasePending with their local
+// output writer. Interactive callers periodically release incomplete candidates.
 type promptTimestampRenderer struct {
 	write           func([]byte) error
 	flush           func() error
@@ -132,6 +133,22 @@ func (r *promptTimestampRenderer) Write(data []byte) error {
 // orderly disconnect.
 func (r *promptTimestampRenderer) Flush() error {
 	return r.flushPending()
+}
+
+// releasePending abandons timestamp recognition for this incomplete line.
+// Echo must remain raw until its line boundary; resetting state as Flush does
+// would just buffer the next key again. The caller also releases the downstream
+// highlighter, without resetting either renderer's presentation boundary.
+func (r *promptTimestampRenderer) releasePending() error {
+	if len(r.pending) == 0 {
+		return nil
+	}
+	if err := r.write(r.pending); err != nil {
+		return err
+	}
+	r.pending = nil
+	r.rawUntilNewline = true
+	return nil
 }
 
 func (r *promptTimestampRenderer) flushPending() error {

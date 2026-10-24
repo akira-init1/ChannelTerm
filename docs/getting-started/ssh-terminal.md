@@ -60,6 +60,10 @@ the server's shell output. At the remote prompt, enter:
 uname -a
 ```
 
+SSH and serial use the same [local prompt presentation](../reference/cli.md#serial).
+Custom prompts and received key echo are displayed even without a newline. This does not enable
+local echo: passwords and other input hidden by the remote terminal remain hidden.
+
 The output depends on the remote system. In a second terminal, join the same Session:
 
 ```bash

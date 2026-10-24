@@ -32,6 +32,12 @@ func sshCommandServer(t *testing.T) (args []string, closed <-chan struct{}) {
 }
 
 func sshCommandServerWithPassword(t *testing.T, password bool) (args []string, closed <-chan struct{}) {
+	return sshCommandServerWithShell(t, password, nil)
+}
+
+// sshCommandServerWithShell optionally supplies a byte-oriented shell so tests
+// can observe echo without relying on a newline or a system shell.
+func sshCommandServerWithShell(t *testing.T, password bool, shell func(gossh.Channel)) (args []string, closed <-chan struct{}) {
 	t.Helper()
 	_, privateKey, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
@@ -102,6 +108,10 @@ func sshCommandServerWithPassword(t *testing.T, password bool) (args []string, c
 				_ = req.Reply(req.Type == "pty-req" || req.Type == "shell", nil)
 				if req.Type != "shell" {
 					continue
+				}
+				if shell != nil {
+					shell(ch)
+					return
 				}
 				_, _ = ch.Write([]byte("test-shell$ "))
 				reader := bufio.NewReader(ch)

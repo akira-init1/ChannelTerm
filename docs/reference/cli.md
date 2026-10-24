@@ -245,6 +245,12 @@ Side effects and lifecycle:
   | Remote login | `login: `, `board login: `, `Password: ` (no local password echo) |
   | initramfs recovery | `(initramfs) ` |
   | Interactive GDB | `(gdb) ` (terminal display only) |
+- Unknown or incomplete prompts also remain usable: `serial`, `connect`, `attach`, and `ssh`
+  release pending display bytes on a 50 ms timer, without waiting for remote output or a keypress.
+  Scheduling and a blocked local output writer can delay delivery. Released fragments and subsequent
+  echo remain unstyled until newline; a slowly arriving prompt may therefore receive no timestamp.
+  Both presentation layers use this fallback, preserving bytes and remote ANSI/VT state. Display
+  errors stop the local CLI operation with an error; its existing Session ownership rules apply.
 - The highlighter assigns non-bold semantic colors to status words, boot headings, field names,
   embedded interface/protocol identifiers, addresses, versions, timestamps, numbers, units, quoted
   values, structural `()`, `[]`, and `{}` delimiters, and recognized shell-prompt components. It
