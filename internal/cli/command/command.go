@@ -26,6 +26,7 @@ import (
 	"github.com/akira-init1/ChannelTerm/internal/core/session"
 	"github.com/akira-init1/ChannelTerm/internal/core/tool"
 	serialtransport "github.com/akira-init1/ChannelTerm/internal/core/transport/serial"
+	"github.com/akira-init1/ChannelTerm/internal/guiapi"
 	initmcp "github.com/akira-init1/ChannelTerm/internal/init/mcp"
 	"github.com/akira-init1/ChannelTerm/internal/mcp"
 	"github.com/akira-init1/ChannelTerm/internal/mcp/terminal"
@@ -487,7 +488,11 @@ func runMCP(ctx context.Context, args []string, output io.Writer) (err error) {
 	if err := devices.Start(ctx); err != nil {
 		return fmt.Errorf("initialize device registry: %w", err)
 	}
-	registry, err := newMCPRegistryWithPolicy(manager, devices, resolvedPolicy)
+	application, err := app.New(app.Dependencies{Manager: manager, Devices: devices, Policy: resolvedPolicy, Build: app.BuildProvenance{Version: version, Commit: buildCommit, Time: buildTime}})
+	if err != nil {
+		return fmt.Errorf("create Host application: %w", err)
+	}
+	registry, err := newMCPRegistryForApplication(application)
 	if err != nil {
 		return err
 	}
@@ -499,7 +504,7 @@ func runMCP(ctx context.Context, args []string, output io.Writer) (err error) {
 		return err
 	}
 	temporaryHost := os.Getenv(internalTemporaryHostEnvVar) == "1"
-	return runMCPHTTP(ctx, registry, *listen, endpointPath, token, temporaryHost, os.Stderr)
+	return runMCPHTTP(ctx, registry, *listen, endpointPath, token, temporaryHost, os.Stderr, guiapi.NewSSHHandler(application))
 }
 
 // loadHTTPAuthToken resolves one credential for both Host and built-in client
@@ -535,12 +540,12 @@ func normalizeMCPPath(path string) (string, error) {
 // The HTTP server is stopped with a bounded graceful shutdown. The handler owns
 // only temporary MCP request state; manager-owned terminal Sessions are closed
 // by runMCP after this function returns.
-func runMCPHTTP(ctx context.Context, registry *tool.Registry, listen, path, token string, temporaryHost bool, stderr io.Writer) error {
+func runMCPHTTP(ctx context.Context, registry *tool.Registry, listen, path, token string, temporaryHost bool, stderr io.Writer, gui http.Handler) error {
 	listener, err := net.Listen("tcp", listen)
 	if err != nil {
 		return fmt.Errorf("listen for MCP Streamable HTTP on %q: %w", listen, err)
 	}
-	return serveMCPHTTP(ctx, registry, listener, path, token, temporaryHost, stderr, false)
+	return serveMCPHTTP(ctx, registry, listener, path, token, temporaryHost, stderr, false, gui)
 }
 
 // serveMCPHTTP takes ownership of a bound listener. SSH reserves its local
@@ -548,7 +553,7 @@ func runMCPHTTP(ctx context.Context, registry *tool.Registry, listen, path, toke
 // closeOnCancel is used by a foreground SSH owner after closing its Sessions:
 // remaining client connections have no live Session to finish and are closed
 // immediately. Standalone MCP Hosts retain their graceful shutdown behavior.
-func serveMCPHTTP(ctx context.Context, registry *tool.Registry, listener net.Listener, path, token string, temporaryHost bool, stderr io.Writer, closeOnCancel bool) error {
+func serveMCPHTTP(ctx context.Context, registry *tool.Registry, listener net.Listener, path, token string, temporaryHost bool, stderr io.Writer, closeOnCancel bool, gui http.Handler) error {
 	handler, err := mcp.NewStreamableHTTPHandler(registry, version)
 	if err != nil {
 		closeErr := listener.Close()
@@ -559,6 +564,11 @@ func serveMCPHTTP(ctx context.Context, registry *tool.Registry, listener net.Lis
 	}
 	mux := http.NewServeMux()
 	mux.Handle(path, requireBearerToken(token, advertiseHostLifetime(temporaryHost, handler)))
+	// Preserve every existing custom MCP path, including a collision with this
+	// optional desktop endpoint. Foreground SSH owners expose no creation API.
+	if gui != nil && path != guiapi.SSHPath {
+		mux.Handle(guiapi.SSHPath, requireBearerToken(token, gui))
+	}
 	server := &http.Server{Handler: mux}
 	endpoint := httpEndpoint(listener.Addr().String(), path)
 	if !isLoopbackListen(listener.Addr().String()) {
@@ -655,11 +665,16 @@ func newMCPRegistry(manager *session.Manager, devices *device.Registry) (*tool.R
 // for a single MCP process. It wires an already resolved policy into the
 // read-only decision tool without allowing device discovery to create Sessions.
 func newMCPRegistryWithPolicy(manager *session.Manager, devices *device.Registry, policy connectionpolicy.Policy) (*tool.Registry, error) {
-	registry := tool.NewRegistry()
 	application, err := app.New(app.Dependencies{Manager: manager, Devices: devices, Policy: policy, Build: app.BuildProvenance{Version: version, Commit: buildCommit, Time: buildTime}})
 	if err != nil {
 		return nil, fmt.Errorf("create MCP application: %w", err)
 	}
+	return newMCPRegistryForApplication(application)
+}
+
+// newMCPRegistryForApplication shares one authority across Host adapters.
+func newMCPRegistryForApplication(application *app.Application) (*tool.Registry, error) {
+	registry := tool.NewRegistry()
 	tools, err := terminal.NewTools(application)
 	if err != nil {
 		return nil, fmt.Errorf("create terminal tools: %w", err)

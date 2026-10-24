@@ -167,6 +167,9 @@ No token is passed to React or stored in GUI preferences. Development runner var
 `CHANNELTERM_GUI_DEV_` are internal and not Host configuration. See the
 [GUI workflow](../development/electron-gui.md#connect-to-an-existing-host).
 
+Desktop SSH connection fields are transient Host-side settings described in the
+[desktop Host API](gui-host-api.md); no new TOML fields or saved profiles are added.
+
 ## SSH CLI settings
 
 SSH connections use explicit CLI options and do not add TOML fields or saved profiles. The CLI

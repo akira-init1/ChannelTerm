@@ -22,6 +22,7 @@ import (
 	"github.com/akira-init1/ChannelTerm/internal/core/device"
 	"github.com/akira-init1/ChannelTerm/internal/core/session"
 	serialtransport "github.com/akira-init1/ChannelTerm/internal/core/transport/serial"
+	"github.com/akira-init1/ChannelTerm/internal/guiapi"
 )
 
 // newSerialSession is retained only as a test dependency for validation paths
@@ -163,7 +164,7 @@ func TestRunMCPHTTPShutsDownOnContextCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	var stderr bytes.Buffer
-	if err := runMCPHTTP(ctx, registry, "127.0.0.1:0", "/mcp", "test-token", false, &stderr); err != nil {
+	if err := runMCPHTTP(ctx, registry, "127.0.0.1:0", "/mcp", "test-token", false, &stderr, nil); err != nil {
 		t.Fatalf("runMCPHTTP() error = %v", err)
 	}
 	if !strings.Contains(stderr.String(), "MCP Streamable HTTP listening on http://127.0.0.1:") || !strings.Contains(stderr.String(), "/mcp") {
@@ -188,7 +189,7 @@ func TestRunMCPHTTPWarnsWhenNetworkExposed(t *testing.T) {
 	var stderr bytes.Buffer
 	listener := &networkWarningListener{closed: make(chan struct{})}
 	defer listener.Close()
-	if err := serveMCPHTTP(ctx, registry, listener, "/mcp", "test-token", false, &stderr, false); err != nil {
+	if err := serveMCPHTTP(ctx, registry, listener, "/mcp", "test-token", false, &stderr, false, nil); err != nil {
 		t.Fatalf("serveMCPHTTP() error = %v", err)
 	}
 	for _, warning := range []string{
@@ -253,6 +254,58 @@ func TestMCPHTTPBearerAuthentication(t *testing.T) {
 				t.Errorf("handler called = %t for status %d", called, tt.status)
 			}
 		})
+	}
+}
+
+// TestGUIEndpointUsesHostAuthentication exercises the mounted sidecar route,
+// including denied browser origins and a non-default MCP path.
+func TestGUIEndpointUsesHostAuthentication(t *testing.T) {
+	manager := session.NewManager()
+	defer manager.Close()
+	registry, err := newMCPRegistry(manager, newTestDeviceRegistry(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() {
+		done <- serveMCPHTTP(ctx, registry, listener, "/custom-mcp", "fixture-token", false, io.Discard, false, guiapi.NewSSHHandler(nil))
+	}()
+	defer func() {
+		cancel()
+		if err := <-done; err != nil {
+			t.Error(err)
+		}
+	}()
+	client := &http.Client{Timeout: time.Second}
+	for _, tc := range []struct {
+		token, origin string
+		status        int
+	}{
+		{"", "", 401}, {"wrong", "", 401}, {"fixture-token", "https://untrusted.invalid", 403}, {"fixture-token", "", 200},
+	} {
+		r, err := http.NewRequest(http.MethodGet, "http://"+listener.Addr().String()+guiapi.SSHPath, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if tc.token != "" {
+			r.Header.Set("Authorization", "Bearer "+tc.token)
+		}
+		if tc.origin != "" {
+			r.Header.Set("Origin", tc.origin)
+		}
+		response, err := client.Do(r)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_ = response.Body.Close()
+		if response.StatusCode != tc.status {
+			t.Fatalf("status=%d want %d", response.StatusCode, tc.status)
+		}
 	}
 }
 

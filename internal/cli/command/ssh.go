@@ -210,7 +210,7 @@ func runSSH(ctx context.Context, args []string, input io.Reader, output io.Write
 	defer stopServer()
 	serverDone := make(chan error, 1)
 	go func() {
-		serverDone <- serveMCPHTTP(serverCtx, registry, listener, defaultMCPPath, token, false, io.Discard, true)
+		serverDone <- serveMCPHTTP(serverCtx, registry, listener, defaultMCPPath, token, false, io.Discard, true, nil)
 		stopHost()
 	}()
 	defer func() {

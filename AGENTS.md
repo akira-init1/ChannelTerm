@@ -50,6 +50,7 @@ Place code by responsibility, using these stable boundaries:
 | `scripts/`, `.github/workflows/` | Local automation and hosted CI/tagged releases respectively; no product behavior |
 | `skills/` | AI workflows over public interfaces; no product logic, schemas, or duplicated reference docs |
 | `gui/electron/` | Independent Electron client, safe IPC, terminal presentation, authenticated Host adapter; no Core or lease authority |
+| `internal/guiapi/` | Narrow authenticated desktop HTTP adaptation to Application; no SSH implementation, Session ownership, or MCP schema changes |
 | `docs/` | Durable public technical documentation |
 
 Mandatory architecture rules:

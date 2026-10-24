@@ -10,6 +10,10 @@ retains the Manager directly for transport-neutral Session lookup, listing, and 
 Transport-specific services use that same Manager to coordinate endpoint open/reuse and transfer
 successfully connected Sessions into Manager ownership.
 
+The standalone HTTP Host shares one Application between MCP and the
+[desktop connection adapter](../reference/gui-host-api.md). GUI SSH creation reuses `OpenSSH`;
+no GUI-specific lifecycle or authentication policy is added to Core.
+
 ## Use cases
 
 - `OpenSerial`: load or create configuration, resolve a profile, apply explicit overrides,

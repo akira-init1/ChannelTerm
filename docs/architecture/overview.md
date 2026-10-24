@@ -8,6 +8,7 @@ embedded-system, and terminal debugging, while the Core remains transport-neutra
 flowchart TB
     cli["CLI Adapter"] --> application["internal/core/app.Application"]
     mcp["MCP Adapter"] --> tools["Tool Registry"] --> application
+    guiapi["Authenticated desktop HTTP adapter"] --> application
     application --> sessions["Session / Manager"]
     application --> devices["Device Registry"]
     application --> policy["Connection Policy"]

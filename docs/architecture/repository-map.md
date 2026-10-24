@@ -39,6 +39,7 @@ ChannelTerm/
 |   |       `-- serial/             Serial implementation, discovery, metadata
 |   |-- transport/
 |   |   `-- ssh/                    SSH authentication, PTY shell Channels, dedicated SFTP/SCP clients
+|   |-- guiapi/                     Desktop HTTP connection adapter over the existing Application
 |   `-- mcp/
 |       |-- server.go               MCP server and stdio/HTTP adaptation
 |       `-- terminal/               Terminal tool names, schemas, and translation
@@ -67,6 +68,11 @@ Tests use `*_test.go` beside the packages they exercise. The repository does not
 outside `internal/`; consumers use the executable's CLI and MCP boundaries.
 
 The main ownership distinctions are deliberate:
+
+- **Desktop HTTP adapter:** `internal/guiapi` exposes bounded SSH creation on the existing
+  authenticated HTTP Host. CLI composition mounts it beside MCP with the same Application;
+  it owns no Transport implementation or Session lifecycle. See the
+  [desktop Host API](../reference/gui-host-api.md).
 
 - **Automation:** `.github/workflows` enforces hosted repository checks and publishes verified tag
   builds through GitHub Releases. `scripts` owns local build and release verification without
