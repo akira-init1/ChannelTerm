@@ -11,6 +11,11 @@ import { extname, join, resolve, sep } from "node:path";
 import { channels, type Result } from "../shared/api";
 import { HostClient } from "./host/client";
 import { hostEndpoint, loadToken } from "./host/config";
+import {
+  companionPath,
+  defaultHostEndpoint,
+  localHostStartup,
+} from "./host/startup";
 import { HostError, publicError } from "./host/errors";
 import { identifier, input } from "./host/validation";
 import { initialMenuState, isMenuState } from "../shared/menus";
@@ -40,6 +45,12 @@ let host: HostClient | undefined;
 let connecting = false;
 let quitting = false;
 let connectionVersion = 0;
+let startupController = new AbortController();
+const startup = localHostStartup(
+  companionPath(
+    app.isPackaged ? process.resourcesPath : resolve(__dirname, ".."),
+  ),
+);
 
 function requestQuit(): void {
   // Return an IPC reply before normal before-quit cleanup closes the renderer.
@@ -48,6 +59,7 @@ function requestQuit(): void {
 
 function disconnectHost(): Promise<void> {
   connectionVersion++;
+  startupController.abort();
   return host?.disconnect() ?? Promise.resolve();
 }
 
@@ -61,6 +73,9 @@ function registerIPC(): void {
     [channels.info]: () => ({
       endpoint: hostEndpoint(process.env.CHANNELTERM_GUI_ENDPOINT).href,
       lifetime: "unknown",
+      autoConnect:
+        hostEndpoint(process.env.CHANNELTERM_GUI_ENDPOINT).href ===
+        defaultHostEndpoint,
     }),
     [channels.connect]: async () => {
       if (connecting)
@@ -70,9 +85,14 @@ function registerIPC(): void {
         const cleanup = disconnectHost();
         const version = connectionVersion;
         await cleanup;
+        const controller = new AbortController();
+        startupController = controller;
         const endpoint = hostEndpoint(
           process.env.CHANNELTERM_GUI_ENDPOINT,
         ).href;
+        if (version !== connectionVersion || !window || quitting)
+          throw new HostError("cancelled", "Connection cancelled.");
+        await startup.ensure(endpoint, controller.signal);
         const token = await loadToken();
         if (version !== connectionVersion || !window || quitting)
           throw new HostError("cancelled", "Connection cancelled.");

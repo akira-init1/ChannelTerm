@@ -46,6 +46,10 @@ Electron-specific review rules. Do not duplicate the source tree or Go/MCP contr
 - Closing, reloading, detaching, or disconnecting a GUI releases only its client resources. Do
   not close a shared Session, stop an independently owned Host, or release another client's
   Lease as attachment cleanup. Stale asynchronous completions must not revive old attachments.
+- Automatic local Host startup belongs in Main and is restricted to the canonical loopback
+  endpoint and app-owned companion path. Only a refused listener permits startup; authentication,
+  protocol and probe errors must not spawn a replacement. Keep launch arguments fixed, use no
+  shell or PATH lookup, retain Host authentication, and leave shared Sessions alive on GUI exit.
 
 ## 3. Renderer features and component responsibilities
 

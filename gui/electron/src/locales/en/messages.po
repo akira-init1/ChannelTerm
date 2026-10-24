@@ -156,7 +156,7 @@ msgstr "Close help"
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
 msgid "help.connect"
-msgstr "Connect to a Host, then use Connection > New connection to open serial or SSH Sessions. SSH creation requires an updated standalone Host."
+msgstr "The local Host connects or starts automatically. Use Connection > New connection for serial or SSH. Custom Host endpoints connect manually."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

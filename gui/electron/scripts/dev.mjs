@@ -3,7 +3,9 @@ import { randomBytes } from "node:crypto";
 import electron from "electron";
 import { createServer } from "vite";
 import { buildProcesses } from "./build.mjs";
+import { prepareHost } from "./build-host.mjs";
 
+await prepareHost();
 await buildProcesses({ strictCatalogs: false });
 const nonce = randomBytes(16).toString("hex");
 const server = await createServer({ html: { cspNonce: nonce } });

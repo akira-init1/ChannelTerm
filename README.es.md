@@ -371,7 +371,7 @@ seleccionado, no los archivos predeterminados `state.json` ni `http-auth-token`.
 ## Documentación
 
 - [Índice de documentación](docs/README.md)
-- [Prototipo GUI Electron y desarrollo](docs/development/electron-gui.md) — Cree sesiones serie y SSH mediante un Host en ejecución con autenticación.
+- [Prototipo GUI Electron y desarrollo](docs/development/electron-gui.md) — El Host local predeterminado se conecta o inicia automáticamente; cree sesiones serie y SSH directamente en la GUI.
 - [Uso del terminal serie](docs/getting-started/serial-terminal.md)
 - [Flujo de shell SSH](docs/getting-started/ssh-terminal.md)
 - [Compartir una Session](docs/getting-started/shared-session.md)

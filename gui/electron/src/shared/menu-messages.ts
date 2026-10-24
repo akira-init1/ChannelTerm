@@ -141,7 +141,7 @@ export const menuMessages = [
   /* i18n */ {
     id: "help.connect",
     message:
-      "Connect to a Host, then use Connection > New connection to open serial or SSH Sessions. SSH creation requires an updated standalone Host.",
+      "The local Host connects or starts automatically. Use Connection > New connection for serial or SSH. Custom Host endpoints connect manually.",
   },
   /* i18n */ {
     id: "help.detach",

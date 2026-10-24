@@ -156,7 +156,7 @@ msgstr "Hilfe schließen"
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
 msgid "help.connect"
-msgstr "Verbinden Sie sich mit einem Host und öffnen Sie unter Verbindung > Neue Verbindung eine serielle oder SSH-Sitzung. SSH erfordert einen aktualisierten eigenständigen Host."
+msgstr "Der lokale Host wird automatisch verbunden oder gestartet. Verwenden Sie Verbindung > Neue Verbindung für seriell oder SSH. Benutzerdefinierte Host-Endpunkte werden manuell verbunden."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

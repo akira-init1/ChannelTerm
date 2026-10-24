@@ -365,7 +365,7 @@ channelterm serial --config ./channelterm.toml --profile board
 ## ドキュメント
 
 - [ドキュメント索引](docs/README.md)
-- [Electron GUI プロトタイプと開発](docs/development/electron-gui.md) — 認証済みの起動中 Host を通じてシリアル・SSH セッションを作成できます。
+- [Electron GUI プロトタイプと開発](docs/development/electron-gui.md) — 既定のローカル Host に自動接続し、未起動なら起動します。GUI から直接シリアル・SSH セッションを作成できます。
 - [シリアル端末ワークフロー](docs/getting-started/serial-terminal.md)
 - [SSH シェルワークフロー](docs/getting-started/ssh-terminal.md)
 - [共有 Session](docs/getting-started/shared-session.md)

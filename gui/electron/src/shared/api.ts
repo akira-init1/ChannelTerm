@@ -33,6 +33,7 @@ export interface HostInfo {
   endpoint: string;
   lifetime: "persistent" | "attachment" | "unknown";
   sshAvailable?: boolean;
+  autoConnect?: boolean;
 }
 export interface Attachment {
   id: string;

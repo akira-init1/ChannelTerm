@@ -163,6 +163,9 @@ The independent Electron frontend does not add TOML fields or alter Host configu
 to `http://127.0.0.1:37099/mcp`. The prototype accepts numeric loopback HTTP addresses only
 (`127.0.0.1` or `::1`), without URL credentials, query, fragment, or redirects. Main reuses
 `CHANNELTERM_HTTP_AUTH_TOKEN` or reads the existing default `http-auth-token`; it never creates one.
+The default endpoint connects automatically and may start the bundled local Host, which creates
+its own credential using the existing mechanism. Other endpoints require explicit connection
+and never trigger startup. Authentication failure never starts a replacement Host.
 No token is passed to React or stored in GUI preferences. Development runner variables prefixed
 `CHANNELTERM_GUI_DEV_` are internal and not Host configuration. See the
 [GUI workflow](../development/electron-gui.md#connect-to-an-existing-host).

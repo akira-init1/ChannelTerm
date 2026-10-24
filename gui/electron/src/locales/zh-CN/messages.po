@@ -156,7 +156,7 @@ msgstr "关闭帮助"
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
 msgid "help.connect"
-msgstr "连接 Host 后，通过“连接 > 新建连接”打开串口或 SSH 会话。新建 SSH 需要更新后的独立 Host。"
+msgstr "自动连接或启动本机 Host。通过“连接 > 新建连接”创建串口或 SSH 会话。自定义 Host 地址需要手动连接。"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

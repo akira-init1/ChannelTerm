@@ -1,6 +1,7 @@
 # Electron GUI Architecture
 
-The Electron prototype is an independent desktop client of an already-running ChannelTerm Host.
+The Electron prototype is an independent desktop client of a ChannelTerm Host. It automatically
+connects to the default local Host and starts its fixed-path companion when that listener is absent.
 It attaches to shared Sessions and can request serial or SSH creation from the Host. The Go Host retains the authoritative Application, leases,
 Session Manager, Channels, and device connections. See the [overall architecture](overview.md)
 and [repository map](repository-map.md) for Go ownership and the detailed source layout.
@@ -165,8 +166,8 @@ the separate authenticated [desktop Host API](../reference/gui-host-api.md) and 
 Application; serial scanning/creation uses existing MCP tools.
 
 A Transport establishes the Channel before attachment; it is not an additional hop for every byte.
-Preload is an isolated context, not a third application process. The Go Host is not a child owned
-by this prototype. Renderer sandboxing and `contextIsolation` are enabled, and `nodeIntegration`
+Preload is an isolated context, not a third application process. Main may launch a detached
+standalone Go Host, but closing the GUI never stops that Host or its shared Sessions. Renderer sandboxing and `contextIsolation` are enabled, and `nodeIntegration`
 is disabled. The production UI is served through a restricted `channelterm://app/` scheme.
 
 ## Existing Host contracts
@@ -238,12 +239,19 @@ The CLI build uses Go only. The GUI build uses Node/npm and emits Main, Preload,
 and license notices independently. Go is needed by GUI integration tests, not by its production
 build. No CLI release workflow changes. There is no installer, auto-update system, or release job.
 
-A future self-contained GUI distribution can bundle the matching platform's Go Host executable
-as a companion, together with its notices. It must not require a separate manual CLI installation
-or copy Core sources. Before adding automatic startup, define authenticated existing-Host discovery,
-single-owner startup coordination, executable/version selection, and ownership-aware shutdown;
-a failed probe alone must not start another Host on the same device. This prototype avoids that
-ambiguity by connecting only to the configured running Host.
+Main permits startup only for `http://127.0.0.1:37099/mcp`. A TCP refusal permits one launch;
+an occupied listener is authenticated through the existing Host Client. Authentication, protocol
+or probe errors never trigger another process or port. Concurrent GUI instances rely on the
+exclusive Host listener bind; a losing process exits and both clients may authenticate the winner.
+Main waits for readiness with bounded, cancellable probes. It neither retries device writes nor
+opens a device during startup. Manual disconnect does not trigger automatic reconnection.
+
+The executable is `dist/host/channelterm[.exe]` for source builds and
+`resources/host/channelterm[.exe]` for a future packaged distribution. Main never searches PATH,
+runs a shell/compiler, accepts an executable from Renderer, or forwards child output. The existing
+Host creates/loads its own credential; Main reads it after readiness. Startup errors are sanitized.
+The standalone Host survives GUI exit so CLI/MCP can continue sharing Sessions; stopping the Host
+explicitly closes its Sessions. Packaging must include the matching native companion and notices.
 
 Targets remain Windows, Linux, and macOS on amd64/arm64 (Electron/Node calls amd64 `x64`). Dependencies
 are JavaScript except the platform-provided Electron/build-tool binaries; Go's CGO-free release
@@ -256,5 +264,5 @@ or arm64 compatibility. See [GUI development](../development/electron-gui.md) fo
 No MCP SSH-open, remote PTY resize, or client-file transfer orchestration API exists. SSH creation
 uses the separate desktop Host API. There is no remote resize or file-transfer UI. Local xterm fitting
 does not resize the Host's SSH PTY. Existing file-transfer and debug leases are observed, not managed.
-There is no built-in Agent, automatic Host startup, installer, persistence of terminal output, or
+There is no built-in Agent, installer, persistence of terminal output, or
 multi-tab terminal UI. None of these gaps is filled by bypassing Application or changing MCP schemas.

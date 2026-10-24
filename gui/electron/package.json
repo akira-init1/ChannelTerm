@@ -13,6 +13,7 @@
     "dev": "node scripts/dev.mjs",
     "build": "npm run typecheck && node scripts/build.mjs",
     "start": "node scripts/start.mjs",
+    "host:build": "node scripts/build-host.mjs",
     "typecheck": "tsc --noEmit",
     "test": "node scripts/build-fixture.mjs && tsx --test tests/*.test.ts",
     "test:desktop": "npm run build && node scripts/build-fixture.mjs && node --import tsx scripts/test-desktop.mjs",

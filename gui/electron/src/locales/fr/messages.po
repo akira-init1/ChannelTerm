@@ -156,7 +156,7 @@ msgstr "Fermer l’aide"
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
 msgid "help.connect"
-msgstr "Connectez-vous à un Host, puis utilisez Connexion > Nouvelle connexion pour ouvrir des sessions série ou SSH. La création SSH nécessite un Host autonome à jour."
+msgstr "Le Host local est connecté ou démarré automatiquement. Utilisez Connexion > Nouvelle connexion pour le port série ou SSH. Les points de terminaison Host personnalisés se connectent manuellement."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

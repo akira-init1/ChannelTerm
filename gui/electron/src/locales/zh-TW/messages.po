@@ -156,7 +156,7 @@ msgstr "關閉說明"
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
 msgid "help.connect"
-msgstr "連線至 Host 後，透過「連線 > 新增連線」開啟序列埠或 SSH 工作階段。新增 SSH 需要更新後的獨立 Host。"
+msgstr "自動連線或啟動本機 Host。透過「連線 > 新增連線」建立序列埠或 SSH 工作階段。自訂 Host 位址需要手動連線。"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

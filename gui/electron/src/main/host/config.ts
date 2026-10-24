@@ -3,7 +3,7 @@ import { homedir } from "node:os";
 import { isAbsolute, join } from "node:path";
 import { HostError } from "./errors";
 
-/** The prototype connects only to explicitly configured loopback Hosts. */
+/** Host access is limited to loopback; only the default endpoint permits startup. */
 export function hostEndpoint(value = "http://127.0.0.1:37099/mcp"): URL {
   let url: URL;
   try {

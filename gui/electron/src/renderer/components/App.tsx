@@ -68,6 +68,7 @@ export function App() {
   const generation = useRef(0);
   // Manual refresh and periodic polling share one outstanding list request.
   const refreshing = useRef(false);
+  const initialConnection = useRef(false);
   const current = sessions.find(
     (entry) => entry.session_id === attachment?.sessionId,
   );
@@ -137,7 +138,27 @@ export function App() {
   }, [report]);
 
   useEffect(() => {
-    void unwrap(host.info()).then(setInfo).catch(report);
+    let active = true;
+    void unwrap(host.info())
+      .then((next) => {
+        if (!active) return;
+        setInfo(next);
+        // StrictMode replays effects; only one initial connection is permitted.
+        // An explicit disconnect never schedules another automatic attempt.
+        if (next.autoConnect && !initialConnection.current) {
+          initialConnection.current = true;
+          actionBusy.current = true;
+          void connect().finally(() => {
+            actionBusy.current = false;
+          });
+        }
+      })
+      .catch((error: ClientError) => {
+        if (active) report(error);
+      });
+    return () => {
+      active = false;
+    };
   }, [report]);
   useEffect(() => {
     if (!connected) return;
@@ -148,6 +169,7 @@ export function App() {
   }, [connected, refresh]);
 
   async function connect() {
+    initialConnection.current = true;
     setOperation("connecting");
     setError(undefined);
     generation.current++;

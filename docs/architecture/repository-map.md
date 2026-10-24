@@ -123,7 +123,7 @@ gui/electron/
 |   |   |-- index.ts                Window lifecycle, static application scheme, validated IPC
 |   |   |-- security.ts             Trusted caller and content-policy checks
 |   |   |-- menu.ts                 Native menu rendering from bounded display hints
-|   |   `-- host/                   Main-only credentials, MCP client, validation, safe errors
+|   |   `-- host/                   Main-only credentials, MCP client, bounded local companion startup, validation, safe errors
 |   |-- preload/                   Narrow contextBridge methods; no business decisions
 |   |-- locales/                   Per-locale PO sources, ignored compiled modules, process-neutral resource imports
 |   |-- renderer/

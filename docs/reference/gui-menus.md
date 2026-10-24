@@ -117,7 +117,7 @@ These are placement decisions only, not runtime menu entries or commitments to i
 
 | Proposed category | Unimplemented scope / prerequisite |
 | --- | --- |
-| Connection | Automatic Host startup, saved profiles and recent connections remain outside the explicit serial/SSH forms. |
+| Connection | Saved profiles and recent connections remain outside the explicit serial/SSH forms. Default-local Host startup is automatic; other endpoints remain explicit. |
 | Session | Closing a shared Session needs a separately reviewed destructive action, explicit target/confirmation semantics, and Host authority. Multiple tabs and recent history are also absent. |
 | Terminal | Split panes, remote PTY resize, and transfer orchestration need their own supported lifecycle/capability work. |
 | View | MCP activity and transfer panels retain only their documented layout reservations. |

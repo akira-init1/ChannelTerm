@@ -1,5 +1,8 @@
 import { spawn } from "node:child_process";
 import electron from "electron";
+import { prepareHost } from "./build-host.mjs";
+
+await prepareHost();
 
 const environment = { ...process.env };
 delete environment.ELECTRON_RUN_AS_NODE;

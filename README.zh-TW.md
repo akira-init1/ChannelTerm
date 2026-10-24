@@ -352,7 +352,7 @@ channelterm serial --config ./channelterm.toml --profile board
 ## 文件
 
 - [文件索引](docs/README.md)
-- [Electron GUI 原型與開發](docs/development/electron-gui.md) — 透過已執行且通過驗證的 Host 建立序列埠與 SSH 工作階段。
+- [Electron GUI 原型與開發](docs/development/electron-gui.md) — 自動連線或啟動預設本機 Host，直接在 GUI 中建立序列埠和 SSH 工作階段。
 - [序列埠終端流程](docs/getting-started/serial-terminal.md)
 - [SSH shell 使用流程](docs/getting-started/ssh-terminal.md)
 - [共享 Session](docs/getting-started/shared-session.md)

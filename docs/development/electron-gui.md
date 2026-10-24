@@ -1,7 +1,7 @@
 # Electron GUI Development
 
-The [Electron prototype](../architecture/electron-gui.md) attaches to existing Sessions in a
-running Go Host. Source responsibilities and directories are in the
+The [Electron prototype](../architecture/electron-gui.md) automatically connects to the default
+local Host, starting its companion when needed, then creates or attaches to shared Sessions. Source responsibilities and directories are in the
 [repository map](../architecture/repository-map.md#electron-source-ownership); this guide owns
 installation, execution, checks, and troubleshooting.
 
@@ -10,7 +10,8 @@ installation, execution, checks, and troubleshooting.
 Use Node.js 22.12 or newer (a supported LTS release), npm, and a native desktop session. Dependencies
 are pinned by the independent `gui/electron/package-lock.json`. Electron, React, TypeScript, Vite,
 xterm.js, Lingui Core, and the MCP TypeScript SDK are local to that project. No nested repository or global npm
-package is required. Go 1.26+ is needed only for the existing Host and the isolated integration fixture.
+package is required. Go 1.26+ is needed to build the native companion and isolated integration fixture.
+The JavaScript GUI build remains independent of Go.
 
 From the repository root:
 
@@ -27,7 +28,7 @@ platform runtime on first launch; dependency and runtime downloads require netwo
 `dev` compiles PO catalogs, builds Main/Preload once, starts Vite on `127.0.0.1:5173`, and opens the native desktop window.
 Renderer changes use Vite refresh. Restart `dev` after Main, Preload, shared bridge, or build-script
 changes; a renderer reload disconnects its Host client. Closing Electron also stops this development
-server. Port 5173 is strict: a conflict fails startup rather than loading an unrelated server.
+server, while the shared Host remains running. Port 5173 is strict: a conflict fails startup rather than loading an unrelated server.
 
 Build and launch the production assets independently:
 
@@ -39,8 +40,13 @@ npm.cmd start
 `build` strictly compiles PO catalogs, type-checks TypeScript, bundles Main and sandbox-compatible Preload with esbuild, builds
 the React/xterm renderer with Vite, and collects runtime license texts into `dist/`. `start` loads
 those assets through the local application scheme. This produces runnable application assets,
-not an installer. Node/npm are development requirements; a future packaged GUI includes its own
-Electron runtime and can include a platform-matched Go Host. See the
+not an installer. `start` and `dev` prepare `dist/host/channelterm[.exe]` with Go only when it
+is missing and the default endpoint is selected. They never replace a running companion.
+If preparation fails (for example, Go is unavailable), the GUI still opens and can reuse an
+existing Host; otherwise its startup error offers retry after repairing the companion.
+To update it after Go source changes, finish shared Session work, stop that Host, and run
+`npm.cmd run host:build`. Node/npm are development requirements; a future packaged GUI includes
+its own Electron runtime and the platform-matched Host under `resources/host/`. See the
 [release boundaries](../architecture/electron-gui.md#multiple-frontends-and-release-boundaries).
 
 ## Menu translations (Lingui 5.9.0)
@@ -119,10 +125,18 @@ CLI `ssh` owner's sharing endpoint support attachment but do not offer the new c
 After rebuilding the Go executable, restart the intended standalone Host before reconnecting
 the GUI. Host shutdown closes its Sessions, so finish work in those Sessions first.
 
-Keep the already-running Host that owns the intended Session. Follow the
-[MCP Host workflow](../getting-started/mcp-server.md) or the
-[shared Session workflow](../getting-started/shared-session.md) to start it when necessary; do not
-start another Host merely because the GUI is disconnected. This prototype never starts one itself.
+Opening the GUI automatically connects to `http://127.0.0.1:37099/mcp`. If that TCP listener
+is absent, Main starts the native companion with fixed loopback HTTP arguments, waits for
+readiness, and authenticates. No terminal command or existing Session is needed. An existing
+listener is reused; wrong credentials, incompatible services, probe timeouts and occupied ports
+never start a replacement or select another port. Failures expose **Retry connection**.
+
+The Host intentionally survives GUI exit and manual disconnect so other clients can continue
+using shared Sessions. Manual disconnect stays disconnected until explicitly reconnected.
+To stop an automatically started Host, finish shared work and stop its `channelterm` process
+using the OS process manager; stopping it closes all of its Sessions. There is no GUI Host-stop
+action. See the [Host workflow](../getting-started/mcp-server.md) for manual ownership.
+Custom loopback endpoints remain manual and never start a companion.
 
 The [GUI configuration reference](../reference/configuration.md#electron-client-settings) owns
 endpoint and credential precedence. For an existing Host on another loopback port, set the
@@ -156,7 +170,7 @@ Creation failures keep the existing attachment. An uncertain result is not autom
 refresh Sessions before making another explicit attempt. See the [desktop Host API](../reference/gui-host-api.md)
 for the exact security, capability and lifetime boundaries.
 
-1. Select **Connect to Host** in the bottom-left Host panel, then a Session in the sidebar or
+1. Wait for automatic local connection (or select **Connect to Host** for a custom endpoint), then a Session in the sidebar or
    **Connection > New connection** to create one. The initial terminal screen
    contains a recent output snapshot, not an unlimited log.
 2. Type in the terminal. Input goes through `terminal_write` with actor `user`; Ctrl+C is ordinary
@@ -197,6 +211,14 @@ The fixture uses the real MCP adapter, one authoritative Application, Manager, S
 with an in-memory echo endpoint. It listens on an ephemeral loopback port, uses a generated token,
 and takes test controls over private stdin. No physical serial port, credentials, external SSH
 server, or user Host is accessed. EOF on fixture stdin stops it and cleans up its own Session.
+
+Startup tests cover existing-listener reuse, custom-endpoint exclusion, cancellation, launch
+failure, known process exit, and suppression of duplicate launches after uncertain timeouts.
+A separate native check uses a temporary app and a detached no-hardware fixture on port 37099;
+it verifies automatic startup, reuse without an executable, authentication failure, explicit
+disconnect, and shared lifetime after GUI exit. If that port is already occupied, this check
+is reported as skipped and does not touch the existing listener. A private stop file and a
+two-minute deadline clean up only the test fixture.
 
 The Node tests cover authenticated list/attach/read/write, timeout and cancellation, duplicate detach
 and disconnect, stale attachment rejection, lease contention and recovery, buffer overwrite, Session
@@ -244,7 +266,8 @@ in normal Go package compilation without invoking npm. No Node tool is needed to
 
 | Symptom | Check / recovery |
 | --- | --- |
-| Token unavailable | Start the intended Host under the same user, or supply its existing token to Main. GUI does not create tokens. |
+| Companion missing / startup failed | For source builds run `npm.cmd run host:build`, verify local configuration and port 37099, then retry. Main never searches PATH. |
+| Token unavailable | Check that the Host runs under the same user, or supply its existing token to Main. The Host creates tokens; Electron does not. |
 | Authentication rejected | Verify the configured endpoint and Main environment match the intended Host. Do not disable authentication or change CORS/Origin rules. |
 | No Sessions | Use Connection > New connection, or open a Session through an existing CLI/MCP workflow and refresh. SSH creation requires the updated standalone Host API. |
 | Lease busy | Continue reading; wait for the owning operation. GUI neither steals nor releases leases. |
@@ -257,5 +280,5 @@ in normal Go package compilation without invoking npm. No Node tool is needed to
 
 Targets are Windows/Linux/macOS, x64/arm64. Native Windows x64 desktop testing is separate from
 cross-compilation; each other native OS/architecture still needs runtime validation. Real serial
-settings and hardware are not involved in the fixture. Installer packaging, companion-Host
-discovery/startup, signing/notarization, update delivery, and release automation remain unimplemented.
+settings and hardware are not involved in the fixture. Installer packaging, signing/notarization,
+update delivery, and release automation remain unimplemented.

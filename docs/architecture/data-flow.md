@@ -9,7 +9,10 @@ independent Go Host. Reads use a Main-owned output cursor. Ordinary GUI writes r
 Application lease checks and Session write serialization as other shared clients. A closed GUI
 cancels its client requests without closing the Host or Session. Main can also submit explicit creation intent to the Host: serial through existing MCP tools,
 and SSH through the authenticated [desktop Host API](../reference/gui-host-api.md).
-Application opens the Transport; the GUI never owns it.
+Application opens the Transport; the GUI never owns it. On initial default-local connection,
+Main first reuses an existing listener or starts its fixed-path standalone companion after a TCP
+refusal. Authentication still precedes Session access; GUI exit leaves the Host running. See
+[GUI process ownership](electron-gui.md#multiple-frontends-and-release-boundaries).
 
 ## Serial output
 

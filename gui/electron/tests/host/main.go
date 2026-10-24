@@ -117,7 +117,12 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	address := "127.0.0.1:0"
+	startupControl := os.Getenv("CHANNELTERM_FIXTURE_STARTUP_CONTROL")
+	if startupControl != "" {
+		address = "127.0.0.1:37099"
+	}
+	listener, err := net.Listen("tcp", address)
 	if err != nil {
 		return err
 	}
@@ -145,6 +150,21 @@ func run() error {
 	})}
 	defer server.Close()
 	go func() { _ = server.Serve(listener) }()
+	// Detached startup tests use a private file for cleanup because product Hosts
+	// intentionally survive GUI exit. The deadline prevents orphaned test processes.
+	if startupControl != "" {
+		if err := os.WriteFile(startupControl+".ready", []byte("ready"), 0600); err != nil {
+			return err
+		}
+		deadline := time.Now().Add(2 * time.Minute)
+		for time.Now().Before(deadline) {
+			if _, err := os.Stat(startupControl); err == nil {
+				return nil
+			}
+			time.Sleep(100 * time.Millisecond)
+		}
+		return nil
+	}
 	encoder := json.NewEncoder(os.Stdout)
 	if err := encoder.Encode(map[string]string{"endpoint": "http://" + listener.Addr().String() + "/mcp", "ssh_port": sshPort, "known_hosts": trust}); err != nil {
 		return err
