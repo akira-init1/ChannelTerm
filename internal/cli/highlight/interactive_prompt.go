@@ -27,4 +27,6 @@ var interactivePromptPatterns = []*regexp.Regexp{
 	regexp.MustCompile(`^barebox@[^:\r\n]+:[^ \t\r\n]+(?:[ \t]+|$)`),
 	// GRUB rescue.
 	regexp.MustCompile(`^grub[ \t]+rescue>`),
+	// UEFI filesystem shell.
+	regexp.MustCompile(`(?i)^fs[0-9]+:\\[^>\r\n]*>`),
 }

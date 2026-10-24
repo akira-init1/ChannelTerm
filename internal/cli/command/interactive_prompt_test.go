@@ -21,6 +21,7 @@ func TestInteractivePromptFamilies(t *testing.T) {
 		{name: "UBoot", prompts: []string{"BBG U-Boot > ", "U-Boot > ", "=>", "Zynq>", "ZynqMP>"}},
 		{name: "Barebox", prompts: []string{"barebox@Radxa ROCK3 Model A:/ ", "barebox@board:/env"}},
 		{name: "GRUBRescue", prompts: []string{"grub rescue> ", "grub rescue>"}},
+		{name: "UEFI", prompts: []string{"fs0:\\> ", "FS12:\\EFI\\BOOT>", "fs0:\\my files> "}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

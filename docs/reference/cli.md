@@ -237,6 +237,7 @@ Side effects and lifecycle:
   | U-Boot variants | `BBG U-Boot > `, `U-Boot > `, `=>`, `Zynq>` (no trailing space required) |
   | barebox | `barebox@Radxa ROCK3 Model A:/ ` |
   | GRUB rescue | `grub rescue> ` |
+  | UEFI filesystem shell | `fs0:\> `, `FS12:\EFI\BOOT>` |
 - The highlighter assigns non-bold semantic colors to status words, boot headings, field names,
   embedded interface/protocol identifiers, addresses, versions, timestamps, numbers, units, quoted
   values, structural `()`, `[]`, and `{}` delimiters, and recognized shell-prompt components. It
