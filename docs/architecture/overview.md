@@ -92,6 +92,49 @@ bytes do not interleave, but the Session layer has no ownership, transaction, pr
 or shell-state model. Application-level leases provide temporary exclusive writing for selected
 operations such as terminal command execution and file transfer.
 
+## Shared Session arbitration and GUI integration
+
+The owning Host keeps Sessions in its Manager. Its `newMCPRegistryWithPolicy` composition
+creates one Application and passes it to `terminal.NewTools`. Ordinary and leased writes,
+lease acquisition/renewal/release, file-transfer cancellation/checkpoints, and lease summaries
+in `terminal_list_sessions` all reach that Application's lease coordinator. The MCP HTTP
+handler reuses the registry across clients; a new protocol connection does not create another
+Application. See [Application](../modules/application.md) for lease and recovery semantics.
+
+Shared CLI attachment and SSH foreground input use `mcpAttachSession` and its
+`sshOwnerAttachment` wrapper to call those Host tools. These are client adapters, not owners of
+the Core Session or arbitration state. Their local owner token, transfer ID, and output cursors
+do not authorize writes independently; the Host validates each request. Output remains readable
+while a valid lease is held. File-transfer lease expiry closes the original Session locally,
+so another client cannot restore access by reconnecting to the same Host entry.
+
+Multiple Applications are not inherently competing writers. The SSH command's separate setup
+Application shares the Host Manager but only opens the connection and performs resize; foreground
+writes use the Host tools. Local `serial` and private attachment use an Application with their own
+Manager. Discovery/target-resolution Applications do not write shared Sessions. The serial wake
+write occurs on a connection candidate before Manager registration, outside shared-client access.
+
+A future GUI must preserve these boundaries:
+
+- An external GUI can use the existing authenticated MCP HTTP Host tools for shared access,
+  including reads/events, writes, leases, and file-transfer controls. CLI attachment code provides
+  an implementation reference; it is internal code, not a public GUI client SDK.
+- An embedded adapter must receive the existing authoritative Application for shared operations.
+  If exposing MCP, use `terminal.NewTools` with that same instance. Constructing another
+  `app.New` with the same Manager creates a separate lease coordinator and must not be used to
+  write or manage leases for those shared Sessions. Independent Session collections may retain
+  independent Applications; no process-wide singleton is required.
+- Do not obtain a Session from Manager and call `Session.Write`, access Channel writes directly,
+  or substitute GUI-local locks for Host lease checks. Session payload serialization alone does
+  not enforce operation ownership. Query Host lease state rather than treating a local cache as
+  permission to write. Close and resize retain their existing policies.
+
+There is no GUI implementation or GUI integration test. Existing interfaces also do not supply
+an MCP SSH-open or resize tool, or a tool that starts CLI file-send/receive orchestration; those
+operations currently have CLI/Core entry points. GUI file selection, transfer orchestration,
+and a reusable public client SDK are not implemented here. These gaps do not require a second
+arbitrator or a new GUI protocol in the current architecture.
+
 ## Current implementation boundaries
 
 Serial and SSH PTY shells are concrete Transports. SSH is opened by the CLI and shared through
