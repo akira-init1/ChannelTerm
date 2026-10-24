@@ -109,7 +109,7 @@ p {
   min-width: 230px;
   max-width: calc(100vw - 8px);
   max-height: calc(100vh - 8px);
-  overflow-y: auto;
+  overflow: visible;
 }
 .menu-popup button {
   display: flex;
@@ -127,8 +127,13 @@ p {
   flex-shrink: 0;
 }
 .menu-submenu {
-  margin-left: 16px;
-  border-left: 1px solid var(--border);
+  position: fixed;
+  margin: 0;
+  overflow-y: auto;
+}
+.submenu-arrow {
+  margin-left: auto;
+  transform: rotate(-90deg);
 }
 .help-dialog {
   width: 420px;

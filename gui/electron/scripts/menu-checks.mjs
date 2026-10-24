@@ -48,7 +48,37 @@ export async function checkOfflineMenus(desktop, page) {
   await open(page, "settings");
   await popup(page)
     .getByRole("menuitem", { name: "Language", exact: true })
-    .click();
+    .hover();
+  const flyout = popup(page).getByRole("menu", {
+    name: "Language",
+    exact: true,
+  });
+  await expect(flyout).toBeVisible();
+  await popup(page)
+    .getByRole("menuitem", { name: "Language", exact: true })
+    .focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(
+    flyout.getByRole("menuitemradio", { name: "English", exact: true }),
+  ).toBeFocused();
+  await page.keyboard.press("End");
+  await expect(
+    flyout.getByRole("menuitemradio", { name: "繁體中文", exact: true }),
+  ).toBeFocused();
+  await page.keyboard.press("ArrowLeft");
+  await expect(flyout).not.toBeVisible();
+  await expect(
+    popup(page).getByRole("menuitem", { name: "Language", exact: true }),
+  ).toBeFocused();
+  await page.keyboard.press("ArrowRight");
+  await expect(flyout).toBeVisible();
+  const parentBounds = await popup(page).boundingBox();
+  const childBounds = await flyout.boundingBox();
+  assert.ok(
+    childBounds.x >= parentBounds.x + parentBounds.width - 2,
+    "hover expands right",
+  );
+  await page.screenshot({ path: "test-results/workbench-hover-menu.png" });
   await popup(page).getByRole("menuitemradio", { name: "简体中文" }).click();
   await expect(page.locator(".app-menu > button")).toHaveText([
     "连接",
@@ -139,6 +169,20 @@ export async function checkOfflineMenus(desktop, page) {
       .getByRole("menuitem", { name: languageLabel, exact: true })
       .click();
     await expect(popup(page).getByRole("menuitemradio")).toHaveCount(9);
+    const bounds = await popup(page)
+      .getByRole("menu", { name: languageLabel, exact: true })
+      .boundingBox();
+    const viewport = await page.evaluate(() => ({
+      width: innerWidth,
+      height: innerHeight,
+    }));
+    assert.ok(
+      bounds.x >= 0 &&
+        bounds.y >= 0 &&
+        bounds.x + bounds.width <= viewport.width &&
+        bounds.y + bounds.height <= viewport.height,
+      "flyout stays inside the minimum window",
+    );
     await popup(page)
       .getByRole("menuitemradio", { name: language.name, exact: true })
       .click();

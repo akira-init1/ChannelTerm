@@ -24,7 +24,7 @@ function navigateMenu(event: KeyboardEvent<HTMLDivElement>) {
     event.currentTarget.querySelectorAll<HTMLButtonElement>(
       "button:not(:disabled)",
     ),
-  );
+  ).filter((item) => item.closest('[role="menu"]') === event.currentTarget);
   if (!items.length) return;
   const index = items.indexOf(document.activeElement as HTMLButtonElement);
   const next =
@@ -61,6 +61,8 @@ export function WorkbenchMenu({
   const [opened, setOpened] = useState<MenuPopupRequest>();
   const [expanded, setExpanded] = useState<string>();
   const popup = useRef<HTMLDivElement>(null);
+  const submenu = useRef<HTMLDivElement>(null);
+  const focusSubmenu = useRef(false);
   const help = useRef<HTMLDialogElement>(null);
   const request = context ?? opened;
   const requestRef = useRef(request);
@@ -77,17 +79,49 @@ export function WorkbenchMenu({
     if (!request || !popup.current) return;
     const element = popup.current;
     element.showPopover();
-    const bounds = element.getBoundingClientRect();
-    element.style.left = `${Math.max(4, Math.min(request.x, innerWidth - bounds.width - 4))}px`;
-    element.style.top = `${Math.max(4, Math.min(request.y, innerHeight - bounds.height - 4))}px`;
+    const position = () => {
+      const bounds = element.getBoundingClientRect();
+      element.style.left = `${Math.max(4, Math.min(request.x, innerWidth - bounds.width - 4))}px`;
+      element.style.top = `${Math.max(4, Math.min(request.y, innerHeight - bounds.height - 4))}px`;
+    };
+    position();
     element.querySelector<HTMLButtonElement>("button:not(:disabled)")?.focus();
-  }, [request, expanded]);
+    window.addEventListener("resize", position);
+    return () => window.removeEventListener("resize", position);
+  }, [request, state.locale]);
+  useLayoutEffect(() => {
+    const parent = popup.current?.querySelector<HTMLButtonElement>(
+      '[aria-expanded="true"]',
+    );
+    const child = submenu.current;
+    if (!expanded || !parent || !child) return;
+    // Anchor to the parent row, flipping at the right edge instead of changing
+    // the top-level popup's width. Fixed positioning keeps terminal layout stable.
+    const position = () => {
+      const row = parent.getBoundingClientRect();
+      const panel = popup.current!.getBoundingClientRect();
+      const bounds = child.getBoundingClientRect();
+      const left =
+        panel.right + bounds.width <= innerWidth - 4
+          ? panel.right - 1
+          : panel.left - bounds.width + 1;
+      child.style.left = `${Math.max(4, left)}px`;
+      child.style.top = `${Math.max(4, Math.min(row.top, innerHeight - bounds.height - 4))}px`;
+    };
+    position();
+    if (focusSubmenu.current) {
+      child.querySelector<HTMLButtonElement>("button:not(:disabled)")?.focus();
+      focusSubmenu.current = false;
+    }
+    window.addEventListener("resize", position);
+    return () => window.removeEventListener("resize", position);
+  }, [expanded, request, state.locale]);
   useEffect(() => {
     if (helpOpen) help.current?.showModal();
     else help.current?.close();
   }, [helpOpen]);
 
-  function renderItems(entries: MenuEntry[]) {
+  function renderItems(entries: MenuEntry[], child = false) {
     return entries.map((entry) => {
       const checked =
         entry.id === "view.sidebar"
@@ -112,17 +146,27 @@ export function WorkbenchMenu({
               entry.action ? !enabled(entry.action) : entry.enabled === false
             }
             data-action={entry.action?.id}
+            onPointerEnter={() => {
+              if (!child) setExpanded(entry.children ? entry.id : undefined);
+            }}
             onKeyDown={(event) => {
               if (event.nativeEvent.isComposing || event.keyCode === 229)
                 return;
               if (entry.children && event.key === "ArrowRight") {
-                setExpanded(entry.id);
+                if (expanded === entry.id) {
+                  submenu.current
+                    ?.querySelector<HTMLButtonElement>("button:not(:disabled)")
+                    ?.focus();
+                } else {
+                  focusSubmenu.current = true;
+                  setExpanded(entry.id);
+                }
                 event.preventDefault();
               }
             }}
             onClick={() => {
               if (entry.children) {
-                setExpanded(expanded === entry.id ? undefined : entry.id);
+                setExpanded(entry.id);
                 return;
               }
               close(true);
@@ -133,15 +177,37 @@ export function WorkbenchMenu({
               {checked ? "✓" : ""}
             </span>
             {t(entry.label)}
-            {entry.children && <Icon name="chevron" />}
+            {entry.children && (
+              <span className="submenu-arrow">
+                <Icon name="chevron" />
+              </span>
+            )}
           </button>
           {entry.children && expanded === entry.id && (
             <div
+              ref={submenu}
               role="menu"
-              className="menu-submenu"
+              className="menu-popup menu-submenu"
               aria-label={t(entry.label)}
+              onKeyDown={(event) => {
+                if (event.nativeEvent.isComposing || event.keyCode === 229)
+                  return;
+                if (event.key === "ArrowLeft") {
+                  popup.current
+                    ?.querySelector<HTMLButtonElement>('[aria-expanded="true"]')
+                    ?.focus();
+                  setExpanded(undefined);
+                  event.preventDefault();
+                  event.stopPropagation();
+                } else if (
+                  ["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)
+                ) {
+                  navigateMenu(event);
+                  event.stopPropagation();
+                }
+              }}
             >
-              {renderItems(entry.children)}
+              {renderItems(entry.children, true)}
             </div>
           )}
         </div>

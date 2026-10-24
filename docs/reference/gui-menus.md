@@ -102,7 +102,9 @@ separate from Windows testing.
 
 Tab reaches menu buttons. Left/Right moves between focused top-level buttons; Down or Enter
 opens one. Within a popup, Up/Down/Home/End moves through enabled entries and Enter activates
-the same action dispatcher. Language opens by click or Right; Left collapses it. Escape closes
+the same action dispatcher. After opening a top-level menu, hovering a parent row expands its
+submenu to the right; it flips left near the window edge. Click and Right also open it; Left
+returns focus to the parent. Escape closes
 the popup and restores its opener; an outside click dismisses it. These handlers run only inside
 the focused menu and ignore composition/229 events. Terminal Ctrl+C/Ctrl+L/Ctrl+W, Alt sequences,
 function keys, and IME composition remain in the terminal input path. OS-reserved shortcuts and
