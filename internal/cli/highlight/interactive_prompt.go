@@ -33,4 +33,6 @@ var interactivePromptPatterns = []*regexp.Regexp{
 	regexp.MustCompile(`^(?:[A-Za-z0-9_.-]+[ \t]+)?rommon[ \t]+(?:[0-9]+[ \t]*)?>`),
 	// Zephyr.
 	regexp.MustCompile(`^(?:uart|rtt|usb):[^ \t\r\n]*[$#](?:[ \t]+|$)`),
+	// RT-Thread.
+	regexp.MustCompile(`^(?:msh|finsh)[ \t]+[^>\r\n]*>`),
 }

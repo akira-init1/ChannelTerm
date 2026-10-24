@@ -24,6 +24,7 @@ func TestInteractivePromptFamilies(t *testing.T) {
 		{name: "UEFI", prompts: []string{"fs0:\\> ", "FS12:\\EFI\\BOOT>", "fs0:\\my files> "}},
 		{name: "ROMMON", prompts: []string{"rommon 1 > ", "rommon 2> ", "IR1800 rommon 9 > ", "rommon > "}},
 		{name: "Zephyr", prompts: []string{"uart:~$ ", "rtt:~$ ", "usb:~$ "}},
+		{name: "RTThread", prompts: []string{"msh />", "msh /sdcard>", "finsh /> "}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
