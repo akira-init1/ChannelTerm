@@ -35,6 +35,16 @@ msgstr "취소"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "connection.custom"
+msgstr "사용자 지정…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.customBaud"
+msgstr "사용자 지정 전송 속도"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "connection.dataBits"
 msgstr "데이터 비트"
 

@@ -35,6 +35,16 @@ msgstr "Cancel"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "connection.custom"
+msgstr "Custom…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.customBaud"
+msgstr "Custom baud rate"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "connection.dataBits"
 msgstr "Data bits"
 

@@ -79,7 +79,12 @@ The terminal takes the remaining width and height; its 32 px header shows the si
 attachment once as a tab-shaped title. The close icon performs **Close tab (detach)**,
 not Session close. There is no multi-tab state or background terminal.
 
-Serial creation includes character encoding (UTF-8, GBK or GB18030), text/read-only hex view,
+Serial creation includes common baud-rate presets and a Custom option for integer rates
+from 1 to 4,000,000. The default
+remains 115200. Presets are suggestions, not a guarantee that a particular driver or device can
+use the rate; Host validation remains authoritative. Data bits, parity, stop bits and flow control
+retain their finite selectors. The CLI already accepts custom rates through `--baud`.
+Serial presentation includes character encoding (UTF-8, GBK or GB18030), text/read-only hex view,
 and an optional local description. The compact encoding button in the attached serial header
 opens the same presentation settings. Applying them reattaches this client and replays only
 retained Host output; it does not clear Host buffers, reset the device, or close the shared Session.

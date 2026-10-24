@@ -35,6 +35,16 @@ msgstr "Отмена"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "connection.custom"
+msgstr "Другая…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.customBaud"
+msgstr "Пользовательская скорость передачи"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "connection.dataBits"
 msgstr "Биты данных"
 

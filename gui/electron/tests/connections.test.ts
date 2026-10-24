@@ -6,6 +6,7 @@ import {
 } from "../src/shared/connections";
 import { HostClient } from "../src/main/host/client";
 import { startFixture } from "./fixture";
+import { commonBaudRates } from "../src/shared/serial-settings";
 
 const serial: ConnectionRequest = {
   kind: "serial",
@@ -17,6 +18,13 @@ const serial: ConnectionRequest = {
   flowControl: "none",
   label: "GUI serial",
 };
+
+test("baud presets and custom integer rates retain the bounded serial contract", () => {
+  for (const baud of [...commonBaudRates, 123456, 1])
+    assert.equal(isConnectionRequest({ ...serial, baud }), true);
+  for (const baud of [0, -1, 4000001, 115200.5, "9600", NaN, Infinity])
+    assert.equal(isConnectionRequest({ ...serial, baud }), false);
+});
 
 test("an older Host retains attachment support but cannot be authorized for SSH by a menu hint", async () => {
   const fixture = await startFixture();

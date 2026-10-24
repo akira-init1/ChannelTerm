@@ -49,6 +49,23 @@ export async function checkConnections(environment) {
     ).toBeVisible();
     await observer.connect();
     let dialog = await open("Serial connection");
+    const baud = dialog.getByRole("combobox", {
+      name: "Baud rate",
+      exact: true,
+    });
+    await expect(baud).toHaveValue("115200");
+    await baud.selectOption("9600");
+    await expect(dialog.locator('[name="baud"]')).toHaveValue("9600");
+    await baud.selectOption("custom");
+    const customBaud = dialog.getByRole("spinbutton", {
+      name: "Custom baud rate",
+      exact: true,
+    });
+    await customBaud.fill("123456");
+    await expect(dialog.locator('[name="baud"]')).toHaveCount(1);
+    await expect(dialog.locator('[name="baud"]')).toHaveValue("123456");
+    await baud.selectOption("115200");
+    await expect(customBaud).toHaveCount(0);
     await dialog
       .getByRole("button", { name: "Scan ports", exact: true })
       .click();

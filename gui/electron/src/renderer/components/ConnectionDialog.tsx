@@ -10,6 +10,7 @@ import {
   readTerminalSettings,
 } from "./TerminalSettings";
 import type { TerminalSettings } from "../../shared/terminal-settings";
+import { commonBaudRates } from "../../shared/serial-settings";
 
 /** Collect explicit user intent. Credentials live in password inputs, never preferences. */
 export function ConnectionDialog({
@@ -33,6 +34,7 @@ export function ConnectionDialog({
   const [ports, setPorts] = useState<string[]>([]);
   const [error, setError] = useState("");
   const [auth, setAuth] = useState("key");
+  const [baudChoice, setBaudChoice] = useState("115200");
   useEffect(() => {
     dialog.current?.showModal();
   }, []);
@@ -164,17 +166,37 @@ export function ConnectionDialog({
                   <option key={port} value={port} />
                 ))}
               </datalist>
-              <label>
-                {t("connection.baud")}
-                <input
-                  name="baud"
-                  type="number"
-                  min={1}
-                  max={4000000}
-                  defaultValue={115200}
-                  required
-                />
-              </label>
+              <div className="connection-grid">
+                <label>
+                  {t("connection.baud")}
+                  <select
+                    name={baudChoice === "custom" ? "baudPreset" : "baud"}
+                    value={baudChoice}
+                    onChange={(event) => setBaudChoice(event.target.value)}
+                  >
+                    {commonBaudRates.map((rate) => (
+                      <option key={rate} value={rate}>
+                        {rate}
+                      </option>
+                    ))}
+                    <option value="custom">{t("connection.custom")}</option>
+                  </select>
+                </label>
+                {baudChoice === "custom" && (
+                  <label>
+                    {t("connection.customBaud")}
+                    <input
+                      name="baud"
+                      type="number"
+                      min={1}
+                      max={4000000}
+                      step={1}
+                      defaultValue={115200}
+                      required
+                    />
+                  </label>
+                )}
+              </div>
               <div className="connection-grid">
                 {select(
                   "dataBits",

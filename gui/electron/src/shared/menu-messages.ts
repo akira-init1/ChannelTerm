@@ -3,6 +3,8 @@ import type { MessageDescriptor } from "@lingui/core";
 // Lingui 5 extracts these official annotated descriptors without a runtime macro
 // transform. Translations belong in PO catalogs; this file owns IDs and English defaults.
 export const menuMessages = [
+  /* i18n */ { id: "connection.custom", message: "Custom…" },
+  /* i18n */ { id: "connection.customBaud", message: "Custom baud rate" },
   /* i18n */ { id: "terminal.settings", message: "Terminal settings" },
   /* i18n */ { id: "terminal.encoding", message: "Character encoding" },
   /* i18n */ { id: "terminal.view", message: "View mode" },
