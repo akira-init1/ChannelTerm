@@ -63,7 +63,7 @@ The menu bar contains only menus, without an application name, logo, or preview 
 **Connection, Session, Terminal, View, Settings, Help** expose the implemented actions described
 in the [menu reference](../reference/gui-menus.md). Renderer popovers and the native Electron
 application menu share finite action IDs, state hints, and Lingui catalogs. Language switching
-updates English, Simplified Chinese, and Japanese menus without resizing xterm. The renderer
+updates all supported menu languages without resizing xterm. The renderer
 strip remains the visible Windows/Linux menu surface; macOS also has its native system menu.
 The official Lingui CLI maintains PO catalogs and compiles shared resource imports before both
 esbuild and Vite run. Each process owns its own Lingui instance; there is no cross-process

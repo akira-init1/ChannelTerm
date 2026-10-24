@@ -1,0 +1,174 @@
+msgid ""
+msgstr ""
+"POT-Creation-Date: 2026-10-24 20:32+0900\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: @lingui/cli\n"
+"Language: zh-TW\n"
+"Project-Id-Version: \n"
+"Report-Msgid-Bugs-To: \n"
+"PO-Revision-Date: \n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Plural-Forms: \n"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "app.quit"
+msgstr "結束 GUI"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "help.clear"
+msgstr "清除本機顯示會移除目前行上方的本機捲動歷史。不會傳送遠端 clear/reset 指令，也不會刪除 Host 的歷史記錄。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "help.close"
+msgstr "關閉說明"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "help.connect"
+msgstr "連線至現有的 Host，然後選取開啟中的工作階段。請透過 CLI 建立序列埠或 SSH 連線。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "help.detach"
+msgstr "關閉分頁只會解除此檢視的附加。中斷 GUI 連線或結束 GUI 後，共用 Host 與工作階段仍會繼續執行。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "help.quick"
+msgstr "快速說明"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "help.title"
+msgstr "使用 ChannelTerm"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.connect"
+msgstr "連線至 Host"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.disconnect"
+msgstr "中斷 GUI 與 Host 的連線"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "language.de"
+msgstr "Deutsch"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "language.en"
+msgstr "English"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "language.es"
+msgstr "Español"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "language.fr"
+msgstr "Français"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "language.ja"
+msgstr "日本語"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "language.ko"
+msgstr "한국어"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "language.ru"
+msgstr "Русский"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "language.zh-CN"
+msgstr "简体中文"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "language.zh-TW"
+msgstr "繁體中文"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "menu.connection"
+msgstr "連線"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "menu.help"
+msgstr "說明"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "menu.language"
+msgstr "語言"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "menu.session"
+msgstr "工作階段"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "menu.settings"
+msgstr "設定"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "menu.terminal"
+msgstr "終端機"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "menu.view"
+msgstr "檢視"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.attach"
+msgstr "附加工作階段"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.refresh"
+msgstr "重新整理工作階段"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.close"
+msgstr "關閉分頁（解除附加）"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.clear"
+msgstr "清除本機顯示"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.focus"
+msgstr "聚焦終端機"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.resume"
+msgstr "恢復輸入"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "view.sidebar"
+msgstr "工作階段側邊欄"

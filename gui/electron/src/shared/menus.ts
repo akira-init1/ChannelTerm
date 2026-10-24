@@ -1,6 +1,16 @@
 import type { Attachment } from "./api";
 
-export const locales = ["en", "zh-CN", "ja"] as const;
+export const locales = [
+  "en",
+  "de",
+  "es",
+  "fr",
+  "ja",
+  "ko",
+  "ru",
+  "zh-CN",
+  "zh-TW",
+] as const;
 export type MenuLocale = (typeof locales)[number];
 export type Action =
   | {

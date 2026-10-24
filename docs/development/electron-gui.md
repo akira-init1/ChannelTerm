@@ -61,8 +61,9 @@ language-selection behavior. The repository map owns source locations.
 Keep the annotation and unquoted `id`/`message` property names, as shown; the 5.9 extractor reads
 these descriptors directly. Menu code continues to reference stable IDs. No runtime macro or
 Vite-only Babel transform is necessary, and source descriptors are not imported into either
-runtime bundle. Translate messages in `src/locales/en/messages.po`, `zh-CN/messages.po`, and
-`ja/messages.po`; each PO uses the existing explicit ID as `msgid`. English defaults are filled
+runtime bundle. Translate messages in `src/locales/<locale>/messages.po` for each of the
+[nine supported locales](../reference/gui-menus.md#translation-and-keyboard-behavior); each PO
+uses the existing explicit ID as `msgid`. English defaults are filled
 for new source entries. Do not edit compiled arrays or keep translations in TypeScript logic.
 
 From `gui/electron`, after adding or changing a message:
@@ -77,8 +78,8 @@ npm.cmd test
 Extraction scans `src`, merges new messages into each configured catalog, preserves existing
 translations, and removes obsolete entries with `--clean`. Review PO changes. To deliberately
 replace existing English translations after changing English defaults, run
-`npm.cmd run i18n:extract -- --overwrite`; it does not overwrite Chinese/Japanese translations.
-The extraction regression test uses disposable copies to prove that a new message and fourth
+`npm.cmd run i18n:extract -- --overwrite`; it does not overwrite target-language translations.
+The extraction regression test uses disposable copies to prove that a new message and an additional
 locale preserve old translations. No translation service or account is used.
 
 `i18n:check` runs the official `lingui compile --strict`; it rejects missing target translations
@@ -146,8 +147,8 @@ never put it in React code, a `VITE_` variable, source control, or URL parameter
 
 The sidebar's Host panel shows status and its configured endpoint. The activity-rail terminal
 button or **View** menu hides/reopens the sidebar without detaching. **Help** shows a local
-usage summary. **Settings > Language** switches menu/help text between English, Simplified Chinese,
-and Japanese for the current window. Menus close with Escape or an outside click. See the
+usage summary. **Settings > Language** switches menu/help text among the nine supported languages
+for the current window. Menus close with Escape or an outside click. See the
 [menu reference](../reference/gui-menus.md) for actions, targeting, and unimplemented planning boundaries.
 Search filters Session references, labels,
 endpoints, and transport names; Serial/SSH/Other group headers expand or collapse their rows.
@@ -180,7 +181,8 @@ The Node tests cover authenticated list/attach/read/write, timeout and cancellat
 and disconnect, stale attachment rejection, lease contention and recovery, buffer overwrite, Session
 close, Host disconnect, credential redaction, redirect refusal, IPC source/argument checks, and
 independent client survival. They do not prove hardware or remote-network behavior.
-Translation tests run the pinned CLI against disposable PO copies: new-message and new-locale
+Native desktop tests switch through all nine catalogs and verify renderer/native labels and
+exclusive language checkmarks. Translation tests run the pinned CLI against disposable PO copies: new-message and new-locale
 extraction, translation preservation, strict rejection, and English fallback. Notice-collection
 tests distinguish absent optional platform packages from missing required packages/licenses.
 

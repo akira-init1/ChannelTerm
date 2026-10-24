@@ -88,6 +88,94 @@ export async function checkOfflineMenus(desktop, page) {
     .poll(async () => (await nativeItem(desktop, "connection")).label)
     .toBe("Connection");
 
+  // Switch through every supported catalog via the renderer. The native menu
+  // must acknowledge the same label and exactly one checked language each time.
+  const languages = [
+    {
+      locale: "de",
+      name: "Deutsch",
+      connection: "Verbindung",
+      language: "Sprache",
+    },
+    {
+      locale: "es",
+      name: "Español",
+      connection: "Conexión",
+      language: "Idioma",
+    },
+    {
+      locale: "fr",
+      name: "Français",
+      connection: "Connexion",
+      language: "Langue",
+    },
+    { locale: "ja", name: "日本語", connection: "接続", language: "言語" },
+    { locale: "ko", name: "한국어", connection: "연결", language: "언어" },
+    {
+      locale: "ru",
+      name: "Русский",
+      connection: "Подключение",
+      language: "Язык",
+    },
+    { locale: "zh-CN", name: "简体中文", connection: "连接", language: "语言" },
+    { locale: "zh-TW", name: "繁體中文", connection: "連線", language: "語言" },
+    {
+      locale: "en",
+      name: "English",
+      connection: "Connection",
+      language: "Language",
+    },
+  ];
+  const originalSize = await desktop.evaluate(({ BrowserWindow }) => {
+    const window = BrowserWindow.getAllWindows()[0];
+    const size = window.getSize();
+    window.setSize(760, 500);
+    return size;
+  });
+  let languageLabel = "Language";
+  for (const language of languages) {
+    await open(page, "settings");
+    await popup(page)
+      .getByRole("menuitem", { name: languageLabel, exact: true })
+      .click();
+    await expect(popup(page).getByRole("menuitemradio")).toHaveCount(9);
+    await popup(page)
+      .getByRole("menuitemradio", { name: language.name, exact: true })
+      .click();
+    await expect(page.locator('[data-menu="connection"]')).toHaveText(
+      language.connection,
+    );
+    await expect
+      .poll(async () => (await nativeItem(desktop, "connection")).label)
+      .toBe(language.connection);
+    await expect
+      .poll(
+        async () =>
+          (await nativeItem(desktop, `language.${language.locale}`)).checked,
+      )
+      .toBe(true);
+    const checked = await desktop.evaluate(({ Menu }) => {
+      return Menu.getApplicationMenu()
+        .getMenuItemById("language")
+        .submenu.items.filter((item) => item.checked)
+        .map((item) => item.id);
+    });
+    assert.deepEqual(checked, [`language.${language.locale}`]);
+    const menuFits = await page.locator(".app-menu").evaluate((menu) => {
+      const bounds = menu.getBoundingClientRect();
+      return menu.scrollWidth <= menu.clientWidth && bounds.right <= innerWidth;
+    });
+    assert.equal(
+      menuFits,
+      true,
+      `${language.locale}: menus fit the minimum window`,
+    );
+    languageLabel = language.language;
+  }
+  await desktop.evaluate(({ BrowserWindow }, size) => {
+    BrowserWindow.getAllWindows()[0].setSize(...size);
+  }, originalSize);
+
   await open(page, "view");
   await popup(page)
     .getByRole("menuitemcheckbox", { name: "Session sidebar" })

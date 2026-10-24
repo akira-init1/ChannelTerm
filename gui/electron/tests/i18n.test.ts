@@ -24,7 +24,7 @@ test("official extraction preserves translations, adds messages/locales, and enf
     new URL("lingui.js", import.meta.resolve("@lingui/cli")),
   );
   const po = formatter({ lineNumbers: false });
-  const allLocales = [...locales, "fr"];
+  const allLocales = [...locales, "it"];
   async function run(command: string, ...args: string[]) {
     return promisify(execFile)(
       process.execPath,
@@ -55,7 +55,7 @@ test("official extraction preserves translations, adds messages/locales, and enf
       original.set(locale, await catalog(locale));
     }
     // Use the real project config/formatter, overriding only disposable paths
-    // and adding a fourth locale. Production source/catalogs are never modified.
+    // and adding an extra locale. Production source/catalogs are never modified.
     await writeFile(
       config,
       `import base from ${JSON.stringify(resolve("lingui.config.ts").replaceAll("\\", "/"))};
@@ -92,11 +92,11 @@ export default { ...base, locales: ${JSON.stringify(allLocales)}, catalogs: [{ p
     await assert.rejects(run("compile", "--strict"), /Missing|missing/);
     await run("compile");
     const generated = await import(
-      pathToFileURL(join(directory, "locales/fr/messages.ts")).href
+      pathToFileURL(join(directory, "locales/it/messages.ts")).href
     );
     const i18n = setupI18n({
-      locale: "fr",
-      messages: { fr: generated.messages },
+      locale: "it",
+      messages: { it: generated.messages },
     });
     assert.equal(
       i18n._("test.catalog.probe", { name: "reader" }),
@@ -127,7 +127,7 @@ export default { ...base, locales: ${JSON.stringify(allLocales)}, catalogs: [{ p
       "Translated: New message {name}",
     );
     assert.equal(
-      (await catalog("fr"))["menu.connection"]?.translation,
+      (await catalog("it"))["menu.connection"]?.translation,
       "Translated: Connection",
     );
   } finally {

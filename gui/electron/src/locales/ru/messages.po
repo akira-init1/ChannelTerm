@@ -1,0 +1,174 @@
+msgid ""
+msgstr ""
+"POT-Creation-Date: 2026-10-24 20:32+0900\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: @lingui/cli\n"
+"Language: ru\n"
+"Project-Id-Version: \n"
+"Report-Msgid-Bugs-To: \n"
+"PO-Revision-Date: \n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Plural-Forms: \n"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "app.quit"
+msgstr "Выйти из GUI"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "help.clear"
+msgstr "Очистка локального экрана удаляет локальную историю прокрутки выше текущей строки. Команды clear/reset не отправляются, история Host сохраняется."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "help.close"
+msgstr "Закрыть справку"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "help.connect"
+msgstr "Подключитесь к существующему Host и выберите открытый сеанс. Последовательные и SSH-подключения создаются через CLI."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "help.detach"
+msgstr "Закрытие вкладки отсоединяет только это представление. При отключении или выходе из GUI общий Host и сеансы продолжают работать."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "help.quick"
+msgstr "Краткая справка"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "help.title"
+msgstr "Работа с ChannelTerm"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.connect"
+msgstr "Подключиться к Host"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.disconnect"
+msgstr "Отключить GUI от Host"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "language.de"
+msgstr "Deutsch"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "language.en"
+msgstr "English"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "language.es"
+msgstr "Español"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "language.fr"
+msgstr "Français"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "language.ja"
+msgstr "日本語"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "language.ko"
+msgstr "한국어"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "language.ru"
+msgstr "Русский"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "language.zh-CN"
+msgstr "简体中文"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "language.zh-TW"
+msgstr "繁體中文"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "menu.connection"
+msgstr "Подключение"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "menu.help"
+msgstr "Справка"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "menu.language"
+msgstr "Язык"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "menu.session"
+msgstr "Сеанс"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "menu.settings"
+msgstr "Настройки"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "menu.terminal"
+msgstr "Терминал"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "menu.view"
+msgstr "Вид"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.attach"
+msgstr "Присоединиться к сеансу"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.refresh"
+msgstr "Обновить список сеансов"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.close"
+msgstr "Закрыть вкладку (отсоединиться)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.clear"
+msgstr "Очистить локальный экран"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.focus"
+msgstr "Перейти в терминал"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.resume"
+msgstr "Возобновить ввод"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "view.sidebar"
+msgstr "Боковая панель сеансов"

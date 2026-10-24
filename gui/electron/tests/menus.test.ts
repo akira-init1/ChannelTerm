@@ -19,7 +19,7 @@ function flatten(items: MenuEntry[]): MenuEntry[] {
   return items.flatMap((item) => [item, ...flatten(item.children ?? [])]);
 }
 
-test("menu catalogs cover every implemented item in all three languages and depth is bounded", () => {
+test("menu catalogs cover every implemented item in all nine languages and depth is bounded", () => {
   function depth(items: MenuEntry[]): number {
     return Math.max(0, ...items.map((item) => 1 + depth(item.children ?? [])));
   }
@@ -28,10 +28,23 @@ test("menu catalogs cover every implemented item in all three languages and dept
     applicationMenu(initialMenuState).map((entry) => entry.id),
     ["connection", "session", "terminal", "view", "settings", "help"],
   );
-  const expected = ["Connection", "连接", "接続"];
-  for (const [index, locale] of locales.entries()) {
+  const expected = {
+    en: "Connection",
+    de: "Verbindung",
+    es: "Conexión",
+    fr: "Connexion",
+    ja: "接続",
+    ko: "연결",
+    ru: "Подключение",
+    "zh-CN": "连接",
+    "zh-TW": "連線",
+  };
+  assert.deepEqual(locales, Object.keys(expected));
+  for (const locale of locales) {
     const i18n = setupI18n({ locale, messages: menuCatalogs });
-    assert.equal(i18n._("menu.connection"), expected[index]);
+    assert.equal(i18n._("menu.connection"), expected[locale]);
+    assert.equal(isMenuState({ ...initialMenuState, locale }), true);
+    assert.equal(isAction({ id: "language.change", locale }), true);
     for (const message of menuMessages) {
       assert.ok(
         Object.hasOwn(menuCatalogs[locale], message.id),
@@ -104,7 +117,7 @@ test("menu IPC rejects unknown actions, language, arbitrary templates and oversi
     [],
     {},
     { ...initialMenuState, token: "secret" },
-    { ...initialMenuState, locale: "fr" },
+    { ...initialMenuState, locale: "unsupported" },
     { ...initialMenuState, busy: "false" },
     { ...initialMenuState, attachment: { id: "x", sessionId: "x\n" } },
   ])
@@ -114,7 +127,7 @@ test("menu IPC rejects unknown actions, language, arbitrary templates and oversi
     { id: "host.start" },
     { id: "shell.exec", command: "x" },
     { id: "app.quit", extra: true },
-    { id: "language.change", locale: "fr" },
+    { id: "language.change", locale: "unsupported" },
     { id: "session.attach", sessionId: "x".repeat(513) },
     { id: "tab.close", attachment: { id: "x" } },
   ])

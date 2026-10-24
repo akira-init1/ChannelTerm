@@ -60,8 +60,23 @@ msgstr "Disconnect GUI from Host"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "language.de"
+msgstr "Deutsch"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "language.en"
 msgstr "English"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "language.es"
+msgstr "Español"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "language.fr"
+msgstr "Français"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -70,8 +85,23 @@ msgstr "日本語"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "language.ko"
+msgstr "한국어"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "language.ru"
+msgstr "Русский"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "language.zh-CN"
 msgstr "简体中文"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "language.zh-TW"
+msgstr "繁體中文"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

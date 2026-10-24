@@ -1,0 +1,174 @@
+msgid ""
+msgstr ""
+"POT-Creation-Date: 2026-10-24 20:32+0900\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: @lingui/cli\n"
+"Language: ko\n"
+"Project-Id-Version: \n"
+"Report-Msgid-Bugs-To: \n"
+"PO-Revision-Date: \n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Plural-Forms: \n"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "app.quit"
+msgstr "GUI 종료"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "help.clear"
+msgstr "로컬 화면 지우기는 현재 줄 위의 로컬 스크롤 기록을 제거합니다. 원격 clear/reset 명령을 보내지 않으며 Host의 기록은 그대로 유지됩니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "help.close"
+msgstr "도움말 닫기"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "help.connect"
+msgstr "기존 Host에 연결한 다음 열린 세션을 선택하세요. 직렬 또는 SSH 연결은 CLI에서 생성하세요."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "help.detach"
+msgstr "탭을 닫으면 이 화면만 세션에서 분리됩니다. GUI의 연결을 해제하거나 GUI를 종료해도 공유 Host와 세션은 계속 실행됩니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "help.quick"
+msgstr "빠른 도움말"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "help.title"
+msgstr "ChannelTerm 사용 방법"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.connect"
+msgstr "Host에 연결"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.disconnect"
+msgstr "GUI와 Host 연결 해제"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "language.de"
+msgstr "Deutsch"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "language.en"
+msgstr "English"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "language.es"
+msgstr "Español"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "language.fr"
+msgstr "Français"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "language.ja"
+msgstr "日本語"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "language.ko"
+msgstr "한국어"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "language.ru"
+msgstr "Русский"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "language.zh-CN"
+msgstr "简体中文"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "language.zh-TW"
+msgstr "繁體中文"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "menu.connection"
+msgstr "연결"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "menu.help"
+msgstr "도움말"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "menu.language"
+msgstr "언어"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "menu.session"
+msgstr "세션"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "menu.settings"
+msgstr "설정"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "menu.terminal"
+msgstr "터미널"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "menu.view"
+msgstr "보기"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.attach"
+msgstr "세션에 연결"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.refresh"
+msgstr "세션 새로 고침"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.close"
+msgstr "탭 닫기 (세션에서 분리)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.clear"
+msgstr "로컬 화면 지우기"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.focus"
+msgstr "터미널에 포커스"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.resume"
+msgstr "입력 재개"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "view.sidebar"
+msgstr "세션 사이드바"

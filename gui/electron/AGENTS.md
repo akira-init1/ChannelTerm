@@ -180,7 +180,7 @@ import-boundary enforcement or coverage that the current checks do not provide.
 - Visibility, disabled state, and checkmarks are display hints only. Preserve Main caller/input
   validation and Host/Application write and Lease authority. Never replay rejected/uncertain writes.
   Local display cleanup must not issue remote commands or alter Host buffers.
-- Menu labels/help use Lingui and complete English, Simplified Chinese, and Japanese catalogs.
+- Menu labels/help use Lingui with complete catalogs for every supported locale in the menu reference.
   Keep native menus, renderer menus, open context menus, and checked language state synchronized.
   Follow the [translation workflow](../../docs/development/electron-gui.md#menu-translations-lingui-590):
   define stable IDs and English defaults with Lingui's annotated message descriptors, run official

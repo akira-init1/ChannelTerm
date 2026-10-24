@@ -1,0 +1,174 @@
+msgid ""
+msgstr ""
+"POT-Creation-Date: 2026-10-24 20:32+0900\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: @lingui/cli\n"
+"Language: es\n"
+"Project-Id-Version: \n"
+"Report-Msgid-Bugs-To: \n"
+"PO-Revision-Date: \n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Plural-Forms: \n"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "app.quit"
+msgstr "Salir de la GUI"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "help.clear"
+msgstr "Limpiar la vista local elimina el historial de desplazamiento local situado por encima de la línea actual. No envía comandos clear/reset y conserva el historial del Host."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "help.close"
+msgstr "Cerrar ayuda"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "help.connect"
+msgstr "Conéctese a un Host existente y seleccione una sesión abierta. Cree conexiones serie o SSH mediante la CLI."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "help.detach"
+msgstr "Cerrar una pestaña solo desadjunta esta vista. Desconectar o salir de la GUI mantiene en ejecución el Host y las sesiones compartidas."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "help.quick"
+msgstr "Ayuda rápida"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "help.title"
+msgstr "Uso de ChannelTerm"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.connect"
+msgstr "Conectar al Host"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.disconnect"
+msgstr "Desconectar la GUI del Host"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "language.de"
+msgstr "Deutsch"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "language.en"
+msgstr "English"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "language.es"
+msgstr "Español"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "language.fr"
+msgstr "Français"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "language.ja"
+msgstr "日本語"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "language.ko"
+msgstr "한국어"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "language.ru"
+msgstr "Русский"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "language.zh-CN"
+msgstr "简体中文"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "language.zh-TW"
+msgstr "繁體中文"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "menu.connection"
+msgstr "Conexión"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "menu.help"
+msgstr "Ayuda"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "menu.language"
+msgstr "Idioma"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "menu.session"
+msgstr "Sesión"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "menu.settings"
+msgstr "Configuración"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "menu.terminal"
+msgstr "Terminal"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "menu.view"
+msgstr "Ver"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.attach"
+msgstr "Adjuntar sesión"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.refresh"
+msgstr "Actualizar sesiones"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.close"
+msgstr "Cerrar pestaña (desadjuntar)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.clear"
+msgstr "Limpiar la vista local"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.focus"
+msgstr "Enfocar el terminal"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.resume"
+msgstr "Reanudar entrada"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "view.sidebar"
+msgstr "Barra lateral de sesiones"

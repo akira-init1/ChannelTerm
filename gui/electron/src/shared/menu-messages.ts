@@ -71,6 +71,12 @@ export const menuMessages = [
     id: "language.en",
     message: "English",
   },
+  /* i18n */ { id: "language.de", message: "Deutsch" },
+  /* i18n */ { id: "language.es", message: "Español" },
+  /* i18n */ { id: "language.fr", message: "Français" },
+  /* i18n */ { id: "language.ko", message: "한국어" },
+  /* i18n */ { id: "language.ru", message: "Русский" },
+  /* i18n */ { id: "language.zh-TW", message: "繁體中文" },
   /* i18n */ {
     id: "language.zh-CN",
     message: "简体中文",

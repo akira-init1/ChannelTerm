@@ -2,7 +2,7 @@
 
 The existing dark workbench keeps its 32 px, logo-free menu strip. Its six groups are
 **Connection, Session, Terminal, View, Settings, Help**. The maximum depth is three levels,
-currently used only by **Settings > Language > English / 简体中文 / 日本語**.
+currently used only by **Settings > Language > language name**.
 This reference describes implemented menu behavior, not additional Host capabilities. See
 [GUI architecture](../architecture/electron-gui.md) for process boundaries and
 [GUI development](../development/electron-gui.md) for startup and verification.
@@ -21,7 +21,7 @@ This reference describes implemented menu behavior, not additional Host capabili
 | Terminal > Clear local display; terminal context menu | `terminal.clear` | Use xterm's local clear operation; requires a current idle attachment, including a read-only/closed view. |
 | Terminal > Resume input; error notice | `terminal.resume` | Visible in menus only while input is paused; enabled only for an open, unleased, idle attachment. Does not replay queued input. |
 | View > Session sidebar; activity rail | `view.sidebar` | Toggle navigation without detaching. Checkmark reflects visibility. |
-| Settings > Language | `language.change` | Switch the menu catalog to English, Simplified Chinese, or Japanese. Checkmark reflects the active language. |
+| Settings > Language | `language.change` | Switch to one of the nine supported menu languages listed below. Checkmark reflects the active language. |
 | Help > Quick help | `help.quick` | Open a local, translated usage dialog. No external navigation. |
 
 Closing a **tab**, disconnecting the **GUI from Host**, closing a **shared Session**, and
@@ -70,7 +70,22 @@ Lingui Core runs in Main and Renderer with separate instances of the same compil
 active menu locale and synchronizes it with native labels/checks; open context-menu labels and
 help content also use that locale. The preference lasts for the current window only and defaults
 to English. This is menu/help localization, not a claim that Host diagnostics or the entire
-workbench have been translated. Adding a message requires all three translations.
+workbench have been translated. The language picker follows the README language order and
+uses native names so it remains recognizable after switching:
+
+| Locale | Picker label |
+| --- | --- |
+| `en` | English |
+| `de` | Deutsch |
+| `es` | Español |
+| `fr` | Français |
+| `ja` | 日本語 |
+| `ko` | 한국어 |
+| `ru` | Русский |
+| `zh-CN` | 简体中文 |
+| `zh-TW` | 繁體中文 |
+
+Adding a message requires complete translations in all nine catalogs.
 
 The official Lingui 5.9.0 CLI extracts annotated message definitions into independent PO files
 and compiles them before both process builds. Generated modules are not maintained by hand.
