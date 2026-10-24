@@ -235,6 +235,7 @@ Side effects and lifecycle:
   | --- | --- |
   | POSIX primary and continuation | `# `, `$ `, `> ` |
   | U-Boot variants | `BBG U-Boot > `, `U-Boot > `, `=>`, `Zynq>` (no trailing space required) |
+  | barebox | `barebox@Radxa ROCK3 Model A:/ ` |
 - The highlighter assigns non-bold semantic colors to status words, boot headings, field names,
   embedded interface/protocol identifiers, addresses, versions, timestamps, numbers, units, quoted
   values, structural `()`, `[]`, and `{}` delimiters, and recognized shell-prompt components. It

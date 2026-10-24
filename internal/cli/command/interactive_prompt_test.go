@@ -19,6 +19,7 @@ func TestInteractivePromptFamilies(t *testing.T) {
 		{name: "BashUser", prompts: []string{"sh-5.1$ ", "bash-5.2$ ", "[user@board ~]$ "}, stamped: true},
 		{name: "POSIXAndContinuation", prompts: []string{"# ", "$ ", "> "}},
 		{name: "UBoot", prompts: []string{"BBG U-Boot > ", "U-Boot > ", "=>", "Zynq>", "ZynqMP>"}},
+		{name: "Barebox", prompts: []string{"barebox@Radxa ROCK3 Model A:/ ", "barebox@board:/env"}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
