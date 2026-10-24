@@ -734,18 +734,26 @@ bundled CLI renews every 10 seconds.
 `terminal_begin_file_transfer_cancel` requires `session_id`. It returns `active: false` and
 `state: "inactive"` when no `file-transfer` lease exists, preserving ordinary terminal Ctrl+C
 behavior. For an active transfer it returns `active: true`, `state: "confirming"`, and an opaque
-`request_id`; a second concurrent confirmation is rejected.
+`request_id`; a second concurrent confirmation is rejected. The Host withdraws an unanswered
+request after 30 seconds without requiring client disconnection or cleanup. Renewing the transfer
+lease does not extend this confirmation deadline. The response does not include an absolute
+deadline or a separate confirmation-status query.
 
 `terminal_resolve_file_transfer_cancel` requires `session_id`, that `request_id`, and boolean
 `cancel`. `cancel: false` returns `state: "resumed"` immediately. `cancel: true` signals the lease
 owner and normally returns `state: "cancelled"` with last confirmed `transferred`, `total`, and
 `percent` after lease release. If the owner disappeared, TTL expiry returns `state: "expired"`
 instead of waiting indefinitely. A stale request ID is rejected. Only a direct user `y`/`Y` answer
-should set `cancel: true`.
+should set `cancel: true`. An answer after the confirmation deadline uses the existing invalid-request
+error. A completed transfer can still return its existing `completed` result if release won before
+the answer. A delayed confirmation timer never revokes an already accepted cancellation.
 
 `terminal_file_transfer_checkpoint` requires `session_id` and the active lease `owner`. The bundled
 transfer process calls it only at safe protocol block boundaries. It returns `action: "continue"`,
-blocks while confirmation is pending, or returns `action: "cancel"`; a non-owner is rejected. These
+blocks while confirmation is pending, or returns `action: "cancel"`; a non-owner is rejected.
+Unconfirmed expiry wakes the checkpoint, which revalidates the original transfer and lease before
+returning `continue`. It does not release a lease, cancel a transfer, or close a Session. File-transfer
+lease expiry and unconfirmed protocol recovery retain their separate fail-closed behavior. These
 three tools carry control state only, never terminal bytes. The bundled attachment uses them for
 Ctrl+C. AI clients should wait for the final result with `terminal_wait_file_transfer` rather than
 initiating the user interaction themselves or waiting for raw terminal output.

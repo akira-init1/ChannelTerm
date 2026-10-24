@@ -60,7 +60,9 @@ Ctrl+] local controller       size preflight, then decode
 `file-transfer` lease, it instead opens a default-No local cancellation confirmation in any bundled
 attachment. The transfer owner blocks at its next safe boundary while the Host keeps the lease; a
 negative answer resumes it, while a positive answer stops it before the next block and waits for
-lease release. A locally confirmed cancellation also cancels an outstanding protocol-marker read;
+lease release. The Host also withdraws an unanswered cross-client confirmation at its own deadline,
+independently of client cleanup or lease renewal; the checkpoint revalidates its original transfer
+before continuing. A locally confirmed cancellation also cancels an outstanding protocol-marker read;
 raw-block cleanup uses an independent context so it can restore the remote TTY before release.
 File-transfer lease expiry instead marks the original Session unavailable for writes and new
 operations before asynchronous closure. Unconfirmed recovery requests the same local closure;
@@ -263,8 +265,10 @@ the host-owned Session. Existing `terminal_write` input is unchanged.
 
 At each safe block boundary, the lease owner calls the Host checkpoint. A separate attachment can
 move that checkpoint through `running -> confirming -> resumed/cancelled`, allowing cross-process
-cancellation without sending confirmation bytes to the board. Payloads are bounded raw chunks, and
-other readers retain independent cursors. While the lease is active, other writers receive an
+cancellation without sending confirmation bytes to the board. An unanswered confirmation returns
+to `running` at the Host deadline; an accepted cancellation cannot take that transition. See
+[Application Module](../modules/application.md) for timing and identity checks. Payloads are bounded
+raw chunks, and other readers retain independent cursors. While the lease is active, other writers receive an
 immediate busy error instead of waiting or interleaving bytes.
 
 A missing, expired, or replaced owner cannot use the leased-write path. Application closes the

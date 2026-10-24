@@ -32,6 +32,11 @@ var (
 // clients enough time for transient request latency between heartbeats.
 const defaultLeaseTTL = 30 * time.Second
 
+// FileTransferCancelConfirmationTimeout bounds one unanswered Host confirmation.
+// Thirty seconds allows an interactive answer without indefinitely pausing a
+// healthy, renewing transfer. This deadline is independent of the lease TTL.
+const FileTransferCancelConfirmationTimeout = 30 * time.Second
+
 // LeaseType identifies the exclusive operation currently using a Session.
 type LeaseType string
 
@@ -102,14 +107,18 @@ const (
 )
 
 type fileTransferControl struct {
-	requestID   string
-	state       string
-	changed     chan struct{}
-	released    chan struct{}
-	transferred int64
-	total       int64
-	percent     float64
-	resolution  FileTransferCancelResolution
+	requestID string
+	// confirmationTimer and confirmationDeadline belong only to requestID.
+	// All transitions and timer cleanup are serialized by leaseCoordinator.mu.
+	confirmationTimer    *time.Timer
+	confirmationDeadline time.Time
+	state                string
+	changed              chan struct{}
+	released             chan struct{}
+	transferred          int64
+	total                int64
+	percent              float64
+	resolution           FileTransferCancelResolution
 }
 
 // SessionBusyError identifies the active lease preventing a write. It unwraps
@@ -262,6 +271,7 @@ func (c *leaseCoordinator) release(sessionID, owner string) (SessionLease, bool,
 	delete(c.leases, sessionID)
 	var cancelled *FileTransferCancelResolution
 	if control := c.fileTransfers[sessionID]; control != nil {
+		control.stopConfirmationTimer()
 		switch control.state {
 		case "cancelled":
 			control.resolution = FileTransferCancelResolution{
@@ -334,6 +344,7 @@ func (c *leaseCoordinator) expireLocked(sessionID string) (SessionLease, bool) {
 		c.recovering[sessionID] = lease
 	}
 	if control := c.fileTransfers[sessionID]; control != nil {
+		control.stopConfirmationTimer()
 		control.state = "expired"
 		control.resolution = FileTransferCancelResolution{State: "expired", Transferred: control.transferred, Total: control.total, Percent: control.percent}
 		close(control.released)
@@ -365,17 +376,72 @@ func (c *leaseCoordinator) beginFileTransferCancel(sessionID string) (FileTransf
 	if !exists || lease.Type != LeaseTypeFileTransfer {
 		return FileTransferCancelRequest{Active: false, State: "inactive"}, nil
 	}
+	if !time.Now().Before(lease.ExpiresAt) {
+		return FileTransferCancelRequest{}, ErrLeaseNotOwned
+	}
 	control := c.fileTransfers[sessionID]
 	if control == nil {
 		return FileTransferCancelRequest{}, errors.New("active file-transfer lease has no control state")
 	}
+	control.expireConfirmation()
 	if control.state != "running" {
 		return FileTransferCancelRequest{}, ErrFileTransferCancelPending
 	}
 	c.nextCancelRequest++
 	control.requestID = fmt.Sprintf("file-transfer-cancel-%d", c.nextCancelRequest)
 	control.state = "confirming"
+	control.confirmationDeadline = time.Now().Add(FileTransferCancelConfirmationTimeout)
+	requestID := control.requestID
+	control.confirmationTimer = time.AfterFunc(time.Until(control.confirmationDeadline), func() {
+		c.expireFileTransferConfirmation(sessionID, control, requestID)
+	})
 	return FileTransferCancelRequest{Active: true, RequestID: control.requestID, State: control.state}, nil
+}
+
+// expireFileTransferConfirmation is fenced by both the transfer's control
+// object and the request ID. Stopped callbacks may already be waiting on mu;
+// neither an accepted cancellation nor a replacement request may be resumed.
+func (c *leaseCoordinator) expireFileTransferConfirmation(sessionID string, control *fileTransferControl, requestID string) {
+	c.mu.Lock()
+	if c.fileTransfers[sessionID] != control || control.requestID != requestID || control.state != "confirming" || time.Now().Before(control.confirmationDeadline) {
+		c.mu.Unlock()
+		return
+	}
+	lease, exists := c.leases[sessionID]
+	if exists && !time.Now().Before(lease.ExpiresAt) {
+		expired, abortSession := c.expireLocked(sessionID)
+		c.mu.Unlock()
+		c.notifyExpired(expired, abortSession)
+		return
+	}
+	if exists {
+		control.expireConfirmation()
+	}
+	c.mu.Unlock()
+}
+
+// expireConfirmation revokes only an unanswered, overdue request. It does not
+// grant a lease or authorize a write: awakened checkpoints revalidate the lease
+// deadline before continuing. Callers must hold leaseCoordinator.mu.
+func (c *fileTransferControl) expireConfirmation() {
+	if c.state != "confirming" || time.Now().Before(c.confirmationDeadline) {
+		return
+	}
+	c.stopConfirmationTimer()
+	c.state = "running"
+	c.requestID = ""
+	close(c.changed)
+	c.changed = make(chan struct{})
+}
+
+// stopConfirmationTimer releases the pending timer on every decision or terminal
+// path. A callback already running still has to validate state and identity.
+// Callers must hold leaseCoordinator.mu.
+func (c *fileTransferControl) stopConfirmationTimer() {
+	if c.confirmationTimer != nil {
+		c.confirmationTimer.Stop()
+		c.confirmationTimer = nil
+	}
 }
 
 func (c *leaseCoordinator) resolveFileTransferCancel(ctx context.Context, sessionID, requestID string, cancel bool) (FileTransferCancelResolution, error) {
@@ -387,10 +453,19 @@ func (c *leaseCoordinator) resolveFileTransferCancel(ctx context.Context, sessio
 		c.mu.Unlock()
 		return result, nil
 	}
+	lease, exists := c.leases[sessionID]
+	if control != nil && exists && time.Now().Before(lease.ExpiresAt) {
+		control.expireConfirmation()
+	}
 	if control == nil || control.state != "confirming" || control.requestID != requestID {
 		c.mu.Unlock()
 		return FileTransferCancelResolution{}, ErrFileTransferCancelRequest
 	}
+	if !exists || !time.Now().Before(lease.ExpiresAt) {
+		c.mu.Unlock()
+		return FileTransferCancelResolution{}, ErrLeaseNotOwned
+	}
+	control.stopConfirmationTimer()
 	oldChanged := control.changed
 	control.changed = make(chan struct{})
 	if !cancel {
@@ -415,14 +490,23 @@ func (c *leaseCoordinator) resolveFileTransferCancel(ctx context.Context, sessio
 }
 
 func (c *leaseCoordinator) fileTransferCheckpoint(ctx context.Context, sessionID, owner string) (FileTransferControlAction, error) {
+	var transferID string
 	for {
 		c.mu.Lock()
 		lease, exists := c.leases[sessionID]
-		if !exists || lease.Owner != owner || lease.Type != LeaseTypeFileTransfer {
+		if !exists || lease.Owner != owner || lease.Type != LeaseTypeFileTransfer || !time.Now().Before(lease.ExpiresAt) {
 			c.mu.Unlock()
 			return "", ErrLeaseNotOwned
 		}
+		if transferID != "" && lease.TransferID != transferID {
+			c.mu.Unlock()
+			return "", ErrLeaseNotOwned
+		}
+		transferID = lease.TransferID
 		control := c.fileTransfers[sessionID]
+		if control != nil {
+			control.expireConfirmation()
+		}
 		if control == nil || control.state == "running" {
 			c.mu.Unlock()
 			return FileTransferContinue, nil
@@ -595,8 +679,13 @@ func (c *leaseCoordinator) removeRegistration(sessionID, reference string) {
 	delete(c.activeWrites, sessionID)
 	delete(c.recovering, sessionID)
 	if control := c.fileTransfers[sessionID]; control != nil {
-		close(control.released)
-		close(control.changed)
+		control.stopConfirmationTimer()
+		// Completed confirmations retain their result for the old prompt, but
+		// release has already closed their wait channels.
+		if control.state != "completed" {
+			close(control.released)
+			close(control.changed)
+		}
 		delete(c.fileTransfers, sessionID)
 	}
 }

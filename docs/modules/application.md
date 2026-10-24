@@ -245,10 +245,28 @@ lease owner with the matching transfer ID and rejects a completed event without 
 requested, resolved, and renamed fields.
 
 Each `file-transfer` lease also owns cancellation state. `BeginFileTransferCancel` changes `running`
-to `confirming` only for that lease. `FileTransferCheckpoint` blocks its owner at a safe boundary
-until `ResolveFileTransferCancel` resumes, cancels, or the lease expires. A confirmed cancellation
-normally returns after the owner releases the lease and publishes `FILE_TRANSFER_CANCELLED`; an
-abandoned owner instead returns the expired resolution at the TTL.
+to `confirming` only for that lease, with a fixed 30-second Host confirmation deadline. This allows
+time for a human answer while bounding a pause if the initiating client disappears. Lease renewal
+does not extend this deadline. An unanswered request returns to `running`, invalidates its request
+ID, and wakes checkpoints; continuation still requires the original Transfer ID, an unexpired
+lease, and the original open Session registration. Confirmation expiry neither cancels the transfer
+nor releases its lease or closes its Session. It is separate from file-transfer lease expiry,
+which still closes the original Session.
+
+`ResolveFileTransferCancel(false)` withdraws a current request immediately. A timely `true` changes
+it to `cancelled`, stops the confirmation timer, and waits for existing cleanup and lease release.
+Late answers use the existing invalid-request error; an already accepted cancellation cannot be
+withdrawn by a delayed timer. Decisions, timeout, release, and removal share the coordinator lock.
+Callbacks match both the original control object and request ID; checkpoints cannot join a later
+transfer even if its Session ID and owner token are reused. Begin, resolve, and checkpoint also
+check deadlines directly, so a delayed timer cannot extend the answer window.
+
+Normal release, lease expiry, and Application closure stop the confirmation timer and wake waiters.
+If release wins before an answer, the existing `completed` result remains available to that prompt,
+without a timer, until it is consumed, the Session closes, or a new transfer replaces it. A confirmed
+cancellation normally returns after the owner releases its lease and publishes
+`FILE_TRANSFER_CANCELLED`; an abandoned owner instead returns the expired resolution at the lease
+TTL. Cancellation cleanup itself has no new timeout in this change.
 
 File receive invokes its local progress callback with zero bytes after remote metadata is known and
 before the first payload. This callback is presentation-facing and does not alter the file-transfer

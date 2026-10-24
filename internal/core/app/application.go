@@ -522,7 +522,9 @@ func (a *Application) closeSessionAfterExpiredWrite(sessionID string) {
 
 // BeginFileTransferCancel atomically opens a confirmation request only when
 // identifier currently has an active file-transfer lease. Ordinary terminal
-// input can therefore preserve its existing Ctrl+C byte semantics.
+// input can therefore preserve its existing Ctrl+C byte semantics. The Host
+// withdraws an unanswered request after FileTransferCancelConfirmationTimeout,
+// independently of client disconnection and lease renewal.
 func (a *Application) BeginFileTransferCancel(identifier string) (FileTransferCancelRequest, error) {
 	terminal, err := a.session(identifier)
 	if err != nil {
@@ -533,7 +535,8 @@ func (a *Application) BeginFileTransferCancel(identifier string) (FileTransferCa
 
 // ResolveFileTransferCancel answers a Host-owned confirmation. A negative
 // answer resumes immediately. A positive answer waits until the transfer owner
-// restores protocol state and releases its lease.
+// restores protocol state and releases its lease. Answers after the confirmation
+// deadline are rejected; a confirmed cancellation never times out into resume.
 func (a *Application) ResolveFileTransferCancel(ctx context.Context, identifier, requestID string, cancel bool) (FileTransferCancelResolution, error) {
 	terminal, err := a.session(identifier)
 	if err != nil {
@@ -543,13 +546,31 @@ func (a *Application) ResolveFileTransferCancel(ctx context.Context, identifier,
 }
 
 // FileTransferCheckpoint blocks a lease owner at a safe protocol boundary
-// while a user confirmation is pending, then returns continue or cancel.
+// while a user confirmation is pending, then returns continue or cancel. An
+// unanswered confirmation expires independently; continuation still requires
+// the original transfer's valid lease.
 func (a *Application) FileTransferCheckpoint(ctx context.Context, identifier, owner string) (FileTransferControlAction, error) {
 	terminal, err := a.session(identifier)
 	if err != nil {
 		return "", err
 	}
-	return a.leases.fileTransferCheckpoint(ctx, terminal.ID(), owner)
+	reference, ok := a.manager.Reference(terminal.ID())
+	if !ok {
+		return "", ErrSessionNotFound
+	}
+	action, err := a.leases.fileTransferCheckpoint(ctx, terminal.ID(), owner)
+	if err != nil {
+		return "", err
+	}
+	// A confirmation can outlive Manager removal or a direct stream closure.
+	// Waking a checkpoint must not report continuation of that old Session.
+	if current, ok := a.manager.Reference(terminal.ID()); !ok || current != reference {
+		return "", ErrSessionNotFound
+	}
+	if terminal.State() != session.StateOpen {
+		return "", session.ErrNotOpen
+	}
+	return action, nil
 }
 
 // sessionOutputCursor snapshots the current raw-output tail for presentation

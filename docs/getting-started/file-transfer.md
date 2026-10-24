@@ -134,6 +134,18 @@ Normal attach `Ctrl+C` goes to the board. During a transfer, ordinary keys are d
 other answer resumes. The Host retains its lease while the question is pending, so another
 ChannelTerm writer cannot enter the shell protocol.
 
+When cancelling a transfer owned by another client, the Host gives the confirmation request 30
+seconds. An unanswered request is withdrawn even if the prompting client disappears and the
+transfer owner continues renewing its lease. The owner may continue only if its original transfer
+and lease remain valid; it may instead have completed, expired, or closed independently. This
+confirmation timeout does not cancel the transfer, release the lease, or close the Session. A
+confirmed cancellation is never undone by that timer.
+
+The CLI also limits its local answer window and rejects late answers. After its timeout notice,
+the next key only dismisses the notice and is not sent to the device. The Host remains authoritative:
+if a request is no longer valid, the CLI reports the rejection or unavailable status rather than
+claiming that transfer resumed. Start a new confirmation only for a still-active transfer.
+
 A confirmed cancellation stops at a safe block boundary, restores the target TTY, removes temporary
 transfer data, releases the lease, and reports the last confirmed byte count. If the transfer client
 disappears, lease expiry blocks new input and operations, then closes the original Session even

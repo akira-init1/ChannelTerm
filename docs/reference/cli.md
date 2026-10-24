@@ -669,6 +669,13 @@ independently before reconnecting. Exact recovery timing
 and failure behavior are documented in the
 [file-transfer workflow](../getting-started/file-transfer.md#protocol-and-concurrency-limits).
 
+For a transfer owned by another client, cancellation confirmation has a 30-second Host deadline
+that lease renewal cannot extend. Unanswered requests are withdrawn, allowing only a still-valid
+original transfer to continue. This is not lease expiry and does not close the Session. The CLI
+invalidates its local question at its answer deadline; the next key dismisses the notice without
+becoming device input. A late answer rejected by the Host does not imply that transfer resumed:
+it may have completed or closed. Already accepted cancellation continues through normal cleanup.
+
 The remote shell must provide `mkdir`, `stty`, `dd`, `wc`, `sha256sum`, and `sleep`; directory transfer
 additionally requires `tar`. The input line must be empty, including any recalled history command.
 See the [file-transfer preconditions](../getting-started/file-transfer.md#preconditions) for minimal
