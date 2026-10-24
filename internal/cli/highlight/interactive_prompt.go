@@ -41,4 +41,6 @@ var interactivePromptPatterns = []*regexp.Regexp{
 	regexp.MustCompile(`(?i)^(?:(?:[A-Za-z0-9_.-]+[ \t]+)?login:|password:)(?:[ \t]+|$)`),
 	// initramfs recovery.
 	regexp.MustCompile(`^\(initramfs\)`),
+	// Interactive GDB.
+	regexp.MustCompile(`^\(gdb\)`),
 }

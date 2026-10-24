@@ -28,6 +28,7 @@ func TestInteractivePromptFamilies(t *testing.T) {
 		{name: "MicroPython", prompts: []string{">>> ", "... ", "=== "}},
 		{name: "Login", prompts: []string{"login: ", "board login: ", "Password: ", "Login: "}},
 		{name: "Initramfs", prompts: []string{"(initramfs) ", "(initramfs)"}},
+		{name: "GDB", prompts: []string{"(gdb) ", "(gdb)"}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

@@ -244,6 +244,7 @@ Side effects and lifecycle:
   | MicroPython REPL | `>>> `, `... `, `=== ` |
   | Remote login | `login: `, `board login: `, `Password: ` (no local password echo) |
   | initramfs recovery | `(initramfs) ` |
+  | Interactive GDB | `(gdb) ` (terminal display only) |
 - The highlighter assigns non-bold semantic colors to status words, boot headings, field names,
   embedded interface/protocol identifiers, addresses, versions, timestamps, numbers, units, quoted
   values, structural `()`, `[]`, and `{}` delimiters, and recognized shell-prompt components. It
