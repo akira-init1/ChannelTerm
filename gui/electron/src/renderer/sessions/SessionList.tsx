@@ -1,5 +1,5 @@
 import type { SessionSummary } from "../../shared/api";
-import { useState } from "react";
+import { useState, type MouseEvent } from "react";
 import { Icon } from "../components/Icon";
 
 /**
@@ -13,12 +13,17 @@ export function SessionList({
   disabled,
   emptyMessage,
   onSelect,
+  onContextMenu,
 }: {
   sessions: SessionSummary[];
   selected?: string;
   disabled: boolean;
   emptyMessage: string;
   onSelect: (session: SessionSummary) => void;
+  onContextMenu: (
+    event: MouseEvent<HTMLElement>,
+    session: SessionSummary,
+  ) => void;
 }) {
   // Filtering only changes visible rows; it never detaches a hidden selection.
   const [query, setQuery] = useState("");
@@ -73,40 +78,45 @@ export function SessionList({
                 {group} <span>({entries.length})</span>
               </summary>
               {entries.map((session) => (
-                <button
+                <div
                   key={session.session_id}
-                  className={`session ${selected === session.session_id ? "selected" : ""}`}
-                  aria-pressed={selected === session.session_id}
-                  title={`${session.session_ref} · ${session.label || session.endpoint} · ${session.state}`}
-                  disabled={disabled || session.state !== "open"}
-                  onClick={() => onSelect(session)}
+                  onContextMenu={(event) => onContextMenu(event, session)}
                 >
-                  <span className={`session-symbol ${session.transport}`}>
-                    <Icon
-                      name={
-                        session.transport === "serial" ? "serial" : "monitor"
-                      }
-                    />
-                  </span>
-                  <span className="session-content">
-                    <span className="session-title">
-                      <strong>
-                        {session.label || session.session_ref || "Terminal"}
-                      </strong>
-                      <span
-                        className={`dot ${session.state}`}
-                        aria-hidden="true"
+                  <button
+                    key={session.session_id}
+                    className={`session ${selected === session.session_id ? "selected" : ""}`}
+                    aria-pressed={selected === session.session_id}
+                    title={`${session.session_ref} · ${session.label || session.endpoint} · ${session.state}`}
+                    disabled={disabled || session.state !== "open"}
+                    onClick={() => onSelect(session)}
+                  >
+                    <span className={`session-symbol ${session.transport}`}>
+                      <Icon
+                        name={
+                          session.transport === "serial" ? "serial" : "monitor"
+                        }
                       />
                     </span>
-                    <span className="session-label">
-                      {session.endpoint || session.session_ref}
+                    <span className="session-content">
+                      <span className="session-title">
+                        <strong>
+                          {session.label || session.session_ref || "Terminal"}
+                        </strong>
+                        <span
+                          className={`dot ${session.state}`}
+                          aria-hidden="true"
+                        />
+                      </span>
+                      <span className="session-label">
+                        {session.endpoint || session.session_ref}
+                      </span>
+                      <span className="session-meta">
+                        {session.session_ref} · {session.state}
+                        {session.lease ? ` · busy: ${session.lease.type}` : ""}
+                      </span>
                     </span>
-                    <span className="session-meta">
-                      {session.session_ref} · {session.state}
-                      {session.lease ? ` · busy: ${session.lease.type}` : ""}
-                    </span>
-                  </span>
-                </button>
+                  </button>
+                </div>
               ))}
             </details>
           );

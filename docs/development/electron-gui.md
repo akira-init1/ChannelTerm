@@ -9,7 +9,7 @@ installation, execution, checks, and troubleshooting.
 
 Use Node.js 22.12 or newer (a supported LTS release), npm, and a native desktop session. Dependencies
 are pinned by the independent `gui/electron/package-lock.json`. Electron, React, TypeScript, Vite,
-xterm.js, and the MCP TypeScript SDK are local to that project. No nested repository or global npm
+xterm.js, Lingui Core, and the MCP TypeScript SDK are local to that project. No nested repository or global npm
 package is required. Go 1.26+ is needed only for the existing Host and the isolated integration fixture.
 
 From the repository root:
@@ -73,12 +73,14 @@ never put it in React code, a `VITE_` variable, source control, or URL parameter
    terminal input when input is enabled. No command delimiter is added by the adapter.
 3. A Host lease makes the view read-only. A rejected write discards queued input; **Resume input**
    acknowledges recovery when the Host no longer reports a lease. It does not replay old input.
-4. **Detach** (the current attachment's close icon), **Disconnect Host**, or closing the window leaves the shared Session running.
+4. **Close tab (detach)** (the current attachment's close icon), **Disconnect Host**, or closing the window leaves the shared Session running.
    There is deliberately no close-Session button.
 
 The sidebar's Host panel shows status and its configured endpoint. The activity-rail terminal
 button or **View** menu hides/reopens the sidebar without detaching. **Help** shows a local
-usage summary; **Settings** is currently disabled. Menus close with Escape or an outside click.
+usage summary. **Settings > Language** switches menu/help text between English, Simplified Chinese,
+and Japanese for the current window. Menus close with Escape or an outside click. See the
+[menu reference](../reference/gui-menus.md) for actions, targeting, and unimplemented planning boundaries.
 Search filters Session references, labels,
 endpoints, and transport names; Serial/SSH/Other group headers expand or collapse their rows.
 An empty connected Host shows
@@ -120,12 +122,18 @@ terminal fitting, and no document overflow. They cover disconnected, connected-e
 attached, and failure/retry views, plus long labels, closed entries, and a scrolling 40-Session list.
 They also check transport grouping, case-insensitive search, no-match feedback, group collapse
 across refresh, and continued attachment/input after hiding and reopening navigation.
-Menu checks cover sidebar actions, the disabled settings reservation, keyboard opening,
-Escape/focus restoration, and outside-click dismissal; `workbench-menu.png` captures the menu.
-Only empty/large-list display checks replace the list IPC handler inside a disposable test process;
+Menu checks cover native/renderer language and checkmark synchronization, sidebar actions,
+keyboard opening, Escape/focus restoration, outside-click dismissal, and disabled offline/empty/
+closed actions. They reject stale attachment callbacks and missing non-current context targets,
+verify local clear leaves Host history intact and sends no bytes, and exit the GUI with an
+independent observer still attached. Ctrl+C/Ctrl+L/Ctrl+W, Alt and F1 pass through xterm.
+Chromium CDP composition/commit checks cover Chinese input without duplicate bytes; real OS IME
+candidate windows still need manual native testing. No global shortcut is registered.
+Empty/large-list and missing-context-target checks replace list IPC snapshots in disposable test processes;
 connection, terminal I/O, leases, and lifecycle checks use the real isolated Go Host. A fresh Electron
 process restores production IPC for subsequent recovery checks. No test-only controls ship in the app.
 Screenshots are saved under ignored `test-results/desktop.png` and `test-results/workbench-*.png`;
+`workbench-menu.png` and `workbench-menu-ja.png` capture menu surfaces;
 layout failures also report element bounds and save `workbench-layout-failure.png`.
 The test closes its own windows and fixture.
 This requires an interactive desktop; Linux CI needs its own display setup.

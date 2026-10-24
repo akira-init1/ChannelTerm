@@ -41,7 +41,7 @@ The permitted import direction follows these boundaries:
 | Preload | Shared contracts and Electron contextBridge/IPC; no Host Client or business policy. |
 | Main | Electron/system APIs, shared contracts, and Host Client; no renderer implementation. |
 | Host Client | Shared contracts, MCP SDK, and required Node APIs; no React, xterm, or view state. |
-| Shared contracts | Serializable types and inert constants; no React, Electron, Node runtime, or process-specific imports. |
+| Shared contracts | Serializable types, pure menu descriptions/validators, and literal catalogs; no React, Electron, Node runtime, or process-specific imports. |
 
 Renderer currently has `terminal` and `sessions` features; `components/App` composes their views.
 Feature-local hooks, state, and tests can be added when responsibility or verification requires
@@ -59,15 +59,16 @@ theme switcher or custom window-control API. This is application-defined styling
 
 The native title bar and minimum window size (760 × 500) remain unchanged. The application
 area has a 32 px application menu bar, a flexible workspace, and a 32 px full-width status bar.
-The menu bar contains only menus, without an application name, logo, or preview banner. **View** toggles the
-Session sidebar; **Help** displays a local quick-start panel. Native HTML popovers support
-keyboard opening, Escape, and outside-click dismissal without resizing xterm. **Settings**
-is an explicitly disabled reservation, not an implemented preferences interface. These menus
-are renderer-only and add no privileged IPC or Host operations.
+The menu bar contains only menus, without an application name, logo, or preview banner.
+**Connection, Session, Terminal, View, Settings, Help** expose the implemented actions described
+in the [menu reference](../reference/gui-menus.md). Renderer popovers and the native Electron
+application menu share finite action IDs, state hints, and Lingui catalogs. Language switching
+updates English, Simplified Chinese, and Japanese menus without resizing xterm. The renderer
+strip remains the visible Windows/Linux menu surface; macOS also has its native system menu.
 A 48 px activity rail toggles the 260 px Session sidebar without changing the attachment.
 At viewport widths of 900 px or less, the rail/sidebar shrink to 40/210 px and secondary
 labels are hidden. The terminal takes the remaining width and height; its 52 px header
-shows the single current attachment as a tab-shaped title. The close icon performs **Detach**,
+shows the single current attachment as a tab-shaped title. The close icon performs **Close tab (detach)**,
 not Session close. There is no multi-tab state or background terminal.
 
 The sidebar provides case-insensitive local search by reference, label, endpoint, or transport,
@@ -90,7 +91,7 @@ No baud rate, throughput, recent-connection history, or other unavailable metada
 | Host connection failed or lost | Safe error notice, offline status, and **Retry connection**; stale Session entries are removed on connection loss. |
 | Connected with no Sessions | **No Sessions available** and a hint to open one with the CLI, then refresh; no GUI creation control. |
 | Connected with Sessions but no attachment | **Select a Session**; open Sessions are selectable, closed entries are disabled. |
-| Attached | xterm occupies the workspace, the selected Session is marked, and **Detach** is available. |
+| Attached | xterm occupies the workspace, the selected Session is marked, and **Close tab (detach)** is available. |
 | Lease / rejected input / closed Session / output loss | Existing notices and recovery semantics remain visible; input status reflects the available snapshot. Output-loss notices only belong to the attached view. |
 
 Empty states use a small heading and one actionable hint, without a welcome hero or onboarding
@@ -135,6 +136,12 @@ flowchart TB
     end
     preload -->|"Validated Electron IPC"| client
 ```
+
+Menu state flows from Renderer through a validated fixed IPC method to Main's native menu
+builder. Native selections flow back through a fixed, filtered Preload subscription to the same
+renderer dispatcher used by toolbar and context-menu actions. Only known IDs and bounded display
+hints cross that boundary. Main's separate fixed quit method uses normal client cleanup. See the
+[menu targeting/security contract](../reference/gui-menus.md#targeting-state-and-security).
 
 Main connects to the separately running Host:
 

@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent,
+} from "react";
+import { setupI18n } from "@lingui/core";
 import type {
   Attachment,
   ClientError,
@@ -7,9 +15,19 @@ import type {
 } from "../../shared/api";
 import { host, unwrap } from "../host";
 import { SessionList } from "../sessions/SessionList";
-import { TerminalView } from "../terminal/TerminalView";
+import { TerminalView, type TerminalControls } from "../terminal/TerminalView";
 import { Icon } from "./Icon";
-import { WorkbenchMenu } from "./WorkbenchMenu";
+import { WorkbenchMenu, type MenuPopupRequest } from "./WorkbenchMenu";
+import {
+  actionEnabled,
+  isAction,
+  sessionMenu,
+  terminalMenu,
+  type Action,
+  type MenuLocale,
+  type MenuState,
+} from "../../shared/menus";
+import { menuCatalogs } from "../../shared/menu-messages";
 
 /**
  * App composes Host snapshots and local attachment controls into the workbench.
@@ -31,6 +49,17 @@ export function App() {
   const [dropped, setDropped] = useState(false);
   // Errors pause local input until recovery; resuming never grants Host permission.
   const [inputPaused, setInputPaused] = useState(false);
+  const [locale, setLocale] = useState<MenuLocale>("en");
+  const i18n = useMemo(
+    () => setupI18n({ locale, messages: menuCatalogs }),
+    [locale],
+  );
+  const t = (id: string) => i18n._(id);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [menuContext, setMenuContext] = useState<MenuPopupRequest>();
+  const terminal = useRef<TerminalControls>(null);
+  // Synchronous exclusion covers two menu/toolbar clicks before React rerenders.
+  const actionBusy = useRef(false);
   // Invalidate list snapshots and pending attachment results across Host changes.
   const generation = useRef(0);
   // Manual refresh and periodic polling share one outstanding list request.
@@ -38,6 +67,39 @@ export function App() {
   const current = sessions.find(
     (entry) => entry.session_id === attachment?.sessionId,
   );
+  const menuState = useMemo<MenuState>(
+    () => ({
+      locale,
+      connected,
+      busy: working,
+      sidebarVisible,
+      attachment,
+      currentOpen: current?.state === "open",
+      inputPaused,
+      leased: !!current?.lease,
+    }),
+    [
+      locale,
+      connected,
+      working,
+      sidebarVisible,
+      attachment,
+      current?.state,
+      current?.lease,
+      inputPaused,
+    ],
+  );
+  const dispatchRef = useRef<(action: Action) => void>(() => {});
+  useEffect(
+    () => host.onMenuAction((action) => dispatchRef.current(action)),
+    [],
+  );
+  useEffect(() => {
+    // Only bounded display hints cross this channel; native menus cannot authorize I/O.
+    void unwrap(host.syncMenu(menuState)).catch((error: ClientError) =>
+      setError(error),
+    );
+  }, [menuState]);
 
   const report = useCallback((failure: ClientError) => {
     if (failure.code === "cancelled") return;
@@ -113,9 +175,7 @@ export function App() {
 
   async function select(session: SessionSummary) {
     setOperation("attaching");
-    setAttachment(undefined);
     setError(undefined);
-    setDropped(false);
     const version = generation.current;
     try {
       const next = await unwrap(host.attach(session.session_id));
@@ -124,6 +184,7 @@ export function App() {
         await host.detach(next.id);
         return;
       }
+      setDropped(false);
       setInputPaused(false);
       setAttachment(next);
     } catch (error) {
@@ -148,6 +209,98 @@ export function App() {
     }
   }
 
+  function enabled(action: Action): boolean {
+    if (
+      !actionEnabled(action, {
+        ...menuState,
+        busy: working || actionBusy.current,
+      })
+    )
+      return false;
+    return (
+      action.id !== "session.attach" ||
+      (attachment?.sessionId !== action.sessionId &&
+        sessions.some(
+          (session) =>
+            session.session_id === action.sessionId && session.state === "open",
+        ))
+    );
+  }
+
+  async function execute(action: Action) {
+    if (!isAction(action) || !enabled(action)) return;
+    switch (action.id) {
+      case "view.sidebar":
+        setSidebarVisible((visible) => !visible);
+        return;
+      case "language.change":
+        setLocale(action.locale);
+        return;
+      case "help.quick":
+        setHelpOpen(true);
+        return;
+      case "terminal.clear":
+        terminal.current?.clear();
+        return;
+      case "terminal.focus":
+        terminal.current?.focus();
+        return;
+      case "terminal.resume":
+        setInputPaused(false);
+        setError(undefined);
+        terminal.current?.focus();
+        return;
+      case "app.quit":
+        await unwrap(host.quit()).catch(report);
+        return;
+    }
+    actionBusy.current = true;
+    try {
+      switch (action.id) {
+        case "host.connect":
+          await connect();
+          break;
+        case "host.disconnect":
+          await disconnect();
+          break;
+        case "session.refresh":
+          await refresh();
+          break;
+        case "session.attach": {
+          const target = sessions.find(
+            (entry) => entry.session_id === action.sessionId,
+          );
+          if (target?.state === "open") await select(target);
+          break;
+        }
+        case "tab.close":
+          await detach();
+          break;
+      }
+    } finally {
+      actionBusy.current = false;
+    }
+  }
+  const dispatch = (action: Action) => {
+    void execute(action);
+  };
+  dispatchRef.current = dispatch;
+
+  function openContext(
+    event: MouseEvent<HTMLElement>,
+    entries: MenuPopupRequest["entries"],
+  ) {
+    event.preventDefault();
+    const opener = event.currentTarget;
+    const rect = opener.getBoundingClientRect();
+    setMenuContext({
+      entries,
+      opener,
+      x: event.clientX || rect.left,
+      y: event.clientY || rect.bottom,
+    });
+  }
+
   const hostStatus =
     operation === "connecting"
       ? "Connecting to Host…"
@@ -160,7 +313,11 @@ export function App() {
             : "Host disconnected";
   // Cached state is only an input guard; the Host still checks every write.
   const writable =
-    connected && current?.state === "open" && !current.lease && !inputPaused;
+    connected &&
+    !working &&
+    current?.state === "open" &&
+    !current.lease &&
+    !inputPaused;
   // Distinguish pending/failed operations from a successfully loaded empty list
   // instead of using the same empty-state heading for every unattached view.
   const emptyTitle = working
@@ -192,8 +349,14 @@ export function App() {
   return (
     <div className={`app ${sidebarVisible ? "" : "sidebar-hidden"}`}>
       <WorkbenchMenu
-        sidebarVisible={sidebarVisible}
-        onToggleSidebar={() => setSidebarVisible((visible) => !visible)}
+        state={menuState}
+        t={t}
+        execute={dispatch}
+        enabled={enabled}
+        context={menuContext}
+        onContextClose={() => setMenuContext(undefined)}
+        helpOpen={helpOpen}
+        onHelpClose={() => setHelpOpen(false)}
       />
       <div className="workspace">
         <div className="activity-rail" aria-label="Workspace navigation">
@@ -203,7 +366,7 @@ export function App() {
             title="Toggle Session sidebar"
             aria-expanded={sidebarVisible}
             aria-controls="session-sidebar"
-            onClick={() => setSidebarVisible((visible) => !visible)}
+            onClick={() => dispatch({ id: "view.sidebar" })}
           >
             <Icon name="terminal" />
           </button>
@@ -229,7 +392,7 @@ export function App() {
               aria-label="Refresh"
               title="Refresh Sessions"
               disabled={!connected || working}
-              onClick={() => void refresh()}
+              onClick={() => dispatch({ id: "session.refresh" })}
             >
               <Icon name="refresh" />
             </button>
@@ -243,7 +406,15 @@ export function App() {
                 ? "No Sessions found."
                 : "Connect a Host to list Sessions."
             }
-            onSelect={(item) => void select(item)}
+            onSelect={(item) =>
+              dispatch({ id: "session.attach", sessionId: item.session_id })
+            }
+            onContextMenu={(event, item) =>
+              openContext(
+                event,
+                sessionMenu(menuState, item.session_id, item.state === "open"),
+              )
+            }
           />
           <section className="host-panel" aria-label="Host connection">
             <h2>Host connection</h2>
@@ -262,7 +433,9 @@ export function App() {
             <button
               className={connected ? "" : "primary"}
               disabled={working}
-              onClick={() => void (connected ? disconnect() : connect())}
+              onClick={() =>
+                dispatch({ id: connected ? "host.disconnect" : "host.connect" })
+              }
             >
               <Icon name="plug" />
               {operation === "connecting"
@@ -281,7 +454,20 @@ export function App() {
         <main aria-label="Terminal workspace">
           <div className="terminal-toolbar">
             {/* A tab-shaped attachment header does not imply multiple live tabs. */}
-            <div className={`terminal-tab ${attachment ? "attached" : ""}`}>
+            <div
+              className={`terminal-tab ${attachment ? "attached" : ""}`}
+              onContextMenu={(event) => {
+                if (attachment)
+                  openContext(
+                    event,
+                    sessionMenu(
+                      menuState,
+                      attachment.sessionId,
+                      current?.state === "open",
+                    ),
+                  );
+              }}
+            >
               <Icon
                 name={
                   current?.transport === "serial"
@@ -297,10 +483,10 @@ export function App() {
               {attachment && (
                 <button
                   className="quiet icon-button"
-                  aria-label="Detach"
-                  title="Detach Session"
+                  aria-label={t("tab.close")}
+                  title={t("tab.close")}
                   disabled={working}
-                  onClick={() => void detach()}
+                  onClick={() => dispatch({ id: "tab.close", attachment })}
                 >
                   <Icon name="close" />
                 </button>
@@ -326,10 +512,9 @@ export function App() {
                   current?.state === "open" &&
                   !current.lease && (
                     <button
-                      onClick={() => {
-                        setInputPaused(false);
-                        setError(undefined);
-                      }}
+                      onClick={() =>
+                        dispatch({ id: "terminal.resume", attachment })
+                      }
                     >
                       Resume input
                     </button>
@@ -357,11 +542,15 @@ export function App() {
           </div>
           {attachment ? (
             <TerminalView
+              ref={terminal}
               key={attachment.id}
               attachment={attachment}
               writable={writable}
               onError={report}
               onDropped={() => setDropped(true)}
+              onContextMenu={(event) =>
+                openContext(event, terminalMenu(menuState))
+              }
             />
           ) : (
             <div className="terminal-empty" aria-busy={working}>

@@ -5,6 +5,9 @@ runtime JavaScript dependencies use MIT, ISC, BSD-2-Clause, and BSD-3-Clause
 licenses. Electron uses MIT and includes Chromium and other third-party code
 with their own notices.
 
+Menu localization uses Lingui Core 5.9.0 (MIT). Its installed dependency licenses
+are included by the same notice collection; no translation service is contacted.
+
 npm run build collects the installed runtime dependency license texts, including
 the Electron npm package license, into dist/THIRD_PARTY_NOTICES.txt and copies the
 ChannelTerm license into dist/LICENSE. Redistribution of the bundled JavaScript

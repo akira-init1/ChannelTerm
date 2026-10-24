@@ -116,6 +116,7 @@ gui/electron/
 |   |-- main/
 |   |   |-- index.ts                Window lifecycle, static application scheme, validated IPC
 |   |   |-- security.ts             Trusted caller and content-policy checks
+|   |   |-- menu.ts                 Native menu rendering from bounded display hints
 |   |   `-- host/                   Main-only credentials, MCP client, validation, safe errors
 |   |-- preload/                   Narrow contextBridge methods; no business decisions
 |   |-- renderer/
@@ -125,7 +126,7 @@ gui/electron/
 |   |   |-- styles/                Desktop presentation
 |   |   |-- host.ts                Renderer adapter for the typed Preload bridge
 |   |   `-- main.tsx               React entry point
-|   `-- shared/                    GUI bridge types and fixed channel names
+|   `-- shared/                    GUI bridge types, fixed channels, pure menu model and literal catalogs
 |-- scripts/                       Independent build/start/dev/notices and desktop test runners
 |-- tests/
 |   |-- host/                      Disposable Go composition using the real Host with fake I/O

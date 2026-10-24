@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer } from "electron";
 import { channels, type DesktopAPI } from "../shared/api";
+import { isAction } from "../shared/menus";
 
 const api: DesktopAPI = {
   info: () => ipcRenderer.invoke(channels.info),
@@ -10,5 +11,15 @@ const api: DesktopAPI = {
   detach: (id) => ipcRenderer.invoke(channels.detach, id),
   read: (id) => ipcRenderer.invoke(channels.read, id),
   write: (id, data) => ipcRenderer.invoke(channels.write, id, data),
+  syncMenu: (state) => ipcRenderer.invoke(channels.menuState, state),
+  onMenuAction: (listener) => {
+    // Never pass the Electron event or an arbitrary IPC subscription to React.
+    const receive = (_event: Electron.IpcRendererEvent, action: unknown) => {
+      if (isAction(action)) listener(action);
+    };
+    ipcRenderer.on(channels.menuAction, receive);
+    return () => ipcRenderer.removeListener(channels.menuAction, receive);
+  },
+  quit: () => ipcRenderer.invoke(channels.quit),
 };
 contextBridge.exposeInMainWorld("channelterm", Object.freeze(api));

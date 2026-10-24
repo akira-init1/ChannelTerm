@@ -1,8 +1,20 @@
-import { useEffect, useRef } from "react";
+import {
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  type Ref,
+  type MouseEvent,
+} from "react";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import type { Attachment, ClientError } from "../../shared/api";
 import { host, unwrap } from "../host";
+
+/** Local xterm controls only; neither method writes bytes or changes Host history. */
+export interface TerminalControls {
+  clear(): void;
+  focus(): void;
+}
 
 /**
  * TerminalView owns xterm, local fitting, and bounded I/O for one client attachment.
@@ -14,13 +26,27 @@ export function TerminalView({
   writable,
   onError,
   onDropped,
+  ref,
+  onContextMenu,
 }: {
   attachment: Attachment;
   writable: boolean;
   onError: (error: ClientError) => void;
   onDropped: () => void;
+  ref: Ref<TerminalControls>;
+  onContextMenu: (event: MouseEvent<HTMLElement>) => void;
 }) {
   const container = useRef<HTMLDivElement>(null);
+  const local = useRef<Terminal | undefined>(undefined);
+  useImperativeHandle(
+    ref,
+    () => ({
+      // xterm.clear preserves the current line/parser and sends no remote reset.
+      clear: () => local.current?.clear(),
+      focus: () => local.current?.focus(),
+    }),
+    [],
+  );
   const inputEnabled = useRef(writable);
   const callbacks = useRef({ onError, onDropped });
   const previousReadLoop = useRef<Promise<void>>(Promise.resolve());
@@ -62,6 +88,7 @@ export function TerminalView({
       allowProposedApi: false,
     });
     const fit = new FitAddon();
+    local.current = terminal;
     terminal.loadAddon(fit);
     terminal.open(container.current!);
     fit.fit();
@@ -130,6 +157,7 @@ export function TerminalView({
       resize.disconnect();
       listener.dispose();
       terminal.dispose();
+      local.current = undefined;
       // Main owns detach/cancellation; React effect cleanup must not detach a
       // newly mounted view (including StrictMode effect replay).
     };
@@ -140,6 +168,7 @@ export function TerminalView({
       ref={container}
       className="terminal-view"
       aria-label="Terminal output and input"
+      onContextMenu={onContextMenu}
     />
   );
 }

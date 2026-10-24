@@ -45,6 +45,7 @@ for command-line flags and defaults, the running program's `--help` output remai
 - [MCP tools](reference/mcp-tools.md)
 - [Configuration](reference/configuration.md)
 - [Identifiers and references](reference/identifiers.md)
+- [Electron GUI menus](reference/gui-menus.md)
 
 ## Architecture
 

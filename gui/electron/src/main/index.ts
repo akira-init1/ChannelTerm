@@ -13,6 +13,8 @@ import { HostClient } from "./host/client";
 import { hostEndpoint, loadToken } from "./host/config";
 import { HostError, publicError } from "./host/errors";
 import { identifier, input } from "./host/validation";
+import { initialMenuState, isMenuState } from "../shared/menus";
+import { updateApplicationMenu } from "./menu";
 import {
   contentPolicy,
   developmentURL,
@@ -38,6 +40,11 @@ let host: HostClient | undefined;
 let connecting = false;
 let quitting = false;
 let connectionVersion = 0;
+
+function requestQuit(): void {
+  // Return an IPC reply before normal before-quit cleanup closes the renderer.
+  setImmediate(() => app.quit());
+}
 
 function disconnectHost(): Promise<void> {
   connectionVersion++;
@@ -95,6 +102,12 @@ function registerIPC(): void {
       input(data);
       return currentHost().write(id, data);
     },
+    [channels.menuState]: (state) => {
+      if (!isMenuState(state))
+        throw new HostError("invalid_input", "Invalid menu state.");
+      if (window) updateApplicationMenu(window, state, requestQuit);
+    },
+    [channels.quit]: requestQuit,
   };
   for (const [channel, handler] of Object.entries(handlers)) {
     ipcMain.handle(
@@ -105,9 +118,12 @@ function registerIPC(): void {
           const expected =
             channel === channels.write
               ? 2
-              : [channels.attach, channels.detach, channels.read].includes(
-                    channel as typeof channels.attach,
-                  )
+              : [
+                    channels.attach,
+                    channels.detach,
+                    channels.read,
+                    channels.menuState,
+                  ].includes(channel as typeof channels.attach)
                 ? 1
                 : 0;
           if (args.length !== expected)
@@ -141,6 +157,7 @@ async function createWindow(): Promise<void> {
     },
   });
   window = created;
+  updateApplicationMenu(created, initialMenuState, requestQuit);
   created.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
   created.webContents.on("will-navigate", (event) => event.preventDefault());
   created.webContents.on("will-attach-webview", (event) =>
@@ -148,15 +165,20 @@ async function createWindow(): Promise<void> {
   );
   // A reload/crash releases client requests just like a window close.
   created.webContents.on("render-process-gone", () => {
+    updateApplicationMenu(created, initialMenuState, requestQuit);
     void disconnectHost();
   });
   created.webContents.on(
     "did-start-navigation",
     (_event, _url, _inPlace, mainFrame) => {
-      if (mainFrame) void disconnectHost();
+      if (mainFrame) {
+        updateApplicationMenu(created, initialMenuState, requestQuit);
+        void disconnectHost();
+      }
     },
   );
   created.on("closed", () => {
+    updateApplicationMenu(created, initialMenuState, requestQuit);
     window = undefined;
     void disconnectHost();
   });

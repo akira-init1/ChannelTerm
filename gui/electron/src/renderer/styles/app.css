@@ -106,9 +106,15 @@ p {
   border: 1px solid #414c5d;
   border-radius: 4px;
   box-shadow: 0 8px 24px #0006;
+  min-width: 230px;
+  max-width: calc(100vw - 8px);
+  max-height: calc(100vh - 8px);
+  overflow-y: auto;
 }
 .menu-popup button {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   width: 100%;
   text-align: left;
   background: transparent;
@@ -116,24 +122,41 @@ p {
   padding: 7px 12px;
   font-size: 12px;
 }
-.help-panel {
-  left: 130px;
-  width: 300px;
-  max-width: calc(100vw - 142px);
-  padding: 14px;
+.menu-check {
+  width: 12px;
+  flex-shrink: 0;
 }
-.help-panel h2 {
+.menu-submenu {
+  margin-left: 16px;
+  border-left: 1px solid var(--border);
+}
+.help-dialog {
+  width: 420px;
+  max-width: calc(100vw - 32px);
+  padding: 18px;
+  color: var(--foreground);
+  background: var(--panel-background);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+}
+.help-dialog::backdrop {
+  background: #0006;
+}
+.help-dialog h2 {
   font-size: 13px;
   font-weight: 600;
   margin-bottom: 10px;
 }
-.help-panel p {
+.help-dialog p {
   font-size: 12px;
   line-height: 1.6;
   color: var(--muted);
 }
-.help-panel p + p {
+.help-dialog p + p {
   margin-top: 8px;
+}
+.help-dialog button {
+  margin-top: 16px;
 }
 .workspace {
   min-height: 0;

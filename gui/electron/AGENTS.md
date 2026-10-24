@@ -165,3 +165,26 @@ Before completion, review dependency direction, state/Lease authority, IPC input
 checks, secret exposure, bounded I/O, cleanup/error paths, test evidence, and documentation impact,
 in addition to the root completion gate. These rules guide review; they do not assert automated
 import-boundary enforcement or coverage that the current checks do not provide.
+
+## 9. Menus and localization
+
+- Keep the six menu groups Connection, Session, Terminal, View, Settings, Help and no more than
+  three levels. The [menu reference](../../docs/reference/gui-menus.md) owns the implemented
+  action inventory and explicitly unimplemented planning boundaries; planning never grants a capability.
+- Use a finite, typed action set and a shared menu description. Menu, toolbar, and keyboard
+  activation must reuse the existing action dispatcher; do not duplicate Host/business handlers.
+  Shared menu builders, validators, and literal catalogs must remain pure and process-independent.
+- Keep close-tab/detach, GUI disconnect, shared-Session close, and app exit distinct. Bind context
+  actions to the clicked opaque Session/attachment and revalidate before execution. Stale callbacks
+  must never fall back to the selected Session or a replacement attachment.
+- Visibility, disabled state, and checkmarks are display hints only. Preserve Main caller/input
+  validation and Host/Application write and Lease authority. Never replay rejected/uncertain writes.
+  Local display cleanup must not issue remote commands or alter Host buffers.
+- Menu labels/help use Lingui and complete English, Simplified Chinese, and Japanese catalogs.
+  Keep native menus, renderer menus, open context menus, and checked language state synchronized.
+  Catalogs are data, never executable expressions or arbitrary menu/IPC capabilities.
+- Keep keyboard navigation scoped to focused menus and ignore IME composition. Do not add native
+  accelerators, default roles, or global key handlers that consume terminal/editor input. Any later
+  shortcut needs an explicit focus/composition policy and regression coverage.
+- Test offline/empty/closed states, non-current and expired context targets, detach/exit without
+  shared-Session closure, local-only clear, translation sync, and terminal/IME input boundaries.

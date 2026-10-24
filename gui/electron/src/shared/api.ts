@@ -1,3 +1,5 @@
+import type { Action, MenuState } from "./menus";
+
 /** Display-only snapshots. The Host remains authoritative for lifecycle and leases. */
 export interface SessionSummary {
   session_id: string;
@@ -49,6 +51,9 @@ export interface DesktopAPI {
   detach(attachmentId: string): Promise<Result<void>>;
   read(attachmentId: string): Promise<Result<Output>>;
   write(attachmentId: string, data: string): Promise<Result<void>>;
+  syncMenu(state: MenuState): Promise<Result<void>>;
+  onMenuAction(listener: (action: Action) => void): () => void;
+  quit(): Promise<Result<void>>;
 }
 
 export const channels = {
@@ -60,4 +65,7 @@ export const channels = {
   detach: "host:detach",
   read: "host:read",
   write: "host:write",
+  menuState: "menu:state",
+  menuAction: "menu:action",
+  quit: "app:quit",
 } as const;

@@ -1,71 +1,243 @@
-import { useRef } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+} from "react";
+import type { Action, MenuEntry, MenuState } from "../../shared/menus";
+import { applicationMenu } from "../../shared/menus";
 import { Icon } from "./Icon";
 
-/**
- * WorkbenchMenu exposes local view controls without adding privileged bridge APIs.
- * Native auto popovers handle outside clicks, Escape, and focus restoration.
- */
+export interface MenuPopupRequest {
+  entries: MenuEntry[];
+  x: number;
+  y: number;
+  opener: HTMLElement;
+}
+
+/** Menu keyboard handling is scoped to the popup, never document or xterm. */
+function navigateMenu(event: KeyboardEvent<HTMLDivElement>) {
+  if (event.nativeEvent.isComposing || event.keyCode === 229) return;
+  if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
+  const items = Array.from(
+    event.currentTarget.querySelectorAll<HTMLButtonElement>(
+      "button:not(:disabled)",
+    ),
+  );
+  if (!items.length) return;
+  const index = items.indexOf(document.activeElement as HTMLButtonElement);
+  const next =
+    event.key === "Home"
+      ? 0
+      : event.key === "End"
+        ? items.length - 1
+        : (index + (event.key === "ArrowUp" ? -1 : 1) + items.length) %
+          items.length;
+  items[next]?.focus();
+  event.preventDefault();
+}
+
+/** Renderer and native application menus consume the same finite descriptors. */
 export function WorkbenchMenu({
-  sidebarVisible,
-  onToggleSidebar,
+  state,
+  t,
+  execute,
+  enabled,
+  context,
+  onContextClose,
+  helpOpen,
+  onHelpClose,
 }: {
-  sidebarVisible: boolean;
-  onToggleSidebar: () => void;
+  state: MenuState;
+  t: (id: string) => string;
+  execute: (action: Action) => void;
+  enabled: (action: Action) => boolean;
+  context?: MenuPopupRequest;
+  onContextClose: () => void;
+  helpOpen: boolean;
+  onHelpClose: () => void;
 }) {
-  const view = useRef<HTMLDivElement>(null);
+  const [opened, setOpened] = useState<MenuPopupRequest>();
+  const [expanded, setExpanded] = useState<string>();
+  const popup = useRef<HTMLDivElement>(null);
+  const help = useRef<HTMLDialogElement>(null);
+  const request = context ?? opened;
+  const requestRef = useRef(request);
+  requestRef.current = request;
+
+  function close(restoreFocus = false) {
+    if (restoreFocus) requestRef.current?.opener.focus();
+    popup.current?.hidePopover();
+    setOpened(undefined);
+    setExpanded(undefined);
+    onContextClose();
+  }
+  useLayoutEffect(() => {
+    if (!request || !popup.current) return;
+    const element = popup.current;
+    element.showPopover();
+    const bounds = element.getBoundingClientRect();
+    element.style.left = `${Math.max(4, Math.min(request.x, innerWidth - bounds.width - 4))}px`;
+    element.style.top = `${Math.max(4, Math.min(request.y, innerHeight - bounds.height - 4))}px`;
+    element.querySelector<HTMLButtonElement>("button:not(:disabled)")?.focus();
+  }, [request, expanded]);
+  useEffect(() => {
+    if (helpOpen) help.current?.showModal();
+    else help.current?.close();
+  }, [helpOpen]);
+
+  function renderItems(entries: MenuEntry[]) {
+    return entries.map((entry) => {
+      const checked =
+        entry.id === "view.sidebar"
+          ? state.sidebarVisible
+          : entry.action?.id === "language.change"
+            ? state.locale === entry.action.locale
+            : entry.checked;
+      return (
+        <div key={entry.id}>
+          <button
+            role={
+              checked === undefined
+                ? "menuitem"
+                : entry.action?.id === "language.change"
+                  ? "menuitemradio"
+                  : "menuitemcheckbox"
+            }
+            aria-checked={checked}
+            aria-haspopup={entry.children ? "menu" : undefined}
+            aria-expanded={entry.children ? expanded === entry.id : undefined}
+            disabled={
+              entry.action ? !enabled(entry.action) : entry.enabled === false
+            }
+            data-action={entry.action?.id}
+            onKeyDown={(event) => {
+              if (event.nativeEvent.isComposing || event.keyCode === 229)
+                return;
+              if (entry.children && event.key === "ArrowRight") {
+                setExpanded(entry.id);
+                event.preventDefault();
+              }
+            }}
+            onClick={() => {
+              if (entry.children) {
+                setExpanded(expanded === entry.id ? undefined : entry.id);
+                return;
+              }
+              close(true);
+              if (entry.action) execute(entry.action);
+            }}
+          >
+            <span className="menu-check" aria-hidden="true">
+              {checked ? "✓" : ""}
+            </span>
+            {t(entry.label)}
+            {entry.children && <Icon name="chevron" />}
+          </button>
+          {entry.children && expanded === entry.id && (
+            <div
+              role="menu"
+              className="menu-submenu"
+              aria-label={t(entry.label)}
+            >
+              {renderItems(entry.children)}
+            </div>
+          )}
+        </div>
+      );
+    });
+  }
+
   return (
     <header className="topbar">
-      <nav className="app-menu" aria-label="Application menu">
-        <button popoverTarget="view-options">
-          View <Icon name="chevron" />
-        </button>
-        <button
-          disabled
-          title="Settings are not available yet"
-          aria-label="Settings (not available yet)"
-        >
-          Settings
-        </button>
-        <button popoverTarget="help-panel">
-          Help <Icon name="chevron" />
-        </button>
+      <nav
+        className="app-menu"
+        aria-label="Application menu"
+        onKeyDown={(event) => {
+          if (event.nativeEvent.isComposing || event.keyCode === 229) return;
+          const buttons = Array.from(
+            event.currentTarget.querySelectorAll("button"),
+          );
+          const index = buttons.indexOf(
+            document.activeElement as HTMLButtonElement,
+          );
+          if (event.key === "ArrowRight" || event.key === "ArrowLeft") {
+            buttons[
+              (index + (event.key === "ArrowRight" ? 1 : -1) + buttons.length) %
+                buttons.length
+            ]?.focus();
+            event.preventDefault();
+          } else if (event.key === "ArrowDown") {
+            buttons[index]?.click();
+            event.preventDefault();
+          }
+        }}
+      >
+        {applicationMenu(state).map((menu) => (
+          <button
+            key={menu.id}
+            aria-haspopup="menu"
+            aria-expanded={request?.opener.dataset.menu === menu.id}
+            aria-controls="workbench-menu"
+            data-menu={menu.id}
+            onClick={(event) => {
+              const opener = event.currentTarget;
+              const rect = opener.getBoundingClientRect();
+              onContextClose();
+              setExpanded(undefined);
+              setOpened({
+                entries: menu.children!,
+                x: rect.left,
+                y: rect.bottom,
+                opener,
+              });
+            }}
+          >
+            {t(menu.label)} <Icon name="chevron" />
+          </button>
+        ))}
       </nav>
       <div
-        ref={view}
-        id="view-options"
-        className="menu-popup view-options"
+        ref={popup}
+        id="workbench-menu"
         popover="auto"
-        aria-label="View options"
+        className="menu-popup"
+        role="menu"
+        aria-label="Workbench menu"
+        onToggle={(event) => {
+          if (event.newState === "closed") {
+            setOpened(undefined);
+            setExpanded(undefined);
+            onContextClose();
+          }
+        }}
+        onKeyDown={(event) => {
+          if (event.nativeEvent.isComposing || event.keyCode === 229) return;
+          if (event.key === "Escape") {
+            event.preventDefault();
+            close(true);
+          } else if (event.key === "Tab") close();
+          else if (event.key === "ArrowLeft" && expanded) {
+            setExpanded(undefined);
+            event.preventDefault();
+          } else navigateMenu(event);
+        }}
       >
-        <button
-          onClick={() => {
-            onToggleSidebar();
-            view.current?.hidePopover();
-          }}
-        >
-          {sidebarVisible ? "Hide Session sidebar" : "Show Session sidebar"}
-        </button>
+        {request && renderItems(request.entries)}
       </div>
-      <div
-        id="help-panel"
-        className="menu-popup help-panel"
-        popover="auto"
-        aria-label="Quick help"
+      <dialog
+        ref={help}
+        className="help-dialog"
+        aria-labelledby="help-title"
+        onClose={onHelpClose}
       >
-        <h2>Using ChannelTerm</h2>
-        <p>
-          Connect to an existing Host using the Host panel, then select a
-          Session.
-        </p>
-        <p>
-          Open new serial or SSH Sessions with the CLI. This desktop client
-          attaches to existing Sessions.
-        </p>
-        <p>
-          Type directly in the terminal. Detaching or closing this window leaves
-          shared Sessions running.
-        </p>
-      </div>
+        <h2 id="help-title">{t("help.title")}</h2>
+        <p>{t("help.connect")}</p>
+        <p>{t("help.detach")}</p>
+        <p>{t("help.clear")}</p>
+        <button onClick={onHelpClose}>{t("help.close")}</button>
+      </dialog>
     </header>
   );
 }

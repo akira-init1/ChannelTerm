@@ -5,6 +5,15 @@ import { HostClient } from "../src/main/host/client.ts";
 import { randomBytes } from "node:crypto";
 import { createServer } from "vite";
 import { buildProcesses } from "./build.mjs";
+import {
+  checkOfflineMenus,
+  checkAttachedMenus,
+  checkContextTargets,
+  checkClosedMenus,
+  checkMenuAvailability,
+  exitFromMenu,
+  exitFromNativeMenu,
+} from "./menu-checks.mjs";
 
 // Resize the native window rather than emulating a browser viewport. Check that
 // chrome stays visible and xterm follows its container without body scrolling.
@@ -144,31 +153,7 @@ try {
   await expect(
     page.getByText("Terminal workspace", { exact: true }),
   ).toHaveCount(0);
-  await expect(
-    page.getByRole("button", { name: "Settings (not available yet)" }),
-  ).toBeDisabled();
-  await page.getByRole("button", { name: "View", exact: true }).click();
-  await page.getByRole("button", { name: "Hide Session sidebar" }).click();
-  await expect(page.locator(".sidebar")).not.toBeVisible();
-  await expect(page.locator("#view-options")).not.toBeVisible();
-  await page.getByRole("button", { name: "View", exact: true }).click();
-  await page.getByRole("button", { name: "Show Session sidebar" }).click();
-  await expect(page.locator(".sidebar")).toBeVisible();
-  // Keyboard opening and Escape use native popover focus restoration.
-  await page.getByRole("button", { name: "Help", exact: true }).focus();
-  await page.keyboard.press("Enter");
-  await expect(
-    page.getByRole("heading", { name: "Using ChannelTerm" }),
-  ).toBeVisible();
-  await page.screenshot({ path: "test-results/workbench-menu.png" });
-  await page.keyboard.press("Escape");
-  await expect(page.locator("#help-panel")).not.toBeVisible();
-  await expect(
-    page.getByRole("button", { name: "Help", exact: true }),
-  ).toBeFocused();
-  await page.getByRole("button", { name: "Help", exact: true }).click();
-  await page.locator(".terminal-toolbar").click();
-  await expect(page.locator("#help-panel")).not.toBeVisible();
+  await checkOfflineMenus(desktop, page);
   await expect
     .poll(() =>
       desktop.evaluate(({ BrowserWindow }) =>
@@ -269,6 +254,7 @@ try {
       return received;
     })
     .toContain("desktop-roundtrip");
+  await checkAttachedMenus(desktop, page, fixture, observer, attachment);
   await fixture.command("lease");
   await expect(page.getByText(/Lease busy/)).toBeVisible();
   await expect(
@@ -293,7 +279,13 @@ try {
   await expect(page.locator(".xterm-rows")).toContainText(
     "retained-after-overwrite",
   );
-  await page.getByRole("button", { name: "Detach", exact: true }).click();
+  await desktop.evaluate(({ Menu }) => {
+    globalThis.staleClose =
+      Menu.getApplicationMenu().getMenuItemById("tab.close");
+  });
+  await page
+    .getByRole("button", { name: "Close tab (detach)", exact: true })
+    .click();
   await expect(
     page.getByRole("heading", { name: "Select a Session" }),
   ).toBeVisible();
@@ -302,6 +294,15 @@ try {
   ).toHaveCount(0);
   await page.getByRole("button", { name: /SER-1/ }).click();
   await expect(page.locator(".xterm-screen")).toBeVisible();
+  await desktop.evaluate(() => globalThis.staleClose.click());
+  // A second FIFO native action is a barrier before checking the stale callback.
+  await desktop.evaluate(({ Menu }) =>
+    Menu.getApplicationMenu().getMenuItemById("view.sidebar").click(),
+  );
+  await expect(page.locator(".sidebar")).not.toBeVisible();
+  await expect(page.locator(".xterm-screen")).toBeVisible();
+  await page.getByRole("button", { name: "Toggle Session sidebar" }).click();
+  await checkContextTargets(desktop, page, observer);
   await page.getByRole("button", { name: "Disconnect Host" }).click();
   await expect(
     page.getByText("Host disconnected", { exact: true }),
@@ -309,11 +310,8 @@ try {
   await page.getByRole("button", { name: "Connect to Host" }).click();
   await page.getByRole("button", { name: /SER-1/ }).click();
   await expect(page.locator(".xterm-screen")).toBeVisible();
-  // Closing the native window leaves the independent Go Host and observer alive.
-  await desktop.evaluate(({ BrowserWindow }) =>
-    BrowserWindow.getAllWindows()[0].close(),
-  );
-  await desktop.close();
+  // Exit GUI shares native close cleanup and leaves the Host/observer alive.
+  await exitFromMenu(desktop, page);
   desktop = undefined;
   assert.equal((await observer.list())[0].state, "open");
   await observer.write(attachment.id, "after-window-close");
@@ -341,6 +339,7 @@ try {
   ).toBeVisible();
   await expect(listPage.getByRole("button", { name: "Refresh" })).toBeEnabled();
   await expect(listPage.getByText("0 Sessions", { exact: true })).toBeVisible();
+  await checkMenuAvailability(desktop, true);
   await checkLayout(desktop, listPage, "empty");
   await desktop.evaluate(({ ipcMain }) => {
     ipcMain.removeHandler("host:list");
@@ -376,7 +375,7 @@ try {
   await expect(listPage.locator(".session").last()).toBeInViewport();
   await expect(listPage.locator(".statusbar")).toBeInViewport();
   assert.deepEqual(listErrors, []);
-  await desktop.close();
+  await exitFromNativeMenu(desktop);
   desktop = undefined;
   // A new window observes Session loss and then Host loss without taking ownership.
   desktop = await electron.launch({ args: ["."], env: desktopEnvironment });
@@ -386,6 +385,7 @@ try {
   await expect(recoveryPage.locator(".xterm-screen")).toBeVisible();
   await fixture.command("close");
   await expect(recoveryPage.getByText(/Session closed/).first()).toBeVisible();
+  await checkClosedMenus(desktop, recoveryPage);
   await fixture.stop();
   await expect(
     recoveryPage.getByText("Host connection failed", { exact: true }),
@@ -396,6 +396,7 @@ try {
   ).toBeVisible();
   await expect(recoveryPage.locator(".session")).toHaveCount(0);
   await expect(recoveryPage.locator(".xterm-screen")).toHaveCount(0);
+  await checkMenuAvailability(desktop, false);
   await recoveryPage.getByRole("button", { name: "Retry connection" }).click();
   await expect(
     recoveryPage.getByRole("button", { name: "Retry connection" }),

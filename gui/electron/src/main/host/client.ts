@@ -153,7 +153,6 @@ export class HostClient {
     this.changing = true;
     const connection = this.connection;
     try {
-      await this.detach();
       const entry = (await this.list()).find(
         (entry) => entry.session_id === sessionId,
       );
@@ -162,11 +161,18 @@ export class HostClient {
           "closed",
           "Session is no longer open. Refresh the Session list.",
         );
+      if (connection.signal.aborted)
+        throw new HostError("cancelled", "Attachment cancelled.");
       const attached = await this.call("terminal_session_attach", {
         session_id: sessionId,
         actor: "user",
       });
       if (attached.attached !== true) throw incompatible();
+      if (connection.signal.aborted)
+        throw new HostError("cancelled", "Attachment cancelled.");
+      // Keep the old attachment until the clicked target passes Host validation.
+      // Detach is a client lifecycle event, never a shared Session close.
+      await this.detach();
       if (connection.signal.aborted)
         throw new HostError("cancelled", "Attachment cancelled.");
       const active: ActiveAttachment = {

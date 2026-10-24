@@ -36,6 +36,17 @@ test("real Go Host: output, ordinary writes, lease authority, cancellation, over
       dropped: false,
     });
 
+    // A disappeared right-click target is revalidated in Main before replacing
+    // the existing attachment; no operation falls back to the selected Session.
+    await assert.rejects(client.attach("missing-context-target"), {
+      code: "closed",
+    });
+    await client.write(attachment.id, "still-attached-after-stale-target");
+    assert.equal(
+      Buffer.from((await client.read(attachment.id)).data).toString(),
+      "still-attached-after-stale-target",
+    );
+
     await fixture.command("lease");
     assert.equal((await client.list())[0]!.lease?.type, "terminal");
     await assert.rejects(
