@@ -9,6 +9,8 @@ import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import type { Attachment, ClientError } from "../../shared/api";
 import { host, unwrap } from "../host";
+import { TerminalPresentation } from "./presentation";
+import type { TerminalSettings } from "../../shared/terminal-settings";
 
 /** Local xterm controls only; neither method writes bytes or changes Host history. */
 export interface TerminalControls {
@@ -23,6 +25,7 @@ export interface TerminalControls {
  */
 export function TerminalView({
   attachment,
+  settings,
   writable,
   onError,
   onDropped,
@@ -30,6 +33,7 @@ export function TerminalView({
   onContextMenu,
 }: {
   attachment: Attachment;
+  settings: TerminalSettings;
   writable: boolean;
   onError: (error: ClientError) => void;
   onDropped: () => void;
@@ -52,9 +56,10 @@ export function TerminalView({
   const previousReadLoop = useRef<Promise<void>>(Promise.resolve());
   // Use the latest guards/callbacks without recreating xterm on status updates.
   callbacks.current = { onError, onDropped };
-  inputEnabled.current = writable;
+  inputEnabled.current = writable && settings.view !== "hex";
 
   useEffect(() => {
+    const presentation = new TerminalPresentation(settings);
     const terminal = new Terminal({
       cursorBlink: true,
       fontFamily: 'Consolas, "Liberation Mono", monospace',
@@ -139,12 +144,16 @@ export function TerminalView({
           if (output.dropped) {
             // Do not join a partial escape/UTF-8 sequence across missing bytes.
             terminal.reset();
+            presentation.reset();
             callbacks.current.onDropped();
           }
           if (output.data.length)
             await new Promise<void>((done) => {
               finishRender = done;
-              terminal.write(new Uint8Array(output.data), done);
+              terminal.write(
+                presentation.output(new Uint8Array(output.data)),
+                done,
+              );
             });
         }
       } catch (error) {

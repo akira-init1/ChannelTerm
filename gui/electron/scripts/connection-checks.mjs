@@ -63,6 +63,8 @@ export async function checkConnections(environment) {
     );
     await dialog.locator('[name="port"]').fill("COM-FIXTURE");
     await dialog.locator('[name="label"]').fill("Created serial");
+    await dialog.locator('[name="encoding"]').selectOption("gbk");
+    await dialog.locator('[name="description"]').fill("Local board console");
     await page.screenshot({ path: "test-results/connection-serial.png" });
     await dialog.getByRole("button", { name: "Connect", exact: true }).click();
     await expect(dialog).not.toBeVisible();
@@ -72,6 +74,56 @@ export async function checkConnections(environment) {
       (s) => s.label === "Created serial",
     );
     assert.ok(serial);
+    const serialObserver = await observer.attach(serial.session_id);
+    await observer.read(serialObserver.id);
+    await expect(page.locator(".terminal-settings-button")).toContainText(
+      "GBK",
+    );
+    await expect(page.locator(".terminal-description")).toHaveText(
+      "Local board console",
+    );
+    await page.locator(".xterm-helper-textarea").focus();
+    await page.keyboard.insertText("中文");
+    const received = [];
+    await expect
+      .poll(async () => {
+        received.push(...(await observer.read(serialObserver.id)).data);
+        return Buffer.from(received).includes(
+          Buffer.from([0xd6, 0xd0, 0xce, 0xc4]),
+        );
+      })
+      .toBe(true);
+    await expect(page.locator(".xterm-rows")).toContainText("中文");
+    await page
+      .getByRole("button", { name: "Terminal settings", exact: true })
+      .click();
+    dialog = page.getByRole("dialog");
+    await expect(dialog.locator('[name="encoding"]')).toHaveValue("gbk");
+    await dialog.locator('[name="view"]').selectOption("hex");
+    await page.screenshot({ path: "test-results/terminal-settings.png" });
+    await dialog.getByRole("button", { name: "Apply", exact: true }).click();
+    await expect(dialog).not.toBeVisible();
+    await expect(page.locator(".input-status")).toHaveText("Hex (read-only)");
+    await expect(page.locator(".xterm-rows")).toContainText("d6 d0 ce c4");
+    await page.locator(".xterm-helper-textarea").focus();
+    await page.keyboard.type("MUST-NOT-WRITE");
+    assert.deepEqual((await observer.read(serialObserver.id)).data, []);
+    await page.screenshot({ path: "test-results/terminal-hex.png" });
+    // Attachment settings remain local; the same shared Session stays open.
+    assert.equal(
+      (await observer.list()).find((s) => s.session_id === serial.session_id)
+        .state,
+      "open",
+    );
+    await page
+      .getByRole("button", { name: "Terminal settings", exact: true })
+      .click();
+    dialog = page.getByRole("dialog");
+    await dialog.locator('[name="view"]').selectOption("text");
+    await dialog.locator('[name="encoding"]').selectOption("utf-8");
+    await dialog.getByRole("button", { name: "Apply", exact: true }).click();
+    await expect(dialog).not.toBeVisible();
+    await expect(page.locator(".input-status")).toContainText("Input enabled");
     dialog = await open("SSH connection");
     await dialog
       .getByRole("combobox", { name: "Authentication", exact: true })

@@ -425,8 +425,23 @@ msgstr "탭 닫기 (세션에서 분리)"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "terminal.apply"
+msgstr "적용"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.clear"
 msgstr "로컬 화면 지우기"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.description"
+msgstr "로컬 설명(선택 사항)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.encoding"
+msgstr "문자 인코딩"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -435,8 +450,33 @@ msgstr "터미널에 포커스"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "terminal.hex"
+msgstr "16진수(읽기 전용)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.localHint"
+msgstr "장치의 텍스트 인코딩을 선택하세요. 설정은 이 클라이언트에만 적용되며 파일 전송은 원래 바이트를 유지합니다. 설명은 한 줄, UTF-8 기준 최대 512바이트입니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.resume"
 msgstr "입력 재개"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.settings"
+msgstr "터미널 설정"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.text"
+msgstr "텍스트"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.view"
+msgstr "보기 모드"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

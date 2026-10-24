@@ -79,6 +79,23 @@ The terminal takes the remaining width and height; its 32 px header shows the si
 attachment once as a tab-shaped title. The close icon performs **Close tab (detach)**,
 not Session close. There is no multi-tab state or background terminal.
 
+Serial creation includes character encoding (UTF-8, GBK or GB18030), text/read-only hex view,
+and an optional local description. The compact encoding button in the attached serial header
+opens the same presentation settings. Applying them reattaches this client and replays only
+retained Host output; it does not clear Host buffers, reset the device, or close the shared Session.
+Up to 64 Session preferences are retained per window until Host disconnection; they are not
+saved profiles or shared metadata. Descriptions allow one line of at most 512 UTF-8 bytes without
+control characters. No SSH setup, electrical serial settings, or MCP schemas change.
+
+Renderer uses a streaming decoder for GBK/GB18030 after Main's transfer-byte suppression.
+The UTF-8 path still passes raw bytes to xterm. Missing output resets decoder and parser state;
+malformed device text uses replacement characters. Hex view prints received bytes and safe ASCII,
+never interpreting remote escapes; offsets count observed bytes and restart after a gap. Rows may
+end at read boundaries. Main independently rejects terminal writes in hex view and validates all
+settings. For text input, Main's `iconv-lite` encoder rejects lossy conversion before queueing and
+sends encoded bytes through the existing authenticated base64 write path. Lease checks and
+no-replay behavior remain unchanged. File transfers and other clients always retain raw bytes.
+
 The sidebar provides case-insensitive local search by reference, label, endpoint, or transport,
 and collapsible Serial, SSH, and Other groups. Group counts reflect the filtered rows; the
 overall count still reflects all Host Sessions. Filtering or collapsing rows never detaches

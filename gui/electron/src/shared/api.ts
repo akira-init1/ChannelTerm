@@ -6,6 +6,7 @@ import type {
 } from "./transfers";
 import type { Action, MenuState } from "./menus";
 import type { ConnectionRequest, OpenedConnection } from "./connections";
+import type { TerminalSettings } from "./terminal-settings";
 
 /** Display-only snapshots. The Host remains authoritative for lifecycle and leases. */
 export interface SessionSummary {
@@ -77,7 +78,10 @@ export interface DesktopAPI {
   list(): Promise<Result<SessionSummary[]>>;
   serialPorts(): Promise<Result<string[]>>;
   openConnection(request: ConnectionRequest): Promise<Result<OpenedConnection>>;
-  attach(sessionId: string): Promise<Result<Attachment>>;
+  attach(
+    sessionId: string,
+    settings?: TerminalSettings,
+  ): Promise<Result<Attachment>>;
   detach(attachmentId: string): Promise<Result<void>>;
   read(attachmentId: string): Promise<Result<Output>>;
   write(attachmentId: string, data: string): Promise<Result<void>>;

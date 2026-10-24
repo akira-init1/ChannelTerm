@@ -425,8 +425,23 @@ msgstr "Close tab (detach)"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "terminal.apply"
+msgstr "Apply"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.clear"
 msgstr "Clear local display"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.description"
+msgstr "Local description (optional)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.encoding"
+msgstr "Character encoding"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -435,8 +450,33 @@ msgstr "Focus terminal"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "terminal.hex"
+msgstr "Hex (read-only)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.localHint"
+msgstr "Choose the device's text encoding. Settings apply only to this client; file transfers keep their original bytes. Description: one line, up to 512 UTF-8 bytes."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.resume"
 msgstr "Resume input"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.settings"
+msgstr "Terminal settings"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.text"
+msgstr "Text"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.view"
+msgstr "View mode"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

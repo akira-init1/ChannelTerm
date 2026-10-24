@@ -425,8 +425,23 @@ msgstr "Закрыть вкладку (отсоединиться)"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "terminal.apply"
+msgstr "Применить"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.clear"
 msgstr "Очистить локальный экран"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.description"
+msgstr "Локальное описание (необязательно)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.encoding"
+msgstr "Кодировка символов"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -435,8 +450,33 @@ msgstr "Перейти в терминал"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "terminal.hex"
+msgstr "Шестнадцатеричный (только чтение)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.localHint"
+msgstr "Выберите кодировку устройства. Настройки действуют только в этом клиенте; передача файлов сохраняет исходные байты. Описание: одна строка, до 512 байт UTF-8."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.resume"
 msgstr "Возобновить ввод"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.settings"
+msgstr "Настройки терминала"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.text"
+msgstr "Текст"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.view"
+msgstr "Режим просмотра"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

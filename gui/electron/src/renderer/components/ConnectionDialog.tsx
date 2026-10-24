@@ -5,6 +5,11 @@ import {
 } from "../../shared/connections";
 import type { ClientError } from "../../shared/api";
 import { host, unwrap } from "../host";
+import {
+  TerminalSettingsFields,
+  readTerminalSettings,
+} from "./TerminalSettings";
+import type { TerminalSettings } from "../../shared/terminal-settings";
 
 /** Collect explicit user intent. Credentials live in password inputs, never preferences. */
 export function ConnectionDialog({
@@ -15,7 +20,10 @@ export function ConnectionDialog({
 }: {
   kind: ConnectionRequest["kind"];
   t: (id: string) => string;
-  onOpen: (request: ConnectionRequest) => Promise<void>;
+  onOpen: (
+    request: ConnectionRequest,
+    settings?: TerminalSettings,
+  ) => Promise<void>;
   onClose: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
@@ -77,7 +85,8 @@ export function ConnectionDialog({
                 ? { keyPassphrase: value("keyPassphrase") }
                 : {}),
           };
-    if (!isConnectionRequest(request)) {
+    const settings = kind === "serial" ? readTerminalSettings(data) : undefined;
+    if (!isConnectionRequest(request) || (kind === "serial" && !settings)) {
       setError(t("connection.invalid"));
       return;
     }
@@ -91,7 +100,7 @@ export function ConnectionDialog({
         input.value = "";
       });
     try {
-      await onOpen(request);
+      await onOpen(request, settings);
       onClose();
     } catch (error) {
       setError((error as ClientError).message);
@@ -264,6 +273,7 @@ export function ConnectionDialog({
             {t("connection.label")}
             <input name="label" maxLength={128} />
           </label>
+          {kind === "serial" && <TerminalSettingsFields t={t} />}
         </fieldset>
         {error && <p role="alert">{error}</p>}
         <footer>

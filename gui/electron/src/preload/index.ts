@@ -21,7 +21,7 @@ const api: DesktopAPI = {
   serialPorts: () => ipcRenderer.invoke(channels.serialPorts),
   openConnection: (request) =>
     ipcRenderer.invoke(channels.openConnection, request),
-  attach: (id) => ipcRenderer.invoke(channels.attach, id),
+  attach: (id, settings) => ipcRenderer.invoke(channels.attach, id, settings),
   detach: (id) => ipcRenderer.invoke(channels.detach, id),
   read: (id) => ipcRenderer.invoke(channels.read, id),
   write: (id, data) => ipcRenderer.invoke(channels.write, id, data),

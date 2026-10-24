@@ -3,6 +3,21 @@ import type { MessageDescriptor } from "@lingui/core";
 // Lingui 5 extracts these official annotated descriptors without a runtime macro
 // transform. Translations belong in PO catalogs; this file owns IDs and English defaults.
 export const menuMessages = [
+  /* i18n */ { id: "terminal.settings", message: "Terminal settings" },
+  /* i18n */ { id: "terminal.encoding", message: "Character encoding" },
+  /* i18n */ { id: "terminal.view", message: "View mode" },
+  /* i18n */ { id: "terminal.text", message: "Text" },
+  /* i18n */ { id: "terminal.hex", message: "Hex (read-only)" },
+  /* i18n */ {
+    id: "terminal.description",
+    message: "Local description (optional)",
+  },
+  /* i18n */ { id: "terminal.apply", message: "Apply" },
+  /* i18n */ {
+    id: "terminal.localHint",
+    message:
+      "Choose the device's text encoding. Settings apply only to this client; file transfers keep their original bytes. Description: one line, up to 512 UTF-8 bytes.",
+  },
   /* i18n */ { id: "file.send", message: "Send to device" },
   /* i18n */ { id: "file.receive", message: "Receive from device" },
   /* i18n */ { id: "file.parent", message: "Up" },

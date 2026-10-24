@@ -1,4 +1,10 @@
 import { TransferEvents } from "./transfer-events";
+import iconv from "iconv-lite";
+import {
+  defaultTerminalSettings,
+  isTerminalSettings,
+  type TerminalSettings,
+} from "../../shared/terminal-settings";
 import { randomUUID } from "node:crypto";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
@@ -25,6 +31,7 @@ import {
 } from "./validation";
 
 type ActiveAttachment = Attachment & {
+  settings: TerminalSettings;
   cursor?: number;
   controller: AbortController;
   reading: boolean;
@@ -396,8 +403,14 @@ export class HostClient {
     }
   }
 
-  async attach(sessionId: string): Promise<Attachment> {
+  async attach(
+    sessionId: string,
+    settings: unknown = defaultTerminalSettings,
+  ): Promise<Attachment> {
     identifier(sessionId);
+    if (!isTerminalSettings(settings))
+      throw new HostError("invalid_input", "Invalid terminal settings.");
+    const preferences = { ...settings };
     if (this.changing)
       throw new HostError(
         "invalid_input",
@@ -429,6 +442,7 @@ export class HostClient {
       if (connection.signal.aborted)
         throw new HostError("cancelled", "Attachment cancelled.");
       const active: ActiveAttachment = {
+        settings: preferences,
         id: randomUUID(),
         sessionId,
         controller: new AbortController(),
@@ -539,7 +553,19 @@ export class HostClient {
   async write(id: string, data: string): Promise<void> {
     input(data);
     const active = this.attachment(id);
-    const bytes = Buffer.byteLength(data, "utf8");
+    if (active.settings.view === "hex")
+      throw new HostError("invalid_input", "Hex view is read-only.");
+    const legacy = active.settings.encoding !== "utf-8";
+    const encoded = legacy
+      ? iconv.encode(data, active.settings.encoding)
+      : Buffer.from(data, "utf8");
+    // Reject lossy conversion before queueing; never substitute '?' or retry input.
+    if (legacy && iconv.decode(encoded, active.settings.encoding) !== data)
+      throw new HostError(
+        "invalid_input",
+        "Input cannot be represented in the selected encoding.",
+      );
+    const bytes = encoded.length;
     if (active.queuedBytes + bytes > 65536)
       throw new HostError(
         "invalid_input",
@@ -559,8 +585,8 @@ export class HostClient {
           "terminal_write",
           {
             session_id: active.sessionId,
-            data,
-            encoding: "utf8",
+            data: legacy ? encoded.toString("base64") : data,
+            encoding: legacy ? "base64" : "utf8",
             actor: "user",
           },
           active.controller.signal,

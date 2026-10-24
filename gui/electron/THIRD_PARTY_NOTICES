@@ -12,6 +12,9 @@ services. npm may also install optional build-tool peers; their installed notice
 are retained conservatively. Absent optional packages for other platforms are skipped;
 missing required packages or license texts in installed packages remain build errors.
 
+Terminal input encoding uses iconv-lite 0.7.3 (MIT), a pure JavaScript dependency
+loaded only in Main. Its license is included in the generated notices below.
+
 npm run build collects the installed runtime dependency license texts, including
 the Electron npm package license, into dist/THIRD_PARTY_NOTICES.txt and copies the
 ChannelTerm license into dist/LICENSE. Redistribution of the bundled JavaScript

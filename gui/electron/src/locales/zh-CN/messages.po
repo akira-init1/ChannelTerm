@@ -425,8 +425,23 @@ msgstr "关闭标签（分离）"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "terminal.apply"
+msgstr "应用"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.clear"
 msgstr "清理本地显示"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.description"
+msgstr "本地描述（可选）"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.encoding"
+msgstr "字符编码"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -435,8 +450,33 @@ msgstr "聚焦终端"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "terminal.hex"
+msgstr "十六进制（只读）"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.localHint"
+msgstr "选择设备使用的文本编码。设置仅对本客户端生效，文件传输保持原始字节。描述限单行，最多 512 个 UTF-8 字节。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.resume"
 msgstr "恢复输入"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.settings"
+msgstr "终端设置"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.text"
+msgstr "文本"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.view"
+msgstr "查看模式"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

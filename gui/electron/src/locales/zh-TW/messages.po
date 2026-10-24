@@ -425,8 +425,23 @@ msgstr "關閉分頁（解除附加）"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "terminal.apply"
+msgstr "套用"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.clear"
 msgstr "清除本機顯示"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.description"
+msgstr "本機描述（選填）"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.encoding"
+msgstr "字元編碼"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -435,8 +450,33 @@ msgstr "聚焦終端機"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "terminal.hex"
+msgstr "十六進位（唯讀）"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.localHint"
+msgstr "選擇裝置使用的文字編碼。設定僅對本客戶端生效，檔案傳輸保留原始位元組。描述限單行，最多 512 個 UTF-8 位元組。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.resume"
 msgstr "恢復輸入"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.settings"
+msgstr "終端設定"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.text"
+msgstr "文字"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.view"
+msgstr "檢視模式"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

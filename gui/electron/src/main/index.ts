@@ -176,9 +176,9 @@ function registerIPC(): void {
     [channels.serialPorts]: () => currentHost().serialPorts(),
     [channels.openConnection]: (request) =>
       currentHost().openConnection(request),
-    [channels.attach]: (id) => {
+    [channels.attach]: (id, settings) => {
       identifier(id);
-      return currentHost().attach(id);
+      return currentHost().attach(id, settings);
     },
     [channels.detach]: (id) => {
       identifier(id);
@@ -208,6 +208,7 @@ function registerIPC(): void {
         try {
           validateSender(event, window?.webContents, development);
           const expected = [
+            channels.attach,
             channels.write,
             channels.browseDirectory,
             channels.cancelTransfer,
@@ -217,14 +218,13 @@ function registerIPC(): void {
             : channel === channels.chooseTransferPath
               ? 3
               : [
-                    channels.attach,
                     channels.detach,
                     channels.read,
                     channels.menuState,
                     channels.openConnection,
                     channels.startTransfer,
                     channels.transfers,
-                  ].includes(channel as typeof channels.attach)
+                  ].includes(channel as typeof channels.detach)
                 ? 1
                 : 0;
           if (args.length !== expected)

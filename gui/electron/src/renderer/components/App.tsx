@@ -35,6 +35,11 @@ import { menuCatalogs } from "../../locales/catalogs";
 import { ConnectionDialog } from "./ConnectionDialog";
 import { SidebarResizer } from "./SidebarResizer";
 import type { ConnectionRequest } from "../../shared/connections";
+import {
+  defaultTerminalSettings,
+  type TerminalSettings,
+} from "../../shared/terminal-settings";
+import { TerminalSettingsDialog } from "./TerminalSettings";
 
 /**
  * App composes Host snapshots and local attachment controls into the workbench.
@@ -65,6 +70,11 @@ export function App() {
   const working = operation !== undefined;
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [attachment, setAttachment] = useState<Attachment>();
+  const preferences = useRef(new Map<string, TerminalSettings>());
+  const [terminalSettings, setTerminalSettings] = useState<TerminalSettings>(
+    defaultTerminalSettings,
+  );
+  const [settingsTarget, setSettingsTarget] = useState<Attachment>();
   const [error, setError] = useState<ClientError>();
   const [dropped, setDropped] = useState(false);
   // Errors pause local input until recovery; resuming never grants Host permission.
@@ -97,6 +107,8 @@ export function App() {
     let stopped = false;
     let timer: ReturnType<typeof setTimeout>;
     if (!connected) {
+      preferences.current.clear();
+      setSettingsTarget(undefined);
       setFileDialog(undefined);
       setTransferJobs((previous) =>
         previous.map((job) =>
@@ -275,6 +287,8 @@ export function App() {
   }
 
   async function disconnect() {
+    preferences.current.clear();
+    setSettingsTarget(undefined);
     setConnectionKind(undefined);
     setOperation("disconnecting");
     generation.current++;
@@ -291,18 +305,29 @@ export function App() {
     }
   }
 
-  async function select(session: SessionSummary) {
+  async function select(
+    session: SessionSummary,
+    settings = preferences.current.get(session.session_id) ??
+      defaultTerminalSettings,
+  ) {
     setOperation("attaching");
     setError(undefined);
     const version = generation.current;
     try {
-      const next = await unwrap(host.attach(session.session_id));
+      const next = await unwrap(host.attach(session.session_id, settings));
       if (version !== generation.current) {
         // Release a late client handle without reviving the old Host's view.
         await host.detach(next.id);
         return;
       }
       setDropped(false);
+      if (
+        preferences.current.size >= 64 &&
+        !preferences.current.has(session.session_id)
+      )
+        preferences.current.delete(preferences.current.keys().next().value!);
+      preferences.current.set(session.session_id, settings);
+      setTerminalSettings(settings);
       setInputPaused(false);
       setAttachment(next);
     } catch (error) {
@@ -327,7 +352,10 @@ export function App() {
     }
   }
 
-  async function openConnection(request: ConnectionRequest) {
+  async function openConnection(
+    request: ConnectionRequest,
+    settings?: TerminalSettings,
+  ) {
     if (!connected || working || actionBusy.current)
       throw {
         code: "busy",
@@ -355,7 +383,7 @@ export function App() {
           message:
             "The created Session is unavailable. Refresh Sessions before trying again.",
         } satisfies ClientError;
-      await select(target);
+      await select(target, settings);
     } finally {
       actionBusy.current = false;
       setOperation(undefined);
@@ -708,7 +736,52 @@ export function App() {
                 </button>
               )}
             </div>
+            {attachment && current?.transport === "serial" && (
+              <button
+                className="terminal-settings-button quiet"
+                aria-label={t("terminal.settings")}
+                title={terminalSettings.description || t("terminal.settings")}
+                disabled={
+                  working ||
+                  !!fileDialog ||
+                  filePending ||
+                  current.state !== "open"
+                }
+                onClick={() => setSettingsTarget(attachment)}
+              >
+                {terminalSettings.encoding.toUpperCase()} ·{" "}
+                {t(
+                  terminalSettings.view === "hex"
+                    ? "terminal.hex"
+                    : "terminal.text",
+                )}
+                {terminalSettings.description && (
+                  <span className="terminal-description">
+                    {terminalSettings.description}
+                  </span>
+                )}
+              </button>
+            )}
           </div>
+          {settingsTarget && (
+            <TerminalSettingsDialog
+              t={t}
+              value={terminalSettings}
+              onClose={() => setSettingsTarget(undefined)}
+              onApply={async (settings) => {
+                const target = sessions.find(
+                  (entry) => entry.session_id === settingsTarget.sessionId,
+                );
+                if (
+                  attachment?.id === settingsTarget.id &&
+                  connected &&
+                  !working &&
+                  target?.state === "open"
+                )
+                  await select(target, settings);
+              }}
+            />
+          )}
           <div className="notices" aria-label="Terminal notices">
             {info?.lifetime === "attachment" && connected && (
               <div className="notice">
@@ -758,7 +831,10 @@ export function App() {
               ref={terminal}
               key={attachment.id}
               attachment={attachment}
-              writable={writable && !fileDialog && !filePending}
+              settings={terminalSettings}
+              writable={
+                writable && !fileDialog && !filePending && !settingsTarget
+              }
               onError={report}
               onDropped={() => setDropped(true)}
               onContextMenu={(event) =>
@@ -811,12 +887,14 @@ export function App() {
                 ? "Read-only · Lease active"
                 : inputPaused
                   ? "Input paused"
-                  : "Attached · Input enabled"
+                  : terminalSettings.view === "hex"
+                    ? t("terminal.hex")
+                    : "Attached · Input enabled"
             : "No attachment"}
         </span>
         <span className="status-detail">
           {attachment
-            ? "UTF-8 · xterm · Local resize only"
+            ? `${terminalSettings.encoding.toUpperCase()} · ${terminalSettings.view === "hex" ? "HEX" : "xterm"} · Local resize only`
             : "Host-owned Sessions"}
         </span>
       </footer>

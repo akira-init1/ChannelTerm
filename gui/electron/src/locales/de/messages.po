@@ -425,8 +425,23 @@ msgstr "Tab schließen (ablösen)"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "terminal.apply"
+msgstr "Anwenden"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.clear"
 msgstr "Lokale Anzeige leeren"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.description"
+msgstr "Lokale Beschreibung (optional)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.encoding"
+msgstr "Zeichenkodierung"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -435,8 +450,33 @@ msgstr "Terminal fokussieren"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "terminal.hex"
+msgstr "Hexadezimal (schreibgeschützt)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.localHint"
+msgstr "Wählen Sie die Textkodierung des Geräts. Einstellungen gelten nur für diesen Client; Dateiübertragungen behalten ihre ursprünglichen Bytes. Beschreibung: eine Zeile, höchstens 512 UTF-8-Bytes."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.resume"
 msgstr "Eingabe fortsetzen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.settings"
+msgstr "Terminaleinstellungen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.text"
+msgstr "Text"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.view"
+msgstr "Ansichtsmodus"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

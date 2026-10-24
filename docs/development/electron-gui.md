@@ -241,6 +241,12 @@ The Node tests cover authenticated list/attach/read/write, timeout and cancellat
 and disconnect, stale attachment rejection, lease contention and recovery, buffer overwrite, Session
 close, Host disconnect, credential redaction, redirect refusal, IPC source/argument checks, and
 independent client survival. They do not prove hardware or remote-network behavior.
+Terminal presentation tests cover split GBK/GB18030 characters, raw UTF-8 compatibility,
+hex escaping/offsets, invalid local settings, and lossy/stale/read-only write rejection in Main.
+Native connection checks type Chinese through the real bridge, verify the GBK bytes through an
+independent Host client, inspect decoded output, and switch hex/text views without Session closure.
+The dark settings dialog and hex display are captured in `test-results/terminal-settings.png`
+and `terminal-hex.png`. These checks use fake serial I/O, not a physical port.
 Native desktop tests switch through all nine catalogs and verify renderer/native labels and
 exclusive language checkmarks, hover flyouts, edge placement and keyboard navigation.
 Connection tests use in-memory serial I/O and a temporary loopback SSH server with disposable
