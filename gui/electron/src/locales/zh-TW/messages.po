@@ -15,6 +15,101 @@ msgstr ""
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "activity.actor"
+msgstr "來源"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.agent"
+msgstr "Agent"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.clientReport"
+msgstr "用戶端偵錯報告（非完整稽核）"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.details"
+msgstr "詳細資料"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.dropped"
+msgstr "Host 保留記錄已被覆寫，部分記錄遺失。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.empty"
+msgstr "尚無保留的活動。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.event"
+msgstr "事件"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.hint"
+msgstr "僅顯示保留的記錄，並非完整稽核。來源標籤未經用戶端身分驗證。輸入內容已隱藏。偵錯報告由用戶端提供。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.history"
+msgstr "初始歷史"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.observed"
+msgstr "後續記錄"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.origin"
+msgstr "記錄階段"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.other"
+msgstr "其他／未知"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.select"
+msgstr "附加工作階段後可查看活動。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.system"
+msgstr "系統"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.time"
+msgstr "Host 時間（UTC）"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.title"
+msgstr "工作階段活動"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.truncated"
+msgstr "此檢視省略了較早記錄（最多 200 筆）。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.user"
+msgstr "使用者"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.write"
+msgstr "寫入輸入"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "app.quit"
 msgstr "結束 GUI"
 

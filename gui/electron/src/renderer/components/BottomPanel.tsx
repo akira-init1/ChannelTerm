@@ -11,14 +11,16 @@ export function BottomPanel({
   t,
   children,
   status,
+  activity,
 }: {
   visible: boolean;
-  tab: "transfers" | "status";
-  onTab: (tab: "transfers" | "status") => void;
+  tab: "transfers" | "status" | "activity";
+  onTab: (tab: "transfers" | "status" | "activity") => void;
   onClose: () => void;
   t: (id: string) => string;
   children: ReactNode;
   status: ReactNode;
+  activity: ReactNode;
 }) {
   const [height, setHeight] = useState(220);
   const [viewportHeight, setViewportHeight] = useState(innerHeight);
@@ -51,7 +53,7 @@ export function BottomPanel({
       )}
       <div className="panel-header">
         <div role="tablist" aria-label={t("view.panel")}>
-          {(["transfers", "status"] as const).map((id) => (
+          {(["transfers", "status", "activity"] as const).map((id) => (
             <button
               key={id}
               role="tab"
@@ -76,19 +78,28 @@ export function BottomPanel({
                 )
                   return;
                 event.preventDefault();
+                const tabs = ["transfers", "status", "activity"] as const;
+                const index = tabs.indexOf(id);
                 const next =
-                  event.key === "Home"
-                    ? "transfers"
-                    : event.key === "End"
-                      ? "status"
-                      : id === "transfers"
-                        ? "status"
-                        : "transfers";
+                  tabs[
+                    event.key === "Home"
+                      ? 0
+                      : event.key === "End"
+                        ? 2
+                        : (index + (event.key === "ArrowLeft" ? 2 : 1)) %
+                          tabs.length
+                  ]!;
                 onTab(next);
                 document.getElementById(`panel-tab-${next}`)?.focus();
               }}
             >
-              {t(id === "transfers" ? "file.transfers" : "view.status")}
+              {t(
+                id === "transfers"
+                  ? "file.transfers"
+                  : id === "activity"
+                    ? "activity.title"
+                    : "view.status",
+              )}
             </button>
           ))}
         </div>
@@ -117,6 +128,15 @@ export function BottomPanel({
         tabIndex={0}
       >
         {visible && tab === "status" ? status : null}
+      </div>
+      <div
+        role="tabpanel"
+        id="panel-content-activity"
+        aria-labelledby="panel-tab-activity"
+        hidden={tab !== "activity"}
+        tabIndex={0}
+      >
+        {visible && tab === "activity" ? activity : null}
       </div>
     </section>
   );

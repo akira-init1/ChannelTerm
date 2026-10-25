@@ -1,3 +1,5 @@
+import { ActivityFeed } from "./activity";
+import type { ActivitySnapshot } from "../../shared/activity";
 import { SSHTrustExchange } from "./ssh-trust";
 import {
   isSerialProfileChange,
@@ -37,6 +39,7 @@ import {
 } from "./validation";
 
 type ActiveAttachment = Attachment & {
+  feed: ActivityFeed;
   settings: TerminalSettings;
   codec: TerminalCodec;
   cursor?: number;
@@ -61,6 +64,7 @@ export class HostClient {
   private attachments = new Map<string, ActiveAttachment>();
   private changing = false;
   private profilesBusy = false;
+  private activityReading = false;
   private closing = new Set<string>();
   readonly sshTrust = new SSHTrustExchange();
   private sshTrustAvailable = false;
@@ -634,6 +638,7 @@ export class HostClient {
         codec: new TerminalCodec(preferences.encoding),
         id: randomUUID(),
         sessionId,
+        feed: new ActivityFeed(sessionId),
         controller: new AbortController(),
         reading: false,
         queuedBytes: 0,
@@ -746,6 +751,49 @@ export class HostClient {
       );
     } finally {
       this.closing.delete(active.sessionId);
+    }
+  }
+
+  async activity(id: string): Promise<ActivitySnapshot> {
+    const active = this.attachment(id);
+    if (this.activityReading)
+      throw new HostError("busy", "An activity read is already pending.");
+    this.activityReading = true;
+    try {
+      const read = async (name: string, kind: "activity" | "events") => {
+        try {
+          return await this.call(
+            name,
+            active.feed.parameters(kind),
+            active.controller.signal,
+          );
+        } catch (error) {
+          if (error instanceof ToolFailure && error.code === "timeout")
+            return undefined;
+          throw error;
+        }
+      };
+      // Join both bounded reads before freeing the window's single observation slot.
+      const results = await Promise.allSettled([
+        read("terminal_read_activity", "activity"),
+        read("terminal_session_events", "events"),
+      ]);
+      this.attachment(id);
+      for (const result of results)
+        if (result.status === "rejected") throw result.reason;
+      const first = results[0],
+        second = results[1];
+      if (first?.status !== "fulfilled" || second?.status !== "fulfilled")
+        throw incompatible();
+      return active.feed.apply(first.value, second.value);
+    } catch (error) {
+      if (error instanceof HostError) throw error;
+      throw new HostError(
+        "tool_error",
+        "Session activity is unavailable. Check the Host and Session state.",
+      );
+    } finally {
+      this.activityReading = false;
     }
   }
 

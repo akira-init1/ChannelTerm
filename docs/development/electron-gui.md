@@ -463,6 +463,16 @@ The delayed-approval regression ensures the five-second HTTP body deadline does 
 two-minute prompt. Native tests verify initial Reject focus, refusal without persistence, and approval
 with the same shared Host Session lifecycle. No developer SSH trust file is accessed.
 
+### Session activity checks
+
+Activity tests cover independent cursors, input/metadata redaction, UTC normalization, malformed
+responses without cursor advancement, timeout, the 200-row bound, loss notices, overlapping reads,
+foreign/stale attachments and detach during a read. The native scenario observes Agent input,
+Lease acquisition/release and a test-only client debug report through production IPC, verifies
+output remains readable by another client, and checks hide/reopen and three-tab keyboard navigation.
+`test-results/session-activity.png` captures the compact panel. The fixture uses private stdin
+controls with in-memory I/O; a synthesized report tests labeling, not an actual GDB audit.
+
 ## Troubleshooting and limits
 
 | Symptom | Check / recovery |

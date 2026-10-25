@@ -15,6 +15,101 @@ msgstr ""
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "activity.actor"
+msgstr "Source"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.agent"
+msgstr "Agent"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.clientReport"
+msgstr "Client debug report (not a complete audit)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.details"
+msgstr "Details"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.dropped"
+msgstr "Host retention was overwritten; some observations are missing."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.empty"
+msgstr "No retained activity yet."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.event"
+msgstr "Event"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.hint"
+msgstr "Retained observations only, not a complete audit. Actor labels are recorded sources, not verified client identities. Write contents are hidden. Debug reports are client claims."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.history"
+msgstr "Initial history"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.observed"
+msgstr "Observed later"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.origin"
+msgstr "Observation"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.other"
+msgstr "Other / unknown"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.select"
+msgstr "Attach a Session to inspect its activity."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.system"
+msgstr "System"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.time"
+msgstr "Host time (UTC)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.title"
+msgstr "Session activity"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.truncated"
+msgstr "Older rows were omitted from this view (200-row limit)."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.user"
+msgstr "User"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.write"
+msgstr "Input written"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "app.quit"
 msgstr "Exit GUI"
 

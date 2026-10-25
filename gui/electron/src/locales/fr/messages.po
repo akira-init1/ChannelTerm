@@ -15,6 +15,101 @@ msgstr ""
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "activity.actor"
+msgstr "Source"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.agent"
+msgstr "Agent"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.clientReport"
+msgstr "Rapport de débogage du client (audit incomplet)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.details"
+msgstr "Détails"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.dropped"
+msgstr "Les données conservées par le Host ont été écrasées ; certaines observations manquent."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.empty"
+msgstr "Aucune activité conservée pour le moment."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.event"
+msgstr "Événement"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.hint"
+msgstr "Observations conservées uniquement, sans audit complet. Les sources indiquées ne sont pas des identités de client vérifiées. Le contenu saisi est masqué. Les rapports de débogage sont des déclarations du client."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.history"
+msgstr "Historique initial"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.observed"
+msgstr "Observé ensuite"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.origin"
+msgstr "Observation"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.other"
+msgstr "Autre / inconnu"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.select"
+msgstr "Connectez une session pour consulter son activité."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.system"
+msgstr "Système"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.time"
+msgstr "Heure du Host (UTC)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.title"
+msgstr "Activité de la session"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.truncated"
+msgstr "Les lignes les plus anciennes sont omises (limite de 200 lignes)."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.user"
+msgstr "Utilisateur"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.write"
+msgstr "Entrée écrite"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "app.quit"
 msgstr "Quitter la GUI"
 

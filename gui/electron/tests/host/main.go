@@ -186,6 +186,11 @@ func run() error {
 		}
 		var actionErr error
 		switch command.Action {
+		case "agent-input":
+			_, actionErr = application.WriteSession(context.Background(), core.ID(), session.WriteRequest{Actor: session.ActorAgent, Data: []byte(command.Data)})
+		case "debug-report":
+			// Test-only injection exercises presentation, not debug authorization.
+			core.PublishEvent(session.Event{Type: session.EventType("DEBUG_CLIENT_REPORT"), Actor: string(session.ActorAgent), Metadata: map[string]any{"text": command.Data, "complete_audit": false}})
 		case "transfer-start":
 			var lease app.SessionLease
 			lease, actionErr = application.AcquireLease(core.ID(), "fixture-file-owner", app.LeaseTypeFileTransfer)

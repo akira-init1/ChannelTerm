@@ -1205,3 +1205,35 @@ main {
 .ssh-trust-confirmation button + button {
   margin-left: 8px;
 }
+
+.session-activity {
+  padding: 8px 14px;
+  font-size: 12px;
+}
+.session-activity > p {
+  margin: 0 0 8px;
+  color: #b3bdc9;
+}
+.session-activity table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+.session-activity td,
+.session-activity th {
+  padding: 5px 8px;
+  border-bottom: 1px solid #29313b;
+  vertical-align: top;
+}
+.session-activity td {
+  overflow-wrap: anywhere;
+  max-width: 350px;
+}
+.session-activity th {
+  font-weight: 500;
+  color: #a9b8cb;
+}
+.session-activity td:first-child {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}

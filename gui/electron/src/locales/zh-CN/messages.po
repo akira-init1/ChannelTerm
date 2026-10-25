@@ -15,6 +15,101 @@ msgstr ""
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "activity.actor"
+msgstr "来源"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.agent"
+msgstr "Agent"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.clientReport"
+msgstr "客户端调试报告（非完整审计）"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.details"
+msgstr "详情"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.dropped"
+msgstr "Host 保留记录已被覆盖，部分记录缺失。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.empty"
+msgstr "暂无保留的活动。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.event"
+msgstr "事件"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.hint"
+msgstr "仅显示保留的记录，并非完整审计。来源标签未经客户端身份验证。输入内容已隐藏。调试报告由客户端提供。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.history"
+msgstr "初始历史"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.observed"
+msgstr "后续记录"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.origin"
+msgstr "记录阶段"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.other"
+msgstr "其他／未知"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.select"
+msgstr "附加会话后可查看活动。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.system"
+msgstr "系统"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.time"
+msgstr "Host 时间（UTC）"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.title"
+msgstr "会话活动"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.truncated"
+msgstr "此视图省略了较早记录（最多 200 条）。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.user"
+msgstr "用户"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.write"
+msgstr "写入输入"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "app.quit"
 msgstr "退出 GUI"
 

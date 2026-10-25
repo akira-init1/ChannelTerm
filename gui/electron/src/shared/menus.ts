@@ -60,6 +60,7 @@ export type Action =
         | "view.panel"
         | "view.transfers"
         | "view.status"
+        | "view.activity"
         | "settings.shortcuts"
         | "settings.display"
         | "help.quick"
@@ -268,6 +269,11 @@ export function applicationMenu(state: MenuState): MenuEntry[] {
           id: "view.status",
           label: "view.status",
           action: { id: "view.status" },
+        },
+        {
+          id: "view.activity",
+          label: "activity.title",
+          action: { id: "view.activity" },
         },
       ],
     },
@@ -488,6 +494,7 @@ export function isAction(value: unknown): value is Action {
     case "view.panel":
     case "view.transfers":
     case "view.status":
+    case "view.activity":
     case "settings.shortcuts":
     case "settings.display":
     case "help.quick":

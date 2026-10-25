@@ -15,6 +15,101 @@ msgstr ""
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "activity.actor"
+msgstr "送信元"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.agent"
+msgstr "Agent"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.clientReport"
+msgstr "クライアントのデバッグ報告（完全な監査ではありません）"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.details"
+msgstr "詳細"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.dropped"
+msgstr "Host の保持記録が上書きされ、一部の記録が失われました。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.empty"
+msgstr "保持された活動はありません。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.event"
+msgstr "イベント"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.hint"
+msgstr "保持された記録のみで、完全な監査ではありません。送信元ラベルは認証済みのクライアント ID ではありません。入力内容は非表示です。デバッグ報告はクライアントの申告です。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.history"
+msgstr "初回の履歴"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.observed"
+msgstr "以降の記録"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.origin"
+msgstr "記録区分"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.other"
+msgstr "その他／不明"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.select"
+msgstr "セッションに接続すると活動を確認できます。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.system"
+msgstr "システム"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.time"
+msgstr "Host 時刻（UTC）"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.title"
+msgstr "セッションの活動"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.truncated"
+msgstr "このビューでは古い記録を省略しています（上限 200 件）。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.user"
+msgstr "ユーザー"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "activity.write"
+msgstr "入力の書き込み"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "app.quit"
 msgstr "GUI を終了"
 

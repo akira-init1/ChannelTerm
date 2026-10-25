@@ -4,6 +4,7 @@ import { checkTerminalStyles } from "./highlight-checks.mjs";
 import { checkTerminalSearch } from "./search-checks.mjs";
 import { checkPromptTimestamps } from "./timestamp-checks.mjs";
 import { checkTargetCopy } from "./target-copy-checks.mjs";
+import { checkActivity } from "./activity-checks.mjs";
 import assert from "node:assert/strict";
 import { _electron as electron, expect } from "@playwright/test";
 import { startFixture } from "../tests/fixture.ts";
@@ -243,6 +244,7 @@ try {
   await checkCompactLayout(desktop, page);
   await checkTargetCopy(desktop, page, fixture, sessionId);
   await checkWorkbenchPanels(desktop, page, observer, attachment);
+  await checkActivity(desktop, page, fixture, observer, attachment);
   await checkFiles(desktop, page, fixture);
   // Searching/collapsing navigation only changes presentation, never attachment.
   await page

@@ -3,6 +3,42 @@ import type { MessageDescriptor } from "@lingui/core";
 // Lingui 5 extracts these official annotated descriptors without a runtime macro
 // transform. Translations belong in PO catalogs; this file owns IDs and English defaults.
 export const menuMessages = [
+  /* i18n */ { id: "activity.title", message: "Session activity" },
+  /* i18n */ {
+    id: "activity.select",
+    message: "Attach a Session to inspect its activity.",
+  },
+  /* i18n */ {
+    id: "activity.hint",
+    message:
+      "Retained observations only, not a complete audit. Actor labels are recorded sources, not verified client identities. Write contents are hidden. Debug reports are client claims.",
+  },
+  /* i18n */ {
+    id: "activity.dropped",
+    message: "Host retention was overwritten; some observations are missing.",
+  },
+  /* i18n */ {
+    id: "activity.truncated",
+    message: "Older rows were omitted from this view (200-row limit).",
+  },
+  /* i18n */ { id: "activity.empty", message: "No retained activity yet." },
+  /* i18n */ { id: "activity.time", message: "Host time (UTC)" },
+  /* i18n */ { id: "activity.actor", message: "Source" },
+  /* i18n */ { id: "activity.event", message: "Event" },
+  /* i18n */ { id: "activity.details", message: "Details" },
+  /* i18n */ { id: "activity.origin", message: "Observation" },
+  /* i18n */ { id: "activity.user", message: "User" },
+  /* i18n */ { id: "activity.agent", message: "Agent" },
+  /* i18n */ { id: "activity.system", message: "System" },
+  /* i18n */ { id: "activity.other", message: "Other / unknown" },
+  /* i18n */ { id: "activity.write", message: "Input written" },
+  /* i18n */ {
+    id: "activity.clientReport",
+    message: "Client debug report (not a complete audit)",
+  },
+  /* i18n */ { id: "activity.history", message: "Initial history" },
+  /* i18n */ { id: "activity.observed", message: "Observed later" },
+
   /* i18n */ { id: "ssh.trustTitle", message: "Trust this SSH server?" },
   /* i18n */ {
     id: "ssh.trustHint",

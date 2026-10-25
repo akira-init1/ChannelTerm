@@ -158,8 +158,8 @@ overestimate the available cell area. Application styles do not target xterm's i
 
 The right sidebar displays the selected Session reference/label, endpoint, transport, state,
 opaque ID, and active lease type from existing snapshots. It provides no MCP/Agent controls.
-The bottom panel starts hidden and has **File transfers** and **Session status** tabs. View menu
-actions can open either tab even with no transfer history. A newly observed transfer or a local
+The bottom panel starts hidden and has **File transfers**, **Session status** and **Session activity** tabs. View menu
+actions can open any tab even with no retained history. A newly observed transfer or a local
 start/resume opens File transfers; later progress updates do not reopen a manually hidden panel.
 The top divider resizes the bottom panel from 100 px to 45% of the workspace, with Up/Down,
 Home/End, pointer dragging and double-click reset. Tab arrow keys and Home/End change tabs.
@@ -247,6 +247,24 @@ Client queues and attachment generations coordinate local work only. They are no
 writer arbiter or Session Manager. Reattachment and cleanup must reject stale completions; a
 write whose result is uncertain is not replayed automatically. xterm's visible state and the
 Host's bounded retained bytes do not establish a complete historical terminal-state snapshot.
+
+### Retained Session observations
+
+Main owns an `ActivityFeed` per attachment with separate activity/event cursors, independent of
+terminal output and transfer suppression. The fixed `activity(attachmentId)` bridge validates
+window ownership and exposes only sanitized rows. Each window permits one concurrent pair of
+`terminal_read_activity` / `terminal_session_events` calls, at most 32 entries per stream, with
+a 1 ms cursor wait under the existing request deadline. Both responses validate before either
+cursor advances. Activity payload processing is bounded by the Host's 16 MiB retention contract;
+raw Base64 input is counted then discarded, never retained in the feed or sent through IPC.
+Structured details are allowlisted and capped at 512 characters per row. Each feed keeps 200 rows,
+with sticky Host-loss and local-truncation notices until detach.
+
+Renderer mounts the activity poller only while its panel is visible, schedules one read per
+second after completion, and ignores late results after unmount or attachment replacement. An
+in-flight read may finish after hiding; detach/disconnect aborts it. The Host remains the source
+of observations and lifecycle authority. Source labels carry no authentication guarantee; debug
+reports carry an explicit client-report label. See the [menu contract](../reference/gui-menus.md#session-activity).
 
 ## Windows and tab handoff
 

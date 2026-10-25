@@ -1,3 +1,4 @@
+import type { ActivitySnapshot } from "./activity";
 import type { SSHTrustPrompt } from "./ssh-trust";
 import type { SerialProfiles, SerialProfileChange } from "./serial-profiles";
 import type {
@@ -135,6 +136,7 @@ export interface DesktopAPI {
   detach(attachmentId: string): Promise<Result<void>>;
   /** Explicit shared close, separate from attachment cleanup. */
   closeSession(attachmentId: string): Promise<Result<void>>;
+  activity(attachmentId: string): Promise<Result<ActivitySnapshot>>;
   read(attachmentId: string): Promise<Result<Output>>;
   write(attachmentId: string, data: string): Promise<Result<void>>;
   syncMenu(state: MenuState): Promise<Result<void>>;
@@ -178,6 +180,7 @@ export const channels = {
   attach: "host:attach",
   detach: "host:detach",
   closeSession: "host:close-session",
+  activity: "host:activity",
   read: "host:read",
   write: "host:write",
   menuState: "menu:state",

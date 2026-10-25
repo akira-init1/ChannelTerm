@@ -1,3 +1,4 @@
+import { ActivityPanel } from "../sessions/ActivityPanel";
 import { FileDialog } from "../transfers/FileDialog";
 import { FileCloseNotice } from "../transfers/FileCloseNotice";
 import { SSHFileDialog } from "../transfers/SSHFileDialog";
@@ -100,7 +101,9 @@ export function App() {
   const [auxiliaryVisible, setAuxiliaryVisible] = useState(false);
   const [auxiliaryWidth, setAuxiliaryWidth] = useState(260);
   const [panelVisible, setPanelVisible] = useState(false);
-  const [panelTab, setPanelTab] = useState<"transfers" | "status">("transfers");
+  const [panelTab, setPanelTab] = useState<"transfers" | "status" | "activity">(
+    "transfers",
+  );
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const mac = /Mac/i.test(navigator.platform);
   const [shortcuts, setShortcuts] = useState<ShortcutBindings>(() => {
@@ -1017,8 +1020,15 @@ export function App() {
         return;
       case "view.transfers":
       case "view.status":
+      case "view.activity":
         setPanelVisible(true);
-        setPanelTab(action.id === "view.transfers" ? "transfers" : "status");
+        setPanelTab(
+          action.id === "view.transfers"
+            ? "transfers"
+            : action.id === "view.activity"
+              ? "activity"
+              : "status",
+        );
         return;
       case "settings.display":
         setDisplayOpen(true);
@@ -1595,6 +1605,13 @@ export function App() {
             onTab={setPanelTab}
             onClose={() => dispatch({ id: "view.panel" })}
             t={t}
+            activity={
+              <ActivityPanel
+                key={attachment?.id ?? "empty"}
+                attachmentId={connected ? attachment?.id : undefined}
+                t={t}
+              />
+            }
             status={
               <div className="panel-status">
                 <p>{hostStatus}</p>

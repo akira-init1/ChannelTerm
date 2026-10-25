@@ -49,7 +49,7 @@ for authentication, verification and cancellation.
 | View > Session sidebar; upper-right toggle; activity rail | `view.sidebar` | Toggle navigation without detaching. Checkmark reflects visibility. |
 | View > Secondary sidebar; upper-right toggle | `view.auxiliary` | Toggle the resizable current-Session details sidebar. |
 | View > Bottom panel; upper-right toggle | `view.panel` | Toggle the bottom panel, retaining its active tab and preferred height. |
-| View > File transfers / Session status | `view.transfers` / `view.status` | Open the bottom panel on the requested tab, including offline/empty states. |
+| View > File transfers / Session status / Session activity | `view.transfers` / `view.status` / `view.activity` | Open the bottom panel on the requested tab, including offline/empty states. |
 | Terminal > Copy terminal selection / Paste into terminal; terminal context menu | `terminal.copy` / `terminal.paste` | Copy selected xterm text or paste clipboard text through the existing input path. Paste requires writable text view; copy sends no device bytes. |
 | Settings > Keyboard shortcuts | `settings.shortcuts` | Search, record, remove, reset and save local layout, clipboard and terminal search bindings. |
 | Settings > Preferences... | `settings.display` | Open the existing Display settings dialog; font changes apply without reattachment. Keyboard shortcuts retain their separate entry. |
@@ -65,7 +65,7 @@ attachment; disconnect releases this client connection. Native window close clea
 window; Exit GUI ends the application. These cleanup actions do not close the shared Session or
 stop its Host. Only the separately confirmed **Close shared Session...** action closes the shared
 connection for every client. Each window can have multiple
-independent terminal attachments. Bottom-panel tabs remain local views of transfers and Session status.
+independent terminal attachments. Bottom-panel tabs remain local views of transfers, Session status and retained Session activity.
 
 Local clear removes xterm scrollback above the current line, retaining that line and parser
 state. It does not send `clear`, `reset`, escape sequences, or any other bytes to the device.
@@ -330,6 +330,25 @@ panel. Continue or Escape dismisses the notice without cancelling the transfer o
 the user must finish/cancel the operation and explicitly close again. Main remains the close guard.
 See the [file workflow](../getting-started/file-transfer.md#electron-file-picker-and-progress).
 
+## Session activity
+
+**View > Session activity** opens read-only observations for the selected attachment. The first
+read takes at most the latest 32 activity entries and 32 structured events; subsequent reads
+follow independent cursors. The view retains at most 200 rows and separately reports Host
+retention loss and local truncation. Hiding it pauses polling; reopening resumes its cursors.
+Detaching discards that attachment's view. It neither consumes terminal output nor changes a Lease.
+
+Rows distinguish initial history from later observations, display Host timestamps in UTC and
+show user/Agent/system source labels. These labels are recorded sources, not verified client
+identities. Input rows show only byte counts. Structured rows retain protocol event names and
+bounded allowlisted metadata for connection, Lease, operation and transfer outcomes. Debug
+reports are explicitly client claims, not a complete GDB audit. No raw input payload or Lease
+owner capability crosses into Renderer. Reports may still contain client-provided text.
+
+This is finite retained evidence, not durable logging or a total ordering across the two streams;
+equal-millisecond timestamps use a stable stream/sequence tie-break. Empty and disconnected tabs
+show a selection hint. Read errors remain visible and polling resumes without replaying writes.
+
 ## Planning boundaries (not implemented)
 
 Except for the disabled Window entries above, these are placement decisions only, not runtime
@@ -340,7 +359,7 @@ menu entries or commitments to implement them.
 | Host / Session | SSH profiles and recent connections remain outside the explicit connection forms. Default-local Host startup is automatic; other endpoints remain explicit. |
 | Session | Recent connection history is not implemented. Shared close and multiple tabs follow the explicit contracts above. |
 | Terminal | Split panes, output folding and remote PTY resize are not exposed. Find and its select-all control operate only on the current retained view. Existing clipboard, local clear, focus and conditional resume actions remain. |
-| View | MCP activity, status-bar visibility and a combined Reset Layout action are unimplemented. Existing sidebar, bottom-panel, transfer and Session-status actions remain; Session status is not a status-bar toggle. |
+| View | A complete MCP request audit, status-bar visibility and a combined Reset Layout action are unimplemented. Session activity shows retained Host observations, not a complete audit; Session status is not a status-bar toggle. |
 | Settings | Application theme selection is unimplemented and not exposed. Shortcuts and terminal font/style settings persist locally. Language and layout state remain window-local; endpoint editing and Host process management are absent. |
 | Help | Online documentation navigation, updates, and diagnostic export require separate capability/security review. |
 

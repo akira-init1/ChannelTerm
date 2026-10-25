@@ -532,6 +532,10 @@ function createHandlers(context: WindowContext): Record<string, Handler> {
         );
       return currentHost(context).closeSession(id);
     },
+    [channels.activity]: (id) => {
+      identifier(id);
+      return currentHost(context).activity(id);
+    },
     [channels.read]: (id) => {
       identifier(id);
       return currentHost(context).read(id);
@@ -611,6 +615,7 @@ function registerIPC(): void {
                     channels.detach,
                     channels.closeSession,
                     channels.read,
+                    channels.activity,
                     channels.readClipboard,
                     channels.menuState,
                     channels.openConnection,
