@@ -80,6 +80,7 @@ export type Action =
         | "terminal.focus"
         | "terminal.resume"
         | "terminal.copy"
+        | "terminal.find"
         | "terminal.paste";
       attachment: Attachment;
     }
@@ -145,6 +146,7 @@ function attachedAction(
     | "terminal.focus"
     | "terminal.resume"
     | "terminal.copy"
+    | "terminal.find"
     | "terminal.paste",
 ): MenuEntry {
   if (id === "tab.close" && !state.attachment && state.tabId)
@@ -352,6 +354,10 @@ export function terminalMenu(state: MenuState): MenuEntry[] {
   const items = [
     attachedAction(state, "terminal.focus"),
     attachedAction(state, "terminal.clear"),
+    {
+      ...attachedAction(state, "terminal.find"),
+      shortcut: shortcutLabel(state.shortcuts["terminal.find"]),
+    },
     ...(["terminal.copy", "terminal.paste"] as const).map((id) => ({
       ...attachedAction(state, id),
       shortcut: shortcutLabel(state.shortcuts[id]),
@@ -498,6 +504,7 @@ export function isAction(value: unknown): value is Action {
     case "tab.move":
     case "session.info":
     case "terminal.copy":
+    case "terminal.find":
     case "terminal.paste":
     case "terminal.clear":
     case "terminal.focus":
@@ -624,6 +631,7 @@ export function actionEnabled(action: Action, state: MenuState): boolean {
     case "tab.move":
     case "session.info":
     case "terminal.copy":
+    case "terminal.find":
     case "terminal.paste":
     case "terminal.clear":
     case "terminal.focus":

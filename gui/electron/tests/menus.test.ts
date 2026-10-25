@@ -363,6 +363,22 @@ test("offline, closed, busy and leased menus are display hints with explicit att
   const close = { id: "tab.close", attachment: old } as const;
   const paste = { id: "terminal.paste", attachment: old } as const;
   const copy = { id: "terminal.copy", attachment: old } as const;
+  const find = { id: "terminal.find", attachment: old } as const;
+  assert.equal(isAction(find), true);
+  assert.equal(isAction({ id: "terminal.find" }), false);
+  assert.equal(
+    actionEnabled(find, {
+      ...live,
+      leased: true,
+      hexView: true,
+      currentOpen: false,
+    }),
+    true,
+  );
+  assert.equal(
+    actionEnabled(find, { ...live, attachment: { ...old, id: "new" } }),
+    false,
+  );
   assert.equal(actionEnabled(paste, live), true);
   assert.equal(actionEnabled(paste, { ...live, leased: true }), false);
   assert.equal(actionEnabled(paste, { ...live, inputPaused: true }), false);

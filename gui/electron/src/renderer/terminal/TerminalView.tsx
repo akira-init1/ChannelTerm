@@ -15,6 +15,7 @@ import type { TerminalSettings } from "../../shared/terminal-settings";
 import type { DisplaySettings } from "../../shared/display-settings";
 import { PastePreview } from "./PastePreview";
 import { SemanticHighlighter } from "./highlight";
+import { TerminalSearch } from "./TerminalSearch";
 
 /** Controls for the current view; paste uses the existing bounded, authorized input path. */
 export interface TerminalControls {
@@ -22,6 +23,7 @@ export interface TerminalControls {
   focus(): void;
   copy(): void;
   paste(): void;
+  find(): void;
 }
 
 /**
@@ -72,6 +74,8 @@ export function TerminalView({
     epoch: number;
     target: Terminal;
   }>();
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchFocus, setSearchFocus] = useState(0);
   async function copy() {
     const text = local.current?.getSelection();
     if (!text || clipboardBusy.current) return;
@@ -132,6 +136,11 @@ export function TerminalView({
       focus: () => local.current?.focus(),
       copy: () => void copy(),
       paste: () => void paste(),
+      find: () => {
+        if (!local.current || !visibility.current) return;
+        setSearchOpen(true);
+        setSearchFocus((version) => version + 1);
+      },
     }),
     [attachment.id],
   );
@@ -183,7 +192,9 @@ export function TerminalView({
         brightCyan: "#29b8db",
         brightWhite: "#e5e5e5",
       },
-      allowProposedApi: false,
+      // The pinned official search addon uses proposed buffer/decorations APIs.
+      // It stays in this renderer; it grants no IPC or device capability.
+      allowProposedApi: true,
     });
     const fit = new FitAddon();
     local.current = terminal;
@@ -339,7 +350,10 @@ export function TerminalView({
   }, [attachment.id]);
 
   useEffect(() => {
-    if (!visible) return;
+    if (!visible) {
+      setSearchOpen(false);
+      return;
+    }
     fitting.current?.fit();
     resumeRead.current?.();
     resumeRead.current = undefined;
@@ -360,6 +374,18 @@ export function TerminalView({
 
   return (
     <>
+      {searchOpen && visible && local.current && (
+        <TerminalSearch
+          terminal={local.current}
+          focusVersion={searchFocus}
+          hex={settings.view === "hex"}
+          t={t}
+          onClose={() => {
+            setSearchOpen(false);
+            if (visibility.current) local.current?.focus();
+          }}
+        />
+      )}
       <div
         ref={container}
         className={`terminal-view ${display.terminalStyle}`}

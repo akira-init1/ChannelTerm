@@ -635,6 +635,61 @@ msgstr "이 텍스트에는 줄바꿈이 포함되어 대상에서 명령이 실
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "search.case"
+msgstr "대소문자 구분"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.close"
+msgstr "검색 닫기 (Escape)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.conflict"
+msgstr "Ctrl+Shift+F가 이미 다른 동작에 할당되어 있습니다. 찾기 단축키는 미할당 상태입니다. 터미널 메뉴를 사용하거나 다른 키를 할당하세요."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.hexScope"
+msgstr "바이너리 바이트가 아닌 표시된 HEX 텍스트를 검색합니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.limit"
+msgstr "결과 한도에 도달했습니다"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.next"
+msgstr "다음 일치 (Enter)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.none"
+msgstr "일치 항목 없음"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.previous"
+msgstr "이전 일치 (Shift+Enter)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.query"
+msgstr "보존된 텍스트 찾기"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.scope"
+msgstr "현재 터미널에 보존된 텍스트만 검색합니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.selectAll"
+msgstr "보존된 텍스트 모두 선택"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "session.attach"
 msgstr "세션에 연결"
 
@@ -868,6 +923,11 @@ msgstr "로컬 설명(선택 사항)"
 #: src/shared/menu-messages.ts
 msgid "terminal.encoding"
 msgstr "문자 인코딩"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.find"
+msgstr "터미널에서 찾기"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

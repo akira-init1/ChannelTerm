@@ -203,6 +203,21 @@ be revalidated before upgrading xterm or adding a canvas/WebGL renderer. Selecti
 remain separate; cursor colors are handled explicitly. Style changes neither recreate attachments
 nor replay device bytes. Font/style preferences stay in the existing local display settings.
 
+Current-terminal literal search uses the pinned official `@xterm/addon-search` 0.16.0 with
+xterm 6.0.0; both packages identify upstream commit `f447274f430fd22513f6adbf9862d19524471c04`.
+This explicitly opts the terminal into proposed buffer/decoration APIs, not Electron permissions
+or an IPC capability. Keep that dependency pinned and revalidate the native search suite before
+upgrading. The addon is pure JavaScript with no runtime dependencies; its MIT notice is bundled.
+Renderer code calls its public API and never exposes the terminal object through Preload.
+
+Search is scoped to one mounted view's retained decoded text (or displayed HEX text), with a
+256-code-unit query limit, 100 ms input debounce and highlights for at most 1000 matches. At the limit
+the UI reports a lower bound, not an exact total. The addon batches output-driven refreshes and
+retains no Host cursor/history of its own. Closing search, hiding the tab or disposing the view
+removes addon listeners, timers, caches and temporary decorations. Find, navigation and select-all
+are local actions; query text never enters the terminal input path. Folding is not implemented,
+so there are currently no folded search results to expand.
+
 ## State ownership
 
 Explicit **Close shared Session...** is separate from all view cleanup. After a target-specific

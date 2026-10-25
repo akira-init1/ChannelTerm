@@ -635,6 +635,61 @@ msgstr "Ce texte contient des sauts de ligne et peut exécuter des commandes sur
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "search.case"
+msgstr "Respecter la casse"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.close"
+msgstr "Fermer la recherche (Escape)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.conflict"
+msgstr "Ctrl+Shift+F est déjà attribué. La recherche ne dispose pas de raccourci ; utilisez le menu Terminal ou attribuez une autre touche."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.hexScope"
+msgstr "Recherche dans le texte HEX affiché, pas dans les octets binaires."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.limit"
+msgstr "Limite de résultats atteinte"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.next"
+msgstr "Résultat suivant (Enter)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.none"
+msgstr "Aucun résultat"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.previous"
+msgstr "Résultat précédent (Shift+Enter)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.query"
+msgstr "Rechercher le texte conservé"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.scope"
+msgstr "Recherche uniquement dans le texte conservé du terminal actuel."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.selectAll"
+msgstr "Sélectionner tout le texte conservé"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "session.attach"
 msgstr "Attacher une session"
 
@@ -868,6 +923,11 @@ msgstr "Description locale (facultative)"
 #: src/shared/menu-messages.ts
 msgid "terminal.encoding"
 msgstr "Encodage des caractères"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.find"
+msgstr "Rechercher dans le terminal"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

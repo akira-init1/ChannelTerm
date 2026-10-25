@@ -1,6 +1,7 @@
 import { checkFiles } from "./file-checks.mjs";
 import { checkTerminalControls } from "./terminal-checks.mjs";
 import { checkTerminalStyles } from "./highlight-checks.mjs";
+import { checkTerminalSearch } from "./search-checks.mjs";
 import { checkTargetCopy } from "./target-copy-checks.mjs";
 import assert from "node:assert/strict";
 import { _electron as electron, expect } from "@playwright/test";
@@ -288,6 +289,7 @@ try {
     .toContain("desktop-roundtrip");
   await checkTerminalControls(desktop, page, fixture, observer, attachment);
   await checkTerminalStyles(desktop, page, fixture, observer, attachment);
+  await checkTerminalSearch(desktop, page, fixture, observer, attachment);
   await checkAttachedMenus(desktop, page, fixture, observer, attachment);
   await fixture.command("lease");
   await expect(page.getByText(/Lease busy/)).toBeVisible();

@@ -33,6 +33,7 @@ test("platform defaults and physical Option keys match the layout commands", () 
     "view.panel": "Ctrl+J",
     "terminal.copy": "Ctrl+Shift+C",
     "terminal.paste": "Ctrl+Shift+V",
+    "terminal.find": "Ctrl+Shift+F",
   });
   assert.deepEqual(defaultShortcuts(true), {
     "view.sidebar": "Meta+B",
@@ -40,6 +41,7 @@ test("platform defaults and physical Option keys match the layout commands", () 
     "view.panel": "Meta+J",
     "terminal.copy": "Ctrl+Shift+C",
     "terminal.paste": "Ctrl+Shift+V",
+    "terminal.find": "Ctrl+Shift+F",
   });
   assert.equal(shortcutFromEvent(key), "Ctrl+B");
   assert.equal(
@@ -81,6 +83,43 @@ test("terminal clipboard chords and migration preserve custom layout bindings", 
       "terminal.copy": "Ctrl+J",
     }),
     false,
+  );
+});
+
+test("Find migration preserves existing chords and leaves conflicts unassigned", () => {
+  const previous = {
+    "view.sidebar": "Ctrl+Shift+F",
+    "view.auxiliary": "",
+    "view.panel": "Ctrl+K",
+    "terminal.copy": "Ctrl+Shift+C",
+    "terminal.paste": "Ctrl+Shift+V",
+  };
+  assert.deepEqual(restoreShortcuts(previous, false), {
+    ...previous,
+    "terminal.find": "",
+  });
+  assert.deepEqual(
+    restoreShortcuts({ ...previous, "view.sidebar": "Ctrl+B" }, false),
+    {
+      ...previous,
+      "view.sidebar": "Ctrl+B",
+      "terminal.find": "Ctrl+Shift+F",
+    },
+  );
+  assert.equal(
+    shortcutFromEvent({ ...key, code: "KeyF", shiftKey: true }),
+    "Ctrl+Shift+F",
+  );
+  assert.deepEqual(
+    restoreShortcuts(
+      {
+        "view.sidebar": "Ctrl+Shift+F",
+        "view.auxiliary": "",
+        "terminal.copy": "Ctrl+K",
+      },
+      false,
+    ),
+    defaultShortcuts(false),
   );
 });
 

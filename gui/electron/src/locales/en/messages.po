@@ -635,6 +635,61 @@ msgstr "This text contains line breaks and may execute commands on the target. R
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "search.case"
+msgstr "Match case"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.close"
+msgstr "Close search (Escape)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.conflict"
+msgstr "Ctrl+Shift+F is already assigned. Find has no shortcut; use the Terminal menu or assign another key."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.hexScope"
+msgstr "Search the displayed HEX text, not binary bytes."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.limit"
+msgstr "Result limit reached"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.next"
+msgstr "Next match (Enter)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.none"
+msgstr "No matches"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.previous"
+msgstr "Previous match (Shift+Enter)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.query"
+msgstr "Find retained text"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.scope"
+msgstr "Current terminal's retained text only."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.selectAll"
+msgstr "Select all retained text"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "session.attach"
 msgstr "Attach Session"
 
@@ -868,6 +923,11 @@ msgstr "Local description (optional)"
 #: src/shared/menu-messages.ts
 msgid "terminal.encoding"
 msgstr "Character encoding"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.find"
+msgstr "Find in terminal"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

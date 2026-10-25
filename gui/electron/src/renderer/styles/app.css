@@ -583,12 +583,43 @@ main {
 }
 .terminal-pane {
   display: flex;
+  flex-direction: column;
   flex: 1;
   min-height: 0;
   min-width: 0;
 }
 .terminal-pane[hidden] {
   display: none;
+}
+.terminal-search {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 8px;
+  background: var(--panel-background);
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+.terminal-search > input {
+  min-width: 140px;
+  flex: 1;
+  color: var(--foreground);
+  background: var(--editor-background);
+  border: 1px solid var(--border);
+  padding: 5px 8px;
+}
+.terminal-search label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.terminal-search button {
+  padding: 4px 8px;
+}
+.search-result {
+  color: var(--muted);
+  width: 100%;
 }
 .terminal-settings-button {
   margin-left: auto;

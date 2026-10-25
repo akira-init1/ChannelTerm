@@ -635,6 +635,61 @@ msgstr "Текст содержит переводы строк и может в
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "search.case"
+msgstr "Учитывать регистр"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.close"
+msgstr "Закрыть поиск (Escape)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.conflict"
+msgstr "Ctrl+Shift+F уже назначено. У поиска нет сочетания клавиш; используйте меню терминала или назначьте другое сочетание."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.hexScope"
+msgstr "Поиск в отображаемом HEX-тексте, а не в двоичных байтах."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.limit"
+msgstr "Достигнут предел результатов"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.next"
+msgstr "Следующее совпадение (Enter)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.none"
+msgstr "Нет совпадений"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.previous"
+msgstr "Предыдущее совпадение (Shift+Enter)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.query"
+msgstr "Найти в сохранённом тексте"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.scope"
+msgstr "Поиск только в сохранённом тексте текущего терминала."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.selectAll"
+msgstr "Выделить весь сохранённый текст"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "session.attach"
 msgstr "Присоединиться к сеансу"
 
@@ -868,6 +923,11 @@ msgstr "Локальное описание (необязательно)"
 #: src/shared/menu-messages.ts
 msgid "terminal.encoding"
 msgstr "Кодировка символов"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.find"
+msgstr "Найти в терминале"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

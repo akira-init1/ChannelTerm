@@ -15,6 +15,10 @@ missing required packages or license texts in installed packages remain build er
 Terminal input encoding uses iconv-lite 0.7.3 (MIT), a pure JavaScript dependency
 loaded only in Main. Its license is included in the generated notices below.
 
+Terminal search uses @xterm/addon-search 0.16.0 (MIT), pinned alongside xterm 6.0.0
+from the same upstream release commit. It adds no runtime dependencies or native
+code. Its installed MIT license is included in the generated notices below.
+
 npm run build collects the installed runtime dependency license texts, including
 the Electron npm package license, into dist/THIRD_PARTY_NOTICES.txt and copies the
 ChannelTerm license into dist/LICENSE. Redistribution of the bundled JavaScript

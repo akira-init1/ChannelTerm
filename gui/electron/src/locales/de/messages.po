@@ -635,6 +635,61 @@ msgstr "Dieser Text enthält Zeilenumbrüche und kann Befehle auf dem Ziel ausf�
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "search.case"
+msgstr "Groß-/Kleinschreibung"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.close"
+msgstr "Suche schließen (Escape)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.conflict"
+msgstr "Ctrl+Shift+F ist bereits zugewiesen. Die Suche hat kein Tastenkürzel; verwenden Sie das Terminal-Menü oder weisen Sie eine andere Taste zu."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.hexScope"
+msgstr "Den angezeigten HEX-Text durchsuchen, nicht die Binärbytes."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.limit"
+msgstr "Ergebnisgrenze erreicht"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.next"
+msgstr "Nächster Treffer (Enter)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.none"
+msgstr "Keine Treffer"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.previous"
+msgstr "Vorheriger Treffer (Shift+Enter)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.query"
+msgstr "Gespeicherten Text suchen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.scope"
+msgstr "Nur im gespeicherten Text des aktuellen Terminals suchen."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.selectAll"
+msgstr "Gesamten gespeicherten Text auswählen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "session.attach"
 msgstr "An Sitzung anhängen"
 
@@ -868,6 +923,11 @@ msgstr "Lokale Beschreibung (optional)"
 #: src/shared/menu-messages.ts
 msgid "terminal.encoding"
 msgstr "Zeichenkodierung"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.find"
+msgstr "Im Terminal suchen"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

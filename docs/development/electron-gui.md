@@ -387,6 +387,15 @@ and editor focus. Fresh app processes check saved bindings and malformed-storage
 Screenshots: `workbench-panels.png`, `workbench-panels-compact.png`, and `workbench-shortcuts.png`.
 Unit checks cover platform defaults, Option/physical keys, IME/AltGr rejection, malformed or
 duplicate stored bindings, and bounded native menu hints.
+Terminal-search checks exercise literal and Chinese matches, case sensitivity, previous/next,
+empty results, composition guards, monochrome decorations, narrow-window visibility, select/copy,
+the 1000-match cap, and detach cleanup without device bytes. The search addon is pinned to
+`@xterm/addon-search` 0.16.0 alongside xterm 6.0.0 from the same upstream commit. It is MIT-licensed
+JavaScript with no runtime dependencies or native modules; the production notice collector includes
+its license. Its proposed public buffer/decorations APIs are enabled only for the renderer terminal,
+without new IPC or system permissions. Native execution on other OS/architecture pairs remains
+separate validation. `test-results/terminal-search-compact.png` records the compact search bar.
+
 Terminal-control checks cover historical cursor/device queries without unsolicited replies,
 fragmented live cursor queries, real terminal selection/copy/paste, stale/oversized clipboard
 IPC, lease-blocked paste with no replay, shortcut search, font settings and Ctrl+wheel without

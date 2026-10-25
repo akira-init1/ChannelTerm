@@ -635,6 +635,61 @@ msgstr "Este texto contiene saltos de línea y puede ejecutar comandos en el des
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "search.case"
+msgstr "Distinguir mayúsculas"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.close"
+msgstr "Cerrar búsqueda (Escape)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.conflict"
+msgstr "Ctrl+Shift+F ya está asignado. Buscar no tiene atajo; use el menú Terminal o asigne otra tecla."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.hexScope"
+msgstr "Se busca el texto HEX mostrado, no los bytes binarios."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.limit"
+msgstr "Se alcanzó el límite de resultados"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.next"
+msgstr "Coincidencia siguiente (Enter)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.none"
+msgstr "Sin coincidencias"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.previous"
+msgstr "Coincidencia anterior (Shift+Enter)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.query"
+msgstr "Buscar texto conservado"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.scope"
+msgstr "Solo se busca en el texto conservado del terminal actual."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.selectAll"
+msgstr "Seleccionar todo el texto conservado"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "session.attach"
 msgstr "Adjuntar sesión"
 
@@ -868,6 +923,11 @@ msgstr "Descripción local (opcional)"
 #: src/shared/menu-messages.ts
 msgid "terminal.encoding"
 msgstr "Codificación de caracteres"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.find"
+msgstr "Buscar en el terminal"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

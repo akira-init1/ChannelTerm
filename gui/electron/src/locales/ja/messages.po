@@ -635,6 +635,61 @@ msgstr "このテキストには改行が含まれており、対象でコマン
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "search.case"
+msgstr "大文字と小文字を区別"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.close"
+msgstr "検索を閉じる（Escape）"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.conflict"
+msgstr "Ctrl+Shift+F は別の操作に割り当て済みです。検索のショートカットは未設定です。端末メニューを使うか、別のキーを割り当ててください。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.hexScope"
+msgstr "バイナリのバイトではなく、表示中の HEX テキストを検索します。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.limit"
+msgstr "検索結果の上限に達しました"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.next"
+msgstr "次の一致（Enter）"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.none"
+msgstr "一致なし"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.previous"
+msgstr "前の一致（Shift+Enter）"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.query"
+msgstr "保持されたテキストを検索"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.scope"
+msgstr "現在の端末に保持されたテキストのみ検索します。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.selectAll"
+msgstr "保持されたテキストをすべて選択"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "session.attach"
 msgstr "このセッションに接続"
 
@@ -868,6 +923,11 @@ msgstr "ローカルの説明（任意）"
 #: src/shared/menu-messages.ts
 msgid "terminal.encoding"
 msgstr "文字エンコーディング"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.find"
+msgstr "端末内を検索"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

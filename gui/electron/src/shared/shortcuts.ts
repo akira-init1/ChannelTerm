@@ -9,6 +9,7 @@ export const shortcutActions = [
   ...layoutActions,
   "terminal.copy",
   "terminal.paste",
+  "terminal.find",
 ] as const;
 export type ShortcutBindings = Record<(typeof shortcutActions)[number], string>;
 
@@ -20,6 +21,7 @@ export function defaultShortcuts(mac: boolean): ShortcutBindings {
     "view.panel": `${modifier}+J`,
     "terminal.copy": "Ctrl+Shift+C",
     "terminal.paste": "Ctrl+Shift+V",
+    "terminal.find": "Ctrl+Shift+F",
   };
 }
 
@@ -47,22 +49,27 @@ export function isShortcutBindings(value: unknown): value is ShortcutBindings {
   );
 }
 
-/** Preserve existing layout preferences when upgrading the original three-action schema. */
+/** Preserve prior layout/clipboard bindings; a new Find binding never steals a saved chord. */
 export function restoreShortcuts(
   value: unknown,
   mac: boolean,
 ): ShortcutBindings {
   if (isShortcutBindings(value)) return value;
-  if (
-    value &&
-    typeof value === "object" &&
-    !Array.isArray(value) &&
-    Object.keys(value).length === layoutActions.length &&
-    Object.keys(value).every((id) =>
-      layoutActions.some((action) => action === id),
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    const keys = Object.keys(value);
+    const previous =
+      keys.length === layoutActions.length
+        ? layoutActions
+        : shortcutActions.filter((id) => id !== "terminal.find");
+    if (
+      keys.length !== previous.length ||
+      !keys.every((key) => previous.some((id) => id === key))
     )
-  ) {
+      return defaultShortcuts(mac);
     const migrated = { ...defaultShortcuts(mac), ...value };
+    for (const id of shortcutActions)
+      if (!(id in value) && Object.values(value).includes(migrated[id]))
+        migrated[id] = "";
     if (isShortcutBindings(migrated)) return migrated;
   }
   return defaultShortcuts(mac);

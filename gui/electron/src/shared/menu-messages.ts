@@ -414,6 +414,28 @@ export const menuMessages = [
   },
   /* i18n */ { id: "terminal.copy", message: "Copy terminal selection" },
   /* i18n */ { id: "terminal.paste", message: "Paste into terminal" },
+  /* i18n */ { id: "terminal.find", message: "Find in terminal" },
+  /* i18n */ { id: "search.query", message: "Find retained text" },
+  /* i18n */ { id: "search.case", message: "Match case" },
+  /* i18n */ { id: "search.previous", message: "Previous match (Shift+Enter)" },
+  /* i18n */ { id: "search.next", message: "Next match (Enter)" },
+  /* i18n */ { id: "search.selectAll", message: "Select all retained text" },
+  /* i18n */ { id: "search.close", message: "Close search (Escape)" },
+  /* i18n */ {
+    id: "search.scope",
+    message: "Current terminal's retained text only.",
+  },
+  /* i18n */ {
+    id: "search.hexScope",
+    message: "Search the displayed HEX text, not binary bytes.",
+  },
+  /* i18n */ { id: "search.none", message: "No matches" },
+  /* i18n */ { id: "search.limit", message: "Result limit reached" },
+  /* i18n */ {
+    id: "search.conflict",
+    message:
+      "Ctrl+Shift+F is already assigned. Find has no shortcut; use the Terminal menu or assign another key.",
+  },
   /* i18n */ { id: "shortcuts.search", message: "Search shortcuts" },
   /* i18n */ { id: "shortcuts.empty", message: "No matching shortcuts" },
   /* i18n */ { id: "settings.display", message: "Display" },

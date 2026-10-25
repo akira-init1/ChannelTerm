@@ -635,6 +635,61 @@ msgstr "文字包含換行，可能在目標上執行命令。請確認內容後
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "search.case"
+msgstr "區分大小寫"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.close"
+msgstr "關閉搜尋（Escape）"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.conflict"
+msgstr "Ctrl+Shift+F 已指派給其他動作。尋找暫未綁定快捷鍵；請使用終端機選單或另行指派按鍵。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.hexScope"
+msgstr "搜尋顯示的 HEX 文字，而非二進位位元組。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.limit"
+msgstr "已達結果上限"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.next"
+msgstr "下一個符合項目（Enter）"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.none"
+msgstr "沒有符合項目"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.previous"
+msgstr "上一個符合項目（Shift+Enter）"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.query"
+msgstr "尋找保留的文字"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.scope"
+msgstr "僅搜尋目前終端機保留的文字。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "search.selectAll"
+msgstr "全選保留文字"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "session.attach"
 msgstr "附加工作階段"
 
@@ -868,6 +923,11 @@ msgstr "本機描述（選填）"
 #: src/shared/menu-messages.ts
 msgid "terminal.encoding"
 msgstr "字元編碼"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.find"
+msgstr "在終端機中尋找"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

@@ -488,22 +488,32 @@ export function App() {
         document.querySelector("dialog[open]")
       )
         return;
-      if (
-        target.closest('[role="menu"], .app-menu') ||
-        (target.closest('input, textarea, select, [contenteditable="true"]') &&
-          !target.closest(".xterm"))
-      )
-        return;
       const binding = shortcutFromEvent(event);
       const id = shortcutActions.find(
         (action) => binding && shortcuts[action] === binding,
       );
-      if (!id || (id.startsWith("terminal.") && !target.closest(".xterm")))
+      const inFind =
+        id === "terminal.find" && target.closest(".terminal-search");
+      if (
+        target.closest('[role="menu"], .app-menu') ||
+        (target.closest('input, textarea, select, [contenteditable="true"]') &&
+          !target.closest(".xterm") &&
+          !inFind)
+      )
+        return;
+      if (
+        !id ||
+        (id.startsWith("terminal.") && !target.closest(".xterm") && !inFind)
+      )
         return;
       event.preventDefault();
       event.stopPropagation();
       if (!event.repeat) {
-        if (id === "terminal.copy" || id === "terminal.paste") {
+        if (
+          id === "terminal.copy" ||
+          id === "terminal.paste" ||
+          id === "terminal.find"
+        ) {
           if (attachment)
             dispatchRef.current({ id, attachment: { ...attachment } });
         } else dispatchRef.current({ id });
@@ -1025,6 +1035,9 @@ export function App() {
       case "terminal.copy":
         terminal?.copy();
         return;
+      case "terminal.find":
+        terminal?.find();
+        return;
       case "terminal.paste":
         terminal?.paste();
         return;
@@ -1465,6 +1478,15 @@ export function App() {
                 {t("display.storageError")}
               </div>
             )}
+            {shortcuts["terminal.find"] === "" &&
+              Object.values(shortcuts).includes("Ctrl+Shift+F") && (
+                <div role="status" className="notice">
+                  {t("search.conflict")}
+                  <button onClick={() => setShortcutsOpen(true)}>
+                    {t("settings.shortcuts")}
+                  </button>
+                </div>
+              )}
             {info?.lifetime === "attachment" && connected && (
               <div className="notice">
                 This Host belongs to another attachment. It may stop when its
