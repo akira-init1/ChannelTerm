@@ -23,6 +23,7 @@ type sshFileProgress struct {
 	started, lastRender time.Time
 	last                fileTransferSnapshot
 	files               int64
+	initial             int64
 	active, rendered    bool
 }
 
@@ -48,10 +49,14 @@ func (p *sshFileProgress) Report(name string, transferred, total int64) error {
 		}
 		p.files++
 		p.name, p.started, p.lastRender, p.active = name, now, time.Time{}, true
+		p.initial = max(0, transferred)
 		if _, err := fmt.Fprintf(p.output, "File %d: %q (%d completed)\n", p.files, name, p.files-1); err != nil {
 			return err
 		}
-		p.last = fileTransferSnapshot{total: max(0, total)}
+		p.last = fileTransferSnapshot{transferred: p.initial, total: max(0, total)}
+		if total > 0 {
+			p.last.percent = min(99.9, 100*float64(p.initial)/float64(total))
+		}
 		if err := p.render(); err != nil {
 			return err
 		}
@@ -67,7 +72,7 @@ func (p *sshFileProgress) Report(name string, transferred, total int64) error {
 	}
 	speed := float64(0)
 	if elapsed := now.Sub(p.started).Seconds(); elapsed > 0 {
-		speed = float64(transferred) / elapsed
+		speed = float64(max(0, transferred-p.initial)) / elapsed
 	}
 	p.last = fileTransferSnapshot{transferred: transferred, total: total, percent: percent, speed: speed}
 	if transferred == total || now.Sub(p.lastRender) < 200*time.Millisecond {

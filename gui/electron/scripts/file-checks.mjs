@@ -1,5 +1,111 @@
 import { expect } from "@playwright/test";
 import assert from "node:assert/strict";
+import { mkdtemp, mkdir, writeFile, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
+
+/** Real renderer/IPC/CLI/SFTP roundtrip; only the native picker is substituted. */
+export async function checkSSHFiles(desktop, page, fixture) {
+  const root = await mkdtemp(join(tmpdir(), "channelterm-gui-sftp-"));
+  const local = join(root, "gui-payload.bin");
+  const output = join(root, "download");
+  const payload = Buffer.alloc(4 * 1024 * 1024, 0x5a);
+  await writeFile(local, payload);
+  await mkdir(output);
+  await desktop.evaluate(({ dialog }) => {
+    globalThis.originalFileDialog = dialog.showOpenDialog;
+  });
+  async function start(receive, resume) {
+    const previousJobs = await page.locator(".transfer-job").count();
+    await expect
+      .poll(() =>
+        desktop.evaluate(
+          ({ Menu }) =>
+            Menu.getApplicationMenu().getMenuItemById("file.send").enabled,
+        ),
+      )
+      .toBe(true);
+    await desktop.evaluate(
+      ({ Menu }, id) => Menu.getApplicationMenu().getMenuItemById(id).click(),
+      receive ? "file.receive" : "file.send",
+    );
+    const dialog = page.getByRole("dialog", {
+      name: receive ? "Receive from device" : "Send to device",
+    });
+    const protocol = dialog.getByRole("combobox", { name: "File protocol" });
+    const checkbox = dialog.getByRole("checkbox", {
+      name: "Resume an existing partial file (SFTP)",
+      exact: true,
+    });
+    await protocol.selectOption("scp");
+    await expect(checkbox).toBeDisabled();
+    await protocol.selectOption("sftp");
+    await expect(checkbox).toBeEnabled();
+    await checkbox.setChecked(resume);
+    await dialog.locator('[name="remotePath"]').fill("/gui-payload.bin");
+    await dialog
+      .locator('[name="identityFiles"]')
+      .fill(join(dirname(fixture.knownHosts), "identity"));
+    await dialog.locator('[name="knownHostsFile"]').fill(fixture.knownHosts);
+    await dialog.locator('[name="password"]').fill("fixture-password");
+    await desktop.evaluate(
+      ({ dialog }, path) => {
+        dialog.showOpenDialog = async () => ({
+          canceled: false,
+          filePaths: [path],
+        });
+      },
+      receive ? output : local,
+    );
+    await dialog
+      .getByRole("button", {
+        name: receive ? "Choose save folder" : "Choose file",
+        exact: true,
+      })
+      .click();
+    await expect(
+      dialog.getByText(receive ? "download" : "gui-payload.bin", {
+        exact: true,
+      }),
+    ).toBeVisible();
+    if (!receive && !resume)
+      await page.screenshot({ path: "test-results/ssh-file-dialog.png" });
+    await dialog
+      .getByRole("button", {
+        name: receive ? "Receive from device" : "Send to device",
+        exact: true,
+      })
+      .click();
+    await expect(dialog).not.toBeVisible();
+    await expect(page.locator(".transfer-job")).toHaveCount(previousJobs + 1);
+  }
+  try {
+    await start(false, false);
+    const job = page.locator(".transfer-job").first();
+    await expect(job).toContainText("SFTP");
+    await expect
+      .poll(() =>
+        job
+          .locator("progress")
+          .evaluate((bar) => bar.value > 0 && bar.value < bar.max),
+      )
+      .toBe(true);
+    await page.screenshot({ path: "test-results/ssh-file-progress.png" });
+    await job.getByRole("button", { name: "Cancel", exact: true }).click();
+    await expect(job).toContainText("Cancelled");
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await start(false, true);
+    await expect(job).toContainText("Completed", { timeout: 20000 });
+    await start(true, false);
+    await expect(job).toContainText("Completed", { timeout: 20000 });
+    assert.deepEqual(await readFile(join(output, "gui-payload.bin")), payload);
+  } finally {
+    await desktop.evaluate(({ dialog }) => {
+      dialog.showOpenDialog = globalThis.originalFileDialog;
+    });
+    await rm(root, { recursive: true, force: true });
+  }
+}
 
 /** Native rendering uses test-only directory snapshots; transfer events use the real Host. */
 export async function checkFiles(desktop, page, fixture) {

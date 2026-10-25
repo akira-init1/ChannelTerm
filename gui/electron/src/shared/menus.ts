@@ -58,6 +58,7 @@ export interface MenuState {
   attachment?: Attachment;
   currentOpen: boolean;
   currentSerial: boolean;
+  currentSSH?: boolean;
   inputPaused: boolean;
   leased: boolean;
 }
@@ -154,7 +155,10 @@ export function applicationMenu(state: MenuState): MenuEntry[] {
         ...fileMenu(
           state,
           state.attachment?.sessionId,
-          state.currentOpen && state.currentSerial && !state.leased,
+          state.currentOpen &&
+            (state.currentSerial || !!state.currentSSH) &&
+            (!state.leased || !!state.currentSSH),
+          state.currentSerial,
         ),
         attachedAction(state, "tab.close"),
       ],
@@ -250,11 +254,17 @@ function fileMenu(
   state: MenuState,
   sessionId: string | undefined,
   available: boolean,
+  resumable = true,
 ): MenuEntry[] {
   return (["file.send", "file.receive", "file.resume"] as const).map((id) => ({
     id,
     label: id,
-    enabled: !!sessionId && available && state.connected && !state.busy,
+    enabled:
+      !!sessionId &&
+      available &&
+      state.connected &&
+      !state.busy &&
+      (id !== "file.resume" || resumable),
     action: sessionId ? { id, sessionId } : undefined,
   }));
 }
@@ -265,6 +275,7 @@ export function sessionMenu(
   sessionId: string,
   open: boolean,
   serial = false,
+  ssh = false,
 ): MenuEntry[] {
   return [
     {
@@ -288,7 +299,7 @@ export function sessionMenu(
           ? { id: "tab.close", attachment: { ...state.attachment } }
           : undefined,
     },
-    ...fileMenu(state, sessionId, open && serial),
+    ...fileMenu(state, sessionId, open && (serial || ssh), serial),
   ];
 }
 
@@ -367,6 +378,7 @@ export function isMenuState(value: unknown): value is MenuState {
       "attachment",
       "currentOpen",
       "currentSerial",
+      "currentSSH",
       "inputPaused",
       "leased",
     ])
@@ -374,6 +386,7 @@ export function isMenuState(value: unknown): value is MenuState {
     return false;
   return (
     isMenuLocale(value.locale) &&
+    (value.currentSSH === undefined || typeof value.currentSSH === "boolean") &&
     isShortcutBindings(value.shortcuts) &&
     [
       "connected",

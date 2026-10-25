@@ -211,6 +211,12 @@ channelterm sftp user@192.168.1.50 get /tmp/log.txt ./log.txt
 channelterm scp user@192.168.1.50 put ./release /tmp/release --recursive
 ```
 
+La GUI Electron muestra el progreso y permite cancelar SFTP/SCP desde las acciones de envío y
+recepción de una Session SSH abierta. Para reanudar un único archivo SFTP, activa la opción de
+reanudación o repite el comando con `--resume`; se verifican el prefijo existente y el archivo
+completo. SCP y los directorios no admiten reanudación. Consulta el
+[flujo de archivos SSH](docs/getting-started/file-transfer.md#electron-sftpscp-progress-and-resume).
+
 Estos comandos usan la misma autenticación por clave/contraseña y verificación del servidor que SSH,
 con una conexión independiente de las Sessions de terminal. Reemplazar archivos requiere
 `--overwrite`. Consulta [transferencia de archivos](docs/getting-started/file-transfer.md#sftp-and-scp-over-ssh)

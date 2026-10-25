@@ -270,6 +270,21 @@ msgstr "Leyendo carpeta…"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "file.localIdentities"
+msgstr "Claves locales (una por línea; vacío usa los valores predeterminados)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.localKnownHosts"
+msgstr "Archivo known_hosts local (vacío usa el predeterminado)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.localTrust"
+msgstr "Solo se aceptan claves de host de confianza. Verifica la clave del servidor y establece la confianza con la CLI en este equipo antes de transferir."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "file.noCheckpoints"
 msgstr "No hay transferencias guardadas para este puerto."
 
@@ -290,6 +305,11 @@ msgstr "Subir"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "file.protocol"
+msgstr "Protocolo de archivos"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "file.publicationUncertain"
 msgstr "Publicación incierta. Revisa el destino manualmente; esta transferencia no se repetirá."
 
@@ -302,6 +322,11 @@ msgstr "Recibir del dispositivo"
 #: src/shared/menu-messages.ts
 msgid "file.receiveFolder"
 msgstr "Recibir esta carpeta"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.recursive"
+msgstr "Descargar un directorio recursivamente"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -337,6 +362,21 @@ msgstr "Elegir carpeta de destino"
 #: src/shared/menu-messages.ts
 msgid "file.send"
 msgstr "Enviar al dispositivo"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.sftpResume"
+msgstr "Reanudar un archivo parcial existente (SFTP)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.sftpResumeHint"
+msgstr "Solo archivos individuales. Seleccione el mismo origen y destino; los bytes existentes se verifican antes de continuar. SCP no permite reanudar."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.sshHint"
+msgstr "Usa una conexión SSH independiente desde este equipo. Introduzca rutas locales de claves y known_hosts. No se guardan credenciales. Las copias se verifican con SHA-256; SCP requiere sha256sum remoto. Cancelar puede dejar archivos parciales."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

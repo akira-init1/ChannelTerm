@@ -214,6 +214,12 @@ channelterm sftp user@192.168.1.50 get /tmp/log.txt ./log.txt
 channelterm scp user@192.168.1.50 put ./release /tmp/release --recursive
 ```
 
+L’interface Electron affiche la progression SFTP/SCP et permet l’annulation depuis les actions
+d’envoi/réception d’une Session SSH ouverte. Pour reprendre un fichier SFTP unique, activez
+l’option de reprise ou répétez la commande avec `--resume` ; le préfixe existant et le fichier
+complet sont vérifiés. SCP et les répertoires ne permettent pas la reprise. Voir le
+[parcours des fichiers SSH](docs/getting-started/file-transfer.md#electron-sftpscp-progress-and-resume).
+
 Ces commandes réutilisent l'authentification par clé/mot de passe et la vérification des hôtes SSH,
 sur une connexion indépendante des Sessions de terminal. Le remplacement de fichiers nécessite
 `--overwrite`. Voir [transfert de fichiers](docs/getting-started/file-transfer.md#sftp-and-scp-over-ssh)

@@ -134,6 +134,29 @@ export class HostClient {
       );
   }
 
+  /** File selection is bound to a live Session; dedicated SSH copies need no lease. */
+  async validateFileSession(sessionId: string): Promise<SessionSummary> {
+    identifier(sessionId);
+    const entry = (await this.list()).find(
+      (entry) => entry.session_id === sessionId,
+    );
+    if (
+      !entry ||
+      entry.state !== "open" ||
+      !["serial", "ssh"].includes(entry.transport)
+    )
+      throw new HostError(
+        "closed",
+        "An open serial or SSH Session is required.",
+      );
+    if (entry.transport === "serial" && entry.lease)
+      throw new HostError(
+        "busy",
+        "Session is busy. Wait for the current operation.",
+      );
+    return entry;
+  }
+
   async beginTransferCancel(
     sessionId: string,
     transferId: string,

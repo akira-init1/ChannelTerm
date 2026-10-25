@@ -1,3 +1,5 @@
+import type { ConnectionRequest } from "./connections";
+
 /** File intent is bounded; local paths are held by Main behind an opaque selection ID. */
 export interface LocalSelection {
   id: string;
@@ -9,6 +11,8 @@ export interface RemoteDirectory {
   truncated: boolean;
 }
 export interface TransferStatus {
+  /** Dedicated SSH jobs are local client operations, not Session lease events. */
+  protocol?: "sftp" | "scp";
   id: string;
   sessionId: string;
   direction: string;
@@ -27,6 +31,18 @@ export interface TransferStatus {
   speed: number;
   sha256?: string;
   released: boolean;
+}
+
+/** Explicit credentials are transient; Main binds the target to the live SSH Session. */
+export interface SSHTransferRequest {
+  sessionId: string;
+  direction: "send" | "receive";
+  selectionId: string;
+  remotePath: string;
+  protocol: "sftp" | "scp";
+  resume: boolean;
+  recursive: boolean;
+  connection: Extract<ConnectionRequest, { kind: "ssh" }>;
 }
 export interface TransferRequest {
   resumable?: boolean;

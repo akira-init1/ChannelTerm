@@ -17,3 +17,21 @@ execFileSync(
     env: { ...process.env, CGO_ENABLED: "0" },
   },
 );
+// Exercise the exact file CLI used by Main with disposable loopback credentials.
+execFileSync(
+  "go",
+  [
+    "build",
+    "-o",
+    resolve(
+      "test-results",
+      process.platform === "win32" ? "files.exe" : "files",
+    ),
+    "./cmd/channelterm",
+  ],
+  {
+    cwd: "../..",
+    stdio: "inherit",
+    env: { ...process.env, CGO_ENABLED: "0" },
+  },
+);

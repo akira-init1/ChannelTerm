@@ -15,6 +15,11 @@ revalidates the job and target in Main and CLI before acquiring the existing Hos
 `publishing` job is visible for inspection with no enabled Resume button. Starting a new transfer
 only saves resumable data when **Keep a checkpoint for manual resume** is checked.
 
+Send/Receive also accepts open SSH Sessions, using a separate SFTP/SCP connection. Its dialog
+provides a single-file SFTP resume checkbox; the `file.resume` checkpoint action remains serial-only.
+See the [SSH file workflow](../getting-started/file-transfer.md#electron-sftpscp-progress-and-resume)
+for authentication, verification and cancellation.
+
 | Menu / surface | Action ID | Behavior and availability |
 | --- | --- | --- |
 | Connection > Connect to Host; Host panel | `host.connect` | Connect to the configured existing Host; enabled while disconnected and idle. Does not start a Host. |
@@ -170,10 +175,11 @@ window-manager or physical IME behavior.
 ## File actions
 
 **Session > Send to device / Receive from device** (`file.send` / `file.receive`) are also
-available on serial Session context menus. They bind the clicked opaque ID, require an open
-serial Session, and revalidate Host lease state before local selection or client startup.
-The dialog browses child-shell directory snapshots and uses native local file/folder selection;
-the transfer panel renders Host events from all observed clients. Main rejects disconnect,
+available on serial and SSH Session context menus. They bind the clicked opaque ID and require an
+open Session. Serial transfers revalidate Host lease state, browse child-shell directory snapshots
+and render Host events from all observed clients. SSH transfers use explicit remote paths and a
+dedicated connection, with progress from this desktop's CLI child. Both use native local selection.
+Main rejects disconnect,
 reconnect and app/window exit during a GUI-owned file operation until completion or cancellation.
 See the [file workflow](../getting-started/file-transfer.md#electron-file-picker-and-progress).
 

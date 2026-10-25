@@ -130,6 +130,7 @@ gui/electron/
 |   |   |-- index.ts                Window lifecycle, static application scheme, validated IPC
 |   |   |-- security.ts             Trusted caller and content-policy checks
 |   |   |-- files.ts                Native selections and fixed structured CLI file operations
+|   |   |-- ssh-files.ts            Dedicated SSH CLI lifecycle, bounded progress and private credentials
 |   |   |-- menu.ts                 Native menu rendering from bounded display hints
 |   |   `-- host/                   Main-only credentials, MCP client, bounded local companion startup, validation, safe errors
 |   |-- preload/                   Narrow contextBridge methods; no business decisions

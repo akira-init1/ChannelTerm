@@ -3,13 +3,16 @@ package main
 import (
 	"crypto/ed25519"
 	"crypto/rand"
+	"encoding/pem"
 	"errors"
 	"io"
 	"net"
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 
+	"github.com/pkg/sftp"
 	gossh "golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
 )
@@ -36,6 +39,17 @@ func startSSHFixture() (port, trust string, cleanup func(), err error) {
 	}
 	_, port, _ = net.SplitHostPort(listener.Addr().String())
 	trust = filepath.Join(directory, "known_hosts")
+	key, err := gossh.MarshalPrivateKey(private, "disposable fixture")
+	if err != nil {
+		_ = listener.Close()
+		_ = os.RemoveAll(directory)
+		return "", "", nil, err
+	}
+	if err = os.WriteFile(filepath.Join(directory, "identity"), pem.EncodeToMemory(key), 0600); err != nil {
+		_ = listener.Close()
+		_ = os.RemoveAll(directory)
+		return "", "", nil, err
+	}
 	if err = os.WriteFile(trust, []byte(knownhosts.Line([]string{listener.Addr().String()}, signer.PublicKey())+"\n"), 0600); err != nil {
 		_ = listener.Close()
 		_ = os.RemoveAll(directory)
@@ -51,6 +65,9 @@ func startSSHFixture() (port, trust string, cleanup func(), err error) {
 	var mutex sync.Mutex
 	var connections []net.Conn
 	var workers sync.WaitGroup
+	files := sftp.InMemHandler()
+	fileHandles := fixtureFileHandles{files.FileGet, files.FilePut}
+	files.FileGet, files.FilePut = fileHandles, fileHandles
 	accepted := make(chan struct{})
 	go func() {
 		defer close(accepted)
@@ -82,6 +99,19 @@ func startSSHFixture() (port, trust string, cleanup func(), err error) {
 						return
 					}
 					for req := range requests {
+						if req.Type == "subsystem" {
+							var subsystem struct{ Name string }
+							valid := gossh.Unmarshal(req.Payload, &subsystem) == nil && subsystem.Name == "sftp"
+							_ = req.Reply(valid, nil)
+							if valid {
+								go gossh.DiscardRequests(requests)
+								fileServer := sftp.NewRequestServer(slowFileStream{stream}, files)
+								_ = fileServer.Serve()
+								_ = fileServer.Close()
+								break
+							}
+							continue
+						}
 						ok := req.Type == "pty-req" || req.Type == "shell"
 						_ = req.Reply(ok, nil)
 						if req.Type == "shell" {
@@ -108,4 +138,40 @@ func startSSHFixture() (port, trust string, cleanup func(), err error) {
 		_ = os.RemoveAll(directory)
 	}
 	return port, trust, cleanup, nil
+}
+
+// slowFileStream makes progress and cancellation observable without huge test
+// files. It delays only this disposable SFTP server, never the PTY echo stream.
+type slowFileStream struct{ io.ReadWriteCloser }
+
+func (s slowFileStream) Write(data []byte) (int, error) {
+	time.Sleep(2 * time.Millisecond)
+	return s.ReadWriteCloser.Write(data)
+}
+
+// The upstream memory fixture stores TransferError permanently on the file.
+// Real files retain their bytes, not a previous connection's read error. Hide
+// that optional callback so reconnect/resume tests model ordinary file handles.
+type fixtureFileHandles struct {
+	reader sftp.FileReader
+	writer sftp.FileWriter
+}
+
+func (f fixtureFileHandles) Fileread(r *sftp.Request) (io.ReaderAt, error) {
+	reader, err := f.reader.Fileread(r)
+	return struct{ io.ReaderAt }{reader}, err
+}
+
+func (f fixtureFileHandles) Filewrite(r *sftp.Request) (io.WriterAt, error) {
+	writer, err := f.writer.Filewrite(r)
+	return struct{ io.WriterAt }{writer}, err
+}
+
+func (f fixtureFileHandles) OpenFile(r *sftp.Request) (sftp.WriterAtReaderAt, error) {
+	opener, ok := f.writer.(sftp.OpenFileWriter)
+	if !ok {
+		return nil, errors.New("fixture requires read/write handles")
+	}
+	file, err := opener.OpenFile(r)
+	return struct{ sftp.WriterAtReaderAt }{file}, err
 }

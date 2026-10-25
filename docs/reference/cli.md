@@ -399,7 +399,8 @@ recursive deletion. Existing destination directories receive the source basename
 destination is the exact new path. Parent directories must exist. Paths are literal: no glob or
 `~` expansion. The explicit direction/path arguments avoid ambiguity with Windows drive letters.
 
-Existing destinations fail unless `--overwrite` is set. SFTP rename replacement requires the POSIX
+Existing destinations fail unless `--overwrite` or the single-file SFTP `--resume` mode is set.
+SFTP rename replacement requires the POSIX
 rename extension; unsupported servers return an error without deleting the target. `rm` rejects a
 directory observed during validation; `rmdir` accepts only an empty directory. No recursive removal
 command is provided. CLI listing rows contain mode, size, RFC3339 modification time, and a quoted name.
@@ -414,6 +415,29 @@ confirmation. Failed/cancelled operations end the progress line and report compl
 partial bytes with destination-recovery guidance. Redirected output has no dynamic progress or ANSI
 and keeps the existing completion/error output unless verification is requested. Management
 operations have no progress bar.
+
+`--resume` is SFTP-only single-file `put`/`get`. It compares the full existing destination prefix
+before appending and forces `--verify=sha256`, even if `--verify=none` was supplied. Oversized or
+different prefixes fail without writing data. Missing destinations are created exclusively.
+It rejects `--recursive`, `--overwrite`, and `--safe-replace`. Progress includes the verified
+prefix; result bytes and speed count only new bytes. There is no automatic retry or checkpoint
+store. See [manual SFTP resume](../getting-started/file-transfer.md#resume-a-single-sftp-file).
+
+`--json` on `put`/`get` emits JSON lines instead of human progress: `started`, `progress`
+(`name`, `transferred`, `total`), `verifying`/`verified` (`name`), and a final
+`completed`/`failed`/`cancelled` (`files`, `bytes`, `verified_files`). Progress is limited to five
+updates per second per file, except file boundaries/final payload. Completion requires both a
+`completed` record and successful process exit; payload counts alone are insufficient. CLI errors
+remain on stderr. Machine mode never prompts; keys or supplied credentials and existing host trust
+must permit authentication. Argument/authentication-configuration errors can precede `started`.
+
+`--credentials-stdin` requires `--json`. It reads one JSON object to EOF, with optional string
+fields `password` and `key_passphrase`, rejects unknown fields/trailing data, and disables prompts
+including first-host trust confirmation. Input is limited to 65,536 bytes and each secret to
+16,384 bytes. This preflight read precedes the operation timer; the producer must close stdin.
+Use a private stdin pipe, never command arguments, for these values. Identity and
+known-hosts paths keep their ordinary flag/default semantics. This mode does not grant trust or
+return credentials in machine records.
 
 `--verify=sha256` enables per-file content verification for SFTP/SCP `put`/`get`, including recursive
 copies and empty files. The default is `--verify=none`; other algorithms and verification on

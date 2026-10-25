@@ -226,6 +226,24 @@ export class DesktopFiles {
     return { id, name: basename(path) };
   }
 
+  /** Consume a native selection once; no renderer-supplied local path is accepted. */
+  takeSelection(
+    sessionId: string,
+    selectionId: string,
+    direction: "send" | "receive",
+  ): string {
+    const selected = this.selections.get(selectionId);
+    if (
+      !selected ||
+      selected.expires < Date.now() ||
+      selected.sessionId !== sessionId ||
+      selected.direction !== direction
+    )
+      throw new HostError("invalid_input", "Select the local path again.");
+    this.selections.delete(selectionId);
+    return selected.path;
+  }
+
   async browse(
     host: HostClient,
     sessionId: string,

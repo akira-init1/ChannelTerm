@@ -19,6 +19,39 @@ function flatten(items: MenuEntry[]): MenuEntry[] {
   return items.flatMap((item) => [item, ...flatten(item.children ?? [])]);
 }
 
+test("SSH file actions allow dedicated transfers but never offer serial checkpoint resume", () => {
+  const state = {
+    ...initialMenuState,
+    connected: true,
+    currentOpen: true,
+    currentSSH: true,
+    leased: true,
+    attachment: { id: "ssh-attachment", sessionId: "ssh-session" },
+  };
+  const entries = flatten(applicationMenu(state));
+  assert.equal(
+    entries.find((entry) => entry.id === "file.send")?.enabled,
+    true,
+  );
+  assert.equal(
+    entries.find((entry) => entry.id === "file.receive")?.enabled,
+    true,
+  );
+  assert.equal(
+    entries.find((entry) => entry.id === "file.resume")?.enabled,
+    false,
+  );
+  const context = sessionMenu(state, "other-ssh", true, false, true);
+  assert.equal(
+    context.find((entry) => entry.id === "file.send")?.enabled,
+    true,
+  );
+  assert.equal(
+    context.find((entry) => entry.id === "file.resume")?.enabled,
+    false,
+  );
+});
+
 test("menu catalogs cover every implemented item in all nine languages and depth is bounded", () => {
   function depth(items: MenuEntry[]): number {
     return Math.max(0, ...items.map((item) => 1 + depth(item.children ?? [])));

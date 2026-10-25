@@ -4,6 +4,7 @@ import type {
   TransferRequest,
   TransferStatus,
   TransferCheckpoint,
+  SSHTransferRequest,
 } from "./transfers";
 import type { Action, MenuState } from "./menus";
 import type { ConnectionRequest, OpenedConnection } from "./connections";
@@ -66,6 +67,9 @@ export interface DesktopAPI {
     path: string,
   ): Promise<Result<RemoteDirectory>>;
   startTransfer(request: TransferRequest): Promise<Result<void>>;
+  startSSHTransfer(request: SSHTransferRequest): Promise<Result<void>>;
+  sshTransfers(): Promise<Result<TransferStatus[]>>;
+  cancelSSHTransfer(id: string): Promise<Result<void>>;
   transferCheckpoints(sessionId: string): Promise<Result<TransferCheckpoint[]>>;
   resumeTransfer(
     sessionId: string,
@@ -102,6 +106,9 @@ export const channels = {
   chooseTransferPath: "files:choose",
   browseDirectory: "files:browse",
   startTransfer: "files:transfer",
+  startSSHTransfer: "files:ssh-start",
+  sshTransfers: "files:ssh-status",
+  cancelSSHTransfer: "files:ssh-cancel",
   transferCheckpoints: "files:checkpoints",
   resumeTransfer: "files:resume",
   transfers: "files:status",

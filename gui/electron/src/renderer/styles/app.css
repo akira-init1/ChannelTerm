@@ -758,6 +758,9 @@ main {
   min-height: 18px;
   height: 18px;
 }
+.ssh-file-dialog .file-resumable {
+  display: flex;
+}
 .resume-jobs {
   max-height: 45vh;
   overflow: auto;

@@ -270,6 +270,21 @@ msgstr "正在读取目录…"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "file.localIdentities"
+msgstr "本机密钥文件（每行一个；留空使用默认值）"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.localKnownHosts"
+msgstr "本机 known_hosts 文件（留空使用默认值）"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.localTrust"
+msgstr "仅接受已信任的主机密钥。传输前请核对服务器密钥，并在本机通过 CLI 建立信任。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "file.noCheckpoints"
 msgstr "此串口没有保存的传输。"
 
@@ -290,6 +305,11 @@ msgstr "上级目录"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "file.protocol"
+msgstr "文件传输协议"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "file.publicationUncertain"
 msgstr "最终发布结果不确定，请人工核对目标；此任务不会再次执行。"
 
@@ -302,6 +322,11 @@ msgstr "从设备接收"
 #: src/shared/menu-messages.ts
 msgid "file.receiveFolder"
 msgstr "接收当前文件夹"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.recursive"
+msgstr "递归下载目录"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -337,6 +362,21 @@ msgstr "选择保存文件夹"
 #: src/shared/menu-messages.ts
 msgid "file.send"
 msgstr "发送到设备"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.sftpResume"
+msgstr "从已有的部分文件继续传输（SFTP）"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.sftpResumeHint"
+msgstr "仅支持单个文件。请选择相同的源和目标；续传前会核对已有内容。SCP 不支持断点续传。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.sshHint"
+msgstr "从本机建立独立 SSH 连接。请填写本机的密钥及 known_hosts 路径；不保存凭据。传输使用 SHA-256 校验，SCP 要求远端有 sha256sum。取消后可能保留部分文件。"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

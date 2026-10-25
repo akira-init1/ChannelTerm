@@ -97,6 +97,16 @@ file or merging a directory tree requires explicit opt-in. This is not transacti
 disk-full errors, or disconnects may leave partial files and directories, including a truncated
 previous file when overwrite was selected. No automatic retry/reconnect or rollback is performed.
 
+`Resume` is an explicit single-file SFTP put/get mode. It rejects SCP, recursive copies,
+`Overwrite` and `SafeReplace`. Existing regular destinations are opened without truncation;
+new destinations use exclusive creation. Application compares every destination byte with the
+source prefix before appending through the same handle. A larger destination or mismatch fails
+without writing. Progress begins at the verified offset; result `Bytes` counts only new payload.
+Resume always enables complete SHA-256 readback, including the prefix, and syncs local downloads
+before closing. Partial files remain after interruption; callers repeat the same explicit paths
+and authenticate again. No checkpoint database or credentials are persisted. Concurrent source
+or destination mutation is outside the contract; these checks do not lock the remote filesystem.
+
 `SafeReplace` is an opt-in alternative for SFTP put/get with `Overwrite`. Application owns a
 random, exclusively created sibling temporary file and only replaces the destination after a
 complete copy and successful close. Local downloads also sync the temporary file. Uploads require
@@ -142,7 +152,8 @@ results count copied files and payload bytes; failures return an error and may i
 For SCP downloads, Transport supplies the completed-file count only after local copying and the
 final protocol acknowledgements and any requested verification succeed. Payload bytes from a failed
 file can still be included.
-Every regular file first reports `(name, 0, size)`, including empty files, before payload copying.
+Every ordinary copy first reports `(name, 0, size)`, including empty files, before payload copying;
+resume reports the verified existing offset instead of zero.
 A callback error aborts the operation. These callbacks do not indicate that close, acknowledgement,
 or safe replacement succeeded; the operation result supplies authoritative completed-file counts.
 The file client is always closed. No Session events, cursors, MCP schemas, or writer leases change.

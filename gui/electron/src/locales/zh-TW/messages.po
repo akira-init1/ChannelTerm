@@ -270,6 +270,21 @@ msgstr "正在讀取目錄…"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "file.localIdentities"
+msgstr "本機金鑰檔案（每行一個；留空使用預設值）"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.localKnownHosts"
+msgstr "本機 known_hosts 檔案（留空使用預設值）"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.localTrust"
+msgstr "僅接受已信任的主機金鑰。傳輸前請核對伺服器金鑰，並在本機透過 CLI 建立信任。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "file.noCheckpoints"
 msgstr "此序列埠沒有儲存的傳輸。"
 
@@ -290,6 +305,11 @@ msgstr "上層目錄"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "file.protocol"
+msgstr "檔案傳輸協定"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "file.publicationUncertain"
 msgstr "最終發佈結果不確定，請人工核對目標；此工作不會再次執行。"
 
@@ -302,6 +322,11 @@ msgstr "從裝置接收"
 #: src/shared/menu-messages.ts
 msgid "file.receiveFolder"
 msgstr "接收目前資料夾"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.recursive"
+msgstr "遞迴下載目錄"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -337,6 +362,21 @@ msgstr "選擇儲存資料夾"
 #: src/shared/menu-messages.ts
 msgid "file.send"
 msgstr "傳送到裝置"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.sftpResume"
+msgstr "從既有的部分檔案繼續傳輸（SFTP）"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.sftpResumeHint"
+msgstr "僅支援單一檔案。請選擇相同的來源與目的地；續傳前會核對既有內容。SCP 不支援續傳。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.sshHint"
+msgstr "從本機建立獨立 SSH 連線。請填寫本機的金鑰及 known_hosts 路徑；不儲存憑證。傳輸使用 SHA-256 校驗，SCP 要求遠端有 sha256sum。取消後可能保留部分檔案。"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

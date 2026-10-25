@@ -78,7 +78,7 @@ export function TransferPanel({
               <div title={`${job.source} → ${job.destination}`}>
                 <small title={job.sessionId}>
                   {sessionNames[job.sessionId] || job.sessionId.slice(0, 8)}{" "}
-                  &middot;{" "}
+                  &middot; {job.protocol && `${job.protocol.toUpperCase()} · `}
                   {job.direction === "receive"
                     ? t("file.receive")
                     : t("file.send")}
@@ -89,7 +89,13 @@ export function TransferPanel({
               <progress
                 aria-label={job.source || job.id}
                 max={Math.max(1, job.total)}
-                value={job.transferred}
+                value={
+                  job.protocol
+                    ? job.state === "completed"
+                      ? Math.max(1, job.total)
+                      : Math.min(job.transferred, job.total * 0.999)
+                    : job.transferred
+                }
               />
               <div>
                 <small>
@@ -104,6 +110,11 @@ export function TransferPanel({
                       setCancelling(job.id);
                       setFailure("");
                       try {
+                        if (job.protocol) {
+                          await unwrap(host.cancelSSHTransfer(job.id));
+                          if (mounted.current) setCancelling("");
+                          return;
+                        }
                         const id = await unwrap(
                           host.cancelTransfer(job.sessionId, job.id),
                         );

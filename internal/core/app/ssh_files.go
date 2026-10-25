@@ -20,7 +20,8 @@ import (
 // Recursive enables directory transfer, not recursive deletion. Overwrite must
 // be explicitly enabled for replacement. Progress is per file and may cancel by
 // returning an error. Passwords are supplied through Config callbacks only.
-// Each regular file reports (name, 0, size) before payload, including empty files.
+// Each regular file reports (name, 0, size) before payload, including empty files;
+// Resume instead starts progress at the verified existing offset.
 type SSHFilesRequest struct {
 	Config    sshtransport.Config
 	Protocol  string
@@ -30,6 +31,11 @@ type SSHFilesRequest struct {
 	Target    string
 	Recursive bool
 	Overwrite bool
+	// Resume continues a regular SFTP file after comparing every existing byte
+	// with the source prefix. It implies full SHA-256 verification and rejects
+	// recursive copies, overwrite and staged replacement. No credentials or job
+	// metadata are persisted; retry with the same explicit source/destination.
+	Resume bool
 	// SafeReplace stages each SFTP file beside its destination, then renames
 	// it after a complete copy. It requires Overwrite and never makes a whole
 	// directory transactional. Remote upload requires POSIX rename support.
@@ -70,6 +76,9 @@ func RunSSHFiles(ctx context.Context, request SSHFilesRequest) (result SSHFilesR
 	if err := validateSSHFiles(request); err != nil {
 		return result, err
 	}
+	if request.Resume {
+		request.Verify = "sha256"
+	}
 	if request.Operation == "put" {
 		if err := validateUploadTree(ctx, request.Local, request.Recursive); err != nil {
 			return result, err
@@ -93,6 +102,9 @@ func RunSSHFiles(ctx context.Context, request SSHFilesRequest) (result SSHFilesR
 }
 
 func validateSSHFiles(r SSHFilesRequest) error {
+	if r.Resume && (r.Protocol != "sftp" || r.Operation != "put" && r.Operation != "get" || r.Recursive || r.Overwrite || r.SafeReplace) {
+		return errors.New("resume requires a single SFTP put/get without recursive, overwrite or safe replacement")
+	}
 	if r.Verify != "" && r.Verify != "none" && r.Verify != "sha256" {
 		return errors.New("verify must be none or sha256")
 	}
@@ -328,7 +340,7 @@ func uploadSFTP(ctx context.Context, client *sshtransport.Files, r SSHFilesReque
 			return statErr
 		}
 		if statErr == nil {
-			if !r.Overwrite {
+			if !r.Overwrite && !r.Resume {
 				return fmt.Errorf("destination exists: %s", target)
 			}
 			if existing.Mode&fs.ModeSymlink != 0 || existing.Mode.IsDir() != info.IsDir() || !info.IsDir() && !existing.Mode.IsRegular() {
@@ -349,6 +361,9 @@ func uploadSFTP(ctx context.Context, client *sshtransport.Files, r SSHFilesReque
 			return err
 		}
 		defer source.Close()
+		if r.Resume {
+			return resumeSFTPUpload(ctx, client, source, target, current, info.Size(), statErr == nil, r, result)
+		}
 		if r.SafeReplace {
 			return replaceSFTPUpload(ctx, client, source, target, current, info.Size(), r, result)
 		}
@@ -416,7 +431,7 @@ func downloadSSH(ctx context.Context, client *sshtransport.Files, r SSHFilesRequ
 			return statErr
 		}
 		if statErr == nil {
-			if !r.Overwrite {
+			if !r.Overwrite && !r.Resume {
 				return fmt.Errorf("local destination exists: %s", local)
 			}
 			if existing.Mode()&fs.ModeSymlink != 0 || existing.IsDir() != entry.Mode.IsDir() || !existing.IsDir() && !existing.Mode().IsRegular() {
@@ -431,6 +446,9 @@ func downloadSSH(ctx context.Context, client *sshtransport.Files, r SSHFilesRequ
 		}
 		if !entry.Mode.IsRegular() {
 			return errors.New("download supports only regular files and directories")
+		}
+		if r.Resume {
+			return resumeSFTPDownload(ctx, root, source, local, entry.Path, entry.Size, statErr == nil, r, result)
 		}
 		if r.SafeReplace {
 			return replaceSFTPDownload(ctx, root, source, local, entry.Path, entry.Size, r, result)

@@ -270,6 +270,21 @@ msgstr "Чтение каталога…"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "file.localIdentities"
+msgstr "Локальные файлы ключей (по одному в строке; пусто — по умолчанию)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.localKnownHosts"
+msgstr "Локальный файл known_hosts (пусто — по умолчанию)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.localTrust"
+msgstr "Принимаются только доверенные ключи хостов. Перед передачей проверьте ключ сервера и подтвердите доверие через CLI на этом компьютере."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "file.noCheckpoints"
 msgstr "Для этого порта нет сохранённых передач."
 
@@ -290,6 +305,11 @@ msgstr "Вверх"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "file.protocol"
+msgstr "Протокол передачи файлов"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "file.publicationUncertain"
 msgstr "Результат публикации неизвестен. Проверьте назначение вручную; передача не будет повторена."
 
@@ -302,6 +322,11 @@ msgstr "Получить с устройства"
 #: src/shared/menu-messages.ts
 msgid "file.receiveFolder"
 msgstr "Получить эту папку"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.recursive"
+msgstr "Скачать каталог рекурсивно"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -337,6 +362,21 @@ msgstr "Выбрать папку сохранения"
 #: src/shared/menu-messages.ts
 msgid "file.send"
 msgstr "Отправить на устройство"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.sftpResume"
+msgstr "Продолжить передачу частичного файла (SFTP)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.sftpResumeHint"
+msgstr "Только отдельные файлы. Выберите те же источник и назначение; перед продолжением проверяются все имеющиеся байты. SCP не поддерживает возобновление."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.sshHint"
+msgstr "Используется отдельное SSH-соединение с этого компьютера. Укажите локальные пути к ключам и known_hosts. Учётные данные не сохраняются. Копии проверяются SHA-256; SCP требует sha256sum на сервере. После отмены могут остаться частичные файлы."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

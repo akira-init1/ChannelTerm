@@ -230,7 +230,11 @@ SFTP clients: SFTP verification uses ordinary file reads and needs no exec permi
 owns comparisons and replacement policy. Concurrent filesystem changes remain outside the contract.
 
 SFTP rename replacement requires the server's POSIX rename extension. There is no destructive
-delete-then-rename fallback. SFTP create-without-overwrite uses exclusive creation. Filesystem
+delete-then-rename fallback. `Files.OpenResume` opens an existing regular file read/write without
+truncation, or creates a new file exclusively, and returns the opened handle's length. Application
+owns prefix comparison, offsets, progress and final verification; Transport owns no resume jobs.
+Concurrent remote writers are not excluded by this handle. SFTP create-without-overwrite uses
+exclusive creation. Filesystem
 preflight checks do not constitute locking against unrelated local or remote writers.
 `RequirePOSIXRename` checks the advertised extension before Application stages a safe upload.
 

@@ -294,4 +294,36 @@ export const menuMessages = [
     message:
       "Could not save shortcuts. Check local storage access and try again.",
   },
+  /* i18n */ { id: "file.protocol", message: "File protocol" },
+  /* i18n */ {
+    id: "file.localIdentities",
+    message: "Local key files (one per line; blank uses defaults)",
+  },
+  /* i18n */ {
+    id: "file.localKnownHosts",
+    message: "Local known_hosts file (blank uses default)",
+  },
+  /* i18n */ {
+    id: "file.localTrust",
+    message:
+      "Only trusted host keys are accepted. Verify the server key and establish trust with the CLI on this computer before transferring.",
+  },
+  /* i18n */ {
+    id: "file.recursive",
+    message: "Download a directory recursively",
+  },
+  /* i18n */ {
+    id: "file.sftpResume",
+    message: "Resume an existing partial file (SFTP)",
+  },
+  /* i18n */ {
+    id: "file.sftpResumeHint",
+    message:
+      "Single files only. Select the same source and destination; matching existing bytes are verified before continuing. SCP cannot resume.",
+  },
+  /* i18n */ {
+    id: "file.sshHint",
+    message:
+      "Uses a separate SSH connection from this computer. Enter local identity and known-hosts paths. Credentials are not saved. Copies use SHA-256 verification; SCP requires remote sha256sum. Cancellation may leave partial files.",
+  },
 ] satisfies MessageDescriptor[];

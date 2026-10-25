@@ -1,6 +1,7 @@
 import { setupI18n } from "@lingui/core";
 import { menuCatalogs } from "../locales/catalogs";
 import { DesktopFiles, TransferConfirmation } from "./files";
+import { DesktopSSHFiles } from "./ssh-files";
 import {
   app,
   dialog,
@@ -65,6 +66,13 @@ const files = new DesktopFiles(
     process.platform === "win32" ? "channelterm.exe" : "channelterm",
   ),
 );
+const sshFiles = new DesktopSSHFiles(
+  join(
+    app.isPackaged ? process.resourcesPath : resolve(__dirname, ".."),
+    "files",
+    process.platform === "win32" ? "channelterm.exe" : "channelterm",
+  ),
+);
 
 function requestQuit(): void {
   // Return an IPC reply before normal before-quit cleanup closes the renderer.
@@ -74,6 +82,7 @@ function requestQuit(): void {
 function disconnectHost(): Promise<void> {
   transferConfirmation.dismiss();
   files.clearSelections();
+  sshFiles.disconnect();
   connectionVersion++;
   startupController.abort();
   return host?.disconnect() ?? Promise.resolve();
@@ -94,7 +103,7 @@ function registerIPC(): void {
         defaultHostEndpoint,
     }),
     [channels.connect]: async () => {
-      if (files.busy)
+      if (files.busy || sshFiles.busy)
         throw new HostError(
           "busy",
           "Finish or cancel the file operation before reconnecting.",
@@ -125,7 +134,7 @@ function registerIPC(): void {
       }
     },
     [channels.disconnect]: () => {
-      if (files.busy)
+      if (files.busy || sshFiles.busy)
         throw new HostError(
           "busy",
           "Finish or cancel the file operation before disconnecting.",
@@ -141,7 +150,7 @@ function registerIPC(): void {
       )
         throw new HostError("invalid_input", "Invalid file selection.");
       const selectedHost = currentHost();
-      await selectedHost.validateSerial(id);
+      await selectedHost.validateFileSession(id);
       const result = await dialog.showOpenDialog(window, {
         properties: [
           direction === "receive" || kind === "directory"
@@ -152,20 +161,36 @@ function registerIPC(): void {
       if (result.canceled || !result.filePaths[0]) return undefined;
       if (host !== selectedHost)
         throw new HostError("cancelled", "Host changed during file selection.");
-      await selectedHost.validateSerial(id);
+      await selectedHost.validateFileSession(id);
       return files.remember(result.filePaths[0], id, direction);
     },
     [channels.browseDirectory]: (id, path) => {
+      if (sshFiles.busy)
+        throw new HostError("busy", "Finish the SSH file operation first.");
       identifier(id);
       return files.browse(currentHost(), id, path);
     },
-    [channels.startTransfer]: (request) =>
-      files.transfer(currentHost(), request),
+    [channels.startTransfer]: (request) => {
+      if (sshFiles.busy)
+        throw new HostError("busy", "Finish the SSH file operation first.");
+      return files.transfer(currentHost(), request);
+    },
+    [channels.startSSHTransfer]: (request) => {
+      if (files.busy || sshFiles.busy)
+        throw new HostError("busy", "Finish the current file operation first.");
+      return sshFiles.transfer(currentHost(), request, (r) =>
+        files.takeSelection(r.sessionId, r.selectionId, r.direction),
+      );
+    },
+    [channels.sshTransfers]: () => sshFiles.snapshots(),
+    [channels.cancelSSHTransfer]: (id) => sshFiles.cancel(id),
     [channels.transferCheckpoints]: (id) => {
       identifier(id);
       return files.checkpoints(currentHost(), id);
     },
     [channels.resumeTransfer]: (id, checkpointId) => {
+      if (sshFiles.busy)
+        throw new HostError("busy", "Finish the SSH file operation first.");
       identifier(id);
       return files.resume(currentHost(), id, checkpointId);
     },
@@ -232,6 +257,8 @@ function registerIPC(): void {
                     channels.menuState,
                     channels.openConnection,
                     channels.startTransfer,
+                    channels.startSSHTransfer,
+                    channels.cancelSSHTransfer,
                     channels.transfers,
                     channels.transferCheckpoints,
                   ].includes(channel as typeof channels.detach)
@@ -289,7 +316,7 @@ async function createWindow(): Promise<void> {
     },
   );
   created.on("close", (event) => {
-    if (files.busy) {
+    if (files.busy || sshFiles.busy) {
       event.preventDefault();
       void dialog.showMessageBox(created, {
         type: "info",
@@ -370,7 +397,7 @@ app.on("window-all-closed", () => {
 app.on("before-quit", (event) => {
   if (quitting) return;
   event.preventDefault();
-  if (files.busy) {
+  if (files.busy || sshFiles.busy) {
     if (window)
       void dialog.showMessageBox(window, {
         type: "info",

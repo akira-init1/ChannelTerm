@@ -66,6 +66,20 @@ do not prove a physical board's shell/tools or native file-dialog selection. Har
 must separately round-trip a disposable binary and directory, compare SHA-256, verify cwd isolation,
 and test cancellation without replay. See the [transfer workflow](../getting-started/file-transfer.md#electron-file-picker-and-progress).
 
+The Node test suite also builds the real Go file CLI and runs Main's dedicated SSH adapter against
+a disposable password-authenticated loopback SFTP server. It cancels an in-progress upload,
+resumes the partial file, downloads and compares bytes, and confirms the terminal Session remains
+usable. Request/endpoint validation, busy exclusion and secret-free progress are covered. This
+does not prove external OpenSSH/SCP interoperability, physical network interruption, or native
+file-dialog behavior; those remain separate acceptance checks.
+
+The native desktop suite additionally exercises the SSH file form and progress panel through
+Renderer, IPC and the real CLI: cancel an upload, manually resume, and download identical bytes.
+It substitutes only the native picker result with a disposable local path; the production Main
+selection/endpoint checks still run. Screenshots are `test-results/ssh-file-dialog.png` and
+`ssh-file-progress.png`. The SCP option disables resume; SCP server interoperability is covered
+separately from this SFTP fixture.
+
 ## Menu translations (Lingui 5.9.0)
 
 Core, CLI, configuration helpers, and the PO formatter are pinned to **5.9.0**. Use the local

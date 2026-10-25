@@ -270,6 +270,21 @@ msgstr "Verzeichnis wird gelesen…"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "file.localIdentities"
+msgstr "Lokale Schlüsseldateien (eine pro Zeile; leer verwendet Standardwerte)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.localKnownHosts"
+msgstr "Lokale known_hosts-Datei (leer verwendet den Standard)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.localTrust"
+msgstr "Nur vertrauenswürdige Hostschlüssel werden akzeptiert. Prüfen Sie den Serverschlüssel und bestätigen Sie ihn vor der Übertragung mit der CLI auf diesem Computer."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "file.noCheckpoints"
 msgstr "Keine gespeicherten Übertragungen für diesen Anschluss."
 
@@ -290,6 +305,11 @@ msgstr "Übergeordnet"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "file.protocol"
+msgstr "Dateiprotokoll"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "file.publicationUncertain"
 msgstr "Veröffentlichung ungewiss. Ziel manuell prüfen; diese Übertragung wird nicht wiederholt."
 
@@ -302,6 +322,11 @@ msgstr "Vom Gerät empfangen"
 #: src/shared/menu-messages.ts
 msgid "file.receiveFolder"
 msgstr "Diesen Ordner empfangen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.recursive"
+msgstr "Verzeichnis rekursiv herunterladen"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -337,6 +362,21 @@ msgstr "Zielordner auswählen"
 #: src/shared/menu-messages.ts
 msgid "file.send"
 msgstr "An Gerät senden"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.sftpResume"
+msgstr "Unvollständige Datei fortsetzen (SFTP)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.sftpResumeHint"
+msgstr "Nur einzelne Dateien. Dieselbe Quelle und dasselbe Ziel wählen; vorhandene Bytes werden vor dem Fortsetzen geprüft. SCP unterstützt kein Fortsetzen."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.sshHint"
+msgstr "Separate SSH-Verbindung von diesem Computer. Lokale Schlüssel- und Known-Hosts-Pfade angeben. Zugangsdaten werden nicht gespeichert. Kopien werden mit SHA-256 geprüft; SCP benötigt sha256sum auf dem Server. Abbruch kann Teildateien hinterlassen."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

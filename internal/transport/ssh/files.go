@@ -212,3 +212,30 @@ func (f *Files) Create(path string, overwrite bool) (io.WriteCloser, error) {
 	}
 	return f.sftp.OpenFile(path, flags)
 }
+
+// OpenResume opens a regular file without truncation and returns its current
+// length. Existing must reflect the caller's explicit preflight: a missing new
+// destination uses exclusive creation, and a missing existing one is an error.
+// The caller compares the existing prefix before writing through the same handle.
+// Concurrent remote writers are not excluded by SFTP and must be avoided.
+func (f *Files) OpenResume(path string, existing bool) (io.ReadWriteCloser, int64, error) {
+	if err := f.requireSFTP(); err != nil {
+		return nil, 0, err
+	}
+	flags := os.O_RDWR | os.O_CREATE | os.O_EXCL
+	if existing {
+		flags = os.O_RDWR
+	}
+	file, err := f.sftp.OpenFile(path, flags)
+	if err != nil {
+		return nil, 0, err
+	}
+	info, err := file.Stat()
+	if err == nil && (!info.Mode().IsRegular() || info.Size() < 0) {
+		err = errors.New("resume destination must be a regular file with a valid size")
+	}
+	if err != nil {
+		return nil, 0, errors.Join(err, file.Close())
+	}
+	return file, info.Size(), nil
+}

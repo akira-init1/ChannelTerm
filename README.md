@@ -209,6 +209,11 @@ channelterm sftp user@192.168.1.50 get /tmp/log.txt ./log.txt
 channelterm scp user@192.168.1.50 put ./release /tmp/release --recursive
 ```
 
+The Electron GUI also offers SFTP/SCP progress and cancellation from an open SSH Session's
+Send/Receive actions. For a single SFTP file, select the resume option or repeat the CLI command
+with `--resume`; the existing prefix and complete file are verified. SCP and directories cannot
+resume. See the [SSH file workflow](docs/getting-started/file-transfer.md#electron-sftpscp-progress-and-resume).
+
 These commands use the same key/password authentication and host verification as SSH, with a
 dedicated connection independent of terminal Sessions. Replacing existing files requires
 `--overwrite`. See [file transfer](docs/getting-started/file-transfer.md#sftp-and-scp-over-ssh)

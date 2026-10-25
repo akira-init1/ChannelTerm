@@ -51,7 +51,7 @@ func configureSSHAuthentication(config *sshtransport.Config, input io.Reader, ou
 		config.Password = interaction.password
 		config.KeyPassphrase = interaction.keyPassphrase
 		config.ConfirmHostKey = interaction.confirmHostKey
-	} else if config.PrivateKeyPath == "" && len(config.PrivateKeyPaths) == 0 {
+	} else if config.PrivateKeyPath == "" && len(config.PrivateKeyPaths) == 0 && config.Password == nil {
 		return errors.New("no default SSH private key found; password login requires a terminal on stdin, or specify --identity PATH")
 	}
 	return nil

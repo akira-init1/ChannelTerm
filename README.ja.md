@@ -207,6 +207,12 @@ channelterm sftp user@192.168.1.50 get /tmp/log.txt ./log.txt
 channelterm scp user@192.168.1.50 put ./release /tmp/release --recursive
 ```
 
+Electron GUI でも、開いている SSH Session の送信・受信操作から SFTP/SCP の進捗表示と
+キャンセルを利用できます。単一の SFTP ファイルは再開オプション、または CLI に `--resume`
+を付けて再実行することで再開できます。既存部分とファイル全体を検証します。SCP と
+ディレクトリの再開には対応していません。
+[SSH ファイル転送手順](docs/getting-started/file-transfer.md#electron-sftpscp-progress-and-resume)を参照してください。
+
 SSH と同じ鍵・パスワード認証とホスト検証を使い、端末 Session とは独立した接続で動作します。
 既存ファイルの上書きには `--overwrite` が必要です。ディレクトリの扱い、キャンセル、制限は
 [ファイル転送](docs/getting-started/file-transfer.md#sftp-and-scp-over-ssh)を参照してください。

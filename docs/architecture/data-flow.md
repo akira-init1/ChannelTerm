@@ -172,8 +172,10 @@ CLI sftp/scp -> app.RunSSHFiles -> SSH Transport.OpenFiles
 These operations do not create a terminal Session, require a PTY, open a local MCP listener, acquire
 a Session write lease, or insert file bytes into terminal history. Authentication callbacks and host
 trust are shared with the terminal connection implementation. The operation context remains active
-throughout file I/O; cancelling it closes only that file connection. A future GUI can use the same
-application use case without a terminal attachment.
+throughout file I/O; cancelling it closes only that file connection. Electron Main invokes this
+same CLI path for an explicitly selected SSH endpoint, passing credentials over private stdin and
+receiving bounded JSON progress. It owns the dedicated child, not the shared Session; see the
+[GUI file adapter](electron-gui.md#file-operations).
 
 With optional SHA-256 verification, Application compares the source digest with a reread of the
 closed destination before counting a file or committing an SFTP safe replacement. SFTP readback

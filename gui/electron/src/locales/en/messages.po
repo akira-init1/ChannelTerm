@@ -270,6 +270,21 @@ msgstr "Reading directory…"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "file.localIdentities"
+msgstr "Local key files (one per line; blank uses defaults)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.localKnownHosts"
+msgstr "Local known_hosts file (blank uses default)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.localTrust"
+msgstr "Only trusted host keys are accepted. Verify the server key and establish trust with the CLI on this computer before transferring."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "file.noCheckpoints"
 msgstr "No saved transfers for this endpoint."
 
@@ -290,6 +305,11 @@ msgstr "Up"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "file.protocol"
+msgstr "File protocol"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "file.publicationUncertain"
 msgstr "Publication is uncertain. Inspect the destination manually; this transfer will not be replayed."
 
@@ -302,6 +322,11 @@ msgstr "Receive from device"
 #: src/shared/menu-messages.ts
 msgid "file.receiveFolder"
 msgstr "Receive this folder"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.recursive"
+msgstr "Download a directory recursively"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -337,6 +362,21 @@ msgstr "Choose save folder"
 #: src/shared/menu-messages.ts
 msgid "file.send"
 msgstr "Send to device"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.sftpResume"
+msgstr "Resume an existing partial file (SFTP)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.sftpResumeHint"
+msgstr "Single files only. Select the same source and destination; matching existing bytes are verified before continuing. SCP cannot resume."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.sshHint"
+msgstr "Uses a separate SSH connection from this computer. Enter local identity and known-hosts paths. Credentials are not saved. Copies use SHA-256 verification; SCP requires remote sha256sum. Cancellation may leave partial files."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

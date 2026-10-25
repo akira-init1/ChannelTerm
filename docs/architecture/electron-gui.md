@@ -185,7 +185,7 @@ Host's bounded retained bytes do not establish a complete historical terminal-st
 Main's file adapter owns native local selection capabilities and one in-flight desktop file
 operation. Renderer receives an opaque selection ID and display basename, not unrestricted file
 access. IDs are bound to Session/direction, expire after ten minutes, are cleared on disconnect, and are consumed on start.
-The adapter invokes the fixed app-owned CLI using argument arrays and a Main-only credential
+For serial operations, the adapter invokes the fixed app-owned CLI using argument arrays and a Main-only credential
 environment, without a shell or PATH lookup. It reads bounded JSON records, never human progress
 or stderr. The CLI reuses Application transfers and the existing authenticated Host/Lease path.
 No new MCP tool, HTTP upload endpoint, raw device connection, or TypeScript transfer protocol is added.
@@ -196,9 +196,23 @@ boolean, lists bounded checkpoint summaries using `file jobs --json`, and resume
 store; Renderer receives only basename, direction, kind, confirmed bytes, total and phase. The CLI
 revalidates Host/serial endpoint binding and source/prefix checksums after GUI or Host restart.
 The separate Resume dialog never reconnects, grants authority or replays an uncertain publication.
-All menu surfaces share `file.resume`; unknown/closed/leased targets stay unavailable.
+All menu surfaces share `file.resume`; unknown/closed/leased serial targets stay unavailable.
 
-Host Client separately reads structured Session events for UI progress and cursor-based terminal
+For SSH Sessions, `ssh-files.ts` invokes the same fixed CLI's dedicated SFTP/SCP commands with
+bounded JSON-line progress. Main revalidates the live Session endpoint and native selection before
+launch. Authentication is local to that separate connection: renderer-entered secrets use private
+stdin, never arguments, environment variables or history. Local key/trust paths remain CLI-owned;
+no Host credential retrieval or new Host/MCP endpoint is introduced. GUI copies always verify
+SHA-256. Single-file SFTP resume delegates prefix validation and final verification to Application;
+SCP and directories do not resume. Main retains at most 32 display records, with the latest eight
+shown in the panel; these records are not persistent checkpoints. Completion requires the CLI's
+completion record and successful exit. Cancellation terminates only the dedicated child, leaving
+partial files for explicit recovery, with no Session Lease or terminal-byte suppression. Serial
+and dedicated SSH operations share the desktop busy gate. Renderer reload/crash cleanup cancels
+the owned SSH child and clears its display history, so a disconnected view cannot strand an
+uncancellable background transfer.
+
+For serial transfers, Host Client separately reads structured Session events for UI progress and cursor-based terminal
 presentation. It refreshes events after each raw read before exposing bytes, so a published Lease
 boundary precedes suppression. Event loss suppresses uncertain bytes and reports display loss;
 Evicting old hidden ranges conservatively suppresses the older prefix and reports display loss.

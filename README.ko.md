@@ -206,6 +206,11 @@ channelterm sftp user@192.168.1.50 get /tmp/log.txt ./log.txt
 channelterm scp user@192.168.1.50 put ./release /tmp/release --recursive
 ```
 
+Electron GUI에서도 열린 SSH Session의 보내기/받기 메뉴로 SFTP/SCP 진행률을 확인하고 취소할
+수 있습니다. 단일 SFTP 파일은 이어받기 옵션을 선택하거나 CLI 명령에 `--resume`을 추가해
+재개할 수 있으며, 기존 부분과 전체 파일을 검증합니다. SCP와 디렉터리는 재개를 지원하지
+않습니다. [SSH 파일 전송 절차](docs/getting-started/file-transfer.md#electron-sftpscp-progress-and-resume)를 참조하세요.
+
 SSH와 동일한 키/비밀번호 인증 및 호스트 검증을 사용하며, 터미널 Session과 독립된 연결로 동작합니다.
 기존 파일을 덮어쓰려면 `--overwrite`가 필요합니다. 디렉터리 처리, 취소 동작과 제한은
 [파일 전송](docs/getting-started/file-transfer.md#sftp-and-scp-over-ssh)을 참조하세요.

@@ -1,7 +1,12 @@
 import { FileDialog } from "../transfers/FileDialog";
+import { SSHFileDialog } from "../transfers/SSHFileDialog";
 import { ResumeDialog } from "../transfers/ResumeDialog";
 import { TransferPanel } from "../transfers/TransferPanel";
-import type { TransferRequest, TransferStatus } from "../../shared/transfers";
+import type {
+  TransferRequest,
+  TransferStatus,
+  SSHTransferRequest,
+} from "../../shared/transfers";
 import {
   useCallback,
   useEffect,
@@ -136,6 +141,12 @@ export function App() {
     direction: "send" | "receive";
   }>();
   const [filePending, setFilePending] = useState(false);
+  const [sshFileDialog, setSSHFileDialog] = useState<{
+    sessionId: string;
+    name: string;
+    endpoint: string;
+    direction: "send" | "receive";
+  }>();
   const [resumeTarget, setResumeTarget] = useState<{
     sessionId: string;
     name: string;
@@ -164,6 +175,7 @@ export function App() {
       preferences.current.clear();
       setSettingsTarget(undefined);
       setFileDialog(undefined);
+      setSSHFileDialog(undefined);
       setResumeTarget(undefined);
       setTransferJobs((previous) =>
         previous.map((job) =>
@@ -174,6 +186,13 @@ export function App() {
     }
     async function poll() {
       const jobs: TransferStatus[] = [];
+      let sshUnavailable = false;
+      try {
+        jobs.push(...(await unwrap(host.sshTransfers())));
+      } catch {
+        sshUnavailable = true;
+      }
+      if (stopped) return;
       const unavailable = new Set<string>();
       for (const id of observedSessions.split(",").filter(Boolean)) {
         try {
@@ -193,8 +212,10 @@ export function App() {
           .slice(-64)
           .map((job) =>
             !job.released &&
-            (!observedSessions.split(",").includes(job.sessionId) ||
-              unavailable.has(job.sessionId))
+            (job.protocol
+              ? sshUnavailable
+              : !observedSessions.split(",").includes(job.sessionId) ||
+                unavailable.has(job.sessionId))
               ? { ...job, state: "unknown" }
               : job,
           );
@@ -213,6 +234,15 @@ export function App() {
     setFilePending(true);
     setFileError("");
     void unwrap(host.startTransfer(request))
+      .catch((error: ClientError) => setFileError(error.message))
+      .finally(() => setFilePending(false));
+  }
+  function startSSHTransfer(request: SSHTransferRequest) {
+    setPanelVisible(true);
+    setPanelTab("transfers");
+    setFilePending(true);
+    setFileError("");
+    void unwrap(host.startSSHTransfer(request))
       .catch((error: ClientError) => setFileError(error.message))
       .finally(() => setFilePending(false));
   }
@@ -241,7 +271,7 @@ export function App() {
       locale,
       connected,
       sshAvailable: !!info?.sshAvailable,
-      busy: working || !!fileDialog || filePending,
+      busy: working || !!fileDialog || !!sshFileDialog || filePending,
       sidebarVisible,
       auxiliaryVisible,
       panelVisible,
@@ -249,6 +279,7 @@ export function App() {
       attachment,
       currentOpen: current?.state === "open",
       currentSerial: current?.transport === "serial",
+      currentSSH: current?.transport === "ssh",
       inputPaused,
       leased: !!current?.lease,
     }),
@@ -258,6 +289,7 @@ export function App() {
       info?.sshAvailable,
       working,
       fileDialog,
+      sshFileDialog,
       filePending,
       current?.transport,
       sidebarVisible,
@@ -519,17 +551,30 @@ export function App() {
           (entry) =>
             entry.session_id === action.sessionId &&
             entry.state === "open" &&
-            entry.transport === "serial" &&
-            !entry.lease,
+            (entry.transport === "ssh" ||
+              (entry.transport === "serial" && !entry.lease)),
         );
-        if (target && action.id === "file.resume") {
+        if (
+          target &&
+          action.id === "file.resume" &&
+          target.transport === "serial"
+        ) {
           setResumeTarget({
             sessionId: target.session_id,
             name: target.label || target.session_ref,
           });
           return;
         }
-        if (target)
+        if (target?.transport === "ssh" && action.id !== "file.resume") {
+          setSSHFileDialog({
+            sessionId: target.session_id,
+            name: target.label || target.session_ref,
+            endpoint: target.endpoint,
+            direction: action.id === "file.send" ? "send" : "receive",
+          });
+          return;
+        }
+        if (target?.transport === "serial")
           setFileDialog({
             sessionId: target.session_id,
             name: target.label || target.session_ref,
@@ -714,6 +759,14 @@ export function App() {
           onClose={() => setFileDialog(undefined)}
         />
       )}
+      {sshFileDialog && connected && (
+        <SSHFileDialog
+          {...sshFileDialog}
+          t={t}
+          onStart={startSSHTransfer}
+          onClose={() => setSSHFileDialog(undefined)}
+        />
+      )}
       {connectionKind && connected && (
         <ConnectionDialog
           key={connectionKind}
@@ -798,8 +851,10 @@ export function App() {
                 sessionMenu(
                   menuState,
                   item.session_id,
-                  item.state === "open" && !item.lease,
+                  item.state === "open" &&
+                    (item.transport === "ssh" || !item.lease),
                   item.transport === "serial",
+                  item.transport === "ssh",
                 ),
               )
             }
@@ -861,8 +916,10 @@ export function App() {
                     sessionMenu(
                       menuState,
                       attachment.sessionId,
-                      current?.state === "open" && !current.lease,
+                      current?.state === "open" &&
+                        (current.transport === "ssh" || !current.lease),
                       current?.transport === "serial",
+                      current?.transport === "ssh",
                     ),
                   );
               }}

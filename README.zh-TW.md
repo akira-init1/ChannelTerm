@@ -197,6 +197,11 @@ channelterm sftp user@192.168.1.50 get /tmp/log.txt ./log.txt
 channelterm scp user@192.168.1.50 put ./release /tmp/release --recursive
 ```
 
+Electron GUI 可從已開啟 SSH Session 的傳送/接收選單顯示 SFTP/SCP 進度並取消傳輸。
+單一 SFTP 檔案可勾選續傳選項，或在原 CLI 命令後加 `--resume` 重試；續傳會核對既有部分
+並驗證完整檔案。SCP 和目錄暫不支援續傳。詳見
+[SSH 檔案傳輸流程](docs/getting-started/file-transfer.md#electron-sftpscp-progress-and-resume)。
+
 這些命令沿用 SSH 的金鑰/密碼驗證與主機核驗，使用獨立連線，不占用終端 Session。
 覆寫現有檔案需要 `--overwrite`。目錄規則、取消行為及協定限制請見
 [檔案傳輸](docs/getting-started/file-transfer.md#sftp-and-scp-over-ssh)。

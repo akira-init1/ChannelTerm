@@ -43,6 +43,9 @@ func runSSHFilesWithProgress(ctx context.Context, protocol string, args []string
 	overwrite := flags.Bool("overwrite", false, "allow replacing existing files (failed transfers can leave partial files)")
 	safeReplace := flags.Bool("safe-replace", false, "stage each SFTP file before replacement; requires --overwrite (upload needs POSIX rename)")
 	verify := flags.String("verify", "none", "file verification: none or sha256 (put/get; SCP requires remote sha256sum)")
+	resume := flags.Bool("resume", false, "continue a single SFTP file after comparing its existing prefix; implies SHA-256 verification")
+	machine := flags.Bool("json", false, "emit bounded JSON-line progress and results for put/get")
+	credentials := flags.Bool("credentials-stdin", false, "read one bounded JSON credential object from stdin; requires --json; never prompts")
 	flags.Usage = func() {
 		fmt.Fprintf(output, "Usage: channelterm %s USER@HOST OPERATION [paths] [options]\n", protocol)
 		fmt.Fprintln(output, "  put LOCAL REMOTE     Upload a file or directory")
@@ -96,6 +99,7 @@ func runSSHFilesWithProgress(ctx context.Context, protocol string, args []string
 	r.Config.KeepAliveInterval, r.Config.KeepAliveCountMax = *keepAlive, *keepAliveCount
 	r.SafeReplace = *safeReplace
 	r.Verify = *verify
+	r.Resume = *resume
 	paths := positional[2:]
 	if r.Operation == "ls" && len(paths) == 0 {
 		paths = []string{"."}
@@ -134,13 +138,38 @@ func runSSHFilesWithProgress(ctx context.Context, protocol string, args []string
 	if *verify == "sha256" && r.Operation != "put" && r.Operation != "get" {
 		return errors.New("--verify=sha256 requires put or get")
 	}
-	if err := configureSSHAuthentication(&r.Config, input, output); err != nil {
+	if *resume && (protocol != "sftp" || r.Operation != "put" && r.Operation != "get" || *recursive || *overwrite || *safeReplace) {
+		return errors.New("--resume requires a single SFTP put/get without --recursive, --overwrite or --safe-replace")
+	}
+	if *resume {
+		r.Verify = "sha256"
+	}
+	if *machine && r.Operation != "put" && r.Operation != "get" {
+		return errors.New("--json requires put or get")
+	}
+	if *credentials && !*machine {
+		return errors.New("--credentials-stdin requires --json")
+	}
+	if *credentials {
+		if err := readSSHFileCredentials(input, &r.Config); err != nil {
+			return err
+		}
+	}
+	authInput := input
+	if *machine {
+		// Machine output must never mix with interactive authentication prompts.
+		authInput = strings.NewReader("")
+	}
+	if err := configureSSHAuthentication(&r.Config, authInput, output); err != nil {
 		return err
 	}
 	if *operationTimeout > 0 {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, *operationTimeout)
 		defer cancel()
+	}
+	if *machine {
+		return runSSHFilesJSON(ctx, output, r, run)
 	}
 	var progress *sshFileProgress
 	if interactive && (r.Operation == "put" || r.Operation == "get") {

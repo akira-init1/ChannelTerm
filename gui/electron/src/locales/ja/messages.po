@@ -270,6 +270,21 @@ msgstr "ディレクトリを読み込み中…"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "file.localIdentities"
+msgstr "ローカルの鍵ファイル（1 行に 1 件、空欄は既定値）"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.localKnownHosts"
+msgstr "ローカルの known_hosts ファイル（空欄は既定値）"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.localTrust"
+msgstr "信頼済みホスト鍵のみ受け入れます。転送前にサーバー鍵を確認し、このコンピューターの CLI で信頼を設定してください。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "file.noCheckpoints"
 msgstr "このポートに保存済みの転送はありません。"
 
@@ -290,6 +305,11 @@ msgstr "上へ"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "file.protocol"
+msgstr "ファイルプロトコル"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "file.publicationUncertain"
 msgstr "公開結果が不明です。転送先を手動で確認してください。この転送は再実行しません。"
 
@@ -302,6 +322,11 @@ msgstr "デバイスから受信"
 #: src/shared/menu-messages.ts
 msgid "file.receiveFolder"
 msgstr "このフォルダーを受信"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.recursive"
+msgstr "ディレクトリを再帰的にダウンロード"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -337,6 +362,21 @@ msgstr "保存先を選択"
 #: src/shared/menu-messages.ts
 msgid "file.send"
 msgstr "デバイスへ送信"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.sftpResume"
+msgstr "既存の部分ファイルから再開（SFTP）"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.sftpResumeHint"
+msgstr "単一ファイルのみ。同じ転送元と転送先を選択してください。既存の内容を照合してから再開します。SCP は再開できません。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.sshHint"
+msgstr "このコンピューターから独立した SSH 接続を使用します。ローカルの鍵と known_hosts のパスを入力してください。認証情報は保存されません。SHA-256 で検証し、SCP は接続先の sha256sum が必要です。キャンセル後に部分ファイルが残る場合があります。"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

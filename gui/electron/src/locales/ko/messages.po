@@ -270,6 +270,21 @@ msgstr "폴더 읽는 중…"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "file.localIdentities"
+msgstr "로컬 키 파일 (한 줄에 하나, 비워 두면 기본값)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.localKnownHosts"
+msgstr "로컬 known_hosts 파일 (비워 두면 기본값)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.localTrust"
+msgstr "신뢰하는 호스트 키만 허용합니다. 전송 전에 서버 키를 확인하고 이 컴퓨터의 CLI에서 신뢰를 설정하세요."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "file.noCheckpoints"
 msgstr "이 포트에 저장된 전송이 없습니다."
 
@@ -290,6 +305,11 @@ msgstr "상위 폴더"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "file.protocol"
+msgstr "파일 프로토콜"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "file.publicationUncertain"
 msgstr "게시 결과가 불확실합니다. 대상을 직접 확인하세요. 이 전송은 반복하지 않습니다."
 
@@ -302,6 +322,11 @@ msgstr "장치에서 받기"
 #: src/shared/menu-messages.ts
 msgid "file.receiveFolder"
 msgstr "현재 폴더 받기"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.recursive"
+msgstr "디렉터리 재귀 다운로드"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -337,6 +362,21 @@ msgstr "저장 폴더 선택"
 #: src/shared/menu-messages.ts
 msgid "file.send"
 msgstr "장치로 보내기"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.sftpResume"
+msgstr "기존 부분 파일 이어받기/이어쓰기 (SFTP)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.sftpResumeHint"
+msgstr "단일 파일만 지원합니다. 같은 원본과 대상을 선택하세요. 기존 바이트를 확인한 후 계속합니다. SCP는 재개를 지원하지 않습니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.sshHint"
+msgstr "이 컴퓨터에서 별도 SSH 연결을 사용합니다. 로컬 키와 known_hosts 경로를 입력하세요. 인증 정보는 저장하지 않습니다. SHA-256으로 검증하며 SCP에는 원격 sha256sum이 필요합니다. 취소하면 부분 파일이 남을 수 있습니다."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

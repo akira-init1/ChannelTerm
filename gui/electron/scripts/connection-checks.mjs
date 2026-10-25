@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { _electron as electron, expect } from "@playwright/test";
 import { startFixture } from "../tests/fixture.ts";
 import { HostClient } from "../src/main/host/client.ts";
+import { checkSSHFiles } from "./file-checks.mjs";
 
 /** Real GUI -> trusted IPC -> authenticated Host -> Application connection setup. */
 export async function checkConnections(environment, launchArgs) {
@@ -174,6 +175,7 @@ export async function checkConnections(environment, launchArgs) {
     const ssh = (await observer.list()).find((s) => s.label === "Created SSH");
     assert.ok(ssh);
     const attachment = await observer.attach(ssh.session_id);
+    await checkSSHFiles(desktop, page, fixture);
     await page.locator(".xterm-helper-textarea").focus();
     await page.keyboard.type("gui-ssh-input");
     await page.keyboard.press("Enter");

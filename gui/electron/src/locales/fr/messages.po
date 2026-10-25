@@ -270,6 +270,21 @@ msgstr "Lecture du dossier…"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "file.localIdentities"
+msgstr "Clés locales (une par ligne ; vide utilise les valeurs par défaut)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.localKnownHosts"
+msgstr "Fichier known_hosts local (vide utilise celui par défaut)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.localTrust"
+msgstr "Seules les clés d’hôte approuvées sont acceptées. Vérifiez la clé du serveur et approuvez-la avec la CLI sur cet ordinateur avant le transfert."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "file.noCheckpoints"
 msgstr "Aucun transfert enregistré pour ce port."
 
@@ -290,6 +305,11 @@ msgstr "Dossier parent"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "file.protocol"
+msgstr "Protocole de fichiers"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "file.publicationUncertain"
 msgstr "Publication incertaine. Vérifiez manuellement la destination ; ce transfert ne sera pas répété."
 
@@ -302,6 +322,11 @@ msgstr "Recevoir de l’appareil"
 #: src/shared/menu-messages.ts
 msgid "file.receiveFolder"
 msgstr "Recevoir ce dossier"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.recursive"
+msgstr "Télécharger un dossier récursivement"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -337,6 +362,21 @@ msgstr "Choisir le dossier de destination"
 #: src/shared/menu-messages.ts
 msgid "file.send"
 msgstr "Envoyer à l’appareil"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.sftpResume"
+msgstr "Reprendre un fichier partiel existant (SFTP)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.sftpResumeHint"
+msgstr "Fichiers individuels uniquement. Choisissez les mêmes source et destination ; les octets existants sont vérifiés avant de continuer. SCP ne permet pas la reprise."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.sshHint"
+msgstr "Utilise une connexion SSH distincte depuis cet ordinateur. Indiquez les chemins locaux des clés et de known_hosts. Les identifiants ne sont pas enregistrés. Les copies sont vérifiées par SHA-256 ; SCP nécessite sha256sum distant. Une annulation peut laisser des fichiers partiels."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

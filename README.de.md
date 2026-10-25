@@ -212,6 +212,12 @@ channelterm sftp user@192.168.1.50 get /tmp/log.txt ./log.txt
 channelterm scp user@192.168.1.50 put ./release /tmp/release --recursive
 ```
 
+Die Electron-GUI bietet SFTP/SCP-Fortschritt und Abbruch über die Senden/Empfangen-Aktionen einer
+offenen SSH-Session. Einzelne SFTP-Dateien lassen sich mit der Fortsetzungsoption oder erneutem
+CLI-Aufruf mit `--resume` fortsetzen; vorhandener Präfix und vollständige Datei werden geprüft.
+SCP und Verzeichnisse unterstützen dies nicht. Siehe den
+[SSH-Dateiablauf](docs/getting-started/file-transfer.md#electron-sftpscp-progress-and-resume).
+
 Diese Befehle verwenden dieselbe Schlüssel-/Passwortauthentifizierung und Hostprüfung wie SSH,
 jedoch eine von Terminal-Sessions unabhängige Verbindung. Das Ersetzen vorhandener Dateien erfordert
 `--overwrite`. Verzeichnisregeln, Abbruch und Grenzen beschreibt die

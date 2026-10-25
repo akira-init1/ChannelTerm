@@ -9,6 +9,10 @@ const api: DesktopAPI = {
     ipcRenderer.invoke(channels.browseDirectory, sessionId, path),
   startTransfer: (request) =>
     ipcRenderer.invoke(channels.startTransfer, request),
+  startSSHTransfer: (request) =>
+    ipcRenderer.invoke(channels.startSSHTransfer, request),
+  sshTransfers: () => ipcRenderer.invoke(channels.sshTransfers),
+  cancelSSHTransfer: (id) => ipcRenderer.invoke(channels.cancelSSHTransfer, id),
   transferCheckpoints: (sessionId) =>
     ipcRenderer.invoke(channels.transferCheckpoints, sessionId),
   resumeTransfer: (sessionId, checkpointId) =>

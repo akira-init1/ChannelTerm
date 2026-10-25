@@ -400,8 +400,9 @@ Ctrl+C cancels the file connection without closing any independently running ter
 `--operation-timeout 2m` provides an overall deadline, including authentication prompts. The ordinary
 `--timeout` applies only to setup, excluding prompt wait time. Interrupted or failed transfers can
 leave partial files and directories; with overwrite enabled a previous file can be truncated.
-Inspect the target before retrying. There is no resume, rollback, automatic reconnect, or atomic
-tree replacement. SSH protects transport integrity. To additionally check file content, opt into
+Inspect the target before retrying. SFTP can manually resume a single regular file as described
+below; there is no SCP/directory resume, rollback, automatic reconnect, or atomic tree replacement.
+SSH protects transport integrity. To additionally check file content, opt into
 `--verify=sha256` (the default is `none`):
 
 ```powershell
@@ -482,6 +483,49 @@ that existing-target writes fail without overwrite, missing sources fail, nonemp
 and Ctrl+C interrupts an active operation. Record the client version, protocol, exact error, and
 whether authentication or transfer failed; never record passwords or private-key contents.
 
-These commands do not add MCP tools or persistent connection profiles. Future GUI adapters can use
-the same application operation and authentication callbacks. rsync, FTP/FTPS, an interactive SFTP
-REPL, and remote-to-remote copies are not implemented.
+These commands do not add MCP tools or persistent connection profiles. rsync, FTP/FTPS, an
+interactive SFTP REPL, and remote-to-remote copies are not implemented.
+
+### Resume a single SFTP file
+
+After an interruption, repeat the original put/get with the same source and destination and
+`--resume`:
+
+```bash
+channelterm sftp user@192.168.1.50 put ./firmware.bin /tmp/firmware.bin --resume
+channelterm sftp user@192.168.1.50 get /tmp/firmware.bin ./download.bin --resume
+```
+
+The client compares the entire existing destination with the source prefix before appending.
+A different prefix or a destination larger than the source fails without writing file data.
+A missing destination starts from zero; an already complete file is still verified. Resume
+always performs full SHA-256 destination readback, so uploads require remote read permission.
+The progress bar starts at the verified offset, while speed and result bytes count only newly
+transferred bytes. Prefix checks and final verification can take time without advancing the bar.
+
+This mode accepts only a single regular file. It cannot combine with `--recursive`, `--overwrite`
+or `--safe-replace`, and SCP rejects it. Keep both files stable during transfer; there is no
+snapshot, persistent job database or automatic retry. Cancellation retains the partial destination
+for another explicit attempt. A final checksum failure also retains the file for inspection.
+
+### Electron SFTP/SCP progress and resume
+
+Select an open SSH Session and choose **Session > Send to device / Receive from device** (also available
+on its context menu). Choose SFTP or legacy SCP, enter a literal remote path, and use the native
+picker for the local file/directory or download folder. Enable the directory option for recursive
+downloads. The destination's parent must exist. Relative paths use the SSH server's starting
+directory, not the selected terminal's current directory.
+
+Authentication uses a separate connection from the desktop computer. Enter any required password,
+key/passphrase and known-hosts path again; Host-side credentials are not retrieved. Key and trust
+paths refer to the desktop computer. Unknown hosts fail: establish trust separately using the CLI
+before retrying. Credentials are passed privately to the fixed Go file client, never saved in
+transfer history. The GUI always verifies SHA-256; SCP therefore requires remote `sha256sum`.
+
+The transfer panel shows current-file bytes, progress, speed and verification state. Cancel stops
+this dedicated connection immediately and can leave a partial file; the terminal Session remains
+independent. To resume, repeat the selection with the same paths and enable **Resume an existing
+partial file (SFTP)**. This is separate from **Session > Resume transfer**, which lists serial checkpoints.
+SCP and directory transfers have progress but no resume option. Existing files otherwise fail
+rather than being overwritten. Only one desktop file operation runs at a time; active operations
+block Host changes and normal app close. SSH display history is bounded and is not persisted.
