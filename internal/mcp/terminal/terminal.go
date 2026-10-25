@@ -1274,9 +1274,9 @@ type beginFileTransferCancelTool struct{ *sessionTools }
 // Name returns the stable cancellation-begin Tool identifier.
 func (*beginFileTransferCancelTool) Name() string { return "terminal_begin_file_transfer_cancel" }
 
-// Description explains the conditional Ctrl+C control operation.
+// Description explains the two-stage user cancellation workflow.
 func (*beginFileTransferCancelTool) Description() string {
-	return "Begin cancellation confirmation only when a file-transfer lease is active on the Session."
+	return "Start the first stage of two-stage cancellation when a user requests stopping a Session's file transfer. Requires session_id. With an active file-transfer lease, returns active=true and request_id and marks confirmation pending, without cancelling the transfer or releasing the lease. Then call terminal_resolve_file_transfer_cancel with the same session_id and request_id: cancel=true only for explicit user confirmation (y/Y), otherwise false to resume. Unanswered confirmation expires after 30 seconds; true signals the owner and waits for lease release. Without a file-transfer lease, returns active=false. To observe the final transfer result, use terminal_wait_file_transfer."
 }
 
 // InputSchema describes the observed Session.
@@ -1343,9 +1343,9 @@ type fileTransferCheckpointTool struct{ *sessionTools }
 // Name returns the stable transfer checkpoint Tool identifier.
 func (*fileTransferCheckpointTool) Name() string { return "terminal_file_transfer_checkpoint" }
 
-// Description explains the lease-owner polling contract.
+// Description distinguishes owner-side cancellation checks from observation and reporting.
 func (*fileTransferCheckpointTool) Description() string {
-	return "Check a file-transfer lease at a safe block boundary, waiting while cancellation confirmation is pending."
+	return "For the transfer process: check cancellation at a safe protocol block boundary using session_id and the active file-transfer lease's owner capability. Returns action=continue or action=cancel, blocking while user confirmation is pending until answered or expired. On cancel, the caller must perform protocol cleanup and release its lease; this tool does neither. Use terminal_wait_file_transfer to observe the final transfer result, terminal_report_file_transfer to publish progress/results, and terminal_resolve_file_transfer_cancel to answer a request from terminal_begin_file_transfer_cancel. This is not a transfer-completion wait or a confirmation answer."
 }
 
 // InputSchema describes the Session and its opaque lease capability.

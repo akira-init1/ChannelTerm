@@ -167,9 +167,32 @@ func TestServerListsAndUsesTerminalTools(t *testing.T) {
 		t.Fatalf("tools count = %d, want %d", len(listed.Tools), len(want))
 	}
 	seenTitles := make(map[string]string, len(listed.Tools))
+	fileTransferGuidance := map[string][]string{
+		"terminal_begin_file_transfer_cancel": {
+			"first stage of two-stage cancellation", "when a user requests",
+			"active file-transfer lease", "without cancelling the transfer or releasing the lease",
+			"terminal_resolve_file_transfer_cancel", "same session_id and request_id",
+			"cancel=true only for explicit user confirmation", "false to resume",
+			"30 seconds", "waits for lease release", "active=false", "terminal_wait_file_transfer",
+		},
+		"terminal_file_transfer_checkpoint": {
+			"For the transfer process", "safe protocol block boundary",
+			"active file-transfer lease's owner capability", "action=continue", "action=cancel",
+			"blocking while user confirmation is pending until answered or expired",
+			"caller must perform protocol cleanup and release its lease; this tool does neither",
+			"terminal_wait_file_transfer", "terminal_report_file_transfer",
+			"terminal_resolve_file_transfer_cancel", "terminal_begin_file_transfer_cancel",
+			"not a transfer-completion wait or a confirmation answer",
+		},
+	}
 	for _, registered := range listed.Tools {
 		if !want[registered.Name] {
 			t.Errorf("unexpected MCP tool %q", registered.Name)
+		}
+		for _, required := range fileTransferGuidance[registered.Name] {
+			if !strings.Contains(registered.Description, required) {
+				t.Errorf("%s description = %q, want guidance containing %q", registered.Name, registered.Description, required)
+			}
 		}
 		if registered.Name == "terminal_wait_device_event" && !strings.Contains(registered.Description, "terminal_get_connection_decision") {
 			t.Errorf("terminal_wait_device_event description = %q, want connection-decision guidance", registered.Description)

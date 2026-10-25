@@ -731,6 +731,10 @@ bundled CLI renews every 10 seconds.
 
 ## File-transfer cancellation control tools
 
+Cancellation has two stages: begin a confirmation when the user requests stopping a transfer,
+then submit the user's answer with resolve. Beginning confirmation alone does not cancel the
+transfer or release its lease.
+
 `terminal_begin_file_transfer_cancel` requires `session_id`. It returns `active: false` and
 `state: "inactive"` when no `file-transfer` lease exists, preserving ordinary terminal Ctrl+C
 behavior. For an active transfer it returns `active: true`, `state: "confirming"`, and an opaque
@@ -752,9 +756,12 @@ the answer. A delayed confirmation timer never revokes an already accepted cance
 transfer process calls it only at safe protocol block boundaries. It returns `action: "continue"`,
 blocks while confirmation is pending, or returns `action: "cancel"`; a non-owner is rejected.
 Unconfirmed expiry wakes the checkpoint, which revalidates the original transfer and lease before
-returning `continue`. It does not release a lease, cancel a transfer, or close a Session. File-transfer
-lease expiry and unconfirmed protocol recovery retain their separate fail-closed behavior. These
-three tools carry control state only, never terminal bytes. The bundled attachment uses them for
+returning `continue`. It does not release a lease, cancel a transfer, or close a Session. Transfer
+owners receiving `action: "cancel"` must perform protocol cleanup and release their lease;
+`terminal_report_file_transfer` publishes their progress/results. The checkpoint neither reports
+progress nor answers a confirmation; use `terminal_resolve_file_transfer_cancel` for the answer.
+File-transfer lease expiry and unconfirmed protocol recovery retain their separate fail-closed
+behavior. These three tools carry control state only, never terminal bytes. The bundled attachment uses them for
 Ctrl+C. AI clients should wait for the final result with `terminal_wait_file_transfer` rather than
 initiating the user interaction themselves or waiting for raw terminal output.
 
