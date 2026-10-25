@@ -53,8 +53,9 @@ for authentication, verification and cancellation.
 Closing a **tab**, closing a **window**, disconnecting the **GUI from Host**, closing a
 **shared Session**, and exiting the **GUI** are distinct operations. Tab close releases the
 attachment; disconnect releases this client connection. Native window close cleans up that
-window; Exit GUI ends the application. None closes the shared Session or stops its Host.
-**Close shared Session is not implemented or exposed by the GUI.** Each window can have multiple
+window; Exit GUI ends the application. These cleanup actions do not close the shared Session or
+stop its Host. Only the separately confirmed **Close shared Session...** action closes the shared
+connection for every client. Each window can have multiple
 independent terminal attachments. Bottom-panel tabs remain local views of transfers and Session status.
 
 Local clear removes xterm scrollback above the current line, retaining that line and parser

@@ -290,7 +290,8 @@ for the exact security, capability and lifetime boundaries.
 3. A Host lease makes the view read-only. A rejected write discards queued input; **Resume input**
    acknowledges recovery when the Host no longer reports a lease. It does not replay old input.
 4. **Close tab (detach)** (the current attachment's close icon), **Disconnect Host**, or closing the window leaves the shared Session running.
-   There is deliberately no close-Session button.
+   To close the shared connection for every client, use the separately confirmed
+   **Session > Close shared Session...** action described in the menu reference.
 
 The sidebar's Host panel shows status and its configured endpoint. The activity-rail terminal
 button or **View** menu hides/reopens the sidebar without detaching. **Help** shows a local
