@@ -1,0 +1,262 @@
+{
+  "rules": [
+    {
+      "rule": 0,
+      "input": "设备😀 \"ready 42\"",
+      "matches": [
+        "\"ready 42\""
+      ]
+    },
+    {
+      "rule": 1,
+      "input": "x(y)",
+      "matches": [
+        "(",
+        ")"
+      ]
+    },
+    {
+      "rule": 2,
+      "input": "设备😀 ERROR",
+      "matches": [
+        "ERROR"
+      ]
+    },
+    {
+      "rule": 3,
+      "input": "can’t open",
+      "matches": [
+        "can’t open"
+      ]
+    },
+    {
+      "rule": 4,
+      "input": "not properly",
+      "matches": [
+        "not properly"
+      ]
+    },
+    {
+      "rule": 5,
+      "input": "no such",
+      "matches": [
+        "no such"
+      ]
+    },
+    {
+      "rule": 6,
+      "input": "can't",
+      "matches": [
+        "can't"
+      ]
+    },
+    {
+      "rule": 7,
+      "input": "not ready",
+      "matches": [
+        "not ready"
+      ]
+    },
+    {
+      "rule": 8,
+      "input": "not",
+      "matches": [
+        "not"
+      ]
+    },
+    {
+      "rule": 9,
+      "input": "no",
+      "matches": [
+        "no"
+      ]
+    },
+    {
+      "rule": 10,
+      "input": "Warning",
+      "matches": [
+        "Warning"
+      ]
+    },
+    {
+      "rule": 11,
+      "input": "ready",
+      "matches": [
+        "ready"
+      ]
+    },
+    {
+      "rule": 12,
+      "input": "Jan 2 2026 - 03:04:05 +0900",
+      "matches": [
+        "Jan 2 2026 - 03:04:05 +0900"
+      ]
+    },
+    {
+      "rule": 13,
+      "input": "Mon Jan 2 03:04:05 UTC 2026",
+      "matches": [
+        "Mon Jan 2 03:04:05 UTC 2026"
+      ]
+    },
+    {
+      "rule": 14,
+      "input": "2026-10-25T03:04:05Z",
+      "matches": [
+        "2026-10-25T03:04:05Z"
+      ]
+    },
+    {
+      "rule": 15,
+      "input": "0xA1",
+      "matches": [
+        "0xA1"
+      ]
+    },
+    {
+      "rule": 16,
+      "input": "0b101",
+      "matches": [
+        "0b101"
+      ]
+    },
+    {
+      "rule": 17,
+      "input": "0o765",
+      "matches": [
+        "0o765"
+      ]
+    },
+    {
+      "rule": 18,
+      "input": "32'hFF_x",
+      "matches": [
+        "32'hFF_x"
+      ]
+    },
+    {
+      "rule": 19,
+      "input": "00abcdef",
+      "matches": [
+        "00abcdef"
+      ]
+    },
+    {
+      "rule": 20,
+      "input": "v1.2.3-rc1",
+      "matches": [
+        "v1.2.3-rc1"
+      ]
+    },
+    {
+      "rule": 21,
+      "input": "[ 3.25]",
+      "matches": [
+        "[ 3.25]"
+      ]
+    },
+    {
+      "rule": 22,
+      "input": "UTC 03:04:05 +0900",
+      "matches": [
+        "UTC",
+        "03:04:05",
+        "+0900"
+      ]
+    },
+    {
+      "rule": 23,
+      "input": "USB uart",
+      "matches": [
+        "USB",
+        "uart"
+      ]
+    },
+    {
+      "rule": 24,
+      "input": "mmcblk0",
+      "matches": [
+        "mmcblk"
+      ]
+    },
+    {
+      "rule": 25,
+      "input": "12.3e+4",
+      "matches": [
+        "12.3e+4"
+      ]
+    },
+    {
+      "rule": 26,
+      "input": "KiB MHz",
+      "matches": [
+        "KiB",
+        "MHz"
+      ]
+    },
+    {
+      "rule": 27,
+      "input": "Load Address: 42",
+      "matches": [
+        "Load Address:"
+      ]
+    },
+    {
+      "rule": 28,
+      "input": "Starting kernel",
+      "matches": [
+        "Starting kernel"
+      ]
+    },
+    {
+      "rule": 29,
+      "input": "***",
+      "matches": [
+        "***"
+      ]
+    },
+    {
+      "rule": 30,
+      "input": "##",
+      "matches": [
+        "##"
+      ]
+    },
+    {
+      "rule": 31,
+      "input": "notice",
+      "matches": [
+        "notice"
+      ]
+    },
+    {
+      "rule": 32,
+      "input": "TRACE",
+      "matches": [
+        "TRACE"
+      ]
+    }
+  ],
+  "prompts": [
+    {
+      "pattern": "promptPattern",
+      "input": "[03:04:05] root@board:/tmp# ",
+      "captures": [
+        "root",
+        "board",
+        "/tmp",
+        "#"
+      ]
+    },
+    {
+      "pattern": "minimalShellPromptPattern",
+      "input": "bash-5.2# ls",
+      "captures": []
+    },
+    {
+      "pattern": "bootloaderPromptPattern",
+      "input": "Zynq> help",
+      "captures": []
+    }
+  ]
+}

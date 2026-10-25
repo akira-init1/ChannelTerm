@@ -127,6 +127,26 @@ During an owned transfer, native tests also repeat window-close and app-quit req
 themed notice and no native message box, dismiss with Escape/Continue, and then explicitly cancel
 the transfer. `test-results/file-close-notice.png` captures the notice.
 
+## Shared default highlight definitions
+
+Edit `internal/cli/highlight/defaults.json` from the repository root for built-in palette,
+category, priority or pattern changes. Version 1 records each pattern, optional `i` flag,
+selected capture group, category and numeric priority. Higher priorities own overlaps; the
+CLI preserves uncovered lower-priority fragments. Palette entries retain either a hex color
+or an ANSI foreground code, including the delimiter's exact TrueColor conversion.
+
+Go embeds this file; `src/shared/default-highlights.ts` imports the same JSON without a Go
+runtime or a second generated copy. The GUI definition loader is a foundation, not an enabled
+semantic xterm renderer. Do not modify Session bytes to apply these definitions.
+
+Maintain `internal/cli/highlight/testdata/defaults-cases.json` alongside rule changes, then run
+`go test ./internal/cli/highlight` from the root and `npm.cmd run check` here. Both engines
+verify every rule and prompt against the same corpus, including capture groups, unrelated
+text, Unicode around tokens and prompt-prefix rejection. Use the common regex syntax already
+present: explicit ASCII classes and separate flags, not Go POSIX classes or inline flags.
+The corpus does not establish general equivalence of Go and JavaScript Unicode case folding;
+renderers also need their own byte/UTF-16/cell mapping and stream-control tests.
+
 ## Menu translations (Lingui 5.9.0)
 
 Core, CLI, configuration helpers, and the PO formatter are pinned to **5.9.0**. Use the local

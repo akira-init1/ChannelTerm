@@ -1,0 +1,298 @@
+{
+  "version": 1,
+  "palette": {
+    "error": {
+      "hex": "#FF5F5F"
+    },
+    "warning": {
+      "hex": "#FF5F5F"
+    },
+    "success": {
+      "hex": "#5FFF87"
+    },
+    "heading": {
+      "hex": "#CBA94B"
+    },
+    "field": {
+      "hex": "#569CD6"
+    },
+    "address": {
+      "hex": "#AF87FF"
+    },
+    "number": {
+      "hex": "#AF87FF"
+    },
+    "version": {
+      "hex": "#AF87FF"
+    },
+    "timestamp": {
+      "hex": "#87D7AF"
+    },
+    "unit": {
+      "hex": "#CBA94B"
+    },
+    "string": {
+      "hex": "#CBA94B"
+    },
+    "info": {
+      "hex": "#5FD7FF"
+    },
+    "interface": {
+      "hex": "#4EC9B0"
+    },
+    "delimiter": {
+      "hex": "#6DB129",
+      "exactRGB": true
+    },
+    "debug": {
+      "ansi": 95
+    },
+    "promptUser": {
+      "ansi": 31
+    },
+    "promptHost": {
+      "ansi": 36
+    },
+    "promptPath": {
+      "ansi": 94
+    }
+  },
+  "rules": [
+    {
+      "pattern": "(?:^|[^A-Za-z0-9_])('[^'\\r\\n]*'|\"[^\"\\r\\n]*\"|“[^”\\r\\n]*”|‘[^’\\r\\n]*’)",
+      "flags": "",
+      "group": 1,
+      "kind": "string",
+      "priority": 160
+    },
+    {
+      "pattern": "(?:\\(|\\)|\\[|\\]|\\{|\\})",
+      "flags": "",
+      "group": 0,
+      "kind": "delimiter",
+      "priority": 150
+    },
+    {
+      "pattern": "\\b(?:fatal|panic|critical|abort|error|failed|failure|unable|denied|invalid|disabled|unknown)\\b",
+      "flags": "i",
+      "group": 0,
+      "kind": "error",
+      "priority": 120
+    },
+    {
+      "pattern": "\\bcan(?:[ \\t]*not|['’]t|[ \\t]+n['’]t)[ \\t]+open\\b",
+      "flags": "i",
+      "group": 0,
+      "kind": "error",
+      "priority": 119
+    },
+    {
+      "pattern": "\\bnot[ \\t]+properly\\b",
+      "flags": "i",
+      "group": 0,
+      "kind": "error",
+      "priority": 118
+    },
+    {
+      "pattern": "\\bno[ \\t]+such\\b",
+      "flags": "i",
+      "group": 0,
+      "kind": "error",
+      "priority": 117
+    },
+    {
+      "pattern": "\\bcan(?:[ \\t]*not|['’]t|[ \\t]+n['’]t)\\b",
+      "flags": "i",
+      "group": 0,
+      "kind": "error",
+      "priority": 118
+    },
+    {
+      "pattern": "\\bnot\\b[ \\t]+(?:found|open|ready|available|connected|enabled|mounted|running|configured|valid)\\b",
+      "flags": "i",
+      "group": 0,
+      "kind": "error",
+      "priority": 116
+    },
+    {
+      "pattern": "\\bnot\\b",
+      "flags": "i",
+      "group": 0,
+      "kind": "error",
+      "priority": 115
+    },
+    {
+      "pattern": "\\bno\\b",
+      "flags": "i",
+      "group": 0,
+      "kind": "error",
+      "priority": 115
+    },
+    {
+      "pattern": "\\b(?:warn|warning|timeout|retry|skipped)\\b",
+      "flags": "i",
+      "group": 0,
+      "kind": "warning",
+      "priority": 110
+    },
+    {
+      "pattern": "\\b(?:ok|ready|success|passed|connected|started|enabled|available)\\b",
+      "flags": "i",
+      "group": 0,
+      "kind": "success",
+      "priority": 105
+    },
+    {
+      "pattern": "\\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[ \\t]+[0-9]{1,2}[ \\t]+[0-9]{4}[ \\t]+-[ \\t]+[0-9]{2}:[0-9]{2}:[0-9]{2}(?:[ \\t]+[+-][0-9]{4})?\\b",
+      "flags": "",
+      "group": 0,
+      "kind": "timestamp",
+      "priority": 130
+    },
+    {
+      "pattern": "\\b(?:(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)[ \\t]+)?(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[ \\t]+[0-9]{1,2}[ \\t]+[0-9]{2}:[0-9]{2}:[0-9]{2}(?:[ \\t]+[A-Z]{2,5})?(?:[ \\t]+[0-9]{4})?\\b",
+      "flags": "",
+      "group": 0,
+      "kind": "timestamp",
+      "priority": 130
+    },
+    {
+      "pattern": "\\b[0-9]{4}-[0-9]{2}-[0-9]{2}(?:[ T][0-9]{2}:[0-9]{2}:[0-9]{2}(?:Z|[+-][0-9]{2}:?[0-9]{2})?)?\\b",
+      "flags": "",
+      "group": 0,
+      "kind": "timestamp",
+      "priority": 129
+    },
+    {
+      "pattern": "\\b0x[0-9a-f]+\\b",
+      "flags": "i",
+      "group": 0,
+      "kind": "address",
+      "priority": 95
+    },
+    {
+      "pattern": "\\b0b[01]+\\b",
+      "flags": "i",
+      "group": 0,
+      "kind": "number",
+      "priority": 95
+    },
+    {
+      "pattern": "\\b0o[0-7]+\\b",
+      "flags": "i",
+      "group": 0,
+      "kind": "number",
+      "priority": 95
+    },
+    {
+      "pattern": "\\b[0-9]+'[hbod][0-9a-f_xz]+\\b",
+      "flags": "i",
+      "group": 0,
+      "kind": "number",
+      "priority": 95
+    },
+    {
+      "pattern": "\\b[0-9A-Fa-f]{8,16}\\b",
+      "flags": "",
+      "group": 0,
+      "kind": "address",
+      "priority": 92
+    },
+    {
+      "pattern": "\\bv?[0-9]+(?:\\.[0-9]+){1,4}(?:[-+._][A-Za-z0-9-]+)*\\b",
+      "flags": "i",
+      "group": 0,
+      "kind": "version",
+      "priority": 90
+    },
+    {
+      "pattern": "\\[[ \\t]*[0-9]+(?:\\.[0-9]+)?\\]",
+      "flags": "",
+      "group": 0,
+      "kind": "timestamp",
+      "priority": 88
+    },
+    {
+      "pattern": "\\b[0-9]{2}:[0-9]{2}:[0-9]{2}\\b|\\b(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|UTC)\\b|[+-][0-9]{4}\\b",
+      "flags": "",
+      "group": 0,
+      "kind": "timestamp",
+      "priority": 86
+    },
+    {
+      "pattern": "\\b(?:spi(?:-nor|flash)?|can|i2c|i2s|uart|serial|tty(?:ps|s)?|mmc(?:blk)?|sdhci|mtd|nand|nor|usb(?:core|hid|-storage)?|ehci|xhci|pcie?|gpio|alsa|ethernet|eth|macb|mdio|rgmii|phy|fpga|dmac?|adma|vdma|jtag|rtc|watchdog|wdt|scsi|sata|net|tcp|udp|ipv[46]|rpc|nfs|cpu|smp|srcu|rcu|gic|l2c|vfp|armv[4-9]|mips|riscv)\\b",
+      "flags": "i",
+      "group": 0,
+      "kind": "interface",
+      "priority": 80
+    },
+    {
+      "pattern": "\\b(mmcblk|ttyps|ttys|sdhci|serial|pcie|uart|spi|can|i2c|i2s|tty|mmc|mtd|usb|ehci|xhci|pci|gpio|eth|mdio|fpga|dmac|dma|adma|vdma|rtc|cpu|armv)[0-9]",
+      "flags": "i",
+      "group": 1,
+      "kind": "interface",
+      "priority": 80
+    },
+    {
+      "pattern": "[0-9]+(?:\\.[0-9]+)?(?:e[+-]?[0-9]+)?",
+      "flags": "i",
+      "group": 0,
+      "kind": "number",
+      "priority": 70
+    },
+    {
+      "pattern": "\\b(?:bytes?|KiB|MiB|GiB|KB|MB|GB|kB/s|MB/s|MHz|GHz|BogoMIPS|ms|ns|us|jiffies|bits?)\\b",
+      "flags": "i",
+      "group": 0,
+      "kind": "unit",
+      "priority": 68
+    },
+    {
+      "pattern": "^[ \\t]*([A-Za-z_][A-Za-z0-9_./ -]{0,30}:)",
+      "flags": "",
+      "group": 1,
+      "kind": "field",
+      "priority": 60
+    },
+    {
+      "pattern": "\\b(?:U-Boot|Linux version|Starting kernel|Booting Linux|Booting kernel|Loading Kernel Image|Loading Device Tree|Flattened Device Tree)\\b",
+      "flags": "i",
+      "group": 0,
+      "kind": "heading",
+      "priority": 58
+    },
+    {
+      "pattern": "\\*\\*\\*",
+      "flags": "",
+      "group": 0,
+      "kind": "heading",
+      "priority": 56
+    },
+    {
+      "pattern": "##",
+      "flags": "",
+      "group": 0,
+      "kind": "delimiter",
+      "priority": 56
+    },
+    {
+      "pattern": "\\b(?:info|notice)\\b",
+      "flags": "i",
+      "group": 0,
+      "kind": "info",
+      "priority": 40
+    },
+    {
+      "pattern": "\\b(?:debug|trace)\\b",
+      "flags": "i",
+      "group": 0,
+      "kind": "debug",
+      "priority": 30
+    }
+  ],
+  "prompts": {
+    "promptPattern": "^(?:\\[[0-9]{2}:[0-9]{2}:[0-9]{2}\\][ \\t]+)?(?:\\([^)\\r\\n]+\\)[ \\t]+)?([A-Za-z0-9_.-]+)@([A-Za-z0-9_.-]+):([^ \\t\\r\\n]+)([$#])[ \\t]*",
+    "minimalShellPromptPattern": "^(?:\\[[0-9]{2}:[0-9]{2}:[0-9]{2}\\][ \\t]+)?(?:(?:ba)?sh-[0-9]+(?:\\.[0-9]+)*[$#]|/[ \\t]+#|\\[[A-Za-z0-9_.-]+@[A-Za-z0-9_.-]+[ \\t]+[^ \\t\\r\\n\\]]+\\][$#])(?:[ \\t]+|$)",
+    "bootloaderPromptPattern": "^(?:=>|[A-Za-z0-9_.-]+>)[ \\t]+"
+  }
+}

@@ -30,6 +30,12 @@ Archives live in bounded Host memory, with no new listener or Session protocol-s
 streams to `internal/cli/command`. The CLI owns argument syntax, status text, raw console mode,
 escape commands, highlighting, HTTP host setup, and MCP client attachment.
 
+Default highlight definitions are adapter-side presentation data shared with the desktop client;
+the [repository map](repository-map.md) identifies their canonical owner. Go embeds the JSON and
+Electron imports it as data, without depending on Go code or moving presentation into Core.
+Each frontend still owns stream/terminal rendering; these definitions never transform Session or
+MCP output. Sharing the definitions alone does not enable semantic rendering in the desktop view.
+
 `internal/install` is an adapter-side operating-system integration boundary. It installs the
 currently running executable for one user, owns the `cterm` command alias and any PATH entry it
 adds, and records that ownership in a platform-local manifest. It reuses `internal/core/config` to

@@ -91,6 +91,11 @@ The main ownership distinctions are deliberate:
   configuration discovery and installation. `internal/install` owns per-user executable placement,
   short-command aliases, PATH changes, and the installation ownership manifest. These packages may
   depend inward; Core may not depend on them.
+- **Shared presentation data:** `internal/cli/highlight/defaults.json` owns the versioned default
+  palette, semantic categories, rule priorities and prompt patterns. The CLI embeds it; Electron
+  loads the same inert JSON through `shared/default-highlights.ts`. No Go implementation or Core
+  dependency crosses into the GUI. The adjacent `testdata/defaults-cases.json` is the shared
+  Go/JavaScript matching corpus, not runtime terminal content.
 - **Application:** `internal/core/app` orchestrates adapter-neutral use cases and managed debug
   operations; it does not own the Host process lifetime or presentation.
   It also owns bounded serial directory snapshots in the existing transfer child shell,

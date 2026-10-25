@@ -419,24 +419,24 @@ func writeAll(output io.Writer, data []byte) error {
 
 type style string
 
-type tokenKind uint8
+type tokenKind string
 
 const (
-	tokenError tokenKind = iota
-	tokenWarning
-	tokenSuccess
-	tokenHeading
-	tokenField
-	tokenAddress
-	tokenNumber
-	tokenVersion
-	tokenTimestamp
-	tokenUnit
-	tokenString
-	tokenInfo
-	tokenDebug
-	tokenInterface
-	tokenDelimiter
+	tokenError     tokenKind = "error"
+	tokenWarning   tokenKind = "warning"
+	tokenSuccess   tokenKind = "success"
+	tokenHeading   tokenKind = "heading"
+	tokenField     tokenKind = "field"
+	tokenAddress   tokenKind = "address"
+	tokenNumber    tokenKind = "number"
+	tokenVersion   tokenKind = "version"
+	tokenTimestamp tokenKind = "timestamp"
+	tokenUnit      tokenKind = "unit"
+	tokenString    tokenKind = "string"
+	tokenInfo      tokenKind = "info"
+	tokenDebug     tokenKind = "debug"
+	tokenInterface tokenKind = "interface"
+	tokenDelimiter tokenKind = "delimiter"
 )
 
 type theme struct {
@@ -447,31 +447,15 @@ type theme struct {
 }
 
 func newTheme(profile termenv.Profile) theme {
-	numberStyle := colorStyle(profile, "#AF87FF")
-	errorStyle := colorStyle(profile, "#FF5F5F")
+	styles := make(map[tokenKind]style, len(defaults.Palette))
+	for kind, color := range defaults.Palette {
+		styles[tokenKind(kind)] = color.render(profile)
+	}
 	return theme{
-		styles: map[tokenKind]style{
-			tokenError:     errorStyle,
-			tokenWarning:   errorStyle,
-			tokenSuccess:   colorStyle(profile, "#5FFF87"),
-			tokenHeading:   colorStyle(profile, "#CBA94B"),
-			tokenField:     colorStyle(profile, "#569CD6"),
-			tokenAddress:   numberStyle,
-			tokenNumber:    numberStyle,
-			tokenVersion:   numberStyle,
-			tokenTimestamp: colorStyle(profile, "#87D7AF"),
-			tokenUnit:      colorStyle(profile, "#CBA94B"),
-			tokenString:    colorStyle(profile, "#CBA94B"),
-			tokenInfo:      colorStyle(profile, "#5FD7FF"),
-			tokenDebug:     ansiPaletteStyle(profile, 95),
-			tokenInterface: colorStyle(profile, "#4EC9B0"),
-			tokenDelimiter: delimiterStyle(profile),
-		},
-		// Keep the original shell-prompt palette while omitting its former SGR 1
-		// attribute: red user/marker, cyan host, and bright-blue path.
-		promptUser: ansiPaletteStyle(profile, 31),
-		promptHost: ansiPaletteStyle(profile, 36),
-		promptPath: ansiPaletteStyle(profile, 94),
+		styles:     styles,
+		promptUser: styles["promptUser"],
+		promptHost: styles["promptHost"],
+		promptPath: styles["promptPath"],
 	}
 }
 
@@ -498,15 +482,6 @@ func ansiPaletteStyle(profile termenv.Profile, code int) style {
 	return style("\x1b[" + strconv.Itoa(code) + "m")
 }
 
-func delimiterStyle(profile termenv.Profile) style {
-	if profile == termenv.TrueColor {
-		// Keep the user-selected #6DB129 exact. termenv's generic hex
-		// conversion rounds this color's blue channel down by one.
-		return "\x1b[38;2;109;177;41m"
-	}
-	return colorStyle(profile, "#6DB129")
-}
-
 type rule struct {
 	pattern  *regexp.Regexp
 	group    int
@@ -521,48 +496,12 @@ type match struct {
 	priority int
 }
 
-var builtinRules = []rule{
-	{regexp.MustCompile(`(?:^|[^[:alnum:]_])('[^'\r\n]*'|"[^"\r\n]*"|“[^”\r\n]*”|‘[^’\r\n]*’)`), 1, tokenString, 160},
-	{regexp.MustCompile(`(?:\(|\)|\[|\]|\{|\})`), 0, tokenDelimiter, 150},
-	{regexp.MustCompile(`(?i)\b(?:fatal|panic|critical|abort|error|failed|failure|unable|denied|invalid|disabled|unknown)\b`), 0, tokenError, 120},
-	{regexp.MustCompile(`(?i)\bcan(?:[ \t]*not|['’]t|[ \t]+n['’]t)[ \t]+open\b`), 0, tokenError, 119},
-	{regexp.MustCompile(`(?i)\bnot[ \t]+properly\b`), 0, tokenError, 118},
-	{regexp.MustCompile(`(?i)\bno[ \t]+such\b`), 0, tokenError, 117},
-	{regexp.MustCompile(`(?i)\bcan(?:[ \t]*not|['’]t|[ \t]+n['’]t)\b`), 0, tokenError, 118},
-	{regexp.MustCompile(`(?i)\bnot\b[ \t]+(?:found|open|ready|available|connected|enabled|mounted|running|configured|valid)\b`), 0, tokenError, 116},
-	{regexp.MustCompile(`(?i)\bnot\b`), 0, tokenError, 115},
-	{regexp.MustCompile(`(?i)\bno\b`), 0, tokenError, 115},
-	{regexp.MustCompile(`(?i)\b(?:warn|warning|timeout|retry|skipped)\b`), 0, tokenWarning, 110},
-	{regexp.MustCompile(`(?i)\b(?:ok|ready|success|passed|connected|started|enabled|available)\b`), 0, tokenSuccess, 105},
-	{regexp.MustCompile(`\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[ \t]+[0-9]{1,2}[ \t]+[0-9]{4}[ \t]+-[ \t]+[0-9]{2}:[0-9]{2}:[0-9]{2}(?:[ \t]+[+-][0-9]{4})?\b`), 0, tokenTimestamp, 130},
-	{regexp.MustCompile(`\b(?:(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)[ \t]+)?(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[ \t]+[0-9]{1,2}[ \t]+[0-9]{2}:[0-9]{2}:[0-9]{2}(?:[ \t]+[A-Z]{2,5})?(?:[ \t]+[0-9]{4})?\b`), 0, tokenTimestamp, 130},
-	{regexp.MustCompile(`\b[0-9]{4}-[0-9]{2}-[0-9]{2}(?:[ T][0-9]{2}:[0-9]{2}:[0-9]{2}(?:Z|[+-][0-9]{2}:?[0-9]{2})?)?\b`), 0, tokenTimestamp, 129},
-	{regexp.MustCompile(`(?i)\b0x[0-9a-f]+\b`), 0, tokenAddress, 95},
-	{regexp.MustCompile(`(?i)\b0b[01]+\b`), 0, tokenNumber, 95},
-	{regexp.MustCompile(`(?i)\b0o[0-7]+\b`), 0, tokenNumber, 95},
-	{regexp.MustCompile(`(?i)\b[0-9]+'[hbod][0-9a-f_xz]+\b`), 0, tokenNumber, 95},
-	{regexp.MustCompile(`\b[0-9A-Fa-f]{8,16}\b`), 0, tokenAddress, 92},
-	{regexp.MustCompile(`(?i)\bv?[0-9]+(?:\.[0-9]+){1,4}(?:[-+._][[:alnum:]-]+)*\b`), 0, tokenVersion, 90},
-	{regexp.MustCompile(`\[[ \t]*[0-9]+(?:\.[0-9]+)?\]`), 0, tokenTimestamp, 88},
-	{regexp.MustCompile(`\b[0-9]{2}:[0-9]{2}:[0-9]{2}\b|\b(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|UTC)\b|[+-][0-9]{4}\b`), 0, tokenTimestamp, 86},
-	{regexp.MustCompile(`(?i)\b(?:spi(?:-nor|flash)?|can|i2c|i2s|uart|serial|tty(?:ps|s)?|mmc(?:blk)?|sdhci|mtd|nand|nor|usb(?:core|hid|-storage)?|ehci|xhci|pcie?|gpio|alsa|ethernet|eth|macb|mdio|rgmii|phy|fpga|dmac?|adma|vdma|jtag|rtc|watchdog|wdt|scsi|sata|net|tcp|udp|ipv[46]|rpc|nfs|cpu|smp|srcu|rcu|gic|l2c|vfp|armv[4-9]|mips|riscv)\b`), 0, tokenInterface, 80},
-	{regexp.MustCompile(`(?i)\b(mmcblk|ttyps|ttys|sdhci|serial|pcie|uart|spi|can|i2c|i2s|tty|mmc|mtd|usb|ehci|xhci|pci|gpio|eth|mdio|fpga|dmac|dma|adma|vdma|rtc|cpu|armv)[0-9]`), 1, tokenInterface, 80},
-	{regexp.MustCompile(`(?i)[0-9]+(?:\.[0-9]+)?(?:e[+-]?[0-9]+)?`), 0, tokenNumber, 70},
-	{regexp.MustCompile(`(?i)\b(?:bytes?|KiB|MiB|GiB|KB|MB|GB|kB/s|MB/s|MHz|GHz|BogoMIPS|ms|ns|us|jiffies|bits?)\b`), 0, tokenUnit, 68},
-	{regexp.MustCompile(`^[ \t]*([[:alpha:]_][[:alnum:]_./ -]{0,30}:)`), 1, tokenField, 60},
-	{regexp.MustCompile(`(?i)\b(?:U-Boot|Linux version|Starting kernel|Booting Linux|Booting kernel|Loading Kernel Image|Loading Device Tree|Flattened Device Tree)\b`), 0, tokenHeading, 58},
-	{regexp.MustCompile(`\*\*\*`), 0, tokenHeading, 56},
-	{regexp.MustCompile(`##`), 0, tokenDelimiter, 56},
-	{regexp.MustCompile(`(?i)\b(?:info|notice)\b`), 0, tokenInfo, 40},
-	{regexp.MustCompile(`(?i)\b(?:debug|trace)\b`), 0, tokenDebug, 30},
-}
+var builtinRules = compileRules(defaults)
 
-var promptPattern = regexp.MustCompile(`^(?:\[[0-9]{2}:[0-9]{2}:[0-9]{2}\][ \t]+)?(?:\([^)\r\n]+\)[ \t]+)?([A-Za-z0-9_.-]+)@([A-Za-z0-9_.-]+):([^ \t\r\n]+)([$#])[ \t]*`)
+var promptPattern = regexp.MustCompile(defaults.Prompts["promptPattern"])
 
-// Minimal prompts are kept unstyled. Accept a local
-// timestamp and already echoed input, but require whitespace before that input
-// so ordinary text beginning with a similar marker does not become a prompt.
-var minimalShellPromptPattern = regexp.MustCompile(`^(?:\[[0-9]{2}:[0-9]{2}:[0-9]{2}\][ \t]+)?(?:(?:ba)?sh-[0-9]+(?:\.[0-9]+)*[$#]|/[ \t]+#|\[[A-Za-z0-9_.-]+@[A-Za-z0-9_.-]+[ \t]+[^ \t\r\n\]]+\][$#])(?:[ \t]+|$)`)
+// Minimal prompts end buffering but stay unstyled, including any echoed input.
+var minimalShellPromptPattern = regexp.MustCompile(defaults.Prompts["minimalShellPromptPattern"])
 
 // HasBootloaderPromptPrefix recognizes a plain line starting with "=> " or a
 // name followed by "> ", including an already echoed command. Trailing prompt
@@ -573,7 +512,7 @@ func HasBootloaderPromptPrefix(line []byte) bool {
 	return bootloaderPromptPattern.Match(line)
 }
 
-var bootloaderPromptPattern = regexp.MustCompile(`^(?:=>|[A-Za-z0-9_.-]+>)[ \t]+`)
+var bootloaderPromptPattern = regexp.MustCompile(defaults.Prompts["bootloaderPromptPattern"])
 
 var defaultTheme = newTheme(termenv.TrueColor)
 
