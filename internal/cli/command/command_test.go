@@ -281,7 +281,10 @@ func TestGUIEndpointUsesHostAuthentication(t *testing.T) {
 			t.Error(err)
 		}
 	}()
-	client := &http.Client{Timeout: time.Second}
+	// Own this test's pool and release it before cancelling the server. A shared
+	// pool can leave speculative/idle connections open during graceful shutdown.
+	client := &http.Client{Timeout: time.Second, Transport: &http.Transport{}}
+	defer client.CloseIdleConnections()
 	for _, tc := range []struct {
 		token, origin string
 		status        int
@@ -302,7 +305,11 @@ func TestGUIEndpointUsesHostAuthentication(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		_, readErr := io.Copy(io.Discard, response.Body)
 		_ = response.Body.Close()
+		if readErr != nil {
+			t.Fatal(readErr)
+		}
 		if response.StatusCode != tc.status {
 			t.Fatalf("status=%d want %d", response.StatusCode, tc.status)
 		}
