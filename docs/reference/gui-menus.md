@@ -26,9 +26,9 @@ only saves resumable data when **Keep a checkpoint for manual resume** is checke
 | Terminal > Focus terminal; terminal context menu | `terminal.focus` | Focus the captured xterm view; requires a current idle attachment. |
 | Terminal > Clear local display; terminal context menu | `terminal.clear` | Use xterm's local clear operation; requires a current idle attachment, including a read-only/closed view. |
 | Terminal > Resume input; error notice | `terminal.resume` | Visible in menus only while input is paused; enabled only for an open, unleased, idle attachment. Does not replay queued input. |
-| View > Session sidebar; upper-left toggle; activity rail | `view.sidebar` | Toggle navigation without detaching. Checkmark reflects visibility. |
-| View > Secondary sidebar; upper-left toggle | `view.auxiliary` | Toggle the resizable current-Session details sidebar. |
-| View > Bottom panel; upper-left toggle | `view.panel` | Toggle the bottom panel, retaining its active tab and preferred height. |
+| View > Session sidebar; upper-right toggle; activity rail | `view.sidebar` | Toggle navigation without detaching. Checkmark reflects visibility. |
+| View > Secondary sidebar; upper-right toggle | `view.auxiliary` | Toggle the resizable current-Session details sidebar. |
+| View > Bottom panel; upper-right toggle | `view.panel` | Toggle the bottom panel, retaining its active tab and preferred height. |
 | View > File transfers / Session status | `view.transfers` / `view.status` | Open the bottom panel on the requested tab, including offline/empty states. |
 | Settings > Keyboard shortcuts | `settings.shortcuts` | Display, record, remove, reset and save local layout bindings. |
 | Connection > New connection > Serial / SSH | `connection.serial` / `connection.ssh` | Open a connection form on a connected idle Host. SSH additionally requires the desktop API capability. |

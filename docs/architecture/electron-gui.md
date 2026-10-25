@@ -60,7 +60,7 @@ theme switcher or custom window-control API. This is application-defined styling
 
 The native title bar and minimum window size (760 × 500) remain unchanged. The application
 area has a 32 px application menu bar, a flexible workspace, and a 24 px full-width status bar.
-The menu bar begins with three compact left/right/bottom layout toggles, followed by menus,
+The menu bar places menus on the left and three compact left/right/bottom layout toggles on the right,
 without an application name, logo, or preview banner. The original slate/blue styling and
 locally drawn pane-outline icons remain independent of VS Code assets.
 **Connection, Session, Terminal, View, Settings, Help** expose the implemented actions described

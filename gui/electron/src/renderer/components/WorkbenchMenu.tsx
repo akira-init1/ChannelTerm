@@ -268,46 +268,6 @@ export function WorkbenchMenu({
 
   return (
     <header className="topbar">
-      <div
-        className="layout-controls"
-        role="group"
-        aria-label={t("view.layout")}
-      >
-        {layoutActions.map((id, index) => (
-          <button
-            key={id}
-            className="quiet icon-button"
-            data-layout={id}
-            aria-label={t(id)}
-            title={`${t(id)}${state.shortcuts[id] ? ` (${shortcutLabel(state.shortcuts[id])})` : ""}`}
-            aria-pressed={
-              id === "view.sidebar"
-                ? state.sidebarVisible
-                : id === "view.auxiliary"
-                  ? state.auxiliaryVisible
-                  : state.panelVisible
-            }
-            aria-controls={
-              id === "view.sidebar"
-                ? "session-sidebar"
-                : id === "view.auxiliary"
-                  ? "auxiliary-sidebar"
-                  : "bottom-panel"
-            }
-            onClick={() => execute({ id })}
-          >
-            <Icon
-              name={
-                index === 0
-                  ? "layout-left"
-                  : index === 1
-                    ? "layout-right"
-                    : "layout-bottom"
-              }
-            />
-          </button>
-        ))}
-      </div>
       <nav
         ref={menubar}
         className="app-menu"
@@ -361,6 +321,46 @@ export function WorkbenchMenu({
           </button>
         ))}
       </nav>
+      <div
+        className="layout-controls"
+        role="group"
+        aria-label={t("view.layout")}
+      >
+        {layoutActions.map((id, index) => (
+          <button
+            key={id}
+            className="quiet icon-button"
+            data-layout={id}
+            aria-label={t(id)}
+            title={`${t(id)}${state.shortcuts[id] ? ` (${shortcutLabel(state.shortcuts[id])})` : ""}`}
+            aria-pressed={
+              id === "view.sidebar"
+                ? state.sidebarVisible
+                : id === "view.auxiliary"
+                  ? state.auxiliaryVisible
+                  : state.panelVisible
+            }
+            aria-controls={
+              id === "view.sidebar"
+                ? "session-sidebar"
+                : id === "view.auxiliary"
+                  ? "auxiliary-sidebar"
+                  : "bottom-panel"
+            }
+            onClick={() => execute({ id })}
+          >
+            <Icon
+              name={
+                index === 0
+                  ? "layout-left"
+                  : index === 1
+                    ? "layout-right"
+                    : "layout-bottom"
+              }
+            />
+          </button>
+        ))}
+      </div>
       <div
         ref={popup}
         id="workbench-menu"

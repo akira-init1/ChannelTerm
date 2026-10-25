@@ -895,9 +895,11 @@ main {
 }
 .layout-controls {
   display: flex;
+  flex-shrink: 0;
   gap: 2px;
-  padding-right: 8px;
-  border-right: 1px solid var(--border);
+  margin-left: auto;
+  padding-left: 8px;
+  border-left: 1px solid var(--border);
 }
 .layout-controls button {
   width: 28px;
