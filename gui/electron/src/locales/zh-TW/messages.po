@@ -600,6 +600,36 @@ msgstr "附加工作階段..."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "session.close"
+msgstr "關閉共用 Session..."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.closeBusy"
+msgstr "目前的作用中操作阻止了關閉。請先結束操作並重新整理 Session 清單，再重試。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.closeConfirm"
+msgstr "為所有用戶端關閉"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.closeFailed"
+msgstr "無法確認關閉結果。請取消並重新整理 Session 清單，核對結果後再重試。請求未自動重試。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.closeStale"
+msgstr "此檢視或 Session 已結束。請取消並重新整理 Session 清單；未選擇任何替代目標。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.closeWarning"
+msgstr "這會釋放所有用戶端共用的連線，可能中斷傳輸、偵錯或遠端程序。Host 可能關閉仍有作用中 Lease 的 Session。關閉分頁只分離目前檢視。是否繼續？"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "session.emptyHint"
 msgstr "使用「工作階段 > 新增連線」開啟工作階段。"
 

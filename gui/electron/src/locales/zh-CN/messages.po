@@ -600,6 +600,36 @@ msgstr "附加会话..."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "session.close"
+msgstr "关闭共享 Session..."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.closeBusy"
+msgstr "当前活动操作阻止了关闭。请先结束操作并刷新 Session 列表，再重试。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.closeConfirm"
+msgstr "为所有客户端关闭"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.closeFailed"
+msgstr "未能确认关闭结果。请取消并刷新 Session 列表，核对结果后再重试。请求未自动重试。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.closeStale"
+msgstr "此视图或 Session 已结束。请取消并刷新 Session 列表；未选择任何替代目标。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.closeWarning"
+msgstr "这会释放所有客户端共享的连接，可能中断传输、调试或远端进程。Host 可能关闭仍有活动 Lease 的 Session。关闭标签只分离当前视图。是否继续？"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "session.emptyHint"
 msgstr "使用“会话 > 新建连接”打开会话。"
 

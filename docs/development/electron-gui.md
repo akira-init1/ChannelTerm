@@ -73,6 +73,14 @@ a replacement first. No tab dragging, terminal splitting, persistent tab layout 
 migration is implemented. See [menu contracts](../reference/gui-menus.md#window-action-contracts)
 and [window ownership](../architecture/electron-gui.md#windows-and-tab-handoff).
 
+To release a shared connection explicitly, use **Session > Close shared Session...** and check
+the displayed full target ID before confirming. This affects every client and can interrupt active
+work, including a leased Session; use the operation's own cancellation flow when recovery is needed.
+Cancel/Escape leaves the connection open. The native suite verifies cancellation, stale IPC rejection,
+confirmed closure and another client's observation using the isolated Host. Unit coverage also
+checks foreign/detached handles, concurrent close/write rejection and the actual leased-close
+contract. These tests do not prove physical serial control-line or remote-process cleanup effects.
+
 ## File client build and verification
 
 File operations use another build of the same CLI at `dist/files/channelterm[.exe]`. Main invokes

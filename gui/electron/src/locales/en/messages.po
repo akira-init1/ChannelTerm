@@ -600,6 +600,36 @@ msgstr "Attach Session..."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "session.close"
+msgstr "Close shared Session..."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.closeBusy"
+msgstr "Closure is blocked by an active operation. Finish it and refresh Sessions before trying again."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.closeConfirm"
+msgstr "Close for everyone"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.closeFailed"
+msgstr "Closure was not confirmed. Cancel and refresh Sessions to check the result before trying again. The request was not retried."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.closeStale"
+msgstr "This view or Session has ended. Cancel and refresh Sessions; no replacement target was selected."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.closeWarning"
+msgstr "This releases the connection for every client and may interrupt transfers, debugging or remote processes. The Host may close an active leased Session. Closing a tab only detaches this view. Continue?"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "session.emptyHint"
 msgstr "Use Session > New Connection to open a Session."
 

@@ -6,6 +6,98 @@ import { HostClient } from "../src/main/host/client";
 import { HostError, publicError } from "../src/main/host/errors";
 import { startFixture } from "./fixture";
 
+test("explicit shared close binds to this client's attachment and closes for observers, including leased Sessions", async () => {
+  const fixture = await startFixture();
+  const client = new HostClient(fixture.endpoint, fixture.token);
+  const observer = new HostClient(fixture.endpoint, fixture.token);
+  try {
+    await client.connect();
+    await observer.connect();
+    const id = (await client.list())[0]!.session_id;
+    const old = await client.attach(id);
+    const foreign = await observer.attach(id);
+    await assert.rejects(client.closeSession(foreign.id), {
+      code: "cancelled",
+    });
+    await client.detach(old.id);
+    const active = await client.attach(id);
+    await assert.rejects(client.closeSession(old.id), { code: "cancelled" });
+    assert.equal((await observer.list())[0]!.state, "open");
+    await fixture.command("lease");
+    // Closing is the Host's destructive lifecycle operation, not safe lease cancellation.
+    const closing = client.closeSession(active.id);
+    await assert.rejects(client.closeSession(active.id), { code: "busy" });
+    await assert.rejects(
+      client.write(active.id, "must-not-write-during-close"),
+      { code: "busy" },
+    );
+    await closing;
+    assert.deepEqual(await observer.list(), []);
+    await assert.rejects(observer.write(foreign.id, "closed"), {
+      code: "closed",
+    });
+    await assert.rejects(client.closeSession(active.id), { code: "closed" });
+  } finally {
+    await client.disconnect();
+    await observer.disconnect();
+    await fixture.stop();
+  }
+});
+
+test("shared close reports structured refusal and uncertain delivery without retry or secret disclosure", async () => {
+  const fixture = await startFixture();
+  const client = new HostClient(fixture.endpoint, fixture.token);
+  const original = globalThis.fetch;
+  let calls = 0;
+  let mode: "busy" | "uncertain" = "busy";
+  try {
+    await client.connect();
+    const active = await client.attach((await client.list())[0]!.session_id);
+    globalThis.fetch = async (input, init) => {
+      const body =
+        typeof init?.body === "string" ? JSON.parse(init.body) : undefined;
+      if (
+        body?.method === "tools/call" &&
+        body.params?.name === "terminal_close"
+      ) {
+        calls++;
+        if (mode === "uncertain") throw new Error("fixture-secret-close-error");
+        return new Response(
+          JSON.stringify({
+            jsonrpc: "2.0",
+            id: body.id,
+            result: {
+              isError: true,
+              content: [],
+              structuredContent: {
+                error: {
+                  code: "session_busy",
+                  message: "fixture-secret-close-error",
+                },
+              },
+            },
+          }),
+          { headers: { "Content-Type": "application/json" } },
+        );
+      }
+      return original(input, init);
+    };
+    await assert.rejects(client.closeSession(active.id), { code: "busy" });
+    assert.equal(calls, 1);
+    mode = "uncertain";
+    await assert.rejects(client.closeSession(active.id), (error: unknown) => {
+      assert.doesNotMatch(JSON.stringify(publicError(error)), /fixture-secret/);
+      return true;
+    });
+    assert.equal(calls, 2);
+    assert.equal((await client.list())[0]!.state, "open");
+  } finally {
+    globalThis.fetch = original;
+    await client.disconnect();
+    await fixture.stop();
+  }
+});
+
 test("attachment capacity rejects setup before device creation and recovers after detach", async () => {
   const fixture = await startFixture();
   const client = new HostClient(fixture.endpoint, fixture.token);

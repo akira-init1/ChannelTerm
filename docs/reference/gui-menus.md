@@ -30,6 +30,7 @@ for authentication, verification and cancellation.
 | Window > Exit GUI | `app.quit` | Exit the Electron app through its normal cleanup path, subject to the active file-operation close guard. |
 | Session > Refresh Sessions; refresh button | `session.refresh` | Refresh the Host snapshot while connected and idle. |
 | Session > Close tab (detach); tab close icon; attached row/tab context menu | `tab.close` | Detach the captured local attachment. Still available for a closed Session so its view can be dismissed. |
+| Session > Close shared Session...; attached row/tab context menu | `session.close` | Confirm closing the captured open shared Session for every client. Requires a live attachment; no shortcut. |
 | Session row context menu > Attach Session; row click | `session.attach` | Attach the clicked open Session by opaque ID. Unavailable for the current attachment, closed/missing rows, offline state, or a pending operation. |
 | Terminal > Focus terminal; terminal context menu | `terminal.focus` | Focus the captured xterm view; requires a current idle attachment. |
 | Terminal > Clear local display; terminal context menu | `terminal.clear` | Use xterm's local clear operation; requires a current idle attachment, including a read-only/closed view. |
@@ -60,6 +61,17 @@ It does not change the Host buffer or read cursor, dismiss loss notices, or rese
 Subsequent output continues normally; a new attachment may replay retained Host output.
 
 ## Window action contracts
+
+**Close shared Session...** displays the captured label, endpoint and full Session ID, with
+Cancel focused by default. Confirming calls the existing authenticated `terminal_close` once;
+Main validates attachment ownership and rejects stale/foreign handles or a local file operation/tab
+move. It never substitutes the selected tab or a short reference. The Host owns closure: its current
+contract can close a leased Session and interrupt transfers, debugging or remote processes. This
+is not a safe operation-cancellation or lease-release command. Other clients lose that Session too.
+Cancel/Escape sends no close request. An unconfirmed result is not retried; cancel the dialog and
+refresh Sessions before deciding what to do next. The view keeps its retained output, and input is
+paused when confirmation is submitted. Ordinary tab/window closure, disconnect and app exit still
+only release this client's resources. The Host process and other Sessions remain running.
 
 The Window menu lists these entries in order. Actions use stable IDs and captured targets;
 Main owns BrowserWindow creation, focus and close. Tab state belongs to its renderer.
@@ -261,7 +273,7 @@ menu entries or commitments to implement them.
 | Proposed category | Unimplemented scope / prerequisite |
 | --- | --- |
 | Host / Session | Saved profiles and recent connections remain outside the explicit serial/SSH forms. Default-local Host startup is automatic; other endpoints remain explicit. |
-| Session | Closing a shared Session needs a separately reviewed destructive action, explicit target/confirmation semantics, and Host authority. Multiple tabs and recent history are also absent. |
+| Session | Recent connection history is not implemented. Shared close and multiple tabs follow the explicit contracts above. |
 | Terminal | Select All, Find, split panes and remote PTY resize have no existing menu handlers and are not exposed. Existing clipboard, local clear, focus and conditional resume actions remain. |
 | View | MCP activity, status-bar visibility and a combined Reset Layout action are unimplemented. Existing sidebar, bottom-panel, transfer and Session-status actions remain; Session status is not a status-bar toggle. |
 | Settings | Theme selection is unimplemented and not exposed. Shortcuts and terminal display settings persist locally. Language and layout state remain window-local; endpoint editing and Host process management are absent. |

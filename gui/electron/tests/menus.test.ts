@@ -22,6 +22,35 @@ function flatten(items: MenuEntry[]): MenuEntry[] {
   return items.flatMap((item) => [item, ...flatten(item.children ?? [])]);
 }
 
+test("shared close is explicit, bound to the captured attachment, and unavailable offline or closed", () => {
+  const state = {
+    ...initialMenuState,
+    connected: true,
+    currentOpen: true,
+    attachment: { id: "view", sessionId: "session" },
+  };
+  const close = flatten(applicationMenu(state)).find(
+    (entry) => entry.id === "session.close",
+  )!;
+  assert.equal(close.enabled, true);
+  assert.equal(isAction(close.action), true);
+  assert.equal(actionEnabled(close.action!, state), true);
+  for (const patch of [
+    { connected: false },
+    { currentOpen: false },
+    { busy: true },
+    { attachment: { id: "replacement", sessionId: "session" } },
+  ])
+    assert.equal(actionEnabled(close.action!, { ...state, ...patch }), false);
+  assert.equal(
+    sessionMenu(state, "another-session", true).some(
+      (entry) => entry.id === "session.close",
+    ),
+    false,
+  );
+  assert.equal(actionEnabled(close.action!, { ...state, leased: true }), true);
+});
+
 test("tab navigation, empty-tab close and move actions use bounded display state and exact targets", () => {
   const state = {
     ...initialMenuState,
@@ -106,6 +135,7 @@ test("Session owns setup and file actions; window actions follow window and tab 
       "session.refresh",
       "session.files",
       "tab.close",
+      "session.close",
       "session.info",
     ],
   );

@@ -72,6 +72,7 @@ export type Action =
   | {
       id:
         | "tab.close"
+        | "session.close"
         | "tab.move"
         | "session.info"
         | "terminal.clear"
@@ -136,6 +137,7 @@ function attachedAction(
   state: MenuState,
   id:
     | "tab.close"
+    | "session.close"
     | "tab.move"
     | "session.info"
     | "terminal.clear"
@@ -157,6 +159,7 @@ function attachedAction(
     enabled:
       !!state.attachment &&
       !state.busy &&
+      (id !== "session.close" || (state.connected && state.currentOpen)) &&
       (id !== "tab.move" ||
         (state.connected &&
           state.currentOpen &&
@@ -205,6 +208,7 @@ export function applicationMenu(state: MenuState): MenuEntry[] {
           ),
         },
         attachedAction(state, "tab.close"),
+        attachedAction(state, "session.close"),
         attachedAction(state, "session.info"),
       ],
     },
@@ -424,6 +428,9 @@ export function sessionMenu(
           : undefined,
     },
     ...fileMenu(state, sessionId, open && (serial || ssh), serial),
+    ...(state.attachment?.sessionId === sessionId
+      ? [attachedAction(state, "session.close")]
+      : []),
   ];
 }
 
@@ -485,6 +492,7 @@ export function isAction(value: unknown): value is Action {
     case "session.attach":
       return exact(value, ["id", "sessionId"]) && identifier(value.sessionId);
     case "tab.close":
+    case "session.close":
     case "tab.move":
     case "session.info":
     case "terminal.copy":
@@ -609,6 +617,7 @@ export function actionEnabled(action: Action, state: MenuState): boolean {
     case "session.attach":
       return state.connected && !state.busy;
     case "tab.close":
+    case "session.close":
     case "tab.move":
     case "session.info":
     case "terminal.copy":
@@ -620,6 +629,8 @@ export function actionEnabled(action: Action, state: MenuState): boolean {
         !state.busy &&
         state.attachment?.id === action.attachment.id &&
         state.attachment.sessionId === action.attachment.sessionId &&
+        (action.id !== "session.close" ||
+          (state.connected && state.currentOpen)) &&
         (action.id !== "tab.move" ||
           (state.connected &&
             state.currentOpen &&

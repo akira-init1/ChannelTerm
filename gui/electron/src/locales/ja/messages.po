@@ -600,6 +600,36 @@ msgstr "セッションに接続..."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "session.close"
+msgstr "共有 Session を閉じる..."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.closeBusy"
+msgstr "実行中の操作により閉じることができません。操作を終了し、Session 一覧を更新してから再試行してください。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.closeConfirm"
+msgstr "すべてのクライアントの接続を閉じる"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.closeFailed"
+msgstr "終了を確認できませんでした。キャンセルして Session 一覧を更新し、結果を確認してから再試行してください。リクエストは再送されていません。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.closeStale"
+msgstr "このビューまたは Session は終了しました。キャンセルして Session 一覧を更新してください。別の対象は選択されていません。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.closeWarning"
+msgstr "すべてのクライアントが切断され、転送、デバッグ、リモートプロセスが中断される可能性があります。Host は Lease が有効な Session も閉じる場合があります。タブを閉じると、このビューのみが切り離されます。続行しますか？"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "session.emptyHint"
 msgstr "「セッション > 新しい接続」からセッションを開きます。"
 

@@ -600,6 +600,36 @@ msgstr "세션 연결..."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "session.close"
+msgstr "공유 Session 닫기..."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.closeBusy"
+msgstr "진행 중인 작업으로 인해 닫을 수 없습니다. 작업을 마치고 Session 목록을 새로 고친 후 다시 시도하세요."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.closeConfirm"
+msgstr "모든 클라이언트에 대해 닫기"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.closeFailed"
+msgstr "종료를 확인하지 못했습니다. 취소하고 Session 목록을 새로 고쳐 결과를 확인한 후 다시 시도하세요. 요청은 재전송되지 않았습니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.closeStale"
+msgstr "이 보기 또는 Session이 종료되었습니다. 취소하고 Session 목록을 새로 고치세요. 다른 대상은 선택되지 않았습니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.closeWarning"
+msgstr "모든 클라이언트의 연결이 해제되며 전송, 디버깅 또는 원격 프로세스가 중단될 수 있습니다. Host는 Lease가 활성화된 Session도 닫을 수 있습니다. 탭을 닫으면 이 보기만 분리됩니다. 계속하시겠습니까?"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "session.emptyHint"
 msgstr "세션 > 새 연결에서 세션을 여세요."
 

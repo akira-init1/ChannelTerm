@@ -177,6 +177,13 @@ terminal and do not replace its parser, output cursor or attachment.
 
 ## State ownership
 
+Explicit **Close shared Session...** is separate from all view cleanup. After a target-specific
+confirmation, a narrow attachment-bound IPC method asks the existing authenticated Host
+`terminal_close` tool to close the shared Session. Main validates the handle and blocks local
+file-work/tab-handoff conflicts; Application retains closure authority, including the existing
+ability to close a leased Session. No credentials, lease-release capability or Host-stop action
+are added. See the [close contract](../reference/gui-menus.md#window-action-contracts).
+
 | Owner | State and lifetime |
 | --- | --- |
 | Go Host | Authoritative Application, Session/Transport/device lifecycle, Lease decisions, retained output, and serialized writes. |

@@ -600,6 +600,36 @@ msgstr "Attacher une session..."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "session.close"
+msgstr "Fermer la Session partagée..."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.closeBusy"
+msgstr "Une opération active empêche la fermeture. Terminez-la et actualisez les Sessions avant de réessayer."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.closeConfirm"
+msgstr "Fermer pour tous"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.closeFailed"
+msgstr "Fermeture non confirmée. Annulez et actualisez les Sessions pour vérifier le résultat avant de réessayer. La requête n’a pas été répétée."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.closeStale"
+msgstr "Cette vue ou Session est terminée. Annulez et actualisez les Sessions. Aucune autre cible sélectionnée."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.closeWarning"
+msgstr "Cela déconnecte tous les clients et peut interrompre les transferts, le débogage ou les processus distants. Le Host peut fermer une Session avec une Lease active. Fermer un onglet détache uniquement cette vue. Continuer ?"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "session.emptyHint"
 msgstr "Utilisez Session > Nouvelle connexion pour ouvrir une session."
 

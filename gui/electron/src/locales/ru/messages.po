@@ -600,6 +600,36 @@ msgstr "Подключить сеанс..."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "session.close"
+msgstr "Закрыть общую Session..."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.closeBusy"
+msgstr "Активная операция препятствует закрытию. Завершите её и обновите Sessions перед повторной попыткой."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.closeConfirm"
+msgstr "Закрыть для всех"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.closeFailed"
+msgstr "Закрытие не подтверждено. Отмените действие и обновите Sessions, чтобы проверить результат перед повторной попыткой. Запрос не повторялся."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.closeStale"
+msgstr "Это представление или Session завершено. Отмените действие и обновите Sessions. Другая цель не выбиралась."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.closeWarning"
+msgstr "Это отключит всех клиентов и может прервать передачу файлов, отладку или удалённые процессы. Host может закрыть Session с активной Lease. Закрытие вкладки отсоединяет только это представление. Продолжить?"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "session.emptyHint"
 msgstr "Откройте сеанс через Сеанс > Новое подключение."
 

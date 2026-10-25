@@ -54,6 +54,7 @@ export class HostClient {
   private connection = new AbortController();
   private attachments = new Map<string, ActiveAttachment>();
   private changing = false;
+  private closing = new Set<string>();
   private sshAvailable = false;
   private transferEvents = new Map<string, TransferEvents>();
   private eventReads = new Map<string, Promise<TransferEvents>>();
@@ -545,6 +546,51 @@ export class HostClient {
     }
   }
 
+  /** Close exactly the attached shared Session once; never retry an uncertain close. */
+  async closeSession(id: string): Promise<void> {
+    const active = this.attachment(id);
+    if (this.closing.has(active.sessionId))
+      throw new HostError("busy", "Session closure is already pending.");
+    this.closing.add(active.sessionId);
+    // Discard this client's queued input; Host lifecycle remains authoritative for in-flight writes.
+    for (const attached of this.attachments.values())
+      if (attached.sessionId === active.sessionId) attached.writeVersion++;
+    try {
+      const entry = (await this.list()).find(
+        (entry) => entry.session_id === active.sessionId,
+      );
+      this.attachment(id);
+      if (!entry || entry.state !== "open")
+        throw new HostError(
+          "closed",
+          "Session is already closed. Refresh Sessions.",
+        );
+      const result = await this.call("terminal_close", {
+        session_id: active.sessionId,
+      });
+      if (result.closed !== true || result.session_id !== active.sessionId)
+        throw incompatible();
+    } catch (error) {
+      if (!(error instanceof ToolFailure)) throw error;
+      if (error.code === "session_not_found" || error.code === "session_closed")
+        throw new HostError(
+          "closed",
+          "Session is already closed. Refresh Sessions.",
+        );
+      if (error.code === "session_busy")
+        throw new HostError(
+          "busy",
+          "Host refused closure while an operation is active.",
+        );
+      throw new HostError(
+        "tool_error",
+        "Host did not confirm closure. Refresh Sessions before trying again.",
+      );
+    } finally {
+      this.closing.delete(active.sessionId);
+    }
+  }
+
   async read(id: string): Promise<Output> {
     const active = this.attachment(id);
     if (active.reading)
@@ -616,6 +662,11 @@ export class HostClient {
   async write(id: string, data: string): Promise<void> {
     input(data);
     const active = this.attachment(id);
+    if (this.closing.has(active.sessionId))
+      throw new HostError(
+        "busy",
+        "Session closure is pending; input was discarded.",
+      );
     if (active.settings.view === "hex")
       throw new HostError("invalid_input", "Hex view is read-only.");
     const legacy = active.settings.encoding !== "utf-8";

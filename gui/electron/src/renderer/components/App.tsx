@@ -27,6 +27,7 @@ import type {
 import { host, unwrap } from "../host";
 import { TerminalTabs } from "../sessions/TerminalTabs";
 import { SessionList } from "../sessions/SessionList";
+import { CloseSessionDialog } from "../sessions/CloseSessionDialog";
 import { TerminalView, type TerminalControls } from "../terminal/TerminalView";
 import { Icon } from "./Icon";
 import { WorkbenchMenu, type MenuPopupRequest } from "./WorkbenchMenu";
@@ -196,6 +197,13 @@ export function App() {
   const inputPaused = activeTab?.inputPaused ?? false;
   const preferences = useRef(new Map<string, TerminalSettings>());
   const [settingsTarget, setSettingsTarget] = useState<Attachment>();
+  const [closeTarget, setCloseTarget] = useState<{
+    attachment: Attachment;
+    session: SessionSummary;
+  }>();
+  useEffect(() => {
+    if (!connected) setCloseTarget(undefined);
+  }, [connected]);
   const [connectionError, setError] = useState<ClientError>();
   const error = activeTab?.error ?? connectionError;
   const [windowCount, setWindowCount] = useState(1);
@@ -410,6 +418,7 @@ export function App() {
       sshAvailable: !!info?.sshAvailable,
       busy:
         working ||
+        !!closeTarget ||
         !!activeTab?.moving ||
         !!fileDialog ||
         !!sshFileDialog ||
@@ -435,6 +444,7 @@ export function App() {
       connected,
       info?.sshAvailable,
       working,
+      closeTarget,
       fileDialog,
       sshFileDialog,
       filePending,
@@ -800,6 +810,7 @@ export function App() {
       tabId: tab?.id,
       busy:
         working ||
+        !!closeTarget ||
         actionBusy.current ||
         !!fileDialog ||
         !!sshFileDialog ||
@@ -849,6 +860,17 @@ export function App() {
       ? terminals.current.get(targetTab.id)
       : undefined;
     switch (action.id) {
+      case "session.close": {
+        const session = sessions.find(
+          (entry) => entry.session_id === action.attachment.sessionId,
+        );
+        if (session)
+          setCloseTarget({
+            attachment: { ...action.attachment },
+            session: { ...session },
+          });
+        return;
+      }
       case "window.new":
         await unwrap(host.newWindow()).catch(report);
         return;
@@ -1146,6 +1168,31 @@ export function App() {
           t={t}
           onOpen={openConnection}
           onClose={() => setConnectionKind(undefined)}
+        />
+      )}
+      {closeTarget && connected && (
+        <CloseSessionDialog
+          target={closeTarget.session}
+          t={t}
+          onClose={() => setCloseTarget(undefined)}
+          onConfirm={async () => {
+            const captured = closeTarget.attachment;
+            const targetTab = tabsRef.current.find(
+              (tab) =>
+                tab.attachment?.id === captured.id &&
+                tab.attachment.sessionId === captured.sessionId,
+            );
+            if (!targetTab || targetTab.moving || actionBusy.current)
+              throw { code: "cancelled" };
+            actionBusy.current = true;
+            updateTab(targetTab.id, { inputPaused: true });
+            try {
+              await unwrap(host.closeSession(captured.id));
+              await refresh();
+            } finally {
+              actionBusy.current = false;
+            }
+          }}
         />
       )}
       <WorkbenchMenu

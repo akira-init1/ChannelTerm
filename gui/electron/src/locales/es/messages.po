@@ -600,6 +600,36 @@ msgstr "Adjuntar sesión..."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "session.close"
+msgstr "Cerrar Session compartida..."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.closeBusy"
+msgstr "Una operación activa impide el cierre. Finalícela y actualice las Sessions antes de reintentar."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.closeConfirm"
+msgstr "Cerrar para todos"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.closeFailed"
+msgstr "Cierre no confirmado. Cancele y actualice las Sessions para comprobar el resultado antes de reintentar. La solicitud no se repitió."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.closeStale"
+msgstr "Esta vista o Session ha finalizado. Cancele y actualice las Sessions. No se seleccionó otro destino."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.closeWarning"
+msgstr "Esto desconecta todos los clientes y puede interrumpir transferencias, depuración o procesos remotos. El Host puede cerrar una Session con Lease activa. Cerrar una pestaña solo desconecta esta vista. ¿Continuar?"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "session.emptyHint"
 msgstr "Use Sesión > Nueva conexión para abrir una sesión."
 

@@ -315,7 +315,16 @@ export async function checkWindows(environment) {
     assert.ok(
       (await observer.list()).every((session) => session.state === "open"),
     );
+    // Closing a tab in moved leaves that native window active; DOM focus alone is insufficient on Windows.
+    await second.bringToFront();
+    await expect
+      .poll(() => secondWindow.evaluate((window) => window.isFocused()))
+      .toBe(true);
+    await expect(second.locator(".input-status")).toHaveText(
+      "Attached · Input enabled",
+    );
     await activeTerminal(second).focus();
+    await expect(activeTerminal(second)).toBeFocused();
     await second.keyboard.type("surviving-window-input");
     let output = "";
     await expect

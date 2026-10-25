@@ -120,6 +120,8 @@ export interface DesktopAPI {
     settings?: TerminalSettings,
   ): Promise<Result<Attachment>>;
   detach(attachmentId: string): Promise<Result<void>>;
+  /** Explicit shared close, separate from attachment cleanup. */
+  closeSession(attachmentId: string): Promise<Result<void>>;
   read(attachmentId: string): Promise<Result<Output>>;
   write(attachmentId: string, data: string): Promise<Result<void>>;
   syncMenu(state: MenuState): Promise<Result<void>>;
@@ -157,6 +159,7 @@ export const channels = {
   openConnection: "host:open-connection",
   attach: "host:attach",
   detach: "host:detach",
+  closeSession: "host:close-session",
   read: "host:read",
   write: "host:write",
   menuState: "menu:state",

@@ -56,6 +56,7 @@ const api: DesktopAPI = {
     ipcRenderer.invoke(channels.openConnection, request),
   attach: (id, settings) => ipcRenderer.invoke(channels.attach, id, settings),
   detach: (id) => ipcRenderer.invoke(channels.detach, id),
+  closeSession: (id) => ipcRenderer.invoke(channels.closeSession, id),
   read: (id) => ipcRenderer.invoke(channels.read, id),
   write: (id, data) => ipcRenderer.invoke(channels.write, id, data),
   syncMenu: (state) => ipcRenderer.invoke(channels.menuState, state),

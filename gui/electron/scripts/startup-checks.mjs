@@ -18,6 +18,14 @@ export async function checkStartup(environment, preloadArgs) {
     return;
   }
   const directory = await mkdtemp(resolve("test-results/startup-"));
+  // The parent suite still owns a live window; a second Electron process must not share its profile.
+  const profile = resolve(directory, "profile");
+  await mkdir(profile);
+  const profilePreload = resolve(directory, "profile.cjs");
+  await writeFile(
+    profilePreload,
+    `const { app } = require("electron");\napp.setPath("userData", ${JSON.stringify(profile)});\napp.setPath("sessionData", ${JSON.stringify(profile)});\n`,
+  );
   await cp("dist", resolve(directory, "dist"), {
     recursive: true,
     filter: (source) => !source.endsWith("host"),
@@ -50,7 +58,7 @@ export async function checkStartup(environment, preloadArgs) {
   const applications = [];
   async function open(environment) {
     desktop = await electron.launch({
-      args: [...preloadArgs, "--lang=en-US", directory],
+      args: [...preloadArgs, "-r", profilePreload, "--lang=en-US", directory],
       env: environment,
     });
     applications.push(desktop);

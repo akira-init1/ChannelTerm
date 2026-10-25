@@ -600,6 +600,36 @@ msgstr "Sitzung verbinden..."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "session.close"
+msgstr "Gemeinsame Session schließen..."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.closeBusy"
+msgstr "Eine aktive Operation verhindert das Schließen. Beenden Sie sie und aktualisieren Sie die Sessions vor einem erneuten Versuch."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.closeConfirm"
+msgstr "Für alle schließen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.closeFailed"
+msgstr "Schließen nicht bestätigt. Abbrechen und Sessions aktualisieren, um das Ergebnis vor einem erneuten Versuch zu prüfen. Keine automatische Wiederholung."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.closeStale"
+msgstr "Diese Ansicht oder Session wurde beendet. Abbrechen und Sessions aktualisieren. Kein anderes Ziel wurde ausgewählt."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.closeWarning"
+msgstr "Dies trennt alle Clients und kann Übertragungen, Debugging oder entfernte Prozesse unterbrechen. Der Host kann auch Sessions mit aktiver Lease schließen. Das Schließen eines Tabs trennt nur diese Ansicht. Fortfahren?"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "session.emptyHint"
 msgstr "Öffnen Sie eine Sitzung über Sitzung > Neue Verbindung."
 

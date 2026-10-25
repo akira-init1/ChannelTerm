@@ -3,6 +3,28 @@ import type { MessageDescriptor } from "@lingui/core";
 // Lingui 5 extracts these official annotated descriptors without a runtime macro
 // transform. Translations belong in PO catalogs; this file owns IDs and English defaults.
 export const menuMessages = [
+  /* i18n */ { id: "session.close", message: "Close shared Session..." },
+  /* i18n */ { id: "session.closeConfirm", message: "Close for everyone" },
+  /* i18n */ {
+    id: "session.closeWarning",
+    message:
+      "This releases the connection for every client and may interrupt transfers, debugging or remote processes. The Host may close an active leased Session. Closing a tab only detaches this view. Continue?",
+  },
+  /* i18n */ {
+    id: "session.closeBusy",
+    message:
+      "Closure is blocked by an active operation. Finish it and refresh Sessions before trying again.",
+  },
+  /* i18n */ {
+    id: "session.closeStale",
+    message:
+      "This view or Session has ended. Cancel and refresh Sessions; no replacement target was selected.",
+  },
+  /* i18n */ {
+    id: "session.closeFailed",
+    message:
+      "Closure was not confirmed. Cancel and refresh Sessions to check the result before trying again. The request was not retried.",
+  },
   /* i18n */ { id: "tab.move", message: "Move Tab to New Window" },
   /* i18n */ { id: "tab.list", message: "Terminal tabs" },
   /* i18n */ { id: "tab.empty", message: "New Tab" },

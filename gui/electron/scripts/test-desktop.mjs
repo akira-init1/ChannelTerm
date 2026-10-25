@@ -445,9 +445,72 @@ try {
   await recoveryPage.getByRole("button", { name: "Connect to Host" }).click();
   await recoveryPage.getByRole("button", { name: /SER-1/ }).click();
   await expect(recoveryPage.locator(".xterm-screen")).toBeVisible();
+  // Preserve closed-row coverage before the explicit shared-close test unregisters the Session.
   await fixture.command("close");
   await expect(recoveryPage.getByText(/Session closed/).first()).toBeVisible();
   await checkClosedMenus(desktop, recoveryPage);
+  const reopened = await observer.openConnection({
+    kind: "serial",
+    port: "COM-FIXTURE",
+    baud: 115200,
+    dataBits: 8,
+    parity: "none",
+    stopBits: "1",
+    flowControl: "none",
+    label: "Close target",
+  });
+  await desktop.evaluate(({ Menu }) =>
+    Menu.getApplicationMenu().getMenuItemById("session.refresh").click(),
+  );
+  await recoveryPage.getByRole("button", { name: /Close target/ }).click();
+  // Explicit shared close has its own confirmation; cancel and stale IPC never close a target.
+  const invalidClose = await recoveryPage.evaluate(() =>
+    window.channelterm.closeSession("expired-view"),
+  );
+  assert.equal(invalidClose.ok, false);
+  assert.equal(invalidClose.error.code, "cancelled");
+  const openClose = async () => {
+    await expect
+      .poll(() =>
+        desktop.evaluate(
+          ({ Menu }) =>
+            Menu.getApplicationMenu().getMenuItemById("session.close").enabled,
+        ),
+      )
+      .toBe(true);
+    await desktop.evaluate(({ Menu }) =>
+      Menu.getApplicationMenu().getMenuItemById("session.close").click(),
+    );
+  };
+  await openClose();
+  const closeDialog = recoveryPage.getByRole("dialog", {
+    name: "Close shared Session...",
+  });
+  await expect(closeDialog).toContainText(reopened.sessionId);
+  await recoveryPage.screenshot({
+    path: "test-results/shared-session-close.png",
+  });
+  await closeDialog
+    .getByRole("button", { name: "Cancel", exact: true })
+    .click();
+  assert.equal(
+    (await observer.list()).find(
+      (entry) => entry.session_id === reopened.sessionId,
+    ).state,
+    "open",
+  );
+  await openClose();
+  await closeDialog
+    .getByRole("button", { name: "Close for everyone", exact: true })
+    .click();
+  await expect(closeDialog).toHaveCount(0);
+  assert.equal(
+    (await observer.list()).some(
+      (entry) => entry.session_id === reopened.sessionId,
+    ),
+    false,
+  );
+  await expect(recoveryPage.getByText(/Session closed/).first()).toBeVisible();
   await fixture.stop();
   await expect(
     recoveryPage.getByText("Host connection failed", { exact: true }),

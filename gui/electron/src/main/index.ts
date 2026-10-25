@@ -502,6 +502,15 @@ function createHandlers(context: WindowContext): Record<string, Handler> {
         failMove(context.outgoingMove);
       return currentHost(context).detach(id);
     },
+    [channels.closeSession]: (id) => {
+      identifier(id);
+      if (context.files.busy || context.sshFiles.busy || context.outgoingMove)
+        throw new HostError(
+          "busy",
+          "Finish the file operation or tab move first.",
+        );
+      return currentHost(context).closeSession(id);
+    },
     [channels.read]: (id) => {
       identifier(id);
       return currentHost(context).read(id);
@@ -577,6 +586,7 @@ function registerIPC(): void {
               : [
                     channels.focusWindow,
                     channels.detach,
+                    channels.closeSession,
                     channels.read,
                     channels.readClipboard,
                     channels.menuState,
