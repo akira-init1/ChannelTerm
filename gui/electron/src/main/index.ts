@@ -1,5 +1,6 @@
 import { DesktopFiles, TransferConfirmation } from "./files";
 import { DesktopDiagnostics } from "./diagnostics";
+import { DesktopSSHBrowser } from "./ssh-browser";
 import { isDiagnosticRequest } from "../shared/diagnostics";
 import { DesktopSSHFiles } from "./ssh-files";
 import { copyAITarget } from "./target-copy";
@@ -68,6 +69,7 @@ interface WindowContext {
   files: DesktopFiles;
   sshFiles: DesktopSSHFiles;
   diagnostics: DesktopDiagnostics;
+  sshBrowser: DesktopSSHBrowser;
   menu: MenuState;
   handlers: Record<string, Handler>;
   autoConnect: boolean;
@@ -118,6 +120,7 @@ function disconnectHost(context: WindowContext): Promise<void> {
   context.files.clearSelections();
   context.sshFiles.disconnect();
   context.diagnostics.cancel();
+  context.sshBrowser.cancel();
   context.connectionVersion++;
   context.startupController.abort();
   context.connected = false;
@@ -349,6 +352,12 @@ function createHandlers(context: WindowContext): Record<string, Handler> {
       );
     },
     [channels.cancelDiagnostics]: () => context.diagnostics.cancel(),
+    [channels.browseSSH]: (request) => {
+      if (context.files.busy || context.sshFiles.busy)
+        throw new HostError("busy", "Finish the current file operation first.");
+      return context.sshBrowser.browse(currentHost(context), request);
+    },
+    [channels.cancelSSHBrowse]: () => context.sshBrowser.cancel(),
     [channels.copyAITarget]: async (id, locale) => {
       identifier(id);
       if (copyingTarget)
@@ -406,7 +415,11 @@ function createHandlers(context: WindowContext): Record<string, Handler> {
           defaultHostEndpoint,
     }),
     [channels.connect]: async () => {
-      if (context.files.busy || context.sshFiles.busy)
+      if (
+        context.files.busy ||
+        context.sshFiles.busy ||
+        context.sshBrowser.busy
+      )
         throw new HostError(
           "busy",
           "Finish or cancel the file operation before reconnecting.",
@@ -489,7 +502,11 @@ function createHandlers(context: WindowContext): Record<string, Handler> {
       return context.files.transfer(currentHost(context), request);
     },
     [channels.startSSHTransfer]: (request) => {
-      if (context.files.busy || context.sshFiles.busy)
+      if (
+        context.files.busy ||
+        context.sshFiles.busy ||
+        context.sshBrowser.busy
+      )
         throw new HostError("busy", "Finish the current file operation first.");
       return context.sshFiles.transfer(currentHost(context), request, (r) =>
         context.files.takeSelection(r.sessionId, r.selectionId, r.direction),
@@ -637,6 +654,7 @@ function registerIPC(): void {
                     channels.read,
                     channels.activity,
                     channels.saveDiagnostics,
+                    channels.browseSSH,
                     channels.readClipboard,
                     channels.menuState,
                     channels.openConnection,
@@ -696,6 +714,7 @@ function makeWindow(
     files: new DesktopFiles(fileExecutable),
     sshFiles: new DesktopSSHFiles(fileExecutable),
     diagnostics: new DesktopDiagnostics(),
+    sshBrowser: new DesktopSSHBrowser(fileExecutable),
     menu: { ...initialMenuState },
     handlers: {},
     autoConnect,

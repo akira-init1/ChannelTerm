@@ -1140,6 +1140,86 @@ msgstr "Délai d’écriture (secondes)"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "sshBrowser.directory"
+msgstr "Répertoire"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.empty"
+msgstr "Le répertoire est vide."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.file"
+msgstr "Fichier"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.hide"
+msgstr "Masquer le navigateur"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.hint"
+msgstr "La liste et les propriétés en lecture seule utilisent une connexion SSH distincte et les identifiants de ce formulaire. Choisir un chemin ne transfère aucun fichier."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.list"
+msgstr "Lister le répertoire"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.loading"
+msgstr "Lecture…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.location"
+msgstr "Répertoire affiché"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.open"
+msgstr "Ouvrir le répertoire"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.other"
+msgstr "Autre"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.path"
+msgstr "Chemin du répertoire ou de l’entrée"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.stat"
+msgstr "Propriétés"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.symlink"
+msgstr "Lien symbolique"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.title"
+msgstr "Parcourir SFTP"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.use"
+msgstr "Utiliser le chemin"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.useDirectory"
+msgstr "Utiliser le chemin du répertoire"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "tab.close"
 msgstr "Fermer l’onglet (détacher)"
 

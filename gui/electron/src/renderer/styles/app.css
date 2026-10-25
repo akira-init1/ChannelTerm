@@ -1245,3 +1245,35 @@ main {
 .diagnostic-result code {
   font-size: 12px;
 }
+
+.ssh-browser {
+  border: 1px solid #384354;
+  border-radius: 6px;
+  padding: 12px;
+  margin-top: 12px;
+}
+.ssh-browser h3 {
+  margin-top: 0;
+}
+.ssh-browser ul {
+  list-style: none;
+  padding: 0;
+  max-height: 260px;
+  overflow: auto;
+}
+.ssh-browser li {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 0;
+  border-bottom: 1px solid #384354;
+  overflow-wrap: anywhere;
+}
+.ssh-browser li div {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.ssh-browser small {
+  color: #a9b8cb;
+}

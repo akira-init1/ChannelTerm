@@ -1140,6 +1140,86 @@ msgstr "Tiempo límite de escritura (segundos)"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "sshBrowser.directory"
+msgstr "Directorio"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.empty"
+msgstr "El directorio está vacío."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.file"
+msgstr "Archivo"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.hide"
+msgstr "Ocultar explorador"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.hint"
+msgstr "La lista y las propiedades de solo lectura usan una conexión SSH independiente y las credenciales de este formulario. Elegir una ruta no transfiere archivos."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.list"
+msgstr "Listar directorio"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.loading"
+msgstr "Leyendo…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.location"
+msgstr "Directorio mostrado"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.open"
+msgstr "Abrir directorio"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.other"
+msgstr "Otro"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.path"
+msgstr "Ruta de directorio o entrada"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.stat"
+msgstr "Propiedades"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.symlink"
+msgstr "Enlace simbólico"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.title"
+msgstr "Explorar SFTP"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.use"
+msgstr "Usar ruta"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.useDirectory"
+msgstr "Usar ruta del directorio"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "tab.close"
 msgstr "Cerrar pestaña (desadjuntar)"
 

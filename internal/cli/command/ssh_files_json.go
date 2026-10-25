@@ -6,7 +6,9 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"io/fs"
 	"time"
+	"unicode/utf8"
 
 	"github.com/akira-init1/ChannelTerm/internal/core/app"
 	sshtransport "github.com/akira-init1/ChannelTerm/internal/transport/ssh"
@@ -97,6 +99,9 @@ func runSSHFilesJSON(ctx context.Context, output io.Writer, r app.SSHFilesReques
 		return err
 	}
 	result, err := run(ctx, r)
+	if r.Operation == "ls" || r.Operation == "stat" {
+		return writeSSHEntriesJSON(ctx, encode, r.Operation, result, err)
+	}
 	kind := "completed"
 	if err != nil {
 		kind = "failed"
@@ -105,4 +110,59 @@ func runSSHFilesJSON(ctx context.Context, output io.Writer, r app.SSHFilesReques
 		}
 	}
 	return errors.Join(err, encode(map[string]any{"type": kind, "files": result.Files, "bytes": result.Bytes, "verified_files": result.VerifiedFiles}))
+}
+
+// writeSSHEntriesJSON validates the entire read-only result before exposing any
+// entries. Bounds apply to machine output; the existing SFTP client enumerates
+// a directory before returning. Human listing and transfer records are unchanged.
+func writeSSHEntriesJSON(ctx context.Context, encode func(any) error, operation string, result app.SSHFilesResult, runErr error) error {
+	err := runErr
+	if err == nil {
+		err = ctx.Err()
+	}
+	if err == nil {
+		if len(result.Entries) > 1024 || operation == "stat" && len(result.Entries) != 1 {
+			err = errors.New("SFTP listing exceeds entry limit or has invalid stat result")
+		}
+		nameBytes := 0
+		for _, entry := range result.Entries {
+			if err != nil {
+				break
+			}
+			nameBytes += len(entry.Name)
+			if len(entry.Name) == 0 || len(entry.Name) > 4096 || !utf8.ValidString(entry.Name) || nameBytes > 1024*1024 || entry.Size < 0 {
+				err = errors.New("SFTP listing metadata exceeds limits or is invalid")
+				break
+			}
+		}
+	}
+	if err != nil {
+		kind := "failed"
+		if errors.Is(err, context.Canceled) {
+			kind = "cancelled"
+		}
+		code := "operation_failed"
+		if runErr == nil && ctx.Err() == nil {
+			code = "listing_limit"
+		}
+		return errors.Join(err, encode(map[string]any{"type": kind, "entries": 0, "error_code": code}))
+	}
+	for _, entry := range result.Entries {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		kind := "other"
+		switch {
+		case entry.Mode&fs.ModeSymlink != 0:
+			kind = "symlink"
+		case entry.Mode.IsDir():
+			kind = "directory"
+		case entry.Mode.IsRegular():
+			kind = "file"
+		}
+		if err := encode(map[string]any{"type": "entry", "name": entry.Name, "kind": kind, "size": entry.Size, "mode": entry.Mode.String(), "modified": entry.Modified.UTC().Format(time.RFC3339Nano)}); err != nil {
+			return err
+		}
+	}
+	return encode(map[string]any{"type": "completed", "entries": len(result.Entries)})
 }

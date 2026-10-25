@@ -54,6 +54,48 @@ export async function checkSSHFiles(desktop, page, fixture) {
       .fill(join(dirname(fixture.knownHosts), "identity"));
     await dialog.locator('[name="knownHostsFile"]').fill(fixture.knownHosts);
     await dialog.locator('[name="password"]').fill("fixture-password");
+    if (receive) {
+      await dialog
+        .getByRole("button", { name: "Browse SFTP", exact: true })
+        .click();
+      const browser = dialog.getByRole("region", { name: "Browse SFTP" });
+      const path = browser.getByRole("textbox", {
+        name: "Directory or entry path",
+      });
+      await browser
+        .getByRole("button", { name: "List directory", exact: true })
+        .click();
+      const row = browser
+        .getByRole("listitem")
+        .filter({ has: page.getByText("gui-payload.bin", { exact: true }) });
+      await expect(row).toBeVisible();
+      await row
+        .getByRole("button", { name: "Properties", exact: true })
+        .click();
+      await expect(browser.getByRole("status")).toContainText(
+        String(payload.length),
+      );
+      await path.fill("/missing-browser-entry");
+      await browser
+        .locator(".file-selection")
+        .getByRole("button", { name: "Properties", exact: true })
+        .click();
+      await expect(browser.getByRole("alert")).toBeVisible();
+      await expect(browser.getByRole("status")).toHaveCount(0);
+      await path.fill("/");
+      await path.press("Enter");
+      await expect(browser.getByRole("alert")).toHaveCount(0);
+      await row.getByRole("button", { name: "Use path", exact: true }).click();
+      await expect(dialog.locator('[name="remotePath"]')).toHaveValue(
+        "/gui-payload.bin",
+      );
+      await expect(dialog).toBeVisible(); // Choosing a path must not start a transfer.
+      await page.screenshot({ path: "test-results/ssh-browser.png" });
+      await dialog
+        .getByRole("button", { name: "Hide browser", exact: true })
+        .click();
+      await expect(browser).toHaveCount(0);
+    }
     await desktop.evaluate(
       ({ dialog }, path) => {
         dialog.showOpenDialog = async () => ({

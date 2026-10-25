@@ -1140,6 +1140,86 @@ msgstr "写入超时（秒）"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "sshBrowser.directory"
+msgstr "目录"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.empty"
+msgstr "目录为空。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.file"
+msgstr "文件"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.hide"
+msgstr "隐藏浏览器"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.hint"
+msgstr "只读目录和属性查询使用独立 SSH 连接及本表单中的凭据。选择路径不会传输文件。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.list"
+msgstr "列出目录"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.loading"
+msgstr "正在读取…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.location"
+msgstr "已列出的目录"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.open"
+msgstr "打开目录"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.other"
+msgstr "其他"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.path"
+msgstr "目录或条目路径"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.stat"
+msgstr "属性"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.symlink"
+msgstr "符号链接"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.title"
+msgstr "浏览 SFTP"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.use"
+msgstr "使用路径"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.useDirectory"
+msgstr "使用目录路径"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "tab.close"
 msgstr "关闭标签（分离）"
 

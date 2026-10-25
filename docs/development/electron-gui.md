@@ -123,6 +123,11 @@ It substitutes only the native picker result with a disposable local path; the p
 selection/endpoint checks still run. Screenshots are `test-results/ssh-file-dialog.png` and
 `ssh-file-progress.png`. The SCP option disables resume; SCP server interoperability is covered
 separately from this SFTP fixture.
+The same desktop scenario lists the uploaded file through **Browse SFTP**, inspects its size,
+checks a missing-path error, retries with Enter, selects the path without starting a transfer,
+and then downloads it. `test-results/ssh-browser.png` captures this view. The Node suite covers
+listing limits, malformed records, failed child exit, credential isolation, cancellation before
+launch/during I/O, stale targets and root-directory properties using disposable fixtures.
 During an owned transfer, native tests also repeat window-close and app-quit requests, verify one
 themed notice and no native message box, dismiss with Escape/Continue, and then explicitly cancel
 the transfer. `test-results/file-close-notice.png` captures the notice.

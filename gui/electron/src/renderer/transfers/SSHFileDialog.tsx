@@ -5,8 +5,9 @@ import type {
 } from "../../shared/transfers";
 import type { ClientError } from "../../shared/api";
 import { host, unwrap } from "../host";
+import { SSHBrowser } from "./SSHBrowser";
 
-/** Dedicated file credentials are entered afresh and cleared before dispatch. */
+/** Credentials stay in the live form for explicit browsing and are cleared before transfer dispatch. */
 export function SSHFileDialog({
   sessionId,
   name,
@@ -25,6 +26,7 @@ export function SSHFileDialog({
   onClose: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
   const choosing = useRef(false);
   const [local, setLocal] = useState<LocalSelection>();
   const [busy, setBusy] = useState(false);
@@ -32,6 +34,8 @@ export function SSHFileDialog({
   const [protocol, setProtocol] = useState<"sftp" | "scp">("sftp");
   const [recursive, setRecursive] = useState(false);
   const [resume, setResume] = useState(false);
+  const [browserOpen, setBrowserOpen] = useState(false);
+  const [browsing, setBrowsing] = useState(false);
   useEffect(() => {
     dialog.current?.showModal();
   }, []);
@@ -58,16 +62,42 @@ export function SSHFileDialog({
       setBusy(false);
     }
   }
-  function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!local || busy) return;
-    const form = event.currentTarget;
+  function readConnection(
+    form: HTMLFormElement,
+  ): SSHTransferRequest["connection"] {
     const data = new FormData(form);
     const value = (name: string) => String(data.get(name) ?? "");
     const at = endpoint.lastIndexOf("@");
     const colon = endpoint.lastIndexOf(":");
     if (at < 1 || colon < at) {
-      setError(t("connection.invalid"));
+      throw new Error(t("connection.invalid"));
+    }
+    return {
+      kind: "ssh",
+      host: endpoint.slice(at + 1, colon).replace(/^\[|\]$/g, ""),
+      user: endpoint.slice(0, at),
+      port: Number(endpoint.slice(colon + 1)),
+      label: "",
+      identityFiles: value("identityFiles")
+        .split(/\r?\n/)
+        .map((s) => s.trim())
+        .filter(Boolean),
+      knownHostsFile: value("knownHostsFile").trim(),
+      ...(value("password") ? { password: value("password") } : {}),
+      ...(value("keyPassphrase")
+        ? { keyPassphrase: value("keyPassphrase") }
+        : {}),
+    };
+  }
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!local || busy || browsing) return;
+    const form = event.currentTarget;
+    let connection: SSHTransferRequest["connection"];
+    try {
+      connection = readConnection(form);
+    } catch (error) {
+      setError((error as Error).message);
       return;
     }
     const request: SSHTransferRequest = {
@@ -77,23 +107,8 @@ export function SSHFileDialog({
       protocol,
       resume,
       recursive,
-      remotePath: value("remotePath"),
-      connection: {
-        kind: "ssh",
-        host: endpoint.slice(at + 1, colon).replace(/^\[|\]$/g, ""),
-        user: endpoint.slice(0, at),
-        port: Number(endpoint.slice(colon + 1)),
-        label: "",
-        identityFiles: value("identityFiles")
-          .split(/\r?\n/)
-          .map((s) => s.trim())
-          .filter(Boolean),
-        knownHostsFile: value("knownHostsFile").trim(),
-        ...(value("password") ? { password: value("password") } : {}),
-        ...(value("keyPassphrase")
-          ? { keyPassphrase: value("keyPassphrase") }
-          : {}),
-      },
+      remotePath: String(new FormData(form).get("remotePath") ?? ""),
+      connection,
     };
     form
       .querySelectorAll<HTMLInputElement>('input[type="password"]')
@@ -118,8 +133,8 @@ export function SSHFileDialog({
       </h2>
       <p>{endpoint}</p>
       <p className="file-hint">{t("file.sshHint")}</p>
-      <form onSubmit={submit}>
-        <fieldset disabled={busy}>
+      <form ref={formRef} onSubmit={submit}>
+        <fieldset disabled={busy || browsing}>
           <label>
             {t("file.protocol")}
             <select
@@ -208,13 +223,49 @@ export function SSHFileDialog({
             <input name="knownHostsFile" maxLength={4096} />
           </label>
           <p className="file-hint">{t("file.localTrust")}</p>
+          {protocol === "sftp" && (
+            <button
+              type="button"
+              onClick={() => setBrowserOpen((value) => !value)}
+            >
+              {t(browserOpen ? "sshBrowser.hide" : "sshBrowser.title")}
+            </button>
+          )}
         </fieldset>
+        {browserOpen && protocol === "sftp" && (
+          <SSHBrowser
+            t={t}
+            onBusy={setBrowsing}
+            query={(operation, path) =>
+              unwrap(
+                host.browseSSH({
+                  sessionId,
+                  operation,
+                  path,
+                  connection: readConnection(formRef.current!),
+                }),
+              )
+            }
+            onSelect={(path, kind) => {
+              const field = formRef.current?.elements.namedItem("remotePath");
+              if (field instanceof HTMLInputElement) field.value = path;
+              if (direction === "receive") {
+                setRecursive(kind === "directory");
+                if (kind === "directory") setResume(false);
+              }
+            }}
+          />
+        )}
         {error && <p role="alert">{error}</p>}
         <footer>
           <button type="button" disabled={busy} onClick={onClose}>
             {t("connection.cancel")}
           </button>
-          <button type="submit" className="primary" disabled={busy || !local}>
+          <button
+            type="submit"
+            className="primary"
+            disabled={busy || browsing || !local}
+          >
             {t(`file.${direction}`)}
           </button>
         </footer>

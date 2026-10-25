@@ -44,7 +44,7 @@ func runSSHFilesWithProgress(ctx context.Context, protocol string, args []string
 	safeReplace := flags.Bool("safe-replace", false, "stage each SFTP file before replacement; requires --overwrite (upload needs POSIX rename)")
 	verify := flags.String("verify", "none", "file verification: none or sha256 (put/get; SCP requires remote sha256sum)")
 	resume := flags.Bool("resume", false, "continue a single SFTP file after comparing its existing prefix; implies SHA-256 verification")
-	machine := flags.Bool("json", false, "emit bounded JSON-line progress and results for put/get")
+	machine := flags.Bool("json", false, "emit bounded JSON-line results for put/get and SFTP ls/stat")
 	credentials := flags.Bool("credentials-stdin", false, "read one bounded JSON credential object from stdin; requires --json; never prompts")
 	flags.Usage = func() {
 		fmt.Fprintf(output, "Usage: channelterm %s USER@HOST OPERATION [paths] [options]\n", protocol)
@@ -144,8 +144,8 @@ func runSSHFilesWithProgress(ctx context.Context, protocol string, args []string
 	if *resume {
 		r.Verify = "sha256"
 	}
-	if *machine && r.Operation != "put" && r.Operation != "get" {
-		return errors.New("--json requires put or get")
+	if *machine && r.Operation != "put" && r.Operation != "get" && r.Operation != "ls" && r.Operation != "stat" {
+		return errors.New("--json requires put/get or SFTP ls/stat")
 	}
 	if *credentials && !*machine {
 		return errors.New("--credentials-stdin requires --json")

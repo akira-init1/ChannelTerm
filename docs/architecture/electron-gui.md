@@ -332,6 +332,18 @@ and dedicated SSH operations share that window's busy gate. Renderer reload/cras
 the owned SSH child and clears its display history, so a disconnected view cannot strand an
 uncancellable background transfer.
 
+The read-only `ssh-browser.ts` adapter uses the same fixed companion's structured SFTP
+`ls/stat` records. It validates the live SSH endpoint before launch and again before returning
+the snapshot, with one request per window, a 25-second CLI operation timeout and a 30-second
+child-process deadline. It exposes no management operation or arbitrary command. Main rejects
+malformed streams, unsafe navigation names, duplicate names, unsafe numeric metadata, more than
+1024 entries, over 1 MiB of names, records above 32 KiB or streams above 8 MiB; it waits for
+completion and successful process exit before publishing rows. Browsing retains no credentials
+or history; secrets go through stdin and stderr is discarded. Dialog disposal or window/Host
+cleanup cancels the child without closing the shared terminal. Starting an SSH transfer or
+reconnecting is blocked until browsing has settled. The existing SFTP client enumerates a
+directory before producing this bounded machine result; this is not server-side pagination.
+
 For serial transfers, Host Client separately reads structured Session events for UI progress and cursor-based terminal
 presentation. It refreshes events after each raw read before exposing bytes, so a published Lease
 boundary precedes suppression. Event loss suppresses uncertain bytes and reports display loss;

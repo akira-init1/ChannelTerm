@@ -1140,6 +1140,86 @@ msgstr "寫入逾時（秒）"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "sshBrowser.directory"
+msgstr "目錄"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.empty"
+msgstr "目錄為空。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.file"
+msgstr "檔案"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.hide"
+msgstr "隱藏瀏覽器"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.hint"
+msgstr "唯讀目錄與屬性查詢使用獨立 SSH 連線及此表單中的認證資訊。選擇路徑不會傳輸檔案。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.list"
+msgstr "列出目錄"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.loading"
+msgstr "正在讀取…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.location"
+msgstr "已列出的目錄"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.open"
+msgstr "開啟目錄"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.other"
+msgstr "其他"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.path"
+msgstr "目錄或項目路徑"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.stat"
+msgstr "屬性"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.symlink"
+msgstr "符號連結"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.title"
+msgstr "瀏覽 SFTP"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.use"
+msgstr "使用路徑"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.useDirectory"
+msgstr "使用目錄路徑"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "tab.close"
 msgstr "關閉分頁（解除附加）"
 

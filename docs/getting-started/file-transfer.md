@@ -516,6 +516,16 @@ picker for the local file/directory or download folder. Enable the directory opt
 downloads. The destination's parent must exist. Relative paths use the SSH server's starting
 directory, not the selected terminal's current directory.
 
+For SFTP, **Browse SFTP** lists a directory or inspects one path's properties using the
+credentials in the form. Enter a directory and choose **List directory** (or press Enter),
+then **Open directory**, **Properties**, or **Use path** on a row. **Use directory path**
+selects the listed directory. Selection fills the form without transferring anything;
+receiving a directory enables the recursive option. Cancel a pending read or close the dialog
+to stop browsing; retry explicitly after correcting credentials, trust or the path. Results
+are limited to 1024 entries with bounded names; oversized or unsupported metadata produces an
+error. There is no pagination, remote mutation or terminal-directory synchronization. Links
+and special entries are inspectable but cannot be selected for transfer.
+
 Authentication uses a separate connection from the desktop computer. Enter any required password,
 key/passphrase and known-hosts path again; Host-side credentials are not retrieved. Key and trust
 paths refer to the desktop computer. Unknown hosts fail: establish trust separately using the CLI

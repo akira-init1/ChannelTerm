@@ -1140,6 +1140,86 @@ msgstr "書き込みタイムアウト（秒）"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "sshBrowser.directory"
+msgstr "ディレクトリ"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.empty"
+msgstr "ディレクトリは空です。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.file"
+msgstr "ファイル"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.hide"
+msgstr "参照を閉じる"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.hint"
+msgstr "読み取り専用の一覧と属性の取得には、独立した SSH 接続とこのフォームの認証情報を使います。パスを選んでも転送は開始しません。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.list"
+msgstr "一覧を表示"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.loading"
+msgstr "読み取り中…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.location"
+msgstr "表示中のディレクトリ"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.open"
+msgstr "ディレクトリを開く"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.other"
+msgstr "その他"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.path"
+msgstr "ディレクトリまたは項目のパス"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.stat"
+msgstr "属性"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.symlink"
+msgstr "シンボリックリンク"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.title"
+msgstr "SFTP を参照"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.use"
+msgstr "パスを使用"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshBrowser.useDirectory"
+msgstr "ディレクトリのパスを使用"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "tab.close"
 msgstr "タブを閉じる（切り離す）"
 

@@ -431,6 +431,18 @@ updates per second per file, except file boundaries/final payload. Completion re
 remain on stderr. Machine mode never prompts; keys or supplied credentials and existing host trust
 must permit authentication. Argument/authentication-configuration errors can precede `started`.
 
+SFTP `ls`/`stat` also accept `--json`: `started`, zero or more `entry` records with
+`name`, `kind` (`file`, `directory`, `symlink`, `other`), `size` in bytes, Go file `mode`
+text and UTC RFC3339Nano `modified`, then `completed` with an `entries` count. `stat`
+requires exactly one entry. Before emitting entries, machine mode checks a maximum of
+1024 entries, 4096 UTF-8 bytes per name, 1 MiB of names in total, valid UTF-8 and nonnegative
+sizes. Rejected metadata emits `failed` with `entries: 0` and `error_code: listing_limit`;
+operation failures use `operation_failed`, with `cancelled` for context cancellation.
+Consumers must discard partial records unless completion and process exit both succeed.
+These bounds apply to output: the existing SFTP client still enumerates the directory before
+returning it. Human listings and transfer records are unchanged; management operations do
+not accept `--json`.
+
 `--credentials-stdin` requires `--json`. It reads one JSON object to EOF, with optional string
 fields `password` and `key_passphrase`, rejects unknown fields/trailing data, and disables prompts
 including first-host trust confirmation. Input is limited to 65,536 bytes and each secret to

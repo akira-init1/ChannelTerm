@@ -3,6 +3,26 @@ import type { MessageDescriptor } from "@lingui/core";
 // Lingui 5 extracts these official annotated descriptors without a runtime macro
 // transform. Translations belong in PO catalogs; this file owns IDs and English defaults.
 export const menuMessages = [
+  /* i18n */ { id: "sshBrowser.title", message: "Browse SFTP" },
+  /* i18n */ {
+    id: "sshBrowser.hint",
+    message:
+      "Read-only listing and properties use a separate SSH connection and the credentials in this form. Selecting a path does not transfer files.",
+  },
+  /* i18n */ { id: "sshBrowser.path", message: "Directory or entry path" },
+  /* i18n */ { id: "sshBrowser.list", message: "List directory" },
+  /* i18n */ { id: "sshBrowser.stat", message: "Properties" },
+  /* i18n */ { id: "sshBrowser.useDirectory", message: "Use directory path" },
+  /* i18n */ { id: "sshBrowser.loading", message: "Reading..." },
+  /* i18n */ { id: "sshBrowser.location", message: "Listed directory" },
+  /* i18n */ { id: "sshBrowser.empty", message: "Directory is empty." },
+  /* i18n */ { id: "sshBrowser.file", message: "File" },
+  /* i18n */ { id: "sshBrowser.directory", message: "Directory" },
+  /* i18n */ { id: "sshBrowser.symlink", message: "Symbolic link" },
+  /* i18n */ { id: "sshBrowser.other", message: "Other" },
+  /* i18n */ { id: "sshBrowser.open", message: "Open directory" },
+  /* i18n */ { id: "sshBrowser.use", message: "Use path" },
+  /* i18n */ { id: "sshBrowser.hide", message: "Hide browser" },
   /* i18n */ { id: "diagnostics.close", message: "Close" },
   /* i18n */ { id: "diagnostics.title", message: "Diagnostic ZIP…" },
   /* i18n */ {

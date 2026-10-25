@@ -29,6 +29,14 @@ only saves resumable data when **Keep a checkpoint for manual resume** is checke
 
 Send/Receive also accepts open SSH Sessions, using a separate SFTP/SCP connection. Its dialog
 provides a single-file SFTP resume checkbox; the `file.resume` checkpoint action remains serial-only.
+Selecting SFTP also offers **Browse SFTP**: explicitly list a directory, open a listed
+subdirectory, inspect properties, or choose a file/directory path for the transfer form.
+Choosing a path does not start a transfer. Symbolic links and other special entries can be
+inspected but cannot be selected for transfer. Browsing uses the form's local credentials and
+trust file, does not grant first-host trust, and supports cancellation or closing the dialog.
+Lists are bounded; unsupported names/metadata or excessive listings produce an error rather
+than a partial selectable result. The form retains entered credentials only while open and
+clears password fields before transfer dispatch.
 See the [SSH file workflow](../getting-started/file-transfer.md#electron-sftpscp-progress-and-resume)
 for authentication, verification and cancellation.
 
