@@ -177,9 +177,12 @@ export async function checkTerminalControls(
       Menu.getApplicationMenu().getMenuItemById("tab.next").click(),
     );
     await expect(page.locator(".terminal-empty")).toBeVisible();
-    await desktop.evaluate(({ Menu }) =>
-      Menu.getApplicationMenu().getMenuItemById("tab.close").click(),
-    );
+    // The native menu snapshot can still refer to the previous attachment while
+    // its IPC update is pending. This step closes the rendered empty tab itself.
+    await page
+      .locator(".terminal-tab.active")
+      .getByRole("button", { name: "Close tab (detach)", exact: true })
+      .click();
     await expect(terminal).toBeVisible();
 
     await showPreview("detached\ndraft");
