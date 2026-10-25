@@ -645,6 +645,66 @@ msgstr "文字包含換行，可能在目標上執行命令。請確認內容後
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "profiles.default"
+msgstr "預設"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "profiles.hint"
+msgstr "設定檔與 Host 的 CLI 共用。載入和儲存不會開啟序列埠。首次儲存的設定檔會成為預設。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "profiles.load"
+msgstr "重新整理設定檔"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "profiles.name"
+msgstr "設定檔名稱"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "profiles.replace"
+msgstr "允許覆寫此名稱"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "profiles.save"
+msgstr "儲存目前設定"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "profiles.saved"
+msgstr "設定已儲存。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "profiles.select"
+msgstr "套用設定檔"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "profiles.setDefault"
+msgstr "設為預設"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "profiles.title"
+msgstr "序列埠設定檔"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "profiles.wake"
+msgstr "連線時傳送歸位喚醒位元組"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "profiles.wakeHint"
+msgstr "即使設定檔啟用了喚醒，也須在此手動勾選才會傳送。儲存設定檔會記錄目前選擇。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "search.case"
 msgstr "區分大小寫"
 

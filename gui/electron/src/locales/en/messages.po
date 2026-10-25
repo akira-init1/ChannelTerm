@@ -645,6 +645,66 @@ msgstr "This text contains line breaks and may execute commands on the target. R
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "profiles.default"
+msgstr "default"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "profiles.hint"
+msgstr "Profiles use the Host's CLI configuration. Loading and saving never opens a port. The first saved profile becomes the default."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "profiles.load"
+msgstr "Refresh profiles"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "profiles.name"
+msgstr "Profile name"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "profiles.replace"
+msgstr "Allow replacing this name"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "profiles.save"
+msgstr "Save current settings"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "profiles.saved"
+msgstr "Configuration saved."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "profiles.select"
+msgstr "Apply profile"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "profiles.setDefault"
+msgstr "Set as default"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "profiles.title"
+msgstr "Serial profiles"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "profiles.wake"
+msgstr "Send wake carriage return when opening"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "profiles.wakeHint"
+msgstr "Wake is always off until you select it here, even for profiles with wake enabled. Saving stores this choice."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "search.case"
 msgstr "Match case"
 

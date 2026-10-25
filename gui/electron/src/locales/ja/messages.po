@@ -645,6 +645,66 @@ msgstr "このテキストには改行が含まれており、対象でコマン
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "profiles.default"
+msgstr "既定"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "profiles.hint"
+msgstr "Host の CLI と設定を共有します。読み込みと保存ではポートを開きません。最初に保存したプロファイルが既定になります。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "profiles.load"
+msgstr "プロファイルを更新"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "profiles.name"
+msgstr "プロファイル名"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "profiles.replace"
+msgstr "同じ名前の上書きを許可"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "profiles.save"
+msgstr "現在の設定を保存"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "profiles.saved"
+msgstr "設定を保存しました。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "profiles.select"
+msgstr "プロファイルを適用"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "profiles.setDefault"
+msgstr "既定に設定"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "profiles.title"
+msgstr "シリアルプロファイル"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "profiles.wake"
+msgstr "接続時に復帰文字を送信して起動"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "profiles.wakeHint"
+msgstr "プロファイルで有効でも、ここで選択するまで起動用の文字を送りません。保存時には現在の選択を記録します。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "search.case"
 msgstr "大文字と小文字を区別"
 

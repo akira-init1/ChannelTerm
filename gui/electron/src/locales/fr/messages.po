@@ -645,6 +645,66 @@ msgstr "Ce texte contient des sauts de ligne et peut exécuter des commandes sur
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "profiles.default"
+msgstr "par défaut"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "profiles.hint"
+msgstr "Les profils utilisent la configuration CLI du Host. Le chargement et l’enregistrement n’ouvrent aucun port. Le premier profil enregistré devient le profil par défaut."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "profiles.load"
+msgstr "Actualiser les profils"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "profiles.name"
+msgstr "Nom du profil"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "profiles.replace"
+msgstr "Autoriser le remplacement de ce nom"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "profiles.save"
+msgstr "Enregistrer les réglages actuels"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "profiles.saved"
+msgstr "Configuration enregistrée."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "profiles.select"
+msgstr "Appliquer le profil"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "profiles.setDefault"
+msgstr "Définir par défaut"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "profiles.title"
+msgstr "Profils série"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "profiles.wake"
+msgstr "Envoyer un retour chariot de réveil à la connexion"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "profiles.wakeHint"
+msgstr "Le réveil reste désactivé tant que vous ne le sélectionnez pas ici, même si le profil l’active. L’enregistrement conserve ce choix."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "search.case"
 msgstr "Respecter la casse"
 

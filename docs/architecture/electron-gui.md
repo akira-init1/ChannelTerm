@@ -381,13 +381,19 @@ Preload is an isolated context, not a third application process. Main may launch
 standalone Go Host, but closing the GUI never stops that Host or its shared Sessions. Renderer sandboxing and `contextIsolation` are enabled, and `nodeIntegration`
 is disabled. The production UI is served through a restricted `channelterm://app/` scheme.
 
+Serial profile selection and edits use Main-owned fixed desktop API requests to Application.
+Core configuration owns resolved values, the default name and locked persistence shared with CLI.
+Renderer holds only the editable form and returned snapshot; Main accepts no configuration path.
+Profile reads/saves do not create Sessions. See [the desktop contract](../reference/gui-host-api.md#serial-profiles).
+
 ## Existing Host contracts
 
 | GUI operation | Existing MCP tool / behavior |
 | --- | --- |
 | Connect | SDK initialization; require server name `channelterm`; authenticated Session listing |
 | Refresh | `terminal_list_sessions`; project display metadata and public lease summary only |
-| Scan / create serial | `terminal_list_serial_ports` / `terminal_open_serial`, explicit settings and `wake:false` |
+| Scan / create serial | `terminal_list_serial_ports` / `terminal_open_serial`, explicit settings and per-form wake opt-in (off by default) |
+| Read / save serial profiles | Fixed authenticated `/gui/v1/serial-profiles` route; shared CLI configuration, no device open |
 | Create SSH | Main POSTs bounded settings to the fixed authenticated `/gui/v1/ssh` route; no MCP schema changes |
 | Attach / detach | `terminal_session_attach` / `terminal_session_detach` with actor `user` |
 | Initial output | `terminal_read` without cursor, Base64, at most 64 KiB |

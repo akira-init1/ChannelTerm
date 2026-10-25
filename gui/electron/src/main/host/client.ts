@@ -1,3 +1,8 @@
+import {
+  isSerialProfileChange,
+  isSerialProfiles,
+  type SerialProfiles,
+} from "../../shared/serial-profiles";
 import { TransferEvents } from "./transfer-events";
 import { TerminalCodec } from "./terminal-codec";
 import {
@@ -54,6 +59,7 @@ export class HostClient {
   private connection = new AbortController();
   private attachments = new Map<string, ActiveAttachment>();
   private changing = false;
+  private profilesBusy = false;
   private closing = new Set<string>();
   private sshAvailable = false;
   private sshAdvanced = false;
@@ -341,6 +347,90 @@ export class HostClient {
     });
   }
 
+  private async profilesRequest(request?: unknown): Promise<unknown> {
+    if (!this.client || this.connection.signal.aborted)
+      throw new HostError("disconnected", "Connect to a Host first.");
+    if (this.profilesBusy)
+      throw new HostError("busy", "A profile operation is in progress.");
+    this.profilesBusy = true;
+    try {
+      const response = await fetch(
+        new URL("/gui/v1/serial-profiles", this.endpoint),
+        {
+          method: request === undefined ? "GET" : "POST",
+          body: request === undefined ? undefined : JSON.stringify(request),
+          redirect: "error",
+          headers: {
+            Authorization: `Bearer ${this.token}`,
+            "Content-Type": "application/json",
+          },
+          signal: AbortSignal.any([
+            this.connection.signal,
+            AbortSignal.timeout(8000),
+          ]),
+        },
+      );
+      if (!response.ok) await response.body?.cancel();
+      if (response.status === 401 || response.status === 403)
+        throw new HostError("unauthorized", "Host rejected profile access.");
+      if (response.status === 404 && request === undefined)
+        throw new HostError(
+          "incompatible",
+          "This Host does not provide serial profiles. Update the standalone Host.",
+        );
+      if (response.status === 409)
+        throw new HostError(
+          "busy",
+          "Profile already exists. Enable replacement explicitly to overwrite it.",
+        );
+      if (!response.ok)
+        throw new HostError(
+          "tool_error",
+          "Profile operation failed. Refresh profiles and check Host configuration before retrying.",
+        );
+      // A trusted endpoint still supplies untrusted data. Bound streamed bytes,
+      // including chunked responses without Content-Length.
+      const reader = response.body?.getReader();
+      if (!reader) throw incompatible();
+      const chunks: Uint8Array[] = [];
+      let size = 0;
+      try {
+        for (;;) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          size += value.length;
+          if (size > 524288) throw incompatible();
+          chunks.push(value);
+        }
+      } finally {
+        await reader.cancel().catch(() => {});
+        reader.releaseLock();
+      }
+      return JSON.parse(Buffer.concat(chunks).toString("utf8")) as unknown;
+    } catch (error) {
+      if (error instanceof HostError) throw error;
+      throw new HostError(
+        this.connection.signal.aborted ? "cancelled" : "tool_error",
+        "Profile result is uncertain. Refresh profiles before retrying; the request was not replayed.",
+      );
+    } finally {
+      this.profilesBusy = false;
+    }
+  }
+
+  async serialProfiles(): Promise<SerialProfiles> {
+    const result = await this.profilesRequest();
+    if (!isSerialProfiles(result)) throw incompatible();
+    return result;
+  }
+
+  async changeSerialProfile(request: unknown): Promise<void> {
+    if (!isSerialProfileChange(request))
+      throw new HostError("invalid_input", "Invalid serial profile settings.");
+    if (object(await this.profilesRequest(request)).saved !== true)
+      throw incompatible();
+  }
+
   async serialPorts(): Promise<string[]> {
     const result = await this.call("terminal_list_serial_ports", {});
     if (!Array.isArray(result.ports) || result.ports.length > 10000)
@@ -393,7 +483,7 @@ export class HostClient {
             stop_bits: request.stopBits,
             flow_control: request.flowControl,
             label: request.label,
-            wake: false,
+            wake: request.wake ?? false,
           },
           signal,
         );

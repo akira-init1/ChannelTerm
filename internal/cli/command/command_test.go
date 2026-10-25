@@ -17,6 +17,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/akira-init1/ChannelTerm/internal/core/app"
 	"github.com/akira-init1/ChannelTerm/internal/core/config"
 	"github.com/akira-init1/ChannelTerm/internal/core/connectionpolicy"
 	"github.com/akira-init1/ChannelTerm/internal/core/device"
@@ -266,6 +267,10 @@ func TestGUIEndpointUsesHostAuthentication(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	application, err := app.New(app.Dependencies{Manager: manager, Serial: app.SerialDependencies{ConfigPath: func() (string, error) { return filepath.Join(t.TempDir(), "config.toml"), nil }}})
+	if err != nil {
+		t.Fatal(err)
+	}
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
@@ -273,7 +278,7 @@ func TestGUIEndpointUsesHostAuthentication(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)
 	go func() {
-		done <- serveMCPHTTP(ctx, registry, listener, "/custom-mcp", "fixture-token", false, io.Discard, false, guiapi.NewSSHHandler(nil))
+		done <- serveMCPHTTP(ctx, registry, listener, "/custom-mcp", "fixture-token", false, io.Discard, false, guiapi.NewHandler(application))
 	}()
 	defer func() {
 		cancel()
@@ -285,33 +290,35 @@ func TestGUIEndpointUsesHostAuthentication(t *testing.T) {
 	// pool can leave speculative/idle connections open during graceful shutdown.
 	client := &http.Client{Timeout: time.Second, Transport: &http.Transport{}}
 	defer client.CloseIdleConnections()
-	for _, tc := range []struct {
-		token, origin string
-		status        int
-	}{
-		{"", "", 401}, {"wrong", "", 401}, {"fixture-token", "https://untrusted.invalid", 403}, {"fixture-token", "", 200},
-	} {
-		r, err := http.NewRequest(http.MethodGet, "http://"+listener.Addr().String()+guiapi.SSHPath, nil)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if tc.token != "" {
-			r.Header.Set("Authorization", "Bearer "+tc.token)
-		}
-		if tc.origin != "" {
-			r.Header.Set("Origin", tc.origin)
-		}
-		response, err := client.Do(r)
-		if err != nil {
-			t.Fatal(err)
-		}
-		_, readErr := io.Copy(io.Discard, response.Body)
-		_ = response.Body.Close()
-		if readErr != nil {
-			t.Fatal(readErr)
-		}
-		if response.StatusCode != tc.status {
-			t.Fatalf("status=%d want %d", response.StatusCode, tc.status)
+	for _, route := range []string{guiapi.SSHPath, guiapi.SerialProfilesPath} {
+		for _, tc := range []struct {
+			token, origin string
+			status        int
+		}{
+			{"", "", 401}, {"wrong", "", 401}, {"fixture-token", "https://untrusted.invalid", 403}, {"fixture-token", "", 200},
+		} {
+			r, err := http.NewRequest(http.MethodGet, "http://"+listener.Addr().String()+route, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if tc.token != "" {
+				r.Header.Set("Authorization", "Bearer "+tc.token)
+			}
+			if tc.origin != "" {
+				r.Header.Set("Origin", tc.origin)
+			}
+			response, err := client.Do(r)
+			if err != nil {
+				t.Fatal(err)
+			}
+			_, readErr := io.Copy(io.Discard, response.Body)
+			_ = response.Body.Close()
+			if readErr != nil {
+				t.Fatal(readErr)
+			}
+			if response.StatusCode != tc.status {
+				t.Fatalf("status=%d want %d", response.StatusCode, tc.status)
+			}
 		}
 	}
 }

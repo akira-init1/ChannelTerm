@@ -504,7 +504,7 @@ func runMCP(ctx context.Context, args []string, output io.Writer) (err error) {
 		return err
 	}
 	temporaryHost := os.Getenv(internalTemporaryHostEnvVar) == "1"
-	return runMCPHTTP(ctx, registry, *listen, endpointPath, token, temporaryHost, os.Stderr, guiapi.NewSSHHandler(application))
+	return runMCPHTTP(ctx, registry, *listen, endpointPath, token, temporaryHost, os.Stderr, guiapi.NewHandler(application))
 }
 
 // loadHTTPAuthToken resolves one credential for both Host and built-in client
@@ -566,8 +566,12 @@ func serveMCPHTTP(ctx context.Context, registry *tool.Registry, listener net.Lis
 	mux.Handle(path, requireBearerToken(token, advertiseHostLifetime(temporaryHost, handler)))
 	// Preserve every existing custom MCP path, including a collision with this
 	// optional desktop endpoint. Foreground SSH owners expose no creation API.
-	if gui != nil && path != guiapi.SSHPath {
-		mux.Handle(guiapi.SSHPath, requireBearerToken(token, gui))
+	if gui != nil {
+		for _, route := range []string{guiapi.SSHPath, guiapi.SerialProfilesPath} {
+			if path != route {
+				mux.Handle(route, requireBearerToken(token, gui))
+			}
+		}
 	}
 	server := &http.Server{Handler: mux}
 	endpoint := httpEndpoint(listener.Addr().String(), path)

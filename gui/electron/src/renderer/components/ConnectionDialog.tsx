@@ -1,3 +1,5 @@
+import { SerialProfilesFields } from "./SerialProfiles";
+import type { SerialProfile } from "../../shared/serial-profiles";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
   isConnectionRequest,
@@ -32,6 +34,9 @@ export function ConnectionDialog({
   ) => Promise<void>;
   onClose: () => void;
 }) {
+  const formRef = useRef<HTMLFormElement>(null);
+  const [serialDefaults, setSerialDefaults] = useState<SerialProfile>();
+  const [serialRevision, setSerialRevision] = useState(0);
   const dialog = useRef<HTMLDialogElement>(null);
   const [kind, setKind] = useState(initialKind);
   const submitting = useRef(false);
@@ -44,6 +49,28 @@ export function ConnectionDialog({
   useEffect(() => {
     dialog.current?.showModal();
   }, []);
+  function readSerial(): SerialProfile {
+    const data = new FormData(formRef.current!);
+    const value = (name: string) => String(data.get(name) ?? "");
+    return {
+      port: value("port").trim(),
+      baud: Number(value("baud")),
+      dataBits: Number(value("dataBits")),
+      parity: value("parity"),
+      stopBits: value("stopBits"),
+      flowControl: value("flowControl"),
+      wake: data.get("wake") === "on",
+    };
+  }
+  function applySerial(profile: SerialProfile) {
+    setSerialDefaults(profile);
+    setSerialRevision((version) => version + 1);
+    setBaudChoice(
+      commonBaudRates.some((rate) => rate === profile.baud)
+        ? String(profile.baud)
+        : "custom",
+    );
+  }
   async function scan() {
     setScanning(true);
     setError("");
@@ -65,6 +92,7 @@ export function ConnectionDialog({
     const request: ConnectionRequest =
       kind === "serial"
         ? {
+            ...readSerial(),
             kind,
             port: value("port").trim(),
             baud: Number(value("baud")),
@@ -166,7 +194,11 @@ export function ConnectionDialog({
       }}
       onClose={onClose}
     >
-      <form onSubmit={(event) => void submit(event)} autoComplete="off">
+      <form
+        ref={formRef}
+        onSubmit={(event) => void submit(event)}
+        autoComplete="off"
+      >
         <h2 id="connection-title">{t("connection.new")}</h2>
         <fieldset disabled={busy || scanning}>
           <label>
@@ -181,6 +213,7 @@ export function ConnectionDialog({
                 setError("");
                 setAuth("key");
                 setBaudChoice("115200");
+                setSerialDefaults(undefined);
               }}
             >
               <option value="serial">Serial</option>
@@ -194,81 +227,98 @@ export function ConnectionDialog({
         <fieldset key={kind} disabled={busy || scanning}>
           {kind === "serial" ? (
             <>
-              <label>
-                {t("connection.port")}
-                <div className="connection-port">
-                  <input
-                    name="port"
-                    list="serial-ports"
-                    required
-                    maxLength={512}
-                  />
-                  <button type="button" onClick={() => void scan()}>
-                    {t(scanning ? "connection.scanning" : "connection.scan")}
-                  </button>
-                </div>
-              </label>
-              <datalist id="serial-ports">
-                {ports.map((port) => (
-                  <option key={port} value={port} />
-                ))}
-              </datalist>
-              <div className="connection-grid">
+              <SerialProfilesFields
+                t={t}
+                read={readSerial}
+                apply={applySerial}
+                lock={(value) => {
+                  submitting.current = value;
+                  setBusy(value);
+                }}
+              />
+              <div key={serialRevision}>
                 <label>
-                  {t("connection.baud")}
-                  <select
-                    name={baudChoice === "custom" ? "baudPreset" : "baud"}
-                    value={baudChoice}
-                    onChange={(event) => setBaudChoice(event.target.value)}
-                  >
-                    {commonBaudRates.map((rate) => (
-                      <option key={rate} value={rate}>
-                        {rate}
-                      </option>
-                    ))}
-                    <option value="custom">{t("connection.custom")}</option>
-                  </select>
-                </label>
-                {baudChoice === "custom" && (
-                  <label>
-                    {t("connection.customBaud")}
+                  {t("connection.port")}
+                  <div className="connection-port">
                     <input
-                      name="baud"
-                      type="number"
-                      min={1}
-                      max={4000000}
-                      step={1}
-                      defaultValue={115200}
+                      name="port"
+                      defaultValue={serialDefaults?.port ?? ""}
+                      list="serial-ports"
                       required
+                      maxLength={512}
                     />
+                    <button type="button" onClick={() => void scan()}>
+                      {t(scanning ? "connection.scanning" : "connection.scan")}
+                    </button>
+                  </div>
+                </label>
+                <datalist id="serial-ports">
+                  {ports.map((port) => (
+                    <option key={port} value={port} />
+                  ))}
+                </datalist>
+                <div className="connection-grid">
+                  <label>
+                    {t("connection.baud")}
+                    <select
+                      name={baudChoice === "custom" ? "baudPreset" : "baud"}
+                      value={baudChoice}
+                      onChange={(event) => setBaudChoice(event.target.value)}
+                    >
+                      {commonBaudRates.map((rate) => (
+                        <option key={rate} value={rate}>
+                          {rate}
+                        </option>
+                      ))}
+                      <option value="custom">{t("connection.custom")}</option>
+                    </select>
                   </label>
-                )}
-              </div>
-              <div className="connection-grid">
-                {select(
-                  "dataBits",
-                  "connection.dataBits",
-                  ["5", "6", "7", "8"],
-                  "8",
-                )}
-                {select(
-                  "parity",
-                  "connection.parity",
-                  ["none", "odd", "even", "mark", "space"],
-                  "none",
-                )}
-                {select(
-                  "stopBits",
-                  "connection.stopBits",
-                  ["1", "1.5", "2"],
-                  "1",
-                )}
-                {select(
-                  "flowControl",
-                  "connection.flowControl",
-                  ["none", "software", "hardware"],
-                  "none",
-                )}
+                  {baudChoice === "custom" && (
+                    <label>
+                      {t("connection.customBaud")}
+                      <input
+                        name="baud"
+                        type="number"
+                        min={1}
+                        max={4000000}
+                        step={1}
+                        defaultValue={serialDefaults?.baud ?? 115200}
+                        required
+                      />
+                    </label>
+                  )}
+                </div>
+                <div className="connection-grid">
+                  {select(
+                    "dataBits",
+                    "connection.dataBits",
+                    ["5", "6", "7", "8"],
+                    String(serialDefaults?.dataBits ?? 8),
+                  )}
+                  {select(
+                    "parity",
+                    "connection.parity",
+                    ["none", "odd", "even", "mark", "space"],
+                    serialDefaults?.parity ?? "none",
+                  )}
+                  {select(
+                    "stopBits",
+                    "connection.stopBits",
+                    ["1", "1.5", "2"],
+                    serialDefaults?.stopBits ?? "1",
+                  )}
+                  {select(
+                    "flowControl",
+                    "connection.flowControl",
+                    ["none", "software", "hardware"],
+                    serialDefaults?.flowControl ?? "none",
+                  )}
+                </div>
+                <label className="display-checkbox">
+                  <input type="checkbox" name="wake" />
+                  {t("profiles.wake")}
+                </label>
+                <p className="connection-hint">{t("profiles.wakeHint")}</p>
               </div>
             </>
           ) : (

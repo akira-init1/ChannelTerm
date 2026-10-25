@@ -39,7 +39,7 @@ ChannelTerm/
 |   |       `-- serial/             Serial implementation, discovery, metadata
 |   |-- transport/
 |   |   `-- ssh/                    SSH authentication, PTY shell Channels, dedicated SFTP/SCP clients
-|   |-- guiapi/                     Desktop HTTP connection adapter over the existing Application
+|   |-- guiapi/                     Desktop HTTP connection/profile adapter over Application
 |   `-- mcp/
 |       |-- server.go               MCP server and stdio/HTTP adaptation
 |       `-- terminal/               Terminal tool names, schemas, and translation
@@ -75,7 +75,7 @@ in the existing internal packages.
 
 The main ownership distinctions are deliberate:
 
-- **Desktop HTTP adapter:** `internal/guiapi` exposes bounded SSH creation on the existing
+- **Desktop HTTP adapter:** `internal/guiapi` exposes bounded SSH creation and serial-profile operations on the existing
   authenticated HTTP Host. CLI composition mounts it beside MCP with the same Application;
   it owns no Transport implementation or Session lifecycle. See the
   [desktop Host API](../reference/gui-host-api.md).

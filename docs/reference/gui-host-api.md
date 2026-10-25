@@ -1,13 +1,13 @@
-# Desktop Host Connection API
+# Desktop Host API
 
-The standalone HTTP Host mounts `/gui/v1/ssh` beside its configured MCP endpoint.
+The standalone HTTP Host mounts `/gui/v1/ssh` and `/gui/v1/serial-profiles` beside its configured MCP endpoint.
 This is a separate authenticated HTTP adapter, not an MCP tool. Existing MCP names,
 schemas and stdio behavior are unchanged. `internal/guiapi` calls the same
-`Application.OpenSSH` and Session Manager used by the Host's MCP tools.
+Application connection/configuration use cases and Session Manager used by the Host's CLI/MCP adapters.
 
 ## Exposure and authentication
 
-Both methods require the existing Host Bearer token and run behind its existing
+All methods require the existing Host Bearer token and run behind its existing
 constant-time authentication middleware. They inherit the Host listener; no second
 listener, token, permissions store or automatic Host startup is added. The Electron
 client accepts numeric loopback HTTP endpoints and derives this fixed path in Main.
@@ -20,8 +20,8 @@ read selected identity/trust files on that Host. A remotely exposed HTTP Host st
 requires the trusted-network precautions in the [Host workflow](../getting-started/mcp-server.md).
 
 Older Hosts, stdio Hosts and foreground CLI `ssh` owners do not expose this route.
-If an explicitly configured MCP path equals `/gui/v1/ssh`, that path keeps its MCP
-meaning and the desktop API is not mounted. The GUI probes availability and disables
+If an explicitly configured MCP path equals a desktop route, that path keeps its MCP
+meaning and that desktop route is not mounted. The GUI probes availability and disables
 SSH creation when unavailable; existing shared SSH Sessions can still be attached.
 
 ## Requests and responses
@@ -107,6 +107,46 @@ response is lost after registration, the Session may already exist: refresh the 
 list before retrying. Neither Main nor the API automatically repeats creation or writes.
 
 Serial scanning/creation continues through existing `terminal_list_serial_ports` and
-`terminal_open_serial` MCP tools. The GUI sends explicit serial settings with `wake:false`,
-never a startup command or profile-save request. Selecting a port and pressing Connect is
-explicit user intent; scanning alone opens nothing.
+`terminal_open_serial` MCP tools. The GUI sends explicit form settings, overriding resolved
+profile fields. Wake defaults to false and requires selecting the wake checkbox on each form
+or profile application. Selecting a port and pressing Connect is explicit user intent;
+scanning, reading profiles and saving alone open nothing.
+
+## Serial profiles
+
+`GET /gui/v1/serial-profiles` returns `{"default":"board","profiles":[{"name":"board","profile":{...}}]}`.
+The profile object contains `port`, `baud`, `dataBits`, `parity`, `stopBits`, `flowControl`, and
+`wake`, resolved through the same Core defaults as CLI profiles. Missing configuration returns
+an empty list without creating a file. The endpoint never accepts or returns configuration paths,
+unrelated sections, credentials, terminal settings or Session identifiers.
+
+`POST` accepts one of:
+
+```json
+{"action":"save","name":"board","replace":false,"profile":{"port":"COM8","baud":115200,"dataBits":8,"parity":"none","stopBits":"1","flowControl":"none","wake":false}}
+{"action":"default","name":"board"}
+```
+
+Save persists the displayed connection settings without opening hardware. Existing names require
+`replace:true`; otherwise the result is `409 profile_exists`. Saving the first profile sets the
+default, matching CLI saving. The default action selects an existing name without modifying its
+values; missing names return `404 profile_not_found`. Success is `200 {"saved":true}`. Delete,
+rename and clearing the default are not exposed. Existing CLI/MCP save behavior is unchanged.
+
+Names are nonblank, trimmed, at most 128 UTF-8 bytes, without control characters. Ports are nonblank
+and at most 512 bytes without control characters; baud is 1?4000000. Other serial fields use the
+existing configuration enums/ranges. GET rejects invalid or unsupported entries and more than 256
+profiles with `422 configuration`, rather than silently omitting them. Edit such configurations
+through the CLI/file workflow before retrying. GUI response consumption is bounded to 512 KiB.
+
+The same Bearer/Origin policy as SSH applies. A trusted authenticated client may now read and write
+serial profiles in the Host user's configuration. Unknown fields, query strings and trailing JSON
+are rejected. POST bodies are limited to 8 KiB, with a five-second read deadline. At most two profile
+operations run concurrently. The five-second operation context cancels lock waits and is checked
+before saving; filesystem persistence already in progress may finish after cancellation. Main waits
+at most eight seconds and disconnect cancels the request. Refresh after an uncertain result; no
+mutation is replayed. Configuration errors use fixed safe codes and never disclose local paths.
+
+Persistence uses Core's existing locked read/merge/replace transaction, preserving other profiles
+and modeled configuration sections. See [configuration](configuration.md#precedence-and-saving)
+for OS atomicity limits. No second GUI profile store, new TOML fields, listener or MCP tool is added.

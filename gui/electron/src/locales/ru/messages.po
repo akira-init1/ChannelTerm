@@ -645,6 +645,66 @@ msgstr "Текст содержит переводы строк и может в
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "profiles.default"
+msgstr "по умолчанию"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "profiles.hint"
+msgstr "Профили используют конфигурацию CLI Host. Загрузка и сохранение не открывают порт. Первый сохранённый профиль становится профилем по умолчанию."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "profiles.load"
+msgstr "Обновить профили"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "profiles.name"
+msgstr "Имя профиля"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "profiles.replace"
+msgstr "Разрешить перезапись этого имени"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "profiles.save"
+msgstr "Сохранить текущие настройки"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "profiles.saved"
+msgstr "Конфигурация сохранена."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "profiles.select"
+msgstr "Применить профиль"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "profiles.setDefault"
+msgstr "Сделать профилем по умолчанию"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "profiles.title"
+msgstr "Профили последовательного порта"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "profiles.wake"
+msgstr "Отправить возврат каретки для пробуждения при подключении"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "profiles.wakeHint"
+msgstr "Пробуждение отключено, пока вы не выберете его здесь, даже если оно включено в профиле. При сохранении записывается текущий выбор."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "search.case"
 msgstr "Учитывать регистр"
 

@@ -14,6 +14,17 @@ The standalone HTTP Host shares one Application between MCP and the
 [desktop connection adapter](../reference/gui-host-api.md). GUI SSH creation reuses `OpenSSH`;
 no GUI-specific lifecycle or authentication policy is added to Core.
 
+## Serial profile configuration
+
+`ReadSerialProfiles`, `SaveSerialProfile` and `SetSerialDefault` use the Serial service configuration
+path without opening a Transport. Reads resolve Core defaults and do not create absent configuration.
+Saves validate serial settings, require explicit replacement of an existing name, and preserve the
+CLI first-save default behavior. Default selection requires an existing name. Mutations use the
+Core context-aware configuration lock; cancellation before saving leaves existing contents intact,
+but a lost response after saving begins requires re-reading before retrying. The desktop adapter
+adds wire limits and safe errors; [configuration](../reference/configuration.md#precedence-and-saving)
+owns storage and precedence semantics.
+
 ## Use cases
 
 - `OpenSerial`: load or create configuration, resolve a profile, apply explicit overrides,

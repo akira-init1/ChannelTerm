@@ -129,7 +129,7 @@ they are not profile fields and are not persisted by `--save`.
 
 `--save NAME` or MCP `save` writes the final resolved profile before opening the transport. It
 creates or replaces `serial.profiles.NAME`. If `serial.default` is empty, the saved name becomes the
-default. Existing configuration is otherwise read-only.
+default. Other connection opens leave existing configuration read-only.
 
 Writes use a synchronized temporary file in the same directory followed by replacement. Unix targets
 provide atomic rename and directory synchronization. Windows receives a fully synchronized
@@ -137,6 +137,12 @@ replacement file but Go does not guarantee that the final rename is atomic and d
 portable directory-sync operation. Profile saving also holds an adjacent `config.toml.lock` file
 across the latest read, profile merge, and write, so concurrent ChannelTerm processes preserve
 unrelated profile updates. Lock files contain no configuration or credential data.
+
+The [desktop profile API](gui-host-api.md#serial-profiles) also uses this configuration and lock.
+It reads resolved profiles without creating a file, saves explicit settings without opening hardware,
+and can select an existing default. Replacement requires explicit GUI confirmation. The GUI applies
+a selected profile to editable fields and sends those fields as overrides; it resets wake to off
+until explicitly selected. GUI display/encoding preferences are not saved in serial profiles.
 
 Saving a serial profile does not create an empty `[preferences]` table. User preferences never
 supply serial values and do not participate in profile resolution or Transport opening.

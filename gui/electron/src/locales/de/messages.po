@@ -645,6 +645,66 @@ msgstr "Dieser Text enthält Zeilenumbrüche und kann Befehle auf dem Ziel ausf�
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "profiles.default"
+msgstr "Standard"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "profiles.hint"
+msgstr "Profile verwenden die CLI-Konfiguration des Hosts. Laden und Speichern öffnen keinen Port. Das erste gespeicherte Profil wird zum Standard."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "profiles.load"
+msgstr "Profile aktualisieren"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "profiles.name"
+msgstr "Profilname"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "profiles.replace"
+msgstr "Überschreiben dieses Namens erlauben"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "profiles.save"
+msgstr "Aktuelle Einstellungen speichern"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "profiles.saved"
+msgstr "Konfiguration gespeichert."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "profiles.select"
+msgstr "Profil anwenden"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "profiles.setDefault"
+msgstr "Als Standard festlegen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "profiles.title"
+msgstr "Serielle Profile"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "profiles.wake"
+msgstr "Beim Öffnen Wagenrücklauf zum Aufwecken senden"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "profiles.wakeHint"
+msgstr "Aufwecken bleibt bis zur Auswahl hier deaktiviert, auch bei aktivierten Profilen. Beim Speichern wird diese Auswahl übernommen."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "search.case"
 msgstr "Groß-/Kleinschreibung"
 

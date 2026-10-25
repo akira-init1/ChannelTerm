@@ -22,6 +22,7 @@ export const defaultSSHAdvanced: Readonly<SSHAdvanced> = {
 export type ConnectionRequest =
   | {
       kind: "serial";
+      wake?: boolean;
       port: string;
       baud: number;
       dataBits: number;
@@ -94,6 +95,7 @@ export function isConnectionRequest(
     return (
       exact([
         "kind",
+        "wake",
         "port",
         "baud",
         "dataBits",
@@ -102,6 +104,7 @@ export function isConnectionRequest(
         "flowControl",
         "label",
       ]) &&
+      (v.wake === undefined || typeof v.wake === "boolean") &&
       bounded(v.port, 512) &&
       numberIn(v.baud, 1, 4000000) &&
       numberIn(v.dataBits, 5, 8) &&

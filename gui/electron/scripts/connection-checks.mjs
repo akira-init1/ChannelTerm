@@ -100,6 +100,62 @@ export async function checkConnections(environment, launchArgs) {
       "Host could not open",
     );
     await dialog.locator('[name="port"]').fill("COM-FIXTURE");
+    await dialog.locator(".serial-profiles summary").click();
+    await dialog
+      .getByRole("button", { name: "Refresh profiles", exact: true })
+      .click();
+    await expect(
+      dialog.getByRole("combobox", { name: "Apply profile", exact: true }),
+    ).toBeVisible();
+    await dialog
+      .getByRole("textbox", { name: "Profile name", exact: true })
+      .fill("native-board");
+    await dialog
+      .getByRole("button", { name: "Save current settings", exact: true })
+      .click();
+    await expect(dialog.getByRole("status")).toHaveText("Configuration saved.");
+    assert.equal((await observer.serialProfiles()).default, "native-board");
+    assert.equal((await observer.list()).length, 1);
+    await dialog
+      .getByRole("button", { name: "Save current settings", exact: true })
+      .click();
+    await expect(dialog.getByRole("status")).toContainText(
+      "Profile already exists",
+    );
+    await observer.changeSerialProfile({
+      action: "save",
+      name: "custom-board",
+      profile: {
+        port: "COM-FIXTURE",
+        baud: 123456,
+        dataBits: 7,
+        parity: "even",
+        stopBits: "2",
+        flowControl: "hardware",
+        wake: true,
+      },
+      replace: false,
+    });
+    await dialog
+      .getByRole("button", { name: "Refresh profiles", exact: true })
+      .click();
+    const profiles = dialog.getByRole("combobox", {
+      name: "Apply profile",
+      exact: true,
+    });
+    await profiles.selectOption("custom-board");
+    await expect(dialog.locator('[name="baud"]')).toHaveValue("123456");
+    await expect(dialog.locator('[name="dataBits"]')).toHaveValue("7");
+    await expect(dialog.locator('[name="wake"]')).not.toBeChecked();
+    await dialog
+      .getByRole("button", { name: "Set as default", exact: true })
+      .click();
+    await expect(dialog.getByRole("status")).toHaveText("Configuration saved.");
+    assert.equal((await observer.serialProfiles()).default, "custom-board");
+    await profiles.selectOption("native-board");
+    await expect(dialog.locator('[name="baud"]')).toHaveValue("115200");
+    await page.screenshot({ path: "test-results/serial-profiles.png" });
+    await dialog.locator(".serial-profiles summary").click();
     await dialog.locator('[name="label"]').fill("Created serial");
     await dialog.locator('[name="encoding"]').selectOption("gbk");
     await dialog.locator('[name="description"]').fill("Local board console");

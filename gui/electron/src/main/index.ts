@@ -503,6 +503,9 @@ function createHandlers(context: WindowContext): Record<string, Handler> {
     [channels.resolveTransferCancel]: (id, confirm) =>
       context.transferConfirmation.resolve(id, confirm),
     [channels.list]: () => currentHost(context).list(),
+    [channels.serialProfiles]: () => currentHost(context).serialProfiles(),
+    [channels.changeSerialProfile]: (request) =>
+      currentHost(context).changeSerialProfile(request),
     [channels.serialPorts]: () => currentHost(context).serialPorts(),
     [channels.openConnection]: (request) =>
       currentHost(context).openConnection(request),
@@ -607,6 +610,7 @@ function registerIPC(): void {
                     channels.readClipboard,
                     channels.menuState,
                     channels.openConnection,
+                    channels.changeSerialProfile,
                     channels.startTransfer,
                     channels.startSSHTransfer,
                     channels.cancelSSHTransfer,

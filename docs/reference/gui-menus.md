@@ -6,6 +6,10 @@ three levels, used by **Settings > Language > language name** and **Session > Fi
 **Session > New Connection...** directly opens the connection form. Its Protocol selector switches
 between the existing Serial and SSH forms; switching discards protocol fields, including secrets.
 SSH is disabled unless the connected Host advertises its desktop API.
+The Serial form includes **Serial profiles**: refresh, apply a profile, save current settings with
+explicit overwrite opt-in, and set an existing profile as default. Profiles share the Host CLI
+configuration, not GUI preferences. Applying a profile resets wake to off; sending the wake carriage
+return requires a fresh checkbox selection. See [profile semantics](gui-host-api.md#serial-profiles).
 This reference describes implemented menu behavior, not additional Host capabilities. See
 [GUI architecture](../architecture/electron-gui.md) for process boundaries and
 [GUI development](../development/electron-gui.md) for startup and verification.
@@ -328,7 +332,7 @@ menu entries or commitments to implement them.
 
 | Proposed category | Unimplemented scope / prerequisite |
 | --- | --- |
-| Host / Session | Saved profiles and recent connections remain outside the explicit serial/SSH forms. Default-local Host startup is automatic; other endpoints remain explicit. |
+| Host / Session | SSH profiles and recent connections remain outside the explicit connection forms. Default-local Host startup is automatic; other endpoints remain explicit. |
 | Session | Recent connection history is not implemented. Shared close and multiple tabs follow the explicit contracts above. |
 | Terminal | Split panes, output folding and remote PTY resize are not exposed. Find and its select-all control operate only on the current retained view. Existing clipboard, local clear, focus and conditional resume actions remain. |
 | View | MCP activity, status-bar visibility and a combined Reset Layout action are unimplemented. Existing sidebar, bottom-panel, transfer and Session-status actions remain; Session status is not a status-bar toggle. |

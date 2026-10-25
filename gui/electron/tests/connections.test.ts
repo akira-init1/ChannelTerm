@@ -120,6 +120,7 @@ test("an older Host retains attachment support but cannot be authorized for SSH 
 test("connection IPC accepts bounded settings and rejects extra capabilities before Host calls", async () => {
   const client = new HostClient("http://127.0.0.1:1/mcp", "fixture-token");
   assert.equal(isConnectionRequest(serial), true);
+  assert.equal(isConnectionRequest({ ...serial, wake: true }), true);
   for (const invalid of [
     null,
     {},
@@ -127,7 +128,7 @@ test("connection IPC accepts bounded settings and rejects extra capabilities bef
     { ...serial, baud: 115200.5 },
     { ...serial, port: "COM\n1" },
     { ...serial, stopBits: 1 },
-    { ...serial, wake: true },
+    { ...serial, wake: "true" },
     { ...serial, config_path: "private" },
     { ...serial, save: "profile" },
     { ...serial, command: "bad" },

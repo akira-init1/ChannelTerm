@@ -278,7 +278,8 @@ SSH inside its Protocol selector; SSH is disabled without the Host's desktop API
 
 - Serial: scan the Host's available ports or enter a port manually, set baud/framing/flow control,
   and press Connect. Scanning is read-only. The default form is 115200, 8N1, no flow control;
-  no wake byte is sent. Successful setup refreshes the shared list and attaches the new/reused Session.
+  wake is off unless explicitly selected. Expand **Serial profiles** to apply/save Host CLI
+  settings or select a default; profile application resets wake to off. Successful setup refreshes the shared list and attaches the new/reused Session.
 - SSH: enter host, port and user, then choose password or private-key authentication. Key paths
   and `known_hosts` paths refer to files on the Host. Blank key paths use existing default
   identities; encrypted keys accept a passphrase. Blank trust path uses the Host user's
@@ -448,6 +449,12 @@ preamble, checking the development entry point as well as the production bundle.
 The Go gates remain independent; from the repository root run the applicable commands in
 [Building and testing](building-and-testing.md). The fixture's Go composition source is included
 in normal Go package compilation without invoking npm. No Node tool is needed to build the CLI.
+
+Serial-profile checks use a disposable Host configuration directory shared by the normal Application
+resolver and desktop API. Unit/integration checks cover name conflicts, explicit replacement, default
+selection, concurrent saves, lock cancellation, malformed IPC/HTTP input and safe errors. Native checks
+apply custom baud/settings, preserve wake opt-in and verify that saving alone creates no Session.
+They never open physical serial devices or use the developer's configuration.
 
 ## Troubleshooting and limits
 

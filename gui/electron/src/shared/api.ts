@@ -1,3 +1,4 @@
+import type { SerialProfiles, SerialProfileChange } from "./serial-profiles";
 import type {
   LocalSelection,
   RemoteDirectory,
@@ -120,6 +121,8 @@ export interface DesktopAPI {
   connect(): Promise<Result<HostInfo>>;
   disconnect(): Promise<Result<void>>;
   list(): Promise<Result<SessionSummary[]>>;
+  serialProfiles(): Promise<Result<SerialProfiles>>;
+  changeSerialProfile(request: SerialProfileChange): Promise<Result<void>>;
   serialPorts(): Promise<Result<string[]>>;
   openConnection(request: ConnectionRequest): Promise<Result<OpenedConnection>>;
   attach(
@@ -163,6 +166,8 @@ export const channels = {
   connect: "host:connect",
   disconnect: "host:disconnect",
   list: "host:list",
+  serialProfiles: "host:serial-profiles",
+  changeSerialProfile: "host:change-serial-profile",
   serialPorts: "host:serial-ports",
   openConnection: "host:open-connection",
   attach: "host:attach",

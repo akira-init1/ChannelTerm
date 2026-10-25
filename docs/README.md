@@ -46,7 +46,7 @@ for command-line flags and defaults, the running program's `--help` output remai
 - [Configuration](reference/configuration.md)
 - [Identifiers and references](reference/identifiers.md)
 - [Electron GUI menus](reference/gui-menus.md)
-- [Desktop Host connection API](reference/gui-host-api.md)
+- [Desktop Host API](reference/gui-host-api.md)
 
 ## Architecture
 

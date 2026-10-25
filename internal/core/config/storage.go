@@ -1,10 +1,12 @@
 package config
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/gofrs/flock"
 	"github.com/pelletier/go-toml/v2"
@@ -132,6 +134,16 @@ func Save(path string, file File) error {
 // processes. update receives the latest on-disk value while an adjacent lock
 // file is held; returning an error leaves the configuration unchanged.
 func Update(path string, update func(*File) error) error {
+	return UpdateContext(context.Background(), path, update)
+}
+
+// UpdateContext is Update with cancellable lock acquisition. Cancellation before
+// saving leaves existing contents intact; once atomic saving starts its result
+// may be committed even if the caller stops waiting. Callers must not replay it.
+func UpdateContext(ctx context.Context, path string, update func(*File) error) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if update == nil {
 		return errors.New("configuration update function must not be nil")
 	}
@@ -139,8 +151,13 @@ func Update(path string, update func(*File) error) error {
 		return fmt.Errorf("create configuration directory for %q: %w", path, err)
 	}
 	lock := flock.New(path + ".lock")
-	if err := lock.Lock(); err != nil {
+	defer func() { _ = lock.Close() }()
+	locked, err := lock.TryLockContext(ctx, 25*time.Millisecond)
+	if err != nil {
 		return fmt.Errorf("lock configuration %q: %w", path, err)
+	}
+	if !locked {
+		return errors.New("configuration lock was not acquired")
 	}
 	defer func() { _ = lock.Unlock() }()
 	file, err := LoadOrCreate(path)
@@ -148,6 +165,9 @@ func Update(path string, update func(*File) error) error {
 		return err
 	}
 	if err := update(&file); err != nil {
+		return err
+	}
+	if err := ctx.Err(); err != nil {
 		return err
 	}
 	return Save(path, file)

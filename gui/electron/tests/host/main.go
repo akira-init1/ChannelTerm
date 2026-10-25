@@ -13,13 +13,13 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/akira-init1/ChannelTerm/internal/core/app"
 	"github.com/akira-init1/ChannelTerm/internal/core/channel"
-	"github.com/akira-init1/ChannelTerm/internal/core/config"
 	"github.com/akira-init1/ChannelTerm/internal/core/session"
 	"github.com/akira-init1/ChannelTerm/internal/core/tool"
 	serialtransport "github.com/akira-init1/ChannelTerm/internal/core/transport/serial"
@@ -48,13 +48,17 @@ func run() error {
 	if token == "" {
 		return fmt.Errorf("test Host requires an explicit disposable token")
 	}
+	configDirectory, err := os.MkdirTemp("", "channelterm-profile-fixture-")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(configDirectory)
 	manager := session.NewManager()
 	defer manager.Close()
 	application, err := app.New(app.Dependencies{Manager: manager,
 		ListSerialPorts: func() ([]serialtransport.Port, error) { return []serialtransport.Port{{Name: "COM-FIXTURE"}}, nil },
 		Serial: app.SerialDependencies{
-			ConfigPath: func() (string, error) { return "fixture-config", nil },
-			LoadConfig: func(string) (config.File, error) { return config.File{}, nil },
+			ConfigPath: func() (string, error) { return filepath.Join(configDirectory, "config.toml"), nil },
 			NewSession: func(id string, c serialtransport.Config) (app.ConnectedSession, error) {
 				if c.Port != "COM-FIXTURE" {
 					return nil, fmt.Errorf("fixture port unavailable")
@@ -132,13 +136,13 @@ func run() error {
 		return err
 	}
 	defer stopSSH()
-	sshHandler := guiapi.NewSSHHandler(application)
+	sshHandler := guiapi.NewHandler(application)
 	server := &http.Server{ReadHeaderTimeout: 5 * time.Second, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if subtle.ConstantTimeCompare([]byte(r.Header.Get("Authorization")), []byte("Bearer "+token)) != 1 {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
-		if r.URL.Path == guiapi.SSHPath {
+		if r.URL.Path == guiapi.SSHPath || r.URL.Path == guiapi.SerialProfilesPath {
 			sshHandler.ServeHTTP(w, r)
 			return
 		}

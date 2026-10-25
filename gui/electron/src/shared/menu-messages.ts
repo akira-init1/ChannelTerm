@@ -3,6 +3,30 @@ import type { MessageDescriptor } from "@lingui/core";
 // Lingui 5 extracts these official annotated descriptors without a runtime macro
 // transform. Translations belong in PO catalogs; this file owns IDs and English defaults.
 export const menuMessages = [
+  /* i18n */ { id: "profiles.title", message: "Serial profiles" },
+  /* i18n */ {
+    id: "profiles.hint",
+    message:
+      "Profiles use the Host's CLI configuration. Loading and saving never opens a port. The first saved profile becomes the default.",
+  },
+  /* i18n */ { id: "profiles.load", message: "Refresh profiles" },
+  /* i18n */ { id: "profiles.select", message: "Apply profile" },
+  /* i18n */ { id: "profiles.default", message: "default" },
+  /* i18n */ { id: "profiles.setDefault", message: "Set as default" },
+  /* i18n */ { id: "profiles.name", message: "Profile name" },
+  /* i18n */ { id: "profiles.replace", message: "Allow replacing this name" },
+  /* i18n */ { id: "profiles.save", message: "Save current settings" },
+  /* i18n */ { id: "profiles.saved", message: "Configuration saved." },
+  /* i18n */ {
+    id: "profiles.wake",
+    message: "Send wake carriage return when opening",
+  },
+  /* i18n */ {
+    id: "profiles.wakeHint",
+    message:
+      "Wake is always off until you select it here, even for profiles with wake enabled. Saving stores this choice.",
+  },
+
   /* i18n */ {
     id: "display.promptTimestamps",
     message: "Local prompt timestamps",
