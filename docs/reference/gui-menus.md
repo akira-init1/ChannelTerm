@@ -26,7 +26,7 @@ for authentication, verification and cancellation.
 | Menu / surface | Action ID | Behavior and availability |
 | --- | --- | --- |
 | Host > Connect to Host...; Host panel | `host.connect` | Connect to the configured Host while disconnected and idle; the existing default-local companion startup policy is unchanged. |
-| Host > Disconnect from Host; Host panel | `host.disconnect` | Release this GUI's connection and attachment; enabled while connected and idle. |
+| Host > Disconnect from Host; Host panel | `host.disconnect` | Release this window's connection and attachments; enabled while connected and idle. |
 | Window > Exit GUI | `app.quit` | Exit the Electron app through its normal cleanup path, subject to the active file-operation close guard. |
 | Session > Refresh Sessions; refresh button | `session.refresh` | Refresh the Host snapshot while connected and idle. |
 | Session > Close tab (detach); tab close icon; attached row/tab context menu | `tab.close` | Detach the captured local attachment. Still available for a closed Session so its view can be dismissed. |
@@ -51,9 +51,8 @@ Closing a **tab**, closing a **window**, disconnecting the **GUI from Host**, cl
 **shared Session**, and exiting the **GUI** are distinct operations. Tab close releases the
 attachment; disconnect releases this client connection. Native window close cleans up that
 window; Exit GUI ends the application. None closes the shared Session or stops its Host.
-**Close shared Session is not implemented or exposed by the GUI.** The desktop still has only
-one attachment, not multiple independent terminal tabs. Bottom-panel tabs are local views of
-transfers and Session status; they do not create additional Sessions or attachments.
+**Close shared Session is not implemented or exposed by the GUI.** Each window can have multiple
+independent terminal attachments. Bottom-panel tabs remain local views of transfers and Session status.
 
 Local clear removes xterm scrollback above the current line, retaining that line and parser
 state. It does not send `clear`, `reset`, escape sequences, or any other bytes to the device.
@@ -62,28 +61,40 @@ Subsequent output continues normally; a new attachment may replay retained Host 
 
 ## Window action contracts
 
-The Window menu lists these entries in order. Disabled entries have stable IDs and are rejected
-by the common dispatcher even if a stale/native callback invokes them; they never report success.
+The Window menu lists these entries in order. Actions use stable IDs and captured targets;
+Main owns BrowserWindow creation, focus and close. Tab state belongs to its renderer.
 
 | Entry | Action ID | Availability / responsibility |
 | --- | --- | --- |
-| New Window | `window.new` | Disabled; requires window creation and ownership management. |
-| New Tab | `tab.new` | Disabled; requires multiple attachment views. Does not alias New Connection. |
-| Close Tab | `tab.close` (menu entry `window.tab.close`) | Reuses Session's detach handler and captured attachment; requires an idle attachment, including a closed Session's view. |
-| Close Window | `window.close` | Disabled; a dedicated menu-to-window route is not implemented. Existing OS title-bar close retains its file-operation guard. Must never alias Exit GUI. |
-| Next Tab / Previous Tab | `tab.next` / `tab.previous` | Disabled; only one terminal attachment view exists. |
-| Next Window / Previous Window | `window.next` / `window.previous` | Disabled; no window navigation manager exists. |
+| New Window | `window.new` | Create an independent window, up to 16 including pending moves. Reuse the configured Host and inherit the source language preference. Available offline. |
+| New Tab | `tab.new` | Create an empty terminal tab and reveal the Session chooser, up to 32 tabs per window while idle. It opens no device; New Connection remains separate. |
+| Close Tab | `tab.close` / `tab.closeEmpty` (menu entry `window.tab.close`) | Detach only the captured attachment, including a closed Session view, or remove the captured empty tab. Requires an idle tab; the last tab does not close the window. |
+| Close Window | `window.close` | Close only the invoking window through the same guarded native close path as its title bar. Its owned file operations can block closure. |
+| Next Tab / Previous Tab | `tab.next` / `tab.previous` | Cycle in strip order, wrapping; enabled for more than one tab while idle. |
+| Next Window / Previous Window | `window.next` / `window.previous` | Focus/restore the adjacent committed window in creation order, wrapping; requires more than one window. Pending handoff windows are excluded. |
+| Move Tab to New Window; tab context menu | `tab.move` | Move the captured open attachment, including a background tab, when connected and idle with window capacity. Preserve source until destination acknowledgement; owned file work blocks the move. |
 | Exit GUI | `app.quit` | Existing application exit and file-operation guard, independent of Host connection. |
 
-No BrowserWindow manager, multi-tab system or new shortcut is introduced. Host Information has
-no dedicated existing handler and is omitted; the Host panel retains endpoint/connection status.
+The tab strip uses `tab.select` and the same close/move dispatcher as menus. Arrow keys and
+Home/End navigate only while that strip has focus, excluding IME and modifier chords. No new
+terminal shortcut is registered. Session selection fills an empty tab, activates an existing view,
+or opens another tab. Create an empty tab first to attach the same Session twice. Each view has
+independent cursor, input state and subscriptions. Closing a background tab targets that tab only.
+
+Moving reconstructs xterm from recent retained Host bytes (up to 64 KiB); a translated notice
+states that full screen state and earlier history may be unavailable. The destination must finish
+its first read/render and acknowledge within 20 seconds before the source is removed. Failure
+retains the original tab and shows a translated notice; it never reopens a device or retries input.
+No dragging, split terminals, saved tab restoration, or complete terminal-state migration is provided.
+Host Information has no dedicated handler and is omitted; the Host panel retains endpoint/status.
 Session Information reuses the existing details sidebar.
 
 ## Targeting, state, and security
 
 The application menu, toolbar/row controls, and menu keyboard activation dispatch the same
 finite action IDs to the renderer's existing handlers. Native Electron menus use the same
-description and send only a validated renderer action through a fixed Preload subscription.
+description and send validated tab/terminal actions through a fixed Preload subscription. Window
+actions invoke the same Main handlers used by the narrow renderer IPC methods.
 The Main-owned native exit action and fixed IPC `quit` method share the same cleanup handler,
 so native quit remains available after a renderer crash or the last macOS window closes. A separate
 bounded `syncMenu` message supplies display hints; it accepts no arbitrary menu template,
@@ -107,7 +118,7 @@ Menu hints never grant permission: Main validates IPC caller/arguments and attac
 and every device write still passes through authoritative Host/Application checks. Rejected or
 uncertain writes are not automatically replayed.
 
-Unimplemented operations are absent except for the disabled Window contracts above. Checkmarks describe
+Unimplemented operations are absent. Checkmarks describe
 local view/language state only. Renderer reload/crash resets Main's menu hints and releases its
 Host client resources.
 
@@ -116,7 +127,7 @@ Host client resources.
 Lingui Core runs in Main and Renderer with separate instances of the same compiled PO catalogs. Renderer owns the
 active menu locale and synchronizes it with native labels/checks; open context-menu labels and
 help content also use that locale. The preference lasts for the current window only and defaults
-to **Follow System**. System tags resolve to supported catalogs (for example `ja-JP` to `ja`,
+to **Follow System**. A new or moved window inherits it; later changes remain independent. System tags resolve to supported catalogs (for example `ja-JP` to `ja`,
 `zh-Hant-HK` to `zh-TW`), with English as fallback. Browser `languagechange` notifications update
 menus while following the system; explicit selections remain unchanged. This is menu/help
 localization, not a claim that Host diagnostics or the entire

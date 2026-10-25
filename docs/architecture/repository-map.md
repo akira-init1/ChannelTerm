@@ -127,7 +127,7 @@ gui/electron/
 |-- AGENTS.md                       Electron-specific layering, security, performance, and review rules
 |-- src/
 |   |-- main/
-|   |   |-- index.ts                Window lifecycle, static application scheme, validated IPC
+|   |   |-- index.ts                Window/client ownership, tab handoff, static application scheme, validated IPC
 |   |   |-- security.ts             Trusted caller and content-policy checks
 |   |   |-- files.ts                Native selections and fixed structured CLI file operations
 |   |   |-- ssh-files.ts            Dedicated SSH CLI lifecycle, bounded progress and private credentials
@@ -137,9 +137,9 @@ gui/electron/
 |   |-- locales/                   Per-locale PO sources, ignored compiled modules, process-neutral resource imports
 |   |-- renderer/
 |   |   |-- components/            React application shell and view state
-|   |   |-- sessions/              Session selection and display metadata
+|   |   |-- sessions/              Session selection, terminal tab strip and display metadata
 |   |   |-- transfers/             Directory picker and structured transfer progress
-|   |   |-- terminal/              xterm presentation, bounded input, output render pacing
+|   |   |-- terminal/              Per-view xterm presentation, bounded input, visibility-aware output pacing
 |   |   |-- styles/                Desktop presentation
 |   |   |-- host.ts                Renderer adapter for the typed Preload bridge
 |   |   `-- main.tsx               React entry point
@@ -159,7 +159,9 @@ gui/electron/
 `-- .gitignore                     Local dependencies, build output, compiled catalogs and test artifacts
 ```
 
-Main's Host Client calls existing authenticated MCP tools; it does not import Go source, own a
+Main owns independent Host Clients and file adapters per window; each Host Client owns bounded
+attachment handles with independent cursors/codecs/queues. The shared startup coordinator reuses
+the configured Host. Main's Host Client calls existing authenticated MCP tools; it does not import Go source, own a
 Session, or manage leases. The Go fixture is test composition only, not a second production Host
 or Core implementation. It opens no hardware and is not included in GUI production assets.
 The `gui/` boundary can accommodate a future independent frontend; no Qt project is present.

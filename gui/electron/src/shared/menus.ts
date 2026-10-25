@@ -34,8 +34,8 @@ export function systemMenuLocale(languages: readonly string[]): MenuLocale {
   return "en";
 }
 
-/** Reserved menu contracts; lifecycle handlers must exist before enabling these actions. */
-export const unavailableWindowActions = [
+/** Finite window/tab actions shared by native and renderer menus. */
+export const windowActions = [
   "window.new",
   "tab.new",
   "window.close",
@@ -51,7 +51,7 @@ export type Action =
         | "host.disconnect"
         | "connection.new"
         | "session.choose"
-        | (typeof unavailableWindowActions)[number]
+        | (typeof windowActions)[number]
         | "connection.serial"
         | "connection.ssh"
         | "session.refresh"
@@ -72,6 +72,7 @@ export type Action =
   | {
       id:
         | "tab.close"
+        | "tab.move"
         | "session.info"
         | "terminal.clear"
         | "terminal.focus"
@@ -80,7 +81,8 @@ export type Action =
         | "terminal.paste";
       attachment: Attachment;
     }
-  | { id: "language.change"; locale: LanguagePreference };
+  | { id: "language.change"; locale: LanguagePreference }
+  | { id: "tab.select" | "tab.closeEmpty"; tabId: string };
 
 /** Display hints only. No menu snapshot grants device or lease authority. */
 export interface MenuState {
@@ -94,6 +96,9 @@ export interface MenuState {
   panelVisible: boolean;
   shortcuts: ShortcutBindings;
   attachment?: Attachment;
+  tabId?: string;
+  tabCount?: number;
+  windowCount?: number;
   currentOpen: boolean;
   currentSerial: boolean;
   currentSSH?: boolean;
@@ -131,6 +136,7 @@ function attachedAction(
   state: MenuState,
   id:
     | "tab.close"
+    | "tab.move"
     | "session.info"
     | "terminal.clear"
     | "terminal.focus"
@@ -138,10 +144,23 @@ function attachedAction(
     | "terminal.copy"
     | "terminal.paste",
 ): MenuEntry {
+  if (id === "tab.close" && !state.attachment && state.tabId)
+    return {
+      id,
+      label: id,
+      enabled: !state.busy,
+      action: { id: "tab.closeEmpty", tabId: state.tabId },
+    };
   return {
     id,
     label: id,
-    enabled: !!state.attachment && !state.busy,
+    enabled:
+      !!state.attachment &&
+      !state.busy &&
+      (id !== "tab.move" ||
+        (state.connected &&
+          state.currentOpen &&
+          (state.windowCount ?? 1) < 16)),
     action: state.attachment
       ? { id, attachment: { ...state.attachment } }
       : undefined,
@@ -158,7 +177,7 @@ export function applicationMenu(state: MenuState): MenuEntry[] {
         {
           id: "connection.new",
           label: "connection.new",
-          enabled: state.connected && !state.busy,
+          enabled: actionEnabled({ id: "connection.new" }, state),
           action: { id: "connection.new" },
         },
         {
@@ -249,13 +268,14 @@ export function applicationMenu(state: MenuState): MenuEntry[] {
       id: "window",
       label: "menu.window",
       children: [
-        ...unavailableWindowActions.slice(0, 2).map(unavailableWindowEntry),
+        ...windowActions.slice(0, 2).map((id) => windowEntry(state, id)),
         {
           ...attachedAction(state, "tab.close"),
           id: "window.tab.close",
           label: "window.tab.close",
         },
-        ...unavailableWindowActions.slice(2).map(unavailableWindowEntry),
+        ...windowActions.slice(2).map((id) => windowEntry(state, id)),
+        attachedAction(state, "tab.move"),
         { id: "app.quit", label: "app.quit", action: { id: "app.quit" } },
       ],
     },
@@ -295,10 +315,32 @@ export function applicationMenu(state: MenuState): MenuEntry[] {
   ];
 }
 
-function unavailableWindowEntry(
-  id: (typeof unavailableWindowActions)[number],
+function windowEntry(
+  state: MenuState,
+  id: (typeof windowActions)[number],
 ): MenuEntry {
-  return { id, label: id, enabled: false, action: { id } };
+  return {
+    id,
+    label: id,
+    enabled: actionEnabled({ id }, state),
+    action: { id },
+  };
+}
+
+/** Tab context actions capture that tab's current attachment, including background tabs. */
+export function tabMenu(state: MenuState): MenuEntry[] {
+  return state.attachment
+    ? [
+        ...sessionMenu(
+          state,
+          state.attachment.sessionId,
+          state.currentOpen && (state.currentSSH || !state.leased),
+          state.currentSerial,
+          state.currentSSH,
+        ),
+        attachedAction(state, "tab.move"),
+      ]
+    : [attachedAction(state, "tab.close")];
 }
 
 export function terminalMenu(state: MenuState): MenuEntry[] {
@@ -443,6 +485,7 @@ export function isAction(value: unknown): value is Action {
     case "session.attach":
       return exact(value, ["id", "sessionId"]) && identifier(value.sessionId);
     case "tab.close":
+    case "tab.move":
     case "session.info":
     case "terminal.copy":
     case "terminal.paste":
@@ -452,6 +495,9 @@ export function isAction(value: unknown): value is Action {
       return (
         exact(value, ["id", "attachment"]) && isAttachment(value.attachment)
       );
+    case "tab.select":
+    case "tab.closeEmpty":
+      return exact(value, ["id", "tabId"]) && identifier(value.tabId);
     case "language.change":
       return (
         exact(value, ["id", "locale"]) &&
@@ -475,6 +521,9 @@ export function isMenuState(value: unknown): value is MenuState {
       "panelVisible",
       "shortcuts",
       "attachment",
+      "tabId",
+      "tabCount",
+      "windowCount",
       "currentOpen",
       "currentSerial",
       "currentSSH",
@@ -486,6 +535,17 @@ export function isMenuState(value: unknown): value is MenuState {
     return false;
   return (
     isMenuLocale(value.locale) &&
+    (value.tabId === undefined || identifier(value.tabId)) &&
+    (value.tabCount === undefined ||
+      (typeof value.tabCount === "number" &&
+        Number.isInteger(value.tabCount) &&
+        value.tabCount >= 0 &&
+        value.tabCount <= 32)) &&
+    (value.windowCount === undefined ||
+      (typeof value.windowCount === "number" &&
+        Number.isInteger(value.windowCount) &&
+        value.windowCount >= 1 &&
+        value.windowCount <= 16)) &&
     (value.languagePreference === undefined ||
       value.languagePreference === "system" ||
       isMenuLocale(value.languagePreference)) &&
@@ -510,16 +570,38 @@ export function isMenuState(value: unknown): value is MenuState {
 
 /** Recheck live view state before dispatch, including attachment identity after async changes. */
 export function actionEnabled(action: Action, state: MenuState): boolean {
-  if (unavailableWindowActions.some((id) => id === action.id)) return false;
   switch (action.id) {
+    case "window.new":
+      return (state.windowCount ?? 1) < 16;
+    case "window.close":
+      return true;
+    case "window.next":
+    case "window.previous":
+      return (state.windowCount ?? 1) > 1;
+    case "tab.new":
+      return !state.busy && (state.tabCount ?? 0) < 32;
+    case "tab.next":
+    case "tab.previous":
+      return !state.busy && (state.tabCount ?? 0) > 1;
+    case "tab.select":
+      return !state.busy;
+    case "tab.closeEmpty":
+      return !state.busy && state.tabId === action.tabId && !state.attachment;
     case "host.connect":
       return !state.connected && !state.busy;
     case "connection.ssh":
-      return state.connected && state.sshAvailable && !state.busy;
-    case "host.disconnect":
+      return (
+        state.sshAvailable && actionEnabled({ id: "connection.new" }, state)
+      );
     case "connection.new":
-    case "session.choose":
     case "connection.serial":
+      return (
+        state.connected &&
+        !state.busy &&
+        ((state.tabCount ?? 0) < 32 || !state.attachment)
+      );
+    case "host.disconnect":
+    case "session.choose":
     case "session.refresh":
     case "file.send":
     case "file.receive":
@@ -527,6 +609,7 @@ export function actionEnabled(action: Action, state: MenuState): boolean {
     case "session.attach":
       return state.connected && !state.busy;
     case "tab.close":
+    case "tab.move":
     case "session.info":
     case "terminal.copy":
     case "terminal.paste":
@@ -537,6 +620,10 @@ export function actionEnabled(action: Action, state: MenuState): boolean {
         !state.busy &&
         state.attachment?.id === action.attachment.id &&
         state.attachment.sessionId === action.attachment.sessionId &&
+        (action.id !== "tab.move" ||
+          (state.connected &&
+            state.currentOpen &&
+            (state.windowCount ?? 1) < 16)) &&
         (action.id !== "terminal.paste" ||
           (state.connected &&
             state.currentOpen &&

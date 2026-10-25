@@ -3,6 +3,28 @@ import { channels, type DesktopAPI } from "../shared/api";
 import { isAction } from "../shared/menus";
 
 const api: DesktopAPI = {
+  windowInfo: () => ipcRenderer.invoke(channels.windowInfo),
+  newWindow: () => ipcRenderer.invoke(channels.newWindow),
+  closeWindow: () => ipcRenderer.invoke(channels.closeWindow),
+  focusWindow: (direction) =>
+    ipcRenderer.invoke(channels.focusWindow, direction),
+  moveTab: (id, inputPaused) =>
+    ipcRenderer.invoke(channels.moveTab, id, inputPaused),
+  acceptMovedTab: (moveId, id) =>
+    ipcRenderer.invoke(channels.acceptMovedTab, moveId, id),
+  onWindowCount: (listener) => {
+    const receive = (_event: Electron.IpcRendererEvent, count: unknown) => {
+      if (
+        typeof count === "number" &&
+        Number.isInteger(count) &&
+        count >= 1 &&
+        count <= 16
+      )
+        listener(count);
+    };
+    ipcRenderer.on(channels.windowCount, receive);
+    return () => ipcRenderer.removeListener(channels.windowCount, receive);
+  },
   readClipboard: (id) => ipcRenderer.invoke(channels.readClipboard, id),
   writeClipboard: (id, text) =>
     ipcRenderer.invoke(channels.writeClipboard, id, text),

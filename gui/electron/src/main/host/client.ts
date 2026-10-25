@@ -52,7 +52,7 @@ export class HostClient {
   private client?: Client;
   private lifetime: HostInfo["lifetime"] = "unknown";
   private connection = new AbortController();
-  private active?: ActiveAttachment;
+  private attachments = new Map<string, ActiveAttachment>();
   private changing = false;
   private sshAvailable = false;
   private transferEvents = new Map<string, TransferEvents>();
@@ -349,6 +349,11 @@ export class HostClient {
       throw new HostError("invalid_input", "Invalid connection settings.");
     if (!this.client || this.connection.signal.aborted)
       throw new HostError("disconnected", "Connect to a Host first.");
+    if (this.attachments.size >= 32)
+      throw new HostError(
+        "busy",
+        "Close a terminal tab before opening a connection.",
+      );
     if (this.changing)
       throw new HostError(
         "busy",
@@ -434,6 +439,11 @@ export class HostClient {
     identifier(sessionId);
     if (!isTerminalSettings(settings))
       throw new HostError("invalid_input", "Invalid terminal settings.");
+    if (this.attachments.size >= 32)
+      throw new HostError(
+        "busy",
+        "Close a terminal tab before attaching another.",
+      );
     const preferences = { ...settings };
     if (this.changing)
       throw new HostError(
@@ -460,11 +470,6 @@ export class HostClient {
       if (attached.attached !== true) throw incompatible();
       if (connection.signal.aborted)
         throw new HostError("cancelled", "Attachment cancelled.");
-      // Keep the old attachment until the clicked target passes Host validation.
-      // Detach is a client lifecycle event, never a shared Session close.
-      await this.detach();
-      if (connection.signal.aborted)
-        throw new HostError("cancelled", "Attachment cancelled.");
       const active: ActiveAttachment = {
         settings: preferences,
         codec: new TerminalCodec(preferences.encoding),
@@ -476,7 +481,7 @@ export class HostClient {
         writeVersion: 0,
         writes: Promise.resolve(),
       };
-      this.active = active;
+      this.attachments.set(active.id, active);
       return { id: active.id, sessionId };
     } finally {
       this.changing = false;
@@ -485,14 +490,11 @@ export class HostClient {
 
   private attachment(id: string): ActiveAttachment {
     identifier(id);
-    if (
-      !this.active ||
-      this.active.id !== id ||
-      this.active.controller.signal.aborted
-    ) {
+    const active = this.attachments.get(id);
+    if (!active || active.controller.signal.aborted) {
       throw new HostError("cancelled", "This attachment has ended.");
     }
-    return this.active;
+    return active;
   }
 
   /** Bind local clipboard operations to this client's still-live attachment. */
@@ -500,13 +502,35 @@ export class HostClient {
     this.attachment(id);
   }
 
+  /** Main-only transfer description; the destination must attach through the Host again. */
+  describeAttachment(id: string): {
+    attachment: Attachment;
+    settings: TerminalSettings;
+  } {
+    const active = this.attachment(id);
+    return {
+      attachment: { id: active.id, sessionId: active.sessionId },
+      settings: { ...active.settings },
+    };
+  }
+
+  /** Drain already accepted writes before handing a view to another window. No replay. */
+  async settleWrites(id: string): Promise<void> {
+    const active = this.attachment(id);
+    await active.writes;
+    this.attachment(id);
+  }
+
   async detach(id?: string): Promise<void> {
-    if (id !== undefined) {
-      identifier(id);
-      if (this.active?.id !== id) return;
+    if (id === undefined) {
+      await Promise.all(
+        [...this.attachments.keys()].map((key) => this.detach(key)),
+      );
+      return;
     }
-    const active = this.active;
-    this.active = undefined;
+    identifier(id);
+    const active = this.attachments.get(id);
+    this.attachments.delete(id);
     if (!active) return;
     active.controller.abort();
     // This records a lifecycle event only. No terminal_close, lease release, or Host shutdown.
@@ -677,24 +701,28 @@ export class HostClient {
   async disconnect(): Promise<void> {
     // Abort immediately, including an in-progress handshake. Detach is advisory;
     // a disconnected MCP client never owns the underlying Session lifetime.
-    const active = this.active;
-    this.active = undefined;
-    active?.controller.abort();
+    const attachments = [...this.attachments.values()];
+    this.attachments.clear();
+    for (const active of attachments) active.controller.abort();
     const client = this.client;
     this.client = undefined;
-    if (active && client && !this.connection.signal.aborted) {
-      try {
-        await client.callTool(
-          {
-            name: "terminal_session_detach",
-            arguments: { session_id: active.sessionId, actor: "user" },
-          },
-          undefined,
-          { signal: AbortSignal.timeout(500), timeout: 500 },
-        );
-      } catch {
-        /* Host may be unreachable. */
-      }
+    if (client && !this.connection.signal.aborted) {
+      await Promise.all(
+        attachments.map(async (active) => {
+          try {
+            await client.callTool(
+              {
+                name: "terminal_session_detach",
+                arguments: { session_id: active.sessionId, actor: "user" },
+              },
+              undefined,
+              { signal: AbortSignal.timeout(500), timeout: 500 },
+            );
+          } catch {
+            /* Host may be unreachable. */
+          }
+        }),
+      );
     }
     this.connection.abort();
     await client?.close().catch(() => {});

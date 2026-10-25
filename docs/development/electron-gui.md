@@ -49,6 +49,30 @@ To update it after Go source changes, finish shared Session work, stop that Host
 its own Electron runtime and the platform-matched Host under `resources/host/`. See the
 [release boundaries](../architecture/electron-gui.md#multiple-frontends-and-release-boundaries).
 
+## Multiple windows and terminal tabs
+
+Use **Window > New Window** to open another GUI window on the same configured Host. A connected
+source creates a connected destination without starting another Host. **New Tab** (or the strip's
+plus button) opens an empty tab with the Session chooser. Select an open Session or use
+**Session > New Connection...**. Selecting a Session fills an empty tab; otherwise it activates
+an existing tab for that Session or adds a new one. Start from an empty tab to attach the same
+Session twice. **Next/Previous Tab** and **Next/Previous Window** wrap within their respective lists.
+
+Right-click a terminal tab and choose **Move Tab to New Window**. This also works for background
+tabs without changing which source tab is selected. The source stays until the destination has
+attached and rendered recent retained output. Failure preserves the source, without reopening the
+device or replaying input. The destination shows the retained-output limitation: at most 64 KiB,
+with no guarantee of full screen/parser state or earlier history. **Close Tab** releases one GUI
+attachment; **Close Window** releases that window's clients; **Disconnect from Host** affects only
+that window; **Exit GUI** closes the app. None closes a shared Host Session. Owned file work blocks
+the owning window's close/disconnect and app exit until finished or explicitly cancelled.
+
+Limits are 16 windows (including pending moves), 32 tabs per window and one pending move per source
+window. At 32 attached tabs, close one before changing presentation settings, which safely attaches
+a replacement first. No tab dragging, terminal splitting, persistent tab layout or lossless xterm
+migration is implemented. See [menu contracts](../reference/gui-menus.md#window-action-contracts)
+and [window ownership](../architecture/electron-gui.md#windows-and-tab-handoff).
+
 ## File client build and verification
 
 File operations use another build of the same CLI at `dist/files/channelterm[.exe]`. Main invokes
@@ -319,6 +343,13 @@ process restores production IPC for subsequent recovery checks. No test-only con
 Screenshots are saved under ignored `test-results/desktop.png` and `test-results/workbench-*.png`;
 `workbench-menu.png` and `workbench-menu-ja.png` capture menu surfaces;
 layout failures also report element bounds and save `workbench-layout-failure.png`.
+The window scenario checks multiple Sessions and duplicate attachments to one Session, independent
+input/cursors, cross-window attachment rejection, tab/window navigation, hidden-tab output loss,
+background-tab moves, and shared Session survival after tab/window closure. A separate disposable
+process destroys a provisional destination at acknowledgement to verify rollback, then closes a
+source before commitment to verify provisional-window cleanup. It also checks inherited and independent
+language preferences, all nine window/context labels and restore notices, and shared Lease status.
+Production IPC is used for the successful handoff. `test-results/window-moved-tab.png` records the restore notice.
 The test closes its own windows and fixture.
 This requires an interactive desktop; Linux CI needs its own display setup.
 `test:desktop:dev` runs the same desktop scenario with Vite and its nonce-protected refresh

@@ -685,6 +685,31 @@ msgstr "Закрыть вкладку (отсоединиться)"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "tab.empty"
+msgstr "Новая вкладка"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.list"
+msgstr "Вкладки терминала"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.move"
+msgstr "Переместить вкладку в новое окно"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.moveFailed"
+msgstr "Не удалось переместить вкладку. Исходная вкладка сохранена; устройство не открывалось повторно, ввод не повторялся."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.moving"
+msgstr "Перемещение вкладки..."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "tab.new"
 msgstr "Новая вкладка"
 
@@ -697,6 +722,11 @@ msgstr "Следующая вкладка"
 #: src/shared/menu-messages.ts
 msgid "tab.previous"
 msgstr "Предыдущая вкладка"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.restoreHint"
+msgstr "Перемещённая вкладка восстановлена из недавнего вывода хоста (до 64 KiB). Полное состояние экрана и более ранняя история могут быть недоступны."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

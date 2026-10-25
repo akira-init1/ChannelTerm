@@ -12,7 +12,8 @@ import {
 } from "electron";
 import { readFile } from "node:fs/promises";
 import { extname, join, resolve, sep } from "node:path";
-import { channels, type Result } from "../shared/api";
+import { channels, type Result, type WindowInfo } from "../shared/api";
+import { randomUUID } from "node:crypto";
 import { HostClient } from "./host/client";
 import { hostEndpoint, loadToken } from "./host/config";
 import {
@@ -22,7 +23,12 @@ import {
 } from "./host/startup";
 import { HostError, publicError } from "./host/errors";
 import { identifier, input } from "./host/validation";
-import { initialMenuState, isMenuState } from "../shared/menus";
+import {
+  initialMenuState,
+  isMenuState,
+  type MenuState,
+  type LanguagePreference,
+} from "../shared/menus";
 import { updateApplicationMenu } from "./menu";
 import {
   contentPolicy,
@@ -44,32 +50,55 @@ nativeTheme.themeSource = "dark";
 const development =
   process.env.CHANNELTERM_GUI_DEV_URL === developmentURL.slice(0, -1) &&
   !app.isPackaged;
-let window: BrowserWindow | undefined;
-let host: HostClient | undefined;
-let connecting = false;
-let quitting = false;
-let connectionVersion = 0;
-let startupController = new AbortController();
-const startup = localHostStartup(
-  companionPath(
-    app.isPackaged ? process.resourcesPath : resolve(__dirname, ".."),
-  ),
-);
+type Handler = (...args: unknown[]) => unknown;
 
-const transferConfirmation = new TransferConfirmation();
-const files = new DesktopFiles(
-  join(
-    app.isPackaged ? process.resourcesPath : resolve(__dirname, ".."),
-    "files",
-    process.platform === "win32" ? "channelterm.exe" : "channelterm",
+/** Main owns each window's client resources. No context owns a Host Session. */
+interface WindowContext {
+  window: BrowserWindow;
+  host?: HostClient;
+  connected: boolean;
+  connecting: boolean;
+  disposed: boolean;
+  connectionVersion: number;
+  startupController: AbortController;
+  transferConfirmation: TransferConfirmation;
+  files: DesktopFiles;
+  sshFiles: DesktopSSHFiles;
+  menu: MenuState;
+  handlers: Record<string, Handler>;
+  autoConnect: boolean;
+  languagePreference?: LanguagePreference;
+  incoming?: WindowInfo["incoming"];
+  incomingMove?: TabMove;
+  outgoingMove?: TabMove;
+}
+
+/** A bounded two-window handoff. Only the destination's first-render acknowledgement commits it. */
+interface TabMove {
+  id: string;
+  source: WindowContext;
+  target: WindowContext;
+  sourceAttachment: string;
+  targetAttachment?: string;
+  timer: ReturnType<typeof setTimeout>;
+  resolve: () => void;
+  reject: (error: unknown) => void;
+  settled: boolean;
+}
+
+const desktop = {
+  windows: new Map<number, WindowContext>(),
+  quitting: false,
+  startup: localHostStartup(
+    companionPath(
+      app.isPackaged ? process.resourcesPath : resolve(__dirname, ".."),
+    ),
   ),
-);
-const sshFiles = new DesktopSSHFiles(
-  join(
-    app.isPackaged ? process.resourcesPath : resolve(__dirname, ".."),
-    "files",
-    process.platform === "win32" ? "channelterm.exe" : "channelterm",
-  ),
+};
+const fileExecutable = join(
+  app.isPackaged ? process.resourcesPath : resolve(__dirname, ".."),
+  "files",
+  process.platform === "win32" ? "channelterm.exe" : "channelterm",
 );
 
 function requestQuit(): void {
@@ -77,95 +106,330 @@ function requestQuit(): void {
   setImmediate(() => app.quit());
 }
 
-function disconnectHost(): Promise<void> {
-  transferConfirmation.dismiss();
-  files.clearSelections();
-  sshFiles.disconnect();
-  connectionVersion++;
-  startupController.abort();
+function disconnectHost(context: WindowContext): Promise<void> {
+  if (context.outgoingMove) failMove(context.outgoingMove);
+  if (context.incomingMove) failMove(context.incomingMove);
+  context.incoming = undefined;
+  context.transferConfirmation.dismiss();
+  context.files.clearSelections();
+  context.sshFiles.disconnect();
+  context.connectionVersion++;
+  context.startupController.abort();
+  context.connected = false;
+  const host = context.host;
+  context.host = undefined;
   return host?.disconnect() ?? Promise.resolve();
 }
 
-function currentHost(): HostClient {
-  if (!host) throw new HostError("disconnected", "Connect to a Host first.");
-  return host;
+function currentHost(context: WindowContext): HostClient {
+  if (!context.host || context.disposed)
+    throw new HostError("disconnected", "Connect to a Host first.");
+  return context.host;
 }
 
-function registerIPC(): void {
+function windowContexts(): WindowContext[] {
+  return [...desktop.windows.values()].filter(
+    (context) => !context.disposed && !context.incomingMove,
+  );
+}
+
+function refreshMenus(): void {
+  const count = windowContexts().length;
+  for (const context of desktop.windows.values()) {
+    context.menu = { ...context.menu, windowCount: Math.max(1, count) };
+    context.window.webContents.send(channels.windowCount, Math.max(1, count));
+  }
+  const selected =
+    desktop.windows.get(
+      BrowserWindow.getFocusedWindow()?.webContents.id ?? -1,
+    ) ?? windowContexts().at(-1);
+  if (selected) updateMenu(selected);
+}
+
+function updateMenu(context: WindowContext): void {
+  updateApplicationMenu(context.window, context.menu, requestQuit, (id) => {
+    if (id === "window.new")
+      void newWindow(context).catch(() => {
+        console.error("Could not create a ChannelTerm window.");
+      });
+    else if (id === "window.close") {
+      if (!context.disposed) context.window.close();
+    } else focusWindow(context, id === "window.next" ? "next" : "previous");
+  });
+}
+
+async function newWindow(source?: WindowContext): Promise<void> {
+  const context = makeWindow(
+    source?.connected ?? false,
+    source?.menu.languagePreference ?? source?.menu.locale,
+  );
+  try {
+    await loadWindow(context);
+  } catch (error) {
+    context.window.destroy();
+    throw error;
+  }
+}
+
+function focusWindow(source: WindowContext, direction: unknown): void {
+  if (direction !== "next" && direction !== "previous")
+    throw new HostError("invalid_input", "Invalid window direction.");
+  const contexts = windowContexts();
+  const index = contexts.indexOf(source);
+  if (index < 0 || contexts.length < 2) return;
+  const target =
+    contexts[
+      (index + (direction === "next" ? 1 : -1) + contexts.length) %
+        contexts.length
+    ]!;
+  if (target.window.isMinimized()) target.window.restore();
+  target.window.show();
+  target.window.focus();
+}
+
+function failMove(
+  move: TabMove,
+  error: unknown = new HostError(
+    "cancelled",
+    "Tab move cancelled; the original tab was retained.",
+  ),
+): void {
+  if (move.settled) return;
+  move.settled = true;
+  clearTimeout(move.timer);
+  move.source.outgoingMove = undefined;
+  move.target.incomingMove = undefined;
+  move.target.incoming = undefined;
+  move.reject(error);
+  // Only this provisional window is discarded. The source attachment remains untouched.
+  if (!move.target.window.isDestroyed()) move.target.window.destroy();
+}
+
+async function moveTab(
+  source: WindowContext,
+  id: unknown,
+  inputPaused: unknown,
+): Promise<void> {
+  identifier(id);
+  if (typeof inputPaused !== "boolean")
+    throw new HostError("invalid_input", "Invalid tab state.");
+  if (source.outgoingMove || source.files.busy || source.sshFiles.busy)
+    throw new HostError(
+      "busy",
+      "Finish the current file operation or tab move first.",
+    );
+  const sourceHost = currentHost(source);
+  const description = sourceHost.describeAttachment(id);
+  const target = makeWindow(
+    false,
+    source.menu.languagePreference ?? source.menu.locale,
+  );
+  const completed = new Promise<void>((resolve, reject) => {
+    const move: TabMove = {
+      id: randomUUID(),
+      source,
+      target,
+      sourceAttachment: id,
+      resolve,
+      reject,
+      settled: false,
+      timer: setTimeout(
+        () =>
+          failMove(
+            move,
+            new HostError(
+              "cancelled",
+              "The destination window did not become ready; the original tab was retained.",
+            ),
+          ),
+        20000,
+      ),
+    };
+    source.outgoingMove = move;
+    target.incomingMove = move;
+    void (async () => {
+      // Source writes are blocked at IPC while accepted writes settle. Never replay them.
+      await sourceHost.settleWrites(id);
+      if (move.settled) return;
+      // Reuse the authenticated Host endpoint; moving never invokes device creation or startup.
+      target.host = new HostClient(
+        sourceHost.info().endpoint,
+        await loadToken(),
+      );
+      if (move.settled) {
+        await target.host.disconnect();
+        return;
+      }
+      await target.host.connect();
+      if (move.settled) return;
+      const attachment = await target.host.attach(
+        description.attachment.sessionId,
+        description.settings,
+      );
+      if (move.settled) return;
+      target.connected = true;
+      move.targetAttachment = attachment.id;
+      target.incoming = {
+        moveId: move.id,
+        attachment,
+        settings: description.settings,
+        inputPaused,
+      };
+      await loadWindow(target);
+    })().catch((error: unknown) => failMove(move, error));
+  });
+  refreshMenus();
+  return completed;
+}
+
+async function acceptMovedTab(
+  target: WindowContext,
+  moveId: unknown,
+  id: unknown,
+): Promise<void> {
+  identifier(moveId);
+  identifier(id);
+  const move = target.incomingMove;
+  if (
+    !move ||
+    move.settled ||
+    move.id !== moveId ||
+    move.targetAttachment !== id
+  )
+    throw new HostError("cancelled", "This tab move is no longer pending.");
+  const sourceHost = currentHost(move.source);
+  sourceHost.validateAttachment(move.sourceAttachment);
+  currentHost(target).validateAttachment(id);
+  if (move.source.files.busy || move.source.sshFiles.busy) {
+    failMove(
+      move,
+      new HostError(
+        "busy",
+        "Finish the file operation before moving this tab.",
+      ),
+    );
+    throw new HostError("cancelled", "Tab move cancelled.");
+  }
+  // Commit before asynchronous detach: a source-window close can no longer revoke the new owner.
+  move.settled = true;
+  clearTimeout(move.timer);
+  move.source.outgoingMove = undefined;
+  target.incomingMove = undefined;
+  target.incoming = undefined;
+  await sourceHost.detach(move.sourceAttachment);
+  if (!target.window.isDestroyed()) {
+    target.window.show();
+    target.window.focus();
+  }
+  move.resolve();
+  refreshMenus();
+}
+
+function createHandlers(context: WindowContext): Record<string, Handler> {
   const handlers: Record<string, (...args: unknown[]) => unknown> = {
     [channels.readClipboard]: async (id) => {
       identifier(id);
-      const selectedHost = currentHost();
+      const selectedHost = currentHost(context);
       selectedHost.validateAttachment(id);
       const text = await clipboard.readText();
       // Native clipboard reads are asynchronous; detach/reconnect revokes the request.
-      currentHost().validateAttachment(id);
+      currentHost(context).validateAttachment(id);
       if (text) input(text);
       return text;
     },
     [channels.writeClipboard]: (id, text) => {
       identifier(id);
       input(text);
-      currentHost().validateAttachment(id);
+      currentHost(context).validateAttachment(id);
       return clipboard.writeText(text);
     },
+    [channels.windowInfo]: (): WindowInfo => ({
+      count: Math.max(1, windowContexts().length),
+      connected: context.connected,
+      autoConnect: context.autoConnect,
+      languagePreference: context.languagePreference,
+      incoming: context.incoming,
+    }),
+    [channels.newWindow]: () => newWindow(context),
+    [channels.closeWindow]: () => {
+      setImmediate(() => {
+        if (!context.disposed) context.window.close();
+      });
+    },
+    [channels.focusWindow]: (direction) => focusWindow(context, direction),
+    [channels.moveTab]: (id, inputPaused) => moveTab(context, id, inputPaused),
+    [channels.acceptMovedTab]: (moveId, id) =>
+      acceptMovedTab(context, moveId, id),
     [channels.info]: () => ({
-      endpoint: hostEndpoint(process.env.CHANNELTERM_GUI_ENDPOINT).href,
-      lifetime: "unknown",
+      ...(context.host?.info() ?? {
+        endpoint: hostEndpoint(process.env.CHANNELTERM_GUI_ENDPOINT).href,
+        lifetime: "unknown",
+      }),
       autoConnect:
+        context.autoConnect ||
         hostEndpoint(process.env.CHANNELTERM_GUI_ENDPOINT).href ===
-        defaultHostEndpoint,
+          defaultHostEndpoint,
     }),
     [channels.connect]: async () => {
-      if (files.busy || sshFiles.busy)
+      if (context.files.busy || context.sshFiles.busy)
         throw new HostError(
           "busy",
           "Finish or cancel the file operation before reconnecting.",
         );
-      if (connecting)
+      if (context.connecting)
         throw new HostError("invalid_input", "Connection already in progress.");
-      connecting = true;
+      context.connecting = true;
       try {
-        const cleanup = disconnectHost();
-        const version = connectionVersion;
+        const cleanup = disconnectHost(context);
+        const version = context.connectionVersion;
         await cleanup;
         const controller = new AbortController();
-        startupController = controller;
+        context.startupController = controller;
         const endpoint = hostEndpoint(
           process.env.CHANNELTERM_GUI_ENDPOINT,
         ).href;
-        if (version !== connectionVersion || !window || quitting)
+        if (
+          version !== context.connectionVersion ||
+          context.disposed ||
+          desktop.quitting
+        )
           throw new HostError("cancelled", "Connection cancelled.");
-        await startup.ensure(endpoint, controller.signal);
+        await desktop.startup.ensure(endpoint, controller.signal);
         const token = await loadToken();
-        if (version !== connectionVersion || !window || quitting)
+        if (
+          version !== context.connectionVersion ||
+          context.disposed ||
+          desktop.quitting
+        )
           throw new HostError("cancelled", "Connection cancelled.");
         const next = new HostClient(endpoint, token);
-        host = next;
-        return await next.connect();
+        context.host = next;
+        const info = await next.connect();
+        context.connected = true;
+        return info;
       } finally {
-        connecting = false;
+        context.connecting = false;
       }
     },
     [channels.disconnect]: () => {
-      if (files.busy || sshFiles.busy)
+      if (context.files.busy || context.sshFiles.busy)
         throw new HostError(
           "busy",
           "Finish or cancel the file operation before disconnecting.",
         );
-      return disconnectHost();
+      return disconnectHost(context);
     },
     [channels.chooseTransferPath]: async (id, direction, kind) => {
       identifier(id);
       if (
         (direction !== "send" && direction !== "receive") ||
         (kind !== "file" && kind !== "directory") ||
-        !window
+        !context.window
       )
         throw new HostError("invalid_input", "Invalid file selection.");
-      const selectedHost = currentHost();
+      const selectedHost = currentHost(context);
       await selectedHost.validateFileSession(id);
-      const result = await dialog.showOpenDialog(window, {
+      const result = await dialog.showOpenDialog(context.window, {
         properties: [
           direction === "receive" || kind === "directory"
             ? "openDirectory"
@@ -173,87 +437,132 @@ function registerIPC(): void {
         ],
       });
       if (result.canceled || !result.filePaths[0]) return undefined;
-      if (host !== selectedHost)
+      if (context.host !== selectedHost)
         throw new HostError("cancelled", "Host changed during file selection.");
       await selectedHost.validateFileSession(id);
-      return files.remember(result.filePaths[0], id, direction);
+      return context.files.remember(result.filePaths[0], id, direction);
     },
     [channels.browseDirectory]: (id, path) => {
-      if (sshFiles.busy)
+      if (context.sshFiles.busy)
         throw new HostError("busy", "Finish the SSH file operation first.");
       identifier(id);
-      return files.browse(currentHost(), id, path);
+      return context.files.browse(currentHost(context), id, path);
     },
     [channels.startTransfer]: (request) => {
-      if (sshFiles.busy)
+      if (context.sshFiles.busy)
         throw new HostError("busy", "Finish the SSH file operation first.");
-      return files.transfer(currentHost(), request);
+      return context.files.transfer(currentHost(context), request);
     },
     [channels.startSSHTransfer]: (request) => {
-      if (files.busy || sshFiles.busy)
+      if (context.files.busy || context.sshFiles.busy)
         throw new HostError("busy", "Finish the current file operation first.");
-      return sshFiles.transfer(currentHost(), request, (r) =>
-        files.takeSelection(r.sessionId, r.selectionId, r.direction),
+      return context.sshFiles.transfer(currentHost(context), request, (r) =>
+        context.files.takeSelection(r.sessionId, r.selectionId, r.direction),
       );
     },
-    [channels.sshTransfers]: () => sshFiles.snapshots(),
-    [channels.cancelSSHTransfer]: (id) => sshFiles.cancel(id),
+    [channels.sshTransfers]: () => context.sshFiles.snapshots(),
+    [channels.cancelSSHTransfer]: (id) => context.sshFiles.cancel(id),
     [channels.transferCheckpoints]: (id) => {
       identifier(id);
-      return files.checkpoints(currentHost(), id);
+      return context.files.checkpoints(currentHost(context), id);
     },
     [channels.resumeTransfer]: (id, checkpointId) => {
-      if (sshFiles.busy)
+      if (context.sshFiles.busy)
         throw new HostError("busy", "Finish the SSH file operation first.");
       identifier(id);
-      return files.resume(currentHost(), id, checkpointId);
+      return context.files.resume(currentHost(context), id, checkpointId);
     },
     [channels.transfers]: (id) => {
       identifier(id);
-      return currentHost().transfers(id);
+      return currentHost(context).transfers(id);
     },
     [channels.cancelTransfer]: (id, transferId) => {
       identifier(id);
       identifier(transferId);
-      return transferConfirmation.begin(currentHost(), id, transferId);
+      return context.transferConfirmation.begin(
+        currentHost(context),
+        id,
+        transferId,
+      );
     },
     [channels.resolveTransferCancel]: (id, confirm) =>
-      transferConfirmation.resolve(id, confirm),
-    [channels.list]: () => currentHost().list(),
-    [channels.serialPorts]: () => currentHost().serialPorts(),
+      context.transferConfirmation.resolve(id, confirm),
+    [channels.list]: () => currentHost(context).list(),
+    [channels.serialPorts]: () => currentHost(context).serialPorts(),
     [channels.openConnection]: (request) =>
-      currentHost().openConnection(request),
+      currentHost(context).openConnection(request),
     [channels.attach]: (id, settings) => {
       identifier(id);
-      return currentHost().attach(id, settings);
+      return currentHost(context).attach(id, settings);
     },
     [channels.detach]: (id) => {
       identifier(id);
-      return currentHost().detach(id);
+      currentHost(context).validateAttachment(id);
+      if (context.outgoingMove?.sourceAttachment === id)
+        failMove(context.outgoingMove);
+      return currentHost(context).detach(id);
     },
     [channels.read]: (id) => {
       identifier(id);
-      return currentHost().read(id);
+      return currentHost(context).read(id);
     },
     [channels.write]: (id, data) => {
       identifier(id);
       input(data);
-      return currentHost().write(id, data);
+      if (context.outgoingMove?.sourceAttachment === id)
+        throw new HostError("busy", "This tab is moving; input was discarded.");
+      return currentHost(context).write(id, data);
     },
     [channels.menuState]: (state) => {
       if (!isMenuState(state))
         throw new HostError("invalid_input", "Invalid menu state.");
-      if (window) updateApplicationMenu(window, state, requestQuit);
+      context.menu = {
+        ...state,
+        windowCount: Math.max(1, windowContexts().length),
+      };
+      if (context.window.isFocused() || windowContexts().length === 1)
+        updateMenu(context);
     },
     [channels.quit]: requestQuit,
   };
-  for (const [channel, handler] of Object.entries(handlers)) {
+  return handlers;
+}
+
+function registerIPC(): void {
+  for (const channel of Object.values(channels).filter(
+    (channel) =>
+      ![
+        channels.menuAction,
+        channels.fileCloseBlocked,
+        channels.windowCount,
+      ].includes(channel as typeof channels.menuAction),
+  )) {
     ipcMain.handle(
       channel,
       async (event, ...args: unknown[]): Promise<Result<unknown>> => {
         try {
-          validateSender(event, window?.webContents, development);
+          const context = desktop.windows.get(event.sender.id);
+          validateSender(event, context?.window.webContents, development);
+          if (!context || context.disposed)
+            throw new HostError("unauthorized", "Unknown window.");
+          const handler = context.handlers[channel];
+          if (!handler)
+            throw new HostError("invalid_input", "Unknown desktop operation.");
+          if (
+            context.incomingMove &&
+            ![
+              channels.windowInfo,
+              channels.info,
+              channels.list,
+              channels.read,
+              channels.menuState,
+              channels.acceptMovedTab,
+            ].includes(channel as typeof channels.read)
+          )
+            throw new HostError("busy", "The incoming tab is not ready yet.");
           const expected = [
+            channels.moveTab,
+            channels.acceptMovedTab,
             channels.attach,
             channels.write,
             channels.writeClipboard,
@@ -266,6 +575,7 @@ function registerIPC(): void {
             : channel === channels.chooseTransferPath
               ? 3
               : [
+                    channels.focusWindow,
                     channels.detach,
                     channels.read,
                     channels.readClipboard,
@@ -290,7 +600,13 @@ function registerIPC(): void {
   }
 }
 
-async function createWindow(): Promise<void> {
+/** Register ownership before loading any renderer code. Hidden handoff windows stay provisional. */
+function makeWindow(
+  autoConnect = false,
+  languagePreference?: LanguagePreference,
+): WindowContext {
+  if (desktop.quitting || desktop.windows.size >= 16)
+    throw new HostError("busy", "Close a window before opening another.");
   const created = new BrowserWindow({
     title: "ChannelTerm",
     width: 1180,
@@ -309,40 +625,70 @@ async function createWindow(): Promise<void> {
       webviewTag: false,
     },
   });
-  window = created;
-  updateApplicationMenu(created, initialMenuState, requestQuit);
+  const context: WindowContext = {
+    window: created,
+    connected: false,
+    connecting: false,
+    disposed: false,
+    connectionVersion: 0,
+    startupController: new AbortController(),
+    transferConfirmation: new TransferConfirmation(),
+    files: new DesktopFiles(fileExecutable),
+    sshFiles: new DesktopSSHFiles(fileExecutable),
+    menu: { ...initialMenuState },
+    handlers: {},
+    autoConnect,
+    languagePreference,
+  };
+  context.handlers = createHandlers(context);
+  desktop.windows.set(created.webContents.id, context);
   created.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
   created.webContents.on("will-navigate", (event) => event.preventDefault());
   created.webContents.on("will-attach-webview", (event) =>
     event.preventDefault(),
   );
-  // A reload/crash releases client requests just like a window close.
   created.webContents.on("render-process-gone", () => {
-    updateApplicationMenu(created, initialMenuState, requestQuit);
-    void disconnectHost();
+    context.menu = { ...initialMenuState };
+    void disconnectHost(context);
+    refreshMenus();
   });
+  let initialNavigation = true;
   created.webContents.on(
     "did-start-navigation",
     (_event, _url, _inPlace, mainFrame) => {
-      if (mainFrame) {
-        updateApplicationMenu(created, initialMenuState, requestQuit);
-        void disconnectHost();
+      if (!mainFrame) return;
+      if (initialNavigation) {
+        initialNavigation = false;
+        return;
       }
+      context.menu = { ...initialMenuState };
+      void disconnectHost(context);
+      refreshMenus();
     },
   );
   created.on("close", (event) => {
-    if (files.busy || sshFiles.busy) {
+    if (context.files.busy || context.sshFiles.busy) {
       event.preventDefault();
       created.webContents.send(channels.fileCloseBlocked);
     }
   });
+  const contentsId = created.webContents.id;
   created.on("closed", () => {
-    updateApplicationMenu(created, initialMenuState, requestQuit);
-    window = undefined;
-    void disconnectHost();
+    context.disposed = true;
+    desktop.windows.delete(contentsId);
+    void disconnectHost(context);
+    refreshMenus();
   });
-  created.once("ready-to-show", () => created.show());
-  await created.loadURL(development ? developmentURL : productionURL);
+  created.on("focus", () => updateMenu(context));
+  created.once("ready-to-show", () => {
+    if (!context.incomingMove) created.show();
+  });
+  refreshMenus();
+  return context;
+}
+
+function loadWindow(context: WindowContext): Promise<void> {
+  return context.window.loadURL(development ? developmentURL : productionURL);
 }
 
 void app
@@ -393,9 +739,9 @@ void app
       }
     });
     registerIPC();
-    await createWindow();
+    await newWindow();
     app.on("activate", () => {
-      if (!window) void createWindow();
+      if (!desktop.windows.size) void newWindow();
     });
   })
   .catch(() => {
@@ -407,12 +753,17 @@ app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
 });
 app.on("before-quit", (event) => {
-  if (quitting) return;
+  if (desktop.quitting) return;
   event.preventDefault();
-  if (files.busy || sshFiles.busy) {
-    window?.webContents.send(channels.fileCloseBlocked);
+  const contexts = [...desktop.windows.values()];
+  const busy = contexts.filter(
+    (context) => context.files.busy || context.sshFiles.busy,
+  );
+  if (busy.length) {
+    for (const context of busy)
+      context.window.webContents.send(channels.fileCloseBlocked);
     return;
   }
-  quitting = true;
-  void disconnectHost().finally(() => app.quit());
+  desktop.quitting = true;
+  void Promise.all(contexts.map(disconnectHost)).finally(() => app.quit());
 });

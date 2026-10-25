@@ -6,6 +6,7 @@ import { startFixture } from "../tests/fixture.ts";
 import { HostClient } from "../src/main/host/client.ts";
 import { checkConnections } from "./connection-checks.mjs";
 import { checkStartup } from "./startup-checks.mjs";
+import { checkWindows } from "./window-checks.mjs";
 import { checkCompactLayout, checkWorkbenchPanels } from "./layout-checks.mjs";
 import { randomBytes } from "node:crypto";
 import { mkdtemp, writeFile } from "node:fs/promises";
@@ -467,6 +468,7 @@ try {
   ).toBeVisible();
   await checkLayout(desktop, recoveryPage, "failed");
   await checkConnections(desktopEnvironment, launchArgs);
+  await checkWindows(desktopEnvironment);
   await checkStartup(desktopEnvironment, preloadArgs);
   console.log(
     "PASS: native workbench at 760/1180/1500px, hover/keyboard flyouts, serial and SSH creation, authentication failure, shared I/O and lifetime, disconnected/empty/selection/attached/failure states, long lists, sandbox, lease blocking, overwrite, reconnect, detach/reattach, native close, surviving Host/observer, Session close and Host loss/retry. Empty/large lists use test-only IPC snapshots; connections use the real isolated Host with fake serial I/O and loopback SSH.",

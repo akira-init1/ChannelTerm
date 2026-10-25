@@ -685,6 +685,31 @@ msgstr "Fermer l’onglet (détacher)"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "tab.empty"
+msgstr "Nouvel onglet"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.list"
+msgstr "Onglets du terminal"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.move"
+msgstr "Déplacer l’onglet vers une nouvelle fenêtre"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.moveFailed"
+msgstr "Impossible de déplacer l’onglet. L’onglet original est conservé ; aucun périphérique n’a été rouvert et aucune saisie n’a été répétée."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.moving"
+msgstr "Déplacement de l’onglet..."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "tab.new"
 msgstr "Nouvel onglet"
 
@@ -697,6 +722,11 @@ msgstr "Onglet suivant"
 #: src/shared/menu-messages.ts
 msgid "tab.previous"
 msgstr "Onglet précédent"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.restoreHint"
+msgstr "L’onglet déplacé a été restauré à partir de la sortie récente de l’hôte (jusqu’à 64 KiB). L’état complet de l’écran et l’historique antérieur peuvent être indisponibles."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

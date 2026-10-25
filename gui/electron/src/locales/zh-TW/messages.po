@@ -685,6 +685,31 @@ msgstr "關閉分頁（解除附加）"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "tab.empty"
+msgstr "新增分頁"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.list"
+msgstr "終端分頁"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.move"
+msgstr "將分頁移至新視窗"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.moveFailed"
+msgstr "無法移動分頁。原分頁已保留；未重新開啟裝置或重播輸入。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.moving"
+msgstr "正在移動分頁..."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "tab.new"
 msgstr "新增分頁"
 
@@ -697,6 +722,11 @@ msgstr "下一個分頁"
 #: src/shared/menu-messages.ts
 msgid "tab.previous"
 msgstr "上一個分頁"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.restoreHint"
+msgstr "移動後的分頁已從 Host 最近的輸出還原（最多 64 KiB）。完整畫面狀態和更早的歷史可能無法還原。"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

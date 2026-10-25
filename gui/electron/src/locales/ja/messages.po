@@ -685,6 +685,31 @@ msgstr "タブを閉じる（切り離す）"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "tab.empty"
+msgstr "新しいタブ"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.list"
+msgstr "ターミナルタブ"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.move"
+msgstr "タブを新しいウィンドウに移動"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.moveFailed"
+msgstr "タブを移動できませんでした。元のタブは保持されています。デバイスの再接続や入力の再送は行われていません。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.moving"
+msgstr "タブを移動中..."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "tab.new"
 msgstr "新しいタブ"
 
@@ -697,6 +722,11 @@ msgstr "次のタブ"
 #: src/shared/menu-messages.ts
 msgid "tab.previous"
 msgstr "前のタブ"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.restoreHint"
+msgstr "移動したタブはホストの直近の出力（最大 64 KiB）から復元されました。画面全体の状態や以前の履歴は復元できない場合があります。"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

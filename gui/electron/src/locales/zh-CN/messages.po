@@ -685,6 +685,31 @@ msgstr "关闭标签（分离）"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "tab.empty"
+msgstr "新建标签页"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.list"
+msgstr "终端标签页"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.move"
+msgstr "移动标签页到新窗口"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.moveFailed"
+msgstr "无法移动标签页。原标签页已保留；未重新打开设备或重放输入。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.moving"
+msgstr "正在移动标签页..."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "tab.new"
 msgstr "新建标签页"
 
@@ -697,6 +722,11 @@ msgstr "下一个标签页"
 #: src/shared/menu-messages.ts
 msgid "tab.previous"
 msgstr "上一个标签页"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.restoreHint"
+msgstr "移动后的标签页已从 Host 最近的输出恢复（最多 64 KiB）。完整屏幕状态和更早的历史可能无法恢复。"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

@@ -685,6 +685,31 @@ msgstr "Tab schließen (ablösen)"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "tab.empty"
+msgstr "Neuer Tab"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.list"
+msgstr "Terminal-Tabs"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.move"
+msgstr "Tab in neues Fenster verschieben"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.moveFailed"
+msgstr "Der Tab konnte nicht verschoben werden. Der ursprüngliche Tab bleibt erhalten; kein Gerät wurde erneut geöffnet und keine Eingabe wiederholt."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.moving"
+msgstr "Tab wird verschoben..."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "tab.new"
 msgstr "Neuer Tab"
 
@@ -697,6 +722,11 @@ msgstr "Nächster Tab"
 #: src/shared/menu-messages.ts
 msgid "tab.previous"
 msgstr "Vorheriger Tab"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.restoreHint"
+msgstr "Der verschobene Tab wurde aus der letzten Host-Ausgabe wiederhergestellt (bis zu 64 KiB). Der vollständige Bildschirmzustand und ältere Ausgaben sind möglicherweise nicht verfügbar."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

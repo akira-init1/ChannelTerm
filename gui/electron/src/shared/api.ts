@@ -6,7 +6,7 @@ import type {
   TransferCheckpoint,
   SSHTransferRequest,
 } from "./transfers";
-import type { Action, MenuState } from "./menus";
+import type { Action, MenuState, LanguagePreference } from "./menus";
 import type { ConnectionRequest, OpenedConnection } from "./connections";
 import type { TerminalSettings } from "./terminal-settings";
 
@@ -57,8 +57,29 @@ export interface Output {
   dropped: boolean;
 }
 
+/** Window-local bootstrap data, never credentials or permission to close a shared Session. */
+export interface WindowInfo {
+  count: number;
+  connected: boolean;
+  autoConnect: boolean;
+  languagePreference?: LanguagePreference;
+  incoming?: {
+    moveId: string;
+    attachment: Attachment;
+    settings: TerminalSettings;
+    inputPaused: boolean;
+  };
+}
+
 /** One method per IPC channel; no arbitrary tool, URL, file, or process access. */
 export interface DesktopAPI {
+  windowInfo(): Promise<Result<WindowInfo>>;
+  newWindow(): Promise<Result<void>>;
+  closeWindow(): Promise<Result<void>>;
+  focusWindow(direction: "next" | "previous"): Promise<Result<void>>;
+  moveTab(attachmentId: string, inputPaused: boolean): Promise<Result<void>>;
+  acceptMovedTab(moveId: string, attachmentId: string): Promise<Result<void>>;
+  onWindowCount(listener: (count: number) => void): () => void;
   readClipboard(attachmentId: string): Promise<Result<string>>;
   writeClipboard(attachmentId: string, text: string): Promise<Result<void>>;
   chooseTransferPath(
@@ -108,6 +129,13 @@ export interface DesktopAPI {
 }
 
 export const channels = {
+  windowInfo: "window:info",
+  newWindow: "window:new",
+  closeWindow: "window:close",
+  focusWindow: "window:focus",
+  moveTab: "window:move-tab",
+  acceptMovedTab: "window:accept-tab",
+  windowCount: "window:count",
   readClipboard: "terminal:clipboard-read",
   writeClipboard: "terminal:clipboard-write",
   chooseTransferPath: "files:choose",

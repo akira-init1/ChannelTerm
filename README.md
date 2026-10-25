@@ -378,7 +378,7 @@ validation, and persistence behavior.
 ## Documentation
 
 - [Documentation index](docs/README.md)
-- [Electron GUI prototype and development](docs/development/electron-gui.md) — The default local Host connects or starts automatically; create serial and SSH Sessions directly in the GUI. Browse device directories and transfer serial files/folders in either direction with GUI progress.
+- [Electron GUI prototype and development](docs/development/electron-gui.md) — The default local Host connects or starts automatically; create serial and SSH Sessions directly in the GUI. Browse device directories and transfer serial files/folders in either direction with GUI progress. Open multiple windows and terminal tabs, and move a tab to a new window without closing its shared Session.
 - [Serial terminal workflow](docs/getting-started/serial-terminal.md)
 - [SSH shell workflow](docs/getting-started/ssh-terminal.md)
 - [Shared Session workflow](docs/getting-started/shared-session.md)

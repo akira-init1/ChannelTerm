@@ -11,7 +11,8 @@ import {
   sessionMenu,
   terminalMenu,
   systemMenuLocale,
-  unavailableWindowActions,
+  windowActions,
+  tabMenu,
   type MenuEntry,
 } from "../src/shared/menus";
 import { menuCatalogs } from "../src/locales/catalogs";
@@ -21,7 +22,73 @@ function flatten(items: MenuEntry[]): MenuEntry[] {
   return items.flatMap((item) => [item, ...flatten(item.children ?? [])]);
 }
 
-test("Session owns setup and file actions; window contracts cannot execute before implementation", () => {
+test("tab navigation, empty-tab close and move actions use bounded display state and exact targets", () => {
+  const state = {
+    ...initialMenuState,
+    connected: true,
+    currentOpen: true,
+    tabId: "tab-a",
+    tabCount: 2,
+    windowCount: 2,
+    attachment: { id: "attachment-a", sessionId: "session-a" },
+  };
+  for (const id of windowActions)
+    assert.equal(actionEnabled({ id }, state), true);
+  assert.equal(
+    actionEnabled({ id: "tab.new" }, { ...state, tabCount: 32 }),
+    false,
+  );
+  assert.equal(
+    actionEnabled({ id: "connection.new" }, { ...state, tabCount: 32 }),
+    false,
+  );
+  assert.equal(
+    actionEnabled(
+      { id: "connection.new" },
+      { ...state, tabCount: 32, attachment: undefined },
+    ),
+    true,
+  );
+  assert.equal(
+    actionEnabled({ id: "window.new" }, { ...state, windowCount: 16 }),
+    false,
+  );
+  assert.equal(isMenuState({ ...state, tabCount: 33 }), false);
+  assert.equal(isMenuState({ ...state, windowCount: 17 }), false);
+  assert.equal(isAction({ id: "tab.closeEmpty", tabId: "tab-a" }), true);
+  assert.equal(
+    actionEnabled({ id: "tab.closeEmpty", tabId: "tab-a" }, state),
+    false,
+  );
+  assert.equal(
+    actionEnabled(
+      { id: "tab.closeEmpty", tabId: "tab-a" },
+      { ...state, attachment: undefined },
+    ),
+    true,
+  );
+  assert.equal(
+    actionEnabled(
+      { id: "tab.closeEmpty", tabId: "other" },
+      { ...state, attachment: undefined },
+    ),
+    false,
+  );
+  const move = tabMenu(state).find((entry) => entry.id === "tab.move")!.action!;
+  assert.equal(actionEnabled(move, state), true);
+  assert.equal(
+    actionEnabled(move, {
+      ...state,
+      attachment: { id: "replacement", sessionId: "session-a" },
+    }),
+    false,
+  );
+  assert.equal(actionEnabled(move, { ...state, connected: false }), false);
+  assert.equal(actionEnabled(move, { ...state, currentOpen: false }), false);
+  assert.equal(actionEnabled(move, { ...state, busy: true }), false);
+});
+
+test("Session owns setup and file actions; window actions follow window and tab availability", () => {
   const live = {
     ...initialMenuState,
     connected: true,
@@ -60,11 +127,15 @@ test("Session owns setup and file actions; window contracts cannot execute befor
     const window = applicationMenu(state).find(
       (entry) => entry.id === "window",
     )!.children!;
-    for (const id of unavailableWindowActions) {
+    for (const id of windowActions) {
       const action = { id };
       assert.equal(isAction(action), true);
-      assert.equal(actionEnabled(action, state), false);
-      assert.equal(window.find((entry) => entry.id === id)?.enabled, false);
+      const expected =
+        id === "window.new" ||
+        id === "window.close" ||
+        (id === "tab.new" && !state.busy);
+      assert.equal(actionEnabled(action, state), expected);
+      assert.equal(window.find((entry) => entry.id === id)?.enabled, expected);
     }
     const close = window.find((entry) => entry.id === "window.tab.close")!;
     assert.equal(close.enabled, !!state.attachment && !state.busy);

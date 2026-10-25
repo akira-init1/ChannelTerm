@@ -549,6 +549,47 @@ main {
   padding: 0 8px;
   border-bottom: 2px solid transparent;
 }
+.terminal-tabs {
+  display: flex;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+.terminal-tabs .terminal-tab {
+  flex: 0 0 auto;
+  max-width: 240px;
+  gap: 2px;
+  padding: 0 4px;
+}
+.terminal-tab [role="tab"] {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  height: 100%;
+  padding: 0 4px;
+  border: 0;
+  background: transparent;
+  border-radius: 0;
+}
+.terminal-tab [role="tab"] span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.new-tab-button {
+  flex-shrink: 0;
+  padding: 0 8px;
+  border-radius: 0;
+}
+.terminal-pane {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+.terminal-pane[hidden] {
+  display: none;
+}
 .terminal-settings-button {
   margin-left: auto;
   min-width: 0;

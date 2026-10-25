@@ -56,14 +56,14 @@ The current structure requires no global state framework, DI container, or plugi
 The renderer uses a dark terminal workbench with a `#101318` terminal, `#181d25` Session
 sidebar, muted slate chrome, and blue selection accents. xterm retains its dark ANSI palette.
 Native window chrome is requested in dark mode independently of the OS theme; there is no
-theme switcher or custom window-control API. This is application-defined styling.
+theme switcher or custom title bar. This is application-defined styling.
 
 The native title bar and minimum window size (760 × 500) remain unchanged. The application
 area has a 32 px application menu bar, a flexible workspace, and a 24 px full-width status bar.
 The menu bar places menus on the left and three compact left/right/bottom layout toggles on the right,
 without an application name, logo, or preview banner. The original slate/blue styling and
 locally drawn pane-outline icons remain independent of VS Code assets.
-**Connection, Session, Terminal, View, Settings, Help** expose the implemented actions described
+**Session, Host, Terminal, View, Window, Settings, Help** expose the implemented actions described
 in the [menu reference](../reference/gui-menus.md). Renderer popovers and the native Electron
 application menu share finite action IDs, state hints, and Lingui catalogs. Language switching
 updates all supported menu languages without resizing xterm. The renderer
@@ -80,9 +80,12 @@ sidebars are visible, each is capped at half the width remaining after reserving
 terminal and the activity rail. The secondary sidebar starts hidden, displays current Session
 metadata, and has the same width controls on its left edge. This is window-local view state;
 hiding either sidebar preserves its preferred width, while reopening the GUI resets it.
-The terminal takes the remaining width and height; its 32 px header shows the single current
-attachment once as a tab-shaped title. The close icon performs **Close tab (detach)**,
-not Session close. There is no multi-tab terminal state or background terminal.
+The terminal takes the remaining width and height. Its header contains independent terminal tabs
+and a New Tab button. Each tab owns an attachment or an empty Session chooser. Selecting a Session
+fills the selected empty tab, activates an existing view for that Session, or adds a tab. To attach
+the same Session again, first create an empty tab. The close icon performs **Close tab (detach)**;
+closing the last tab leaves the window and Host connection open. Background terminals retain their
+xterm buffers and cursors; selection changes do not detach them.
 
 Serial creation includes common baud-rate presets and a Custom option for integer rates
 from 1 to 4,000,000. The default
@@ -177,7 +180,7 @@ terminal and do not replace its parser, output cursor or attachment.
 | Owner | State and lifetime |
 | --- | --- |
 | Go Host | Authoritative Application, Session/Transport/device lifecycle, Lease decisions, retained output, and serialized writes. |
-| Main / Host Client | Client connection and credentials, request cancellation, local attachment handles, and independent output cursors. Closing these resources does not close the shared Session. |
+| Main / Host Client | Window registry, one authenticated client and file adapters per window, credentials, request cancellation, and independent attachment handles/cursors. Closing these resources does not close the shared Session. |
 | Preload | Narrow IPC forwarding; no separate Session, authentication, or Lease state. |
 | React views | Selection, connection/status displays, safe errors, and Host snapshots for presentation. Cached Lease state can disable input but cannot authorize a write. |
 | Terminal view / xterm | Terminal parser, bounded display history, render pacing, local input queue, and view-owned listeners/observers. Raw output does not flow through global React state. |
@@ -187,9 +190,43 @@ writer arbiter or Session Manager. Reattachment and cleanup must reject stale co
 write whose result is uncertain is not replayed automatically. xterm's visible state and the
 Host's bounded retained bytes do not establish a complete historical terminal-state snapshot.
 
+## Windows and tab handoff
+
+Main owns up to 16 BrowserWindows, including provisional handoff destinations. Each window owns
+its Host Client, connection generation, native-dialog/file capabilities, and menu snapshot. Renderer
+owns up to 32 tabs per window, selected tab, layout, input-pause notices, and xterm controls keyed by
+tab ID. Host Client bounds attachments to 32; changing presentation at that limit requires first
+closing a tab because replacement attaches before detaching the previous view. Read cursors,
+codecs, cancellation and write queues belong to individual attachments, even for the same Session.
+A process-wide startup coordinator reuses the same local Host; creating a window never creates a
+second Session or a second Host manager. New windows inherit the source language preference and,
+when connected, connect to the same configured Host. Later locale/layout changes are window-local.
+Display and shortcut defaults still use the existing local storage; live windows keep their own state.
+
+**Move Tab to New Window** captures the clicked attachment, including a background tab. Main
+checks ownership and the source file-operation gate, blocks new source writes, and waits for accepted
+writes to settle. It creates a hidden destination with its own authenticated client and attaches the
+same opaque Session ID, without scanning/opening a device. The destination receives only the new
+attachment, presentation settings, pause state and a single-use move ID through its own IPC surface.
+Its xterm view acknowledges after the first Host read and render callback; only then does Main commit,
+detach the source handle and show the destination. Before commitment, failure, reload, window closure,
+or a 20-second deadline discards the destination and retains the source attachment. No uncertain input
+is replayed. There is at most one pending move from a window. Provisional destinations cannot write,
+create connections or run file operations. IPC validates both caller ownership and target attachment.
+
+Moving rebuilds xterm from up to 64 KiB of recent Host output. A translated notice explicitly says
+that full screen/parser state and older history may be unavailable. It does not serialize an xterm
+snapshot, copy old queued input, or promise lossless history. Hidden tabs pause reads after any pending
+read/render completes; selecting them resumes the same cursor and reports Host overwrite normally.
+Their xterm scrollback remains bounded to 5,000 lines. Closing or disconnecting one window cancels
+only its client resources; other windows and shared Sessions continue. App exit closes all GUI
+clients. Active owned file operations block that window's close/disconnect and app exit, while other
+windows remain independent. No drag-and-drop tabs, terminal splits or saved window/tab restoration
+are implemented. See the [menu contracts](../reference/gui-menus.md#window-action-contracts).
+
 ## File operations
 
-Main's file adapter owns native local selection capabilities and one in-flight desktop file
+Each window's Main file adapters own native local selection capabilities and one in-flight desktop file
 operation. Renderer receives an opaque selection ID and display basename, not unrestricted file
 access. IDs are bound to Session/direction, expire after ten minutes, are cleared on disconnect, and are consumed on start.
 For serial operations, the adapter invokes the fixed app-owned CLI using argument arrays and a Main-only credential
@@ -215,7 +252,7 @@ SCP and directories do not resume. Main retains at most 32 display records, with
 shown in the panel; these records are not persistent checkpoints. Completion requires the CLI's
 completion record and successful exit. Cancellation terminates only the dedicated child, leaving
 partial files for explicit recovery, with no Session Lease or terminal-byte suppression. Serial
-and dedicated SSH operations share the desktop busy gate. Renderer reload/crash cleanup cancels
+and dedicated SSH operations share that window's busy gate. Renderer reload/crash cleanup cancels
 the owned SSH child and clears its display history, so a disconnected view cannot strand an
 uncancellable background transfer.
 
@@ -299,7 +336,7 @@ record events; they do not grant leases or reference-count Session ownership. GU
 are local stale-request guards, never Session IDs or write capabilities. GUI uses opaque Session
 IDs returned by the Host; short references, labels, and endpoints are display metadata.
 
-Only one output read is outstanding. The renderer waits for xterm's write callback before requesting
+Only one output read per attachment is outstanding. The renderer waits for xterm's write callback before requesting
 the next chunk, bounding queued output. Base64 preserves raw bytes, including UTF-8 split across
 chunks. JavaScript rejects cursors outside its exact integer range rather than rounding them.
 On `dropped`, xterm resets its parser/screen before displaying retained bytes and the UI keeps a
@@ -309,7 +346,7 @@ and device-attribute queries at xterm's parser without sending their answers bac
 Live queries retain xterm's normal responses, including sequences split across read chunks.
 Stored Host bytes and user keystrokes are not filtered or rewritten by this replay guard.
 
-Each input payload and each input queue is limited to 64 KiB. Main serializes this client's requests;
+Each input payload and each input queue is limited to 64 KiB. Main serializes each attachment's requests;
 the Host still arbitrates all clients. The Session list is refreshed every 1.5 seconds. A displayed
 lease disables local input but is never treated as authorization. The Host validates each ordinary
 write, including races after a refresh. Failed input and later queued input are discarded, never
@@ -326,7 +363,7 @@ stop the affected work and are surfaced to the UI. Reconnection is explicit.
 Main reads the existing Host token or process environment override. No credential goes through
 Preload, React, URL parameters, local storage, or renderer error messages. The prototype permits
 only numeric loopback HTTP endpoints, refuses redirects, bounds request durations, and requires
-the expected MCP server identity. It never opens devices directly or starts a Host;
+the expected MCP server identity. It never opens devices directly; only the fixed local companion startup path may start a Host, and
 explicit scanning/creation requests are forwarded to the authoritative Host.
 The existing Host authentication, CORS, and Origin checks are unchanged.
 
@@ -379,5 +416,5 @@ No MCP SSH-open, remote PTY resize, or client-file transfer orchestration API ex
 uses the separate desktop Host API. The serial file UI invokes the existing CLI and observes Host
 events; it adds no upload API. Local xterm fitting does not resize the Host's SSH PTY. Debug leases
 are observed, not managed; serial transfer cancellation uses existing Host control tools.
-There is no built-in Agent, installer, persistence of terminal output, or
-multi-tab terminal UI. None of these gaps is filled by bypassing Application or changing MCP schemas.
+There is no built-in Agent, installer, persistence of terminal output, tab dragging, terminal splitting,
+or complete terminal-state migration. None of these gaps is filled by bypassing Application or changing MCP schemas.

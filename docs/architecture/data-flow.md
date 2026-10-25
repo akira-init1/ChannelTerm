@@ -5,7 +5,8 @@
 The [Electron process and IPC diagram](electron-gui.md#processes-and-communication) separates
 runtime communication from source dependencies. React/xterm calls the isolated Preload bridge;
 validated IPC reaches Main's Host Client, which calls existing authenticated MCP tools on the
-independent Go Host. Reads use a Main-owned output cursor. Ordinary GUI writes reach the same
+independent Go Host. Each window has its own Host Client; each terminal attachment has an independent
+Main-owned output cursor and input queue. Ordinary GUI writes reach the same
 Application lease checks and Session write serialization as other shared clients. A closed GUI
 cancels its client requests without closing the Host or Session. Main can also submit explicit creation intent to the Host: serial through existing MCP tools,
 and SSH through the authenticated [desktop Host API](../reference/gui-host-api.md).
@@ -13,6 +14,9 @@ Application opens the Transport; the GUI never owns it. On initial default-local
 Main first reuses an existing listener or starts its fixed-path standalone companion after a TCP
 refusal. Authentication still precedes Session access; GUI exit leaves the Host running. See
 [GUI process ownership](electron-gui.md#multiple-frontends-and-release-boundaries).
+Moving a tab attaches the same Session in a provisional destination window. Its first read/render
+acknowledgement commits the handoff before the source attachment is detached; failure retains the
+source without reopening a device or replaying input. See [window and handoff ownership](electron-gui.md#windows-and-tab-handoff).
 
 ## Serial output
 

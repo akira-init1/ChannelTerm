@@ -25,6 +25,7 @@ import type {
   SessionSummary,
 } from "../../shared/api";
 import { host, unwrap } from "../host";
+import { TerminalTabs } from "../sessions/TerminalTabs";
 import { SessionList } from "../sessions/SessionList";
 import { TerminalView, type TerminalControls } from "../terminal/TerminalView";
 import { Icon } from "./Icon";
@@ -34,6 +35,7 @@ import {
   isAction,
   sessionMenu,
   terminalMenu,
+  tabMenu,
   systemMenuLocale,
   type Action,
   type LanguagePreference,
@@ -67,6 +69,18 @@ import {
   type DisplaySettings,
 } from "../../shared/display-settings";
 import { DisplaySettingsDialog } from "./DisplaySettings";
+
+interface TerminalTab {
+  id: string;
+  attachment?: Attachment;
+  settings: TerminalSettings;
+  error?: ClientError;
+  dropped: boolean;
+  inputPaused: boolean;
+  moving?: boolean;
+  restored?: boolean;
+  moveId?: string;
+}
 
 const shortcutStorageKey = "channelterm.layout-shortcuts.v1";
 
@@ -161,16 +175,59 @@ export function App() {
   >();
   const working = operation !== undefined;
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
-  const [attachment, setAttachment] = useState<Attachment>();
+  const [tabs, setTabState] = useState<TerminalTab[]>([]);
+  const tabsRef = useRef(tabs);
+  // Update the ref synchronously so async completions cannot target a replaced tab.
+  function setTabs(
+    update: TerminalTab[] | ((tabs: TerminalTab[]) => TerminalTab[]),
+  ) {
+    const next =
+      typeof update === "function" ? update(tabsRef.current) : update;
+    tabsRef.current = next;
+    setTabState(next);
+  }
+  const [selectedTabId, setSelectedTabId] = useState<string>();
+  const selectedTabRef = useRef(selectedTabId);
+  selectedTabRef.current = selectedTabId;
+  const activeTab = tabs.find((tab) => tab.id === selectedTabId);
+  const attachment = activeTab?.attachment;
+  const terminalSettings = activeTab?.settings ?? defaultTerminalSettings;
+  const dropped = activeTab?.dropped ?? false;
+  const inputPaused = activeTab?.inputPaused ?? false;
   const preferences = useRef(new Map<string, TerminalSettings>());
-  const [terminalSettings, setTerminalSettings] = useState<TerminalSettings>(
-    defaultTerminalSettings,
-  );
   const [settingsTarget, setSettingsTarget] = useState<Attachment>();
-  const [error, setError] = useState<ClientError>();
-  const [dropped, setDropped] = useState(false);
-  // Errors pause local input until recovery; resuming never grants Host permission.
-  const [inputPaused, setInputPaused] = useState(false);
+  const [connectionError, setError] = useState<ClientError>();
+  const error = activeTab?.error ?? connectionError;
+  const [windowCount, setWindowCount] = useState(1);
+  useEffect(() => host.onWindowCount(setWindowCount), []);
+  function updateTab(id: string | undefined, patch: Partial<TerminalTab>) {
+    setTabs((tabs) =>
+      tabs.map((tab) => (tab.id === id ? { ...tab, ...patch } : tab)),
+    );
+  }
+  function setInputPaused(inputPaused: boolean) {
+    updateTab(selectedTabRef.current, { inputPaused });
+  }
+  function removeTab(id: string) {
+    const index = tabsRef.current.findIndex((tab) => tab.id === id);
+    const next = tabsRef.current.filter((tab) => tab.id !== id);
+    setTabs(next);
+    if (selectedTabRef.current === id)
+      setSelectedTabId(next[Math.min(index, next.length - 1)]?.id);
+  }
+  function newTab() {
+    if (tabsRef.current.length >= 32) return;
+    const tab: TerminalTab = {
+      id: crypto.randomUUID(),
+      settings: defaultTerminalSettings,
+      dropped: false,
+      inputPaused: false,
+    };
+    setTabs((tabs) => [...tabs, tab]);
+    setSelectedTabId(tab.id);
+    setSidebarVisible(true);
+    setChoosingSession(true);
+  }
   const [languagePreference, setLanguagePreference] =
     useState<LanguagePreference>("system");
   const [systemLocale, setSystemLocale] = useState(() =>
@@ -203,7 +260,8 @@ export function App() {
   const [connectionKind, setConnectionKind] =
     useState<ConnectionRequest["kind"]>();
   const [menuContext, setMenuContext] = useState<MenuPopupRequest>();
-  const terminal = useRef<TerminalControls>(null);
+  const terminals = useRef(new Map<string, TerminalControls>());
+  const acceptingMoves = useRef(new Set<string>());
   const sessionSidebar = useRef<HTMLElement>(null);
   const [choosingSession, setChoosingSession] = useState(false);
   useEffect(() => {
@@ -350,12 +408,20 @@ export function App() {
       languagePreference,
       connected,
       sshAvailable: !!info?.sshAvailable,
-      busy: working || !!fileDialog || !!sshFileDialog || filePending,
+      busy:
+        working ||
+        !!activeTab?.moving ||
+        !!fileDialog ||
+        !!sshFileDialog ||
+        filePending,
       sidebarVisible,
       auxiliaryVisible,
       panelVisible,
       shortcuts,
       attachment,
+      tabId: selectedTabId,
+      tabCount: tabs.length,
+      windowCount,
       currentOpen: current?.state === "open",
       currentSerial: current?.transport === "serial",
       currentSSH: current?.transport === "ssh",
@@ -378,6 +444,10 @@ export function App() {
       panelVisible,
       shortcuts,
       attachment,
+      activeTab?.moving,
+      selectedTabId,
+      tabs.length,
+      windowCount,
       current?.state,
       current?.lease,
       inputPaused,
@@ -430,20 +500,25 @@ export function App() {
     );
   }, [menuState]);
 
-  const report = useCallback((failure: ClientError) => {
-    if (failure.code === "cancelled") return;
-    setError(failure);
-    setInputPaused(true);
-    if (
-      ["disconnected", "unauthorized", "incompatible"].includes(failure.code)
-    ) {
-      generation.current++;
-      setConnected(false);
-      setAttachment(undefined);
-      setSessions([]);
-      void host.disconnect();
-    }
-  }, []);
+  const report = useCallback(
+    (failure: ClientError, tabId = selectedTabRef.current) => {
+      if (failure.code === "cancelled") return;
+      if (
+        ["disconnected", "unauthorized", "incompatible"].includes(failure.code)
+      ) {
+        generation.current++;
+        setError(failure);
+        setConnected(false);
+        setTabs([]);
+        setSelectedTabId(undefined);
+        setSessions([]);
+        void host.disconnect();
+      } else if (tabId && tabsRef.current.some((tab) => tab.id === tabId)) {
+        updateTab(tabId, { error: failure, inputPaused: true });
+      } else setError(failure);
+    },
+    [],
+  );
 
   const refresh = useCallback(async () => {
     if (refreshing.current) return;
@@ -461,18 +536,40 @@ export function App() {
 
   useEffect(() => {
     let active = true;
-    void unwrap(host.info())
-      .then((next) => {
-        if (!active) return;
+    void Promise.all([unwrap(host.info()), unwrap(host.windowInfo())])
+      .then(async ([next, windowState]) => {
+        if (!active || initialConnection.current) return;
+        initialConnection.current = true;
         setInfo(next);
-        // StrictMode replays effects; only one initial connection is permitted.
-        // An explicit disconnect never schedules another automatic attempt.
-        if (next.autoConnect && !initialConnection.current) {
-          initialConnection.current = true;
+        setWindowCount(windowState.count);
+        if (windowState.languagePreference)
+          setLanguagePreference(windowState.languagePreference);
+        if (windowState.connected) {
+          setConnected(true);
+          if (windowState.incoming) {
+            const incoming = windowState.incoming;
+            const id = crypto.randomUUID();
+            setTabs([
+              {
+                id,
+                attachment: incoming.attachment,
+                settings: incoming.settings,
+                inputPaused: incoming.inputPaused,
+                dropped: false,
+                restored: true,
+                moveId: incoming.moveId,
+              },
+            ]);
+            setSelectedTabId(id);
+          }
+          await refresh();
+        } else if (next.autoConnect || windowState.autoConnect) {
           actionBusy.current = true;
-          void connect().finally(() => {
+          try {
+            await connect();
+          } finally {
             actionBusy.current = false;
-          });
+          }
         }
       })
       .catch((error: ClientError) => {
@@ -481,7 +578,7 @@ export function App() {
     return () => {
       active = false;
     };
-  }, [report]);
+  }, [report, refresh]);
   useEffect(() => {
     if (!connected) return;
     const timer = setInterval(() => {
@@ -513,7 +610,8 @@ export function App() {
     setConnectionKind(undefined);
     setOperation("disconnecting");
     generation.current++;
-    setAttachment(undefined);
+    setTabs([]);
+    setSelectedTabId(undefined);
     setConnected(false);
     setSessions([]);
     setError(undefined);
@@ -530,46 +628,115 @@ export function App() {
     session: SessionSummary,
     settings = preferences.current.get(session.session_id) ??
       defaultTerminalSettings,
+    replaceTabId?: string,
   ) {
+    const selected = tabsRef.current.find(
+      (tab) => tab.id === selectedTabRef.current,
+    );
+    if (!replaceTabId && selected?.attachment) {
+      const existing = tabsRef.current.find(
+        (tab) => tab.attachment?.sessionId === session.session_id,
+      );
+      if (existing) {
+        setSelectedTabId(existing.id);
+        return;
+      }
+    }
+    const target = replaceTabId
+      ? tabsRef.current.find((tab) => tab.id === replaceTabId)
+      : selected && !selected.attachment
+        ? selected
+        : undefined;
+    if (replaceTabId && !target) return;
+    if (!target && tabsRef.current.length >= 32) return;
+    const tabId = target?.id ?? crypto.randomUUID();
     setOperation("attaching");
     setError(undefined);
     const version = generation.current;
     try {
       const next = await unwrap(host.attach(session.session_id, settings));
-      if (version !== generation.current) {
-        // Release a late client handle without reviving the old Host's view.
+      const liveTarget = tabsRef.current.find((tab) => tab.id === target?.id);
+      if (
+        version !== generation.current ||
+        (target &&
+          (!liveTarget || liveTarget.attachment?.id !== target.attachment?.id))
+      ) {
         await host.detach(next.id);
         return;
       }
-      setDropped(false);
+      if (target?.attachment) await unwrap(host.detach(target.attachment.id));
+      if (version !== generation.current) {
+        await host.detach(next.id);
+        return;
+      }
       if (
         preferences.current.size >= 64 &&
         !preferences.current.has(session.session_id)
       )
         preferences.current.delete(preferences.current.keys().next().value!);
       preferences.current.set(session.session_id, settings);
-      setTerminalSettings(settings);
-      setInputPaused(false);
-      setAttachment(next);
+      const tab: TerminalTab = {
+        id: tabId,
+        attachment: next,
+        settings,
+        inputPaused: false,
+        dropped: false,
+      };
+      setTabs((tabs) =>
+        target
+          ? tabs.map((item) => (item.id === tabId ? tab : item))
+          : [...tabs, tab],
+      );
+      setSelectedTabId(tabId);
     } catch (error) {
-      report(error as ClientError);
+      report(error as ClientError, target?.id);
     } finally {
       setOperation(undefined);
     }
   }
 
-  async function detach() {
-    if (!attachment) return;
-    const id = attachment.id;
-    setAttachment(undefined);
+  async function detach(tab: TerminalTab) {
+    if (tab.moving) return;
     setOperation("detaching");
     setError(undefined);
     try {
-      await unwrap(host.detach(id));
+      if (tab.attachment) await unwrap(host.detach(tab.attachment.id));
+      removeTab(tab.id);
     } catch (error) {
-      report(error as ClientError);
+      report(error as ClientError, tab.id);
     } finally {
       setOperation(undefined);
+    }
+  }
+
+  async function move(tab: TerminalTab) {
+    if (!tab.attachment || tab.moving) return;
+    updateTab(tab.id, { moving: true });
+    try {
+      await unwrap(host.moveTab(tab.attachment.id, tab.inputPaused));
+      removeTab(tab.id);
+    } catch (error) {
+      updateTab(tab.id, {
+        error: { ...(error as ClientError), message: t("tab.moveFailed") },
+      });
+    } finally {
+      updateTab(tab.id, { moving: false });
+    }
+  }
+
+  async function acceptMove(tab: TerminalTab) {
+    if (
+      !tab.moveId ||
+      !tab.attachment ||
+      acceptingMoves.current.has(tab.moveId)
+    )
+      return;
+    acceptingMoves.current.add(tab.moveId);
+    try {
+      await unwrap(host.acceptMovedTab(tab.moveId, tab.attachment.id));
+      updateTab(tab.id, { moveId: undefined });
+    } catch (error) {
+      report(error as ClientError, tab.id);
     }
   }
 
@@ -611,13 +778,46 @@ export function App() {
     }
   }
 
+  function tabForAction(action: Action): TerminalTab | undefined {
+    if ("attachment" in action)
+      return tabsRef.current.find(
+        (tab) =>
+          tab.attachment?.id === action.attachment.id &&
+          tab.attachment.sessionId === action.attachment.sessionId,
+      );
+    if ("tabId" in action)
+      return tabsRef.current.find((tab) => tab.id === action.tabId);
+    return undefined;
+  }
+
+  function stateForTab(tab?: TerminalTab): MenuState {
+    const session = sessions.find(
+      (session) => session.session_id === tab?.attachment?.sessionId,
+    );
+    return {
+      ...menuState,
+      attachment: tab?.attachment,
+      tabId: tab?.id,
+      busy:
+        working ||
+        actionBusy.current ||
+        !!fileDialog ||
+        !!sshFileDialog ||
+        filePending ||
+        !!tab?.moving,
+      currentOpen: session?.state === "open",
+      currentSerial: session?.transport === "serial",
+      currentSSH: session?.transport === "ssh",
+      leased: !!session?.lease,
+      inputPaused: !!tab?.inputPaused,
+      hexView: tab?.settings.view === "hex",
+    };
+  }
+
   function enabled(action: Action): boolean {
-    if (
-      !actionEnabled(action, {
-        ...menuState,
-        busy: menuState.busy || actionBusy.current,
-      })
-    )
+    const targeted = "attachment" in action || "tabId" in action;
+    const tab = targeted ? tabForAction(action) : activeTab;
+    if ((targeted && !tab) || !actionEnabled(action, stateForTab(tab)))
       return false;
     if (
       action.id === "file.send" ||
@@ -644,7 +844,45 @@ export function App() {
 
   async function execute(action: Action) {
     if (!isAction(action) || !enabled(action)) return;
+    const targetTab = tabForAction(action);
+    const terminal = targetTab
+      ? terminals.current.get(targetTab.id)
+      : undefined;
     switch (action.id) {
+      case "window.new":
+        await unwrap(host.newWindow()).catch(report);
+        return;
+      case "window.close":
+        await unwrap(host.closeWindow()).catch(report);
+        return;
+      case "window.next":
+      case "window.previous":
+        await unwrap(
+          host.focusWindow(action.id === "window.next" ? "next" : "previous"),
+        ).catch(report);
+        return;
+      case "tab.new":
+        newTab();
+        return;
+      case "tab.select":
+        setSelectedTabId(action.tabId);
+        return;
+      case "tab.next":
+      case "tab.previous": {
+        const index = tabsRef.current.findIndex(
+          (tab) => tab.id === selectedTabRef.current,
+        );
+        const next =
+          (index +
+            (action.id === "tab.next" ? 1 : -1) +
+            tabsRef.current.length) %
+          tabsRef.current.length;
+        setSelectedTabId(tabsRef.current[next]?.id);
+        return;
+      }
+      case "tab.move":
+        if (targetTab) await move(targetTab);
+        return;
       case "file.send":
       case "file.resume":
       case "file.receive": {
@@ -696,6 +934,7 @@ export function App() {
         setChoosingSession(true);
         return;
       case "session.info":
+        if (targetTab) setSelectedTabId(targetTab.id);
         setAuxiliaryVisible(true);
         return;
       case "view.sidebar":
@@ -725,21 +964,22 @@ export function App() {
         setHelpOpen(true);
         return;
       case "terminal.copy":
-        terminal.current?.copy();
+        terminal?.copy();
         return;
       case "terminal.paste":
-        terminal.current?.paste();
+        terminal?.paste();
         return;
       case "terminal.clear":
-        terminal.current?.clear();
+        terminal?.clear();
         return;
       case "terminal.focus":
-        terminal.current?.focus();
+        terminal?.focus();
         return;
       case "terminal.resume":
-        setInputPaused(false);
+        if (targetTab)
+          updateTab(targetTab.id, { inputPaused: false, error: undefined });
         setError(undefined);
-        terminal.current?.focus();
+        terminal?.focus();
         return;
       case "app.quit":
         await unwrap(host.quit()).catch(report);
@@ -765,7 +1005,8 @@ export function App() {
           break;
         }
         case "tab.close":
-          await detach();
+        case "tab.closeEmpty":
+          if (targetTab) await detach(targetTab);
           break;
       }
     } finally {
@@ -981,7 +1222,11 @@ export function App() {
               openContext(
                 event,
                 sessionMenu(
-                  menuState,
+                  stateForTab(
+                    tabs.find(
+                      (tab) => tab.attachment?.sessionId === item.session_id,
+                    ),
+                  ),
                   item.session_id,
                   item.state === "open" &&
                     (item.transport === "ssh" || !item.lease),
@@ -1038,48 +1283,40 @@ export function App() {
         </aside>
         <main aria-label="Terminal workspace">
           <div className="terminal-toolbar">
-            {/* A tab-shaped attachment header does not imply multiple live tabs. */}
-            <div
-              className={`terminal-tab ${attachment ? "attached" : ""}`}
-              onContextMenu={(event) => {
-                if (attachment)
-                  openContext(
-                    event,
-                    sessionMenu(
-                      menuState,
-                      attachment.sessionId,
-                      current?.state === "open" &&
-                        (current.transport === "ssh" || !current.lease),
-                      current?.transport === "serial",
-                      current?.transport === "ssh",
-                    ),
+            <TerminalTabs
+              tabs={tabs.map((tab) => {
+                const session = sessions.find(
+                  (session) => session.session_id === tab.attachment?.sessionId,
+                );
+                return {
+                  id: tab.id,
+                  label:
+                    session?.label || session?.session_ref || t("tab.empty"),
+                  transport: session?.transport,
+                  moving: tab.moving,
+                };
+              })}
+              selected={selectedTabId}
+              disabled={working}
+              t={t}
+              onNew={() => dispatch({ id: "tab.new" })}
+              onSelect={(tabId) => dispatch({ id: "tab.select", tabId })}
+              onClose={(tabId) => {
+                const tab = tabs.find((tab) => tab.id === tabId);
+                if (tab)
+                  dispatch(
+                    tab.attachment
+                      ? { id: "tab.close", attachment: tab.attachment }
+                      : { id: "tab.closeEmpty", tabId },
                   );
               }}
-            >
-              <Icon
-                name={
-                  current?.transport === "serial"
-                    ? "serial"
-                    : current?.transport === "ssh"
-                      ? "monitor"
-                      : "terminal"
-                }
-              />
-              <h2 title={current?.label || current?.endpoint}>
-                {current?.label || current?.session_ref || "Terminal"}
-              </h2>
-              {attachment && (
-                <button
-                  className="quiet icon-button"
-                  aria-label={t("tab.close")}
-                  title={t("tab.close")}
-                  disabled={working}
-                  onClick={() => dispatch({ id: "tab.close", attachment })}
-                >
-                  <Icon name="close" />
-                </button>
-              )}
-            </div>
+              onContextMenu={(event, tabId) =>
+                openContext(
+                  event,
+                  tabMenu(stateForTab(tabs.find((tab) => tab.id === tabId))),
+                )
+              }
+            />
             {attachment && current?.transport === "serial" && (
               <button
                 className="terminal-settings-button quiet"
@@ -1087,6 +1324,7 @@ export function App() {
                 title={terminalSettings.description || t("terminal.settings")}
                 disabled={
                   working ||
+                  !!activeTab?.moving ||
                   !!fileDialog ||
                   filePending ||
                   current.state !== "open"
@@ -1120,13 +1358,24 @@ export function App() {
                   attachment?.id === settingsTarget.id &&
                   connected &&
                   !working &&
+                  !activeTab?.moving &&
                   target?.state === "open"
                 )
-                  await select(target, settings);
+                  await select(target, settings, activeTab?.id);
               }}
             />
           )}
           <div className="notices" aria-label="Terminal notices">
+            {activeTab?.restored && (
+              <div role="status" className="notice">
+                {t("tab.restoreHint")}
+              </div>
+            )}
+            {activeTab?.moving && (
+              <div role="status" className="notice">
+                {t("tab.moving")}
+              </div>
+            )}
             {displayError && (
               <div role="alert" className="notice">
                 {t("display.storageError")}
@@ -1175,24 +1424,45 @@ export function App() {
               </div>
             )}
           </div>
-          {attachment ? (
-            <TerminalView
-              ref={terminal}
-              key={attachment.id}
-              attachment={attachment}
-              settings={terminalSettings}
-              display={display}
-              onZoom={zoomDisplay}
-              writable={
-                writable && !fileDialog && !filePending && !settingsTarget
-              }
-              onError={report}
-              onDropped={() => setDropped(true)}
-              onContextMenu={(event) =>
-                openContext(event, terminalMenu(menuState))
-              }
-            />
-          ) : (
+          {tabs.map(
+            (tab) =>
+              tab.attachment && (
+                <div
+                  key={tab.attachment.id}
+                  className="terminal-pane"
+                  hidden={tab.id !== selectedTabId}
+                >
+                  <TerminalView
+                    ref={(controls) => {
+                      if (controls) terminals.current.set(tab.id, controls);
+                      else terminals.current.delete(tab.id);
+                    }}
+                    attachment={tab.attachment}
+                    settings={tab.settings}
+                    display={display}
+                    onZoom={zoomDisplay}
+                    visible={tab.id === selectedTabId}
+                    writable={
+                      tab.id === selectedTabId &&
+                      writable &&
+                      !tab.moving &&
+                      !tab.moveId &&
+                      !fileDialog &&
+                      !sshFileDialog &&
+                      !filePending &&
+                      !settingsTarget
+                    }
+                    onReady={() => void acceptMove(tab)}
+                    onError={(failure) => report(failure, tab.id)}
+                    onDropped={() => updateTab(tab.id, { dropped: true })}
+                    onContextMenu={(event) =>
+                      openContext(event, terminalMenu(stateForTab(tab)))
+                    }
+                  />
+                </div>
+              ),
+          )}
+          {!attachment && (
             <div className="terminal-empty" aria-busy={working}>
               <div className="empty-message">
                 <span className="terminal-glyph" aria-hidden="true">

@@ -3,6 +3,20 @@ import type { MessageDescriptor } from "@lingui/core";
 // Lingui 5 extracts these official annotated descriptors without a runtime macro
 // transform. Translations belong in PO catalogs; this file owns IDs and English defaults.
 export const menuMessages = [
+  /* i18n */ { id: "tab.move", message: "Move Tab to New Window" },
+  /* i18n */ { id: "tab.list", message: "Terminal tabs" },
+  /* i18n */ { id: "tab.empty", message: "New Tab" },
+  /* i18n */ { id: "tab.moving", message: "Moving tab..." },
+  /* i18n */ {
+    id: "tab.moveFailed",
+    message:
+      "Could not move the tab. The original tab was retained; no device was reopened or input replayed.",
+  },
+  /* i18n */ {
+    id: "tab.restoreHint",
+    message:
+      "Moved tab restored from recent Host output (up to 64 KiB). Full screen state and earlier history may be unavailable.",
+  },
   /* i18n */ { id: "menu.host", message: "Host" },
   /* i18n */ { id: "menu.window", message: "Window" },
   /* i18n */ { id: "session.choose", message: "Attach Session..." },

@@ -171,10 +171,14 @@ test("real Host keeps raw bytes while Main encodes client input and rejects hex/
       await assert.rejects(client.write(hex.id, "unsafe"), {
         code: "invalid_input",
       });
+      // Replacing a view is now explicit; opening another tab retains the old cursor/codec.
+      client.validateAttachment(attachment.id);
+      await client.detach(attachment.id);
       await assert.rejects(client.write(attachment.id, "stale"), {
         code: "cancelled",
       });
       assert.deepEqual((await observer.read(second.id)).data, []);
+      await client.detach(hex.id);
     }
     assert.equal((await observer.list())[0]!.label, "Isolated echo");
     await client.disconnect();

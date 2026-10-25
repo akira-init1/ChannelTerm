@@ -382,7 +382,7 @@ seleccionado, no los archivos predeterminados `state.json` ni `http-auth-token`.
 ## Documentación
 
 - [Índice de documentación](docs/README.md)
-- [Prototipo GUI Electron y desarrollo](docs/development/electron-gui.md) — El Host local predeterminado se conecta o inicia automáticamente; cree sesiones serie y SSH directamente en la GUI. Explore directorios del dispositivo y transfiera archivos/carpetas por serie en ambas direcciones con progreso en la GUI.
+- [Prototipo GUI Electron y desarrollo](docs/development/electron-gui.md) — El Host local predeterminado se conecta o inicia automáticamente; cree sesiones serie y SSH directamente en la GUI. Explore directorios del dispositivo y transfiera archivos/carpetas por serie en ambas direcciones con progreso en la GUI. Abra varias ventanas y pestañas de terminal, y mueva una pestaña a una nueva ventana sin cerrar su sesión compartida.
 - [Uso del terminal serie](docs/getting-started/serial-terminal.md)
 - [Flujo de shell SSH](docs/getting-started/ssh-terminal.md)
 - [Compartir una Session](docs/getting-started/shared-session.md)

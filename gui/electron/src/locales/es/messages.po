@@ -685,6 +685,31 @@ msgstr "Cerrar pestaña (desadjuntar)"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "tab.empty"
+msgstr "Nueva pestaña"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.list"
+msgstr "Pestañas de terminal"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.move"
+msgstr "Mover pestaña a una nueva ventana"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.moveFailed"
+msgstr "No se pudo mover la pestaña. Se conservó la original; no se reabrió ningún dispositivo ni se repitió ninguna entrada."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.moving"
+msgstr "Moviendo pestaña..."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "tab.new"
 msgstr "Nueva pestaña"
 
@@ -697,6 +722,11 @@ msgstr "Pestaña siguiente"
 #: src/shared/menu-messages.ts
 msgid "tab.previous"
 msgstr "Pestaña anterior"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.restoreHint"
+msgstr "La pestaña movida se restauró desde la salida reciente del host (hasta 64 KiB). El estado completo de la pantalla y el historial anterior podrían no estar disponibles."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

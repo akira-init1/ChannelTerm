@@ -6,6 +6,99 @@ import { HostClient } from "../src/main/host/client";
 import { HostError, publicError } from "../src/main/host/errors";
 import { startFixture } from "./fixture";
 
+test("attachment capacity rejects setup before device creation and recovers after detach", async () => {
+  const fixture = await startFixture();
+  const client = new HostClient(fixture.endpoint, fixture.token);
+  try {
+    await client.connect();
+    const sessionId = (await client.list())[0]!.session_id;
+    const handles = [];
+    for (let index = 0; index < 32; index++)
+      handles.push(await client.attach(sessionId));
+    await assert.rejects(client.attach(sessionId), { code: "busy" });
+    await assert.rejects(
+      client.openConnection({
+        kind: "serial",
+        port: "COM-FIXTURE",
+        baud: 115200,
+        dataBits: 8,
+        parity: "none",
+        stopBits: "1",
+        flowControl: "none",
+        label: "Capacity test",
+      }),
+      { code: "busy" },
+    );
+    assert.equal((await client.list()).length, 1);
+    await client.detach(handles[0]!.id);
+    const replacement = await client.attach(sessionId);
+    await client.write(replacement.id, "capacity-recovered");
+    assert.match(
+      Buffer.from((await client.read(replacement.id)).data).toString(),
+      /capacity-recovered/,
+    );
+    for (const handle of handles.slice(1)) client.validateAttachment(handle.id);
+  } finally {
+    await client.disconnect();
+    await fixture.stop();
+  }
+});
+
+test("one window retains independent attachments and cursors while another client stays isolated", async () => {
+  const fixture = await startFixture();
+  const client = new HostClient(fixture.endpoint, fixture.token);
+  const other = new HostClient(fixture.endpoint, fixture.token);
+  try {
+    await client.connect();
+    await other.connect();
+    const sessionId = (await client.list())[0]!.session_id;
+    const first = await client.attach(sessionId);
+    const second = await client.attach(sessionId);
+    const foreign = await other.attach(sessionId);
+    assert.notEqual(first.id, second.id);
+    await Promise.all([
+      client.read(first.id),
+      client.read(second.id),
+      other.read(foreign.id),
+    ]);
+    assert.throws(() => other.validateAttachment(first.id), {
+      code: "cancelled",
+    });
+    await client.write(first.id, "both-tabs-see-this");
+    const output = await Promise.all([
+      client.read(first.id),
+      client.read(second.id),
+    ]);
+    for (const chunk of output)
+      assert.equal(Buffer.from(chunk.data).toString(), "both-tabs-see-this");
+    const pending = client.read(first.id);
+    const cancelled = assert.rejects(pending, { code: "cancelled" });
+    await client.detach(first.id);
+    await cancelled;
+    await client.detach(first.id);
+    await client.write(second.id, "second-tab-survives");
+    assert.equal(
+      Buffer.from((await client.read(second.id)).data).toString(),
+      "second-tab-survives",
+    );
+    const survivor = await other.read(foreign.id);
+    assert.match(Buffer.from(survivor.data).toString(), /second-tab-survives/);
+    await client.disconnect();
+    await client.disconnect();
+    await assert.rejects(client.read(second.id), { code: "cancelled" });
+    assert.equal((await other.list())[0]!.state, "open");
+    await other.write(foreign.id, "other-window-survives");
+    assert.equal(
+      Buffer.from((await other.read(foreign.id)).data).toString(),
+      "other-window-survives",
+    );
+  } finally {
+    await client.disconnect();
+    await other.disconnect();
+    await fixture.stop();
+  }
+});
+
 test("real Go Host: output, ordinary writes, lease authority, cancellation, overwrite, and independent clients", async () => {
   const fixture = await startFixture();
   const client = new HostClient(fixture.endpoint, fixture.token);

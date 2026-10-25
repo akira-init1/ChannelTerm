@@ -685,6 +685,31 @@ msgstr "Close tab (detach)"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "tab.empty"
+msgstr "New Tab"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.list"
+msgstr "Terminal tabs"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.move"
+msgstr "Move Tab to New Window"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.moveFailed"
+msgstr "Could not move the tab. The original tab was retained; no device was reopened or input replayed."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.moving"
+msgstr "Moving tab..."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "tab.new"
 msgstr "New Tab"
 
@@ -697,6 +722,11 @@ msgstr "Next Tab"
 #: src/shared/menu-messages.ts
 msgid "tab.previous"
 msgstr "Previous Tab"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.restoreHint"
+msgstr "Moved tab restored from recent Host output (up to 64 KiB). Full screen state and earlier history may be unavailable."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

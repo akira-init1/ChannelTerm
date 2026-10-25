@@ -17,6 +17,9 @@ export function updateApplicationMenu(
   window: BrowserWindow,
   state: MenuState,
   quit: () => void,
+  windowAction: (
+    id: "window.new" | "window.close" | "window.next" | "window.previous",
+  ) => void,
 ): void {
   const i18n = setupI18n({ locale: state.locale, messages: menuCatalogs });
   const convert = (entries: MenuEntry[]): MenuItemConstructorOptions[] =>
@@ -39,6 +42,13 @@ export function updateApplicationMenu(
         // Quit belongs to Main and must still work after the last macOS window
         // closes or the renderer crashes. IPC quit uses this same handler.
         if (entry.action?.id === "app.quit") quit();
+        else if (
+          entry.action?.id === "window.new" ||
+          entry.action?.id === "window.close" ||
+          entry.action?.id === "window.next" ||
+          entry.action?.id === "window.previous"
+        )
+          windowAction(entry.action.id);
         else if (entry.action && !window.isDestroyed())
           window.webContents.send(channels.menuAction, entry.action);
       },

@@ -106,8 +106,10 @@ export async function checkConnections(environment, launchArgs) {
     await page.screenshot({ path: "test-results/connection-serial.png" });
     await dialog.getByRole("button", { name: "Connect", exact: true }).click();
     await expect(dialog).not.toBeVisible();
-    await expect(page.locator(".terminal-tab")).toContainText("Created serial");
-    await expect(page.locator(".xterm-screen")).toBeVisible();
+    await expect(page.locator(".terminal-tab.active")).toContainText(
+      "Created serial",
+    );
+    await expect(page.locator(".xterm-screen:visible")).toBeVisible();
     const serial = (await observer.list()).find(
       (s) => s.label === "Created serial",
     );
@@ -120,7 +122,9 @@ export async function checkConnections(environment, launchArgs) {
     await expect(page.locator(".terminal-description")).toHaveText(
       "Local board console",
     );
-    await page.locator(".xterm-helper-textarea").focus();
+    await page
+      .locator(".terminal-pane:not([hidden]) .xterm-helper-textarea")
+      .focus();
     await page.keyboard.insertText("中文");
     const received = [];
     await expect
@@ -131,7 +135,9 @@ export async function checkConnections(environment, launchArgs) {
         );
       })
       .toBe(true);
-    await expect(page.locator(".xterm-rows")).toContainText("中文");
+    await expect(
+      page.locator(".terminal-pane:not([hidden]) .xterm-rows"),
+    ).toContainText("中文");
     await page
       .getByRole("button", { name: "Terminal settings", exact: true })
       .click();
@@ -142,8 +148,12 @@ export async function checkConnections(environment, launchArgs) {
     await dialog.getByRole("button", { name: "Apply", exact: true }).click();
     await expect(dialog).not.toBeVisible();
     await expect(page.locator(".input-status")).toHaveText("Hex (read-only)");
-    await expect(page.locator(".xterm-rows")).toContainText("d6 d0 ce c4");
-    await page.locator(".xterm-helper-textarea").focus();
+    await expect(
+      page.locator(".terminal-pane:not([hidden]) .xterm-rows"),
+    ).toContainText("d6 d0 ce c4");
+    await page
+      .locator(".terminal-pane:not([hidden]) .xterm-helper-textarea")
+      .focus();
     await page.keyboard.type("MUST-NOT-WRITE");
     assert.deepEqual((await observer.read(serialObserver.id)).data, []);
     await page.screenshot({ path: "test-results/terminal-hex.png" });
@@ -176,7 +186,9 @@ export async function checkConnections(environment, launchArgs) {
       "authentication failed",
     );
     await expect(dialog.locator('[name="password"]')).toHaveValue("");
-    await expect(page.locator(".terminal-tab")).toContainText("Created serial");
+    await expect(page.locator(".terminal-tab.active")).toContainText(
+      "Created serial",
+    );
     await dialog.locator('[name="password"]').fill("fixture-password");
     await dialog.locator('[name="label"]').fill("Created SSH");
     await desktop.evaluate(({ BrowserWindow }) =>
@@ -191,12 +203,16 @@ export async function checkConnections(environment, launchArgs) {
     await page.screenshot({ path: "test-results/connection-ssh.png" });
     await dialog.getByRole("button", { name: "Connect", exact: true }).click();
     await expect(dialog).not.toBeVisible();
-    await expect(page.locator(".terminal-tab")).toContainText("Created SSH");
+    await expect(page.locator(".terminal-tab.active")).toContainText(
+      "Created SSH",
+    );
     const ssh = (await observer.list()).find((s) => s.label === "Created SSH");
     assert.ok(ssh);
     const attachment = await observer.attach(ssh.session_id);
     await checkSSHFiles(desktop, page, fixture);
-    await page.locator(".xterm-helper-textarea").focus();
+    await page
+      .locator(".terminal-pane:not([hidden]) .xterm-helper-textarea")
+      .focus();
     await page.keyboard.type("gui-ssh-input");
     await page.keyboard.press("Enter");
     let output = "";
@@ -209,9 +225,13 @@ export async function checkConnections(environment, launchArgs) {
       })
       .toContain("gui-ssh-input");
     await page
+      .locator(".terminal-tab.active")
       .getByRole("button", { name: "Close tab (detach)", exact: true })
       .click();
-    await expect(page.locator(".xterm-screen")).toHaveCount(0);
+    await expect(page.locator(".terminal-tab.active")).toContainText(
+      "Created serial",
+    );
+    await expect(page.locator(".xterm-screen:visible")).toHaveCount(1);
     assert.equal(
       (await observer.list()).find((s) => s.session_id === ssh.session_id)
         ?.state,

@@ -32,6 +32,8 @@ export function TerminalView({
   display,
   onZoom,
   writable,
+  visible,
+  onReady,
   onError,
   onDropped,
   ref,
@@ -42,6 +44,8 @@ export function TerminalView({
   display: DisplaySettings;
   onZoom: (delta: number) => void;
   writable: boolean;
+  visible: boolean;
+  onReady: () => void;
   onError: (error: ClientError) => void;
   onDropped: () => void;
   ref: Ref<TerminalControls>;
@@ -109,10 +113,13 @@ export function TerminalView({
     [attachment.id],
   );
   const inputEnabled = useRef(writable);
-  const callbacks = useRef({ onError, onDropped, onZoom });
+  const callbacks = useRef({ onError, onDropped, onZoom, onReady });
   const previousReadLoop = useRef<Promise<void>>(Promise.resolve());
+  const visibility = useRef(visible);
+  const resumeRead = useRef<(() => void) | undefined>(undefined);
+  visibility.current = visible;
   // Use the latest guards/callbacks without recreating xterm on status updates.
-  callbacks.current = { onError, onDropped, onZoom };
+  callbacks.current = { onError, onDropped, onZoom, onReady };
   const enabled = writable && settings.view !== "hex";
   if (inputEnabled.current && !enabled) inputEpoch.current++;
   inputEnabled.current = enabled;
@@ -156,8 +163,10 @@ export function TerminalView({
     fitting.current = fit;
     terminal.loadAddon(fit);
     terminal.open(container.current!);
-    fit.fit();
-    terminal.focus();
+    if (visibility.current) {
+      fit.fit();
+      terminal.focus();
+    }
     let stopped = false;
     // Historical device queries are not current requests to this attachment.
     // Intercept queries at the parser (not by filtering user keystrokes or raw output).
@@ -183,7 +192,9 @@ export function TerminalView({
     let inputVersion = 0;
     let writes = Promise.resolve();
     let finishRender: (() => void) | undefined;
-    const resize = new ResizeObserver(() => fit.fit());
+    const resize = new ResizeObserver(() => {
+      if (visibility.current) fit.fit();
+    });
     resize.observe(container.current!);
     const listener = terminal.onData((data) => {
       if (!inputEnabled.current || stopped) return;
@@ -216,8 +227,16 @@ export function TerminalView({
       // Effect replay/refresh must finish the old bounded read before starting
       // another one for this attachment. Main cancels it on a real detach.
       await previous;
+      let ready = false;
       try {
         while (!stopped) {
+          // Hidden tabs retain their bounded xterm buffer and Host cursor without redrawing.
+          // A read already in flight can finish; further reads wait until selection.
+          if (!visibility.current)
+            await new Promise<void>((resolve) => {
+              resumeRead.current = resolve;
+            });
+          if (stopped) break;
           const output = await unwrap(host.read(attachment.id));
           if (stopped) break;
           replay = !!output.replay;
@@ -235,6 +254,10 @@ export function TerminalView({
                 done,
               );
             });
+          if (!ready && !stopped) {
+            ready = true;
+            callbacks.current.onReady();
+          }
         }
       } catch (error) {
         if (!stopped) callbacks.current.onError(error as ClientError);
@@ -242,6 +265,8 @@ export function TerminalView({
     })();
     return () => {
       stopped = true;
+      resumeRead.current?.();
+      resumeRead.current = undefined;
       finishRender?.();
       resize.disconnect();
       element.removeEventListener("wheel", wheel, true);
@@ -256,10 +281,17 @@ export function TerminalView({
   }, [attachment.id]);
 
   useEffect(() => {
+    if (!visible) return;
+    fitting.current?.fit();
+    resumeRead.current?.();
+    resumeRead.current = undefined;
+  }, [visible]);
+
+  useEffect(() => {
     if (!local.current) return;
     local.current.options.fontSize = display.fontSize;
     local.current.options.fontFamily = `${display.fontFamily}, monospace`;
-    fitting.current?.fit();
+    if (visibility.current) fitting.current?.fit();
   }, [display]);
 
   return (
