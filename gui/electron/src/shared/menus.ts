@@ -73,6 +73,7 @@ export type Action =
       id:
         | "tab.close"
         | "session.close"
+        | "session.copyAI"
         | "tab.move"
         | "session.info"
         | "terminal.clear"
@@ -493,6 +494,7 @@ export function isAction(value: unknown): value is Action {
       return exact(value, ["id", "sessionId"]) && identifier(value.sessionId);
     case "tab.close":
     case "session.close":
+    case "session.copyAI":
     case "tab.move":
     case "session.info":
     case "terminal.copy":
@@ -618,6 +620,7 @@ export function actionEnabled(action: Action, state: MenuState): boolean {
       return state.connected && !state.busy;
     case "tab.close":
     case "session.close":
+    case "session.copyAI":
     case "tab.move":
     case "session.info":
     case "terminal.copy":
@@ -629,7 +632,7 @@ export function actionEnabled(action: Action, state: MenuState): boolean {
         !state.busy &&
         state.attachment?.id === action.attachment.id &&
         state.attachment.sessionId === action.attachment.sessionId &&
-        (action.id !== "session.close" ||
+        (!["session.close", "session.copyAI"].includes(action.id) ||
           (state.connected && state.currentOpen)) &&
         (action.id !== "tab.move" ||
           (state.connected &&

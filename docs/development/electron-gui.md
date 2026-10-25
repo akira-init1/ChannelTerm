@@ -81,6 +81,12 @@ confirmed closure and another client's observation using the isolated Host. Unit
 checks foreign/detached handles, concurrent close/write rejection and the actual leased-close
 contract. These tests do not prove physical serial control-line or remote-process cleanup effects.
 
+**Copy for AI** in the status bar copies full target metadata in the window's language. The desktop
+suite verifies all nine languages through the real Main clipboard path, restores the prior clipboard,
+and checks visibility at 760 px. Unit tests reject foreign, stale and closed handles, detach during
+the metadata query, oversized fields, control/newline injection and credential-bearing Host URLs.
+No AI service or real device is used by these checks.
+
 ## File client build and verification
 
 File operations use another build of the same CLI at `dist/files/channelterm[.exe]`. Main invokes

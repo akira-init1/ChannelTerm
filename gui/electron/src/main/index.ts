@@ -1,5 +1,6 @@
 import { DesktopFiles, TransferConfirmation } from "./files";
 import { DesktopSSHFiles } from "./ssh-files";
+import { copyAITarget } from "./target-copy";
 import {
   app,
   clipboard,
@@ -326,7 +327,21 @@ async function acceptMovedTab(
 }
 
 function createHandlers(context: WindowContext): Record<string, Handler> {
+  let copyingTarget = false;
   const handlers: Record<string, (...args: unknown[]) => unknown> = {
+    [channels.copyAITarget]: async (id, locale) => {
+      identifier(id);
+      if (copyingTarget)
+        throw new HostError("busy", "Target copy is already pending.");
+      copyingTarget = true;
+      try {
+        await copyAITarget(currentHost(context), id, locale, (text) =>
+          clipboard.writeText(text),
+        );
+      } finally {
+        copyingTarget = false;
+      }
+    },
     [channels.readClipboard]: async (id) => {
       identifier(id);
       const selectedHost = currentHost(context);
@@ -575,6 +590,7 @@ function registerIPC(): void {
             channels.attach,
             channels.write,
             channels.writeClipboard,
+            channels.copyAITarget,
             channels.browseDirectory,
             channels.cancelTransfer,
             channels.resolveTransferCancel,

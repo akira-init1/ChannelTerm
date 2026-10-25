@@ -1,5 +1,6 @@
 import { checkFiles } from "./file-checks.mjs";
 import { checkTerminalControls } from "./terminal-checks.mjs";
+import { checkTargetCopy } from "./target-copy-checks.mjs";
 import assert from "node:assert/strict";
 import { _electron as electron, expect } from "@playwright/test";
 import { startFixture } from "../tests/fixture.ts";
@@ -237,6 +238,7 @@ try {
   ).toBeVisible();
   await checkLayout(desktop, page, "attached");
   await checkCompactLayout(desktop, page);
+  await checkTargetCopy(desktop, page, fixture, sessionId);
   await checkWorkbenchPanels(desktop, page, observer, attachment);
   await checkFiles(desktop, page, fixture);
   // Searching/collapsing navigation only changes presentation, never attachment.

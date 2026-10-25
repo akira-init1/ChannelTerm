@@ -133,6 +133,12 @@ terminal has no separate input-hint box or command composer. Input remains direc
 Dragging only refits local xterm cells; it neither detaches nor sends a remote resize request.
 No baud rate, throughput, recent-connection history, or other unavailable metadata is invented.
 
+The status bar's **Copy for AI** action sends only the captured attachment and resolved language
+through a fixed IPC method. Main fetches current target metadata, revalidates ownership, validates
+single-line field bounds and formats a localized plain-text clipboard message. No terminal content,
+credentials or AI-service connection enters this path. The display abbreviates the opaque ID while
+the clipboard retains it in full; see the [target copy contract](../reference/gui-menus.md#window-action-contracts).
+
 | State | Display and supported next action |
 | --- | --- |
 | Host disconnected | Compact terminal hint to connect; Session refresh is disabled. |

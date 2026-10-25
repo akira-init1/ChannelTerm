@@ -714,7 +714,7 @@ main {
   display: flex;
   align-items: center;
   gap: 8px;
-  max-width: 25%;
+  max-width: 43%;
   white-space: nowrap;
   overflow: hidden;
 }
@@ -722,6 +722,38 @@ main {
   color: #70b4e8;
   width: 15px;
   height: 15px;
+}
+.target-label {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.target-reference,
+.target-copy {
+  flex-shrink: 0;
+}
+.target-id {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.target-copy {
+  height: 20px;
+  padding: 0 6px;
+  font-size: inherit;
+  white-space: nowrap;
+}
+.target-feedback:empty {
+  display: none;
+}
+.target-feedback {
+  position: absolute;
+  bottom: 28px;
+  left: 16px;
+  max-width: min(600px, calc(100vw - 32px));
+  padding: 6px 10px;
+  background: var(--toolbar-background);
+  border: 1px solid var(--border);
+  border-radius: 4px;
 }
 .input-status {
   border-left: 1px solid #394353;
@@ -750,7 +782,10 @@ main {
     margin-bottom: 6px;
   }
   .host-hint,
-  .status-session {
+  .target-label,
+  .target-id,
+  .session-total,
+  .status-detail {
     display: none;
   }
   .statusbar {

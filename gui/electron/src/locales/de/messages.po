@@ -760,6 +760,37 @@ msgstr "Der verschobene Tab wurde aus der letzten Host-Ausgabe wiederhergestellt
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "target.copied"
+msgstr "Zielanweisungen kopiert."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "target.copy"
+msgstr "Für KI kopieren"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "target.empty"
+msgstr "Keine Session"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "target.failed"
+msgstr "Ziel konnte nicht kopiert werden. Aktualisieren Sie die Sessions, wählen Sie ein offenes Ziel und versuchen Sie es erneut."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "target.hint"
+msgstr "Vollständige Ziel-ID und Verbindungsdaten ohne Terminalausgabe oder Zugangsdaten kopieren."
+
+#. js-lingui-explicit-id
+#: src/main/target-copy.ts
+#: src/shared/menu-messages.ts
+msgid "target.instructions"
+msgstr "Verwende das verbundene ChannelTerm MCP für dieses Ziel:\nName: {name}\nHost: {host}\nsession_id: {sessionId}\nKurzreferenz: {reference}\nVerbindung: {transport} / {endpoint}\n\nFrage zuerst Sessions ab und bestätige, dass vollständige ID, Endpunkt und Status übereinstimmen.\nBei Abweichungen anhalten. Kein anderes Gerät automatisch auswählen.\nDie konkrete Operation werde ich separat angeben."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.apply"
 msgstr "Anwenden"
 

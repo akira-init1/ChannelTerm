@@ -760,6 +760,37 @@ msgstr "이동한 탭은 호스트의 최근 출력(최대 64 KiB)에서 복원�
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "target.copied"
+msgstr "대상 안내를 복사했습니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "target.copy"
+msgstr "AI용으로 복사"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "target.empty"
+msgstr "Session 없음"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "target.failed"
+msgstr "대상을 복사하지 못했습니다. Session 목록을 새로 고치고 열린 대상을 선택한 후 다시 시도하세요."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "target.hint"
+msgstr "터미널 출력이나 자격 증명 없이 대상의 전체 ID와 연결 정보를 복사합니다."
+
+#. js-lingui-explicit-id
+#: src/main/target-copy.ts
+#: src/shared/menu-messages.ts
+msgid "target.instructions"
+msgstr "연결된 ChannelTerm MCP를 통해 다음 대상을 조작하세요:\n이름: {name}\nHost: {host}\nsession_id: {sessionId}\n짧은 참조: {reference}\n연결: {transport} / {endpoint}\n\n먼저 Sessions를 조회하여 전체 ID, 연결 대상 및 상태가 일치하는지 확인하세요.\n일치하지 않으면 중지하고 다른 장치를 자동으로 선택하지 마세요.\n구체적인 작업은 별도로 지시하겠습니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.apply"
 msgstr "적용"
 

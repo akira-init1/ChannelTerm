@@ -3,6 +3,24 @@ import type { MessageDescriptor } from "@lingui/core";
 // Lingui 5 extracts these official annotated descriptors without a runtime macro
 // transform. Translations belong in PO catalogs; this file owns IDs and English defaults.
 export const menuMessages = [
+  /* i18n */ { id: "target.copy", message: "Copy for AI" },
+  /* i18n */ {
+    id: "target.hint",
+    message:
+      "Copy this target's full ID and connection details, without terminal output or credentials.",
+  },
+  /* i18n */ { id: "target.copied", message: "Target instructions copied." },
+  /* i18n */ {
+    id: "target.failed",
+    message:
+      "Could not copy the target. Refresh Sessions and select an open target, then try again.",
+  },
+  /* i18n */ { id: "target.empty", message: "No Session" },
+  /* i18n */ {
+    id: "target.instructions",
+    message:
+      "Use the connected ChannelTerm MCP to operate on this target:\nName: {name}\nHost: {host}\nsession_id: {sessionId}\nShort reference: {reference}\nConnection: {transport} / {endpoint}\n\nFirst query Sessions and confirm that the full ID, endpoint, and state match.\nIf they do not match, stop. Do not automatically select another device.\nI will specify the operation separately.",
+  },
   /* i18n */ { id: "session.close", message: "Close shared Session..." },
   /* i18n */ { id: "session.closeConfirm", message: "Close for everyone" },
   /* i18n */ {

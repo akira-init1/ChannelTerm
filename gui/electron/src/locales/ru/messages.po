@@ -760,6 +760,37 @@ msgstr "Перемещённая вкладка восстановлена из 
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "target.copied"
+msgstr "Инструкции для цели скопированы."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "target.copy"
+msgstr "Копировать для ИИ"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "target.empty"
+msgstr "Нет Session"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "target.failed"
+msgstr "Не удалось скопировать цель. Обновите Sessions, выберите открытую цель и повторите попытку."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "target.hint"
+msgstr "Копировать полный ID и параметры соединения без вывода терминала и учётных данных."
+
+#. js-lingui-explicit-id
+#: src/main/target-copy.ts
+#: src/shared/menu-messages.ts
+msgid "target.instructions"
+msgstr "Используй подключённый ChannelTerm MCP для работы с этой целью:\nИмя: {name}\nHost: {host}\nsession_id: {sessionId}\nКраткая ссылка: {reference}\nСоединение: {transport} / {endpoint}\n\nСначала запроси Sessions и проверь совпадение полного ID, адреса подключения и состояния.\nЕсли они не совпадают, остановись. Не выбирай другое устройство автоматически.\nОперацию я укажу отдельно."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.apply"
 msgstr "Применить"
 

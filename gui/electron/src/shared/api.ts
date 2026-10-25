@@ -6,7 +6,12 @@ import type {
   TransferCheckpoint,
   SSHTransferRequest,
 } from "./transfers";
-import type { Action, MenuState, LanguagePreference } from "./menus";
+import type {
+  Action,
+  MenuState,
+  LanguagePreference,
+  MenuLocale,
+} from "./menus";
 import type { ConnectionRequest, OpenedConnection } from "./connections";
 import type { TerminalSettings } from "./terminal-settings";
 
@@ -82,6 +87,7 @@ export interface DesktopAPI {
   onWindowCount(listener: (count: number) => void): () => void;
   readClipboard(attachmentId: string): Promise<Result<string>>;
   writeClipboard(attachmentId: string, text: string): Promise<Result<void>>;
+  copyAITarget(attachmentId: string, locale: MenuLocale): Promise<Result<void>>;
   chooseTransferPath(
     sessionId: string,
     direction: "send" | "receive",
@@ -140,6 +146,7 @@ export const channels = {
   windowCount: "window:count",
   readClipboard: "terminal:clipboard-read",
   writeClipboard: "terminal:clipboard-write",
+  copyAITarget: "session:copy-ai-target",
   chooseTransferPath: "files:choose",
   browseDirectory: "files:browse",
   startTransfer: "files:transfer",

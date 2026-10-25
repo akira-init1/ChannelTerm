@@ -280,7 +280,18 @@ test("menu catalogs cover every implemented item in all nine languages and depth
         Object.hasOwn(menuCatalogs[locale], message.id),
         `Extract and translate ${message.id} for ${locale}`,
       );
-      if (locale === "en") assert.equal(i18n._(message.id), message.message);
+      if (locale === "en")
+        assert.equal(
+          i18n._(message.id, {
+            name: "{name}",
+            host: "{host}",
+            sessionId: "{sessionId}",
+            reference: "{reference}",
+            transport: "{transport}",
+            endpoint: "{endpoint}",
+          }),
+          message.message,
+        );
       assert.doesNotMatch(
         i18n._(message.id),
         /\?{2,}|\uFFFD/,

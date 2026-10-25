@@ -207,6 +207,18 @@ export function App() {
   const [connectionError, setError] = useState<ClientError>();
   const error = activeTab?.error ?? connectionError;
   const [windowCount, setWindowCount] = useState(1);
+  const copyingTarget = useRef(false);
+  const [copyPending, setCopyPending] = useState(false);
+  const [copyResult, setCopyResult] = useState<{
+    id: string;
+    locale: string;
+    message: string;
+  }>();
+  useEffect(() => {
+    if (!copyResult) return;
+    const timer = window.setTimeout(() => setCopyResult(undefined), 5000);
+    return () => window.clearTimeout(timer);
+  }, [copyResult]);
   useEffect(() => host.onWindowCount(setWindowCount), []);
   function updateTab(id: string | undefined, patch: Partial<TerminalTab>) {
     setTabs((tabs) =>
@@ -860,6 +872,30 @@ export function App() {
       ? terminals.current.get(targetTab.id)
       : undefined;
     switch (action.id) {
+      case "session.copyAI": {
+        if (copyingTarget.current) return;
+        copyingTarget.current = true;
+        setCopyPending(true);
+        setCopyResult(undefined);
+        try {
+          await unwrap(host.copyAITarget(action.attachment.id, locale));
+          setCopyResult({
+            id: action.attachment.id,
+            locale,
+            message: "target.copied",
+          });
+        } catch {
+          setCopyResult({
+            id: action.attachment.id,
+            locale,
+            message: "target.failed",
+          });
+        } finally {
+          copyingTarget.current = false;
+          setCopyPending(false);
+        }
+        return;
+      }
       case "session.close": {
         const session = sessions.find(
           (entry) => entry.session_id === action.attachment.sessionId,
@@ -1615,11 +1651,53 @@ export function App() {
         </aside>
       </div>
       <footer className="statusbar" aria-label="Workbench status">
-        <span className="status-session" title={current?.endpoint}>
+        <span
+          className="status-session"
+          title={
+            current
+              ? `${current.label || current.endpoint} · ${current.session_ref} · ${current.session_id}`
+              : undefined
+          }
+        >
           <Icon name={current?.transport === "serial" ? "serial" : "monitor"} />
-          {current?.session_ref || "No Session"}
+          {current ? (
+            <>
+              <span className="target-label">
+                {current.label || current.endpoint}
+              </span>
+              <span className="target-reference">{current.session_ref}</span>
+              <code className="target-id" title={current.session_id}>
+                SID{" "}
+                {current.session_id.length > 14
+                  ? `${current.session_id.slice(0, 6)}…${current.session_id.slice(-6)}`
+                  : current.session_id}
+              </code>
+            </>
+          ) : (
+            t("target.empty")
+          )}
         </span>
-        <span>
+        <button
+          className="target-copy"
+          title={t("target.hint")}
+          disabled={
+            !attachment ||
+            !enabled({ id: "session.copyAI", attachment }) ||
+            copyPending
+          }
+          onClick={() =>
+            attachment &&
+            dispatch({ id: "session.copyAI", attachment: { ...attachment } })
+          }
+        >
+          {t("target.copy")}
+        </button>
+        <span className="target-feedback" role="status">
+          {copyResult?.id === attachment?.id && copyResult?.locale === locale
+            ? t(copyResult.message)
+            : ""}
+        </span>
+        <span className="session-total">
           {connected
             ? `${sessions.length} Session${sessions.length === 1 ? "" : "s"}`
             : "Offline"}

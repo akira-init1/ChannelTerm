@@ -760,6 +760,37 @@ msgstr "L’onglet déplacé a été restauré à partir de la sortie récente d
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "target.copied"
+msgstr "Instructions de la cible copiées."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "target.copy"
+msgstr "Copier pour l’IA"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "target.empty"
+msgstr "Aucune Session"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "target.failed"
+msgstr "Impossible de copier la cible. Actualisez les Sessions, sélectionnez une cible ouverte et réessayez."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "target.hint"
+msgstr "Copier l’identifiant complet et la connexion, sans sortie du terminal ni identifiants secrets."
+
+#. js-lingui-explicit-id
+#: src/main/target-copy.ts
+#: src/shared/menu-messages.ts
+msgid "target.instructions"
+msgstr "Utilise le ChannelTerm MCP connecté pour intervenir sur cette cible :\nNom : {name}\nHost : {host}\nsession_id : {sessionId}\nRéférence courte : {reference}\nConnexion : {transport} / {endpoint}\n\nConsulte d’abord Sessions et confirme que l’identifiant complet, le point de connexion et l’état correspondent.\nSinon, arrête-toi. Ne sélectionne pas automatiquement un autre appareil.\nJe préciserai l’opération séparément."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.apply"
 msgstr "Appliquer"
 

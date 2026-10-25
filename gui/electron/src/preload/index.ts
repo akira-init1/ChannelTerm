@@ -28,6 +28,8 @@ const api: DesktopAPI = {
   readClipboard: (id) => ipcRenderer.invoke(channels.readClipboard, id),
   writeClipboard: (id, text) =>
     ipcRenderer.invoke(channels.writeClipboard, id, text),
+  copyAITarget: (id, locale) =>
+    ipcRenderer.invoke(channels.copyAITarget, id, locale),
   chooseTransferPath: (sessionId, direction, kind) =>
     ipcRenderer.invoke(channels.chooseTransferPath, sessionId, direction, kind),
   browseDirectory: (sessionId, path) =>

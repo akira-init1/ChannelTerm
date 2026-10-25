@@ -760,6 +760,37 @@ msgstr "La pestaña movida se restauró desde la salida reciente del host (hasta
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "target.copied"
+msgstr "Instrucciones del destino copiadas."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "target.copy"
+msgstr "Copiar para IA"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "target.empty"
+msgstr "Sin Session"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "target.failed"
+msgstr "No se pudo copiar el destino. Actualice las Sessions, seleccione un destino abierto y reintente."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "target.hint"
+msgstr "Copiar el ID completo y los datos de conexión sin salida del terminal ni credenciales."
+
+#. js-lingui-explicit-id
+#: src/main/target-copy.ts
+#: src/shared/menu-messages.ts
+msgid "target.instructions"
+msgstr "Usa el ChannelTerm MCP conectado para operar en este destino:\nNombre: {name}\nHost: {host}\nsession_id: {sessionId}\nReferencia corta: {reference}\nConexión: {transport} / {endpoint}\n\nPrimero consulta Sessions y confirma que coinciden el ID completo, el destino de conexión y el estado.\nSi no coinciden, detente. No selecciones automáticamente otro dispositivo.\nIndicaré la operación por separado."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.apply"
 msgstr "Aplicar"
 

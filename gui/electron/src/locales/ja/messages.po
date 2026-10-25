@@ -760,6 +760,37 @@ msgstr "移動したタブはホストの直近の出力（最大 64 KiB）か�
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "target.copied"
+msgstr "対象の指示をコピーしました。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "target.copy"
+msgstr "AI 向けにコピー"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "target.empty"
+msgstr "Session なし"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "target.failed"
+msgstr "コピーできませんでした。Session 一覧を更新し、接続中の対象を選択して再試行してください。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "target.hint"
+msgstr "端末出力や認証情報を含めずに、対象の完全な ID と接続情報をコピーします。"
+
+#. js-lingui-explicit-id
+#: src/main/target-copy.ts
+#: src/shared/menu-messages.ts
+msgid "target.instructions"
+msgstr "接続済みの ChannelTerm MCP を使用して、次の対象を操作してください：\n名前：{name}\nHost：{host}\nsession_id：{sessionId}\n短縮参照：{reference}\n接続：{transport} / {endpoint}\n\nまず Sessions を照会し、完全な ID、接続先、状態が一致することを確認してください。\n一致しない場合は停止し、別のデバイスを自動選択しないでください。\n具体的な操作は別途指示します。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.apply"
 msgstr "適用"
 

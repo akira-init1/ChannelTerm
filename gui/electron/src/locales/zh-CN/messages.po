@@ -760,6 +760,37 @@ msgstr "移动后的标签页已从 Host 最近的输出恢复（最多 64 KiB�
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "target.copied"
+msgstr "已复制目标指引。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "target.copy"
+msgstr "复制给 AI"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "target.empty"
+msgstr "无 Session"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "target.failed"
+msgstr "无法复制目标。请刷新 Session 列表并选择已打开的目标后重试。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "target.hint"
+msgstr "复制目标的完整 ID 和连接信息，不包含终端输出或凭据。"
+
+#. js-lingui-explicit-id
+#: src/main/target-copy.ts
+#: src/shared/menu-messages.ts
+msgid "target.instructions"
+msgstr "请通过已连接的 ChannelTerm MCP 操作以下目标：\n名称：{name}\nHost：{host}\nsession_id：{sessionId}\n短引用：{reference}\n连接：{transport} / {endpoint}\n\n先查询 Sessions，确认完整 ID、端点和状态一致。\n不匹配时停止，不要自动选择其他设备。\n具体操作由我另行说明。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.apply"
 msgstr "应用"
 

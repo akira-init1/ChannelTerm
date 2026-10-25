@@ -760,6 +760,47 @@ msgstr "Moved tab restored from recent Host output (up to 64 KiB). Full screen s
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "target.copied"
+msgstr "Target instructions copied."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "target.copy"
+msgstr "Copy for AI"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "target.empty"
+msgstr "No Session"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "target.failed"
+msgstr "Could not copy the target. Refresh Sessions and select an open target, then try again."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "target.hint"
+msgstr "Copy this target's full ID and connection details, without terminal output or credentials."
+
+#. js-lingui-explicit-id
+#: src/main/target-copy.ts
+#: src/shared/menu-messages.ts
+msgid "target.instructions"
+msgstr ""
+"Use the connected ChannelTerm MCP to operate on this target:\n"
+"Name: {name}\n"
+"Host: {host}\n"
+"session_id: {sessionId}\n"
+"Short reference: {reference}\n"
+"Connection: {transport} / {endpoint}\n"
+"\n"
+"First query Sessions and confirm that the full ID, endpoint, and state match.\n"
+"If they do not match, stop. Do not automatically select another device.\n"
+"I will specify the operation separately."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.apply"
 msgstr "Apply"
 

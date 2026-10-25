@@ -31,6 +31,7 @@ for authentication, verification and cancellation.
 | Session > Refresh Sessions; refresh button | `session.refresh` | Refresh the Host snapshot while connected and idle. |
 | Session > Close tab (detach); tab close icon; attached row/tab context menu | `tab.close` | Detach the captured local attachment. Still available for a closed Session so its view can be dismissed. |
 | Session > Close shared Session...; attached row/tab context menu | `session.close` | Confirm closing the captured open shared Session for every client. Requires a live attachment; no shortcut. |
+| Status bar > Copy for AI | `session.copyAI` | Copy metadata and guidance for the captured open Session in this window's language; no device write or AI message. |
 | Session row context menu > Attach Session; row click | `session.attach` | Attach the clicked open Session by opaque ID. Unavailable for the current attachment, closed/missing rows, offline state, or a pending operation. |
 | Terminal > Focus terminal; terminal context menu | `terminal.focus` | Focus the captured xterm view; requires a current idle attachment. |
 | Terminal > Clear local display; terminal context menu | `terminal.clear` | Use xterm's local clear operation; requires a current idle attachment, including a read-only/closed view. |
@@ -61,6 +62,18 @@ It does not change the Host buffer or read cursor, dismiss loss notices, or rese
 Subsequent output continues normally; a new attachment may replay retained Host output.
 
 ## Window action contracts
+
+The always-visible status bar shows the selected target's shared label (or endpoint), short
+reference and an abbreviated opaque ID. Hover reveals the full ID; narrow windows retain the
+reference and **Copy for AI** button while hiding the longer display fields. Copying always uses
+the full ID, configured loopback Host endpoint, transport and endpoint from a fresh Host snapshot.
+Main revalidates the captured attachment after the query, rejects closed/foreign/stale handles and
+multiline, control-containing or oversized metadata, and writes a bounded plain-text clipboard
+message. This does not include output, credentials or local descriptions, send a message to an AI,
+or grant control. The guidance asks the recipient to query Sessions, verify the exact target and
+stop on a mismatch, then await a separate operation instruction. Labels and the entire template
+follow the current window's language, preserving actual metadata values and protocol identifiers.
+The clipboard action is unavailable without an open selected target; it has no shortcut or submenu.
 
 **Close shared Session...** displays the captured label, endpoint and full Session ID, with
 Cancel focused by default. Confirming calls the existing authenticated `terminal_close` once;

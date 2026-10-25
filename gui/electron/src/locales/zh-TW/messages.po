@@ -760,6 +760,37 @@ msgstr "移動後的分頁已從 Host 最近的輸出還原（最多 64 KiB）�
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "target.copied"
+msgstr "已複製目標指引。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "target.copy"
+msgstr "複製給 AI"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "target.empty"
+msgstr "無 Session"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "target.failed"
+msgstr "無法複製目標。請重新整理 Session 清單並選擇已開啟的目標後重試。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "target.hint"
+msgstr "複製目標的完整 ID 和連線資訊，不包含終端輸出或認證資訊。"
+
+#. js-lingui-explicit-id
+#: src/main/target-copy.ts
+#: src/shared/menu-messages.ts
+msgid "target.instructions"
+msgstr "請透過已連線的 ChannelTerm MCP 操作以下目標：\n名稱：{name}\nHost：{host}\nsession_id：{sessionId}\n短參照：{reference}\n連線：{transport} / {endpoint}\n\n先查詢 Sessions，確認完整 ID、端點和狀態一致。\n不相符時停止，不要自動選擇其他裝置。\n具體操作由我另行說明。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.apply"
 msgstr "套用"
 
