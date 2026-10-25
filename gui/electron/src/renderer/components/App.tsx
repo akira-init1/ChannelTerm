@@ -66,6 +66,7 @@ import {
   defaultDisplaySettings,
   displayStorageKey,
   isDisplaySettings,
+  restoreDisplaySettings,
   zoomFontSize,
   type DisplaySettings,
 } from "../../shared/display-settings";
@@ -119,7 +120,7 @@ export function App() {
       const stored: unknown = JSON.parse(
         localStorage.getItem(displayStorageKey) ?? "null",
       );
-      if (isDisplaySettings(stored)) return stored;
+      return restoreDisplaySettings(stored);
     } catch {
       /* Unavailable storage uses display defaults. */
     }

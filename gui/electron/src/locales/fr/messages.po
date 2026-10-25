@@ -215,8 +215,33 @@ msgstr "Police du terminal : 8–40 px. Ctrl+molette change la taille. Les polic
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "display.monochrome"
+msgstr "Uni (blanc sur noir)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "display.preview"
+msgstr "Aperçu du style du terminal"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "display.semantic"
+msgstr "Par défaut (couleurs CLI)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "display.storageError"
 msgstr "Impossible d’enregistrer les réglages d’affichage. Vérifiez le stockage local et réessayez."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "display.styleHint"
+msgstr "Affichage local uniquement. Le mode uni masque les couleurs sémantiques et distantes tout en conservant les commandes du terminal et la sélection. Changer de style conserve le contenu actuel."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "display.terminalStyle"
+msgstr "Style du terminal"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

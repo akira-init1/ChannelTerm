@@ -215,8 +215,33 @@ msgstr "端末の文字サイズ：8～40 px。Ctrl+ホイールで拡大・縮�
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "display.monochrome"
+msgstr "単色（黒地に白文字）"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "display.preview"
+msgstr "端末スタイルのプレビュー"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "display.semantic"
+msgstr "既定（CLI 配色）"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "display.storageError"
 msgstr "表示設定を保存できませんでした。ローカルストレージへのアクセスを確認して再試行してください。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "display.styleHint"
+msgstr "ローカル表示のみ変更します。単色モードでは意味別の配色とリモートの色を抑制し、端末制御と選択機能は維持します。スタイルを切り替えても現在の端末内容は保持されます。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "display.terminalStyle"
+msgstr "端末スタイル"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

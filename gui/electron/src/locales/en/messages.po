@@ -215,8 +215,33 @@ msgstr "Terminal font size: 8-40 px. Ctrl+wheel zooms the terminal. Font familie
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "display.monochrome"
+msgstr "Plain (white on black)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "display.preview"
+msgstr "Terminal style preview"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "display.semantic"
+msgstr "Default (CLI colors)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "display.storageError"
 msgstr "Could not save display settings. Check local storage access and try again."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "display.styleHint"
+msgstr "Local display only. Plain mode suppresses semantic and remote colors while preserving terminal controls and selection. Switching styles keeps the current terminal content."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "display.terminalStyle"
+msgstr "Terminal style"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

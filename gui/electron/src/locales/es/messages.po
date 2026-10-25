@@ -215,8 +215,33 @@ msgstr "Fuente del terminal: 8–40 px. Ctrl+rueda cambia el tamaño. Se usan fu
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "display.monochrome"
+msgstr "Simple (blanco sobre negro)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "display.preview"
+msgstr "Vista previa del estilo"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "display.semantic"
+msgstr "Predeterminado (colores de CLI)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "display.storageError"
 msgstr "No se pudo guardar la configuración de pantalla. Compruebe el almacenamiento local e inténtelo de nuevo."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "display.styleHint"
+msgstr "Solo cambia la visualización local. El modo simple oculta los colores semánticos y remotos, conservando los controles del terminal y la selección. Cambiar el estilo conserva el contenido actual."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "display.terminalStyle"
+msgstr "Estilo del terminal"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

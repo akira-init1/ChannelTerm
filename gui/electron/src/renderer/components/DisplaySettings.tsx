@@ -4,6 +4,7 @@ import {
   isDisplaySettings,
   type DisplaySettings,
 } from "../../shared/display-settings";
+import { defaultHighlights } from "../../shared/default-highlights";
 
 /** A local display draft; applying it never replaces the attachment or xterm buffer. */
 export function DisplaySettingsDialog({
@@ -62,6 +63,46 @@ export function DisplaySettingsDialog({
           />
         </label>
         <p className="connection-hint">{t("display.hint")}</p>
+        <label>
+          {t("display.terminalStyle")}
+          <select
+            aria-label={t("display.terminalStyle")}
+            value={draft.terminalStyle}
+            onChange={(event) => {
+              const terminalStyle = event.target.value;
+              if (
+                terminalStyle === "semantic" ||
+                terminalStyle === "monochrome"
+              )
+                setDraft({ ...draft, terminalStyle });
+            }}
+          >
+            <option value="semantic">{t("display.semantic")}</option>
+            <option value="monochrome">{t("display.monochrome")}</option>
+          </select>
+        </label>
+        <pre
+          className={`style-preview ${draft.terminalStyle}`}
+          aria-label={t("display.preview")}
+        >
+          <span style={{ color: defaultHighlights.palette.error.hex }}>
+            ERROR
+          </span>{" "}
+          <span style={{ color: defaultHighlights.palette.success.hex }}>
+            ready
+          </span>{" "}
+          <span style={{ color: defaultHighlights.palette.number.hex }}>
+            0x1000 42
+          </span>
+          {"\n"}
+          <span style={{ color: defaultHighlights.palette.interface.hex }}>
+            uart
+          </span>{" "}
+          <span style={{ color: defaultHighlights.palette.timestamp.hex }}>
+            12:34:56
+          </span>
+        </pre>
+        <p className="connection-hint">{t("display.styleHint")}</p>
         {error && <p role="alert">{t(error)}</p>}
         <footer>
           <button

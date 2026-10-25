@@ -215,8 +215,33 @@ msgstr "Шрифт терминала: 8–40 пикселей. Ctrl+колес�
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "display.monochrome"
+msgstr "Одноцветный (белый на чёрном)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "display.preview"
+msgstr "Предпросмотр стиля терминала"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "display.semantic"
+msgstr "По умолчанию (цвета CLI)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "display.storageError"
 msgstr "Не удалось сохранить настройки отображения. Проверьте доступ к локальному хранилищу и повторите попытку."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "display.styleHint"
+msgstr "Только локальное отображение. Одноцветный режим скрывает семантические и удалённые цвета, сохраняя управление терминалом и выделение. Смена стиля сохраняет текущее содержимое терминала."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "display.terminalStyle"
+msgstr "Стиль терминала"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

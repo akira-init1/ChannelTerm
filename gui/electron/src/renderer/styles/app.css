@@ -767,6 +767,39 @@ main {
 .paste-dialog code {
   overflow-wrap: anywhere;
 }
+.style-preview {
+  padding: 12px;
+  background: #101318;
+  color: #d9e0ea;
+  border: 1px solid var(--border);
+}
+/* The pinned xterm DOM renderer retains remote attributes underneath this local
+   overlay, including TrueColor and inverse. Selection/decorations stay separate. */
+.style-preview.monochrome,
+.terminal-view.monochrome,
+.terminal-view.monochrome .xterm,
+.terminal-view.monochrome .xterm-viewport,
+.terminal-view.monochrome .xterm-scrollable-element,
+.terminal-view.monochrome .xterm-screen {
+  background-color: #000 !important;
+  color: #fff !important;
+}
+.style-preview.monochrome span,
+.terminal-view.monochrome .xterm-rows span {
+  color: #fff !important;
+  background-color: transparent !important;
+  text-decoration-color: #fff !important;
+}
+.terminal-view.monochrome .xterm-rows .xterm-cursor-block {
+  color: #000 !important;
+  background-color: #fff !important;
+}
+.terminal-view.monochrome .xterm-rows .xterm-cursor-outline,
+.terminal-view.monochrome .xterm-rows .xterm-cursor-bar,
+.terminal-view.monochrome .xterm-rows .xterm-cursor-underline {
+  outline-color: #fff !important;
+  border-color: #fff !important;
+}
 .input-status {
   border-left: 1px solid #394353;
   padding-left: 16px;

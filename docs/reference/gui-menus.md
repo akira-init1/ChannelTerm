@@ -266,7 +266,14 @@ only local presentation. Cancel/Escape discards the draft. **Ctrl+wheel** over t
 changes size by one pixel per wheel event within the same limits; it does not zoom the application
 chrome, send mouse reports, or issue a remote resize. Normal scrolling is unchanged.
 Display changes refit the existing xterm without clearing content, changing cursors or reattaching.
-Settings persist in the GUI profile under `channelterm.display.v1`; malformed values use defaults.
+**Terminal style** offers **Default (CLI colors)** and **Plain (white on black)**, with a local
+preview and Restore defaults. Default applies the shared semantic palette to safe plain text;
+remote ANSI/full-screen output retains its own control semantics. Plain suppresses both local
+semantic colors and remote foreground/background colors, including retained output, while keeping
+selection, cursor visibility and terminal controls. It does not change raw output or HEX bytes.
+Switching back restores the retained terminal attributes; it does not recover lost history.
+Settings persist in the GUI profile under `channelterm.display.v1`; old font-only settings gain
+the semantic default while retaining fonts, and malformed values use defaults.
 If saving fails, the dialog stays open. Wheel changes still apply locally with a storage notice.
 
 ## File actions
@@ -294,7 +301,7 @@ menu entries or commitments to implement them.
 | Session | Recent connection history is not implemented. Shared close and multiple tabs follow the explicit contracts above. |
 | Terminal | Select All, Find, split panes and remote PTY resize have no existing menu handlers and are not exposed. Existing clipboard, local clear, focus and conditional resume actions remain. |
 | View | MCP activity, status-bar visibility and a combined Reset Layout action are unimplemented. Existing sidebar, bottom-panel, transfer and Session-status actions remain; Session status is not a status-bar toggle. |
-| Settings | Theme selection is unimplemented and not exposed. Shortcuts and terminal display settings persist locally. Language and layout state remain window-local; endpoint editing and Host process management are absent. |
+| Settings | Application theme selection is unimplemented and not exposed. Shortcuts and terminal font/style settings persist locally. Language and layout state remain window-local; endpoint editing and Host process management are absent. |
 | Help | Online documentation navigation, updates, and diagnostic export require separate capability/security review. |
 
 No built-in AI Agent, new SSH/file-transfer implementation, Core use case, or MCP protocol change

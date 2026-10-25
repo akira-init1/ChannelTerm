@@ -215,8 +215,33 @@ msgstr "터미널 글꼴 크기: 8–40 px. Ctrl+휠로 확대/축소합니다. 
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "display.monochrome"
+msgstr "단색 (검은 배경에 흰 글자)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "display.preview"
+msgstr "터미널 스타일 미리보기"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "display.semantic"
+msgstr "기본값 (CLI 색상)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "display.storageError"
 msgstr "표시 설정을 저장할 수 없습니다. 로컬 저장소 접근을 확인하고 다시 시도하세요."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "display.styleHint"
+msgstr "로컬 표시만 변경합니다. 단색 모드는 의미별 색상과 원격 색상을 숨기고 터미널 제어와 선택 기능을 유지합니다. 스타일을 전환해도 현재 터미널 내용은 유지됩니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "display.terminalStyle"
+msgstr "터미널 스타일"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

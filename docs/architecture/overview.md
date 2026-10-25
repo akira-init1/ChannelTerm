@@ -33,8 +33,8 @@ escape commands, highlighting, HTTP host setup, and MCP client attachment.
 Default highlight definitions are adapter-side presentation data shared with the desktop client;
 the [repository map](repository-map.md) identifies their canonical owner. Go embeds the JSON and
 Electron imports it as data, without depending on Go code or moving presentation into Core.
-Each frontend still owns stream/terminal rendering; these definitions never transform Session or
-MCP output. Sharing the definitions alone does not enable semantic rendering in the desktop view.
+Each frontend owns stream/terminal rendering; these definitions never transform Session or MCP
+output. The desktop's bounded byte highlighter applies them before local xterm rendering.
 
 `internal/install` is an adapter-side operating-system integration boundary. It installs the
 currently running executable for one user, owns the `cterm` command alias and any PATH entry it

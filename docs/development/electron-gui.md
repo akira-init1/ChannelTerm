@@ -136,8 +136,9 @@ CLI preserves uncovered lower-priority fragments. Palette entries retain either 
 or an ANSI foreground code, including the delimiter's exact TrueColor conversion.
 
 Go embeds this file; `src/shared/default-highlights.ts` imports the same JSON without a Go
-runtime or a second generated copy. The GUI definition loader is a foundation, not an enabled
-semantic xterm renderer. Do not modify Session bytes to apply these definitions.
+runtime or a second generated copy. The terminal view consumes these definitions for local
+semantic styling.
+Do not modify Session bytes to apply these definitions.
 
 Maintain `internal/cli/highlight/testdata/defaults-cases.json` alongside rule changes, then run
 `go test ./internal/cli/highlight` from the root and `npm.cmd run check` here. Both engines
@@ -146,6 +147,18 @@ text, Unicode around tokens and prompt-prefix rejection. Use the common regex sy
 present: explicit ASCII classes and separate flags, not Go POSIX classes or inline flags.
 The corpus does not establish general equivalence of Go and JavaScript Unicode case folding;
 renderers also need their own byte/UTF-16/cell mapping and stream-control tests.
+
+**Settings > Preferences... > Terminal style** defaults to **Default (CLI colors)**.
+**Plain (white on black)** suppresses semantic and remote colors for retained and new content,
+while keeping terminal controls, selection and parser state. The preview and **Restore defaults**
+use the same palette. Existing font-only preferences migrate without losing font choices.
+HEX stays a byte display and does not receive semantic ANSI sequences.
+
+The native suite verifies semantic colors, 16/256/TrueColor and inverse suppression, OSC background
+changes, selection visibility, CR overwrite, alternate-screen entry/exit and restoration of retained
+colors when switching back. An independent Host observer confirms raw output is unchanged and
+style changes send no device bytes. Screenshots are `terminal-semantic-style.png` and
+`terminal-monochrome-style.png` under `test-results/`. These use fake I/O, not a physical terminal.
 
 ## Menu translations (Lingui 5.9.0)
 

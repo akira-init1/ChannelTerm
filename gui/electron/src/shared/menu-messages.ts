@@ -419,6 +419,15 @@ export const menuMessages = [
   /* i18n */ { id: "settings.display", message: "Display" },
   /* i18n */ { id: "display.fontSize", message: "Font size" },
   /* i18n */ { id: "display.fontFamily", message: "Font family" },
+  /* i18n */ { id: "display.terminalStyle", message: "Terminal style" },
+  /* i18n */ { id: "display.semantic", message: "Default (CLI colors)" },
+  /* i18n */ { id: "display.monochrome", message: "Plain (white on black)" },
+  /* i18n */ { id: "display.preview", message: "Terminal style preview" },
+  /* i18n */ {
+    id: "display.styleHint",
+    message:
+      "Local display only. Plain mode suppresses semantic and remote colors while preserving terminal controls and selection. Switching styles keeps the current terminal content.",
+  },
   /* i18n */ {
     id: "display.hint",
     message:

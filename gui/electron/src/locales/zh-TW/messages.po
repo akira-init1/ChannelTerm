@@ -215,8 +215,33 @@ msgstr "終端字型大小為 8–40 px。Ctrl+滾輪可縮放終端字型。使
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "display.monochrome"
+msgstr "純色（黑底白字）"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "display.preview"
+msgstr "終端機風格預覽"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "display.semantic"
+msgstr "預設（CLI 配色）"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "display.storageError"
 msgstr "無法儲存顯示設定。請檢查本機儲存存取權限後重試。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "display.styleHint"
+msgstr "僅變更本機顯示。純色模式抑制語意醒目提示和遠端色彩，保留終端機控制與選取提示。切換風格不會清空目前的終端機內容。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "display.terminalStyle"
+msgstr "終端機風格"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

@@ -215,8 +215,33 @@ msgstr "终端字体大小为 8–40 px。Ctrl+滚轮可缩放终端字体。使
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "display.monochrome"
+msgstr "纯色（黑底白字）"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "display.preview"
+msgstr "终端风格预览"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "display.semantic"
+msgstr "默认（CLI 配色）"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "display.storageError"
 msgstr "无法保存显示设置。请检查本地存储访问权限后重试。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "display.styleHint"
+msgstr "仅改变本地显示。纯色模式抑制语义高亮和远端颜色，保留终端控制与选中提示。切换风格不会清空当前终端内容。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "display.terminalStyle"
+msgstr "终端风格"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

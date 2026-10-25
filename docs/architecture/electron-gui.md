@@ -188,6 +188,21 @@ transition invalidates the draft even after input becomes available again. Detac
 Accepted input still uses xterm newline/bracketed-paste processing and Main's encoding/Host authority.
 No queued draft is replayed after a state change. Preview text is local React state, never Host history.
 
+The terminal view's semantic highlighter consumes the shared default definitions and modifies only
+the bytes sent to its xterm instance. It retains at most 8 KiB of an incomplete line, with a 50 ms
+timer releasing unknown prompts raw; blocked rendering/event-loop work can delay that timer.
+Per-line matching is capped at 2048 candidates and 512 rendered spans; excessive/unsafe lines pass
+through raw. Split UTF-8, remote ANSI state, alternate screens and data-loss resets retain explicit
+handling. HEX bypasses this layer. Disposal cancels the timer and discards unfinished local styling.
+
+Plain mode disables new semantic insertion and overlays black/white colors on the pinned xterm
+DOM renderer, including retained cells, TrueColor, inverse and OSC-selected backgrounds. It does
+not remove terminal control sequences or change parser attributes, so returning to the default
+style restores retained color state. This scoped CSS depends on the pinned DOM renderer and must
+be revalidated before upgrading xterm or adding a canvas/WebGL renderer. Selection and decorations
+remain separate; cursor colors are handled explicitly. Style changes neither recreate attachments
+nor replay device bytes. Font/style preferences stay in the existing local display settings.
+
 ## State ownership
 
 Explicit **Close shared Session...** is separate from all view cleanup. After a target-specific

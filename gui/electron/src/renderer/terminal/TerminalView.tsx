@@ -14,6 +14,7 @@ import { TerminalPresentation } from "./presentation";
 import type { TerminalSettings } from "../../shared/terminal-settings";
 import type { DisplaySettings } from "../../shared/display-settings";
 import { PastePreview } from "./PastePreview";
+import { SemanticHighlighter } from "./highlight";
 
 /** Controls for the current view; paste uses the existing bounded, authorized input path. */
 export interface TerminalControls {
@@ -60,6 +61,9 @@ export function TerminalView({
   const container = useRef<HTMLDivElement>(null);
   const local = useRef<Terminal | undefined>(undefined);
   const fitting = useRef<FitAddon | undefined>(undefined);
+  const highlighter = useRef<SemanticHighlighter | undefined>(undefined);
+  const terminalStyle = useRef(display.terminalStyle);
+  terminalStyle.current = display.terminalStyle;
   const clipboardBusy = useRef(false);
   const inputEpoch = useRef(0);
   const pendingPaste = useRef(false);
@@ -146,6 +150,9 @@ export function TerminalView({
 
   useEffect(() => {
     const presentation = new TerminalPresentation(settings);
+    const styling = new SemanticHighlighter();
+    highlighter.current = styling;
+    let pendingTimer: ReturnType<typeof setTimeout> | undefined;
     const terminal = new Terminal({
       cursorBlink: true,
       fontFamily: `${display.fontFamily}, monospace`,
@@ -271,16 +278,37 @@ export function TerminalView({
             // Do not join a partial escape/UTF-8 sequence across missing bytes.
             terminal.reset();
             presentation.reset();
+            styling.reset();
+            clearTimeout(pendingTimer);
+            pendingTimer = undefined;
             callbacks.current.onDropped();
           }
-          if (output.data.length)
+          if (output.data.length) {
+            let rendered = presentation.output(
+              new Uint8Array(output.data),
+              output.text,
+            );
+            if (settings.view === "text") {
+              const bytes =
+                typeof rendered === "string"
+                  ? new TextEncoder().encode(rendered)
+                  : rendered;
+              rendered = styling.write(
+                bytes,
+                terminalStyle.current === "semantic",
+              );
+              if (styling.hasPending && pendingTimer === undefined)
+                pendingTimer = setTimeout(() => {
+                  pendingTimer = undefined;
+                  const pending = styling.release();
+                  if (!stopped && pending.length) terminal.write(pending);
+                }, 50);
+            }
             await new Promise<void>((done) => {
               finishRender = done;
-              terminal.write(
-                presentation.output(new Uint8Array(output.data), output.text),
-                done,
-              );
+              terminal.write(rendered, done);
             });
+          }
           if (!ready && !stopped) {
             ready = true;
             callbacks.current.onReady();
@@ -292,6 +320,7 @@ export function TerminalView({
     })();
     return () => {
       stopped = true;
+      clearTimeout(pendingTimer);
       resumeRead.current?.();
       resumeRead.current = undefined;
       finishRender?.();
@@ -303,6 +332,7 @@ export function TerminalView({
       terminal.dispose();
       local.current = undefined;
       fitting.current = undefined;
+      highlighter.current = undefined;
       // Main owns detach/cancellation; React effect cleanup must not detach a
       // newly mounted view (including StrictMode effect replay).
     };
@@ -322,11 +352,17 @@ export function TerminalView({
     if (visibility.current) fitting.current?.fit();
   }, [display]);
 
+  useEffect(() => {
+    // A preference change cannot leave a half-styled line pending or reset xterm.
+    const pending = highlighter.current?.release();
+    if (pending?.length) local.current?.write(pending);
+  }, [display.terminalStyle]);
+
   return (
     <>
       <div
         ref={container}
-        className="terminal-view"
+        className={`terminal-view ${display.terminalStyle}`}
         aria-label="Terminal output and input"
         onContextMenu={onContextMenu}
       />

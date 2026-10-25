@@ -215,8 +215,33 @@ msgstr "Terminalschrift: 8–40 px. Strg+Mausrad ändert die Größe. Installier
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "display.monochrome"
+msgstr "Einfarbig (Weiß auf Schwarz)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "display.preview"
+msgstr "Vorschau des Terminalstils"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "display.semantic"
+msgstr "Standard (CLI-Farben)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "display.storageError"
 msgstr "Anzeigeeinstellungen konnten nicht gespeichert werden. Prüfen Sie den lokalen Speicher und versuchen Sie es erneut."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "display.styleHint"
+msgstr "Nur lokale Anzeige. Der einfarbige Modus unterdrückt semantische und entfernte Farben, behält aber Terminalsteuerung und Auswahl bei. Beim Stilwechsel bleibt der Terminalinhalt erhalten."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "display.terminalStyle"
+msgstr "Terminalstil"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
