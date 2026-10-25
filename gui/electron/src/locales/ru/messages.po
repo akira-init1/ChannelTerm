@@ -195,6 +195,26 @@ msgstr "Транспорт"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "display.fontFamily"
+msgstr "Семейство шрифтов"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "display.fontSize"
+msgstr "Размер шрифта"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "display.hint"
+msgstr "Шрифт терминала: 8–40 пикселей. Ctrl+колесо меняет размер. Используются установленные шрифты с моноширинной заменой. Настройки сохраняются локально."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "display.storageError"
+msgstr "Не удалось сохранить настройки отображения. Проверьте доступ к локальному хранилищу и повторите попытку."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "file.cancel"
 msgstr "Отменить передачу"
 
@@ -560,6 +580,11 @@ msgstr "Обновить список сеансов"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "settings.display"
+msgstr "Отображение"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "settings.shortcuts"
 msgstr "Сочетания клавиш"
 
@@ -567,6 +592,11 @@ msgstr "Сочетания клавиш"
 #: src/shared/menu-messages.ts
 msgid "shortcuts.conflict"
 msgstr "Сочетания должны быть уникальными. Измените или удалите повторное назначение."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.empty"
+msgstr "Подходящих сочетаний нет"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -587,6 +617,11 @@ msgstr "Удалить"
 #: src/shared/menu-messages.ts
 msgid "shortcuts.reset"
 msgstr "Восстановить по умолчанию"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.search"
+msgstr "Поиск сочетаний клавиш"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -615,6 +650,11 @@ msgstr "Очистить локальный экран"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "terminal.copy"
+msgstr "Копировать выделение терминала"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.description"
 msgstr "Локальное описание (необязательно)"
 
@@ -637,6 +677,11 @@ msgstr "Шестнадцатеричный (только чтение)"
 #: src/shared/menu-messages.ts
 msgid "terminal.localHint"
 msgstr "Выберите кодировку устройства. Настройки действуют только в этом клиенте; передача файлов сохраняет исходные байты. Описание: одна строка, до 512 байт UTF-8."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.paste"
+msgstr "Вставить в терминал"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

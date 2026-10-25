@@ -195,6 +195,26 @@ msgstr "Transporte"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "display.fontFamily"
+msgstr "Familia de fuente"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "display.fontSize"
+msgstr "Tamaño de fuente"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "display.hint"
+msgstr "Fuente del terminal: 8–40 px. Ctrl+rueda cambia el tamaño. Se usan fuentes instaladas con alternativa monoespaciada. Los ajustes se guardan localmente."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "display.storageError"
+msgstr "No se pudo guardar la configuración de pantalla. Compruebe el almacenamiento local e inténtelo de nuevo."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "file.cancel"
 msgstr "Cancelar transferencia"
 
@@ -560,6 +580,11 @@ msgstr "Actualizar sesiones"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "settings.display"
+msgstr "Pantalla"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "settings.shortcuts"
 msgstr "Atajos de teclado"
 
@@ -567,6 +592,11 @@ msgstr "Atajos de teclado"
 #: src/shared/menu-messages.ts
 msgid "shortcuts.conflict"
 msgstr "Cada atajo debe ser único. Cambie o quite la asignación duplicada."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.empty"
+msgstr "No hay atajos coincidentes"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -587,6 +617,11 @@ msgstr "Quitar"
 #: src/shared/menu-messages.ts
 msgid "shortcuts.reset"
 msgstr "Restaurar valores predeterminados"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.search"
+msgstr "Buscar atajos"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -615,6 +650,11 @@ msgstr "Limpiar la vista local"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "terminal.copy"
+msgstr "Copiar selección del terminal"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.description"
 msgstr "Descripción local (opcional)"
 
@@ -637,6 +677,11 @@ msgstr "Hexadecimal (solo lectura)"
 #: src/shared/menu-messages.ts
 msgid "terminal.localHint"
 msgstr "Seleccione la codificación del dispositivo. Los ajustes solo se aplican a este cliente; las transferencias conservan los bytes originales. Descripción: una línea, hasta 512 bytes UTF-8."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.paste"
+msgstr "Pegar en el terminal"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

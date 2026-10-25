@@ -195,6 +195,26 @@ msgstr "傳輸方式"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "display.fontFamily"
+msgstr "字型樣式（字型家族）"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "display.fontSize"
+msgstr "字型大小"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "display.hint"
+msgstr "終端字型大小為 8–40 px。Ctrl+滾輪可縮放終端字型。使用已安裝的字型，缺少時改用等寬字型。設定儲存在本機。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "display.storageError"
+msgstr "無法儲存顯示設定。請檢查本機儲存存取權限後重試。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "file.cancel"
 msgstr "取消傳輸"
 
@@ -560,6 +580,11 @@ msgstr "重新整理工作階段"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "settings.display"
+msgstr "顯示"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "settings.shortcuts"
 msgstr "鍵盤快速鍵"
 
@@ -567,6 +592,11 @@ msgstr "鍵盤快速鍵"
 #: src/shared/menu-messages.ts
 msgid "shortcuts.conflict"
 msgstr "快速鍵不得重複。請修改或清除衝突的設定。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.empty"
+msgstr "沒有符合的快捷鍵"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -587,6 +617,11 @@ msgstr "清除"
 #: src/shared/menu-messages.ts
 msgid "shortcuts.reset"
 msgstr "還原預設值"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.search"
+msgstr "搜尋快捷鍵"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -615,6 +650,11 @@ msgstr "清除本機顯示"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "terminal.copy"
+msgstr "複製終端選取內容"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.description"
 msgstr "本機描述（選填）"
 
@@ -637,6 +677,11 @@ msgstr "十六進位（唯讀）"
 #: src/shared/menu-messages.ts
 msgid "terminal.localHint"
 msgstr "選擇裝置使用的文字編碼。設定僅對本客戶端生效，檔案傳輸保留原始位元組。描述限單行，最多 512 個 UTF-8 位元組。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.paste"
+msgstr "貼上至終端"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

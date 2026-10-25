@@ -495,6 +495,11 @@ export class HostClient {
     return this.active;
   }
 
+  /** Bind local clipboard operations to this client's still-live attachment. */
+  validateAttachment(id: string): void {
+    this.attachment(id);
+  }
+
   async detach(id?: string): Promise<void> {
     if (id !== undefined) {
       identifier(id);
@@ -561,11 +566,14 @@ export class HostClient {
         next,
       );
       this.attachment(id);
+      const replay =
+        active.cursor === undefined || result.dropped || filtered.dropped;
       active.cursor = next;
       const dropped = result.dropped || filtered.dropped;
       if (dropped) active.codec.reset();
       return {
         data: filtered.data,
+        replay,
         dropped,
         ...(active.settings.view === "text" &&
         active.settings.encoding !== "utf-8"

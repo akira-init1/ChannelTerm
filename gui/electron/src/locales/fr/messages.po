@@ -195,6 +195,26 @@ msgstr "Transport"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "display.fontFamily"
+msgstr "Famille de police"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "display.fontSize"
+msgstr "Taille de police"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "display.hint"
+msgstr "Police du terminal : 8–40 px. Ctrl+molette change la taille. Les polices installées sont utilisées avec une police à chasse fixe en secours. Les réglages sont enregistrés localement."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "display.storageError"
+msgstr "Impossible d’enregistrer les réglages d’affichage. Vérifiez le stockage local et réessayez."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "file.cancel"
 msgstr "Annuler le transfert"
 
@@ -560,6 +580,11 @@ msgstr "Actualiser les sessions"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "settings.display"
+msgstr "Affichage"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "settings.shortcuts"
 msgstr "Raccourcis clavier"
 
@@ -567,6 +592,11 @@ msgstr "Raccourcis clavier"
 #: src/shared/menu-messages.ts
 msgid "shortcuts.conflict"
 msgstr "Chaque raccourci doit être unique. Modifiez ou supprimez le doublon."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.empty"
+msgstr "Aucun raccourci correspondant"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -587,6 +617,11 @@ msgstr "Supprimer"
 #: src/shared/menu-messages.ts
 msgid "shortcuts.reset"
 msgstr "Rétablir les valeurs par défaut"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.search"
+msgstr "Rechercher des raccourcis"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -615,6 +650,11 @@ msgstr "Effacer l’affichage local"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "terminal.copy"
+msgstr "Copier la sélection du terminal"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.description"
 msgstr "Description locale (facultative)"
 
@@ -637,6 +677,11 @@ msgstr "Hexadécimal (lecture seule)"
 #: src/shared/menu-messages.ts
 msgid "terminal.localHint"
 msgstr "Choisissez l’encodage du périphérique. Ces paramètres ne concernent que ce client ; les transferts conservent les octets d’origine. Description : une ligne, au plus 512 octets UTF-8."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.paste"
+msgstr "Coller dans le terminal"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

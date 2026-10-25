@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   defaultShortcuts,
   isShortcutBindings,
-  layoutActions,
+  shortcutActions,
   shortcutFromEvent,
   shortcutLabel,
   type ShortcutBindings,
@@ -25,6 +25,12 @@ export function ShortcutSettings({
   const dialog = useRef<HTMLDialogElement>(null);
   const [draft, setDraft] = useState(value);
   const [error, setError] = useState("");
+  const [search, setSearch] = useState("");
+  const matches = shortcutActions.filter((id) =>
+    `${t(id)} ${id} ${shortcutLabel(draft[id])}`
+      .toLocaleLowerCase()
+      .includes(search.trim().toLocaleLowerCase()),
+  );
   useEffect(() => {
     dialog.current?.showModal();
   }, []);
@@ -37,7 +43,15 @@ export function ShortcutSettings({
     >
       <h2 id="shortcuts-title">{t("settings.shortcuts")}</h2>
       <p className="connection-hint">{t("shortcuts.hint")}</p>
-      {layoutActions.map((id) => (
+      <input
+        type="search"
+        aria-label={t("shortcuts.search")}
+        placeholder={t("shortcuts.search")}
+        value={search}
+        onChange={(event) => setSearch(event.target.value)}
+      />
+      {matches.length === 0 && <p role="status">{t("shortcuts.empty")}</p>}
+      {matches.map((id) => (
         <div className="shortcut-row" key={id}>
           <label>
             {t(id)}

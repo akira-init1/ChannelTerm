@@ -160,10 +160,17 @@ never closes an attachment or changes a Host lease. Transfer labels remain 12 px
 Layout shortcuts use a renderer capture listener and the same finite action dispatcher as menus
 and toolbar buttons. The listener excludes dialogs, menus, text editors, IME and AltGr; assigned
 chords in xterm are consumed before terminal input, without device writes. Shared pure validation
-limits stored bindings and native-menu display hints to the three layout actions. No OS-global
+limits stored bindings and native-menu display hints to three layout and two terminal clipboard actions. No OS-global
 shortcut or Electron accelerator is registered. Settings stores validated bindings in renderer
 local storage; no credentials or Host configuration are persisted there. See the
 [shortcut contract](../reference/gui-menus.md#layout-shortcuts) for defaults, focus rules and recovery.
+
+Terminal clipboard actions use two fixed Main-owned text IPC methods, validating the trusted
+caller, current attachment and the existing 64 KiB UTF-8 limit. Renderer copies only xterm's
+selection, rechecks view identity/writability after clipboard reads, and pastes through xterm
+and the ordinary bounded Host write path. No browser permission or arbitrary clipboard format
+is exposed. Display preferences are validated local state; font updates refit the existing
+terminal and do not replace its parser, output cursor or attachment.
 
 ## State ownership
 
@@ -297,6 +304,10 @@ the next chunk, bounding queued output. Base64 preserves raw bytes, including UT
 chunks. JavaScript rejects cursors outside its exact integer range rather than rounding them.
 On `dropped`, xterm resets its parser/screen before displaying retained bytes and the UI keeps a
 visible data-loss notice. Initial attachment shows only the recent 64 KiB snapshot.
+Main marks that snapshot and gap recovery as replay. Renderer consumes historical cursor/status
+and device-attribute queries at xterm's parser without sending their answers back to the device.
+Live queries retain xterm's normal responses, including sequences split across read chunks.
+Stored Host bytes and user keystrokes are not filtered or rewritten by this replay guard.
 
 Each input payload and each input queue is limited to 64 KiB. Main serializes this client's requests;
 the Host still arbitrates all clients. The Session list is refreshed every 1.5 seconds. A displayed

@@ -195,6 +195,26 @@ msgstr "トランスポート"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "display.fontFamily"
+msgstr "フォントファミリー"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "display.fontSize"
+msgstr "フォントサイズ"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "display.hint"
+msgstr "端末の文字サイズ：8～40 px。Ctrl+ホイールで拡大・縮小します。インストール済みフォントを使用し、等幅フォントにフォールバックします。設定はローカルに保存されます。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "display.storageError"
+msgstr "表示設定を保存できませんでした。ローカルストレージへのアクセスを確認して再試行してください。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "file.cancel"
 msgstr "転送をキャンセル"
 
@@ -560,6 +580,11 @@ msgstr "セッション一覧を更新"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "settings.display"
+msgstr "表示"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "settings.shortcuts"
 msgstr "キーボードショートカット"
 
@@ -567,6 +592,11 @@ msgstr "キーボードショートカット"
 #: src/shared/menu-messages.ts
 msgid "shortcuts.conflict"
 msgstr "ショートカットが重複しています。重複する割り当てを変更または削除してください。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.empty"
+msgstr "一致するショートカットはありません"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -587,6 +617,11 @@ msgstr "削除"
 #: src/shared/menu-messages.ts
 msgid "shortcuts.reset"
 msgstr "既定値に戻す"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.search"
+msgstr "ショートカットを検索"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -615,6 +650,11 @@ msgstr "ローカル表示をクリア"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "terminal.copy"
+msgstr "端末の選択範囲をコピー"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.description"
 msgstr "ローカルの説明（任意）"
 
@@ -637,6 +677,11 @@ msgstr "16進数（読み取り専用）"
 #: src/shared/menu-messages.ts
 msgid "terminal.localHint"
 msgstr "デバイスの文字エンコーディングを選択します。設定はこのクライアントのみに適用され、ファイル転送のバイト列は変わりません。説明は1行、UTF-8で512バイト以内です。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.paste"
+msgstr "端末に貼り付け"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

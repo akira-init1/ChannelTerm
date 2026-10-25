@@ -195,6 +195,26 @@ msgstr "Transport"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "display.fontFamily"
+msgstr "Font family"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "display.fontSize"
+msgstr "Font size"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "display.hint"
+msgstr "Terminal font size: 8-40 px. Ctrl+wheel zooms the terminal. Font families use installed fonts with monospace fallback. Settings are saved locally."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "display.storageError"
+msgstr "Could not save display settings. Check local storage access and try again."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "file.cancel"
 msgstr "Cancel transfer"
 
@@ -560,6 +580,11 @@ msgstr "Refresh Sessions"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "settings.display"
+msgstr "Display"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "settings.shortcuts"
 msgstr "Keyboard shortcuts"
 
@@ -567,6 +592,11 @@ msgstr "Keyboard shortcuts"
 #: src/shared/menu-messages.ts
 msgid "shortcuts.conflict"
 msgstr "Each shortcut must be unique. Change or remove the duplicate binding."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.empty"
+msgstr "No matching shortcuts"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -587,6 +617,11 @@ msgstr "Remove"
 #: src/shared/menu-messages.ts
 msgid "shortcuts.reset"
 msgstr "Restore defaults"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.search"
+msgstr "Search shortcuts"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -615,6 +650,11 @@ msgstr "Clear local display"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "terminal.copy"
+msgstr "Copy terminal selection"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.description"
 msgstr "Local description (optional)"
 
@@ -637,6 +677,11 @@ msgstr "Hex (read-only)"
 #: src/shared/menu-messages.ts
 msgid "terminal.localHint"
 msgstr "Choose the device's text encoding. Settings apply only to this client; file transfers keep their original bytes. Description: one line, up to 512 UTF-8 bytes."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.paste"
+msgstr "Paste into terminal"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

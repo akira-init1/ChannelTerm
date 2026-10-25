@@ -50,6 +50,8 @@ export interface Attachment {
 }
 export interface Output {
   data: number[];
+  /** Retained snapshot/gap recovery: terminal queries must not produce new device input. */
+  replay?: boolean;
   /** Optional client-decoded text; raw bytes remain available for hex inspection. */
   text?: string;
   dropped: boolean;
@@ -57,6 +59,8 @@ export interface Output {
 
 /** One method per IPC channel; no arbitrary tool, URL, file, or process access. */
 export interface DesktopAPI {
+  readClipboard(attachmentId: string): Promise<Result<string>>;
+  writeClipboard(attachmentId: string, text: string): Promise<Result<void>>;
   chooseTransferPath(
     sessionId: string,
     direction: "send" | "receive",
@@ -104,6 +108,8 @@ export interface DesktopAPI {
 }
 
 export const channels = {
+  readClipboard: "terminal:clipboard-read",
+  writeClipboard: "terminal:clipboard-write",
   chooseTransferPath: "files:choose",
   browseDirectory: "files:browse",
   startTransfer: "files:transfer",

@@ -35,7 +35,9 @@ for authentication, verification and cancellation.
 | View > Secondary sidebar; upper-right toggle | `view.auxiliary` | Toggle the resizable current-Session details sidebar. |
 | View > Bottom panel; upper-right toggle | `view.panel` | Toggle the bottom panel, retaining its active tab and preferred height. |
 | View > File transfers / Session status | `view.transfers` / `view.status` | Open the bottom panel on the requested tab, including offline/empty states. |
-| Settings > Keyboard shortcuts | `settings.shortcuts` | Display, record, remove, reset and save local layout bindings. |
+| Terminal > Copy terminal selection / Paste into terminal; terminal context menu | `terminal.copy` / `terminal.paste` | Copy selected xterm text or paste clipboard text through the existing input path. Paste requires writable text view; copy sends no device bytes. |
+| Settings > Keyboard shortcuts | `settings.shortcuts` | Search, record, remove, reset and save local layout and terminal clipboard bindings. |
+| Settings > Display | `settings.display` | Set terminal font size and family, or restore defaults; applies without reattachment. |
 | Connection > New connection > Serial / SSH | `connection.serial` / `connection.ssh` | Open a connection form on a connected idle Host. SSH additionally requires the desktop API capability. |
 | Settings > Language | `language.change` | Switch to one of the nine supported menu languages listed below. Checkmark reflects the active language. |
 | Help > Quick help | `help.quick` | Open a local, translated usage dialog. No external navigation. |
@@ -60,7 +62,7 @@ description and send only a validated renderer action through a fixed Preload su
 The Main-owned native exit action and fixed IPC `quit` method share the same cleanup handler,
 so native quit remains available after a renderer crash or the last macOS window closes. A separate
 bounded `syncMenu` message supplies display hints; it accepts no arbitrary menu template,
-callback, executable accelerator, command, URL, or credential. Its three validated shortcut
+callback, executable accelerator, command, URL, or credential. Its five validated shortcut
 strings are display hints only; native menus append their labels without registering accelerators.
 A fixed `quit` method requests app cleanup.
 
@@ -69,12 +71,13 @@ Session ID. It never changes selection merely to open the menu. A non-current ro
 the current tab. Execution checks the latest local state again, and Main rechecks the requested
 Session against the Host before replacing an attachment. A missing/rejected target leaves the
 previous attachment in place. After reattachment, callbacks holding the previous attachment
-handle cannot clear, focus, resume, or close the new view.
+handle cannot clear, focus, copy, paste, resume, or close the new view.
 
 Offline state disables connection creation, refresh, disconnect, and attachment actions. A connected empty list
 still allows refresh and disconnect. Closed rows cannot attach; an existing closed view can
 still be cleared locally or detached. Pending connection/attachment changes disable conflicting
-actions. Local terminal actions do not require a lease because they send no device bytes.
+actions. Copy, clear and focus send no device bytes; paste is ordinary terminal input and
+remains subject to input pause, hex-view, lifecycle and Host lease checks.
 Menu hints never grant permission: Main validates IPC caller/arguments and attachment ownership,
 and every device write still passes through authoritative Host/Application checks. Rejected or
 uncertain writes are not automatically replayed.
@@ -114,7 +117,7 @@ No runtime ICU compiler or translation service is added. The Node 22.12 minimum,
 and CGO requirements are unchanged; build tooling and its notices remain GUI-local.
 
 Menus register no Electron accelerators, mnemonic markers, default action roles, or OS-global
-shortcuts. The renderer handles only configured layout shortcuts under the focus policy below.
+shortcuts. The renderer handles configured layout and clipboard shortcuts under the focus policy below.
 On Windows/Linux, the native application menu model is installed but its
 window menu bar is removed, preserving the renderer strip and avoiding an extra Alt menu.
 macOS retains its system menu and an app menu for Exit GUI; native macOS validation remains
@@ -132,7 +135,7 @@ returns focus to the parent. Escape closes
 the popup and restores its opener; an outside click dismisses it. These handlers run only inside
 the focused menu and ignore composition/229 events. Terminal Ctrl+C/Ctrl+L/Ctrl+W, Alt sequences,
 function keys, and IME composition remain in the terminal input path. Explicitly assigned
-layout chords are the exception; clearing their bindings restores terminal handling. OS-reserved shortcuts and
+layout and clipboard chords are the exception; clearing their bindings restores terminal handling. OS-reserved shortcuts and
 real IME candidate-window behavior require native platform checks.
 
 ## Layout shortcuts
@@ -142,6 +145,8 @@ real IME candidate-window behavior require native platform checks.
 | Session sidebar (left) | Ctrl+B | Command+B |
 | Secondary sidebar (right) | Ctrl+Alt+B | Command+Option+B |
 | Bottom panel | Ctrl+J | Command+J |
+| Copy terminal selection | Ctrl+Shift+C | Ctrl+Shift+C |
+| Paste into terminal | Ctrl+Shift+V | Ctrl+Shift+V |
 
 These defaults follow the [VS Code sidebar layout](https://code.visualstudio.com/docs/configure/custom-layout)
 and [sidebar/panel shortcuts](https://code.visualstudio.com/docs/editing/getting-started/tips-and-tricks#toggle-sidebar).
@@ -149,11 +154,13 @@ The upper-left pane icons and View checkmarks reflect the same state. Hover tool
 menus, and native menu labels display the current bindings. No shortcut is active outside this
 application window. Window-manager interception still depends on the desktop environment.
 
-**Settings > Keyboard shortcuts** records a combination when its field is focused. Press Ctrl
+**Settings > Keyboard shortcuts** searches by translated action name, action ID, or displayed
+key combination, without changing hidden draft bindings. It records a combination when its
+binding field is focused. Press Ctrl
 or Command with a physical A-Z or 0-9 key; Alt/Option and Shift are optional. Physical positions
 keep Option-modified letters usable on macOS and do not depend on the produced character.
 Plain typing, function keys, Alt-only combinations, both Ctrl and Command together, and
-Ctrl/Command with A/C/V/X/Z/Y/W/Q/R/L (also with Shift) are not assignable. These reserved
+Ctrl/Command with A/C/V/X/Z/Y/W/Q/R/L (also with Shift, except Ctrl+Shift+C/V) are not assignable. These reserved
 editing/window combinations retain their existing behavior. Duplicate bindings disable Apply.
 **Remove** unassigns a command; **Restore defaults** updates the draft; **Apply** validates and
 saves; Cancel/Escape discards the draft. A storage failure leaves the dialog open with an error.
@@ -161,16 +168,36 @@ saves; Cancel/Escape discards the draft. A storage failure leaves the dialog ope
 Bindings are stored in the GUI profile's renderer local storage under
 `channelterm.layout-shortcuts.v1` and survive reopening on the same origin/profile. Production
 and development origins have separate settings. Invalid stored data falls back to platform
-defaults. Reset and Apply recovers the defaults without editing Host configuration. Layout
+defaults. Original three-action preferences retain their layout bindings and gain the default
+clipboard bindings. Reset and Apply recovers the defaults without editing Host configuration. Layout
 visibility, widths, selected bottom tab and height remain window-local and reset on reopening.
 
 Only exact modifier matches dispatch, once per press; key repeats are consumed without repeated
 toggling. IME composition/229 and AltGr are ignored. Open dialogs, focused menus, and ordinary
 input/select/contenteditable fields retain their keys. When xterm is focused, assigned layout
 chords are intercepted before xterm and send no bytes; unassigned chords retain terminal handling.
-All three paths (menu, icon, shortcut) use the same local action dispatcher and do not detach,
-close, write, or resize a remote Session. Native Windows testing does not establish macOS/Linux
+Layout actions use the same dispatcher from menus, icons and shortcuts and do not detach,
+close, write, or resize a remote Session. Clipboard shortcuts dispatch only with terminal focus;
+ordinary editors retain their own clipboard behavior. Copy uses only xterm's selection and does
+nothing without a selection. Paste uses xterm's newline/bracketed-paste handling and the existing
+bounded input queue; it can execute pasted commands containing newlines. No delimiter is added.
+Main validates the caller and current attachment for text-only clipboard IPC, limited to 64 KiB
+of UTF-8 per operation. Empty clipboard text does nothing; oversized text is rejected rather
+than truncated. Late replies cannot paste into a replacement view. Browser clipboard permission
+remains denied. Native Windows testing does not establish macOS/Linux
 window-manager or physical IME behavior.
+
+## Terminal display
+
+**Settings > Display** controls integer font size (8-40 px, default 14) and font family (up to
+256 characters). The default is `Consolas, "Liberation Mono", monospace`. Families use installed
+fonts, with a monospace fallback; no fonts are downloaded. Apply and Restore defaults affect
+only local presentation. Cancel/Escape discards the draft. **Ctrl+wheel** over the terminal
+changes size by one pixel per wheel event within the same limits; it does not zoom the application
+chrome, send mouse reports, or issue a remote resize. Normal scrolling is unchanged.
+Display changes refit the existing xterm without clearing content, changing cursors or reattaching.
+Settings persist in the GUI profile under `channelterm.display.v1`; malformed values use defaults.
+If saving fails, the dialog stays open. Wheel changes still apply locally with a storage notice.
 
 ## File actions
 
@@ -196,7 +223,7 @@ These are placement decisions only, not runtime menu entries or commitments to i
 | Session | Closing a shared Session needs a separately reviewed destructive action, explicit target/confirmation semantics, and Host authority. Multiple tabs and recent history are also absent. |
 | Terminal | Split panes and remote PTY resize need their own supported lifecycle/capability work. |
 | View | A separate MCP activity panel remains unimplemented. |
-| Settings | Only layout shortcuts persist locally. Language and layout state remain window-local; endpoint editing and Host process management are absent. |
+| Settings | Shortcuts and terminal display settings persist locally. Language and layout state remain window-local; endpoint editing and Host process management are absent. |
 | Help | Online documentation navigation, updates, and diagnostic export require separate capability/security review. |
 
 No built-in AI Agent, new SSH/file-transfer implementation, Core use case, or MCP protocol change

@@ -2,6 +2,7 @@ import { DesktopFiles, TransferConfirmation } from "./files";
 import { DesktopSSHFiles } from "./ssh-files";
 import {
   app,
+  clipboard,
   dialog,
   BrowserWindow,
   ipcMain,
@@ -92,6 +93,22 @@ function currentHost(): HostClient {
 
 function registerIPC(): void {
   const handlers: Record<string, (...args: unknown[]) => unknown> = {
+    [channels.readClipboard]: async (id) => {
+      identifier(id);
+      const selectedHost = currentHost();
+      selectedHost.validateAttachment(id);
+      const text = await clipboard.readText();
+      // Native clipboard reads are asynchronous; detach/reconnect revokes the request.
+      currentHost().validateAttachment(id);
+      if (text) input(text);
+      return text;
+    },
+    [channels.writeClipboard]: (id, text) => {
+      identifier(id);
+      input(text);
+      currentHost().validateAttachment(id);
+      return clipboard.writeText(text);
+    },
     [channels.info]: () => ({
       endpoint: hostEndpoint(process.env.CHANNELTERM_GUI_ENDPOINT).href,
       lifetime: "unknown",
@@ -239,6 +256,7 @@ function registerIPC(): void {
           const expected = [
             channels.attach,
             channels.write,
+            channels.writeClipboard,
             channels.browseDirectory,
             channels.cancelTransfer,
             channels.resolveTransferCancel,
@@ -250,6 +268,7 @@ function registerIPC(): void {
               : [
                     channels.detach,
                     channels.read,
+                    channels.readClipboard,
                     channels.menuState,
                     channels.openConnection,
                     channels.startTransfer,

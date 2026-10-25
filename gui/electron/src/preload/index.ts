@@ -3,6 +3,9 @@ import { channels, type DesktopAPI } from "../shared/api";
 import { isAction } from "../shared/menus";
 
 const api: DesktopAPI = {
+  readClipboard: (id) => ipcRenderer.invoke(channels.readClipboard, id),
+  writeClipboard: (id, text) =>
+    ipcRenderer.invoke(channels.writeClipboard, id, text),
   chooseTransferPath: (sessionId, direction, kind) =>
     ipcRenderer.invoke(channels.chooseTransferPath, sessionId, direction, kind),
   browseDirectory: (sessionId, path) =>

@@ -1,4 +1,5 @@
 import { checkFiles } from "./file-checks.mjs";
+import { checkTerminalControls } from "./terminal-checks.mjs";
 import assert from "node:assert/strict";
 import { _electron as electron, expect } from "@playwright/test";
 import { startFixture } from "../tests/fixture.ts";
@@ -281,6 +282,7 @@ try {
       return received;
     })
     .toContain("desktop-roundtrip");
+  await checkTerminalControls(desktop, page, fixture, observer, attachment);
   await checkAttachedMenus(desktop, page, fixture, observer, attachment);
   await fixture.command("lease");
   await expect(page.getByText(/Lease busy/)).toBeVisible();

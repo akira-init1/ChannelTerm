@@ -195,6 +195,26 @@ msgstr "Transport"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "display.fontFamily"
+msgstr "Schriftfamilie"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "display.fontSize"
+msgstr "Schriftgröße"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "display.hint"
+msgstr "Terminalschrift: 8–40 px. Strg+Mausrad ändert die Größe. Installierte Schriften mit Monospace-Ersatz werden verwendet. Einstellungen werden lokal gespeichert."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "display.storageError"
+msgstr "Anzeigeeinstellungen konnten nicht gespeichert werden. Prüfen Sie den lokalen Speicher und versuchen Sie es erneut."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "file.cancel"
 msgstr "Übertragung abbrechen"
 
@@ -560,6 +580,11 @@ msgstr "Sitzungen aktualisieren"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "settings.display"
+msgstr "Anzeige"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "settings.shortcuts"
 msgstr "Tastenkombinationen"
 
@@ -567,6 +592,11 @@ msgstr "Tastenkombinationen"
 #: src/shared/menu-messages.ts
 msgid "shortcuts.conflict"
 msgstr "Jede Tastenkombination muss eindeutig sein. Ändern oder entfernen Sie die doppelte Belegung."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.empty"
+msgstr "Keine passenden Tastenkürzel"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -587,6 +617,11 @@ msgstr "Entfernen"
 #: src/shared/menu-messages.ts
 msgid "shortcuts.reset"
 msgstr "Standard wiederherstellen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.search"
+msgstr "Tastenkürzel suchen"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -615,6 +650,11 @@ msgstr "Lokale Anzeige leeren"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "terminal.copy"
+msgstr "Terminalauswahl kopieren"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.description"
 msgstr "Lokale Beschreibung (optional)"
 
@@ -637,6 +677,11 @@ msgstr "Hexadezimal (schreibgeschützt)"
 #: src/shared/menu-messages.ts
 msgid "terminal.localHint"
 msgstr "Wählen Sie die Textkodierung des Geräts. Einstellungen gelten nur für diesen Client; Dateiübertragungen behalten ihre ursprünglichen Bytes. Beschreibung: eine Zeile, höchstens 512 UTF-8-Bytes."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.paste"
+msgstr "In Terminal einfügen"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

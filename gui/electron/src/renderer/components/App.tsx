@@ -51,11 +51,21 @@ import { ShortcutSettings } from "./ShortcutSettings";
 import {
   defaultShortcuts,
   isShortcutBindings,
-  layoutActions,
+  shortcutActions,
+  restoreShortcuts,
   shortcutFromEvent,
   type ShortcutBindings,
 } from "../../shared/shortcuts";
 import { BottomPanel } from "./BottomPanel";
+
+import {
+  defaultDisplaySettings,
+  displayStorageKey,
+  isDisplaySettings,
+  zoomFontSize,
+  type DisplaySettings,
+} from "../../shared/display-settings";
+import { DisplaySettingsDialog } from "./DisplaySettings";
 
 const shortcutStorageKey = "channelterm.layout-shortcuts.v1";
 
@@ -81,12 +91,47 @@ export function App() {
       const stored: unknown = JSON.parse(
         localStorage.getItem(shortcutStorageKey) ?? "null",
       );
-      if (isShortcutBindings(stored)) return stored;
+      return restoreShortcuts(stored, mac);
     } catch {
       /* Missing/unavailable storage uses platform defaults. */
     }
     return defaultShortcuts(mac);
   });
+  const [displayOpen, setDisplayOpen] = useState(false);
+  const [display, setDisplay] = useState<DisplaySettings>(() => {
+    try {
+      const stored: unknown = JSON.parse(
+        localStorage.getItem(displayStorageKey) ?? "null",
+      );
+      if (isDisplaySettings(stored)) return stored;
+    } catch {
+      /* Unavailable storage uses display defaults. */
+    }
+    return defaultDisplaySettings;
+  });
+  const [displayError, setDisplayError] = useState(false);
+  function saveDisplay(value: DisplaySettings): boolean {
+    if (!isDisplaySettings(value)) return false;
+    try {
+      localStorage.setItem(displayStorageKey, JSON.stringify(value));
+    } catch {
+      return false;
+    }
+    setDisplay(value);
+    setDisplayError(false);
+    return true;
+  }
+  function zoomDisplay(delta: number) {
+    const next = {
+      ...display,
+      fontSize: zoomFontSize(display.fontSize, delta),
+    };
+    if (next.fontSize === display.fontSize) return;
+    if (!saveDisplay(next)) {
+      setDisplay(next);
+      setDisplayError(true);
+    }
+  }
   const [viewportWidth, setViewportWidth] = useState(window.innerWidth);
   const defaultSidebarWidth = viewportWidth <= 900 ? 210 : 260;
   const maximumSidebarWidth = Math.max(
@@ -292,6 +337,7 @@ export function App() {
       currentSerial: current?.transport === "serial",
       currentSSH: current?.transport === "ssh",
       inputPaused,
+      hexView: terminalSettings.view === "hex",
       leased: !!current?.lease,
     }),
     [
@@ -311,11 +357,12 @@ export function App() {
       current?.state,
       current?.lease,
       inputPaused,
+      terminalSettings.view,
     ],
   );
   const dispatchRef = useRef<(action: Action) => void>(() => {});
   useEffect(() => {
-    // Capture before xterm so an explicitly assigned layout chord sends no bytes.
+    // Capture assigned chords before xterm; only an explicit paste sends input.
     // Dialogs, menus, ordinary editors and IME retain their own keyboard behavior.
     const keydown = (event: KeyboardEvent) => {
       const target = event.target;
@@ -331,17 +378,23 @@ export function App() {
       )
         return;
       const binding = shortcutFromEvent(event);
-      const id = layoutActions.find(
+      const id = shortcutActions.find(
         (action) => binding && shortcuts[action] === binding,
       );
-      if (!id) return;
+      if (!id || (id.startsWith("terminal.") && !target.closest(".xterm")))
+        return;
       event.preventDefault();
       event.stopPropagation();
-      if (!event.repeat) dispatchRef.current({ id });
+      if (!event.repeat) {
+        if (id === "terminal.copy" || id === "terminal.paste") {
+          if (attachment)
+            dispatchRef.current({ id, attachment: { ...attachment } });
+        } else dispatchRef.current({ id });
+      }
     };
     window.addEventListener("keydown", keydown, true);
     return () => window.removeEventListener("keydown", keydown, true);
-  }, [shortcuts]);
+  }, [shortcuts, attachment]);
   useEffect(
     () => host.onMenuAction((action) => dispatchRef.current(action)),
     [],
@@ -613,6 +666,9 @@ export function App() {
         setPanelVisible(true);
         setPanelTab(action.id === "view.transfers" ? "transfers" : "status");
         return;
+      case "settings.display":
+        setDisplayOpen(true);
+        return;
       case "settings.shortcuts":
         setShortcutsOpen(true);
         return;
@@ -621,6 +677,12 @@ export function App() {
         return;
       case "help.quick":
         setHelpOpen(true);
+        return;
+      case "terminal.copy":
+        terminal.current?.copy();
+        return;
+      case "terminal.paste":
+        terminal.current?.paste();
         return;
       case "terminal.clear":
         terminal.current?.clear();
@@ -732,6 +794,14 @@ export function App() {
 
   return (
     <div className={`app ${sidebarVisible ? "" : "sidebar-hidden"}`}>
+      {displayOpen && (
+        <DisplaySettingsDialog
+          value={display}
+          t={t}
+          onApply={saveDisplay}
+          onClose={() => setDisplayOpen(false)}
+        />
+      )}
       {shortcutsOpen && (
         <ShortcutSettings
           value={shortcuts}
@@ -1009,6 +1079,11 @@ export function App() {
             />
           )}
           <div className="notices" aria-label="Terminal notices">
+            {displayError && (
+              <div role="alert" className="notice">
+                {t("display.storageError")}
+              </div>
+            )}
             {info?.lifetime === "attachment" && connected && (
               <div className="notice">
                 This Host belongs to another attachment. It may stop when its
@@ -1058,6 +1133,8 @@ export function App() {
               key={attachment.id}
               attachment={attachment}
               settings={terminalSettings}
+              display={display}
+              onZoom={zoomDisplay}
               writable={
                 writable && !fileDialog && !filePending && !settingsTarget
               }

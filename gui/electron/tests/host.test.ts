@@ -17,16 +17,18 @@ test("real Go Host: output, ordinary writes, lease authority, cancellation, over
     const id = list[0]!.session_id;
     assert.equal(list[0]!.label, "Isolated echo");
     const attachment = await client.attach(id);
+    client.validateAttachment(attachment.id);
+    assert.throws(() => client.validateAttachment("expired"), {
+      code: "cancelled",
+    });
     const second = await observer.attach(id);
-    assert.match(
-      Buffer.from((await client.read(attachment.id)).data).toString(),
-      /Host ready/,
-    );
+    const snapshot = await client.read(attachment.id);
+    assert.equal(snapshot.replay, true);
+    assert.match(Buffer.from(snapshot.data).toString(), /Host ready/);
     await client.write(attachment.id, "GUI input\r");
-    assert.equal(
-      Buffer.from((await client.read(attachment.id)).data).toString(),
-      "GUI input\r",
-    );
+    const live = await client.read(attachment.id);
+    assert.equal(live.replay, false);
+    assert.equal(Buffer.from(live.data).toString(), "GUI input\r");
     assert.match(
       Buffer.from((await observer.read(second.id)).data).toString(),
       /GUI input/,
@@ -82,6 +84,7 @@ test("real Go Host: output, ordinary writes, lease authority, cancellation, over
     await fixture.command("flood");
     const overwritten = await client.read(again.id);
     assert.equal(overwritten.dropped, true);
+    assert.equal(overwritten.replay, true);
     assert.match(
       Buffer.from(overwritten.data).toString(),
       /retained-after-overwrite/,

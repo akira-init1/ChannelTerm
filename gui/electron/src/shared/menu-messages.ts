@@ -326,4 +326,21 @@ export const menuMessages = [
     message:
       "Uses a separate SSH connection from this computer. Enter local identity and known-hosts paths. Credentials are not saved. Copies use SHA-256 verification; SCP requires remote sha256sum. Cancellation may leave partial files.",
   },
+  /* i18n */ { id: "terminal.copy", message: "Copy terminal selection" },
+  /* i18n */ { id: "terminal.paste", message: "Paste into terminal" },
+  /* i18n */ { id: "shortcuts.search", message: "Search shortcuts" },
+  /* i18n */ { id: "shortcuts.empty", message: "No matching shortcuts" },
+  /* i18n */ { id: "settings.display", message: "Display" },
+  /* i18n */ { id: "display.fontSize", message: "Font size" },
+  /* i18n */ { id: "display.fontFamily", message: "Font family" },
+  /* i18n */ {
+    id: "display.hint",
+    message:
+      "Terminal font size: 8-40 px. Ctrl+wheel zooms the terminal. Font families use installed fonts with monospace fallback. Settings are saved locally.",
+  },
+  /* i18n */ {
+    id: "display.storageError",
+    message:
+      "Could not save display settings. Check local storage access and try again.",
+  },
 ] satisfies MessageDescriptor[];

@@ -192,6 +192,12 @@ No token is passed to React or stored in GUI preferences. Development runner var
 Desktop SSH connection fields are transient Host-side settings described in the
 [desktop Host API](gui-host-api.md); no new TOML fields or saved profiles are added.
 
+The GUI profile stores validated shortcut bindings and terminal display preferences in renderer
+local storage, separately for production and development origins. The
+[GUI menu reference](gui-menus.md#layout-shortcuts) owns shortcut defaults, migration and focus
+rules; [terminal display](gui-menus.md#terminal-display) owns font bounds and persistence.
+Neither setting changes Host configuration, serial framing, Session metadata or terminal output.
+
 ## SSH CLI settings
 
 SSH connections use explicit CLI options and do not add TOML fields or saved profiles. The CLI

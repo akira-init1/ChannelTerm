@@ -143,6 +143,25 @@ test("offline, closed, busy and leased menus are display hints with explicit att
   assert.equal(other[1]?.enabled, false);
   assert.equal(other[1]?.action, undefined);
   const close = { id: "tab.close", attachment: old } as const;
+  const paste = { id: "terminal.paste", attachment: old } as const;
+  const copy = { id: "terminal.copy", attachment: old } as const;
+  assert.equal(actionEnabled(paste, live), true);
+  assert.equal(actionEnabled(paste, { ...live, leased: true }), false);
+  assert.equal(actionEnabled(paste, { ...live, inputPaused: true }), false);
+  assert.equal(actionEnabled(paste, { ...live, hexView: true }), false);
+  assert.equal(
+    terminalMenu({ ...live, hexView: true }).find(
+      (item) => item.id === "terminal.paste",
+    )?.enabled,
+    false,
+  );
+  assert.equal(actionEnabled(paste, { ...live, currentOpen: false }), false);
+  assert.equal(
+    actionEnabled(paste, { ...live, attachment: { ...old, id: "new" } }),
+    false,
+  );
+  assert.equal(actionEnabled(copy, { ...live, leased: true }), true);
+  assert.equal(isAction({ id: "terminal.paste" }), false);
   assert.equal(actionEnabled(close, { ...live, currentOpen: false }), true);
   assert.equal(
     actionEnabled(close, { ...live, attachment: { ...old, id: "new" } }),

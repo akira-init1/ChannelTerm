@@ -5,7 +5,12 @@ export const layoutActions = [
   "view.panel",
 ] as const;
 export type LayoutAction = (typeof layoutActions)[number];
-export type ShortcutBindings = Record<LayoutAction, string>;
+export const shortcutActions = [
+  ...layoutActions,
+  "terminal.copy",
+  "terminal.paste",
+] as const;
+export type ShortcutBindings = Record<(typeof shortcutActions)[number], string>;
 
 export function defaultShortcuts(mac: boolean): ShortcutBindings {
   const modifier = mac ? "Meta" : "Ctrl";
@@ -13,6 +18,8 @@ export function defaultShortcuts(mac: boolean): ShortcutBindings {
     "view.sidebar": `${modifier}+B`,
     "view.auxiliary": `${modifier}+Alt+B`,
     "view.panel": `${modifier}+J`,
+    "terminal.copy": "Ctrl+Shift+C",
+    "terminal.paste": "Ctrl+Shift+V",
   };
 }
 
@@ -21,6 +28,7 @@ export function validShortcut(value: unknown): value is string {
   if (typeof value !== "string") return false;
   if (value === "") return true;
   if (!/^(Ctrl|Meta)(\+Alt)?(\+Shift)?\+[A-Z0-9]$/.test(value)) return false;
+  if (/^Ctrl\+Shift\+[CV]$/.test(value)) return true;
   return !/^(Ctrl|Meta)\+(?:Shift\+)?[ACVXZYWQRL]$/.test(value);
 }
 
@@ -29,13 +37,35 @@ export function isShortcutBindings(value: unknown): value is ShortcutBindings {
   const entries = Object.entries(value);
   const assigned = entries.map(([, binding]) => binding).filter(Boolean);
   return (
-    entries.length === layoutActions.length &&
+    entries.length === shortcutActions.length &&
     entries.every(
       ([id, binding]) =>
-        layoutActions.some((action) => action === id) && validShortcut(binding),
+        shortcutActions.some((action) => action === id) &&
+        validShortcut(binding),
     ) &&
     new Set(assigned).size === assigned.length
   );
+}
+
+/** Preserve existing layout preferences when upgrading the original three-action schema. */
+export function restoreShortcuts(
+  value: unknown,
+  mac: boolean,
+): ShortcutBindings {
+  if (isShortcutBindings(value)) return value;
+  if (
+    value &&
+    typeof value === "object" &&
+    !Array.isArray(value) &&
+    Object.keys(value).length === layoutActions.length &&
+    Object.keys(value).every((id) =>
+      layoutActions.some((action) => action === id),
+    )
+  ) {
+    const migrated = { ...defaultShortcuts(mac), ...value };
+    if (isShortcutBindings(migrated)) return migrated;
+  }
+  return defaultShortcuts(mac);
 }
 
 export interface ShortcutKeyEvent {

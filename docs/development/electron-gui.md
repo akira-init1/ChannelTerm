@@ -298,6 +298,12 @@ and editor focus. Fresh app processes check saved bindings and malformed-storage
 Screenshots: `workbench-panels.png`, `workbench-panels-compact.png`, and `workbench-shortcuts.png`.
 Unit checks cover platform defaults, Option/physical keys, IME/AltGr rejection, malformed or
 duplicate stored bindings, and bounded native menu hints.
+Terminal-control checks cover historical cursor/device queries without unsolicited replies,
+fragmented live cursor queries, real terminal selection/copy/paste, stale/oversized clipboard
+IPC, lease-blocked paste with no replay, shortcut search, font settings and Ctrl+wheel without
+application zoom or device writes. `test-results/terminal-display-settings.png` captures the
+display dialog. These use fake serial I/O and the native clipboard, restoring its previous text.
+They do not establish physical serial-device or other native-platform behavior.
 Menu checks cover native/renderer language and checkmark synchronization, sidebar actions,
 keyboard opening, Escape/focus restoration, outside-click dismissal, and disabled offline/empty/
 closed actions. They reject stale attachment callbacks and missing non-current context targets,
@@ -305,7 +311,7 @@ verify local clear leaves Host history intact and sends no bytes, and exit the G
 independent observer still attached. Ctrl+C/Ctrl+L/Ctrl+W, Alt and F1 pass through xterm.
 Chromium CDP composition/commit checks cover Chinese input without duplicate bytes; real OS IME
 candidate windows still need manual native testing. No OS-global shortcut is registered; the
-renderer handles only assigned layout chords under the documented focus policy.
+renderer handles only assigned layout and terminal clipboard chords under the documented focus policy.
 Empty/large-list and missing-context-target checks replace list IPC snapshots in disposable test processes;
 connection, terminal I/O, leases, and lifecycle checks use the real isolated Go Host. A fresh Electron
 process restores production IPC for subsequent recovery checks. No test-only controls ship in the app.

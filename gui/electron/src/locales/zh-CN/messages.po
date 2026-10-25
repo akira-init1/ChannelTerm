@@ -195,6 +195,26 @@ msgstr "传输方式"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "display.fontFamily"
+msgstr "字体样式（字体族）"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "display.fontSize"
+msgstr "字体大小"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "display.hint"
+msgstr "终端字体大小为 8–40 px。Ctrl+滚轮可缩放终端字体。使用已安装的字体，缺失时回退到等宽字体。设置保存在本机。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "display.storageError"
+msgstr "无法保存显示设置。请检查本地存储访问权限后重试。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "file.cancel"
 msgstr "取消传输"
 
@@ -560,6 +580,11 @@ msgstr "刷新会话列表"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "settings.display"
+msgstr "显示"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "settings.shortcuts"
 msgstr "快捷键"
 
@@ -567,6 +592,11 @@ msgstr "快捷键"
 #: src/shared/menu-messages.ts
 msgid "shortcuts.conflict"
 msgstr "快捷键不能重复。请修改或清除冲突的绑定。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.empty"
+msgstr "没有匹配的快捷键"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -587,6 +617,11 @@ msgstr "清除"
 #: src/shared/menu-messages.ts
 msgid "shortcuts.reset"
 msgstr "恢复默认"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.search"
+msgstr "搜索快捷键"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -615,6 +650,11 @@ msgstr "清理本地显示"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "terminal.copy"
+msgstr "复制终端选中内容"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.description"
 msgstr "本地描述（可选）"
 
@@ -637,6 +677,11 @@ msgstr "十六进制（只读）"
 #: src/shared/menu-messages.ts
 msgid "terminal.localHint"
 msgstr "选择设备使用的文本编码。设置仅对本客户端生效，文件传输保持原始字节。描述限单行，最多 512 个 UTF-8 字节。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.paste"
+msgstr "粘贴到终端"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

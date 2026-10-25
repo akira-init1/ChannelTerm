@@ -5,6 +5,7 @@ import {
   isShortcutBindings,
   shortcutFromEvent,
   shortcutLabel,
+  restoreShortcuts,
   type ShortcutKeyEvent,
 } from "../src/shared/shortcuts";
 import {
@@ -30,11 +31,15 @@ test("platform defaults and physical Option keys match the layout commands", () 
     "view.sidebar": "Ctrl+B",
     "view.auxiliary": "Ctrl+Alt+B",
     "view.panel": "Ctrl+J",
+    "terminal.copy": "Ctrl+Shift+C",
+    "terminal.paste": "Ctrl+Shift+V",
   });
   assert.deepEqual(defaultShortcuts(true), {
     "view.sidebar": "Meta+B",
     "view.auxiliary": "Meta+Alt+B",
     "view.panel": "Meta+J",
+    "terminal.copy": "Ctrl+Shift+C",
+    "terminal.paste": "Ctrl+Shift+V",
   });
   assert.equal(shortcutFromEvent(key), "Ctrl+B");
   assert.equal(
@@ -45,6 +50,37 @@ test("platform defaults and physical Option keys match the layout commands", () 
   assert.equal(
     shortcutFromEvent({ ...key, code: "Digit1", shiftKey: true }),
     "Ctrl+Shift+1",
+  );
+});
+
+test("terminal clipboard chords and migration preserve custom layout bindings", () => {
+  assert.equal(
+    shortcutFromEvent({ ...key, code: "KeyC", shiftKey: true }),
+    "Ctrl+Shift+C",
+  );
+  assert.equal(
+    shortcutFromEvent({ ...key, code: "KeyV", shiftKey: true }),
+    "Ctrl+Shift+V",
+  );
+  const old = {
+    "view.sidebar": "Ctrl+K",
+    "view.auxiliary": "",
+    "view.panel": "Ctrl+Shift+J",
+  };
+  assert.deepEqual(restoreShortcuts(old, false), {
+    ...defaultShortcuts(false),
+    ...old,
+  });
+  assert.deepEqual(
+    restoreShortcuts({ ...old, unexpected: "Ctrl+F" }, false),
+    defaultShortcuts(false),
+  );
+  assert.equal(
+    isShortcutBindings({
+      ...defaultShortcuts(false),
+      "terminal.copy": "Ctrl+J",
+    }),
+    false,
   );
 });
 

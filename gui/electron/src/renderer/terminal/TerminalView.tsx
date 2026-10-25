@@ -11,11 +11,14 @@ import type { Attachment, ClientError } from "../../shared/api";
 import { host, unwrap } from "../host";
 import { TerminalPresentation } from "./presentation";
 import type { TerminalSettings } from "../../shared/terminal-settings";
+import type { DisplaySettings } from "../../shared/display-settings";
 
-/** Local xterm controls only; neither method writes bytes or changes Host history. */
+/** Controls for the current view; paste uses the existing bounded, authorized input path. */
 export interface TerminalControls {
   clear(): void;
   focus(): void;
+  copy(): void;
+  paste(): void;
 }
 
 /**
@@ -26,6 +29,8 @@ export interface TerminalControls {
 export function TerminalView({
   attachment,
   settings,
+  display,
+  onZoom,
   writable,
   onError,
   onDropped,
@@ -34,6 +39,8 @@ export function TerminalView({
 }: {
   attachment: Attachment;
   settings: TerminalSettings;
+  display: DisplaySettings;
+  onZoom: (delta: number) => void;
   writable: boolean;
   onError: (error: ClientError) => void;
   onDropped: () => void;
@@ -42,28 +49,80 @@ export function TerminalView({
 }) {
   const container = useRef<HTMLDivElement>(null);
   const local = useRef<Terminal | undefined>(undefined);
+  const fitting = useRef<FitAddon | undefined>(undefined);
+  const clipboardBusy = useRef(false);
+  const inputEpoch = useRef(0);
+  async function copy() {
+    const text = local.current?.getSelection();
+    if (!text || clipboardBusy.current) return;
+    clipboardBusy.current = true;
+    const target = local.current;
+    try {
+      await unwrap(host.writeClipboard(attachment.id, text));
+    } catch (error) {
+      if (local.current === target)
+        callbacks.current.onError(error as ClientError);
+    } finally {
+      clipboardBusy.current = false;
+    }
+  }
+  async function paste() {
+    const target = local.current;
+    if (
+      !target ||
+      !inputEnabled.current ||
+      clipboardBusy.current ||
+      document.querySelector("dialog[open]")
+    )
+      return;
+    const epoch = inputEpoch.current;
+    clipboardBusy.current = true;
+    try {
+      const text = await unwrap(host.readClipboard(attachment.id));
+      // A clipboard reply can arrive after detach, lease acquisition or a view replacement.
+      if (
+        local.current === target &&
+        inputEnabled.current &&
+        inputEpoch.current === epoch &&
+        !document.querySelector("dialog[open]") &&
+        text
+      ) {
+        target.paste(text);
+        target.focus();
+      }
+    } catch (error) {
+      if (local.current === target)
+        callbacks.current.onError(error as ClientError);
+    } finally {
+      clipboardBusy.current = false;
+    }
+  }
   useImperativeHandle(
     ref,
     () => ({
       // xterm.clear preserves the current line/parser and sends no remote reset.
       clear: () => local.current?.clear(),
       focus: () => local.current?.focus(),
+      copy: () => void copy(),
+      paste: () => void paste(),
     }),
-    [],
+    [attachment.id],
   );
   const inputEnabled = useRef(writable);
-  const callbacks = useRef({ onError, onDropped });
+  const callbacks = useRef({ onError, onDropped, onZoom });
   const previousReadLoop = useRef<Promise<void>>(Promise.resolve());
   // Use the latest guards/callbacks without recreating xterm on status updates.
-  callbacks.current = { onError, onDropped };
-  inputEnabled.current = writable && settings.view !== "hex";
+  callbacks.current = { onError, onDropped, onZoom };
+  const enabled = writable && settings.view !== "hex";
+  if (inputEnabled.current && !enabled) inputEpoch.current++;
+  inputEnabled.current = enabled;
 
   useEffect(() => {
     const presentation = new TerminalPresentation(settings);
     const terminal = new Terminal({
       cursorBlink: true,
-      fontFamily: 'Consolas, "Liberation Mono", monospace',
-      fontSize: 14,
+      fontFamily: `${display.fontFamily}, monospace`,
+      fontSize: display.fontSize,
       scrollback: 5000,
       // xterm does not inherit the shell palette. Keep its background aligned
       // with --editor-background in styles/app.css to avoid seams around cells.
@@ -94,11 +153,31 @@ export function TerminalView({
     });
     const fit = new FitAddon();
     local.current = terminal;
+    fitting.current = fit;
     terminal.loadAddon(fit);
     terminal.open(container.current!);
     fit.fit();
     terminal.focus();
     let stopped = false;
+    // Historical device queries are not current requests to this attachment.
+    // Intercept queries at the parser (not by filtering user keystrokes or raw output).
+    // Live queries still reach xterm's standard handlers, including split sequences.
+    let replay = true;
+    const queryHandlers = [
+      { final: "n" },
+      { prefix: "?", final: "n" },
+      { final: "c" },
+      { prefix: ">", final: "c" },
+    ].map((id) => terminal.parser.registerCsiHandler(id, () => replay));
+    const element = container.current!;
+    const wheel = (event: WheelEvent) => {
+      if (!event.ctrlKey || event.altKey || event.metaKey || event.shiftKey)
+        return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (event.deltaY) callbacks.current.onZoom(event.deltaY);
+    };
+    element.addEventListener("wheel", wheel, { passive: false, capture: true });
     let pendingBytes = 0;
     // A failed write invalidates queued payloads; recovery must not replay them.
     let inputVersion = 0;
@@ -141,6 +220,7 @@ export function TerminalView({
         while (!stopped) {
           const output = await unwrap(host.read(attachment.id));
           if (stopped) break;
+          replay = !!output.replay;
           if (output.dropped) {
             // Do not join a partial escape/UTF-8 sequence across missing bytes.
             terminal.reset();
@@ -164,13 +244,23 @@ export function TerminalView({
       stopped = true;
       finishRender?.();
       resize.disconnect();
+      element.removeEventListener("wheel", wheel, true);
+      queryHandlers.forEach((handler) => handler.dispose());
       listener.dispose();
       terminal.dispose();
       local.current = undefined;
+      fitting.current = undefined;
       // Main owns detach/cancellation; React effect cleanup must not detach a
       // newly mounted view (including StrictMode effect replay).
     };
   }, [attachment.id]);
+
+  useEffect(() => {
+    if (!local.current) return;
+    local.current.options.fontSize = display.fontSize;
+    local.current.options.fontFamily = `${display.fontFamily}, monospace`;
+    fitting.current?.fit();
+  }, [display]);
 
   return (
     <div

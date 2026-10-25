@@ -32,6 +32,7 @@ export type Action =
         | "view.transfers"
         | "view.status"
         | "settings.shortcuts"
+        | "settings.display"
         | "help.quick"
         | "app.quit";
     }
@@ -40,7 +41,13 @@ export type Action =
       sessionId: string;
     }
   | {
-      id: "tab.close" | "terminal.clear" | "terminal.focus" | "terminal.resume";
+      id:
+        | "tab.close"
+        | "terminal.clear"
+        | "terminal.focus"
+        | "terminal.resume"
+        | "terminal.copy"
+        | "terminal.paste";
       attachment: Attachment;
     }
   | { id: "language.change"; locale: MenuLocale };
@@ -60,6 +67,7 @@ export interface MenuState {
   currentSerial: boolean;
   currentSSH?: boolean;
   inputPaused: boolean;
+  hexView?: boolean;
   leased: boolean;
 }
 
@@ -90,7 +98,13 @@ export const initialMenuState: MenuState = {
 
 function attachedAction(
   state: MenuState,
-  id: "tab.close" | "terminal.clear" | "terminal.focus" | "terminal.resume",
+  id:
+    | "tab.close"
+    | "terminal.clear"
+    | "terminal.focus"
+    | "terminal.resume"
+    | "terminal.copy"
+    | "terminal.paste",
 ): MenuEntry {
   return {
     id,
@@ -206,6 +220,11 @@ export function applicationMenu(state: MenuState): MenuEntry[] {
       label: "menu.settings",
       children: [
         {
+          id: "settings.display",
+          label: "settings.display",
+          action: { id: "settings.display" },
+        },
+        {
           id: "settings.shortcuts",
           label: "settings.shortcuts",
           action: { id: "settings.shortcuts" },
@@ -236,6 +255,19 @@ export function terminalMenu(state: MenuState): MenuEntry[] {
   const items = [
     attachedAction(state, "terminal.focus"),
     attachedAction(state, "terminal.clear"),
+    ...(["terminal.copy", "terminal.paste"] as const).map((id) => ({
+      ...attachedAction(state, id),
+      shortcut: shortcutLabel(state.shortcuts[id]),
+      enabled:
+        !!state.attachment &&
+        !state.busy &&
+        (id === "terminal.copy" ||
+          (state.connected &&
+            state.currentOpen &&
+            !state.hexView &&
+            !state.leased &&
+            !state.inputPaused)),
+    })),
   ];
   if (state.inputPaused)
     items.push({
@@ -342,6 +374,7 @@ export function isAction(value: unknown): value is Action {
     case "view.transfers":
     case "view.status":
     case "settings.shortcuts":
+    case "settings.display":
     case "help.quick":
     case "app.quit":
       return exact(value, ["id"]);
@@ -351,6 +384,8 @@ export function isAction(value: unknown): value is Action {
     case "session.attach":
       return exact(value, ["id", "sessionId"]) && identifier(value.sessionId);
     case "tab.close":
+    case "terminal.copy":
+    case "terminal.paste":
     case "terminal.clear":
     case "terminal.focus":
     case "terminal.resume":
@@ -380,12 +415,14 @@ export function isMenuState(value: unknown): value is MenuState {
       "currentSerial",
       "currentSSH",
       "inputPaused",
+      "hexView",
       "leased",
     ])
   )
     return false;
   return (
     isMenuLocale(value.locale) &&
+    (value.hexView === undefined || typeof value.hexView === "boolean") &&
     (value.currentSSH === undefined || typeof value.currentSSH === "boolean") &&
     isShortcutBindings(value.shortcuts) &&
     [
@@ -420,6 +457,8 @@ export function actionEnabled(action: Action, state: MenuState): boolean {
     case "session.attach":
       return state.connected && !state.busy;
     case "tab.close":
+    case "terminal.copy":
+    case "terminal.paste":
     case "terminal.clear":
     case "terminal.focus":
     case "terminal.resume":
@@ -427,6 +466,12 @@ export function actionEnabled(action: Action, state: MenuState): boolean {
         !state.busy &&
         state.attachment?.id === action.attachment.id &&
         state.attachment.sessionId === action.attachment.sessionId &&
+        (action.id !== "terminal.paste" ||
+          (state.connected &&
+            state.currentOpen &&
+            !state.hexView &&
+            !state.leased &&
+            !state.inputPaused)) &&
         (action.id !== "terminal.resume" ||
           (state.connected &&
             state.currentOpen &&
