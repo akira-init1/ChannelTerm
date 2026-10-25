@@ -590,6 +590,26 @@ msgstr "하단 패널 높이 조절"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "paste.confirm"
+msgstr "이 대상에 붙여넣기"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "paste.stale"
+msgstr "대상 또는 입력 상태가 변경되었습니다. 이 초안을 취소하고 대상을 확인한 후 다시 붙여넣으세요. 아무것도 전송되지 않았습니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "paste.title"
+msgstr "여러 줄 붙여넣기 확인"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "paste.warning"
+msgstr "이 텍스트에는 줄바꿈이 포함되어 대상에서 명령이 실행될 수 있습니다. 붙여넣기 전에 확인하세요. 이스케이프 바이트는 ␛로 표시되며, 확인된 텍스트에는 xterm의 일반 붙여넣기 처리가 적용됩니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "session.attach"
 msgstr "세션에 연결"
 
@@ -787,7 +807,17 @@ msgstr "터미널 출력이나 자격 증명 없이 대상의 전체 ID와 연�
 #: src/main/target-copy.ts
 #: src/shared/menu-messages.ts
 msgid "target.instructions"
-msgstr "연결된 ChannelTerm MCP를 통해 다음 대상을 조작하세요:\n이름: {name}\nHost: {host}\nsession_id: {sessionId}\n짧은 참조: {reference}\n연결: {transport} / {endpoint}\n\n먼저 Sessions를 조회하여 전체 ID, 연결 대상 및 상태가 일치하는지 확인하세요.\n일치하지 않으면 중지하고 다른 장치를 자동으로 선택하지 마세요.\n구체적인 작업은 별도로 지시하겠습니다."
+msgstr ""
+"연결된 ChannelTerm MCP를 통해 다음 대상을 조작하세요:\n"
+"이름: {name}\n"
+"Host: {host}\n"
+"session_id: {sessionId}\n"
+"짧은 참조: {reference}\n"
+"연결: {transport} / {endpoint}\n"
+"\n"
+"먼저 Sessions를 조회하여 전체 ID, 연결 대상 및 상태가 일치하는지 확인하세요.\n"
+"일치하지 않으면 중지하고 다른 장치를 자동으로 선택하지 마세요.\n"
+"구체적인 작업은 별도로 지시하겠습니다."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

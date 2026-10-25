@@ -181,6 +181,13 @@ and the ordinary bounded Host write path. No browser permission or arbitrary cli
 is exposed. Display preferences are validated local state; font updates refit the existing
 terminal and do not replace its parser, output cursor or attachment.
 
+Paste containing CR or LF opens an attachment-local preview before xterm receives the text.
+Menu, shortcut and native paste events share the Main clipboard read and 64 KiB limit. Confirmation
+is single-use and rechecks the original xterm instance, visibility and input epoch; a lease/read-only
+transition invalidates the draft even after input becomes available again. Detach discards the draft.
+Accepted input still uses xterm newline/bracketed-paste processing and Main's encoding/Host authority.
+No queued draft is replayed after a state change. Preview text is local React state, never Host history.
+
 ## State ownership
 
 Explicit **Close shared Session...** is separate from all view cleanup. After a target-specific

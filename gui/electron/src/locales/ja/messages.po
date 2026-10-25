@@ -590,6 +590,26 @@ msgstr "下部パネルの高さを変更"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "paste.confirm"
+msgstr "この対象に貼り付け"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "paste.stale"
+msgstr "対象または入力状態が変わりました。この内容をキャンセルし、対象を確認してから再度貼り付けてください。何も送信していません。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "paste.title"
+msgstr "複数行の貼り付けを確認"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "paste.warning"
+msgstr "このテキストには改行が含まれており、対象でコマンドが実行される可能性があります。貼り付け前に確認してください。エスケープバイトは ␛ と表示します。確認後も xterm の通常の貼り付け処理を使用します。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "session.attach"
 msgstr "このセッションに接続"
 
@@ -787,7 +807,17 @@ msgstr "端末出力や認証情報を含めずに、対象の完全な ID と�
 #: src/main/target-copy.ts
 #: src/shared/menu-messages.ts
 msgid "target.instructions"
-msgstr "接続済みの ChannelTerm MCP を使用して、次の対象を操作してください：\n名前：{name}\nHost：{host}\nsession_id：{sessionId}\n短縮参照：{reference}\n接続：{transport} / {endpoint}\n\nまず Sessions を照会し、完全な ID、接続先、状態が一致することを確認してください。\n一致しない場合は停止し、別のデバイスを自動選択しないでください。\n具体的な操作は別途指示します。"
+msgstr ""
+"接続済みの ChannelTerm MCP を使用して、次の対象を操作してください：\n"
+"名前：{name}\n"
+"Host：{host}\n"
+"session_id：{sessionId}\n"
+"短縮参照：{reference}\n"
+"接続：{transport} / {endpoint}\n"
+"\n"
+"まず Sessions を照会し、完全な ID、接続先、状態が一致することを確認してください。\n"
+"一致しない場合は停止し、別のデバイスを自動選択しないでください。\n"
+"具体的な操作は別途指示します。"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

@@ -590,6 +590,26 @@ msgstr "Redimensionner le panneau inférieur"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "paste.confirm"
+msgstr "Coller dans cette cible"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "paste.stale"
+msgstr "La cible ou l’état de saisie a changé. Annulez ce brouillon, vérifiez la cible et collez à nouveau. Rien n’a été envoyé."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "paste.title"
+msgstr "Vérifier le collage multiligne"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "paste.warning"
+msgstr "Ce texte contient des sauts de ligne et peut exécuter des commandes sur la cible. Vérifiez-le avant de coller. Les octets d’échappement sont affichés sous la forme ␛ ; le texte confirmé conserve le traitement normal de xterm."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "session.attach"
 msgstr "Attacher une session"
 
@@ -787,7 +807,17 @@ msgstr "Copier l’identifiant complet et la connexion, sans sortie du terminal 
 #: src/main/target-copy.ts
 #: src/shared/menu-messages.ts
 msgid "target.instructions"
-msgstr "Utilise le ChannelTerm MCP connecté pour intervenir sur cette cible :\nNom : {name}\nHost : {host}\nsession_id : {sessionId}\nRéférence courte : {reference}\nConnexion : {transport} / {endpoint}\n\nConsulte d’abord Sessions et confirme que l’identifiant complet, le point de connexion et l’état correspondent.\nSinon, arrête-toi. Ne sélectionne pas automatiquement un autre appareil.\nJe préciserai l’opération séparément."
+msgstr ""
+"Utilise le ChannelTerm MCP connecté pour intervenir sur cette cible :\n"
+"Nom : {name}\n"
+"Host : {host}\n"
+"session_id : {sessionId}\n"
+"Référence courte : {reference}\n"
+"Connexion : {transport} / {endpoint}\n"
+"\n"
+"Consulte d’abord Sessions et confirme que l’identifiant complet, le point de connexion et l’état correspondent.\n"
+"Sinon, arrête-toi. Ne sélectionne pas automatiquement un autre appareil.\n"
+"Je préciserai l’opération séparément."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

@@ -3,6 +3,18 @@ import type { MessageDescriptor } from "@lingui/core";
 // Lingui 5 extracts these official annotated descriptors without a runtime macro
 // transform. Translations belong in PO catalogs; this file owns IDs and English defaults.
 export const menuMessages = [
+  /* i18n */ { id: "paste.title", message: "Review multiline paste" },
+  /* i18n */ {
+    id: "paste.warning",
+    message:
+      "This text contains line breaks and may execute commands on the target. Review it before pasting. Escape bytes are shown as ␛; confirmed text retains xterm's normal paste handling.",
+  },
+  /* i18n */ { id: "paste.confirm", message: "Paste into this target" },
+  /* i18n */ {
+    id: "paste.stale",
+    message:
+      "The target or input state changed. Cancel this draft and paste again after checking the target. Nothing was sent.",
+  },
   /* i18n */ { id: "target.copy", message: "Copy for AI" },
   /* i18n */ {
     id: "target.hint",

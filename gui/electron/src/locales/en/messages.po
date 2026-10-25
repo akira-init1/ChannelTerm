@@ -590,6 +590,26 @@ msgstr "Resize bottom panel"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "paste.confirm"
+msgstr "Paste into this target"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "paste.stale"
+msgstr "The target or input state changed. Cancel this draft and paste again after checking the target. Nothing was sent."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "paste.title"
+msgstr "Review multiline paste"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "paste.warning"
+msgstr "This text contains line breaks and may execute commands on the target. Review it before pasting. Escape bytes are shown as ␛; confirmed text retains xterm's normal paste handling."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "session.attach"
 msgstr "Attach Session"
 

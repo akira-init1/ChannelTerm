@@ -1521,6 +1521,13 @@ export function App() {
                       else terminals.current.delete(tab.id);
                     }}
                     attachment={tab.attachment}
+                    targetName={
+                      sessions.find(
+                        (entry) =>
+                          entry.session_id === tab.attachment?.sessionId,
+                      )?.label || tab.attachment.sessionId
+                    }
+                    t={t}
                     settings={tab.settings}
                     display={display}
                     onZoom={zoomDisplay}

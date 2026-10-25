@@ -76,6 +76,124 @@ export async function checkTerminalControls(
         return received;
       })
       .toBe("paste-test");
+    const preview = page.getByRole("dialog", {
+      name: "Review multiline paste",
+    });
+    const showPreview = async (text) => {
+      await desktop.evaluate(
+        ({ clipboard }, text) => clipboard.writeText(text),
+        text,
+      );
+      await terminal.focus();
+      await page.keyboard.press("Control+Shift+v");
+      await expect(preview).toBeVisible();
+      await expect(preview).toContainText(attachment.sessionId);
+    };
+    await showPreview("first\nsecond\n");
+    assert.equal(await read(), "", "preview sends nothing before confirmation");
+    await preview.getByRole("button", { name: "Cancel", exact: true }).click();
+    assert.equal(await read(), "", "cancel discards the paste");
+    // A native DOM paste must enter the same confirmation path, before xterm consumes it.
+    await terminal.evaluate((element) =>
+      element.dispatchEvent(
+        new ClipboardEvent("paste", { bubbles: true, cancelable: true }),
+      ),
+    );
+    await expect(preview).toBeVisible();
+    await page.screenshot({ path: "test-results/multiline-paste-preview.png" });
+    await preview
+      .getByRole("button", { name: "Paste into this target" })
+      .evaluate((button) => {
+        button.click();
+        button.click();
+      });
+    received = "";
+    await expect
+      .poll(async () => {
+        received += await read();
+        return received;
+      })
+      .toBe("first\rsecond\r");
+    assert.equal(
+      await read(),
+      "",
+      "repeated confirmation cannot duplicate the paste",
+    );
+
+    await fixture.command("output", "\x1b[?2004hbracketed-ready\r\n");
+    await read();
+    await expect(page.locator(".xterm-rows")).toContainText("bracketed-ready");
+    await showPreview("bracketed\npaste");
+    await preview
+      .getByRole("button", { name: "Paste into this target" })
+      .click();
+    received = "";
+    await expect
+      .poll(async () => {
+        received += await read();
+        return received;
+      })
+      .toBe("\x1b[200~bracketed\rpaste\x1b[201~");
+    await fixture.command("output", "\x1b[?2004lbracketed-disabled\r\n");
+    await read();
+    await expect(page.locator(".xterm-rows")).toContainText(
+      "bracketed-disabled",
+    );
+
+    await showPreview("must-not\nsend");
+    await fixture.command("lease");
+    await expect(
+      preview.getByRole("button", { name: "Paste into this target" }),
+    ).toBeDisabled();
+    await fixture.command("release");
+    await expect(page.getByText(/Lease busy/)).toBeHidden();
+    await expect(
+      preview.getByRole("button", { name: "Paste into this target" }),
+    ).toBeDisabled();
+    await page.keyboard.press("Escape");
+    await expect(preview).toHaveCount(0);
+    assert.equal(
+      await read(),
+      "",
+      "a lease invalidates the draft permanently; release cannot replay it",
+    );
+
+    await showPreview("hidden\ndraft");
+    await desktop.evaluate(({ Menu }) =>
+      Menu.getApplicationMenu().getMenuItemById("tab.new").click(),
+    );
+    await expect(page.locator(".terminal-empty")).toBeVisible();
+    await desktop.evaluate(({ Menu }) =>
+      Menu.getApplicationMenu().getMenuItemById("tab.previous").click(),
+    );
+    await expect(preview).toBeVisible();
+    await expect(
+      preview.getByRole("button", { name: "Paste into this target" }),
+    ).toBeDisabled();
+    await page.keyboard.press("Escape");
+    await expect(preview).toHaveCount(0);
+    assert.equal(await read(), "", "returning to a tab cannot revive a draft");
+    await desktop.evaluate(({ Menu }) =>
+      Menu.getApplicationMenu().getMenuItemById("tab.next").click(),
+    );
+    await expect(page.locator(".terminal-empty")).toBeVisible();
+    await desktop.evaluate(({ Menu }) =>
+      Menu.getApplicationMenu().getMenuItemById("tab.close").click(),
+    );
+    await expect(terminal).toBeVisible();
+
+    await showPreview("detached\ndraft");
+    await desktop.evaluate(({ Menu }) =>
+      Menu.getApplicationMenu().getMenuItemById("tab.close").click(),
+    );
+    await expect(preview).toHaveCount(0);
+    await page.getByRole("button", { name: /SER-1/ }).click();
+    await expect(terminal).toBeVisible();
+    assert.equal(
+      await read(),
+      "",
+      "detach discards the draft instead of sending it to a replacement view",
+    );
     const stale = await page.evaluate(() =>
       window.channelterm.readClipboard("expired"),
     );
@@ -128,6 +246,9 @@ export async function checkTerminalControls(
   ).toBeVisible();
   await shortcuts.getByRole("button", { name: "Cancel", exact: true }).click();
 
+  await fixture.command("output", "\r\nfont-preserved\r\n");
+  await read();
+  await expect(page.locator(".xterm-rows")).toContainText("font-preserved");
   await page.locator('[data-menu="settings"]').click();
   await page
     .getByRole("menuitem", { name: "Preferences...", exact: true })
@@ -139,7 +260,7 @@ export async function checkTerminalControls(
     .fill("Courier New");
   await display.getByRole("button", { name: "Apply", exact: true }).click();
   await expect(page.locator(".xterm-rows")).toHaveCSS("font-size", "20px");
-  await expect(page.locator(".xterm-rows")).toContainText("paste-test");
+  await expect(page.locator(".xterm-rows")).toContainText("font-preserved");
   await expect(page.locator(".xterm-rows")).toHaveCSS(
     "font-family",
     /Courier New/,

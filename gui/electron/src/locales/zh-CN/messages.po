@@ -590,6 +590,26 @@ msgstr "调整底部面板高度"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "paste.confirm"
+msgstr "粘贴到此目标"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "paste.stale"
+msgstr "目标或输入状态已改变。请取消此草稿，核对目标后重新粘贴。尚未发送任何内容。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "paste.title"
+msgstr "预览多行粘贴"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "paste.warning"
+msgstr "文本包含换行，可能在目标上执行命令。请确认内容后再粘贴。转义字节显示为 ␛；确认后仍由 xterm 按正常粘贴规则处理。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "session.attach"
 msgstr "附加此会话"
 
@@ -787,7 +807,17 @@ msgstr "复制目标的完整 ID 和连接信息，不包含终端输出或凭�
 #: src/main/target-copy.ts
 #: src/shared/menu-messages.ts
 msgid "target.instructions"
-msgstr "请通过已连接的 ChannelTerm MCP 操作以下目标：\n名称：{name}\nHost：{host}\nsession_id：{sessionId}\n短引用：{reference}\n连接：{transport} / {endpoint}\n\n先查询 Sessions，确认完整 ID、端点和状态一致。\n不匹配时停止，不要自动选择其他设备。\n具体操作由我另行说明。"
+msgstr ""
+"请通过已连接的 ChannelTerm MCP 操作以下目标：\n"
+"名称：{name}\n"
+"Host：{host}\n"
+"session_id：{sessionId}\n"
+"短引用：{reference}\n"
+"连接：{transport} / {endpoint}\n"
+"\n"
+"先查询 Sessions，确认完整 ID、端点和状态一致。\n"
+"不匹配时停止，不要自动选择其他设备。\n"
+"具体操作由我另行说明。"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

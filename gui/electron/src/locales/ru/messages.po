@@ -590,6 +590,26 @@ msgstr "Изменить высоту нижней панели"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "paste.confirm"
+msgstr "Вставить в эту цель"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "paste.stale"
+msgstr "Цель или состояние ввода изменились. Отмените этот черновик, проверьте цель и вставьте заново. Ничего не отправлено."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "paste.title"
+msgstr "Проверить многострочную вставку"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "paste.warning"
+msgstr "Текст содержит переводы строк и может выполнить команды на цели. Проверьте его перед вставкой. Байты Escape показаны как ␛; подтверждённый текст сохраняет обычную обработку вставки xterm."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "session.attach"
 msgstr "Присоединиться к сеансу"
 
@@ -787,7 +807,17 @@ msgstr "Копировать полный ID и параметры соедин�
 #: src/main/target-copy.ts
 #: src/shared/menu-messages.ts
 msgid "target.instructions"
-msgstr "Используй подключённый ChannelTerm MCP для работы с этой целью:\nИмя: {name}\nHost: {host}\nsession_id: {sessionId}\nКраткая ссылка: {reference}\nСоединение: {transport} / {endpoint}\n\nСначала запроси Sessions и проверь совпадение полного ID, адреса подключения и состояния.\nЕсли они не совпадают, остановись. Не выбирай другое устройство автоматически.\nОперацию я укажу отдельно."
+msgstr ""
+"Используй подключённый ChannelTerm MCP для работы с этой целью:\n"
+"Имя: {name}\n"
+"Host: {host}\n"
+"session_id: {sessionId}\n"
+"Краткая ссылка: {reference}\n"
+"Соединение: {transport} / {endpoint}\n"
+"\n"
+"Сначала запроси Sessions и проверь совпадение полного ID, адреса подключения и состояния.\n"
+"Если они не совпадают, остановись. Не выбирай другое устройство автоматически.\n"
+"Операцию я укажу отдельно."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

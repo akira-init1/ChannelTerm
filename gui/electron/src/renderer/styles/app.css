@@ -755,6 +755,18 @@ main {
   border: 1px solid var(--border);
   border-radius: 4px;
 }
+.paste-preview {
+  max-height: 40vh;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  padding: 10px;
+  border: 1px solid var(--border);
+  background: var(--editor-background);
+}
+.paste-dialog code {
+  overflow-wrap: anywhere;
+}
 .input-status {
   border-left: 1px solid #394353;
   padding-left: 16px;

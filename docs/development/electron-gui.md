@@ -87,6 +87,12 @@ and checks visibility at 760 px. Unit tests reject foreign, stale and closed han
 the metadata query, oversized fields, control/newline injection and credential-bearing Host URLs.
 No AI service or real device is used by these checks.
 
+Multiline paste checks use the isolated echo Session: cancel/Escape sends nothing, native paste
+uses the same preview as shortcuts, repeated confirmation submits once, and bracketed paste retains
+its markers and newline conversion. Acquiring a Lease while previewing invalidates the draft even
+after release; detaching discards it. The production Host still validates encoding and write authority.
+These desktop checks send only test strings to fake I/O, not shell commands to a real device.
+
 ## File client build and verification
 
 File operations use another build of the same CLI at `dist/files/channelterm[.exe]`. Main invokes

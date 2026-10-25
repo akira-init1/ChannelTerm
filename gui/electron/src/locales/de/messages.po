@@ -590,6 +590,26 @@ msgstr "Höhe des unteren Panels ändern"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "paste.confirm"
+msgstr "In dieses Ziel einfügen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "paste.stale"
+msgstr "Ziel oder Eingabestatus geändert. Verwerfen Sie diesen Entwurf, prüfen Sie das Ziel und fügen Sie erneut ein. Es wurde nichts gesendet."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "paste.title"
+msgstr "Mehrzeiliges Einfügen prüfen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "paste.warning"
+msgstr "Dieser Text enthält Zeilenumbrüche und kann Befehle auf dem Ziel ausführen. Prüfen Sie ihn vor dem Einfügen. Escape-Bytes erscheinen als ␛; bestätigter Text wird wie üblich von xterm eingefügt."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "session.attach"
 msgstr "An Sitzung anhängen"
 
@@ -787,7 +807,17 @@ msgstr "Vollständige Ziel-ID und Verbindungsdaten ohne Terminalausgabe oder Zug
 #: src/main/target-copy.ts
 #: src/shared/menu-messages.ts
 msgid "target.instructions"
-msgstr "Verwende das verbundene ChannelTerm MCP für dieses Ziel:\nName: {name}\nHost: {host}\nsession_id: {sessionId}\nKurzreferenz: {reference}\nVerbindung: {transport} / {endpoint}\n\nFrage zuerst Sessions ab und bestätige, dass vollständige ID, Endpunkt und Status übereinstimmen.\nBei Abweichungen anhalten. Kein anderes Gerät automatisch auswählen.\nDie konkrete Operation werde ich separat angeben."
+msgstr ""
+"Verwende das verbundene ChannelTerm MCP für dieses Ziel:\n"
+"Name: {name}\n"
+"Host: {host}\n"
+"session_id: {sessionId}\n"
+"Kurzreferenz: {reference}\n"
+"Verbindung: {transport} / {endpoint}\n"
+"\n"
+"Frage zuerst Sessions ab und bestätige, dass vollständige ID, Endpunkt und Status übereinstimmen.\n"
+"Bei Abweichungen anhalten. Kein anderes Gerät automatisch auswählen.\n"
+"Die konkrete Operation werde ich separat angeben."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

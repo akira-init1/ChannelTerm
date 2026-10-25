@@ -590,6 +590,26 @@ msgstr "Cambiar altura del panel inferior"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "paste.confirm"
+msgstr "Pegar en este destino"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "paste.stale"
+msgstr "El destino o el estado de entrada ha cambiado. Cancele este borrador, compruebe el destino y vuelva a pegar. No se envió nada."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "paste.title"
+msgstr "Revisar pegado multilínea"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "paste.warning"
+msgstr "Este texto contiene saltos de línea y puede ejecutar comandos en el destino. Revíselo antes de pegar. Los bytes de escape aparecen como ␛; el texto confirmado conserva el tratamiento normal de pegado de xterm."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "session.attach"
 msgstr "Adjuntar sesión"
 
@@ -787,7 +807,17 @@ msgstr "Copiar el ID completo y los datos de conexión sin salida del terminal n
 #: src/main/target-copy.ts
 #: src/shared/menu-messages.ts
 msgid "target.instructions"
-msgstr "Usa el ChannelTerm MCP conectado para operar en este destino:\nNombre: {name}\nHost: {host}\nsession_id: {sessionId}\nReferencia corta: {reference}\nConexión: {transport} / {endpoint}\n\nPrimero consulta Sessions y confirma que coinciden el ID completo, el destino de conexión y el estado.\nSi no coinciden, detente. No selecciones automáticamente otro dispositivo.\nIndicaré la operación por separado."
+msgstr ""
+"Usa el ChannelTerm MCP conectado para operar en este destino:\n"
+"Nombre: {name}\n"
+"Host: {host}\n"
+"session_id: {sessionId}\n"
+"Referencia corta: {reference}\n"
+"Conexión: {transport} / {endpoint}\n"
+"\n"
+"Primero consulta Sessions y confirma que coinciden el ID completo, el destino de conexión y el estado.\n"
+"Si no coinciden, detente. No selecciones automáticamente otro dispositivo.\n"
+"Indicaré la operación por separado."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

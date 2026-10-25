@@ -245,7 +245,12 @@ Layout actions use the same dispatcher from menus, icons and shortcuts and do no
 close, write, or resize a remote Session. Clipboard shortcuts dispatch only with terminal focus;
 ordinary editors retain their own clipboard behavior. Copy uses only xterm's selection and does
 nothing without a selection. Paste uses xterm's newline/bracketed-paste handling and the existing
-bounded input queue; it can execute pasted commands containing newlines. No delimiter is added.
+bounded input queue. Text containing CR or LF first opens **Review multiline paste**, showing the
+target label, full Session ID and bounded content. Cancel/Escape sends nothing; confirmation is
+single-use. Escape bytes appear as `␛` in the preview only. A Lease, read-only transition, tab change
+or replacement invalidates the draft permanently; reopening input does not replay it. Detaching
+discards the preview. Menu, shortcut and native terminal paste share this flow. Confirmed paste
+can execute commands containing newlines; no extra line-ending delimiter is added.
 Main validates the caller and current attachment for text-only clipboard IPC, limited to 64 KiB
 of UTF-8 per operation. Empty clipboard text does nothing; oversized text is rejected rather
 than truncated. Late replies cannot paste into a replacement view. Browser clipboard permission

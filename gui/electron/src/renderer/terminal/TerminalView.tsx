@@ -2,6 +2,7 @@ import {
   useEffect,
   useImperativeHandle,
   useRef,
+  useState,
   type Ref,
   type MouseEvent,
 } from "react";
@@ -12,6 +13,7 @@ import { host, unwrap } from "../host";
 import { TerminalPresentation } from "./presentation";
 import type { TerminalSettings } from "../../shared/terminal-settings";
 import type { DisplaySettings } from "../../shared/display-settings";
+import { PastePreview } from "./PastePreview";
 
 /** Controls for the current view; paste uses the existing bounded, authorized input path. */
 export interface TerminalControls {
@@ -28,6 +30,8 @@ export interface TerminalControls {
  */
 export function TerminalView({
   attachment,
+  targetName,
+  t,
   settings,
   display,
   onZoom,
@@ -40,6 +44,8 @@ export function TerminalView({
   onContextMenu,
 }: {
   attachment: Attachment;
+  targetName: string;
+  t: (id: string) => string;
   settings: TerminalSettings;
   display: DisplaySettings;
   onZoom: (delta: number) => void;
@@ -56,6 +62,12 @@ export function TerminalView({
   const fitting = useRef<FitAddon | undefined>(undefined);
   const clipboardBusy = useRef(false);
   const inputEpoch = useRef(0);
+  const pendingPaste = useRef(false);
+  const [pasteDraft, setPasteDraft] = useState<{
+    text: string;
+    epoch: number;
+    target: Terminal;
+  }>();
   async function copy() {
     const text = local.current?.getSelection();
     if (!text || clipboardBusy.current) return;
@@ -75,6 +87,7 @@ export function TerminalView({
     if (
       !target ||
       !inputEnabled.current ||
+      !visibility.current ||
       clipboardBusy.current ||
       document.querySelector("dialog[open]")
     )
@@ -87,12 +100,18 @@ export function TerminalView({
       if (
         local.current === target &&
         inputEnabled.current &&
+        visibility.current &&
         inputEpoch.current === epoch &&
         !document.querySelector("dialog[open]") &&
         text
       ) {
-        target.paste(text);
-        target.focus();
+        if (/[\r\n]/.test(text)) {
+          pendingPaste.current = true;
+          setPasteDraft({ text, epoch, target });
+        } else {
+          target.paste(text);
+          target.focus();
+        }
       }
     } catch (error) {
       if (local.current === target)
@@ -117,6 +136,7 @@ export function TerminalView({
   const previousReadLoop = useRef<Promise<void>>(Promise.resolve());
   const visibility = useRef(visible);
   const resumeRead = useRef<(() => void) | undefined>(undefined);
+  if (visibility.current && !visible) inputEpoch.current++;
   visibility.current = visible;
   // Use the latest guards/callbacks without recreating xterm on status updates.
   callbacks.current = { onError, onDropped, onZoom, onReady };
@@ -179,6 +199,13 @@ export function TerminalView({
       { prefix: ">", final: "c" },
     ].map((id) => terminal.parser.registerCsiHandler(id, () => replay));
     const element = container.current!;
+    const nativePaste = (event: ClipboardEvent) => {
+      // Capture before xterm's own paste listener so native paste shares Main validation and preview.
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      void paste();
+    };
+    element.addEventListener("paste", nativePaste, true);
     const wheel = (event: WheelEvent) => {
       if (!event.ctrlKey || event.altKey || event.metaKey || event.shiftKey)
         return;
@@ -270,6 +297,7 @@ export function TerminalView({
       finishRender?.();
       resize.disconnect();
       element.removeEventListener("wheel", wheel, true);
+      element.removeEventListener("paste", nativePaste, true);
       queryHandlers.forEach((handler) => handler.dispose());
       listener.dispose();
       terminal.dispose();
@@ -295,11 +323,47 @@ export function TerminalView({
   }, [display]);
 
   return (
-    <div
-      ref={container}
-      className="terminal-view"
-      aria-label="Terminal output and input"
-      onContextMenu={onContextMenu}
-    />
+    <>
+      <div
+        ref={container}
+        className="terminal-view"
+        aria-label="Terminal output and input"
+        onContextMenu={onContextMenu}
+      />
+      {pasteDraft && (
+        <PastePreview
+          text={pasteDraft.text}
+          sessionId={attachment.sessionId}
+          targetName={targetName}
+          t={t}
+          valid={
+            inputEnabled.current &&
+            inputEpoch.current === pasteDraft.epoch &&
+            local.current === pasteDraft.target &&
+            visible
+          }
+          onCancel={() => {
+            pendingPaste.current = false;
+            setPasteDraft(undefined);
+            if (visibility.current) local.current?.focus();
+          }}
+          onConfirm={() => {
+            // Read the live guard again: a lease, detach, tab change or replacement invalidates this draft permanently.
+            if (
+              !pendingPaste.current ||
+              !inputEnabled.current ||
+              inputEpoch.current !== pasteDraft.epoch ||
+              local.current !== pasteDraft.target ||
+              !visibility.current
+            )
+              return;
+            pendingPaste.current = false;
+            setPasteDraft(undefined);
+            pasteDraft.target.paste(pasteDraft.text);
+            pasteDraft.target.focus();
+          }}
+        />
+      )}
+    </>
   );
 }
