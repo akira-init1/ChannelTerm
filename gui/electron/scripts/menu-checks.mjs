@@ -31,11 +31,39 @@ async function open(page, id) {
 
 /** Exercise the real renderer bridge and native menu, without registering global keys. */
 export async function checkOfflineMenus(desktop, page) {
+  await expect
+    .poll(async () => (await nativeItem(desktop, "language.system")).checked)
+    .toBe(true);
+  // Simulate a system language notification; an explicit preference must resist later changes.
+  await page.evaluate(() => {
+    Object.defineProperty(navigator, "languages", {
+      configurable: true,
+      value: ["ja-JP"],
+    });
+    window.dispatchEvent(new Event("languagechange"));
+  });
+  await expect(page.locator('[data-menu="window"]')).toHaveText("ウィンドウ");
+  await nativeClick(desktop, "language.en");
+  await page.evaluate(() => {
+    Object.defineProperty(navigator, "languages", {
+      configurable: true,
+      value: ["zh-CN"],
+    });
+    window.dispatchEvent(new Event("languagechange"));
+  });
+  await expect(page.locator('[data-menu="window"]')).toHaveText("Window");
+  await nativeClick(desktop, "language.system");
+  await expect(page.locator('[data-menu="window"]')).toHaveText("窗口");
+  await page.evaluate(() => {
+    delete navigator.languages;
+    window.dispatchEvent(new Event("languagechange"));
+  });
   await expect(page.locator(".app-menu > button")).toHaveText([
-    "Connection",
     "Session",
+    "Host",
     "Terminal",
     "View",
+    "Window",
     "Settings",
     "Help",
   ]);
@@ -48,11 +76,28 @@ export async function checkOfflineMenus(desktop, page) {
     assert.equal((await nativeItem(desktop, id)).enabled, false);
   }
   assert.equal((await nativeItem(desktop, "host.connect")).enabled, true);
+  // Planned window operations are visible contracts, never aliases for quit or detach.
+  await open(page, "window");
+  for (const id of [
+    "window.new",
+    "tab.new",
+    "window.close",
+    "tab.next",
+    "tab.previous",
+    "window.next",
+    "window.previous",
+  ]) {
+    assert.equal((await nativeItem(desktop, id)).enabled, false);
+    await expect(popup(page).locator(`[data-action="${id}"]`)).toBeDisabled();
+    await nativeClick(desktop, id);
+  }
+  await expect(page.locator(".app-menu")).toBeVisible();
+  await page.keyboard.press("Escape");
   await page.locator('[data-menu="settings"]').hover();
   await expect(popup(page)).not.toBeVisible();
   await open(page, "settings");
   for (const id of [
-    "connection",
+    "host",
     "session",
     "terminal",
     "view",
@@ -70,15 +115,15 @@ export async function checkOfflineMenus(desktop, page) {
   await expect(popup(page)).toBeVisible();
   await page.locator('[data-menu="settings"]').click();
   await expect(popup(page)).not.toBeVisible();
-  await page.locator('[data-menu="connection"]').hover();
+  await page.locator('[data-menu="host"]').hover();
   await expect(popup(page)).not.toBeVisible();
-  await open(page, "connection");
+  await open(page, "host");
   await page.locator(".statusbar").click();
   await page.locator('[data-menu="settings"]').hover();
   await expect(popup(page)).not.toBeVisible();
   await open(page, "settings");
   await page.keyboard.press("Escape");
-  await page.locator('[data-menu="connection"]').hover();
+  await page.locator('[data-menu="host"]').hover();
   await expect(popup(page)).not.toBeVisible();
   await open(page, "terminal");
   await page.keyboard.press("Escape");
@@ -97,7 +142,7 @@ export async function checkOfflineMenus(desktop, page) {
     .focus();
   await page.keyboard.press("ArrowRight");
   await expect(
-    flyout.getByRole("menuitemradio", { name: "English", exact: true }),
+    flyout.getByRole("menuitemradio", { name: "Follow System", exact: true }),
   ).toBeFocused();
   await page.keyboard.press("End");
   await expect(
@@ -119,24 +164,26 @@ export async function checkOfflineMenus(desktop, page) {
   await page.screenshot({ path: "test-results/workbench-hover-menu.png" });
   await popup(page).getByRole("menuitemradio", { name: "简体中文" }).click();
   await expect(page.locator(".app-menu > button")).toHaveText([
-    "连接",
     "会话",
+    "Host",
     "终端",
     "视图",
+    "窗口",
     "设置",
     "帮助",
   ]);
   await expect
     .poll(async () => (await nativeItem(desktop, "host.disconnect")).label)
-    .toBe("断开 GUI 与 Host");
+    .toBe("断开与 Host 的连接");
   assert.equal((await nativeItem(desktop, "language.zh-CN")).checked, true);
   assert.equal((await nativeItem(desktop, "language.zh-CN")).type, "radio");
   await nativeClick(desktop, "language.ja");
   await expect(page.locator(".app-menu > button")).toHaveText([
-    "接続",
     "セッション",
+    "ホスト",
     "ターミナル",
     "表示",
+    "ウィンドウ",
     "設定",
     "ヘルプ",
   ]);
@@ -153,8 +200,8 @@ export async function checkOfflineMenus(desktop, page) {
   await page.screenshot({ path: "test-results/workbench-menu-ja.png" });
   await popup(page).getByRole("menuitemradio", { name: "English" }).click();
   await expect
-    .poll(async () => (await nativeItem(desktop, "connection")).label)
-    .toBe("Connection");
+    .poll(async () => (await nativeItem(desktop, "host")).label)
+    .toBe("Host");
 
   // Switch through every supported catalog via the renderer. The native menu
   // must acknowledge the same label and exactly one checked language each time.
@@ -162,35 +209,35 @@ export async function checkOfflineMenus(desktop, page) {
     {
       locale: "de",
       name: "Deutsch",
-      connection: "Verbindung",
+      connection: "Host",
       language: "Sprache",
     },
     {
       locale: "es",
       name: "Español",
-      connection: "Conexión",
+      connection: "Host",
       language: "Idioma",
     },
     {
       locale: "fr",
       name: "Français",
-      connection: "Connexion",
+      connection: "Hôte",
       language: "Langue",
     },
-    { locale: "ja", name: "日本語", connection: "接続", language: "言語" },
-    { locale: "ko", name: "한국어", connection: "연결", language: "언어" },
+    { locale: "ja", name: "日本語", connection: "ホスト", language: "言語" },
+    { locale: "ko", name: "한국어", connection: "호스트", language: "언어" },
     {
       locale: "ru",
       name: "Русский",
-      connection: "Подключение",
+      connection: "Хост",
       language: "Язык",
     },
-    { locale: "zh-CN", name: "简体中文", connection: "连接", language: "语言" },
-    { locale: "zh-TW", name: "繁體中文", connection: "連線", language: "語言" },
+    { locale: "zh-CN", name: "简体中文", connection: "Host", language: "语言" },
+    { locale: "zh-TW", name: "繁體中文", connection: "Host", language: "語言" },
     {
       locale: "en",
       name: "English",
-      connection: "Connection",
+      connection: "Host",
       language: "Language",
     },
   ];
@@ -206,7 +253,7 @@ export async function checkOfflineMenus(desktop, page) {
     await popup(page)
       .getByRole("menuitem", { name: languageLabel, exact: true })
       .click();
-    await expect(popup(page).getByRole("menuitemradio")).toHaveCount(9);
+    await expect(popup(page).getByRole("menuitemradio")).toHaveCount(10);
     const bounds = await popup(page)
       .getByRole("menu", { name: languageLabel, exact: true })
       .boundingBox();
@@ -224,11 +271,11 @@ export async function checkOfflineMenus(desktop, page) {
     await popup(page)
       .getByRole("menuitemradio", { name: language.name, exact: true })
       .click();
-    await expect(page.locator('[data-menu="connection"]')).toHaveText(
+    await expect(page.locator('[data-menu="host"]')).toHaveText(
       language.connection,
     );
     await expect
-      .poll(async () => (await nativeItem(desktop, "connection")).label)
+      .poll(async () => (await nativeItem(desktop, "host")).label)
       .toBe(language.connection);
     await expect
       .poll(
@@ -286,7 +333,7 @@ export async function checkOfflineMenus(desktop, page) {
   await expect(page.getByRole("dialog")).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).not.toBeVisible();
-  await open(page, "connection");
+  await open(page, "host");
   await page.screenshot({ path: "test-results/workbench-menu.png" });
   await page.locator(".terminal-toolbar").click();
   await expect(popup(page)).not.toBeVisible();
@@ -324,6 +371,31 @@ export async function checkAttachedMenus(
   await expect
     .poll(async () => (await nativeItem(desktop, "tab.close")).enabled)
     .toBe(true);
+  await nativeClick(desktop, "view.sidebar");
+  await expect(page.locator(".sidebar")).not.toBeVisible();
+  await open(page, "session");
+  await popup(page)
+    .getByRole("menuitem", { name: "Attach Session...", exact: true })
+    .click();
+  await expect(
+    page.getByRole("searchbox", { name: "Search Sessions" }),
+  ).toBeFocused();
+  await nativeClick(desktop, "session.info");
+  await expect(page.locator(".session-details")).toContainText(
+    observerAttachment.sessionId,
+  );
+  await nativeClick(desktop, "view.auxiliary");
+  await open(page, "session");
+  await popup(page)
+    .getByRole("menuitem", { name: "File Transfer", exact: true })
+    .hover();
+  await expect(
+    popup(page).getByRole("menu", { name: "File Transfer", exact: true }),
+  ).toBeVisible();
+  await expect(
+    popup(page).getByRole("menuitem", { name: "Send to device", exact: true }),
+  ).toBeEnabled();
+  await page.keyboard.press("Escape");
   await page.locator(".xterm-helper-textarea").focus();
   for (const key of ["Control+c", "Control+l", "Control+w", "Alt+x", "F1"])
     await page.keyboard.press(key);
@@ -498,7 +570,7 @@ export async function checkClosedMenus(desktop, page) {
 }
 
 export async function exitFromMenu(desktop, page) {
-  await open(page, "connection");
+  await open(page, "window");
   const exited = desktop.waitForEvent("close");
   await popup(page)
     .getByRole("menuitem", { name: "Exit GUI", exact: true })

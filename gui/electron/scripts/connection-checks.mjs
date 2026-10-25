@@ -26,20 +26,20 @@ export async function checkConnections(environment, launchArgs) {
       exact: true,
     });
     async function open(kind) {
-      await page.locator('[data-menu="connection"]').click();
+      await page.locator('[data-menu="session"]').click();
       await popup
-        .getByRole("menuitem", { name: "New connection", exact: true })
-        .hover();
-      await popup.getByRole("menuitem", { name: kind, exact: true }).click();
-      await expect(page.getByRole("dialog")).toBeVisible();
-      return page.getByRole("dialog");
+        .getByRole("menuitem", { name: "New Connection...", exact: true })
+        .click();
+      const dialog = page.getByRole("dialog");
+      await expect(dialog).toBeVisible();
+      await dialog
+        .getByRole("combobox", { name: "Protocol", exact: true })
+        .selectOption(kind);
+      return dialog;
     }
-    await page.locator('[data-menu="connection"]').click();
-    await popup
-      .getByRole("menuitem", { name: "New connection", exact: true })
-      .hover();
+    await page.locator('[data-menu="session"]').click();
     await expect(
-      popup.getByRole("menuitem", { name: "Serial connection", exact: true }),
+      popup.getByRole("menuitem", { name: "New Connection...", exact: true }),
     ).toBeDisabled();
     await page.keyboard.press("Escape");
     await page
@@ -49,7 +49,27 @@ export async function checkConnections(environment, launchArgs) {
       page.getByText("Host connected", { exact: true }),
     ).toBeVisible();
     await observer.connect();
-    let dialog = await open("Serial connection");
+    let dialog = await open("serial");
+    const protocol = dialog.getByRole("combobox", {
+      name: "Protocol",
+      exact: true,
+    });
+    await protocol.selectOption("ssh");
+    await dialog
+      .getByRole("combobox", { name: "Authentication", exact: true })
+      .selectOption("password");
+    await dialog
+      .locator('[name="password"]')
+      .fill("discard-on-protocol-switch");
+    await protocol.selectOption("serial");
+    await expect(dialog.locator('[name="password"]')).toHaveCount(0);
+    await expect(dialog.locator('[name="port"]')).toHaveValue("");
+    await protocol.selectOption("ssh");
+    await expect(
+      dialog.getByRole("combobox", { name: "Authentication", exact: true }),
+    ).toHaveValue("key");
+    await expect(dialog.locator('[name="port"]')).toHaveValue("22");
+    await protocol.selectOption("serial");
     const baud = dialog.getByRole("combobox", {
       name: "Baud rate",
       exact: true,
@@ -142,7 +162,7 @@ export async function checkConnections(environment, launchArgs) {
     await dialog.getByRole("button", { name: "Apply", exact: true }).click();
     await expect(dialog).not.toBeVisible();
     await expect(page.locator(".input-status")).toContainText("Input enabled");
-    dialog = await open("SSH connection");
+    dialog = await open("ssh");
     await dialog
       .getByRole("combobox", { name: "Authentication", exact: true })
       .selectOption("password");

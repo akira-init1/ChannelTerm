@@ -129,7 +129,9 @@ export async function checkTerminalControls(
   await shortcuts.getByRole("button", { name: "Cancel", exact: true }).click();
 
   await page.locator('[data-menu="settings"]').click();
-  await page.getByRole("menuitem", { name: "Display", exact: true }).click();
+  await page
+    .getByRole("menuitem", { name: "Preferences...", exact: true })
+    .click();
   const display = page.getByRole("dialog", { name: "Display", exact: true });
   await display.getByRole("spinbutton", { name: "Font size" }).fill("20");
   await display
@@ -163,7 +165,9 @@ export async function checkTerminalControls(
     21,
   );
   await page.locator('[data-menu="settings"]').click();
-  await page.getByRole("menuitem", { name: "Display", exact: true }).click();
+  await page
+    .getByRole("menuitem", { name: "Preferences...", exact: true })
+    .click();
   await expect(
     display.getByRole("spinbutton", { name: "Font size" }),
   ).toHaveValue("21");
@@ -195,7 +199,9 @@ export async function checkTerminalControls(
     );
     await expect(page.locator(".statusbar")).toBeInViewport();
     await page.locator('[data-menu="settings"]').click();
-    await page.getByRole("menuitem", { name: "Display", exact: true }).click();
+    await page
+      .getByRole("menuitem", { name: "Preferences...", exact: true })
+      .click();
     await display.getByRole("button", { name: "Apply", exact: true }).click();
     await expect(display.getByRole("alert")).toContainText(
       "Could not save display settings",

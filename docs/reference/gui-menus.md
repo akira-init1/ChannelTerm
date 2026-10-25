@@ -1,15 +1,18 @@
 # Electron GUI Menus
 
-The existing dark workbench keeps its 32 px, logo-free menu strip. Its six groups are
-**Connection, Session, Terminal, View, Settings, Help**. The maximum depth is three levels,
-used by **Settings > Language > language name** and **Connection > New connection > Serial / SSH**.
+The existing dark workbench keeps its 32 px, logo-free menu strip. Its seven groups, from left
+to right, are **Session, Host, Terminal, View, Window, Settings, Help**. The maximum depth is
+three levels, used by **Settings > Language > language name** and **Session > File Transfer > action**.
+**Session > New Connection...** directly opens the connection form. Its Protocol selector switches
+between the existing Serial and SSH forms; switching discards protocol fields, including secrets.
+SSH is disabled unless the connected Host advertises its desktop API.
 This reference describes implemented menu behavior, not additional Host capabilities. See
 [GUI architecture](../architecture/electron-gui.md) for process boundaries and
 [GUI development](../development/electron-gui.md) for startup and verification.
 
 ## Implemented actions
 
-**Session > Resume transfer** (`file.resume`) also appears on a serial Session's context menu.
+**Session > File Transfer > Resume transfer** (`file.resume`) also appears on a serial Session's context menu.
 It binds to that clicked open, unleased Session and lists saved jobs for its Host/endpoint. Execution
 revalidates the job and target in Main and CLI before acquiring the existing Host Lease. A saved
 `publishing` job is visible for inspection with no enabled Resume button. Starting a new transfer
@@ -22,9 +25,9 @@ for authentication, verification and cancellation.
 
 | Menu / surface | Action ID | Behavior and availability |
 | --- | --- | --- |
-| Connection > Connect to Host; Host panel | `host.connect` | Connect to the configured existing Host; enabled while disconnected and idle. Does not start a Host. |
-| Connection > Disconnect GUI from Host; Host panel | `host.disconnect` | Release this GUI's connection and attachment; enabled while connected and idle. |
-| Connection > Exit GUI | `app.quit` | Exit the Electron app through its normal cleanup path, subject to the active file-operation close guard. |
+| Host > Connect to Host...; Host panel | `host.connect` | Connect to the configured Host while disconnected and idle; the existing default-local companion startup policy is unchanged. |
+| Host > Disconnect from Host; Host panel | `host.disconnect` | Release this GUI's connection and attachment; enabled while connected and idle. |
+| Window > Exit GUI | `app.quit` | Exit the Electron app through its normal cleanup path, subject to the active file-operation close guard. |
 | Session > Refresh Sessions; refresh button | `session.refresh` | Refresh the Host snapshot while connected and idle. |
 | Session > Close tab (detach); tab close icon; attached row/tab context menu | `tab.close` | Detach the captured local attachment. Still available for a closed Session so its view can be dismissed. |
 | Session row context menu > Attach Session; row click | `session.attach` | Attach the clicked open Session by opaque ID. Unavailable for the current attachment, closed/missing rows, offline state, or a pending operation. |
@@ -37,14 +40,17 @@ for authentication, verification and cancellation.
 | View > File transfers / Session status | `view.transfers` / `view.status` | Open the bottom panel on the requested tab, including offline/empty states. |
 | Terminal > Copy terminal selection / Paste into terminal; terminal context menu | `terminal.copy` / `terminal.paste` | Copy selected xterm text or paste clipboard text through the existing input path. Paste requires writable text view; copy sends no device bytes. |
 | Settings > Keyboard shortcuts | `settings.shortcuts` | Search, record, remove, reset and save local layout and terminal clipboard bindings. |
-| Settings > Display | `settings.display` | Set terminal font size and family, or restore defaults; applies without reattachment. |
-| Connection > New connection > Serial / SSH | `connection.serial` / `connection.ssh` | Open a connection form on a connected idle Host. SSH additionally requires the desktop API capability. |
-| Settings > Language | `language.change` | Switch to one of the nine supported menu languages listed below. Checkmark reflects the active language. |
+| Settings > Preferences... | `settings.display` | Open the existing Display settings dialog; font changes apply without reattachment. Keyboard shortcuts retain their separate entry. |
+| Session > New Connection... | `connection.new` | Open the unified form on a connected idle Host. No protocol submenu. |
+| Session > Attach Session... | `session.choose` | Reveal the existing sidebar and focus its search field while connected and idle. Selecting a row reuses `session.attach`; opening the picker does not change the attachment. |
+| Session > Session Information... | `session.info` | Reveal the existing details sidebar for the captured current attachment; no new Host query. |
+| Settings > Language | `language.change` | Follow the system or select one of the nine supported menu languages. Exactly one preference is checked. |
 | Help > Quick help | `help.quick` | Open a local, translated usage dialog. No external navigation. |
 
-Closing a **tab**, disconnecting the **GUI from Host**, closing a **shared Session**, and
-exiting the **GUI** are different operations. The first two release different client resources;
-exiting ends the app after client cleanup. None closes the shared Session or stops its Host.
+Closing a **tab**, closing a **window**, disconnecting the **GUI from Host**, closing a
+**shared Session**, and exiting the **GUI** are distinct operations. Tab close releases the
+attachment; disconnect releases this client connection. Native window close cleans up that
+window; Exit GUI ends the application. None closes the shared Session or stops its Host.
 **Close shared Session is not implemented or exposed by the GUI.** The desktop still has only
 one attachment, not multiple independent terminal tabs. Bottom-panel tabs are local views of
 transfers and Session status; they do not create additional Sessions or attachments.
@@ -53,6 +59,25 @@ Local clear removes xterm scrollback above the current line, retaining that line
 state. It does not send `clear`, `reset`, escape sequences, or any other bytes to the device.
 It does not change the Host buffer or read cursor, dismiss loss notices, or reset lease state.
 Subsequent output continues normally; a new attachment may replay retained Host output.
+
+## Window action contracts
+
+The Window menu lists these entries in order. Disabled entries have stable IDs and are rejected
+by the common dispatcher even if a stale/native callback invokes them; they never report success.
+
+| Entry | Action ID | Availability / responsibility |
+| --- | --- | --- |
+| New Window | `window.new` | Disabled; requires window creation and ownership management. |
+| New Tab | `tab.new` | Disabled; requires multiple attachment views. Does not alias New Connection. |
+| Close Tab | `tab.close` (menu entry `window.tab.close`) | Reuses Session's detach handler and captured attachment; requires an idle attachment, including a closed Session's view. |
+| Close Window | `window.close` | Disabled; a dedicated menu-to-window route is not implemented. Existing OS title-bar close retains its file-operation guard. Must never alias Exit GUI. |
+| Next Tab / Previous Tab | `tab.next` / `tab.previous` | Disabled; only one terminal attachment view exists. |
+| Next Window / Previous Window | `window.next` / `window.previous` | Disabled; no window navigation manager exists. |
+| Exit GUI | `app.quit` | Existing application exit and file-operation guard, independent of Host connection. |
+
+No BrowserWindow manager, multi-tab system or new shortcut is introduced. Host Information has
+no dedicated existing handler and is omitted; the Host panel retains endpoint/connection status.
+Session Information reuses the existing details sidebar.
 
 ## Targeting, state, and security
 
@@ -82,7 +107,7 @@ Menu hints never grant permission: Main validates IPC caller/arguments and attac
 and every device write still passes through authoritative Host/Application checks. Rejected or
 uncertain writes are not automatically replayed.
 
-Unimplemented operations are absent, not convincing enabled placeholders. Checkmarks describe
+Unimplemented operations are absent except for the disabled Window contracts above. Checkmarks describe
 local view/language state only. Renderer reload/crash resets Main's menu hints and releases its
 Host client resources.
 
@@ -91,12 +116,16 @@ Host client resources.
 Lingui Core runs in Main and Renderer with separate instances of the same compiled PO catalogs. Renderer owns the
 active menu locale and synchronizes it with native labels/checks; open context-menu labels and
 help content also use that locale. The preference lasts for the current window only and defaults
-to English. This is menu/help localization, not a claim that Host diagnostics or the entire
+to **Follow System**. System tags resolve to supported catalogs (for example `ja-JP` to `ja`,
+`zh-Hant-HK` to `zh-TW`), with English as fallback. Browser `languagechange` notifications update
+menus while following the system; explicit selections remain unchanged. This is menu/help
+localization, not a claim that Host diagnostics or the entire
 workbench have been translated. The language picker follows the README language order and
 uses native names so it remains recognizable after switching:
 
 | Locale | Picker label |
 | --- | --- |
+| `system` | Follow System |
 | `en` | English |
 | `de` | Deutsch |
 | `es` | Español |
@@ -189,7 +218,7 @@ window-manager or physical IME behavior.
 
 ## Terminal display
 
-**Settings > Display** controls integer font size (8-40 px, default 14) and font family (up to
+**Settings > Preferences...** opens the existing Display dialog, controlling integer font size (8-40 px, default 14) and font family (up to
 256 characters). The default is `Consolas, "Liberation Mono", monospace`. Families use installed
 fonts, with a monospace fallback; no fonts are downloaded. Apply and Restore defaults affect
 only local presentation. Cancel/Escape discards the draft. **Ctrl+wheel** over the terminal
@@ -201,7 +230,7 @@ If saving fails, the dialog stays open. Wheel changes still apply locally with a
 
 ## File actions
 
-**Session > Send to device / Receive from device** (`file.send` / `file.receive`) are also
+**Session > File Transfer > Send to device / Receive from device** (`file.send` / `file.receive`) are also
 available on serial and SSH Session context menus. They bind the clicked opaque ID and require an
 open Session. Serial transfers revalidate Host lease state, browse child-shell directory snapshots
 and render Host events from all observed clients. SSH transfers use explicit remote paths and a
@@ -215,15 +244,16 @@ See the [file workflow](../getting-started/file-transfer.md#electron-file-picker
 
 ## Planning boundaries (not implemented)
 
-These are placement decisions only, not runtime menu entries or commitments to implement them.
+Except for the disabled Window entries above, these are placement decisions only, not runtime
+menu entries or commitments to implement them.
 
 | Proposed category | Unimplemented scope / prerequisite |
 | --- | --- |
-| Connection | Saved profiles and recent connections remain outside the explicit serial/SSH forms. Default-local Host startup is automatic; other endpoints remain explicit. |
+| Host / Session | Saved profiles and recent connections remain outside the explicit serial/SSH forms. Default-local Host startup is automatic; other endpoints remain explicit. |
 | Session | Closing a shared Session needs a separately reviewed destructive action, explicit target/confirmation semantics, and Host authority. Multiple tabs and recent history are also absent. |
-| Terminal | Split panes and remote PTY resize need their own supported lifecycle/capability work. |
-| View | A separate MCP activity panel remains unimplemented. |
-| Settings | Shortcuts and terminal display settings persist locally. Language and layout state remain window-local; endpoint editing and Host process management are absent. |
+| Terminal | Select All, Find, split panes and remote PTY resize have no existing menu handlers and are not exposed. Existing clipboard, local clear, focus and conditional resume actions remain. |
+| View | MCP activity, status-bar visibility and a combined Reset Layout action are unimplemented. Existing sidebar, bottom-panel, transfer and Session-status actions remain; Session status is not a status-bar toggle. |
+| Settings | Theme selection is unimplemented and not exposed. Shortcuts and terminal display settings persist locally. Language and layout state remain window-local; endpoint editing and Host process management are absent. |
 | Help | Online documentation navigation, updates, and diagnostic export require separate capability/security review. |
 
 No built-in AI Agent, new SSH/file-transfer implementation, Core use case, or MCP protocol change

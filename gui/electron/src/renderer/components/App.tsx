@@ -34,8 +34,9 @@ import {
   isAction,
   sessionMenu,
   terminalMenu,
+  systemMenuLocale,
   type Action,
-  type MenuLocale,
+  type LanguagePreference,
   type MenuState,
 } from "../../shared/menus";
 import { menuCatalogs } from "../../locales/catalogs";
@@ -170,7 +171,19 @@ export function App() {
   const [dropped, setDropped] = useState(false);
   // Errors pause local input until recovery; resuming never grants Host permission.
   const [inputPaused, setInputPaused] = useState(false);
-  const [locale, setLocale] = useState<MenuLocale>("en");
+  const [languagePreference, setLanguagePreference] =
+    useState<LanguagePreference>("system");
+  const [systemLocale, setSystemLocale] = useState(() =>
+    systemMenuLocale(navigator.languages),
+  );
+  useEffect(() => {
+    const changed = () =>
+      setSystemLocale(systemMenuLocale(navigator.languages));
+    window.addEventListener("languagechange", changed);
+    return () => window.removeEventListener("languagechange", changed);
+  }, []);
+  const locale =
+    languagePreference === "system" ? systemLocale : languagePreference;
   const i18n = useMemo(
     () => setupI18n({ locale, messages: menuCatalogs }),
     [locale],
@@ -191,6 +204,15 @@ export function App() {
     useState<ConnectionRequest["kind"]>();
   const [menuContext, setMenuContext] = useState<MenuPopupRequest>();
   const terminal = useRef<TerminalControls>(null);
+  const sessionSidebar = useRef<HTMLElement>(null);
+  const [choosingSession, setChoosingSession] = useState(false);
+  useEffect(() => {
+    if (!choosingSession) return;
+    sessionSidebar.current
+      ?.querySelector<HTMLInputElement>('input[type="search"]')
+      ?.focus();
+    setChoosingSession(false);
+  }, [choosingSession]);
   const [fileDialog, setFileDialog] = useState<{
     sessionId: string;
     name: string;
@@ -325,6 +347,7 @@ export function App() {
   const menuState = useMemo<MenuState>(
     () => ({
       locale,
+      languagePreference,
       connected,
       sshAvailable: !!info?.sshAvailable,
       busy: working || !!fileDialog || !!sshFileDialog || filePending,
@@ -342,6 +365,7 @@ export function App() {
     }),
     [
       locale,
+      languagePreference,
       connected,
       info?.sshAvailable,
       working,
@@ -591,10 +615,23 @@ export function App() {
     if (
       !actionEnabled(action, {
         ...menuState,
-        busy: working || actionBusy.current || !!fileDialog || filePending,
+        busy: menuState.busy || actionBusy.current,
       })
     )
       return false;
+    if (
+      action.id === "file.send" ||
+      action.id === "file.receive" ||
+      action.id === "file.resume"
+    )
+      return sessions.some(
+        (session) =>
+          session.session_id === action.sessionId &&
+          session.state === "open" &&
+          (session.transport === "ssh"
+            ? action.id !== "file.resume"
+            : session.transport === "serial" && !session.lease),
+      );
     return (
       action.id !== "session.attach" ||
       (attachment?.sessionId !== action.sessionId &&
@@ -646,11 +683,20 @@ export function App() {
           });
         return;
       }
+      case "connection.new":
       case "connection.serial":
         setConnectionKind("serial");
         return;
       case "connection.ssh":
         setConnectionKind("ssh");
+        return;
+      case "session.choose":
+        setSidebarVisible(true);
+        // The existing Session picker owns attachment; reveal it without choosing a target.
+        setChoosingSession(true);
+        return;
+      case "session.info":
+        setAuxiliaryVisible(true);
         return;
       case "view.sidebar":
         setSidebarVisible((visible) => !visible);
@@ -673,7 +719,7 @@ export function App() {
         setShortcutsOpen(true);
         return;
       case "language.change":
-        setLocale(action.locale);
+        setLanguagePreference(action.locale);
         return;
       case "help.quick":
         setHelpOpen(true);
@@ -789,7 +835,7 @@ export function App() {
         ? "Check that your configured Host is running, then retry the connection."
         : "Connect to your running Host using the Host panel."
       : sessions.length === 0
-        ? "Use Connection > New connection to open a Session."
+        ? t("session.emptyHint")
         : "Choose an open Session from the sidebar to view output and send input.";
 
   return (
@@ -855,6 +901,7 @@ export function App() {
         <ConnectionDialog
           key={connectionKind}
           kind={connectionKind}
+          sshAvailable={!!info?.sshAvailable}
           t={t}
           onOpen={openConnection}
           onClose={() => setConnectionKind(undefined)}
@@ -898,6 +945,7 @@ export function App() {
           </span>
         </div>
         <aside
+          ref={sessionSidebar}
           id="session-sidebar"
           className="sidebar"
           aria-label="Session sidebar"

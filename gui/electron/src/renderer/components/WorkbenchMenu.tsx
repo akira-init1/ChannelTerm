@@ -175,7 +175,8 @@ export function WorkbenchMenu({
             : entry.id === "view.panel"
               ? state.panelVisible
               : entry.action?.id === "language.change"
-                ? state.locale === entry.action.locale
+                ? (state.languagePreference ?? state.locale) ===
+                  entry.action.locale
                 : entry.checked;
       return (
         <div key={entry.id}>

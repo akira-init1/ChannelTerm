@@ -135,7 +135,7 @@ No baud rate, throughput, recent-connection history, or other unavailable metada
 | Host disconnected | Compact terminal hint to connect; Session refresh is disabled. |
 | Connecting / attaching / detaching / disconnecting | Named progress text; connection and Session actions are disabled until the operation completes. |
 | Host connection failed or lost | Safe error notice, offline status, and **Retry connection**; stale Session entries are removed on connection loss. |
-| Connected with no Sessions | **No Sessions available** and **Connection > New connection**; serial setup is available, while SSH requires the standalone Host API. |
+| Connected with no Sessions | **No Sessions available** and **Session > New Connection...**; serial setup is available, while SSH requires the standalone Host API. |
 | Connected with Sessions but no attachment | **Select a Session**; open Sessions are selectable, closed entries are disabled. |
 | Attached | xterm occupies the workspace, the selected Session is marked, and **Close tab (detach)** is available. |
 | Lease / rejected input / closed Session / output loss | Existing notices and recovery semantics remain visible; input status reflects the available snapshot. Output-loss notices only belong to the attached view. |

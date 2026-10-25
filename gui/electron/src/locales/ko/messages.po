@@ -86,7 +86,7 @@ msgstr "이름 (선택 사항)"
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
 msgid "connection.new"
-msgstr "새 연결"
+msgstr "새 연결..."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -117,6 +117,11 @@ msgstr "비밀번호"
 #: src/shared/menu-messages.ts
 msgid "connection.port"
 msgstr "포트"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.protocol"
+msgstr "프로토콜"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -471,12 +476,12 @@ msgstr "ChannelTerm 사용 방법"
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
 msgid "host.connect"
-msgstr "Host에 연결"
+msgstr "호스트에 연결..."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
 msgid "host.disconnect"
-msgstr "GUI와 Host 연결 해제"
+msgstr "호스트 연결 끊기"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -515,6 +520,11 @@ msgstr "Русский"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "language.system"
+msgstr "시스템 설정 따르기"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "language.zh-CN"
 msgstr "简体中文"
 
@@ -532,6 +542,11 @@ msgstr "연결"
 #: src/shared/menu-messages.ts
 msgid "menu.help"
 msgstr "도움말"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "menu.host"
+msgstr "호스트"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -560,6 +575,11 @@ msgstr "보기"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "menu.window"
+msgstr "창"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "panel.close"
 msgstr "패널 숨기기"
 
@@ -575,6 +595,26 @@ msgstr "세션에 연결"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "session.choose"
+msgstr "세션 연결..."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.emptyHint"
+msgstr "세션 > 새 연결에서 세션을 여세요."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.files"
+msgstr "파일 전송"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.info"
+msgstr "세션 정보..."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "session.refresh"
 msgstr "세션 새로 고침"
 
@@ -582,6 +622,11 @@ msgstr "세션 새로 고침"
 #: src/shared/menu-messages.ts
 msgid "settings.display"
 msgstr "표시"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "settings.preferences"
+msgstr "환경 설정..."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -637,6 +682,21 @@ msgstr "지정 안 됨"
 #: src/shared/menu-messages.ts
 msgid "tab.close"
 msgstr "탭 닫기 (세션에서 분리)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.new"
+msgstr "새 탭"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.next"
+msgstr "다음 탭"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.previous"
+msgstr "이전 탭"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -742,3 +802,28 @@ msgstr "세션 사이드바"
 #: src/shared/menu-messages.ts
 msgid "view.status"
 msgstr "세션 상태"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "window.close"
+msgstr "창 닫기"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "window.new"
+msgstr "새 창"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "window.next"
+msgstr "다음 창"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "window.previous"
+msgstr "이전 창"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "window.tab.close"
+msgstr "탭 닫기"

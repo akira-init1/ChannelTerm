@@ -50,7 +50,7 @@ export async function checkStartup(environment, preloadArgs) {
   const applications = [];
   async function open(environment) {
     desktop = await electron.launch({
-      args: [...preloadArgs, directory],
+      args: [...preloadArgs, "--lang=en-US", directory],
       env: environment,
     });
     applications.push(desktop);
@@ -87,15 +87,15 @@ export async function checkStartup(environment, preloadArgs) {
     ownsFixture = true;
     await observer.connect();
     assert.equal((await observer.list()).length, 1);
-    await page.locator('[data-menu="connection"]').click();
+    await page.locator('[data-menu="session"]').click();
     await page
-      .getByRole("menuitem", { name: "New connection", exact: true })
-      .hover();
+      .getByRole("menuitem", { name: "New Connection...", exact: true })
+      .click();
+    await expect(page.getByRole("dialog")).toBeVisible();
     await expect(
-      page.getByRole("menuitem", { name: "Serial connection", exact: true }),
-    ).toBeEnabled();
-    await expect(
-      page.getByRole("menuitem", { name: "SSH connection", exact: true }),
+      page
+        .getByRole("combobox", { name: "Protocol", exact: true })
+        .locator('option[value="ssh"]'),
     ).toBeEnabled();
     await page.keyboard.press("Escape");
     await page

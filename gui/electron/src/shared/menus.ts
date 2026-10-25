@@ -18,11 +18,40 @@ export const locales = [
   "zh-TW",
 ] as const;
 export type MenuLocale = (typeof locales)[number];
+export type LanguagePreference = MenuLocale | "system";
+
+/** Resolve supported browser/OS language tags without storing translated labels. */
+export function systemMenuLocale(languages: readonly string[]): MenuLocale {
+  for (const language of languages) {
+    const tag = language.toLowerCase();
+    const exactLocale = locales.find((locale) => locale.toLowerCase() === tag);
+    if (exactLocale) return exactLocale;
+    if (/^zh(?:-|$)/.test(tag))
+      return /(?:hant|tw|hk|mo)/.test(tag) ? "zh-TW" : "zh-CN";
+    const base = locales.find((locale) => locale === tag.split("-")[0]);
+    if (base) return base;
+  }
+  return "en";
+}
+
+/** Reserved menu contracts; lifecycle handlers must exist before enabling these actions. */
+export const unavailableWindowActions = [
+  "window.new",
+  "tab.new",
+  "window.close",
+  "tab.next",
+  "tab.previous",
+  "window.next",
+  "window.previous",
+] as const;
 export type Action =
   | {
       id:
         | "host.connect"
         | "host.disconnect"
+        | "connection.new"
+        | "session.choose"
+        | (typeof unavailableWindowActions)[number]
         | "connection.serial"
         | "connection.ssh"
         | "session.refresh"
@@ -43,6 +72,7 @@ export type Action =
   | {
       id:
         | "tab.close"
+        | "session.info"
         | "terminal.clear"
         | "terminal.focus"
         | "terminal.resume"
@@ -50,11 +80,12 @@ export type Action =
         | "terminal.paste";
       attachment: Attachment;
     }
-  | { id: "language.change"; locale: MenuLocale };
+  | { id: "language.change"; locale: LanguagePreference };
 
 /** Display hints only. No menu snapshot grants device or lease authority. */
 export interface MenuState {
   locale: MenuLocale;
+  languagePreference?: LanguagePreference;
   connected: boolean;
   sshAvailable: boolean;
   busy: boolean;
@@ -100,6 +131,7 @@ function attachedAction(
   state: MenuState,
   id:
     | "tab.close"
+    | "session.info"
     | "terminal.clear"
     | "terminal.focus"
     | "terminal.resume"
@@ -120,8 +152,46 @@ function attachedAction(
 export function applicationMenu(state: MenuState): MenuEntry[] {
   return [
     {
-      id: "connection",
-      label: "menu.connection",
+      id: "session",
+      label: "menu.session",
+      children: [
+        {
+          id: "connection.new",
+          label: "connection.new",
+          enabled: state.connected && !state.busy,
+          action: { id: "connection.new" },
+        },
+        {
+          id: "session.choose",
+          label: "session.choose",
+          enabled: state.connected && !state.busy,
+          action: { id: "session.choose" },
+        },
+        {
+          id: "session.refresh",
+          label: "session.refresh",
+          enabled: state.connected && !state.busy,
+          action: { id: "session.refresh" },
+        },
+        {
+          id: "session.files",
+          label: "session.files",
+          children: fileMenu(
+            state,
+            state.attachment?.sessionId,
+            state.currentOpen &&
+              (state.currentSerial || !!state.currentSSH) &&
+              (!state.leased || !!state.currentSSH),
+            state.currentSerial,
+          ),
+        },
+        attachedAction(state, "tab.close"),
+        attachedAction(state, "session.info"),
+      ],
+    },
+    {
+      id: "host",
+      label: "menu.host",
       children: [
         {
           id: "host.connect",
@@ -135,46 +205,6 @@ export function applicationMenu(state: MenuState): MenuEntry[] {
           enabled: state.connected && !state.busy,
           action: { id: "host.disconnect" },
         },
-        {
-          id: "connection.new",
-          label: "connection.new",
-          children: [
-            {
-              id: "connection.serial",
-              label: "connection.serial",
-              action: { id: "connection.serial" },
-              enabled: state.connected && !state.busy,
-            },
-            {
-              id: "connection.ssh",
-              label: "connection.ssh",
-              action: { id: "connection.ssh" },
-              enabled: state.connected && state.sshAvailable && !state.busy,
-            },
-          ],
-        },
-        { id: "app.quit", label: "app.quit", action: { id: "app.quit" } },
-      ],
-    },
-    {
-      id: "session",
-      label: "menu.session",
-      children: [
-        {
-          id: "session.refresh",
-          label: "session.refresh",
-          enabled: state.connected && !state.busy,
-          action: { id: "session.refresh" },
-        },
-        ...fileMenu(
-          state,
-          state.attachment?.sessionId,
-          state.currentOpen &&
-            (state.currentSerial || !!state.currentSSH) &&
-            (!state.leased || !!state.currentSSH),
-          state.currentSerial,
-        ),
-        attachedAction(state, "tab.close"),
       ],
     },
     { id: "terminal", label: "menu.terminal", children: terminalMenu(state) },
@@ -216,12 +246,26 @@ export function applicationMenu(state: MenuState): MenuEntry[] {
       ],
     },
     {
+      id: "window",
+      label: "menu.window",
+      children: [
+        ...unavailableWindowActions.slice(0, 2).map(unavailableWindowEntry),
+        {
+          ...attachedAction(state, "tab.close"),
+          id: "window.tab.close",
+          label: "window.tab.close",
+        },
+        ...unavailableWindowActions.slice(2).map(unavailableWindowEntry),
+        { id: "app.quit", label: "app.quit", action: { id: "app.quit" } },
+      ],
+    },
+    {
       id: "settings",
       label: "menu.settings",
       children: [
         {
           id: "settings.display",
-          label: "settings.display",
+          label: "settings.preferences",
           action: { id: "settings.display" },
         },
         {
@@ -232,10 +276,10 @@ export function applicationMenu(state: MenuState): MenuEntry[] {
         {
           id: "language",
           label: "menu.language",
-          children: locales.map((locale) => ({
+          children: (["system", ...locales] as const).map((locale) => ({
             id: `language.${locale}`,
             label: `language.${locale}`,
-            checked: locale === state.locale,
+            checked: locale === (state.languagePreference ?? state.locale),
             action: { id: "language.change", locale },
           })),
         },
@@ -249,6 +293,12 @@ export function applicationMenu(state: MenuState): MenuEntry[] {
       ],
     },
   ];
+}
+
+function unavailableWindowEntry(
+  id: (typeof unavailableWindowActions)[number],
+): MenuEntry {
+  return { id, label: id, enabled: false, action: { id } };
 }
 
 export function terminalMenu(state: MenuState): MenuEntry[] {
@@ -365,6 +415,15 @@ export function isAction(value: unknown): value is Action {
   switch (value.id) {
     case "host.connect":
     case "host.disconnect":
+    case "connection.new":
+    case "session.choose":
+    case "window.new":
+    case "tab.new":
+    case "window.close":
+    case "tab.next":
+    case "tab.previous":
+    case "window.next":
+    case "window.previous":
     case "connection.serial":
     case "connection.ssh":
     case "session.refresh":
@@ -384,6 +443,7 @@ export function isAction(value: unknown): value is Action {
     case "session.attach":
       return exact(value, ["id", "sessionId"]) && identifier(value.sessionId);
     case "tab.close":
+    case "session.info":
     case "terminal.copy":
     case "terminal.paste":
     case "terminal.clear":
@@ -393,7 +453,10 @@ export function isAction(value: unknown): value is Action {
         exact(value, ["id", "attachment"]) && isAttachment(value.attachment)
       );
     case "language.change":
-      return exact(value, ["id", "locale"]) && isMenuLocale(value.locale);
+      return (
+        exact(value, ["id", "locale"]) &&
+        (value.locale === "system" || isMenuLocale(value.locale))
+      );
     default:
       return false;
   }
@@ -403,6 +466,7 @@ export function isMenuState(value: unknown): value is MenuState {
     !record(value) ||
     !exact(value, [
       "locale",
+      "languagePreference",
       "connected",
       "sshAvailable",
       "busy",
@@ -422,6 +486,9 @@ export function isMenuState(value: unknown): value is MenuState {
     return false;
   return (
     isMenuLocale(value.locale) &&
+    (value.languagePreference === undefined ||
+      value.languagePreference === "system" ||
+      isMenuLocale(value.languagePreference)) &&
     (value.hexView === undefined || typeof value.hexView === "boolean") &&
     (value.currentSSH === undefined || typeof value.currentSSH === "boolean") &&
     isShortcutBindings(value.shortcuts) &&
@@ -443,12 +510,15 @@ export function isMenuState(value: unknown): value is MenuState {
 
 /** Recheck live view state before dispatch, including attachment identity after async changes. */
 export function actionEnabled(action: Action, state: MenuState): boolean {
+  if (unavailableWindowActions.some((id) => id === action.id)) return false;
   switch (action.id) {
     case "host.connect":
       return !state.connected && !state.busy;
     case "connection.ssh":
       return state.connected && state.sshAvailable && !state.busy;
     case "host.disconnect":
+    case "connection.new":
+    case "session.choose":
     case "connection.serial":
     case "session.refresh":
     case "file.send":
@@ -457,6 +527,7 @@ export function actionEnabled(action: Action, state: MenuState): boolean {
     case "session.attach":
       return state.connected && !state.busy;
     case "tab.close":
+    case "session.info":
     case "terminal.copy":
     case "terminal.paste":
     case "terminal.clear":

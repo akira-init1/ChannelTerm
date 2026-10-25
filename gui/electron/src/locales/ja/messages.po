@@ -86,7 +86,7 @@ msgstr "ラベル（任意）"
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
 msgid "connection.new"
-msgstr "新しい接続"
+msgstr "新しい接続..."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -117,6 +117,11 @@ msgstr "パスワード"
 #: src/shared/menu-messages.ts
 msgid "connection.port"
 msgstr "ポート"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.protocol"
+msgstr "プロトコル"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -471,12 +476,12 @@ msgstr "ChannelTerm の使い方"
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
 msgid "host.connect"
-msgstr "Host に接続"
+msgstr "ホストに接続..."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
 msgid "host.disconnect"
-msgstr "GUI を Host から切断"
+msgstr "ホストから切断"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -515,6 +520,11 @@ msgstr "Русский"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "language.system"
+msgstr "システムに従う"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "language.zh-CN"
 msgstr "简体中文"
 
@@ -532,6 +542,11 @@ msgstr "接続"
 #: src/shared/menu-messages.ts
 msgid "menu.help"
 msgstr "ヘルプ"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "menu.host"
+msgstr "ホスト"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -560,6 +575,11 @@ msgstr "表示"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "menu.window"
+msgstr "ウィンドウ"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "panel.close"
 msgstr "パネルを非表示"
 
@@ -575,6 +595,26 @@ msgstr "このセッションに接続"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "session.choose"
+msgstr "セッションに接続..."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.emptyHint"
+msgstr "「セッション > 新しい接続」からセッションを開きます。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.files"
+msgstr "ファイル転送"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.info"
+msgstr "セッション情報..."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "session.refresh"
 msgstr "セッション一覧を更新"
 
@@ -582,6 +622,11 @@ msgstr "セッション一覧を更新"
 #: src/shared/menu-messages.ts
 msgid "settings.display"
 msgstr "表示"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "settings.preferences"
+msgstr "環境設定..."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -637,6 +682,21 @@ msgstr "未割り当て"
 #: src/shared/menu-messages.ts
 msgid "tab.close"
 msgstr "タブを閉じる（切り離す）"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.new"
+msgstr "新しいタブ"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.next"
+msgstr "次のタブ"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.previous"
+msgstr "前のタブ"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -742,3 +802,28 @@ msgstr "セッションサイドバー"
 #: src/shared/menu-messages.ts
 msgid "view.status"
 msgstr "セッションの状態"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "window.close"
+msgstr "ウィンドウを閉じる"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "window.new"
+msgstr "新しいウィンドウ"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "window.next"
+msgstr "次のウィンドウ"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "window.previous"
+msgstr "前のウィンドウ"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "window.tab.close"
+msgstr "タブを閉じる"

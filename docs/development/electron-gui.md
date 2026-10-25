@@ -189,7 +189,8 @@ Main reads the Host's existing credential. Supply a custom token through the pro
 using your normal secret-handling procedure;
 never put it in React code, a `VITE_` variable, source control, or URL parameters.
 
-**Connection > New connection** opens a serial or SSH form after Host connection:
+**Session > New Connection...** opens the unified form after Host connection. Choose Serial or
+SSH inside its Protocol selector; SSH is disabled without the Host's desktop API capability:
 
 - Serial: scan the Host's available ports or enter a port manually, set baud/framing/flow control,
   and press Connect. Scanning is read-only. The default form is 115200, 8N1, no flow control;
@@ -205,7 +206,7 @@ refresh Sessions before making another explicit attempt. See the [desktop Host A
 for the exact security, capability and lifetime boundaries.
 
 1. Wait for automatic local connection (or select **Connect to Host** for a custom endpoint), then a Session in the sidebar or
-   **Connection > New connection** to create one. The initial terminal screen
+   **Session > New Connection...** to create one. The initial terminal screen
    contains a recent output snapshot, not an unlimited log.
 2. Type in the terminal. Input goes through `terminal_write` with actor `user`; Ctrl+C is ordinary
    terminal input when input is enabled. No command delimiter is added by the adapter.
@@ -222,7 +223,7 @@ for the current window. Menus close with Escape or an outside click. See the
 Search filters Session references, labels,
 endpoints, and transport names; Serial/SSH/Other group headers expand or collapse their rows.
 An empty connected Host shows
-**No Sessions available**; use **Connection > New connection** or open one with the CLI and use **Refresh**. On connection failure,
+**No Sessions available**; use **Session > New Connection...** or open one with the CLI and use **Refresh**. On connection failure,
 review the safe error notice, check the configured Host, and select **Retry connection**.
 The bottom status bar distinguishes attached input, paused input, and lease read-only state.
 See [workbench layout and display states](../architecture/electron-gui.md#workbench-layout-and-display-states)
@@ -334,7 +335,7 @@ in normal Go package compilation without invoking npm. No Node tool is needed to
 | Companion missing / startup failed | For source builds run `npm.cmd run host:build`, verify local configuration and port 37099, then retry. Main never searches PATH. |
 | Token unavailable | Check that the Host runs under the same user, or supply its existing token to Main. The Host creates tokens; Electron does not. |
 | Authentication rejected | Verify the configured endpoint and Main environment match the intended Host. Do not disable authentication or change CORS/Origin rules. |
-| No Sessions | Use Connection > New connection, or open a Session through an existing CLI/MCP workflow and refresh. SSH creation requires the updated standalone Host API. |
+| No Sessions | Use Session > New Connection..., or open a Session through an existing CLI/MCP workflow and refresh. SSH creation requires the updated standalone Host API. |
 | Lease busy | Continue reading; wait for the owning operation. GUI neither steals nor releases leases. |
 | Output overwritten | Earlier bytes are unavailable. xterm resets and continues from retained output; the warning remains while attached. Detaching removes that view's notice. |
 | Session closed | Refresh and select an open Session. Reattachment cannot reopen a closed device. |

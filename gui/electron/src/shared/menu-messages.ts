@@ -3,6 +3,26 @@ import type { MessageDescriptor } from "@lingui/core";
 // Lingui 5 extracts these official annotated descriptors without a runtime macro
 // transform. Translations belong in PO catalogs; this file owns IDs and English defaults.
 export const menuMessages = [
+  /* i18n */ { id: "menu.host", message: "Host" },
+  /* i18n */ { id: "menu.window", message: "Window" },
+  /* i18n */ { id: "session.choose", message: "Attach Session..." },
+  /* i18n */ { id: "session.files", message: "File Transfer" },
+  /* i18n */ { id: "session.info", message: "Session Information..." },
+  /* i18n */ {
+    id: "session.emptyHint",
+    message: "Use Session > New Connection to open a Session.",
+  },
+  /* i18n */ { id: "connection.protocol", message: "Protocol" },
+  /* i18n */ { id: "window.new", message: "New Window" },
+  /* i18n */ { id: "tab.new", message: "New Tab" },
+  /* i18n */ { id: "window.tab.close", message: "Close Tab" },
+  /* i18n */ { id: "window.close", message: "Close Window" },
+  /* i18n */ { id: "tab.next", message: "Next Tab" },
+  /* i18n */ { id: "tab.previous", message: "Previous Tab" },
+  /* i18n */ { id: "window.next", message: "Next Window" },
+  /* i18n */ { id: "window.previous", message: "Previous Window" },
+  /* i18n */ { id: "language.system", message: "Follow System" },
+  /* i18n */ { id: "settings.preferences", message: "Preferences..." },
   /* i18n */ { id: "file.resume", message: "Resume transfer" },
   /* i18n */ {
     id: "file.resumable",
@@ -84,7 +104,7 @@ export const menuMessages = [
     id: "view.resizeSidebarHelp",
     message: "Drag or use arrow keys to resize. Double-click to reset.",
   },
-  /* i18n */ { id: "connection.new", message: "New connection" },
+  /* i18n */ { id: "connection.new", message: "New Connection..." },
   /* i18n */ { id: "connection.serial", message: "Serial connection" },
   /* i18n */ { id: "connection.ssh", message: "SSH connection" },
   /* i18n */ { id: "connection.port", message: "Port" },
@@ -155,11 +175,11 @@ export const menuMessages = [
   },
   /* i18n */ {
     id: "host.connect",
-    message: "Connect to Host",
+    message: "Connect to Host...",
   },
   /* i18n */ {
     id: "host.disconnect",
-    message: "Disconnect GUI from Host",
+    message: "Disconnect from Host",
   },
   /* i18n */ {
     id: "session.refresh",

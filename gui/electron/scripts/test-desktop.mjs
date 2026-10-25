@@ -128,7 +128,7 @@ await writeFile(
   `const { app } = require("electron");\napp.setPath("userData", ${JSON.stringify(profile)});\napp.setPath("sessionData", ${JSON.stringify(profile)});\n`,
 );
 const preloadArgs = ["-r", profilePreload];
-const launchArgs = [...preloadArgs, "."];
+const launchArgs = [...preloadArgs, "--lang=en-US", "."];
 const observer = new HostClient(fixture.endpoint, fixture.token);
 const desktopEnvironment = {
   ...process.env,
@@ -312,9 +312,9 @@ try {
     globalThis.staleClose =
       Menu.getApplicationMenu().getMenuItemById("tab.close");
   });
-  await page
-    .getByRole("button", { name: "Close tab (detach)", exact: true })
-    .click();
+  await desktop.evaluate(({ Menu }) =>
+    Menu.getApplicationMenu().getMenuItemById("window.tab.close").click(),
+  );
   await expect(
     page.getByRole("heading", { name: "Select a Session" }),
   ).toBeVisible();

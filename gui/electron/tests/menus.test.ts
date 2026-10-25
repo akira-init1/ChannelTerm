@@ -10,6 +10,8 @@ import {
   locales,
   sessionMenu,
   terminalMenu,
+  systemMenuLocale,
+  unavailableWindowActions,
   type MenuEntry,
 } from "../src/shared/menus";
 import { menuCatalogs } from "../src/locales/catalogs";
@@ -18,6 +20,100 @@ import { menuMessages } from "../src/shared/menu-messages";
 function flatten(items: MenuEntry[]): MenuEntry[] {
   return items.flatMap((item) => [item, ...flatten(item.children ?? [])]);
 }
+
+test("Session owns setup and file actions; window contracts cannot execute before implementation", () => {
+  const live = {
+    ...initialMenuState,
+    connected: true,
+    currentOpen: true,
+    currentSerial: true,
+    attachment: { id: "attachment", sessionId: "session" },
+  };
+  const menus = applicationMenu(live);
+  const session = menus.find((entry) => entry.id === "session")!.children!;
+  assert.deepEqual(
+    session.map((entry) => entry.id),
+    [
+      "connection.new",
+      "session.choose",
+      "session.refresh",
+      "session.files",
+      "tab.close",
+      "session.info",
+    ],
+  );
+  assert.ok(session[0]);
+  assert.ok(session[3]);
+  assert.equal(session[0].children, undefined);
+  assert.deepEqual(session[0].action, { id: "connection.new" });
+  assert.deepEqual(
+    session[3].children?.map((entry) => entry.id),
+    ["file.send", "file.receive", "file.resume"],
+  );
+  assert.deepEqual(
+    menus
+      .find((entry) => entry.id === "host")
+      ?.children?.map((entry) => entry.id),
+    ["host.connect", "host.disconnect"],
+  );
+  for (const state of [initialMenuState, live, { ...live, busy: true }]) {
+    const window = applicationMenu(state).find(
+      (entry) => entry.id === "window",
+    )!.children!;
+    for (const id of unavailableWindowActions) {
+      const action = { id };
+      assert.equal(isAction(action), true);
+      assert.equal(actionEnabled(action, state), false);
+      assert.equal(window.find((entry) => entry.id === id)?.enabled, false);
+    }
+    const close = window.find((entry) => entry.id === "window.tab.close")!;
+    assert.equal(close.enabled, !!state.attachment && !state.busy);
+    if (state.attachment)
+      assert.deepEqual(close.action, {
+        id: "tab.close",
+        attachment: state.attachment,
+      });
+    for (const id of ["connection.new", "session.choose"] as const)
+      assert.equal(
+        actionEnabled({ id }, state),
+        state.connected && !state.busy,
+      );
+  }
+});
+
+test("system language resolves locale variants and keeps exactly one preference checked", () => {
+  for (const [languages, expected] of [
+    [["en-US"], "en"],
+    [["ja-JP"], "ja"],
+    [["zh-Hans-CN"], "zh-CN"],
+    [["zh-Hant-HK"], "zh-TW"],
+    [["unknown", "de-DE"], "de"],
+    [[], "en"],
+  ] as const)
+    assert.equal(systemMenuLocale(languages), expected);
+  assert.equal(isAction({ id: "language.change", locale: "system" }), true);
+  assert.equal(
+    isMenuState({ ...initialMenuState, languagePreference: "system" }),
+    true,
+  );
+  assert.equal(
+    isMenuState({ ...initialMenuState, languagePreference: "bad" }),
+    false,
+  );
+  for (const locale of locales) {
+    const checked = flatten(
+      applicationMenu({
+        ...initialMenuState,
+        locale,
+        languagePreference: "system",
+      }),
+    ).filter((entry) => entry.id.startsWith("language.") && entry.checked);
+    assert.deepEqual(
+      checked.map((entry) => entry.id),
+      ["language.system"],
+    );
+  }
+});
 
 test("SSH file actions allow dedicated transfers but never offer serial checkpoint resume", () => {
   const state = {
@@ -59,7 +155,7 @@ test("menu catalogs cover every implemented item in all nine languages and depth
   assert.equal(depth(applicationMenu(initialMenuState)), 3);
   assert.deepEqual(
     applicationMenu(initialMenuState).map((entry) => entry.id),
-    ["connection", "session", "terminal", "view", "settings", "help"],
+    ["session", "host", "terminal", "view", "window", "settings", "help"],
   );
   const expected = {
     en: "Connection",
@@ -142,6 +238,16 @@ test("offline, closed, busy and leased menus are display hints with explicit att
   });
   assert.equal(other[1]?.enabled, false);
   assert.equal(other[1]?.action, undefined);
+  for (const entry of sessionMenu(live, "opaque-b", true, true).slice(2))
+    assert.deepEqual(entry.action, { id: entry.id, sessionId: "opaque-b" });
+  for (const state of [
+    { ...live, currentSerial: true, leased: true },
+    { ...live, currentSerial: true, currentOpen: false },
+  ])
+    for (const entry of flatten(applicationMenu(state)).filter((entry) =>
+      ["file.send", "file.receive", "file.resume"].includes(entry.id),
+    ))
+      assert.equal(entry.enabled, false);
   const close = { id: "tab.close", attachment: old } as const;
   const paste = { id: "terminal.paste", attachment: old } as const;
   const copy = { id: "terminal.copy", attachment: old } as const;
@@ -168,6 +274,13 @@ test("offline, closed, busy and leased menus are display hints with explicit att
     false,
   );
   assert.equal(actionEnabled(close, { ...live, busy: true }), false);
+  assert.equal(
+    actionEnabled(
+      { id: "session.info", attachment: old },
+      { ...live, attachment: { ...old, id: "replacement" } },
+    ),
+    false,
+  );
   assert.equal(
     actionEnabled(
       { id: "terminal.resume", attachment: old },

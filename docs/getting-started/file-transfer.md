@@ -98,7 +98,7 @@ channelterm file resume JOB_ID --session SER-2
 
 Replace `JOB_ID` with the printed checkpoint ID. In Electron, enable **Keep a checkpoint for
 manual resume** in the send/receive dialog. After interruption, reconnect the Host and open the
-same serial endpoint manually, then choose **Session > Resume transfer** (also available in a
+same serial endpoint manually, then choose **Session > File Transfer > Resume transfer** (also available in a
 Session's context menu). The list is filtered by Host URL and serial endpoint, not the old Session
 ID or `SER-N` reference. It shows up to 128 incomplete records; each start still acquires the
 ordinary Host file-transfer Lease. Neither GUI nor CLI reconnects or retries writes automatically.
@@ -188,7 +188,7 @@ execution at an idle Bash prompt should use `terminal_exec`.
 
 ## Electron file picker and progress
 
-On an open serial Session, choose **Session > Send to device** or **Receive from device**;
+On an open serial Session, choose **Session > File Transfer > Send to device** or **Receive from device**;
 the Session context menu binds the same actions to the clicked Session. These actions require
 an idle POSIX Linux shell and the preconditions above, not a bootloader or an arbitrary serial
 protocol. The picker initially queries `.` in a temporary child shell, inheriting the terminal's
@@ -510,7 +510,7 @@ for another explicit attempt. A final checksum failure also retains the file for
 
 ### Electron SFTP/SCP progress and resume
 
-Select an open SSH Session and choose **Session > Send to device / Receive from device** (also available
+Select an open SSH Session and choose **Session > File Transfer > Send to device / Receive from device** (also available
 on its context menu). Choose SFTP or legacy SCP, enter a literal remote path, and use the native
 picker for the local file/directory or download folder. Enable the directory option for recursive
 downloads. The destination's parent must exist. Relative paths use the SSH server's starting
@@ -525,7 +525,7 @@ transfer history. The GUI always verifies SHA-256; SCP therefore requires remote
 The transfer panel shows current-file bytes, progress, speed and verification state. Cancel stops
 this dedicated connection immediately and can leave a partial file; the terminal Session remains
 independent. To resume, repeat the selection with the same paths and enable **Resume an existing
-partial file (SFTP)**. This is separate from **Session > Resume transfer**, which lists serial checkpoints.
+partial file (SFTP)**. This is separate from **Session > File Transfer > Resume transfer**, which lists serial checkpoints.
 SCP and directory transfers have progress but no resume option. Existing files otherwise fail
 rather than being overwritten. Only one desktop file operation runs at a time; active operations
 block Host changes and normal app close. SSH display history is bounded and is not persisted.

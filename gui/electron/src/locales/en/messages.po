@@ -86,7 +86,7 @@ msgstr "Label (optional)"
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
 msgid "connection.new"
-msgstr "New connection"
+msgstr "New Connection..."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -117,6 +117,11 @@ msgstr "Password"
 #: src/shared/menu-messages.ts
 msgid "connection.port"
 msgstr "Port"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.protocol"
+msgstr "Protocol"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -471,12 +476,12 @@ msgstr "Using ChannelTerm"
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
 msgid "host.connect"
-msgstr "Connect to Host"
+msgstr "Connect to Host..."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
 msgid "host.disconnect"
-msgstr "Disconnect GUI from Host"
+msgstr "Disconnect from Host"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -515,6 +520,11 @@ msgstr "Русский"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "language.system"
+msgstr "Follow System"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "language.zh-CN"
 msgstr "简体中文"
 
@@ -532,6 +542,11 @@ msgstr "Connection"
 #: src/shared/menu-messages.ts
 msgid "menu.help"
 msgstr "Help"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "menu.host"
+msgstr "Host"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -560,6 +575,11 @@ msgstr "View"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "menu.window"
+msgstr "Window"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "panel.close"
 msgstr "Hide panel"
 
@@ -575,6 +595,26 @@ msgstr "Attach Session"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "session.choose"
+msgstr "Attach Session..."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.emptyHint"
+msgstr "Use Session > New Connection to open a Session."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.files"
+msgstr "File Transfer"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.info"
+msgstr "Session Information..."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "session.refresh"
 msgstr "Refresh Sessions"
 
@@ -582,6 +622,11 @@ msgstr "Refresh Sessions"
 #: src/shared/menu-messages.ts
 msgid "settings.display"
 msgstr "Display"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "settings.preferences"
+msgstr "Preferences..."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -637,6 +682,21 @@ msgstr "Unassigned"
 #: src/shared/menu-messages.ts
 msgid "tab.close"
 msgstr "Close tab (detach)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.new"
+msgstr "New Tab"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.next"
+msgstr "Next Tab"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.previous"
+msgstr "Previous Tab"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -742,3 +802,28 @@ msgstr "Session sidebar"
 #: src/shared/menu-messages.ts
 msgid "view.status"
 msgstr "Session status"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "window.close"
+msgstr "Close Window"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "window.new"
+msgstr "New Window"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "window.next"
+msgstr "Next Window"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "window.previous"
+msgstr "Previous Window"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "window.tab.close"
+msgstr "Close Tab"

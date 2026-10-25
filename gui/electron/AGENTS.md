@@ -172,7 +172,7 @@ import-boundary enforcement or coverage that the current checks do not provide.
 
 ## 9. Menus and localization
 
-- Keep the six menu groups Connection, Session, Terminal, View, Settings, Help and no more than
+- Keep the seven menu groups Session, Host, Terminal, View, Window, Settings, Help and no more than
   three levels. The [menu reference](../../docs/reference/gui-menus.md) owns the implemented
   action inventory and explicitly unimplemented planning boundaries; planning never grants a capability.
 - Use a finite, typed action set and a shared menu description. Menu, toolbar, and keyboard

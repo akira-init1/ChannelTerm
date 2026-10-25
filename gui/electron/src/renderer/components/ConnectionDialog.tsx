@@ -14,12 +14,14 @@ import { commonBaudRates } from "../../shared/serial-settings";
 
 /** Collect explicit user intent. Credentials live in password inputs, never preferences. */
 export function ConnectionDialog({
-  kind,
+  kind: initialKind,
+  sshAvailable,
   t,
   onOpen,
   onClose,
 }: {
   kind: ConnectionRequest["kind"];
+  sshAvailable: boolean;
   t: (id: string) => string;
   onOpen: (
     request: ConnectionRequest,
@@ -28,6 +30,7 @@ export function ConnectionDialog({
   onClose: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
+  const [kind, setKind] = useState(initialKind);
   const submitting = useRef(false);
   const [busy, setBusy] = useState(false);
   const [scanning, setScanning] = useState(false);
@@ -52,6 +55,7 @@ export function ConnectionDialog({
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (submitting.current) return;
+    if (kind === "ssh" && !sshAvailable) return;
     const form = event.currentTarget;
     const data = new FormData(form);
     const value = (name: string) => String(data.get(name) ?? "");
@@ -147,10 +151,31 @@ export function ConnectionDialog({
       onClose={onClose}
     >
       <form onSubmit={(event) => void submit(event)} autoComplete="off">
-        <h2 id="connection-title">
-          {t(kind === "serial" ? "connection.serial" : "connection.ssh")}
-        </h2>
+        <h2 id="connection-title">{t("connection.new")}</h2>
         <fieldset disabled={busy || scanning}>
+          <label>
+            {t("connection.protocol")}
+            <select
+              value={kind}
+              onChange={(event) => {
+                const next = event.target.value;
+                if (next !== "serial" && (next !== "ssh" || !sshAvailable))
+                  return;
+                setKind(next);
+                setError("");
+                setAuth("key");
+                setBaudChoice("115200");
+              }}
+            >
+              <option value="serial">Serial</option>
+              <option value="ssh" disabled={!sshAvailable}>
+                SSH
+              </option>
+            </select>
+          </label>
+        </fieldset>
+        {/* Remount protocol fields so secrets and overlapping field names cannot cross forms. */}
+        <fieldset key={kind} disabled={busy || scanning}>
           {kind === "serial" ? (
             <>
               <label>

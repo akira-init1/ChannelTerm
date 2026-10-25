@@ -86,7 +86,7 @@ msgstr "名称（可选）"
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
 msgid "connection.new"
-msgstr "新建连接"
+msgstr "新建连接..."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -117,6 +117,11 @@ msgstr "密码"
 #: src/shared/menu-messages.ts
 msgid "connection.port"
 msgstr "端口"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.protocol"
+msgstr "协议"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -471,12 +476,12 @@ msgstr "使用 ChannelTerm"
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
 msgid "host.connect"
-msgstr "连接到 Host"
+msgstr "连接到 Host..."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
 msgid "host.disconnect"
-msgstr "断开 GUI 与 Host"
+msgstr "断开与 Host 的连接"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -515,6 +520,11 @@ msgstr "Русский"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "language.system"
+msgstr "跟随系统"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "language.zh-CN"
 msgstr "简体中文"
 
@@ -532,6 +542,11 @@ msgstr "连接"
 #: src/shared/menu-messages.ts
 msgid "menu.help"
 msgstr "帮助"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "menu.host"
+msgstr "Host"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -560,6 +575,11 @@ msgstr "视图"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "menu.window"
+msgstr "窗口"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "panel.close"
 msgstr "隐藏面板"
 
@@ -575,6 +595,26 @@ msgstr "附加此会话"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "session.choose"
+msgstr "附加会话..."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.emptyHint"
+msgstr "使用“会话 > 新建连接”打开会话。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.files"
+msgstr "文件传输"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.info"
+msgstr "会话信息..."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "session.refresh"
 msgstr "刷新会话列表"
 
@@ -582,6 +622,11 @@ msgstr "刷新会话列表"
 #: src/shared/menu-messages.ts
 msgid "settings.display"
 msgstr "显示"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "settings.preferences"
+msgstr "偏好设置..."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -637,6 +682,21 @@ msgstr "未分配"
 #: src/shared/menu-messages.ts
 msgid "tab.close"
 msgstr "关闭标签（分离）"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.new"
+msgstr "新建标签页"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.next"
+msgstr "下一个标签页"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.previous"
+msgstr "上一个标签页"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -742,3 +802,28 @@ msgstr "会话侧边栏"
 #: src/shared/menu-messages.ts
 msgid "view.status"
 msgstr "会话状态"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "window.close"
+msgstr "关闭窗口"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "window.new"
+msgstr "新建窗口"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "window.next"
+msgstr "下一个窗口"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "window.previous"
+msgstr "上一个窗口"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "window.tab.close"
+msgstr "关闭标签页"
