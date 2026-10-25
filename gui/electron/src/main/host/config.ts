@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
 import { homedir } from "node:os";
 import { isAbsolute, join } from "node:path";
 import { HostError } from "./errors";
@@ -48,19 +49,23 @@ export function tokenPath(
 }
 
 export async function loadToken(): Promise<string> {
+  if (
+    process.env.CHANNELTERM_HTTP_AUTH_TOKEN &&
+    !process.env.CHANNELTERM_HTTP_AUTH_TOKEN.trim()
+  )
+    throw new HostError("configuration", "Host token is empty or malformed.");
   let token = process.env.CHANNELTERM_HTTP_AUTH_TOKEN?.trim();
   if (!token) {
     try {
+      const sharedPath = tokenPath(process.platform, process.env, homedir());
+      const shared = (await readFile(sharedPath, "utf8")).trim();
       token = (
-        await readFile(
-          tokenPath(process.platform, process.env, homedir()),
-          "utf8",
-        )
+        await readFile(localClientTokenPath(sharedPath, shared), "utf8")
       ).trim();
     } catch {
       throw new HostError(
         "configuration",
-        "Host token unavailable. Start your Host first or set CHANNELTERM_HTTP_AUTH_TOKEN for this process.",
+        "Local management credential unavailable. Start the matching Host first, or set an independent CHANNELTERM_HTTP_AUTH_TOKEN for this process.",
       );
     }
   }
@@ -68,4 +73,13 @@ export async function loadToken(): Promise<string> {
     throw new HostError("configuration", "Host token is empty or malformed.");
   }
   return token;
+}
+
+/** Match Core config's Host-domain path; this capability stays in Main. */
+export function localClientTokenPath(
+  sharedPath: string,
+  sharedToken: string,
+): string {
+  const digest = createHash("sha256").update(sharedToken).digest("hex");
+  return join(sharedPath, "..", `http-clients-${digest}.json.local-token`);
 }

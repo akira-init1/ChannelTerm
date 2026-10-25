@@ -27,7 +27,7 @@ func TestSSHOwnerEscapeEndsLiveReaders(t *testing.T) {
 	done := make(chan error, 1)
 	go func() { done <- runSSH(ctx, args, input, &output, nil) }()
 	endpoint := sshTestEndpoint(waitSSHOutput(t, &output, "test-shell$ "))
-	observer, err := newMCPAttachSession(ctx, endpoint, "SSH-1")
+	observer, err := newMCPAttachSession(sshTestClientContext(t, ctx), endpoint, "SSH-1")
 	if err != nil {
 		t.Fatal(err)
 	}

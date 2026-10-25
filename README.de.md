@@ -87,8 +87,10 @@ unterstützten Client:
 channelterm init --mcp
 ```
 
-Wählen Sie HTTP oder drücken Sie Enter für die HTTP-Vorgabe. Die Konfiguration enthält den lokalen
-Bearer-Zugang. Laden oder starten Sie den KI-Client neu, falls er die Änderung nicht sofort erkennt.
+W?hlen Sie HTTP oder dr?cken Sie Enter f?r den Standard. Der gemeinsame Standardzugang ist nur lesbar.
+Registrieren Sie vor KI-Schreibzugriffen eigene Zugangsdaten und erteilen Sie ausdr?cklich eine Freigabe gem??
+[HTTP-Zugangsmigration](docs/getting-started/mcp-server.md#http-credential-upgrade).
+Laden Sie danach den KI-Client neu. Die folgenden KI-Schreibbeispiele setzen diese Freigabe voraus.
 
 Führen Sie anschließend nur den Befehl für Ihre Plattform aus:
 
@@ -154,12 +156,11 @@ Installieren Sie für wiederverwendbare Workflow-Anleitungen den mitgelieferten
 in einem Agent-Skills-kompatiblen Client. `channelterm init --mcp` konfiguriert MCP-Clients,
 installiert den Skill jedoch nicht.
 
-Der HTTP-Host benötigt ein Bearer-Token und lauscht standardmäßig nur auf der Loopback-Adresse. Die
-integrierten CLI-Clients lesen das lokale Benutzertoken automatisch. Der Host kann auch
-[in einem vertrauenswürdigen LAN lauschen](docs/getting-started/mcp-server.md#listen-on-a-lan).
-Entfernte Clients müssen seine erreichbare Adresse verwenden und dasselbe Token im
-`Authorization`-Header senden. Stellen Sie den Endpunkt nicht ohne TLS und zusätzliche
-Netzwerkzugriffskontrollen in einem nicht vertrauenswürdigen Netzwerk bereit.
+Der HTTP-Host verlangt Bearer-Authentifizierung und lauscht standardm??ig nur auf Loopback. Lokale
+CLI/Electron-Clients verwenden separate Verwaltungszugangsdaten; KI-Clients erhalten eigene Zugangsdaten
+und ausdr?ckliche Schreibfreigaben. Der Host kann auch [in einem vertrauensw?rdigen LAN lauschen](docs/getting-started/mcp-server.md#listen-on-a-lan).
+Entfernte Clients senden ihre eigenen Zugangsdaten im `Authorization`-Header. Ver?ffentlichen Sie den
+Endpunkt nicht ohne TLS und zus?tzliche Netzwerkzugriffskontrollen.
 
 <a id="beispielabläufe"></a>
 <a id="embedded-linux-debugging"></a>

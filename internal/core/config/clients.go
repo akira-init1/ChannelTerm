@@ -24,6 +24,9 @@ type ClientIdentity struct {
 	ID   string `json:"client_id"`
 	Name string `json:"name"`
 	Kind string `json:"kind"`
+	// WriteAllowed is granted only by local administration. It is not inferred
+	// from a caller's actor label or possession of the legacy shared token.
+	WriteAllowed bool `json:"write_allowed"`
 }
 
 type clientCredential struct {
@@ -71,7 +74,7 @@ func (s ClientStore) Register(name, kind string) (ClientIdentity, string, error)
 	if _, err := rand.Read(id[:]); err != nil {
 		return ClientIdentity{}, "", err
 	}
-	identity := ClientIdentity{ID: "CL-" + hex.EncodeToString(id[:]), Name: name, Kind: kind}
+	identity := ClientIdentity{ID: "CL-" + hex.EncodeToString(id[:]), Name: name, Kind: kind, WriteAllowed: kind == "user"}
 	digest := sha256.Sum256([]byte(token))
 	err := s.update(func(file *clientFile) error {
 		if len(file.Clients) >= 128 {
@@ -131,6 +134,66 @@ func (s ClientStore) Remove(id string) error {
 	})
 }
 
+// SetWriteAllowed changes an agent's permission for subsequent requests. It does
+// not cancel work already accepted; operation cancellation is a separate use case.
+func (s ClientStore) SetWriteAllowed(id string, allowed bool) error {
+	return s.update(func(file *clientFile) error {
+		for i := range file.Clients {
+			if file.Clients[i].ID == id {
+				if file.Clients[i].Kind != "agent" {
+					return errors.New("write grants apply only to agent credentials")
+				}
+				file.Clients[i].WriteAllowed = allowed
+				return nil
+			}
+		}
+		return errors.New("client registration not found")
+	})
+}
+
+// LocalClientTokenPath identifies the private credential used by trusted local
+// clients of this Host domain. It is distinct from the legacy shared token.
+func (s ClientStore) LocalClientTokenPath() string { return s.Path + ".local-token" }
+
+// LoadOrCreateLocalClientToken bootstraps the local account's management client.
+// Cross-process locking serializes creation. An existing revoked credential is
+// never silently recreated; the user must deliberately remove its private file.
+// Filesystem access is the trust boundary, not the name of the calling process.
+func (s ClientStore) LoadOrCreateLocalClientToken() (string, error) {
+	path := s.LocalClientTokenPath()
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return "", err
+	}
+	lock := flock.New(path + ".lock")
+	if err := lock.Lock(); err != nil {
+		return "", err
+	}
+	defer lock.Unlock()
+	data, err := os.ReadFile(path)
+	if err == nil {
+		token := strings.TrimSpace(string(data))
+		client, ok, err := s.Authenticate(token)
+		if err != nil {
+			return "", err
+		}
+		if !ok || client.Kind != "user" {
+			return "", errors.New("local management credential is invalid or revoked; explicitly remove its private file to register again")
+		}
+		return token, nil
+	}
+	if !errors.Is(err, os.ErrNotExist) {
+		return "", err
+	}
+	client, token, err := s.Register("Local CLI/Electron", "user")
+	if err != nil {
+		return "", err
+	}
+	if err := writeFileAtomically(path, []byte(token+"\n"), 0o600); err != nil {
+		return "", errors.Join(err, s.Remove(client.ID))
+	}
+	return token, nil
+}
+
 func (s ClientStore) read() (clientFile, error) {
 	file := clientFile{Version: 1}
 	f, err := os.Open(s.Path)
@@ -152,7 +215,11 @@ func (s ClientStore) read() (clientFile, error) {
 		return clientFile{}, errors.New("invalid client registration file")
 	}
 	seenIDs, seenDigests := map[string]bool{}, map[string]bool{}
-	for _, client := range file.Clients {
+	for i := range file.Clients {
+		client := &file.Clients[i]
+		if client.Kind == "user" {
+			client.WriteAllowed = true
+		}
 		digest, err := hex.DecodeString(client.Digest)
 		id, idErr := hex.DecodeString(strings.TrimPrefix(client.ID, "CL-"))
 		if err != nil || len(digest) != 32 || idErr != nil || len(id) != 16 || !strings.HasPrefix(client.ID, "CL-") || seenIDs[client.ID] || seenDigests[client.Digest] ||

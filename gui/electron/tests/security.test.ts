@@ -1,7 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import type { IpcMainInvokeEvent, WebContents } from "electron";
-import { hostEndpoint, tokenPath } from "../src/main/host/config";
+import {
+  hostEndpoint,
+  tokenPath,
+  localClientTokenPath,
+} from "../src/main/host/config";
 import {
   identifier,
   input,
@@ -78,4 +82,17 @@ test("credential paths follow the Host configuration root, not GUI userData", ()
   assert.throws(() =>
     tokenPath("linux", { XDG_CONFIG_HOME: "relative" }, home),
   );
+});
+
+test("local management credentials are separate and bound to the shared Host domain", () => {
+  const shared = tokenPath(
+    "linux",
+    { XDG_CONFIG_HOME: process.cwd() },
+    process.cwd(),
+  );
+  const local = localClientTokenPath(shared, "example-host-token");
+  assert.notEqual(local, shared);
+  assert.ok(local.endsWith(".json.local-token"));
+  assert.notEqual(local, localClientTokenPath(shared, "another-host-token"));
+  assert.ok(!local.includes("example-host-token"));
 });

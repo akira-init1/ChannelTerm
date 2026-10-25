@@ -332,6 +332,11 @@ export class HostClient {
     });
     if (result.isError) {
       const details = object(object(result.structuredContent).error);
+      if (details.code === "permission_denied")
+        throw new HostError(
+          "unauthorized",
+          "Host permission denied. Ask the local operator to grant this client access. Input was not retried.",
+        );
       throw new ToolFailure(text(details.code));
     }
     return object(result.structuredContent);

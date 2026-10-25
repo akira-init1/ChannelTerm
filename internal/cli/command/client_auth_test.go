@@ -70,6 +70,9 @@ func TestRegisteredMCPClientProvenanceSurvivesCLIActorAndLease(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if err := store.SetWriteAllowed(identity.ID, true); err != nil {
+		t.Fatal(err)
+	}
 	server := httptest.NewServer(requireClientToken("legacy", store, host.server.Config.Handler))
 	defer server.Close()
 	transport, err := newBearerTokenTransport(server.URL, token)

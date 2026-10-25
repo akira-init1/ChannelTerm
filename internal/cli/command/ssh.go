@@ -14,6 +14,7 @@ import (
 
 	"github.com/akira-init1/ChannelTerm/internal/cli/terminalinput"
 	"github.com/akira-init1/ChannelTerm/internal/core/app"
+	"github.com/akira-init1/ChannelTerm/internal/core/config"
 	"github.com/akira-init1/ChannelTerm/internal/core/session"
 	sshtransport "github.com/akira-init1/ChannelTerm/internal/transport/ssh"
 	"golang.org/x/term"
@@ -221,7 +222,16 @@ func runSSH(ctx context.Context, args []string, input io.Reader, output io.Write
 		stopServer()
 		err = errors.Join(err, closeErr, <-serverDone)
 	}()
-	return runAttachSessionWithInputEnd(hostCtx, []string{
+	store, err := config.DefaultClientStore(token)
+	if err != nil {
+		return err
+	}
+	ownerToken, err := store.LoadOrCreateLocalClientToken()
+	if err != nil {
+		return err
+	}
+	ownerCtx := context.WithValue(hostCtx, localHTTPTokenKey{}, ownerToken)
+	return runAttachSessionWithInputEnd(ownerCtx, []string{
 		"--endpoint", endpoint, "--highlight=" + strconv.FormatBool(*highlight), opened.Info.ID,
 	}, input, output, newSSHOwnerAttachment, attachInterrupts, func() { stopHost(); _ = manager.Close() })
 }

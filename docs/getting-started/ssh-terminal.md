@@ -106,9 +106,11 @@ by default. No input is replayed, and reconnection still requires a new command.
 
 ## Host lifetime and other listeners
 
-The default Host listens only on `127.0.0.1:37099/mcp` and requires the existing ChannelTerm Bearer
-token. Clients with the token can control its Sessions through existing tools. Do not share it with
-untrusted clients. SSH private keys stay in the opening process and never enter Session metadata.
+The default Host listens only on `127.0.0.1:37099/mcp` and requires ChannelTerm Bearer
+authentication. Its foreground owner uses a separate local management credential. The legacy
+shared token observes only; independent AI credentials require an explicit write grant. See the
+[HTTP migration workflow](mcp-server.md#http-credential-upgrade). SSH private keys stay in the
+opening process and never enter Session metadata.
 
 If another Host already occupies the default address, SSH fails before opening a remote connection.
 It does not add Sessions to that separate Host. Select another loopback port:

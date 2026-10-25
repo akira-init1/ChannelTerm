@@ -566,3 +566,10 @@ retain provenance when publishing events after the initiating request returns.
 These references delegate to the existing Session and own no resources or locks.
 Client identity does not grant a lease or override existing operation controls.
 Unregistered callers retain empty identity. See the [identifier contract](../reference/identifiers.md#registered-client-ids).
+
+
+Trusted HTTP adapters also bind request grants, independently of the public actor label.
+Application defines read/write/management checks; terminal tool adapters classify the actual use
+case before invocation, with unclassified tools requiring management. Desktop routes apply the
+same checks before mutation. Grants are snapshots for one accepted request, not leases or
+cancellation tokens; revocation affects subsequent requests and does not stop accepted work.

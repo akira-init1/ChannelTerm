@@ -81,7 +81,7 @@ func NewSerialTools(manager *session.Manager) ([]tool.Tool, error) {
 	if err != nil {
 		return nil, err
 	}
-	return terminalToolsForApplication(application), nil
+	return authorizeTools(terminalToolsForApplication(application)), nil
 }
 
 // NewDeviceTools creates read-only device discovery tools backed by registry.
@@ -132,7 +132,7 @@ func NewTools(application *app.Application) ([]tool.Tool, error) {
 	tools := terminalToolsForApplication(application)
 	tools = append(tools, newDeviceTools(application)...)
 	tools = append(tools, newConnectionDecisionTools(application)...)
-	return tools, nil
+	return authorizeTools(tools), nil
 }
 
 type connectableSession = app.ConnectedSession
@@ -171,7 +171,7 @@ func newSerialTools(manager *session.Manager, serviceDependencies app.SerialDepe
 	if err != nil {
 		return nil, err
 	}
-	return terminalToolsForApplication(application), nil
+	return authorizeTools(terminalToolsForApplication(application)), nil
 }
 
 func terminalToolsForApplication(application *app.Application) []tool.Tool {

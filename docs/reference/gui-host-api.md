@@ -10,7 +10,9 @@ Application connection/configuration use cases and Session Manager used by the H
 All methods require a Host Bearer credential (the shared token or an
 [independent registered client](configuration.md#independent-http-client-credentials))
 and run behind Host authentication middleware. They inherit the Host listener;
-these desktop routes add no second listener or automatic Host startup. The Electron
+these desktop routes add no second listener or automatic Host startup. GET observations accept
+read access; all desktop mutations require a registered management credential. An agent write
+grant does not grant SSH/profile management through these routes. Insufficient grants return 403. The Electron
 client accepts numeric loopback HTTP endpoints and derives this fixed path in Main.
 Renderer cannot supply the API URL or access the Bearer token. Redirects are refused.
 
@@ -184,7 +186,7 @@ existing configuration enums/ranges. GET rejects invalid or unsupported entries 
 profiles with `422 configuration`, rather than silently omitting them. Edit such configurations
 through the CLI/file workflow before retrying. GUI response consumption is bounded to 512 KiB.
 
-The same Bearer/Origin policy as SSH applies. A trusted authenticated client may now read and write
+The same Bearer/Origin policy as SSH applies. A registered management client may read and write
 serial profiles in the Host user's configuration. Unknown fields, query strings and trailing JSON
 are rejected. POST bodies are limited to 8 KiB, with a five-second read deadline. At most two profile
 operations run concurrently. The five-second operation context cancels lock waits and is checked

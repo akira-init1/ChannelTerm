@@ -370,8 +370,10 @@ serial byte path, starts GDB, parses RSP, or changes the relay lifecycle on repo
 
 CLI composition authenticates HTTP requests against the shared Host token or a
 bounded independent-client registration store owned by Core config. Independent
-credentials attach public provenance to the request context before MCP/desktop
-adaptation. Application records that source through writes, leases and operation
+credentials attach public provenance and current request grants to the context before MCP/desktop
+adaptation. Application defines read/write/management access checks; adapters classify tool or
+route effects before invoking a use case. Legacy shared-token requests receive read access only.
+Application records that source through writes, leases and operation
 events; Session retains it without interpreting credentials. Transports still
 receive raw bytes only. Local registration and secret export belong to the CLI;
 there is no new listener or remote registration endpoint. See

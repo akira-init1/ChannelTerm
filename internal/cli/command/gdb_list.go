@@ -97,7 +97,7 @@ func gdbListCell(value string) string {
 // listMCPBridges uses the Host's read-only inventory and closes only its MCP
 // client. Host authentication is shared with other CLI observation commands.
 func listMCPBridges(ctx context.Context, endpoint string) ([]app.BridgeSummary, error) {
-	token, err := loadHTTPAuthToken()
+	token, err := loadHTTPClientToken()
 	if err != nil {
 		return nil, err
 	}

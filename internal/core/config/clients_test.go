@@ -91,3 +91,28 @@ func TestConcurrentClientRegistrationDoesNotLoseUpdates(t *testing.T) {
 		t.Fatalf("list count %d: %v", len(clients), err)
 	}
 }
+
+func TestLocalManagementBootstrapIsStableAndDoesNotResurrectRevokedCredentials(t *testing.T) {
+	store := ClientStore{Path: filepath.Join(t.TempDir(), "clients.json")}
+	token, err := store.LoadOrCreateLocalClientToken()
+	if err != nil {
+		t.Fatal(err)
+	}
+	again, err := store.LoadOrCreateLocalClientToken()
+	if err != nil || again != token {
+		t.Fatal("local credential changed")
+	}
+	client, ok, err := store.Authenticate(token)
+	if err != nil || !ok || client.Kind != "user" {
+		t.Fatal("bootstrap registration missing")
+	}
+	if err := store.SetWriteAllowed(client.ID, false); err == nil {
+		t.Fatal("agent grant changed management credential")
+	}
+	if err := store.Remove(client.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.LoadOrCreateLocalClientToken(); err == nil {
+		t.Fatal("revoked local credential resurrected")
+	}
+}

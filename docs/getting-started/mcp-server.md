@@ -18,7 +18,8 @@ channelterm init --mcp
 ```
 
 The command prompts for HTTP or stdio and defaults to HTTP when you press Enter. HTTP installs the
-shared endpoint `http://127.0.0.1:37099/mcp` with its Bearer credential; stdio installs an entry
+shared endpoint `http://127.0.0.1:37099/mcp` with its Bearer credential (read-only when using the
+default legacy token; follow the [upgrade steps](#http-credential-upgrade) to enable AI writes); stdio installs an entry
 that starts `channelterm mcp`. The command preserves other entries, leaves an existing `channelterm`
 entry unchanged, and writes configuration atomically.
 
@@ -120,10 +121,12 @@ then closes Manager-owned Sessions and the Device Registry.
 
 The Host requires `Authorization: Bearer <token>` on every HTTP request. On first use, ChannelTerm
 creates an owner-readable token named `http-auth-token` in its platform user configuration
-directory. Built-in commands such as `attach`, `list`, `events`, and `file` read it automatically.
-For an external MCP client, configure the same header using the client's secret/header mechanism.
-For a remote Host or an explicit secret manager, set `CHANNELTERM_HTTP_AUTH_TOKEN` to the same value
-for both Host and client instead of copying the default local token file. Built-in clients refuse
+directory. This legacy credential now permits observations only. Implicit local commands such as
+`attach`, `list`, `events`, and `file` use a separate management registration. External MCP clients
+use independent credentials through their secret/header mechanism; enable AI device operations
+with an explicit local grant. `CHANNELTERM_HTTP_AUTH_TOKEN` selects the Host's shared-token domain
+when starting a Host, or the exact credential when used by a client. A client override is never
+silently exchanged for management authority. Built-in clients refuse
 cross-origin HTTP redirects so the credential cannot be forwarded to a different endpoint.
 
 Customize the listener and endpoint path with:
@@ -147,8 +150,8 @@ channelterm mcp --transport http --listen 192.168.1.20:37099
 Configure clients with `http://192.168.1.20:37099/mcp`. To listen on every IPv4 interface, use
 `--listen 0.0.0.0:37099`; `0.0.0.0` is only a bind address, so clients must still use the Host's
 reachable LAN address. Allow the selected TCP port through the Host firewall only for trusted source
-networks, and provide the same Bearer token to remote clients through their secret or header
-configuration. ChannelTerm does not provide TLS, so use TLS termination and separate network access
+networks, and provide each remote client its own registered Bearer credential through its secret
+or header configuration; grant AI writes explicitly. ChannelTerm does not provide TLS, so use TLS termination and separate network access
 controls before traffic crosses an untrusted network.
 
 An automatically started Host includes `X-ChannelTerm-Host-Lifetime: attachment` on every
@@ -240,3 +243,48 @@ For an external GDB (including one independently run in WSL2), `debug_bridge_*` 
 serial Session's authenticated TCP bridge. Keep renewing its management heartbeat independently of
 GDB commands. Connection credentials differ from MCP authentication and must remain private. See
 [the external GDB workflow](gdb-debugging.md#external-gdb-over-a-prepared-serial-session).
+
+
+## HTTP credential upgrade
+
+Upgrade the Host and bundled CLI/Electron together, then restart the Host deliberately after
+finishing active device operations. Existing Sessions belong to the old process and are not
+restored by an upgrade. Downgrading the Host restores the older authorization semantics; the
+read-only restriction requires the upgraded Host. The new Host keeps its loopback default and accepts the old shared token
+for reading, but rejects writes, lease changes and management with `permission_denied`.
+The default local CLI/Electron uses a separate Host-created management credential. If you previously
+set `CHANNELTERM_HTTP_AUTH_TOKEN` to the old shared token for these local clients, remove that
+explicit override to select the new local default, or configure an independent user credential.
+Never silently fall back to management when an explicit credential fails.
+
+For each AI client, run local administration under the Host's configuration account and shared-token
+domain (not in a shell whose override contains the AI credential):
+
+```powershell
+channelterm clients add --name "Board debugging agent" --kind agent --credential-file ./agent-token
+channelterm clients list
+channelterm clients grant CL-<ID-from-add>
+```
+
+`add` prints only public registration JSON and refuses to overwrite the credential file. The new
+agent is read-only until `grant`; this grant covers device operations on the whole Host, not a
+single Session. Give the issued token only to that client. In a separate client-configuration shell,
+set `CHANNELTERM_HTTP_AUTH_TOKEN` from this private file and use `channelterm init --mcp-show codex`
+(or the other supported client name) to generate the matching configuration. The printed
+configuration contains the secret: keep it private. Update the existing client entry/header;
+`init --mcp` intentionally does not replace existing entries. Reload that client afterward.
+Pass the same independent credential to any CLI transfer executor so attribution is preserved.
+
+Verify a list/read succeeds before granting; a write must return `permission_denied`. After the
+explicit grant, test an intended safe operation on the selected target. `clients revoke CL-...`
+restores read-only access for new requests; `clients remove CL-...` rejects all future requests.
+Revocation does not stop an already accepted command/transfer/debug operation. End it through its
+normal cancellation/recovery path first, then revoke. Do not treat a permission error as proof that
+previous device actions stopped or retry uncertain writes automatically.
+
+Agent grants allow the caller's capability-bound device/lease/debug workflows. They do not permit
+arbitrary `terminal_close`, cancellation of another transfer, or desktop configuration/SSH
+management routes. New unclassified tools default to management-only. Observation and
+attachment/detachment bookkeeping remain available without write permission. Raw output, Session
+IDs and sharing are unchanged. Stdio and local process execution retain the local OS account's
+trust; credentials do not sandbox an AI with access to that account or private configuration.

@@ -20,6 +20,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/akira-init1/ChannelTerm/internal/core/config"
 	"github.com/akira-init1/ChannelTerm/internal/core/session"
 	gossh "golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
@@ -187,7 +188,7 @@ func TestSSHCommandSharesShellWithAttach(t *testing.T) {
 	if response.StatusCode != http.StatusUnauthorized {
 		t.Fatalf("unauthenticated status=%d", response.StatusCode)
 	}
-	observer, err := newMCPAttachSession(ctx, endpoint, "SSH-1")
+	observer, err := newMCPAttachSession(sshTestClientContext(t, ctx), endpoint, "SSH-1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -340,7 +341,7 @@ func TestSSHCommandTerminationClosesLiveObservers(t *testing.T) {
 			endpoint = strings.Fields(line)[2]
 		}
 	}
-	observer, err := newMCPAttachSession(ctx, endpoint, "SSH-1")
+	observer, err := newMCPAttachSession(sshTestClientContext(t, ctx), endpoint, "SSH-1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -466,4 +467,23 @@ func TestSSHAndAttachAcrossProcesses(t *testing.T) {
 	case <-ctx.Done():
 		t.Fatal("process exit left SSH connected")
 	}
+}
+
+// sshTestClientContext models the explicitly registered local observer after
+// the shared-token read-only migration. It never changes the server token.
+func sshTestClientContext(t *testing.T, ctx context.Context) context.Context {
+	t.Helper()
+	legacy, err := loadHTTPAuthToken()
+	if err != nil {
+		t.Fatal(err)
+	}
+	store, err := config.DefaultClientStore(legacy)
+	if err != nil {
+		t.Fatal(err)
+	}
+	token, err := store.LoadOrCreateLocalClientToken()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return context.WithValue(ctx, localHTTPTokenKey{}, token)
 }

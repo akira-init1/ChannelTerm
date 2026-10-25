@@ -1,7 +1,8 @@
 // Package mcp adapts ChannelTerm Tools to the Model Context Protocol.
 //
-// This package is a protocol boundary. It depends only on the protocol-neutral
-// Tool Registry and never owns, creates, or accesses a terminal Transport.
+// This package is a protocol boundary. It adapts the protocol-neutral Tool
+// Registry and application error semantics. It never owns, creates, or accesses
+// a terminal Transport.
 package mcp
 
 import (
@@ -14,6 +15,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/akira-init1/ChannelTerm/internal/core/app"
 	"github.com/akira-init1/ChannelTerm/internal/core/tool"
 	protocol "github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -438,6 +440,8 @@ func errorResult(name string, err error) *protocol.CallToolResult {
 	switch {
 	case errors.As(err, &classified):
 		code = classified.ErrorCode()
+	case errors.Is(err, app.ErrClientPermissionDenied):
+		code = "permission_denied"
 	case errors.Is(err, context.DeadlineExceeded):
 		code = "timeout"
 	case errors.Is(err, context.Canceled):

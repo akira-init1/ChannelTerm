@@ -511,10 +511,13 @@ func runMCP(ctx context.Context, args []string, output io.Writer) (err error) {
 	return runMCPHTTP(ctx, registry, *listen, endpointPath, token, temporaryHost, os.Stderr, guiapi.NewHandler(application))
 }
 
-// loadHTTPAuthToken resolves one credential for both Host and built-in client
-// use. The environment override supports remote Hosts without copying their
-// token into the caller's default local credential file.
+// loadHTTPAuthToken resolves the Host domain's legacy credential or an explicit
+// process credential. Implicit HTTP clients use loadHTTPClientToken to select
+// their separate management registration; init retains read-only defaults.
 func loadHTTPAuthToken() (string, error) {
+	if raw := os.Getenv(httpAuthTokenEnvVar); raw != "" && strings.TrimSpace(raw) == "" {
+		return "", fmt.Errorf("%s must not contain only whitespace", httpAuthTokenEnvVar)
+	}
 	if token := strings.TrimSpace(os.Getenv(httpAuthTokenEnvVar)); token != "" {
 		if strings.ContainsAny(token, "\r\n \t") {
 			return "", fmt.Errorf("%s must not contain whitespace", httpAuthTokenEnvVar)
@@ -545,6 +548,13 @@ func normalizeMCPPath(path string) (string, error) {
 // only temporary MCP request state; manager-owned terminal Sessions are closed
 // by runMCP after this function returns.
 func runMCPHTTP(ctx context.Context, registry *tool.Registry, listen, path, token string, temporaryHost bool, stderr io.Writer, gui http.Handler) error {
+	store, err := config.DefaultClientStore(token)
+	if err != nil {
+		return err
+	}
+	if _, err := store.LoadOrCreateLocalClientToken(); err != nil {
+		return err
+	}
 	listener, err := net.Listen("tcp", listen)
 	if err != nil {
 		return fmt.Errorf("listen for MCP Streamable HTTP on %q: %w", listen, err)
@@ -571,6 +581,10 @@ func serveMCPHTTP(ctx context.Context, registry *tool.Registry, listener net.Lis
 		_ = listener.Close()
 		return err
 	}
+	if _, err := store.LoadOrCreateLocalClientToken(); err != nil {
+		_ = listener.Close()
+		return err
+	}
 	authenticate := func(next http.Handler) http.Handler { return requireClientToken(token, store, next) }
 	mux := http.NewServeMux()
 	mux.Handle(path, authenticate(advertiseHostLifetime(temporaryHost, handler)))
@@ -579,7 +593,7 @@ func serveMCPHTTP(ctx context.Context, registry *tool.Registry, listener net.Lis
 	if gui != nil {
 		for _, route := range []string{guiapi.SSHPath, guiapi.SSHConfirmPath, guiapi.SerialProfilesPath} {
 			if path != route {
-				mux.Handle(route, authenticate(gui))
+				mux.Handle(route, authenticate(requireDesktopManagement(gui)))
 			}
 		}
 	}

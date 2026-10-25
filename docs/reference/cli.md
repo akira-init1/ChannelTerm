@@ -947,7 +947,9 @@ post-disconnect recovery, or with legacy helpers. All bridges have a 24-hour max
 ## Named HTTP clients
 
 `channelterm clients --help` describes local registration, public JSON listing,
-and removal. Run these commands under the Host's configuration account and
+write grants/revocation, and removal. New agents are read-only; `clients grant CL-...`
+allows device operations across this Host, and `clients revoke CL-...` rejects new
+operations without cancelling accepted work. Run these commands under the Host's configuration account and
 shared-token environment. For example:
 
 ```powershell

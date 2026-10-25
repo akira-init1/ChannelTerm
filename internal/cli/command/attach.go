@@ -1302,7 +1302,10 @@ func (s *mcpAttachSession) call(ctx context.Context, name string, arguments map[
 // must identify a Streamable HTTP handler; this function does not open a
 // terminal Session or send terminal bytes.
 func connectMCPClient(ctx context.Context, endpoint string) (*protocol.ClientSession, bool, error) {
-	token, err := loadHTTPAuthToken()
+	token, err := loadHTTPClientToken()
+	if owned, ok := ctx.Value(localHTTPTokenKey{}).(string); ok {
+		token, err = owned, nil
+	}
 	if err != nil {
 		return nil, false, err
 	}

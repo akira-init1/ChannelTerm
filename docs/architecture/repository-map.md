@@ -108,7 +108,8 @@ The main ownership distinctions are deliberate:
   lifecycle; Session owns sharing, retained bytes, activity, and write serialization above it.
   `config` also owns bounded, digest-only independent HTTP client registrations. Application
   propagates authenticated public provenance through leases and operation events without adding
-  a Session owner; CLI composition owns HTTP authentication.
+  a Session owner. Application owns request access checks; terminal/desktop adapters classify
+  effects, and CLI composition owns HTTP authentication and local credential bootstrap.
   `config` keeps connection profiles, discovery policy, and user preferences separate despite
   sharing one TOML file.
 - **Transport:** `internal/core/transport` defines protocol-specific Channel establishment.

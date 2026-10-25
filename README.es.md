@@ -87,8 +87,10 @@ conectarte:
 channelterm init --mcp
 ```
 
-Elige HTTP o pulsa Enter para aceptar HTTP como opción predeterminada. La configuración incluye la
-credencial Bearer local. Recarga o reinicia el cliente de IA si no detecta el cambio inmediatamente.
+Elige HTTP o pulsa Enter para usar el valor predeterminado. La credencial compartida predeterminada es de solo lectura.
+Antes de permitir escrituras de IA, registra una credencial independiente y autor?zala expl?citamente siguiendo la
+[migraci?n de credenciales HTTP](docs/getting-started/mcp-server.md#http-credential-upgrade).
+Recarga el cliente de IA despu?s del cambio; los ejemplos de escritura siguientes requieren esa autorizaci?n.
 
 Después ejecuta únicamente el comando correspondiente a tu plataforma:
 
@@ -153,12 +155,11 @@ Para obtener una guía de flujo reutilizable, instala el
 incluido en un cliente compatible con Agent Skills. `channelterm init --mcp` configura clientes
 MCP, pero no instala el Skill.
 
-El Host HTTP exige un token Bearer y solo escucha en loopback de forma predeterminada. Los clientes
-CLI integrados leen automáticamente el token del usuario local. También puede
-[escuchar en una LAN de confianza](docs/getting-started/mcp-server.md#listen-on-a-lan); los clientes
-remotos deben usar la dirección alcanzable del Host y enviar el mismo token mediante el encabezado
-`Authorization`. No expongas el endpoint a una red no fiable sin TLS y controles de acceso de red
-adicionales.
+El Host HTTP exige autenticaci?n Bearer y escucha solo en loopback de forma predeterminada. Los clientes
+CLI/Electron locales usan una credencial de administraci?n separada; los clientes de IA usan credenciales
+independientes con permisos de escritura expl?citos. Tambi?n puede [escuchar en una LAN de confianza](docs/getting-started/mcp-server.md#listen-on-a-lan).
+Los clientes remotos env?an su propia credencial en `Authorization`. No expongas el endpoint sin TLS y
+controles de acceso de red adicionales.
 
 <a id="ejemplos-de-flujos"></a>
 <a id="depuración-de-linux-embebido"></a>

@@ -16,7 +16,8 @@ The default directory is the platform directory returned by Go's `os.UserConfigD
 
 - User configuration: `config.toml`
 - Managed device identity state: `state.json`
-- Streamable HTTP bearer credential: `http-auth-token`
+- Legacy read-only HTTP credential / Host domain key: `http-auth-token`
+- Independent client registrations and local credential: see [HTTP clients](#independent-http-client-credentials)
 - Opt-in client transfer snapshots and checkpoints: `transfers/<24-hex-job-id>/`
 
 Transfer checkpoints are separate from connection configuration and Host Session state. They contain
@@ -43,17 +44,22 @@ and reports malformed configuration without resetting it.
 `--config` and MCP `config_path` select an alternate TOML path for that operation. They do not move
 the default `state.json` or `http-auth-token`.
 
-`channelterm uninstall` preserves all three files. `channelterm uninstall --purge` explicitly
+`channelterm uninstall` preserves configuration and credential files. `channelterm uninstall --purge` explicitly
 removes the default `config.toml`, `state.json`, `http-auth-token`, and their known adjacent lock
 files after confirmation. It never recursively removes unknown files from the configuration
-directory and does not edit third-party MCP client configurations. The separate `install.json`
+directory and does not edit third-party MCP client configurations. Independent client registration
+stores and their `.local-token` files are preserved by this existing purge operation. When retiring
+a Host domain, stop its Hosts and deliberately remove only that domain's registration/local-token
+files; do not delete other Host domains or client exports. The separate `install.json`
 ownership manifest is installer state rather than user configuration; see the
 [CLI reference](cli.md#install-and-uninstall) for its platform paths.
 
 `http-auth-token` is generated from 32 random bytes and stored with owner-only permissions where the
 platform honors them. The first HTTP Host, built-in HTTP client, or HTTP selection in
 `channelterm init --mcp` or `channelterm init --mcp-show` creates it when absent.
-`CHANNELTERM_HTTP_AUTH_TOKEN` overrides this file for all these uses. Creation holds an adjacent
+`CHANNELTERM_HTTP_AUTH_TOKEN` overrides this file for Host startup and explicit client credentials.
+Without an override, built-in clients use the separate management registration described below.
+Creation holds an adjacent
 `http-auth-token.lock` file and installs a fully written, synchronized temporary file, so concurrent
 first use cannot expose a partial credential. The stored value must decode to exactly 32 bytes of
 unpadded Base64URL. The token is authentication material and must not be committed or copied into
@@ -187,7 +193,9 @@ The independent Electron frontend does not add TOML fields or alter Host configu
 `CHANNELTERM_GUI_ENDPOINT` is a GUI Main-process override for the existing MCP endpoint, defaulting
 to `http://127.0.0.1:37099/mcp`. The prototype accepts numeric loopback HTTP addresses only
 (`127.0.0.1` or `::1`), without URL credentials, query, fragment, or redirects. Main reuses
-`CHANNELTERM_HTTP_AUTH_TOKEN` or reads the existing default `http-auth-token`; it never creates one.
+`CHANNELTERM_HTTP_AUTH_TOKEN` or reads the separate local management credential created by the
+matching Host. It reads the legacy token only to locate that Host-domain credential; it never
+falls back to using the legacy token for management and never creates credentials itself.
 The default endpoint connects automatically and may start the bundled local Host, which creates
 its own credential using the existing mechanism. Other endpoints require explicit connection
 and never trigger startup. Authentication failure never starts a replacement Host.
@@ -252,5 +260,25 @@ The Host rereads registrations for each HTTP request. Removal rejects subsequent
 requests, including requests on an existing MCP connection; it does not cancel
 already accepted operations or their recovery. Corrupt/unreadable registrations
 reject independent-client authentication without exposing file contents.
-Existing shared-token access remains compatible and has no authenticated client
-identity. Source kind is provenance, not a new authorization or takeover policy.
+The legacy shared token now grants observations only (including attachment event
+bookkeeping), with no device writes or management. New `agent` registrations also
+start read-only. `clients grant CLIENT_ID` explicitly permits agent device operations
+across this Host; `clients revoke CLIENT_ID` removes that grant for subsequent requests.
+The public list includes `write_allowed`. A `user` registration is a management
+credential created only through trusted local administration. Never issue it to an AI
+client to bypass grants. No caller-provided actor label can select these permissions.
+
+The Host bootstraps one private local management registration for implicit CLI/Electron
+access, stored in the registration file's adjacent `.local-token` file. Local clients
+without an environment override use this separate credential; an explicit override is
+always honored, even when it is read-only or invalid. A revoked local token is not
+silently recreated. To deliberately register again, remove only its `.local-token`
+file after verifying the Host domain. This registration identifies the local account's
+client group, not each window/process. Independent named credentials remain available.
+
+Revoking a write grant does not cancel an accepted command, file transfer, debug
+operation or its cleanup. It can prevent later protocol calls needed by a multi-step
+operation; finish or cancel that operation normally before revoking. Existing lease
+expiry/recovery rules still apply. This is request authorization, not an emergency stop,
+per-Session human takeover, or OS-level isolation. Stdio/local process access remains
+trusted and unchanged. See the [upgrade workflow](../getting-started/mcp-server.md#http-credential-upgrade).

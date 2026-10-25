@@ -81,8 +81,10 @@ If an AI client should join the Session, configure a supported client once befor
 channelterm init --mcp
 ```
 
-Choose HTTP, or press Enter for the HTTP default. The configuration includes the local Bearer
-credential. Reload the AI client if it does not pick up configuration changes immediately.
+Choose HTTP, or press Enter for the HTTP default. The default shared credential is read-only.
+Before AI writes, register an independent agent credential and explicitly grant access using the
+[HTTP credential upgrade workflow](docs/getting-started/mcp-server.md#http-credential-upgrade).
+Reload the AI client after updating its credential; the writing examples below require that grant.
 
 Then run the command for the current platform:
 
@@ -147,11 +149,11 @@ For reusable workflow guidance, install the bundled
 in an Agent Skills-compatible client. `channelterm init --mcp` configures MCP clients but does not
 install the Skill.
 
-The HTTP server requires a per-user Bearer token and defaults to a loopback-only listener. Built-in
-CLI clients use the local token automatically. It can also [listen on a trusted
-LAN](docs/getting-started/mcp-server.md#listen-on-a-lan); remote clients must use the Host's reachable
-address and send the same token through the `Authorization` header. Do not expose the endpoint
-without TLS and separate network access controls.
+The HTTP server requires Bearer authentication and defaults to a loopback-only listener. Local
+CLI/Electron clients use a separate management credential; AI clients use independent credentials
+with explicit write grants. It can also [listen on a trusted LAN](docs/getting-started/mcp-server.md#listen-on-a-lan);
+remote clients send their own credential through the `Authorization` header. Do not expose the
+endpoint without TLS and separate network access controls.
 
 <a id="example-workflows"></a>
 <a id="embedded-linux-debugging"></a>

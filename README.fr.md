@@ -88,9 +88,10 @@ connexion :
 channelterm init --mcp
 ```
 
-Choisissez HTTP, ou appuyez sur Entrée pour accepter HTTP par défaut. La configuration contient
-l’identifiant Bearer local. Rechargez ou redémarrez le client IA s’il ne détecte pas immédiatement
-la nouvelle configuration.
+Choisissez HTTP ou appuyez sur Entr?e pour la valeur par d?faut. L?identifiant partag? par d?faut est en lecture seule.
+Avant toute ?criture par l?IA, enregistrez un identifiant distinct et accordez une autorisation explicite selon la
+[migration des identifiants HTTP](docs/getting-started/mcp-server.md#http-credential-upgrade).
+Rechargez ensuite le client IA ; les exemples d??criture ci-dessous n?cessitent cette autorisation.
 
 Exécutez ensuite uniquement la commande correspondant à votre plateforme :
 
@@ -156,12 +157,11 @@ Pour bénéficier d’un workflow guidé réutilisable, installez l’
 inclus dans un client compatible avec Agent Skills. `channelterm init --mcp` configure les clients
 MCP, mais n’installe pas le Skill.
 
-Le Host HTTP exige un token Bearer et n’écoute par défaut que sur l’interface de bouclage. Les CLI
-intégrés lisent automatiquement le token de l’utilisateur local. Le Host peut aussi
-[écouter sur un réseau local de confiance](docs/getting-started/mcp-server.md#listen-on-a-lan) ; les
-clients distants doivent employer son adresse joignable et envoyer le même token dans l’en-tête
-`Authorization`. N’exposez pas ce point de terminaison à un réseau non fiable sans TLS et contrôles
-d’accès réseau supplémentaires.
+Le Host HTTP exige une authentification Bearer et ?coute uniquement sur l?interface de bouclage par d?faut.
+Les clients CLI/Electron locaux utilisent un identifiant de gestion distinct ; les clients IA disposent de leurs
+propres identifiants et d?autorisations d??criture explicites. Le Host peut aussi [?couter sur un r?seau local de confiance](docs/getting-started/mcp-server.md#listen-on-a-lan).
+Les clients distants envoient leur propre identifiant dans `Authorization`. N?exposez pas ce point de terminaison
+sans TLS ni contr?les d?acc?s r?seau suppl?mentaires.
 
 <a id="exemples-de-workflows"></a>
 <a id="débogage-linux-embarqué"></a>
