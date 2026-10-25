@@ -365,3 +365,14 @@ An independent observation path is `external Codex driver -> MCP debug_bridge_re
 validation -> Session event ring -> CLI attach/events and MCP event cursors`. It carries selected
 commands/results/states labelled as Codex reports, not complete audit evidence. It never joins the
 serial byte path, starts GDB, parses RSP, or changes the relay lifecycle on reporting failure.
+
+## HTTP client attribution
+
+CLI composition authenticates HTTP requests against the shared Host token or a
+bounded independent-client registration store owned by Core config. Independent
+credentials attach public provenance to the request context before MCP/desktop
+adaptation. Application records that source through writes, leases and operation
+events; Session retains it without interpreting credentials. Transports still
+receive raw bytes only. Local registration and secret export belong to the CLI;
+there is no new listener or remote registration endpoint. See
+[credential boundaries](../reference/configuration.md#independent-http-client-credentials).

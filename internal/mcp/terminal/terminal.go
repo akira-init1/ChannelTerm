@@ -720,6 +720,7 @@ func encodeActivityEvents(events []session.SessionEvent) []activityEventResult {
 		encoded = append(encoded, activityEventResult{
 			Timestamp: event.Timestamp.Format(time.RFC3339Nano),
 			Actor:     string(event.Actor),
+			Client:    event.Client,
 			Operation: string(event.Operation),
 			Data:      base64.StdEncoding.EncodeToString(event.Data),
 			Encoding:  "base64",
@@ -968,7 +969,7 @@ func (t *attachSessionTool) Call(ctx context.Context, input json.RawMessage) (to
 	if err := decodeInput(input, &args); err != nil {
 		return nil, err
 	}
-	if err := t.application.AttachSession(args.SessionID, args.Actor); err != nil {
+	if err := t.application.AttachSessionForClient(ctx, args.SessionID, args.Actor); err != nil {
 		return nil, err
 	}
 	return tool.Result{"attached": true}, nil
@@ -994,7 +995,7 @@ func (t *detachSessionTool) Call(ctx context.Context, input json.RawMessage) (to
 	if err := decodeInput(input, &args); err != nil {
 		return nil, err
 	}
-	if err := t.application.DetachSession(args.SessionID, args.Actor); err != nil {
+	if err := t.application.DetachSessionForClient(ctx, args.SessionID, args.Actor); err != nil {
 		return nil, err
 	}
 	return tool.Result{"detached": true}, nil
@@ -1031,7 +1032,7 @@ func (t *reportFileTransferTool) Call(ctx context.Context, input json.RawMessage
 	if err := decodeInput(input, &args); err != nil {
 		return nil, err
 	}
-	if err := t.application.ReportFileTransferEvent(args.SessionID, args.Owner, args.TransferID, session.EventType(args.Type), args.Actor, args.Metadata); err != nil {
+	if err := t.application.ReportFileTransferEventForClient(ctx, args.SessionID, args.Owner, args.TransferID, session.EventType(args.Type), args.Actor, args.Metadata); err != nil {
 		return nil, err
 	}
 	return tool.Result{"published": true}, nil
@@ -1041,7 +1042,7 @@ func (t *reportFileTransferTool) Call(ctx context.Context, input json.RawMessage
 func encodeSessionEvents(events []session.Event) []sessionEventResult {
 	encoded := make([]sessionEventResult, 0, len(events))
 	for _, event := range events {
-		encoded = append(encoded, sessionEventResult{ID: event.ID, Timestamp: event.Timestamp.Format(time.RFC3339Nano), SessionID: event.SessionID, Type: string(event.Type), Actor: event.Actor, Metadata: event.Metadata})
+		encoded = append(encoded, sessionEventResult{ID: event.ID, Timestamp: event.Timestamp.Format(time.RFC3339Nano), SessionID: event.SessionID, Type: string(event.Type), Actor: event.Actor, Client: event.Client, Metadata: event.Metadata})
 	}
 	return encoded
 }
@@ -1225,7 +1226,7 @@ func (t *acquireLeaseTool) Call(ctx context.Context, input json.RawMessage) (too
 	if err := decodeInput(input, &args); err != nil {
 		return nil, err
 	}
-	lease, err := t.application.AcquireLease(args.SessionID, args.Owner, app.LeaseType(args.Type))
+	lease, err := t.application.AcquireLeaseForClient(ctx, args.SessionID, args.Owner, app.LeaseType(args.Type))
 	if err != nil {
 		return nil, err
 	}
@@ -1548,20 +1549,22 @@ type deviceEventResult struct {
 }
 
 type activityEventResult struct {
-	Timestamp string `json:"timestamp"`
-	Actor     string `json:"actor"`
-	Operation string `json:"operation"`
-	Data      string `json:"data"`
-	Encoding  string `json:"encoding"`
+	Client    session.ClientIdentity `json:"client,omitzero"`
+	Timestamp string                 `json:"timestamp"`
+	Actor     string                 `json:"actor"`
+	Operation string                 `json:"operation"`
+	Data      string                 `json:"data"`
+	Encoding  string                 `json:"encoding"`
 }
 
 type sessionEventResult struct {
-	ID        uint64         `json:"id"`
-	Timestamp string         `json:"timestamp"`
-	SessionID string         `json:"session_id"`
-	Type      string         `json:"type"`
-	Actor     string         `json:"actor"`
-	Metadata  map[string]any `json:"metadata,omitempty"`
+	Client    session.ClientIdentity `json:"client,omitzero"`
+	ID        uint64                 `json:"id"`
+	Timestamp string                 `json:"timestamp"`
+	SessionID string                 `json:"session_id"`
+	Type      string                 `json:"type"`
+	Actor     string                 `json:"actor"`
+	Metadata  map[string]any         `json:"metadata,omitempty"`
 }
 
 type writeInput struct {

@@ -106,6 +106,9 @@ The main ownership distinctions are deliberate:
 - **Core services:** `internal/core/channel`, `session`, `config`, `connectionpolicy`, `device`, and
   `tool` own their protocol-neutral responsibilities. Channel owns established stream I/O and
   lifecycle; Session owns sharing, retained bytes, activity, and write serialization above it.
+  `config` also owns bounded, digest-only independent HTTP client registrations. Application
+  propagates authenticated public provenance through leases and operation events without adding
+  a Session owner; CLI composition owns HTTP authentication.
   `config` keeps connection profiles, discovery policy, and user preferences separate despite
   sharing one TOML file.
 - **Transport:** `internal/core/transport` defines protocol-specific Channel establishment.

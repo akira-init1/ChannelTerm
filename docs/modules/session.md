@@ -151,3 +151,12 @@ activity retention. CR, LF, Ctrl+C, and Ctrl+U clear pending input; other non-ba
 it pending, and backspace cannot prove the line is empty. Internal system protocol bytes leave
 this summary unchanged. It supports safe debug takeover; it does not establish remote shell state,
 parse escape sequences, or change retained bytes. Debug lease coordination belongs to Application.
+
+## Client provenance
+
+Write activity and structured events can carry optional public `client` metadata
+(`client_id`, `name`, `kind`). Application/Host adapters establish it; Session
+only retains it in the existing bounded buffers, independently of raw bytes.
+The `actor` field remains an execution/source label; system cleanup can carry an
+agent's initiating client identity. This is neither a complete audit nor a new
+Session owner or authentication service. Empty provenance remains unknown.

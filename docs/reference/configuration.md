@@ -221,3 +221,36 @@ trust records, or Session metadata. No password CLI argument or environment vari
 Connection settings are not persisted. The `sftp` and `scp` commands use the same credential paths
 and interactive callbacks without adding TOML fields. Their dedicated connections do not need the
 HTTP Host's token or listener. See the [CLI reference](cli.md#ssh).
+
+## Independent HTTP client credentials
+
+The local Host account can register named clients with `channelterm clients add`.
+Registrations are stored beside `http-auth-token` in
+`http-clients-<SHA-256-of-host-token>.json`. This scopes independent credentials to
+one shared-token authentication domain. The versioned file stores public IDs,
+names, source kinds (`user` or `agent`) and SHA-256 credential digests, never the
+issued credentials. Updates use the existing interprocess lock and atomic file
+replacement. Files use owner-only modes where supported; the local OS account
+and its filesystem permissions remain the trust boundary.
+
+Each registration receives a random `CL-` identifier and a separate random
+credential. Keep one credential per logical client; sharing it also shares its
+identity. IDs survive reconnects and Host restarts, and are not online-presence
+or Attachment counts. Rotate the shared Host token to select a different
+registration domain. Registration is local administration, not a remote API.
+The CLI exports a secret once to a new `--credential-file`; it never overwrites
+that file or prints the secret. Public list output contains no digest or secret.
+
+Set `CHANNELTERM_HTTP_AUTH_TOKEN` in the intended client's process to the issued
+credential. CLI subprocesses must inherit that credential to preserve the AI
+initiator rather than silently reverting to the default shared credential.
+Electron can use the same explicit Main-process override. Do not give AI clients
+another client's credential or access to the Host's private configuration when
+OS-level isolation is required.
+
+The Host rereads registrations for each HTTP request. Removal rejects subsequent
+requests, including requests on an existing MCP connection; it does not cancel
+already accepted operations or their recovery. Corrupt/unreadable registrations
+reject independent-client authentication without exposing file contents.
+Existing shared-token access remains compatible and has no authenticated client
+identity. Source kind is provenance, not a new authorization or takeover policy.

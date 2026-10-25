@@ -210,6 +210,7 @@ func leaseSummarySchema() jsonSchema {
 
 func activityEventSchema() jsonSchema {
 	return objectSchema(map[string]jsonSchema{
+		"client":    clientIdentitySchema(),
 		"timestamp": dateTimeSchema(),
 		"actor":     stringSchema(string(session.ActorUser), string(session.ActorAgent), string(session.ActorSystem)),
 		"operation": stringSchema(string(session.OperationWrite)),
@@ -220,6 +221,7 @@ func activityEventSchema() jsonSchema {
 
 func sessionEventSchema() jsonSchema {
 	return objectSchema(map[string]jsonSchema{
+		"client":     clientIdentitySchema(),
 		"id":         integerSchema(),
 		"timestamp":  dateTimeSchema(),
 		"session_id": stringSchema(),
@@ -322,4 +324,9 @@ func bridgeStatusSchema() jsonSchema {
 		"expires_at": stringSchema(), "target_state": stringSchema("unverified", "shell_verified"),
 		"warning": stringSchema(), "error": stringSchema(),
 	}, "bridge_id", "session_id", "state", "address", "expires_at", "target_state")
+}
+
+// clientIdentitySchema describes public provenance, never an authorization capability.
+func clientIdentitySchema() jsonSchema {
+	return objectSchema(map[string]jsonSchema{"client_id": stringSchema(), "name": stringSchema(), "kind": stringSchema("user", "agent")}, "client_id", "name", "kind")
 }

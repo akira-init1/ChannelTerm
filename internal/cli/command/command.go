@@ -164,6 +164,9 @@ func runWithDependenciesWithInterrupts(ctx context.Context, args []string, input
 	if len(args) > 0 && args[0] == "mcp" {
 		return runMCP(ctx, args[1:], output)
 	}
+	if len(args) > 0 && args[0] == "clients" {
+		return runClients(args[1:], output)
+	}
 	if len(args) > 0 && args[0] == "init" {
 		return runInit(args[1:], input, output)
 	}
@@ -182,6 +185,7 @@ func runWithDependenciesWithInterrupts(ctx context.Context, args []string, input
 		fmt.Fprintln(output, "A shared terminal-session core for human and AI access.")
 		fmt.Fprintln(output)
 		fmt.Fprintln(output, "Commands:")
+		fmt.Fprintln(output, "  clients Manage independent local Host client credentials")
 		fmt.Fprintln(output, "  diagnostics Export a Session diagnostic ZIP to this machine")
 		fmt.Fprintln(output, "  attach  Attach to a Session hosted by local MCP HTTP")
 		fmt.Fprintln(output, "  events  Stream structured events from a shared Session")
@@ -562,14 +566,20 @@ func serveMCPHTTP(ctx context.Context, registry *tool.Registry, listener net.Lis
 		}
 		return fmt.Errorf("create MCP Streamable HTTP handler: %w", err)
 	}
+	store, err := config.DefaultClientStore(token)
+	if err != nil {
+		_ = listener.Close()
+		return err
+	}
+	authenticate := func(next http.Handler) http.Handler { return requireClientToken(token, store, next) }
 	mux := http.NewServeMux()
-	mux.Handle(path, requireBearerToken(token, advertiseHostLifetime(temporaryHost, handler)))
+	mux.Handle(path, authenticate(advertiseHostLifetime(temporaryHost, handler)))
 	// Preserve every existing custom MCP path, including a collision with this
 	// optional desktop endpoint. Foreground SSH owners expose no creation API.
 	if gui != nil {
 		for _, route := range []string{guiapi.SSHPath, guiapi.SSHConfirmPath, guiapi.SerialProfilesPath} {
 			if path != route {
-				mux.Handle(route, requireBearerToken(token, gui))
+				mux.Handle(route, authenticate(gui))
 			}
 		}
 	}

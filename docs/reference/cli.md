@@ -943,3 +943,21 @@ connection failure, or process cancellation ends the helper. It never reports sh
 GDB owns the pipe/helper lifetime. EOF or control loss stops automatic keepalive; management must
 explicitly restore or close the bridge. Manual renewal remains necessary before connection, during
 post-disconnect recovery, or with legacy helpers. All bridges have a 24-hour maximum lifetime. See the [workflow](../getting-started/gdb-debugging.md#external-gdb-over-a-prepared-serial-session).
+
+## Named HTTP clients
+
+`channelterm clients --help` describes local registration, public JSON listing,
+and removal. Run these commands under the Host's configuration account and
+shared-token environment. For example:
+
+```powershell
+channelterm clients add --name "Board debugging agent" --kind agent --credential-file ./agent-token
+channelterm clients list
+```
+
+The new credential file is private output; do not commit or paste it into a
+terminal transcript. Configure the intended MCP client's Authorization header
+from it using that client's secret configuration. A CLI executor may instead
+receive it through `CHANNELTERM_HTTP_AUTH_TOKEN`. `clients remove CL-...` revokes
+future requests without stopping an in-flight operation. The ID is public and
+cannot be used as a credential. See [credential storage and boundaries](configuration.md#independent-http-client-credentials).

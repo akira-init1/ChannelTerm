@@ -80,6 +80,7 @@ type EventCursor uint64
 // JSON-compatible presentation data; lease owner capabilities and terminal
 // payload bytes must never be published there.
 type Event struct {
+	Client    ClientIdentity `json:"client,omitzero"`
 	ID        uint64         `json:"id"`
 	Timestamp time.Time      `json:"timestamp"`
 	SessionID string         `json:"session_id"`

@@ -101,7 +101,7 @@ func (a *Application) EnterUBoot(ctx context.Context, identifier string, r UBoot
 	if err = ctx.Err(); err != nil {
 		return result, err
 	}
-	t, err := a.session(identifier)
+	t, err := a.sessionForClient(ctx, identifier)
 	if err != nil {
 		return result, err
 	}
@@ -122,7 +122,7 @@ func (a *Application) EnterUBoot(ctx context.Context, identifier string, r UBoot
 		return result, err
 	}
 	owner := "uboot-" + ownerToken
-	if _, err = a.AcquireLease(t.ID(), owner, LeaseTypeTerminal); err != nil {
+	if _, err = a.AcquireLeaseForClient(ctx, t.ID(), owner, LeaseTypeTerminal); err != nil {
 		return result, err
 	}
 	started := time.Now()

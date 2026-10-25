@@ -1041,3 +1041,18 @@ rejected if included in text, but this is not a general secret detector. The rel
 reports from protocol bytes. CLI previews escape control characters. The tool is non-destructive,
 closed-world, and idempotent with respect to sequence retries; it is not read-only because it
 publishes events. MCP transport authentication and the bridge owner capability are required.
+
+## Authenticated client provenance
+
+HTTP accepts independently registered credentials in the existing Bearer header;
+see [registration and migration boundaries](configuration.md#independent-http-client-credentials).
+The optional `client` object on activity and Session events contains public
+`client_id`, `name`, and `kind` (`user` or `agent`). It is established by Host
+credential verification, never an input argument, actor label, header-supplied
+client ID or lease owner token. Attachment, transfer reports, managed operation
+events and lease-related activity preserve the initiating registration. System
+writes may retain `actor: system` while identifying an agent as the initiator.
+Legacy/unregistered callers omit `client`; this does not establish human identity.
+Existing required fields and tool names are unchanged. Removal rejects future
+HTTP requests with 401; an invalid registration store returns 503 for independent
+credentials. It does not retroactively cancel work already accepted.

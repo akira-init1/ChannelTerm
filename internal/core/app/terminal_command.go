@@ -73,7 +73,7 @@ func (a *Application) ExecuteTerminalCommand(ctx context.Context, identifier, co
 	if err := validateTerminalCommand(command); err != nil {
 		return TerminalCommandResult{}, err
 	}
-	terminal, err := a.session(identifier)
+	terminal, err := a.sessionForClient(ctx, identifier)
 	if err != nil {
 		return TerminalCommandResult{}, err
 	}
@@ -86,7 +86,7 @@ func (a *Application) ExecuteTerminalCommand(ctx context.Context, identifier, co
 		return TerminalCommandResult{}, err
 	}
 	owner := "terminal-command-" + ownerToken
-	_, err = a.AcquireLease(terminal.ID(), owner, LeaseTypeTerminal)
+	_, err = a.AcquireLeaseForClient(ctx, terminal.ID(), owner, LeaseTypeTerminal)
 	if err != nil {
 		return TerminalCommandResult{}, err
 	}

@@ -201,22 +201,34 @@ func (a *Application) ReadSessionEvents(ctx context.Context, identifier string, 
 // not acquire writer ownership or alter Session lifecycle; it only publishes
 // observer-visible metadata on the separate Session event stream.
 func (a *Application) AttachSession(identifier, actor string) error {
+	return a.AttachSessionForClient(context.Background(), identifier, actor)
+}
+
+// AttachSessionForClient records authenticated request provenance alongside the event.
+// Actor arguments cannot override a registered client identity.
+func (a *Application) AttachSessionForClient(ctx context.Context, identifier, actor string) error {
 	terminal, err := a.session(identifier)
 	if err != nil {
 		return err
 	}
-	terminal.PublishEvent(session.Event{Type: session.EventSessionAttached, Actor: eventActor(actor)})
+	terminal.PublishEvent(session.Event{Type: session.EventSessionAttached, Actor: string(clientActor(ctx, session.Actor(eventActor(actor)))), Client: ClientIdentityFromContext(ctx)})
 	return nil
 }
 
 // DetachSession records one adapter detachment from an active Session. It does
 // not close the shared Session or affect any other attachment.
 func (a *Application) DetachSession(identifier, actor string) error {
+	return a.DetachSessionForClient(context.Background(), identifier, actor)
+}
+
+// DetachSessionForClient records authenticated request provenance alongside the event.
+// Actor arguments cannot override a registered client identity.
+func (a *Application) DetachSessionForClient(ctx context.Context, identifier, actor string) error {
 	terminal, err := a.session(identifier)
 	if err != nil {
 		return err
 	}
-	terminal.PublishEvent(session.Event{Type: session.EventSessionDetached, Actor: eventActor(actor)})
+	terminal.PublishEvent(session.Event{Type: session.EventSessionDetached, Actor: string(clientActor(ctx, session.Actor(eventActor(actor)))), Client: ClientIdentityFromContext(ctx)})
 	return nil
 }
 
@@ -225,6 +237,12 @@ func (a *Application) DetachSession(identifier, actor string) error {
 // file-transfer lease. Metadata is presentation data only and must not include
 // transfer payload bytes or lease owner capabilities.
 func (a *Application) ReportFileTransferEvent(identifier, owner, transferID string, typ session.EventType, actor string, metadata map[string]any) error {
+	return a.ReportFileTransferEventForClient(context.Background(), identifier, owner, transferID, typ, actor, metadata)
+}
+
+// ReportFileTransferEventForClient records authenticated request provenance alongside the event.
+// Actor arguments cannot override a registered client identity.
+func (a *Application) ReportFileTransferEventForClient(ctx context.Context, identifier, owner, transferID string, typ session.EventType, actor string, metadata map[string]any) error {
 	switch typ {
 	case session.EventFileTransferStarted, session.EventFileTransferProgress, session.EventFileTransferCompleted, session.EventFileTransferFailed:
 	default:
@@ -252,7 +270,7 @@ func (a *Application) ReportFileTransferEvent(identifier, owner, transferID stri
 	if typ == session.EventFileTransferFailed && a.leases.fileTransferCancelConfirmed(terminal.ID()) {
 		return nil
 	}
-	terminal.PublishEvent(session.Event{Type: typ, Actor: eventActor(actor), Metadata: eventMetadata})
+	terminal.PublishEvent(session.Event{Type: typ, Actor: string(clientActor(ctx, session.Actor(eventActor(actor)))), Client: ClientIdentityFromContext(ctx), Metadata: eventMetadata})
 	return nil
 }
 
@@ -290,7 +308,8 @@ func eventActor(actor string) string {
 //
 // ctx is checked before the operation and between short-write retries. The
 // Session retains responsibility for serializing concurrent writers and for
-// recording the supplied Actor; Application never changes request.Data. A
+// recording actor and authenticated client provenance; Application never changes
+// request.Data. Registered user/agent labels come from the credential. A
 // request larger than MaxSessionWriteBytes returns ErrWritePayloadTooLarge
 // without looking up or writing to a Session.
 func (a *Application) WriteSession(ctx context.Context, identifier string, request session.WriteRequest) (int, error) {
@@ -322,14 +341,19 @@ func (a *Application) writeSession(ctx context.Context, identifier, owner string
 	if !request.Actor.Valid() {
 		return 0, session.ErrInvalidActor
 	}
+	request.Client = ClientIdentityFromContext(ctx)
+	request.Actor = clientActor(ctx, request.Actor)
 	return a.leases.write(terminal.ID(), owner, strings.TrimSpace(identifier), func() (int, error) {
+		if owner != "" {
+			request.Client = a.leases.writeClient(terminal.ID(), owner)
+		}
 		remaining := request.Data
 		written := 0
 		for len(remaining) > 0 {
 			if err := ctx.Err(); err != nil {
 				return written, err
 			}
-			n, err := terminal.Write(session.WriteRequest{Actor: request.Actor, Data: remaining})
+			n, err := terminal.Write(session.WriteRequest{Actor: request.Actor, Client: request.Client, Data: remaining})
 			written += n
 			if err != nil {
 				return written, err
@@ -348,6 +372,12 @@ func (a *Application) writeSession(ctx context.Context, identifier, owner string
 // debug leases close the Session because terminal restoration is unconfirmed.
 // File transfers reject pending interactive input before publishing acquisition.
 func (a *Application) AcquireLease(identifier, owner string, typ LeaseType) (SessionLease, error) {
+	return a.AcquireLeaseForClient(context.Background(), identifier, owner, typ)
+}
+
+// AcquireLeaseForClient binds an authenticated initiator to the complete lease
+// lifetime, including asynchronous system writes and bounded recovery.
+func (a *Application) AcquireLeaseForClient(ctx context.Context, identifier, owner string, typ LeaseType) (SessionLease, error) {
 	terminal, err := a.session(identifier)
 	if err != nil {
 		return SessionLease{}, err
@@ -357,7 +387,7 @@ func (a *Application) AcquireLease(identifier, owner string, typ LeaseType) (Ses
 	if !ok {
 		return SessionLease{}, ErrSessionNotFound
 	}
-	lease, err := a.leases.acquireReferenced(terminal.ID(), owner, typ, reference)
+	lease, err := a.leases.acquireReferenced(terminal.ID(), owner, typ, reference, ClientIdentityFromContext(ctx))
 	if err != nil {
 		return SessionLease{}, err
 	}
@@ -375,8 +405,9 @@ func (a *Application) AcquireLease(identifier, owner string, typ LeaseType) (Ses
 		}
 	}
 	terminal.PublishEvent(session.Event{
-		Type:  session.EventLeaseAcquired,
-		Actor: string(session.ActorSystem),
+		Type:   session.EventLeaseAcquired,
+		Client: lease.Client,
+		Actor:  string(session.ActorSystem),
 		Metadata: fileTransferLeaseEventMetadata(lease, map[string]any{
 			"type":          string(lease.Type),
 			"created_at":    lease.CreatedAt.Format(time.RFC3339Nano),
@@ -424,8 +455,9 @@ func (a *Application) releaseLease(terminal session.Session, owner string) error
 	if released {
 		presentationCursor := sessionOutputCursor(terminal)
 		terminal.PublishEvent(session.Event{
-			Type:  session.EventLeaseReleased,
-			Actor: string(session.ActorSystem),
+			Type:   session.EventLeaseReleased,
+			Client: lease.Client,
+			Actor:  string(session.ActorSystem),
 			Metadata: fileTransferLeaseEventMetadata(lease, map[string]any{
 				"type":          string(lease.Type),
 				"created_at":    lease.CreatedAt.Format(time.RFC3339Nano),
@@ -489,8 +521,9 @@ func (a *Application) publishExpiredLease(lease SessionLease, abortSession bool)
 	presentationCursor := sessionOutputCursor(terminal)
 	if lease.Type == LeaseTypeFileTransfer {
 		terminal.PublishEvent(session.Event{
-			Type:  session.EventFileTransferFailed,
-			Actor: string(session.ActorSystem),
+			Type:   session.EventFileTransferFailed,
+			Client: lease.Client,
+			Actor:  string(session.ActorSystem),
 			Metadata: map[string]any{
 				"transfer_id":    lease.TransferID,
 				"error":          "lease expired",
@@ -500,8 +533,9 @@ func (a *Application) publishExpiredLease(lease SessionLease, abortSession bool)
 		})
 	}
 	terminal.PublishEvent(session.Event{
-		Type:  session.EventLeaseReleased,
-		Actor: string(session.ActorSystem),
+		Type:   session.EventLeaseReleased,
+		Client: lease.Client,
+		Actor:  string(session.ActorSystem),
 		Metadata: fileTransferLeaseEventMetadata(lease, map[string]any{
 			"type":          string(lease.Type),
 			"created_at":    lease.CreatedAt.Format(time.RFC3339Nano),

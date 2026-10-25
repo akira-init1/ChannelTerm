@@ -127,3 +127,14 @@ supplied Session reference. IDs/results remain retained through terminal states 
 retry deduplication. TCP connection tokens are independently generated secret capabilities; they
 are not Session IDs, management owners, or lease owners. Neither status nor Session events exposes
 them. See [bridge contracts](mcp-tools.md#external-rsp-bridge-tools).
+
+## Registered client IDs
+
+`CL-<random-hex>` identifies one credential registration in a Host authentication
+domain. It is public provenance, not a Session ID, Attachment handle, operation
+ID or capability. A display name may be duplicated and never authorizes an
+operation. Reusing a credential across processes attributes them to the same
+registered client; a CLI file-transfer subprocess should preserve the initiating
+client's credential. Registration survives reconnects, so it is not evidence
+that a client is online. Missing identity means unregistered/unknown, even if an
+old actor label says `user`. See [independent credentials](configuration.md#independent-http-client-credentials).

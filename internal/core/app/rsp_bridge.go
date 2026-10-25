@@ -139,7 +139,7 @@ func (a *Application) StartRSPBridge(ctx context.Context, q BridgeStartRequest) 
 	if len(a.bridges.runs) >= 128 {
 		return BridgeStartResult{}, errors.New("bridge retention limit reached; restart Host after closing Sessions")
 	}
-	terminal, err := a.session(q.SessionID)
+	terminal, err := a.sessionForClient(ctx, q.SessionID)
 	if err != nil {
 		return BridgeStartResult{}, err
 	}
@@ -161,7 +161,7 @@ func (a *Application) StartRSPBridge(ctx context.Context, q BridgeStartRequest) 
 		return BridgeStartResult{}, err
 	}
 	owner := "rsp-bridge-" + secret
-	if _, err = a.AcquireLease(terminal.ID(), owner, LeaseTypeDebug); err != nil {
+	if _, err = a.AcquireLeaseForClient(ctx, terminal.ID(), owner, LeaseTypeDebug); err != nil {
 		return BridgeStartResult{}, err
 	}
 	release := true

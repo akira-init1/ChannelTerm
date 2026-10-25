@@ -32,12 +32,22 @@ const (
 	OperationWrite Operation = "write"
 )
 
+// ClientIdentity is public provenance assigned by a trusted Host adapter. It is
+// independent of Session IDs, actor labels and secret lease capabilities. Empty
+// identity means unknown/unregistered, never a verified human.
+type ClientIdentity struct {
+	ID   string `json:"client_id"`
+	Name string `json:"name"`
+	Kind string `json:"kind"`
+}
+
 // SessionEvent records a completed stream operation and its internal source.
 //
 // Timestamp is the local time at which Core began executing the operation. Data
 // is a copied snapshot of the bytes actually written; it may be a prefix of the
 // original request when a Channel reports a partial write followed by an error.
 type SessionEvent struct {
+	Client    ClientIdentity
 	Timestamp time.Time
 	Actor     Actor
 	Operation Operation

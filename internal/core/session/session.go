@@ -84,8 +84,10 @@ func (actor Actor) Valid() bool {
 // describes the operation source recorded by Session activity; it does not alter
 // the bytes passed to the underlying Channel.
 type WriteRequest struct {
-	Actor Actor
-	Data  []byte
+	// Client is trusted adapter provenance; it is never sent to the Channel.
+	Client ClientIdentity
+	Actor  Actor
+	Data   []byte
 }
 
 // SessionState describes the lifecycle stage of a Session.
@@ -562,6 +564,7 @@ func (s *Core) recordWriteActivity(timestamp time.Time, request WriteRequest, wr
 	s.activity.append(SessionEvent{
 		Timestamp: timestamp,
 		Actor:     request.Actor,
+		Client:    request.Client,
 		Operation: OperationWrite,
 		Data:      request.Data[:written],
 	})

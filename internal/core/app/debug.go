@@ -142,7 +142,7 @@ func (a *Application) StartDebug(ctx context.Context, request DebugStartRequest)
 	if len(request.Owner) < 32 || len(request.Owner) > 128 || len(request.RequestID) < 1 || len(request.RequestID) > 128 {
 		return DebugStatus{}, errors.New("owner must have 32..128 characters and request_id 1..128")
 	}
-	terminal, e := a.session(request.SessionID)
+	terminal, e := a.sessionForClient(ctx, request.SessionID)
 	if e != nil {
 		return DebugStatus{}, e
 	}
@@ -190,7 +190,7 @@ func (a *Application) StartDebug(ctx context.Context, request DebugStartRequest)
 		close(r.finished)
 		return r.status(), e
 	}
-	if _, e = a.AcquireLease(terminal.ID(), r.owner, LeaseTypeDebug); e != nil {
+	if _, e = a.AcquireLeaseForClient(ctx, terminal.ID(), r.owner, LeaseTypeDebug); e != nil {
 		r.transition("failed", e)
 		close(r.finished)
 		return r.status(), e

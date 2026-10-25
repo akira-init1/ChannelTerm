@@ -7,9 +7,10 @@ Application connection/configuration use cases and Session Manager used by the H
 
 ## Exposure and authentication
 
-All methods require the existing Host Bearer token and run behind its existing
-constant-time authentication middleware. They inherit the Host listener; no second
-listener, token, permissions store or automatic Host startup is added. The Electron
+All methods require a Host Bearer credential (the shared token or an
+[independent registered client](configuration.md#independent-http-client-credentials))
+and run behind Host authentication middleware. They inherit the Host listener;
+these desktop routes add no second listener or automatic Host startup. The Electron
 client accepts numeric loopback HTTP endpoints and derives this fixed path in Main.
 Renderer cannot supply the API URL or access the Bearer token. Redirects are refused.
 

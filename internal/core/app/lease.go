@@ -7,6 +7,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/akira-init1/ChannelTerm/internal/core/session"
 )
 
 var (
@@ -63,6 +65,8 @@ func (typ LeaseType) Valid() bool {
 // Owner is an opaque caller-selected capability and must not be presented as a
 // human identity.
 type SessionLease struct {
+	// Client is the initiating registration, never the secret Owner capability.
+	Client    session.ClientIdentity
 	SessionID string
 	Owner     string
 	Type      LeaseType
@@ -137,8 +141,8 @@ func (e *SessionBusyError) Error() string {
 func (*SessionBusyError) Unwrap() error { return ErrSessionBusy }
 
 // leaseCoordinator owns application-level writer coordination. It deliberately
-// has no dependency on Session so raw stream buffering and write serialization
-// remain Session responsibilities.
+// uses Session metadata only; raw buffering and write serialization remain
+// Session responsibilities. It owns no stream or Session lifecycle.
 type leaseCoordinator struct {
 	mu                sync.Mutex
 	leases            map[string]SessionLease
@@ -170,10 +174,10 @@ func newLeaseCoordinatorWithTTL(ttl time.Duration) *leaseCoordinator {
 }
 
 func (c *leaseCoordinator) acquire(sessionID, owner string, typ LeaseType) (SessionLease, error) {
-	return c.acquireReferenced(sessionID, owner, typ, "")
+	return c.acquireReferenced(sessionID, owner, typ, "", session.ClientIdentity{})
 }
 
-func (c *leaseCoordinator) acquireReferenced(sessionID, owner string, typ LeaseType, reference string) (SessionLease, error) {
+func (c *leaseCoordinator) acquireReferenced(sessionID, owner string, typ LeaseType, reference string, client session.ClientIdentity) (SessionLease, error) {
 	owner = strings.TrimSpace(owner)
 	if owner == "" {
 		return SessionLease{}, ErrInvalidLeaseOwner
@@ -203,7 +207,7 @@ func (c *leaseCoordinator) acquireReferenced(sessionID, owner string, typ LeaseT
 		c.mu.Lock()
 	}
 	now := time.Now().UTC()
-	lease := SessionLease{SessionID: sessionID, Owner: owner, Type: typ, CreatedAt: now, ExpiresAt: now.Add(c.ttl), State: "active", sessionReference: reference}
+	lease := SessionLease{Client: client, SessionID: sessionID, Owner: owner, Type: typ, CreatedAt: now, ExpiresAt: now.Add(c.ttl), State: "active", sessionReference: reference}
 	if typ == LeaseTypeFileTransfer {
 		c.nextTransferID++
 		lease.TransferID = fmt.Sprintf("FT-%d", c.nextTransferID)
@@ -716,4 +720,16 @@ func (c *leaseCoordinator) gate(sessionID string) *sync.Mutex {
 		c.gates[sessionID] = gate
 	}
 	return gate
+}
+
+// writeClient is called with the Session write gate held after owner validation.
+// It never reacquires that gate or changes lease lifetime.
+func (c *leaseCoordinator) writeClient(id, owner string) session.ClientIdentity {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	lease, ok := c.leases[id]
+	if ok && lease.Owner == owner {
+		return lease.Client
+	}
+	return session.ClientIdentity{}
 }
