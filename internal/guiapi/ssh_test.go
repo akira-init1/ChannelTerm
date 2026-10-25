@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -27,6 +28,65 @@ import (
 )
 
 type openerFunc func(context.Context, app.OpenSSHRequest) (app.OpenSSHResult, error)
+
+// TestSSHAdvancedSettings checks transport mapping, bounded deadlines and invalid
+// input before application setup; omission retains the original defaults.
+func TestSSHAdvancedSettings(t *testing.T) {
+	advanced := map[string]any{"timeout_seconds": 12, "keepalive_seconds": 20, "keepalive_count": 4, "write_timeout_seconds": 30, "term": "vt100", "columns": 132, "rows": 43}
+	calls := 0
+	h := newSSHHandler(openerFunc(func(ctx context.Context, r app.OpenSSHRequest) (app.OpenSSHResult, error) {
+		calls++
+		c := r.Config
+		deadline, ok := ctx.Deadline()
+		if !ok || time.Until(deadline) > 17*time.Second || time.Until(deadline) < 16*time.Second {
+			t.Fatalf("setup deadline = %v", deadline)
+		}
+		if c.Timeout != 12*time.Second || c.KeepAliveInterval != 20*time.Second || c.KeepAliveCountMax != 4 || c.WriteTimeout != 30*time.Second || c.Term != "vt100" || c.Columns != 132 || c.Rows != 43 || c.ConfirmHostKey != nil {
+			t.Fatal("advanced settings were not mapped to the existing transport")
+		}
+		return app.OpenSSHResult{Info: session.SessionInfo{ID: "fixture"}}, nil
+	}))
+	body := func(a any) string {
+		encoded, err := json.Marshal(map[string]any{"host": "example.invalid", "user": "user", "port": 22, "password": "fake", "known_hosts_file": "fixture-trust", "advanced": a})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(encoded)
+	}
+	if w := request(h, http.MethodPost, body(advanced)); w.Code != 200 {
+		t.Fatal(w.Code)
+	}
+	for _, test := range []struct {
+		key   string
+		value any
+	}{
+		{"timeout_seconds", 0}, {"timeout_seconds", 121}, {"keepalive_seconds", -1}, {"keepalive_seconds", 3601},
+		{"keepalive_count", 0}, {"keepalive_count", 11}, {"write_timeout_seconds", -1}, {"write_timeout_seconds", 3601},
+		{"term", "bad\nterm"}, {"term", ""}, {"columns", 0}, {"rows", 1001}, {"rows", 1.5}, {"skip_host_key", true},
+	} {
+		t.Run(test.key+"-"+fmt.Sprint(test.value), func(t *testing.T) {
+			invalid := make(map[string]any, len(advanced)+1)
+			for k, v := range advanced {
+				invalid[k] = v
+			}
+			invalid[test.key] = test.value
+			if w := request(h, http.MethodPost, body(invalid)); w.Code != 400 {
+				t.Fatal(w.Code)
+			}
+		})
+	}
+	if calls != 1 {
+		t.Fatal("invalid settings reached application")
+	}
+	c, cleanup, err := configuration(&sshRequest{Host: "example.invalid", User: "user", Port: 22, KnownHostsFile: "fixture-trust", IdentityFiles: []string{"fixture-key"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cleanup()
+	if c.Timeout != 10*time.Second || c.KeepAliveInterval != 0 || c.WriteTimeout != 0 || c.Term != "" || c.Rows != 0 || c.Columns != 0 {
+		t.Fatal("legacy defaults changed")
+	}
+}
 
 func (f openerFunc) OpenSSH(ctx context.Context, r app.OpenSSHRequest) (app.OpenSSHResult, error) {
 	return f(ctx, r)

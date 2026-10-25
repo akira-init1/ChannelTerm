@@ -1,3 +1,23 @@
+/** Optional initial SSH transport settings, never shared resize ownership. */
+export interface SSHAdvanced {
+  timeoutSeconds: number;
+  keepAliveSeconds: number;
+  keepAliveCount: number;
+  writeTimeoutSeconds: number;
+  term: string;
+  columns: number;
+  rows: number;
+}
+export const defaultSSHAdvanced: Readonly<SSHAdvanced> = {
+  timeoutSeconds: 10,
+  keepAliveSeconds: 0,
+  keepAliveCount: 3,
+  writeTimeoutSeconds: 0,
+  term: "xterm-256color",
+  columns: 80,
+  rows: 24,
+};
+
 /** Explicit connection intent only; Host owns transport setup and shared lifetime. */
 export type ConnectionRequest =
   | {
@@ -19,6 +39,7 @@ export type ConnectionRequest =
       knownHostsFile: string;
       password?: string;
       keyPassphrase?: string;
+      advanced?: SSHAdvanced;
       label: string;
     };
 
@@ -41,6 +62,22 @@ function numberIn(value: unknown, min: number, max: number): boolean {
     Number.isSafeInteger(value) &&
     value >= min &&
     value <= max
+  );
+}
+
+export function isSSHAdvanced(value: unknown): value is SSHAdvanced {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const v = value as Record<string, unknown>;
+  return (
+    Object.keys(v).length === 7 &&
+    numberIn(v.timeoutSeconds, 1, 120) &&
+    numberIn(v.keepAliveSeconds, 0, 3600) &&
+    numberIn(v.keepAliveCount, 1, 10) &&
+    numberIn(v.writeTimeoutSeconds, 0, 3600) &&
+    typeof v.term === "string" &&
+    /^[a-zA-Z0-9_.+-]{1,64}$/.test(v.term) &&
+    numberIn(v.columns, 1, 1000) &&
+    numberIn(v.rows, 1, 1000)
   );
 }
 
@@ -85,6 +122,7 @@ export function isConnectionRequest(
       "knownHostsFile",
       "password",
       "keyPassphrase",
+      "advanced",
       "label",
     ]) &&
     bounded(v.host, 253) &&
@@ -92,6 +130,7 @@ export function isConnectionRequest(
     bounded(v.user, 128) &&
     !/[@\s]/.test(v.user) &&
     numberIn(v.port, 1, 65535) &&
+    (v.advanced === undefined || isSSHAdvanced(v.advanced)) &&
     bounded(v.knownHostsFile, 4096, true) &&
     Array.isArray(v.identityFiles) &&
     v.identityFiles.length <= 8 &&

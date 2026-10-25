@@ -810,6 +810,51 @@ msgstr "Unassigned"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "ssh.advanced"
+msgstr "Advanced SSH settings"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.advancedHint"
+msgstr "Applies to new connections only. Zero disables keepalive or write timeout. Write timeout closes the connection; input is never replayed. PTY size is initial only."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.columns"
+msgstr "Initial PTY columns"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.keepAliveCount"
+msgstr "Keepalive response limit (intervals)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.keepAliveSeconds"
+msgstr "Keepalive interval (seconds)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.rows"
+msgstr "Initial PTY rows"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.term"
+msgstr "PTY terminal type"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.timeoutSeconds"
+msgstr "Connection timeout (seconds)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.writeTimeoutSeconds"
+msgstr "Write timeout (seconds)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "tab.close"
 msgstr "Close tab (detach)"
 

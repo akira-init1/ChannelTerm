@@ -810,6 +810,51 @@ msgstr "未指派"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "ssh.advanced"
+msgstr "SSH 進階設定"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.advancedHint"
+msgstr "僅用於新連線。保活或寫入逾時為零表示停用。寫入逾時會關閉連線，且不會重送輸入。PTY 尺寸僅為初始值。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.columns"
+msgstr "初始 PTY 欄數"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.keepAliveCount"
+msgstr "保活回應期限（間隔數）"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.keepAliveSeconds"
+msgstr "保活間隔（秒）"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.rows"
+msgstr "初始 PTY 列數"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.term"
+msgstr "PTY 終端類型"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.timeoutSeconds"
+msgstr "連線逾時（秒）"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.writeTimeoutSeconds"
+msgstr "寫入逾時（秒）"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "tab.close"
 msgstr "關閉分頁（解除附加）"
 

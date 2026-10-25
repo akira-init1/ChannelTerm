@@ -1215,6 +1215,7 @@ export function App() {
           key={connectionKind}
           kind={connectionKind}
           sshAvailable={!!info?.sshAvailable}
+          sshAdvanced={!!info?.sshAdvanced}
           t={t}
           onOpen={openConnection}
           onClose={() => setConnectionKind(undefined)}

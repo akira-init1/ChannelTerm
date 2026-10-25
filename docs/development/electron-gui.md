@@ -277,6 +277,11 @@ SSH inside its Protocol selector; SSH is disabled without the Host's desktop API
   identities; encrypted keys accept a passphrase. Blank trust path uses the Host user's
   `.ssh/known_hosts`. Unknown, changed and revoked keys fail: verify and install the server key
   beforehand. Password inputs clear on submission and credentials are never saved as preferences.
+  On a Host advertising advanced SSH support, expand **Advanced SSH settings** for connection
+  timeout, keepalive interval/response limit, write timeout, terminal type and initial PTY dimensions.
+  Defaults preserve existing setup. Zero disables keepalive or write timeout; write timeout expiry
+  closes the connection without replay. These fields affect new connections, not reused Sessions
+  or later window resizes. Older Hosts retain the original form without these fields.
 
 Creation failures keep the existing attachment. An uncertain result is not automatically retried;
 refresh Sessions before making another explicit attempt. See the [desktop Host API](../reference/gui-host-api.md)
@@ -365,6 +370,10 @@ Connection tests use in-memory serial I/O and a temporary loopback SSH server wi
 credentials to verify creation, authentication failure, automatic attachment and shared lifetime. Translation tests run the pinned CLI against disposable PO copies: new-message and new-locale
 extraction, translation preservation, strict rejection, and English fallback. Notice-collection
 tests distinguish absent optional platform packages from missing required packages/licenses.
+
+Advanced SSH checks cover bounded input, legacy Host capability fallback without sending unsupported
+fields, Transport configuration/deadline mapping, and native creation with explicit initial PTY and
+liveness settings. Existing cancellation, trust rejection and shared-lifetime tests remain applicable.
 
 `test:desktop` builds the production bundle and uses Playwright's Electron driver to launch a real
 visible native window against that fixture. It checks isolation settings, missing Node globals,

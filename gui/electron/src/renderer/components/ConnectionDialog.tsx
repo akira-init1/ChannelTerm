@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
   isConnectionRequest,
+  defaultSSHAdvanced,
   type ConnectionRequest,
 } from "../../shared/connections";
 import type { ClientError } from "../../shared/api";
@@ -16,12 +17,14 @@ import { commonBaudRates } from "../../shared/serial-settings";
 export function ConnectionDialog({
   kind: initialKind,
   sshAvailable,
+  sshAdvanced,
   t,
   onOpen,
   onClose,
 }: {
   kind: ConnectionRequest["kind"];
   sshAvailable: boolean;
+  sshAdvanced: boolean;
   t: (id: string) => string;
   onOpen: (
     request: ConnectionRequest,
@@ -78,6 +81,19 @@ export function ConnectionDialog({
             port: Number(value("port")),
             label: value("label").trim(),
             knownHostsFile: value("knownHostsFile").trim(),
+            ...(sshAdvanced
+              ? {
+                  advanced: {
+                    timeoutSeconds: Number(value("timeoutSeconds")),
+                    keepAliveSeconds: Number(value("keepAliveSeconds")),
+                    keepAliveCount: Number(value("keepAliveCount")),
+                    writeTimeoutSeconds: Number(value("writeTimeoutSeconds")),
+                    term: value("term"),
+                    columns: Number(value("columns")),
+                    rows: Number(value("rows")),
+                  },
+                }
+              : {}),
             identityFiles:
               auth === "key"
                 ? value("identityFiles")
@@ -320,6 +336,47 @@ export function ConnectionDialog({
                 <input name="knownHostsFile" maxLength={4096} />
               </label>
               <p className="connection-hint">{t("connection.trust")}</p>
+              {sshAdvanced && (
+                <details>
+                  <summary>{t("ssh.advanced")}</summary>
+                  <p className="connection-hint">{t("ssh.advancedHint")}</p>
+                  <div className="connection-grid">
+                    {(
+                      [
+                        ["timeoutSeconds", 1, 120],
+                        ["keepAliveSeconds", 0, 3600],
+                        ["keepAliveCount", 1, 10],
+                        ["writeTimeoutSeconds", 0, 3600],
+                        ["columns", 1, 1000],
+                        ["rows", 1, 1000],
+                      ] as const
+                    ).map(([name, min, max]) => (
+                      <label key={name}>
+                        {t(`ssh.${name}`)}
+                        <input
+                          name={name}
+                          type="number"
+                          min={min}
+                          max={max}
+                          step={1}
+                          required
+                          defaultValue={defaultSSHAdvanced[name]}
+                        />
+                      </label>
+                    ))}
+                  </div>
+                  <label>
+                    {t("ssh.term")}
+                    <input
+                      name="term"
+                      maxLength={64}
+                      pattern={"[a-zA-Z0-9_.+\\-]+"}
+                      required
+                      defaultValue={defaultSSHAdvanced.term}
+                    />
+                  </label>
+                </details>
+              )}
             </>
           )}
           <label>

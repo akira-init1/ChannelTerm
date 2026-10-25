@@ -810,6 +810,51 @@ msgstr "Sin asignar"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "ssh.advanced"
+msgstr "Ajustes avanzados de SSH"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.advancedHint"
+msgstr "Solo se aplica a conexiones nuevas. Cero desactiva keepalive o el tiempo límite de escritura. Al agotarse este último se cierra la conexión sin reenviar la entrada. El tamaño PTY es solo inicial."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.columns"
+msgstr "Columnas iniciales del PTY"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.keepAliveCount"
+msgstr "Plazo de respuesta keepalive (intervalos)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.keepAliveSeconds"
+msgstr "Intervalo keepalive (segundos)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.rows"
+msgstr "Filas iniciales del PTY"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.term"
+msgstr "Tipo de terminal PTY"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.timeoutSeconds"
+msgstr "Tiempo límite de conexión (segundos)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.writeTimeoutSeconds"
+msgstr "Tiempo límite de escritura (segundos)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "tab.close"
 msgstr "Cerrar pestaña (desadjuntar)"
 

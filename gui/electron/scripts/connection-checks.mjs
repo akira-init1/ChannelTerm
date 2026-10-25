@@ -191,6 +191,15 @@ export async function checkConnections(environment, launchArgs) {
     );
     await dialog.locator('[name="password"]').fill("fixture-password");
     await dialog.locator('[name="label"]').fill("Created SSH");
+    await dialog.getByText("Advanced SSH settings", { exact: true }).click();
+    await expect(dialog.locator('[name="timeoutSeconds"]')).toHaveValue("10");
+    await dialog.locator('[name="timeoutSeconds"]').fill("12");
+    await dialog.locator('[name="keepAliveSeconds"]').fill("10");
+    await dialog.locator('[name="keepAliveCount"]').fill("4");
+    await dialog.locator('[name="writeTimeoutSeconds"]').fill("5");
+    await dialog.locator('[name="term"]').fill("vt100");
+    await dialog.locator('[name="columns"]').fill("132");
+    await dialog.locator('[name="rows"]').fill("43");
     await desktop.evaluate(({ BrowserWindow }) =>
       BrowserWindow.getAllWindows()[0].setSize(760, 500),
     );

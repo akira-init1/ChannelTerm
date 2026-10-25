@@ -362,6 +362,12 @@ Application owns leases and use cases. Session I/O uses MCP Streamable HTTP. SSH
 the separate authenticated [desktop Host API](../reference/gui-host-api.md) and the same
 Application; serial scanning/creation uses existing MCP tools.
 
+SSH capability discovery separately advertises bounded advanced setup settings. Main sends them
+only to a supporting Host; `internal/guiapi` validates and maps them to the existing Transport
+configuration. Initial PTY dimensions do not confer resize ownership, and reuse leaves an existing
+Session's settings intact. The setup deadline follows the selected bounded network budget;
+authentication, trust validation, cancellation and no-replay rules are unchanged.
+
 A Transport establishes the Channel before attachment; it is not an additional hop for every byte.
 Preload is an isolated context, not a third application process. Main may launch a detached
 standalone Go Host, but closing the GUI never stops that Host or its shared Sessions. Renderer sandboxing and `contextIsolation` are enabled, and `nodeIntegration`

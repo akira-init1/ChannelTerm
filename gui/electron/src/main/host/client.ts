@@ -56,6 +56,7 @@ export class HostClient {
   private changing = false;
   private closing = new Set<string>();
   private sshAvailable = false;
+  private sshAdvanced = false;
   private transferEvents = new Map<string, TransferEvents>();
   private eventReads = new Map<string, Promise<TransferEvents>>();
 
@@ -214,6 +215,7 @@ export class HostClient {
       endpoint: this.endpoint.href,
       lifetime: this.lifetime,
       sshAvailable: this.sshAvailable,
+      sshAdvanced: this.sshAdvanced,
     };
   }
 
@@ -278,10 +280,12 @@ export class HostClient {
       // route; never derive a URL or credential from Renderer input.
       try {
         const response = await this.sshRequest("GET");
-        this.sshAvailable =
-          response.ok && object(await response.json()).available === true;
+        const capabilities = response.ok ? object(await response.json()) : {};
+        this.sshAvailable = capabilities.available === true;
+        this.sshAdvanced = this.sshAvailable && capabilities.advanced === true;
       } catch {
         this.sshAvailable = false;
+        this.sshAdvanced = false;
       }
       if (signal.aborted)
         throw new HostError("cancelled", "Connection cancelled.");
@@ -317,7 +321,11 @@ export class HostClient {
     return sessions(await this.call("terminal_list_sessions", {}));
   }
 
-  private sshRequest(method: "GET" | "POST", body?: string): Promise<Response> {
+  private sshRequest(
+    method: "GET" | "POST",
+    body?: string,
+    timeout = 20000,
+  ): Promise<Response> {
     return fetch(new URL("/gui/v1/ssh", this.endpoint), {
       method,
       body,
@@ -328,7 +336,7 @@ export class HostClient {
       },
       signal: AbortSignal.any([
         this.connection.signal,
-        AbortSignal.timeout(method === "GET" ? 2000 : 20000),
+        AbortSignal.timeout(method === "GET" ? 2000 : timeout),
       ]),
     });
   }
@@ -365,6 +373,11 @@ export class HostClient {
         "incompatible",
         "This Host does not provide SSH creation. Start an updated standalone Host.",
       );
+    if (request.kind === "ssh" && request.advanced && !this.sshAdvanced)
+      throw new HostError(
+        "incompatible",
+        "This Host does not support advanced SSH settings. Update the Host or use default settings.",
+      );
     this.changing = true;
     const signal = this.connection.signal;
     try {
@@ -396,7 +409,17 @@ export class HostClient {
             known_hosts_file: request.knownHostsFile,
             password: request.password,
             key_passphrase: request.keyPassphrase,
+            advanced: request.advanced && {
+              timeout_seconds: request.advanced.timeoutSeconds,
+              keepalive_seconds: request.advanced.keepAliveSeconds,
+              keepalive_count: request.advanced.keepAliveCount,
+              write_timeout_seconds: request.advanced.writeTimeoutSeconds,
+              term: request.advanced.term,
+              columns: request.advanced.columns,
+              rows: request.advanced.rows,
+            },
           }),
+          (request.advanced?.timeoutSeconds ?? 10) * 1000 + 10000,
         );
         if (response.status === 401 || response.status === 403)
           throw new HostError("unauthorized", "Host rejected SSH creation.");
@@ -779,6 +802,7 @@ export class HostClient {
     await client?.close().catch(() => {});
     this.lifetime = "unknown";
     this.sshAvailable = false;
+    this.sshAdvanced = false;
     this.transferEvents.clear();
     this.eventReads.clear();
   }

@@ -810,6 +810,51 @@ msgstr "지정 안 됨"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "ssh.advanced"
+msgstr "SSH 고급 설정"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.advancedHint"
+msgstr "새 연결에만 적용됩니다. 연결 유지 또는 쓰기 제한 시간이 0이면 비활성화됩니다. 쓰기 시간 초과 시 연결이 닫히며 입력은 재전송되지 않습니다. PTY 크기는 초기값입니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.columns"
+msgstr "초기 PTY 열 수"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.keepAliveCount"
+msgstr "연결 유지 응답 기한(간격 수)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.keepAliveSeconds"
+msgstr "연결 유지 간격(초)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.rows"
+msgstr "초기 PTY 행 수"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.term"
+msgstr "PTY 터미널 유형"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.timeoutSeconds"
+msgstr "연결 제한 시간(초)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.writeTimeoutSeconds"
+msgstr "쓰기 제한 시간(초)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "tab.close"
 msgstr "탭 닫기 (세션에서 분리)"
 

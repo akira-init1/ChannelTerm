@@ -26,7 +26,8 @@ SSH creation when unavailable; existing shared SSH Sessions can still be attache
 
 ## Requests and responses
 
-`GET /gui/v1/ssh` returns `200 {"available":true}` after authentication. Query strings
+`GET /gui/v1/ssh` returns `200 {"available":true,"advanced":true}` after authentication.
+Older implementations may omit `advanced`; clients must not send advanced settings to them. Query strings
 are not accepted. `POST` requires `Content-Type: application/json` and one JSON object;
 unknown fields, trailing JSON, malformed or oversized bodies are rejected.
 
@@ -40,6 +41,23 @@ unknown fields, trailing JSON, malformed or oversized bodies are rejected.
 | `known_hosts_file` | Optional Host-side trust-file path, at most 4096 bytes; blank uses the Host user's `.ssh/known_hosts`. |
 | `password` | Optional password, at most 4096 bytes. Omission differs from an empty password. |
 | `key_passphrase` | Optional encrypted-key passphrase, at most 4096 bytes. |
+| `advanced` | Optional object described below; omission preserves existing Transport defaults. |
+
+The `advanced` object requires every field below except `keepalive_seconds` and `write_timeout_seconds`, which may be omitted for zero. Durations are integer seconds; fractional,
+negative and out-of-range values are rejected before Application setup:
+
+| Field | Bounds; default when `advanced` is omitted |
+| --- | --- |
+| `timeout_seconds` | 1–120; 10-second network setup budget. |
+| `keepalive_seconds` | 0–3600; 0 disables authenticated keepalive probes. |
+| `keepalive_count` | 1–10; 3 intervals bound the keepalive response wait. |
+| `write_timeout_seconds` | 0–3600; 0 disables the Transport write timeout. Expiry closes the SSH connection; input is never replayed. |
+| `term` | 1–64 ASCII letters/digits or `_ . + -`; `xterm-256color`. |
+| `columns`, `rows` | Integers 1–1000; 80 columns and 24 rows. Initial PTY size only. |
+
+These values configure the existing SSH Transport and are not persisted. Reusing an existing
+Session preserves its original setup; it does not change timeouts, keepalive or PTY dimensions.
+No attachment gains automatic remote resize authority from these fields.
 
 Without explicit identities or a password, existing Host-side `id_ed25519` and
 `id_rsa` files are tried in that order. Private-key and password authentication,
@@ -81,7 +99,9 @@ Failures contain only a fixed code, such as `{"error":"host_key_rejected"}`:
 | 422 | `host_key_rejected`, `authentication_failed`, `connection_failed`, or `cancelled`. |
 
 The body is limited to 32 KiB with a five-second read deadline. Each request has a
-15-second setup deadline, including the Transport's ten-second network setup budget.
+setup deadline of `timeout_seconds + 5` seconds measured from request handling, defaulting to
+15 seconds, including the Transport's ten-second default network setup budget. Main allows
+another five seconds for the response, while disconnect still cancels immediately.
 Request cancellation releases incomplete setup through Application/Transport. If a
 response is lost after registration, the Session may already exist: refresh the shared
 list before retrying. Neither Main nor the API automatically repeats creation or writes.

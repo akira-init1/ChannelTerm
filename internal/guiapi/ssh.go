@@ -28,14 +28,36 @@ type sshOpener interface {
 }
 
 type sshRequest struct {
-	Host           string   `json:"host"`
-	User           string   `json:"user"`
-	Port           int      `json:"port"`
-	Label          string   `json:"label"`
-	IdentityFiles  []string `json:"identity_files"`
-	KnownHostsFile string   `json:"known_hosts_file"`
-	Password       *string  `json:"password"`
-	KeyPassphrase  *string  `json:"key_passphrase"`
+	Host           string       `json:"host"`
+	User           string       `json:"user"`
+	Port           int          `json:"port"`
+	Label          string       `json:"label"`
+	IdentityFiles  []string     `json:"identity_files"`
+	KnownHostsFile string       `json:"known_hosts_file"`
+	Password       *string      `json:"password"`
+	KeyPassphrase  *string      `json:"key_passphrase"`
+	Advanced       *sshAdvanced `json:"advanced"`
+}
+
+// sshAdvanced bounds optional setup/liveness settings without granting resize ownership.
+type sshAdvanced struct {
+	TimeoutSeconds      int    `json:"timeout_seconds"`
+	KeepAliveSeconds    int    `json:"keepalive_seconds"`
+	KeepAliveCount      int    `json:"keepalive_count"`
+	WriteTimeoutSeconds int    `json:"write_timeout_seconds"`
+	Term                string `json:"term"`
+	Columns             int    `json:"columns"`
+	Rows                int    `json:"rows"`
+}
+
+func (a sshAdvanced) valid() bool {
+	return a.TimeoutSeconds >= 1 && a.TimeoutSeconds <= 120 &&
+		a.KeepAliveSeconds >= 0 && a.KeepAliveSeconds <= 3600 &&
+		a.KeepAliveCount >= 1 && a.KeepAliveCount <= 10 &&
+		a.WriteTimeoutSeconds >= 0 && a.WriteTimeoutSeconds <= 3600 &&
+		a.Term != "" && len(a.Term) <= 64 && !strings.ContainsFunc(a.Term, func(r rune) bool {
+		return !(r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || r == '-' || r == '_' || r == '.' || r == '+')
+	}) && a.Columns >= 1 && a.Columns <= 1000 && a.Rows >= 1 && a.Rows <= 1000
 }
 
 // NewSSHHandler exposes capability discovery and explicit SSH creation. Callers
@@ -60,7 +82,7 @@ func newSSHHandler(application sshOpener) http.Handler {
 			return
 		}
 		if r.Method == http.MethodGet {
-			reply(w, 200, map[string]bool{"available": true})
+			reply(w, 200, map[string]bool{"available": true, "advanced": true})
 			return
 		}
 		if r.Method != http.MethodPost {
@@ -80,10 +102,9 @@ func newSSHHandler(application sshOpener) http.Handler {
 			reply(w, 429, map[string]string{"error": "busy"})
 			return
 		}
-		ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
-		defer cancel()
 		// Bound a stalled body as well as setup. This affects only this request,
 		// not subsequent MCP requests on the same HTTP/1 connection.
+		started := time.Now()
 		controller := http.NewResponseController(w)
 		_ = controller.SetReadDeadline(time.Now().Add(5 * time.Second))
 		defer controller.SetReadDeadline(time.Time{})
@@ -96,6 +117,12 @@ func newSSHHandler(application sshOpener) http.Handler {
 			reply(w, 400, map[string]string{"error": "invalid_input"})
 			return
 		}
+		setupTimeout := 10 * time.Second
+		if input.Advanced != nil {
+			setupTimeout = time.Duration(input.Advanced.TimeoutSeconds) * time.Second
+		}
+		ctx, cancel := context.WithDeadline(r.Context(), started.Add(setupTimeout+5*time.Second))
+		defer cancel()
 		config, cleanup, err := configuration(&input)
 		if err != nil {
 			reply(w, 400, map[string]string{"error": "configuration"})
@@ -135,6 +162,9 @@ func cleanText(value string, max int) bool {
 }
 
 func validRequest(r sshRequest) bool {
+	if r.Advanced != nil && !r.Advanced.valid() {
+		return false
+	}
 	if r.Host == "" || r.User == "" || !cleanText(r.Host, 253) || !cleanText(r.User, 128) || !cleanText(r.Label, 128) || r.Port < 1 || r.Port > 65535 || len(r.IdentityFiles) > 8 || !cleanText(r.KnownHostsFile, 4096) {
 		return false
 	}
@@ -151,6 +181,13 @@ func validRequest(r sshRequest) bool {
 // are interpreted on the authenticated Host, and no configuration is persisted.
 func configuration(r *sshRequest) (sshtransport.Config, func(), error) {
 	c := sshtransport.Config{Host: r.Host, User: r.User, Port: r.Port, PrivateKeyPaths: r.IdentityFiles, KnownHostsPath: r.KnownHostsFile, Timeout: 10 * time.Second}
+	if a := r.Advanced; a != nil {
+		c.Timeout = time.Duration(a.TimeoutSeconds) * time.Second
+		c.KeepAliveInterval = time.Duration(a.KeepAliveSeconds) * time.Second
+		c.KeepAliveCountMax = a.KeepAliveCount
+		c.WriteTimeout = time.Duration(a.WriteTimeoutSeconds) * time.Second
+		c.Term, c.Columns, c.Rows = a.Term, a.Columns, a.Rows
+	}
 	if c.KnownHostsPath == "" || len(c.PrivateKeyPaths) == 0 && r.Password == nil {
 		home, err := os.UserHomeDir()
 		if err != nil {

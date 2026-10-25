@@ -2,6 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   isConnectionRequest,
+  defaultSSHAdvanced,
+  isSSHAdvanced,
   type ConnectionRequest,
 } from "../src/shared/connections";
 import { HostClient } from "../src/main/host/client";
@@ -18,6 +20,62 @@ const serial: ConnectionRequest = {
   flowControl: "none",
   label: "GUI serial",
 };
+
+test("advanced SSH settings are bounded and require explicit Host support", async () => {
+  assert.equal(isSSHAdvanced(defaultSSHAdvanced), true);
+  for (const change of [
+    { timeoutSeconds: 0 },
+    { timeoutSeconds: 121 },
+    { keepAliveSeconds: -1 },
+    { keepAliveSeconds: 3601 },
+    { keepAliveCount: 11 },
+    { keepAliveCount: 0 },
+    { writeTimeoutSeconds: -1 },
+    { writeTimeoutSeconds: 3601 },
+    { term: "bad\nterm" },
+    { term: "" },
+    { columns: 0 },
+    { rows: 1001 },
+    { rows: 1.5 },
+    { resizeOwner: true },
+  ])
+    assert.equal(isSSHAdvanced({ ...defaultSSHAdvanced, ...change }), false);
+  const fixture = await startFixture();
+  const client = new HostClient(fixture.endpoint, fixture.token);
+  const original = globalThis.fetch;
+  let posts = 0;
+  try {
+    globalThis.fetch = async (input, init) => {
+      if (new URL(input.toString()).pathname === "/gui/v1/ssh") {
+        if (init?.method === "GET") return Response.json({ available: true });
+        posts++;
+      }
+      return original(input, init);
+    };
+    assert.equal((await client.connect()).sshAdvanced, false);
+    const request = {
+      kind: "ssh",
+      host: "127.0.0.1",
+      port: fixture.sshPort,
+      user: "fixture-user",
+      password: "fixture-password",
+      identityFiles: [],
+      knownHostsFile: fixture.knownHosts,
+      label: "",
+    } as const;
+    await assert.rejects(
+      client.openConnection({ ...request, advanced: defaultSSHAdvanced }),
+      { code: "incompatible" },
+    );
+    assert.equal(posts, 0);
+    assert.ok((await client.openConnection(request)).sessionId);
+    assert.equal(posts, 1);
+  } finally {
+    globalThis.fetch = original;
+    await client.disconnect();
+    await fixture.stop();
+  }
+});
 
 test("baud presets and custom integer rates retain the bounded serial contract", () => {
   for (const baud of [...commonBaudRates, 123456, 1])
@@ -114,6 +172,14 @@ test("GUI opens serial and SSH through real Host authority, preserves failed tar
       identityFiles: [],
       knownHostsFile: fixture.knownHosts,
       label: "GUI SSH",
+      advanced: {
+        ...defaultSSHAdvanced,
+        term: "vt100",
+        columns: 132,
+        rows: 43,
+        keepAliveSeconds: 10,
+        writeTimeoutSeconds: 5,
+      },
     };
     await assert.rejects(
       client.openConnection({ ...ssh, password: "wrong-fixture-password" }),

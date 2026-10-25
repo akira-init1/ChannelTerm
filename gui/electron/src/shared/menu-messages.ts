@@ -3,6 +3,31 @@ import type { MessageDescriptor } from "@lingui/core";
 // Lingui 5 extracts these official annotated descriptors without a runtime macro
 // transform. Translations belong in PO catalogs; this file owns IDs and English defaults.
 export const menuMessages = [
+  /* i18n */ { id: "ssh.advanced", message: "Advanced SSH settings" },
+  /* i18n */ {
+    id: "ssh.advancedHint",
+    message:
+      "Applies to new connections only. Zero disables keepalive or write timeout. Write timeout closes the connection; input is never replayed. PTY size is initial only.",
+  },
+  /* i18n */ {
+    id: "ssh.timeoutSeconds",
+    message: "Connection timeout (seconds)",
+  },
+  /* i18n */ {
+    id: "ssh.keepAliveSeconds",
+    message: "Keepalive interval (seconds)",
+  },
+  /* i18n */ {
+    id: "ssh.keepAliveCount",
+    message: "Keepalive response limit (intervals)",
+  },
+  /* i18n */ {
+    id: "ssh.writeTimeoutSeconds",
+    message: "Write timeout (seconds)",
+  },
+  /* i18n */ { id: "ssh.columns", message: "Initial PTY columns" },
+  /* i18n */ { id: "ssh.rows", message: "Initial PTY rows" },
+  /* i18n */ { id: "ssh.term", message: "PTY terminal type" },
   /* i18n */ { id: "paste.title", message: "Review multiline paste" },
   /* i18n */ {
     id: "paste.warning",

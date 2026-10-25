@@ -47,6 +47,7 @@ export interface HostInfo {
   endpoint: string;
   lifetime: "persistent" | "attachment" | "unknown";
   sshAvailable?: boolean;
+  sshAdvanced?: boolean;
   autoConnect?: boolean;
 }
 export interface Attachment {
