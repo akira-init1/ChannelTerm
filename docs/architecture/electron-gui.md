@@ -225,6 +225,9 @@ a single-use Main confirmation ID; Main retains the Host request and Session bin
 dialog dismissal are negative answers, as are disconnect/reload/close cleanup; Host expiry remains
 the fallback if cleanup cannot reach the server. Running owned operations block disconnect,
 reconnect and window/app close; abnormal process exit still relies on existing Host recovery.
+For blocked close/quit attempts, Main sends a fixed payload-free notification through Preload.
+Renderer deduplicates it into one themed notice and opens the transfer panel. Dismissal grants no
+close permission, cancels no operation and never schedules a deferred close.
 
 ## Processes and communication
 

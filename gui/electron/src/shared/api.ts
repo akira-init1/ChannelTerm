@@ -99,6 +99,7 @@ export interface DesktopAPI {
   write(attachmentId: string, data: string): Promise<Result<void>>;
   syncMenu(state: MenuState): Promise<Result<void>>;
   onMenuAction(listener: (action: Action) => void): () => void;
+  onFileCloseBlocked(listener: () => void): () => void;
   quit(): Promise<Result<void>>;
 }
 
@@ -126,5 +127,6 @@ export const channels = {
   write: "host:write",
   menuState: "menu:state",
   menuAction: "menu:action",
+  fileCloseBlocked: "files:close-blocked",
   quit: "app:quit",
 } as const;

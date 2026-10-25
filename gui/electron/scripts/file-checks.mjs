@@ -9,11 +9,17 @@ export async function checkSSHFiles(desktop, page, fixture) {
   const root = await mkdtemp(join(tmpdir(), "channelterm-gui-sftp-"));
   const local = join(root, "gui-payload.bin");
   const output = join(root, "download");
-  const payload = Buffer.alloc(4 * 1024 * 1024, 0x5a);
+  const payload = Buffer.alloc(8 * 1024 * 1024, 0x5a);
   await writeFile(local, payload);
   await mkdir(output);
   await desktop.evaluate(({ dialog }) => {
     globalThis.originalFileDialog = dialog.showOpenDialog;
+    globalThis.originalMessageBox = dialog.showMessageBox;
+    globalThis.nativeFileNotices = 0;
+    dialog.showMessageBox = async () => {
+      globalThis.nativeFileNotices++;
+      return { response: 0, checkboxChecked: false };
+    };
   });
   async function start(receive, resume) {
     const previousJobs = await page.locator(".transfer-job").count();
@@ -91,6 +97,33 @@ export async function checkSSHFiles(desktop, page, fixture) {
       )
       .toBe(true);
     await page.screenshot({ path: "test-results/ssh-file-progress.png" });
+    // Both window close and app quit must remain blocked by Main, without a native modal.
+    await desktop.evaluate(({ BrowserWindow }) => {
+      BrowserWindow.getAllWindows()[0].close();
+      BrowserWindow.getAllWindows()[0].close();
+    });
+    const notice = page.getByRole("dialog", {
+      name: "File transfers",
+      exact: true,
+    });
+    await expect(notice).toHaveCount(1);
+    await expect(notice).toContainText("Finish or cancel the file operation");
+    await expect(notice).toHaveCSS("background-color", "rgb(23, 28, 36)");
+    await expect(
+      notice.getByRole("button", { name: "Continue", exact: true }),
+    ).toBeFocused();
+    await page.screenshot({ path: "test-results/file-close-notice.png" });
+    await page.keyboard.press("Escape");
+    await expect(notice).toHaveCount(0);
+    await desktop.evaluate(({ app }) => {
+      app.quit();
+      app.quit();
+    });
+    await expect(notice).toHaveCount(1);
+    await notice.getByRole("button", { name: "Continue", exact: true }).click();
+    await expect(notice).toHaveCount(0);
+    assert.equal(await desktop.evaluate(() => globalThis.nativeFileNotices), 0);
+    await expect(job).not.toContainText("Cancelled");
     await job.getByRole("button", { name: "Cancel", exact: true }).click();
     await expect(job).toContainText("Cancelled");
     await expect(page.getByRole("dialog")).toHaveCount(0);
@@ -102,6 +135,7 @@ export async function checkSSHFiles(desktop, page, fixture) {
   } finally {
     await desktop.evaluate(({ dialog }) => {
       dialog.showOpenDialog = globalThis.originalFileDialog;
+      dialog.showMessageBox = globalThis.originalMessageBox;
     });
     await rm(root, { recursive: true, force: true });
   }

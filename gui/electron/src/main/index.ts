@@ -1,5 +1,3 @@
-import { setupI18n } from "@lingui/core";
-import { menuCatalogs } from "../locales/catalogs";
 import { DesktopFiles, TransferConfirmation } from "./files";
 import { DesktopSSHFiles } from "./ssh-files";
 import {
@@ -46,7 +44,6 @@ const development =
   process.env.CHANNELTERM_GUI_DEV_URL === developmentURL.slice(0, -1) &&
   !app.isPackaged;
 let window: BrowserWindow | undefined;
-const messages = setupI18n({ locale: "en", messages: menuCatalogs });
 let host: HostClient | undefined;
 let connecting = false;
 let quitting = false;
@@ -229,7 +226,6 @@ function registerIPC(): void {
     [channels.menuState]: (state) => {
       if (!isMenuState(state))
         throw new HostError("invalid_input", "Invalid menu state.");
-      messages.activate(state.locale);
       if (window) updateApplicationMenu(window, state, requestQuit);
     },
     [channels.quit]: requestQuit,
@@ -318,10 +314,7 @@ async function createWindow(): Promise<void> {
   created.on("close", (event) => {
     if (files.busy || sshFiles.busy) {
       event.preventDefault();
-      void dialog.showMessageBox(created, {
-        type: "info",
-        message: messages._("file.closeHint"),
-      });
+      created.webContents.send(channels.fileCloseBlocked);
     }
   });
   created.on("closed", () => {
@@ -398,11 +391,7 @@ app.on("before-quit", (event) => {
   if (quitting) return;
   event.preventDefault();
   if (files.busy || sshFiles.busy) {
-    if (window)
-      void dialog.showMessageBox(window, {
-        type: "info",
-        message: messages._("file.closeHint"),
-      });
+    window?.webContents.send(channels.fileCloseBlocked);
     return;
   }
   quitting = true;

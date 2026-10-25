@@ -43,5 +43,13 @@ const api: DesktopAPI = {
     return () => ipcRenderer.removeListener(channels.menuAction, receive);
   },
   quit: () => ipcRenderer.invoke(channels.quit),
+  onFileCloseBlocked: (listener) => {
+    // A fixed notification only; neither Electron events nor payloads cross the bridge.
+    const receive = (_event: Electron.IpcRendererEvent, ...args: unknown[]) => {
+      if (args.length === 0) listener();
+    };
+    ipcRenderer.on(channels.fileCloseBlocked, receive);
+    return () => ipcRenderer.removeListener(channels.fileCloseBlocked, receive);
+  },
 };
 contextBridge.exposeInMainWorld("channelterm", Object.freeze(api));

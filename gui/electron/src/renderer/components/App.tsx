@@ -1,4 +1,5 @@
 import { FileDialog } from "../transfers/FileDialog";
+import { FileCloseNotice } from "../transfers/FileCloseNotice";
 import { SSHFileDialog } from "../transfers/SSHFileDialog";
 import { ResumeDialog } from "../transfers/ResumeDialog";
 import { TransferPanel } from "../transfers/TransferPanel";
@@ -131,6 +132,16 @@ export function App() {
   );
   const t = (id: string) => i18n._(id);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [fileCloseBlocked, setFileCloseBlocked] = useState(false);
+  useEffect(
+    () =>
+      host.onFileCloseBlocked(() => {
+        setPanelVisible(true);
+        setPanelTab("transfers");
+        setFileCloseBlocked(true);
+      }),
+    [],
+  );
   const [connectionKind, setConnectionKind] =
     useState<ConnectionRequest["kind"]>();
   const [menuContext, setMenuContext] = useState<MenuPopupRequest>();
@@ -741,6 +752,9 @@ export function App() {
             return true;
           }}
         />
+      )}
+      {fileCloseBlocked && (
+        <FileCloseNotice t={t} onClose={() => setFileCloseBlocked(false)} />
       )}
       {resumeTarget && connected && (
         <ResumeDialog

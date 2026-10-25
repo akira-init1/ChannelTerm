@@ -79,6 +79,9 @@ It substitutes only the native picker result with a disposable local path; the p
 selection/endpoint checks still run. Screenshots are `test-results/ssh-file-dialog.png` and
 `ssh-file-progress.png`. The SCP option disables resume; SCP server interoperability is covered
 separately from this SFTP fixture.
+During an owned transfer, native tests also repeat window-close and app-quit requests, verify one
+themed notice and no native message box, dismiss with Escape/Continue, and then explicitly cancel
+the transfer. `test-results/file-close-notice.png` captures the notice.
 
 ## Menu translations (Lingui 5.9.0)
 

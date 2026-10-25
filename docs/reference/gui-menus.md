@@ -181,6 +181,9 @@ and render Host events from all observed clients. SSH transfers use explicit rem
 dedicated connection, with progress from this desktop's CLI child. Both use native local selection.
 Main rejects disconnect,
 reconnect and app/window exit during a GUI-owned file operation until completion or cancellation.
+Blocked window-close and app-quit attempts show one themed in-app notice and open the transfer
+panel. Continue or Escape dismisses the notice without cancelling the transfer or retrying close;
+the user must finish/cancel the operation and explicitly close again. Main remains the close guard.
 See the [file workflow](../getting-started/file-transfer.md#electron-file-picker-and-progress).
 
 ## Planning boundaries (not implemented)
