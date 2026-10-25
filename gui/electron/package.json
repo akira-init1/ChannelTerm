@@ -16,6 +16,8 @@
     "host:build": "node scripts/build-host.mjs",
     "files:build": "node scripts/build-host.mjs --files",
     "typecheck": "tsc --noEmit",
+    "check": "npm run format:check && npm run typecheck && npm test && npm run build",
+    "check:desktop": "npm run check && npm run test:desktop && npm run test:desktop:dev",
     "test": "node scripts/build-fixture.mjs && tsx --test tests/*.test.ts",
     "test:desktop": "npm run build && node scripts/build-fixture.mjs && node --import tsx scripts/test-desktop.mjs",
     "test:desktop:dev": "node scripts/build-fixture.mjs && node --import tsx scripts/test-desktop.mjs --dev",

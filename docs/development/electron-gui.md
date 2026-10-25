@@ -272,12 +272,23 @@ for sizing and extension boundaries.
 Run from `gui/electron`:
 
 ```powershell
-npm.cmd run format:check
-npm.cmd run typecheck
-npm.cmd test
-npm.cmd run test:desktop
-npm.cmd run test:desktop:dev
+npm.cmd run check
+# Include both production and development native desktop checks:
+npm.cmd run check:desktop
 ```
+
+`check` stops on the first failure and runs formatting, TypeScript (including its strict
+`i18n:check` prerequisite), unit/integration tests and the production build. `check:desktop`
+adds both native desktop modes, also stopping on failure. Neither command installs dependencies,
+packages installers, signs, publishes or contacts a real device. Run `npm.cmd ci` first.
+There is no dedicated semantic lint command; Prettier checks formatting only.
+
+The `GUI` jobs in `.github/workflows/ci.yml` run `npm ci` and `check` on Linux, Windows and
+macOS with Node.js 24 and Go. Windows additionally runs both native desktop modes. They use
+the existing read-only repository permission and no signing or publishing secrets. Linux/macOS
+desktop sessions, arm64 native execution and real hardware remain separate acceptance work;
+successful builds or fixture tests do not establish those results. A workflow change is not
+evidence that hosted CI has run: record the actual job results after an authorized push.
 
 `test` builds a fixed-path disposable Go fixture under ignored `test-results/` with `CGO_ENABLED=0`.
 The fixture uses the real MCP adapter, one authoritative Application, Manager, Session, and Channel

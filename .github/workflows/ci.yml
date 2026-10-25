@@ -13,6 +13,38 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  gui:
+    name: GUI (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    defaults:
+      run:
+        working-directory: gui/electron
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: stable
+          cache-dependency-path: go.sum
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: gui/electron/package-lock.json
+      - run: npm ci
+      - name: Check GUI formatting, types, catalogs, tests and build
+        run: npm run check
+      - name: Test production desktop with isolated Host
+        if: runner.os == 'Windows'
+        run: npm run test:desktop
+      - name: Test development desktop with isolated Host
+        if: runner.os == 'Windows'
+        run: npm run test:desktop:dev
+
   test:
     name: Test (${{ matrix.name }})
     runs-on: ${{ matrix.os }}
