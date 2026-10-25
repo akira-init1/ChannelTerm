@@ -60,6 +60,7 @@ export function WorkbenchMenu({
 }) {
   const [opened, setOpened] = useState<MenuPopupRequest>();
   const [expanded, setExpanded] = useState<string>();
+  const menubar = useRef<HTMLElement>(null);
   const popup = useRef<HTMLDivElement>(null);
   const submenu = useRef<HTMLDivElement>(null);
   const focusSubmenu = useRef(false);
@@ -73,10 +74,47 @@ export function WorkbenchMenu({
     popup.current?.hidePopover();
     setOpened(undefined);
     setExpanded(undefined);
+    focusSubmenu.current = false;
     onContextClose();
   }
+  function openMenu(menu: MenuEntry, opener: HTMLButtonElement) {
+    const rect = opener.getBoundingClientRect();
+    onContextClose();
+    setExpanded(undefined);
+    focusSubmenu.current = false;
+    setOpened({
+      entries: menu.children!,
+      x: rect.left,
+      y: rect.bottom,
+      opener,
+    });
+  }
+  useEffect(() => {
+    if (!request) return;
+    // Keep menu mode armed while the pointer travels between groups. Explicit
+    // dismissal avoids native auto-popover dismissal racing the next button click.
+    const outside = (event: PointerEvent) => {
+      if (
+        event.target instanceof Node &&
+        !popup.current?.contains(event.target) &&
+        !menubar.current?.contains(event.target)
+      )
+        close();
+    };
+    const blur = () => close();
+    document.addEventListener("pointerdown", outside, true);
+    window.addEventListener("blur", blur);
+    return () => {
+      document.removeEventListener("pointerdown", outside, true);
+      window.removeEventListener("blur", blur);
+    };
+  }, [request, onContextClose]);
   useLayoutEffect(() => {
-    if (!request || !popup.current) return;
+    if (!popup.current) return;
+    if (!request) {
+      popup.current.hidePopover();
+      return;
+    }
     const element = popup.current;
     element.showPopover();
     const position = () => {
@@ -85,7 +123,12 @@ export function WorkbenchMenu({
       element.style.top = `${Math.max(4, Math.min(request.y, innerHeight - bounds.height - 4))}px`;
     };
     position();
-    element.querySelector<HTMLButtonElement>("button:not(:disabled)")?.focus();
+    const first = element.querySelector<HTMLButtonElement>(
+      "button:not(:disabled)",
+    );
+    // Even an entirely disabled menu owns Escape/Tab, rather than leaving
+    // keyboard focus in the terminal that was active before opening it.
+    (first ?? element).focus();
     window.addEventListener("resize", position);
     return () => window.removeEventListener("resize", position);
   }, [request, state.locale]);
@@ -218,6 +261,7 @@ export function WorkbenchMenu({
   return (
     <header className="topbar">
       <nav
+        ref={menubar}
         className="app-menu"
         aria-label="Application menu"
         onKeyDown={(event) => {
@@ -234,6 +278,9 @@ export function WorkbenchMenu({
                 buttons.length
             ]?.focus();
             event.preventDefault();
+          } else if (event.key === "Escape" && opened) {
+            close(true);
+            event.preventDefault();
           } else if (event.key === "ArrowDown") {
             buttons[index]?.click();
             event.preventDefault();
@@ -247,17 +294,19 @@ export function WorkbenchMenu({
             aria-expanded={request?.opener.dataset.menu === menu.id}
             aria-controls="workbench-menu"
             data-menu={menu.id}
+            onPointerEnter={(event) => {
+              if (
+                event.pointerType !== "touch" &&
+                opened &&
+                !context &&
+                opened.opener !== event.currentTarget
+              )
+                openMenu(menu, event.currentTarget);
+            }}
             onClick={(event) => {
-              const opener = event.currentTarget;
-              const rect = opener.getBoundingClientRect();
-              onContextClose();
-              setExpanded(undefined);
-              setOpened({
-                entries: menu.children!,
-                x: rect.left,
-                y: rect.bottom,
-                opener,
-              });
+              if (!context && opened?.opener === event.currentTarget)
+                close(true);
+              else openMenu(menu, event.currentTarget);
             }}
           >
             {t(menu.label)} <Icon name="chevron" />
@@ -267,17 +316,11 @@ export function WorkbenchMenu({
       <div
         ref={popup}
         id="workbench-menu"
-        popover="auto"
+        popover="manual"
         className="menu-popup"
         role="menu"
+        tabIndex={-1}
         aria-label="Workbench menu"
-        onToggle={(event) => {
-          if (event.newState === "closed") {
-            setOpened(undefined);
-            setExpanded(undefined);
-            onContextClose();
-          }
-        }}
         onKeyDown={(event) => {
           if (event.nativeEvent.isComposing || event.keyCode === 229) return;
           if (event.key === "Escape") {

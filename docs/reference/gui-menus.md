@@ -108,7 +108,11 @@ macOS retains its system menu and an app menu for Exit GUI; native macOS validat
 separate from Windows testing.
 
 Tab reaches menu buttons. Left/Right moves between focused top-level buttons; Down or Enter
-opens one. Within a popup, Up/Down/Home/End moves through enabled entries and Enter activates
+opens one. Hover alone does not open a closed menu. After clicking a top-level group, moving
+the pointer over another group switches its popup without another click. Moving away without
+clicking keeps menu mode active. Choosing an action, clicking the active group or outside the
+menus, pressing Escape/Tab, or losing window focus ends menu mode; context menus do not arm it.
+Within a popup, Up/Down/Home/End moves through enabled entries and Enter activates
 the same action dispatcher. After opening a top-level menu, hovering a parent row expands its
 submenu to the right; it flips left near the window edge. Click and Right also open it; Left
 returns focus to the parent. Escape closes

@@ -5,6 +5,14 @@ import assert from "node:assert/strict";
 export async function checkFiles(desktop, page, fixture) {
   await fixture.command("transfer-start");
   await expect(page.locator(".transfer-panel")).toBeVisible();
+  await expect(page.locator(".transfer-job").first()).toHaveCSS(
+    "font-size",
+    "12px",
+  );
+  await expect(page.locator(".transfer-job progress").first()).toHaveCSS(
+    "height",
+    "6px",
+  );
   await expect(page.locator(".transfer-job progress")).toHaveAttribute(
     "value",
     "512",

@@ -23,7 +23,10 @@ async function nativeClick(desktop, id) {
 const popup = (page) =>
   page.getByRole("menu", { name: "Workbench menu", exact: true });
 async function open(page, id) {
-  await page.locator(`[data-menu="${id}"]`).click();
+  const button = page.locator(`[data-menu="${id}"]`);
+  await button.hover();
+  if ((await button.getAttribute("aria-expanded")) !== "true")
+    await button.click();
 }
 
 /** Exercise the real renderer bridge and native menu, without registering global keys. */
@@ -45,6 +48,41 @@ export async function checkOfflineMenus(desktop, page) {
     assert.equal((await nativeItem(desktop, id)).enabled, false);
   }
   assert.equal((await nativeItem(desktop, "host.connect")).enabled, true);
+  await page.locator('[data-menu="settings"]').hover();
+  await expect(popup(page)).not.toBeVisible();
+  await open(page, "settings");
+  for (const id of [
+    "connection",
+    "session",
+    "terminal",
+    "view",
+    "help",
+    "settings",
+  ]) {
+    await page.locator(`[data-menu="${id}"]`).hover();
+    await expect(page.locator(`[data-menu="${id}"]`)).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
+    await expect(popup(page)).toBeVisible();
+  }
+  await page.locator(".statusbar").hover();
+  await expect(popup(page)).toBeVisible();
+  await page.locator('[data-menu="settings"]').click();
+  await expect(popup(page)).not.toBeVisible();
+  await page.locator('[data-menu="connection"]').hover();
+  await expect(popup(page)).not.toBeVisible();
+  await open(page, "connection");
+  await page.locator(".statusbar").click();
+  await page.locator('[data-menu="settings"]').hover();
+  await expect(popup(page)).not.toBeVisible();
+  await open(page, "settings");
+  await page.keyboard.press("Escape");
+  await page.locator('[data-menu="connection"]').hover();
+  await expect(popup(page)).not.toBeVisible();
+  await open(page, "terminal");
+  await page.keyboard.press("Escape");
+  await expect(popup(page)).not.toBeVisible();
   await open(page, "settings");
   await popup(page)
     .getByRole("menuitem", { name: "Language", exact: true })
@@ -335,6 +373,14 @@ export async function checkAttachedMenus(
   );
   await observer.read(observerAttachment.id);
   await page.locator(".terminal-view").click({ button: "right" });
+  await page.locator('[data-menu="settings"]').hover();
+  await expect(page.locator('[data-menu="settings"]')).toHaveAttribute(
+    "aria-expanded",
+    "false",
+  );
+  await expect(
+    popup(page).getByRole("menuitem", { name: "Clear local display" }),
+  ).toBeVisible();
   await nativeClick(desktop, "language.ja");
   await expect(
     popup(page).getByRole("menuitem", {

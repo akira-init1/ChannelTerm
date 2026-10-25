@@ -145,6 +145,7 @@ overestimate the available cell area. Application styles do not target xterm's i
 The right edge remains reserved for a future MCP activity panel, with no placeholder controls.
 The implemented transfer panel occupies the area above the status bar only when operations or
 results exist. It is collapsible and vertically resizable within 45% of the terminal workspace.
+Its 12 px labels and 6 px progress track keep transfer details compact relative to the terminal.
 
 ## State ownership
 
