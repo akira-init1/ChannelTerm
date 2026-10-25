@@ -151,7 +151,7 @@ msgstr "Bits d’arrêt"
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
 msgid "connection.trust"
-msgstr "Seules les clés d’hôte approuvées sont acceptées. Vérifiez et installez d’abord la clé du serveur dans le fichier known_hosts du Host. Les identifiants ne sont pas enregistrés."
+msgstr "Les Hosts à jour demandent confirmation avant de faire confiance à une clé inconnue. Les clés modifiées ou révoquées sont refusées. Les identifiants ne sont pas enregistrés."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -917,6 +917,41 @@ msgstr "Type de terminal PTY"
 #: src/shared/menu-messages.ts
 msgid "ssh.timeoutSeconds"
 msgstr "Délai de connexion (secondes)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.trustAccept"
+msgstr "Faire confiance et connecter"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.trustAddress"
+msgstr "Adresse du serveur"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.trustAlgorithm"
+msgstr "Algorithme de la clé"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.trustFingerprint"
+msgstr "Empreinte SHA-256"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.trustHint"
+msgstr "Vérifiez l’empreinte par un moyen indépendant. L’approbation enregistre la clé de cette connexion dans le fichier de confiance du Host. Les transferts locaux utilisent leur propre fichier. Les clés modifiées ou révoquées sont toujours refusées. Cette demande expire après deux minutes."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.trustReject"
+msgstr "Refuser la connexion"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.trustTitle"
+msgstr "Faire confiance à ce serveur SSH ?"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

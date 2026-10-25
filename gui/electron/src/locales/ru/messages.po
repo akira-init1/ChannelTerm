@@ -151,7 +151,7 @@ msgstr "Стоповые биты"
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
 msgid "connection.trust"
-msgstr "Принимаются только доверенные ключи хостов. Сначала проверьте и добавьте ключ сервера в файл known_hosts на Host. Учётные данные не сохраняются."
+msgstr "Обновлённый Host запрашивает подтверждение перед доверием неизвестному ключу. Изменённые или отозванные ключи отклоняются. Учётные данные не сохраняются."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -917,6 +917,41 @@ msgstr "Тип терминала PTY"
 #: src/shared/menu-messages.ts
 msgid "ssh.timeoutSeconds"
 msgstr "Тайм-аут подключения (секунды)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.trustAccept"
+msgstr "Доверять и подключиться"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.trustAddress"
+msgstr "Адрес сервера"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.trustAlgorithm"
+msgstr "Алгоритм ключа"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.trustFingerprint"
+msgstr "Отпечаток SHA-256"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.trustHint"
+msgstr "Проверьте отпечаток по независимому каналу. После подтверждения ключ этого подключения сохраняется в файле доверия Host. Локальные передачи файлов используют свой файл доверия. Изменённые или отозванные ключи всегда отклоняются. Запрос истекает через две минуты."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.trustReject"
+msgstr "Отклонить подключение"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.trustTitle"
+msgstr "Доверять этому SSH-серверу?"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

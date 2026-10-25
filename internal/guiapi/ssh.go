@@ -28,6 +28,7 @@ type sshOpener interface {
 }
 
 type sshRequest struct {
+	ConfirmHostKey bool         `json:"confirm_host_key"`
 	Host           string       `json:"host"`
 	User           string       `json:"user"`
 	Port           int          `json:"port"`
@@ -63,17 +64,19 @@ func (a sshAdvanced) valid() bool {
 // NewSSHHandler exposes capability discovery and explicit SSH creation. Callers
 // must authenticate before reaching this handler. Browser origins are rejected;
 // secrets and underlying errors never enter responses, logs or Session metadata.
-// Unknown, changed and revoked host keys fail closed against the Host trust file.
+// Unknown keys require an opt-in, handshake-bound confirmation. Changed and revoked
+// keys always fail closed against the Host trust file.
 func NewSSHHandler(application *app.Application) http.Handler {
 	return newSSHHandler(application)
 }
 
 func newSSHHandler(application sshOpener) http.Handler {
 	active := make(chan struct{}, 2)
+	trust := &sshTrust{pending: make(map[string]sshTrustDecision), decisions: make(chan struct{}, 2)}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("Content-Type", "application/json")
-		if r.URL.Path != SSHPath || r.URL.RawQuery != "" {
+		if (r.URL.Path != SSHPath && r.URL.Path != SSHConfirmPath) || r.URL.RawQuery != "" {
 			reply(w, 404, map[string]string{"error": "not_found"})
 			return
 		}
@@ -81,8 +84,12 @@ func newSSHHandler(application sshOpener) http.Handler {
 			reply(w, 403, map[string]string{"error": "origin_forbidden"})
 			return
 		}
+		if r.URL.Path == SSHConfirmPath {
+			trust.serveDecision(w, r)
+			return
+		}
 		if r.Method == http.MethodGet {
-			reply(w, 200, map[string]bool{"available": true, "advanced": true})
+			reply(w, 200, map[string]bool{"available": true, "advanced": true, "trust_confirmation": true})
 			return
 		}
 		if r.Method != http.MethodPost {
@@ -109,6 +116,9 @@ func newSSHHandler(application sshOpener) http.Handler {
 		_ = controller.SetReadDeadline(time.Now().Add(5 * time.Second))
 		defer controller.SetReadDeadline(time.Time{})
 		body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 32768))
+		// The body budget must not become a deadline for interactive confirmation
+		// or the server's disconnect watcher once the complete body is consumed.
+		_ = controller.SetReadDeadline(time.Time{})
 		defer clear(body)
 		var input sshRequest
 		decoder := json.NewDecoder(bytes.NewReader(body))
@@ -121,7 +131,11 @@ func newSSHHandler(application sshOpener) http.Handler {
 		if input.Advanced != nil {
 			setupTimeout = time.Duration(input.Advanced.TimeoutSeconds) * time.Second
 		}
-		ctx, cancel := context.WithDeadline(r.Context(), started.Add(setupTimeout+5*time.Second))
+		budget := setupTimeout + 5*time.Second
+		if input.ConfirmHostKey {
+			budget += 120 * time.Second
+		}
+		ctx, cancel := context.WithDeadline(r.Context(), started.Add(budget))
 		defer cancel()
 		config, cleanup, err := configuration(&input)
 		if err != nil {
@@ -129,6 +143,19 @@ func newSSHHandler(application sshOpener) http.Handler {
 			return
 		}
 		defer cleanup()
+		if input.ConfirmHostKey {
+			w.Header().Set("Content-Type", "application/x-ndjson")
+			prompted := false
+			config.ConfirmHostKey = func(ctx context.Context, key sshtransport.HostKey) (bool, error) {
+				if prompted {
+					return false, errDuplicateSSHTrust
+				}
+				prompted = true
+				promptContext, stop := context.WithTimeout(ctx, 120*time.Second)
+				defer stop()
+				return trust.confirm(promptContext, w, key)
+			}
+		}
 		opened, err := application.OpenSSH(ctx, app.OpenSSHRequest{Config: config, Label: input.Label})
 		if err != nil {
 			code := "connection_failed"
@@ -144,11 +171,11 @@ func newSSHHandler(application sshOpener) http.Handler {
 			if ctx.Err() != nil {
 				code = "cancelled"
 			}
-			reply(w, 422, map[string]string{"error": code})
+			streamSSHResult(w, input.ConfirmHostKey, 422, map[string]any{"error": code})
 			return
 		}
 		// Request completion/GUI detach never closes this Manager-owned Session.
-		reply(w, 200, map[string]any{"session_id": opened.Info.ID, "reused": opened.Reused})
+		streamSSHResult(w, input.ConfirmHostKey, 200, map[string]any{"session_id": opened.Info.ID, "reused": opened.Reused})
 	})
 }
 
@@ -176,9 +203,10 @@ func validRequest(r sshRequest) bool {
 	return (r.Password == nil || len(*r.Password) <= 4096) && (r.KeyPassphrase == nil || len(*r.KeyPassphrase) <= 4096)
 }
 
-// configuration supplies existing Transport callbacks, never a parallel SSH
-// stack. Strict known_hosts validation has no confirmation/skip callback. Paths
-// are interpreted on the authenticated Host, and no configuration is persisted.
+// configuration supplies the existing Transport's strict base configuration,
+// never a parallel SSH stack or verification bypass. The handler may attach its
+// bounded handshake confirmation callback afterward. Paths refer to the Host;
+// this helper does not persist connection settings or trust records.
 func configuration(r *sshRequest) (sshtransport.Config, func(), error) {
 	c := sshtransport.Config{Host: r.Host, User: r.User, Port: r.Port, PrivateKeyPaths: r.IdentityFiles, KnownHostsPath: r.KnownHostsFile, Timeout: 10 * time.Second}
 	if a := r.Advanced; a != nil {

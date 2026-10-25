@@ -33,6 +33,7 @@ export type ConnectionRequest =
     }
   | {
       kind: "ssh";
+      confirmHostKey?: boolean;
       host: string;
       user: string;
       port: number;
@@ -119,6 +120,7 @@ export function isConnectionRequest(
     exact([
       "kind",
       "host",
+      "confirmHostKey",
       "user",
       "port",
       "identityFiles",
@@ -128,6 +130,7 @@ export function isConnectionRequest(
       "advanced",
       "label",
     ]) &&
+    (v.confirmHostKey === undefined || typeof v.confirmHostKey === "boolean") &&
     bounded(v.host, 253) &&
     !/[@/\[\]\s]/.test(v.host) &&
     bounded(v.user, 128) &&

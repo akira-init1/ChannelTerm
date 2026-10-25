@@ -151,7 +151,7 @@ msgstr "Stoppbits"
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
 msgid "connection.trust"
-msgstr "Nur vertrauenswürdige Hostschlüssel werden akzeptiert. Prüfen und hinterlegen Sie den Serverschlüssel zuerst in der known_hosts-Datei des Hosts. Zugangsdaten werden nicht gespeichert."
+msgstr "Aktualisierte Hosts fragen vor dem Vertrauen eines unbekannten Schlüssels nach. Geänderte oder widerrufene Schlüssel werden abgelehnt. Zugangsdaten werden nicht gespeichert."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -917,6 +917,41 @@ msgstr "PTY-Terminaltyp"
 #: src/shared/menu-messages.ts
 msgid "ssh.timeoutSeconds"
 msgstr "Verbindungszeitlimit (Sekunden)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.trustAccept"
+msgstr "Vertrauen und verbinden"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.trustAddress"
+msgstr "Serveradresse"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.trustAlgorithm"
+msgstr "Schlüsselalgorithmus"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.trustFingerprint"
+msgstr "SHA-256-Fingerabdruck"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.trustHint"
+msgstr "Prüfen Sie den Fingerabdruck unabhängig. Die Zustimmung speichert den Schlüssel dieser Verbindung in der Vertrauensdatei des Hosts. Lokale Dateiübertragungen verwenden ihre eigene Vertrauensdatei. Geänderte oder widerrufene Schlüssel werden nie akzeptiert. Die Anfrage verfällt nach zwei Minuten."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.trustReject"
+msgstr "Verbindung ablehnen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.trustTitle"
+msgstr "Diesem SSH-Server vertrauen?"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

@@ -1,3 +1,4 @@
+import { readFile, writeFile } from "node:fs/promises";
 import assert from "node:assert/strict";
 import { _electron as electron, expect } from "@playwright/test";
 import { startFixture } from "../tests/fixture.ts";
@@ -245,6 +246,32 @@ export async function checkConnections(environment, launchArgs) {
     await expect(page.locator(".terminal-tab.active")).toContainText(
       "Created serial",
     );
+    const originalTrust = await readFile(fixture.knownHosts, "utf8");
+    await writeFile(fixture.knownHosts, "");
+    await dialog.locator('[name="password"]').fill("fixture-password");
+    await dialog.getByRole("button", { name: "Connect", exact: true }).click();
+    const trustPrompt = page.getByRole("alertdialog", {
+      name: "Trust this SSH server?",
+      exact: true,
+    });
+    await expect(trustPrompt).toBeVisible();
+    await expect(trustPrompt).toContainText("ssh-ed25519");
+    await expect(trustPrompt).toContainText("SHA256:");
+    await expect(
+      trustPrompt.getByRole("button", {
+        name: "Reject connection",
+        exact: true,
+      }),
+    ).toBeFocused();
+    await trustPrompt
+      .getByRole("button", { name: "Reject connection", exact: true })
+      .click();
+    await expect(dialog.getByRole("alert")).toContainText("Host key rejected");
+    assert.equal(await readFile(fixture.knownHosts, "utf8"), "");
+    assert.equal(
+      (await observer.list()).filter((s) => s.transport === "ssh").length,
+      0,
+    );
     await dialog.locator('[name="password"]').fill("fixture-password");
     await dialog.locator('[name="label"]').fill("Created SSH");
     await dialog.getByText("Advanced SSH settings", { exact: true }).click();
@@ -267,7 +294,16 @@ export async function checkConnections(environment, launchArgs) {
     ).toBeInViewport();
     await page.screenshot({ path: "test-results/connection-ssh.png" });
     await dialog.getByRole("button", { name: "Connect", exact: true }).click();
+    await expect(trustPrompt).toBeVisible();
+    await trustPrompt
+      .getByRole("button", { name: "Trust and connect", exact: true })
+      .scrollIntoViewIfNeeded();
+    await page.screenshot({ path: "test-results/ssh-first-trust.png" });
+    await trustPrompt
+      .getByRole("button", { name: "Trust and connect", exact: true })
+      .click();
     await expect(dialog).not.toBeVisible();
+    assert.equal(await readFile(fixture.knownHosts, "utf8"), originalTrust);
     await expect(page.locator(".terminal-tab.active")).toContainText(
       "Created SSH",
     );

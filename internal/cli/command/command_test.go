@@ -290,7 +290,7 @@ func TestGUIEndpointUsesHostAuthentication(t *testing.T) {
 	// pool can leave speculative/idle connections open during graceful shutdown.
 	client := &http.Client{Timeout: time.Second, Transport: &http.Transport{}}
 	defer client.CloseIdleConnections()
-	for _, route := range []string{guiapi.SSHPath, guiapi.SerialProfilesPath} {
+	for _, route := range []string{guiapi.SSHPath, guiapi.SSHConfirmPath, guiapi.SerialProfilesPath} {
 		for _, tc := range []struct {
 			token, origin string
 			status        int
@@ -315,6 +315,9 @@ func TestGUIEndpointUsesHostAuthentication(t *testing.T) {
 			_ = response.Body.Close()
 			if readErr != nil {
 				t.Fatal(readErr)
+			}
+			if route == guiapi.SSHConfirmPath && tc.status == 200 {
+				tc.status = http.StatusMethodNotAllowed
 			}
 			if response.StatusCode != tc.status {
 				t.Fatalf("status=%d want %d", response.StatusCode, tc.status)

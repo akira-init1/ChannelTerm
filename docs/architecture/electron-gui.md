@@ -376,6 +376,14 @@ configuration. Initial PTY dimensions do not confer resize ownership, and reuse 
 Session's settings intact. The setup deadline follows the selected bounded network budget;
 authentication, trust validation, cancellation and no-replay rules are unchanged.
 
+SSH first-trust confirmation uses the Transport's existing callback on the current handshake.
+The authenticated desktop adapter owns at most two transient decision capabilities; Main validates
+the bounded stream and exposes a separate window-local prompt identity through narrow IPC.
+Renderer supplies only accept/reject. Disconnect/deadline withdraws pending callbacks, and Transport
+rechecks the actual key under the trust-file lock before persistence. No key material or Host
+capability enters Renderer. [The desktop API](../reference/gui-host-api.md#ssh-first-trust-confirmation)
+owns wire limits and trust semantics.
+
 A Transport establishes the Channel before attachment; it is not an additional hop for every byte.
 Preload is an isolated context, not a third application process. Main may launch a detached
 standalone Go Host, but closing the GUI never stops that Host or its shared Sessions. Renderer sandboxing and `contextIsolation` are enabled, and `nodeIntegration`

@@ -3,6 +3,18 @@ import type { MessageDescriptor } from "@lingui/core";
 // Lingui 5 extracts these official annotated descriptors without a runtime macro
 // transform. Translations belong in PO catalogs; this file owns IDs and English defaults.
 export const menuMessages = [
+  /* i18n */ { id: "ssh.trustTitle", message: "Trust this SSH server?" },
+  /* i18n */ {
+    id: "ssh.trustHint",
+    message:
+      "Verify this fingerprint independently. Approval saves this key in the Host trust file for this connection. Local file transfers use their own trust file. Changed or revoked keys are never accepted. This request expires after two minutes.",
+  },
+  /* i18n */ { id: "ssh.trustAddress", message: "Server address" },
+  /* i18n */ { id: "ssh.trustAlgorithm", message: "Key algorithm" },
+  /* i18n */ { id: "ssh.trustFingerprint", message: "SHA-256 fingerprint" },
+  /* i18n */ { id: "ssh.trustReject", message: "Reject connection" },
+  /* i18n */ { id: "ssh.trustAccept", message: "Trust and connect" },
+
   /* i18n */ { id: "profiles.title", message: "Serial profiles" },
   /* i18n */ {
     id: "profiles.hint",
@@ -264,7 +276,7 @@ export const menuMessages = [
   /* i18n */ {
     id: "connection.trust",
     message:
-      "Only trusted host keys are accepted. Verify and install the server key in the Host known_hosts file first. Credentials are not saved.",
+      "Updated Hosts ask before trusting an unknown key. Changed or revoked keys are rejected. Credentials are not saved.",
   },
   /* i18n */ { id: "connection.cancel", message: "Cancel" },
   /* i18n */ { id: "connection.opening", message: "Connecting…" },

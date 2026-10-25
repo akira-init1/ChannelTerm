@@ -567,7 +567,7 @@ func serveMCPHTTP(ctx context.Context, registry *tool.Registry, listener net.Lis
 	// Preserve every existing custom MCP path, including a collision with this
 	// optional desktop endpoint. Foreground SSH owners expose no creation API.
 	if gui != nil {
-		for _, route := range []string{guiapi.SSHPath, guiapi.SerialProfilesPath} {
+		for _, route := range []string{guiapi.SSHPath, guiapi.SSHConfirmPath, guiapi.SerialProfilesPath} {
 			if path != route {
 				mux.Handle(route, requireBearerToken(token, gui))
 			}

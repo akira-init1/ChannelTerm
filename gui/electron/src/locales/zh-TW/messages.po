@@ -151,7 +151,7 @@ msgstr "停止位元"
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
 msgid "connection.trust"
-msgstr "僅接受受信任的主機金鑰。請先核對並將伺服器金鑰加入 Host 的 known_hosts 檔案。不會儲存憑證。"
+msgstr "新版 Host 會在信任未知金鑰前要求確認。變更或撤銷的金鑰會被拒絕。不儲存憑證。"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -917,6 +917,41 @@ msgstr "PTY 終端類型"
 #: src/shared/menu-messages.ts
 msgid "ssh.timeoutSeconds"
 msgstr "連線逾時（秒）"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.trustAccept"
+msgstr "信任並連線"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.trustAddress"
+msgstr "伺服器位址"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.trustAlgorithm"
+msgstr "金鑰演算法"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.trustFingerprint"
+msgstr "SHA-256 指紋"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.trustHint"
+msgstr "請透過獨立管道核對指紋。確認後會將本次連線的金鑰儲存至 Host 的信任檔案。本機檔案傳輸使用自己的信任檔案。變更或撤銷的金鑰一律拒絕。此請求將於兩分鐘後到期。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.trustReject"
+msgstr "拒絕連線"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.trustTitle"
+msgstr "信任此 SSH 伺服器？"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

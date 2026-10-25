@@ -142,7 +142,7 @@ func run() error {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
-		if r.URL.Path == guiapi.SSHPath || r.URL.Path == guiapi.SerialProfilesPath {
+		if r.URL.Path == guiapi.SSHPath || r.URL.Path == guiapi.SSHConfirmPath || r.URL.Path == guiapi.SerialProfilesPath {
 			sshHandler.ServeHTTP(w, r)
 			return
 		}

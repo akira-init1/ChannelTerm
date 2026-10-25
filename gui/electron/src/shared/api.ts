@@ -1,3 +1,4 @@
+import type { SSHTrustPrompt } from "./ssh-trust";
 import type { SerialProfiles, SerialProfileChange } from "./serial-profiles";
 import type {
   LocalSelection,
@@ -124,6 +125,8 @@ export interface DesktopAPI {
   serialProfiles(): Promise<Result<SerialProfiles>>;
   changeSerialProfile(request: SerialProfileChange): Promise<Result<void>>;
   serialPorts(): Promise<Result<string[]>>;
+  sshTrustPrompt(): Promise<Result<SSHTrustPrompt | undefined>>;
+  resolveSSHTrust(id: string, accept: boolean): Promise<Result<void>>;
   openConnection(request: ConnectionRequest): Promise<Result<OpenedConnection>>;
   attach(
     sessionId: string,
@@ -169,6 +172,8 @@ export const channels = {
   serialProfiles: "host:serial-profiles",
   changeSerialProfile: "host:change-serial-profile",
   serialPorts: "host:serial-ports",
+  sshTrustPrompt: "host:ssh-trust-prompt",
+  resolveSSHTrust: "host:resolve-ssh-trust",
   openConnection: "host:open-connection",
   attach: "host:attach",
   detach: "host:detach",

@@ -151,7 +151,7 @@ msgstr "Bits de parada"
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
 msgid "connection.trust"
-msgstr "Solo se aceptan claves de host de confianza. Verifique e instale primero la clave del servidor en el archivo known_hosts del Host. Las credenciales no se guardan."
+msgstr "Los Hosts actualizados piden confirmación antes de confiar en una clave desconocida. Se rechazan claves cambiadas o revocadas. No se guardan credenciales."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -917,6 +917,41 @@ msgstr "Tipo de terminal PTY"
 #: src/shared/menu-messages.ts
 msgid "ssh.timeoutSeconds"
 msgstr "Tiempo límite de conexión (segundos)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.trustAccept"
+msgstr "Confiar y conectar"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.trustAddress"
+msgstr "Dirección del servidor"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.trustAlgorithm"
+msgstr "Algoritmo de clave"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.trustFingerprint"
+msgstr "Huella SHA-256"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.trustHint"
+msgstr "Verifique la huella por un medio independiente. Al aprobar, la clave de esta conexión se guarda en el archivo de confianza del Host. Las transferencias locales usan su propio archivo. Nunca se aceptan claves cambiadas o revocadas. La solicitud caduca en dos minutos."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.trustReject"
+msgstr "Rechazar conexión"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.trustTitle"
+msgstr "¿Confiar en este servidor SSH?"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

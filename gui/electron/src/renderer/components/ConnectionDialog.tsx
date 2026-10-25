@@ -1,3 +1,4 @@
+import { SSHTrustConfirmation } from "./SSHTrustConfirmation";
 import { SerialProfilesFields } from "./SerialProfiles";
 import type { SerialProfile } from "../../shared/serial-profiles";
 import { useEffect, useRef, useState, type FormEvent } from "react";
@@ -104,6 +105,7 @@ export function ConnectionDialog({
           }
         : {
             kind,
+            confirmHostKey: true,
             host: value("host").trim(),
             user: value("user").trim(),
             port: Number(value("port")),
@@ -436,6 +438,7 @@ export function ConnectionDialog({
           {kind === "serial" && <TerminalSettingsFields t={t} />}
         </fieldset>
         {error && <p role="alert">{error}</p>}
+        {kind === "ssh" && busy && <SSHTrustConfirmation t={t} />}
         <footer>
           <button type="button" disabled={busy} onClick={onClose}>
             {t("connection.cancel")}

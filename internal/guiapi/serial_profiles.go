@@ -51,7 +51,9 @@ func (p serialProfile) valid() bool {
 // middleware. Unknown routes do not fall through to a configuration operation.
 func NewHandler(application *app.Application) http.Handler {
 	mux := http.NewServeMux()
-	mux.Handle(SSHPath, NewSSHHandler(application))
+	ssh := NewSSHHandler(application)
+	mux.Handle(SSHPath, ssh)
+	mux.Handle(SSHConfirmPath, ssh)
 	mux.Handle(SerialProfilesPath, newSerialProfilesHandler(application))
 	return mux
 }

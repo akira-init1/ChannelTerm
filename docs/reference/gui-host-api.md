@@ -1,6 +1,6 @@
 # Desktop Host API
 
-The standalone HTTP Host mounts `/gui/v1/ssh` and `/gui/v1/serial-profiles` beside its configured MCP endpoint.
+The standalone HTTP Host mounts `/gui/v1/ssh`, `/gui/v1/ssh/confirm` and `/gui/v1/serial-profiles` beside its configured MCP endpoint.
 This is a separate authenticated HTTP adapter, not an MCP tool. Existing MCP names,
 schemas and stdio behavior are unchanged. `internal/guiapi` calls the same
 Application connection/configuration use cases and Session Manager used by the Host's CLI/MCP adapters.
@@ -16,7 +16,7 @@ Renderer cannot supply the API URL or access the Bearer token. Redirects are ref
 Requests with an `Origin` header are rejected, including authenticated browser
 requests; no CORS access is granted. Responses use `Cache-Control: no-store`. The
 API grants an authenticated Host client the ability to initiate outbound SSH and
-read selected identity/trust files on that Host. A remotely exposed HTTP Host still
+read selected identity/trust files on that Host, and persist an explicitly approved unknown SSH key. A remotely exposed HTTP Host still
 requires the trusted-network precautions in the [Host workflow](../getting-started/mcp-server.md).
 
 Older Hosts, stdio Hosts and foreground CLI `ssh` owners do not expose this route.
@@ -26,8 +26,9 @@ SSH creation when unavailable; existing shared SSH Sessions can still be attache
 
 ## Requests and responses
 
-`GET /gui/v1/ssh` returns `200 {"available":true,"advanced":true}` after authentication.
-Older implementations may omit `advanced`; clients must not send advanced settings to them. Query strings
+`GET /gui/v1/ssh` returns `200 {"available":true,"advanced":true,"trust_confirmation":true}` after authentication.
+Older implementations may omit optional capabilities; clients must not send advanced settings or
+request trust confirmation without the corresponding advertisement. Query strings
 are not accepted. `POST` requires `Content-Type: application/json` and one JSON object;
 unknown fields, trailing JSON, malformed or oversized bodies are rejected.
 
@@ -41,6 +42,7 @@ unknown fields, trailing JSON, malformed or oversized bodies are rejected.
 | `known_hosts_file` | Optional Host-side trust-file path, at most 4096 bytes; blank uses the Host user's `.ssh/known_hosts`. |
 | `password` | Optional password, at most 4096 bytes. Omission differs from an empty password. |
 | `key_passphrase` | Optional encrypted-key passphrase, at most 4096 bytes. |
+| `confirm_host_key` | Optional boolean; false/omission retains strict noninteractive verification. True opts into the confirmation stream below. |
 | `advanced` | Optional object described below; omission preserves existing Transport defaults. |
 
 The `advanced` object requires every field below except `keepalive_seconds` and `write_timeout_seconds`, which may be omitted for zero. Durations are integer seconds; fractional,
@@ -68,14 +70,15 @@ No SSH agent, keyboard-interactive authentication, arbitrary exec, file transfer
 profile persistence, or host-key bypass is exposed.
 
 Known, unchanged keys must pass the existing Transport's `known_hosts` verification.
-Unknown, changed and revoked keys are rejected. This API never approves or writes
-trust records: verify and install the server key on the Host before connecting.
+Unknown keys are rejected unless the caller opts into the advertised confirmation flow and the
+user approves the actual handshake identity. Changed and revoked keys are always rejected.
+Older Hosts require installing the verified server key on the Host before connecting.
 No passwords, passphrases or private-key contents enter Session metadata, logs or
 responses. Mutable request/credential buffers are cleared on completion; GUI password
 inputs clear after submission. Managed runtimes cannot guarantee erasure of all
 temporary string copies. Nothing is written to GUI preferences or connection profiles.
 
-Successful creation or reuse returns:
+Without confirmation streaming, successful creation or reuse returns:
 
 ```json
 {"session_id":"opaque-session-id","reused":false}
@@ -87,7 +90,7 @@ the shared Session. Host shutdown and existing Session close semantics remain au
 Reuse of an open endpoint preserves its existing authentication and metadata, as defined
 by `Application.OpenSSH`; it does not reauthenticate an already-running Session.
 
-Failures contain only a fixed code, such as `{"error":"host_key_rejected"}`:
+Non-streaming failures contain only a fixed code, such as `{"error":"host_key_rejected"}`:
 
 | HTTP status | Codes / meaning |
 | --- | --- |
@@ -100,7 +103,8 @@ Failures contain only a fixed code, such as `{"error":"host_key_rejected"}`:
 
 The body is limited to 32 KiB with a five-second read deadline. Each request has a
 setup deadline of `timeout_seconds + 5` seconds measured from request handling, defaulting to
-15 seconds, including the Transport's ten-second default network setup budget. Main allows
+15 seconds, including the Transport's ten-second default network setup budget. Confirmation-enabled
+requests add a bounded 120-second interaction allowance. Main allows
 another five seconds for the response, while disconnect still cancels immediately.
 Request cancellation releases incomplete setup through Application/Transport. If a
 response is lost after registration, the Session may already exist: refresh the shared
@@ -111,6 +115,46 @@ Serial scanning/creation continues through existing `terminal_list_serial_ports`
 profile fields. Wake defaults to false and requires selecting the wake checkbox on each form
 or profile application. Selecting a port and pressing Connect is explicit user intent;
 scanning, reading profiles and saving alone open nothing.
+
+## SSH first-trust confirmation
+
+The GUI requests `confirm_host_key:true` only when the Host advertises `trust_confirmation:true`.
+After ordinary request validation, the response uses `application/x-ndjson`: at most one `trust`
+event followed by one terminal `result` or `error` event. HTTP 200 may therefore carry a terminal
+error; clients must inspect `event`. Validation/authentication errors before streaming keep their
+normal HTTP statuses. Without opt-in, existing JSON responses and strict unknown-key rejection remain.
+
+```json
+{"event":"trust","challenge_id":"64-lowercase-hex-capability","address":"[example.invalid]:2222","algorithm":"ssh-ed25519","fingerprint":"SHA256:verified-server-fingerprint"}
+{"event":"result","session_id":"opaque-session-id","reused":false}
+```
+
+The fingerprint above is abbreviated; real fingerprints use the Transport's complete SHA-256 value.
+A failed stream ends with `{"event":"error","error":"host_key_rejected"}` or another existing safe
+setup code. Main validates identities and caps each stream at 16 KiB, with an 8 KiB pending frame.
+It owns the random Host capability and gives Renderer a separate window-local, single-use prompt ID.
+Renderer cannot submit a key, fingerprint, trust-file path or decision for another window's setup.
+
+The user independently verifies the displayed address, algorithm and fingerprint, then chooses
+**Trust and connect** or **Reject connection**. Reject initially receives keyboard focus. The
+confirmation expires after 120 seconds; window close, disconnect or request cancellation cancels
+pending setup. Main sends one authenticated `POST /gui/v1/ssh/confirm` with
+`{"challenge_id":"...","accept":true}` (or false). That endpoint has the same Origin/token policy,
+a 1 KiB body limit, five-second body deadline and two concurrent decision slots. Missing/consumed/
+expired capabilities return `409 confirmation_expired`; a valid decision returns `{"accepted":true}`.
+No list or recovery endpoint exposes pending capabilities, and decisions/connection attempts are not replayed.
+
+Approval resumes the same paused Transport handshake. Transport rechecks the exact key under its
+existing `known_hosts` file lock before appending it, preserving comments and records. A changed or
+revoked record installed while the dialog is open rejects approval. No new connection is substituted
+between preview and approval. Reused Sessions retain their existing authentication and do not prompt.
+Trust persistence happens before later authentication/setup; an explicitly approved key may remain
+saved even if those later steps fail or the response is lost. Re-read trust/Session state before retrying.
+
+This dialog saves to the **Host-side** `known_hosts_file` chosen for that connection (or its normal
+Host default). Dedicated local file transfers still use their separately selected **local companion**
+trust file and strict verification; approving a Host connection does not authorize a different local
+file, path or key. No trust-file path or credential contents are returned in prompt IPC.
 
 ## Serial profiles
 

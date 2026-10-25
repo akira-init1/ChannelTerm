@@ -151,7 +151,7 @@ msgstr "Stop bits"
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
 msgid "connection.trust"
-msgstr "Only trusted host keys are accepted. Verify and install the server key in the Host known_hosts file first. Credentials are not saved."
+msgstr "Updated Hosts ask before trusting an unknown key. Changed or revoked keys are rejected. Credentials are not saved."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -917,6 +917,41 @@ msgstr "PTY terminal type"
 #: src/shared/menu-messages.ts
 msgid "ssh.timeoutSeconds"
 msgstr "Connection timeout (seconds)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.trustAccept"
+msgstr "Trust and connect"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.trustAddress"
+msgstr "Server address"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.trustAlgorithm"
+msgstr "Key algorithm"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.trustFingerprint"
+msgstr "SHA-256 fingerprint"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.trustHint"
+msgstr "Verify this fingerprint independently. Approval saves this key in the Host trust file for this connection. Local file transfers use their own trust file. Changed or revoked keys are never accepted. This request expires after two minutes."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.trustReject"
+msgstr "Reject connection"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.trustTitle"
+msgstr "Trust this SSH server?"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

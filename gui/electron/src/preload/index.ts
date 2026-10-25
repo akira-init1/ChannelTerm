@@ -57,6 +57,9 @@ const api: DesktopAPI = {
   changeSerialProfile: (request) =>
     ipcRenderer.invoke(channels.changeSerialProfile, request),
   serialPorts: () => ipcRenderer.invoke(channels.serialPorts),
+  sshTrustPrompt: () => ipcRenderer.invoke(channels.sshTrustPrompt),
+  resolveSSHTrust: (id, accept) =>
+    ipcRenderer.invoke(channels.resolveSSHTrust, id, accept),
   openConnection: (request) =>
     ipcRenderer.invoke(channels.openConnection, request),
   attach: (id, settings) => ipcRenderer.invoke(channels.attach, id, settings),

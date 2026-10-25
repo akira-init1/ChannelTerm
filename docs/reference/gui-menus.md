@@ -6,6 +6,11 @@ three levels, used by **Settings > Language > language name** and **Session > Fi
 **Session > New Connection...** directly opens the connection form. Its Protocol selector switches
 between the existing Serial and SSH forms; switching discards protocol fields, including secrets.
 SSH is disabled unless the connected Host advertises its desktop API.
+For an unknown SSH key, an updated Host can request confirmation of the current handshake.
+The dialog displays address, algorithm and SHA-256 fingerprint, focuses Reject initially, and expires
+after two minutes. Approval saves the Host trust record; changed/revoked keys remain rejected.
+See [first-trust semantics](gui-host-api.md#ssh-first-trust-confirmation) for cancellation and the
+distinction from dedicated local file-transfer trust.
 The Serial form includes **Serial profiles**: refresh, apply a profile, save current settings with
 explicit overwrite opt-in, and set an existing profile as default. Profiles share the Host CLI
 configuration, not GUI preferences. Applying a profile resets wake to off; sending the wake carriage

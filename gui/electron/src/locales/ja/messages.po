@@ -151,7 +151,7 @@ msgstr "ストップビット"
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
 msgid "connection.trust"
-msgstr "信頼済みのホスト鍵のみ受け入れます。事前にサーバーの鍵を検証して Host の known_hosts に登録してください。認証情報は保存しません。"
+msgstr "更新済みの Host は未知の鍵を信頼する前に確認します。変更・失効した鍵は拒否します。認証情報は保存しません。"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -917,6 +917,41 @@ msgstr "PTY 端末タイプ"
 #: src/shared/menu-messages.ts
 msgid "ssh.timeoutSeconds"
 msgstr "接続タイムアウト（秒）"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.trustAccept"
+msgstr "信頼して接続"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.trustAddress"
+msgstr "サーバーのアドレス"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.trustAlgorithm"
+msgstr "鍵のアルゴリズム"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.trustFingerprint"
+msgstr "SHA-256 指紋"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.trustHint"
+msgstr "別の経路で指紋を確認してください。承認すると、この接続の鍵を Host の信頼ファイルに保存します。ローカルのファイル転送は独自の信頼ファイルを使います。変更・失効した鍵は常に拒否します。この要求は2分後に失効します。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.trustReject"
+msgstr "接続を拒否"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "ssh.trustTitle"
+msgstr "この SSH サーバーを信頼しますか？"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

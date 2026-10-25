@@ -283,8 +283,9 @@ SSH inside its Protocol selector; SSH is disabled without the Host's desktop API
 - SSH: enter host, port and user, then choose password or private-key authentication. Key paths
   and `known_hosts` paths refer to files on the Host. Blank key paths use existing default
   identities; encrypted keys accept a passphrase. Blank trust path uses the Host user's
-  `.ssh/known_hosts`. Unknown, changed and revoked keys fail: verify and install the server key
-  beforehand. Password inputs clear on submission and credentials are never saved as preferences.
+  `.ssh/known_hosts`. Updated Hosts display an unknown-key confirmation bound to the current
+  handshake; independently verify its address, algorithm and fingerprint before trusting. Changed
+  and revoked keys always fail. Older Hosts require prior installation of a verified key. Password inputs clear on submission and credentials are never saved as preferences.
   On a Host advertising advanced SSH support, expand **Advanced SSH settings** for connection
   timeout, keepalive interval/response limit, write timeout, terminal type and initial PTY dimensions.
   Defaults preserve existing setup. Zero disables keepalive or write timeout; write timeout expiry
@@ -455,6 +456,12 @@ resolver and desktop API. Unit/integration checks cover name conflicts, explicit
 selection, concurrent saves, lock cancellation, malformed IPC/HTTP input and safe errors. Native checks
 apply custom baud/settings, preserve wake opt-in and verify that saving alone creates no Session.
 They never open physical serial devices or use the developer's configuration.
+
+SSH trust checks use temporary loopback keys/files and exercise approval, rejection, disconnect,
+expired/replayed/foreign decisions and changed/revoked records, including changes during confirmation.
+The delayed-approval regression ensures the five-second HTTP body deadline does not interrupt the
+two-minute prompt. Native tests verify initial Reject focus, refusal without persistence, and approval
+with the same shared Host Session lifecycle. No developer SSH trust file is accessed.
 
 ## Troubleshooting and limits
 

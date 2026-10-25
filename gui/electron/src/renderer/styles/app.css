@@ -1189,3 +1189,19 @@ main {
 .shortcut-row button {
   align-self: flex-end;
 }
+
+.ssh-trust-confirmation {
+  border: 1px solid #ad8b41;
+  border-radius: 6px;
+  padding: 16px;
+  margin: 16px 0;
+  background: #262319;
+}
+.ssh-trust-confirmation dd {
+  margin: 4px 0 12px;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+.ssh-trust-confirmation button + button {
+  margin-left: 8px;
+}

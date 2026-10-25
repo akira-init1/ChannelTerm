@@ -1,3 +1,4 @@
+import { SSHTrustExchange } from "./ssh-trust";
 import {
   isSerialProfileChange,
   isSerialProfiles,
@@ -61,6 +62,8 @@ export class HostClient {
   private changing = false;
   private profilesBusy = false;
   private closing = new Set<string>();
+  readonly sshTrust = new SSHTrustExchange();
+  private sshTrustAvailable = false;
   private sshAvailable = false;
   private sshAdvanced = false;
   private transferEvents = new Map<string, TransferEvents>();
@@ -287,9 +290,11 @@ export class HostClient {
       try {
         const response = await this.sshRequest("GET");
         const capabilities = response.ok ? object(await response.json()) : {};
+        this.sshTrustAvailable = capabilities.trust_confirmation === true;
         this.sshAvailable = capabilities.available === true;
         this.sshAdvanced = this.sshAvailable && capabilities.advanced === true;
       } catch {
+        this.sshTrustAvailable = false;
         this.sshAvailable = false;
         this.sshAdvanced = false;
       }
@@ -331,6 +336,7 @@ export class HostClient {
     method: "GET" | "POST",
     body?: string,
     timeout = 20000,
+    signal?: AbortSignal,
   ): Promise<Response> {
     return fetch(new URL("/gui/v1/ssh", this.endpoint), {
       method,
@@ -343,6 +349,7 @@ export class HostClient {
       signal: AbortSignal.any([
         this.connection.signal,
         AbortSignal.timeout(method === "GET" ? 2000 : timeout),
+        ...(signal ? [signal] : []),
       ]),
     });
   }
@@ -469,7 +476,8 @@ export class HostClient {
         "This Host does not support advanced SSH settings. Update the Host or use default settings.",
       );
     this.changing = true;
-    const signal = this.connection.signal;
+    const setup = new AbortController();
+    const signal = AbortSignal.any([this.connection.signal, setup.signal]);
     try {
       let result: Record<string, unknown>;
       if (request.kind === "serial") {
@@ -488,9 +496,11 @@ export class HostClient {
           signal,
         );
       } else {
+        const trust = !!request.confirmHostKey && this.sshTrustAvailable;
         const response = await this.sshRequest(
           "POST",
           JSON.stringify({
+            confirm_host_key: trust || undefined,
             host: request.host,
             user: request.user,
             port: request.port,
@@ -509,12 +519,46 @@ export class HostClient {
               rows: request.advanced.rows,
             },
           }),
-          (request.advanced?.timeoutSeconds ?? 10) * 1000 + 10000,
+          (request.advanced?.timeoutSeconds ?? 10) * 1000 +
+            10000 +
+            (trust ? 120000 : 0),
+          signal,
         );
         if (response.status === 401 || response.status === 403)
           throw new HostError("unauthorized", "Host rejected SSH creation.");
-        if (!response.ok) {
-          const code = object(await response.json()).error;
+        const payload =
+          trust && response.ok
+            ? await this.sshTrust.read(
+                response,
+                signal,
+                async (challenge, accept) => {
+                  const decision = await fetch(
+                    new URL("/gui/v1/ssh/confirm", this.endpoint),
+                    {
+                      method: "POST",
+                      redirect: "error",
+                      headers: {
+                        Authorization: `Bearer ${this.token}`,
+                        "Content-Type": "application/json",
+                      },
+                      body: JSON.stringify({ challenge_id: challenge, accept }),
+                      signal: AbortSignal.any([
+                        signal,
+                        AbortSignal.timeout(5000),
+                      ]),
+                    },
+                  );
+                  await decision.body?.cancel();
+                  if (!decision.ok)
+                    throw new HostError(
+                      "cancelled",
+                      "SSH confirmation has expired.",
+                    );
+                },
+              )
+            : object(await response.json());
+        if (!response.ok || payload.event === "error") {
+          const code = payload.error;
           const message =
             code === "host_key_rejected"
               ? "Host key rejected. Verify and install the server key in the Host known_hosts file before connecting."
@@ -523,7 +567,7 @@ export class HostClient {
                 : "SSH creation failed. Check Host settings and refresh Sessions before trying again.";
           throw new HostError("tool_error", message);
         }
-        result = object(await response.json());
+        result = payload;
       }
       if (signal.aborted)
         throw new HostError(
@@ -542,6 +586,7 @@ export class HostClient {
           : "Connection result is uncertain. Refresh Sessions before trying again; the request was not replayed.",
       );
     } finally {
+      setup.abort();
       this.changing = false;
     }
   }
