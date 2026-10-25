@@ -1,4 +1,5 @@
 import type { ActivitySnapshot } from "./activity";
+import type { DiagnosticRequest, DiagnosticSaved } from "./diagnostics";
 import type { SSHTrustPrompt } from "./ssh-trust";
 import type { SerialProfiles, SerialProfileChange } from "./serial-profiles";
 import type {
@@ -137,6 +138,10 @@ export interface DesktopAPI {
   /** Explicit shared close, separate from attachment cleanup. */
   closeSession(attachmentId: string): Promise<Result<void>>;
   activity(attachmentId: string): Promise<Result<ActivitySnapshot>>;
+  saveDiagnostics(
+    request: DiagnosticRequest,
+  ): Promise<Result<DiagnosticSaved | undefined>>;
+  cancelDiagnostics(): Promise<Result<void>>;
   read(attachmentId: string): Promise<Result<Output>>;
   write(attachmentId: string, data: string): Promise<Result<void>>;
   syncMenu(state: MenuState): Promise<Result<void>>;
@@ -181,6 +186,8 @@ export const channels = {
   detach: "host:detach",
   closeSession: "host:close-session",
   activity: "host:activity",
+  saveDiagnostics: "diagnostics:save",
+  cancelDiagnostics: "diagnostics:cancel",
   read: "host:read",
   write: "host:write",
   menuState: "menu:state",

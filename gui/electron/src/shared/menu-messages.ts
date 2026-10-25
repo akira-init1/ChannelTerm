@@ -3,6 +3,48 @@ import type { MessageDescriptor } from "@lingui/core";
 // Lingui 5 extracts these official annotated descriptors without a runtime macro
 // transform. Translations belong in PO catalogs; this file owns IDs and English defaults.
 export const menuMessages = [
+  /* i18n */ { id: "diagnostics.close", message: "Close" },
+  /* i18n */ { id: "diagnostics.title", message: "Diagnostic ZIP…" },
+  /* i18n */ {
+    id: "diagnostics.hint",
+    message:
+      "Export a retained snapshot, not a continuous or complete log. Nothing is uploaded.",
+  },
+  /* i18n */ { id: "diagnostics.source", message: "Archive source" },
+  /* i18n */ {
+    id: "diagnostics.snapshot",
+    message: "Current Session snapshot",
+  },
+  /* i18n */ { id: "diagnostics.existing", message: "Existing diagnostic ID" },
+  /* i18n */ { id: "diagnostics.id", message: "Diagnostic ID" },
+  /* i18n */ {
+    id: "diagnostics.raw",
+    message: "Include raw terminal output and write contents",
+  },
+  /* i18n */ {
+    id: "diagnostics.rawHint",
+    message:
+      "Off by default. Raw contents may include passwords or other sensitive data.",
+  },
+  /* i18n */ {
+    id: "diagnostics.existingHint",
+    message:
+      "The existing archive may already contain raw contents. IDs expire after 15 minutes, eviction or Host exit.",
+  },
+  /* i18n */ {
+    id: "diagnostics.destination",
+    message:
+      "Choose a new filename. Existing files are never replaced. Downloads are limited to 16 MiB and verified with SHA-256.",
+  },
+  /* i18n */ {
+    id: "diagnostics.invalid",
+    message: "Enter a valid DIAG- identifier.",
+  },
+  /* i18n */ { id: "diagnostics.cancelled", message: "Save cancelled." },
+  /* i18n */ { id: "diagnostics.saved", message: "ZIP saved and verified." },
+  /* i18n */ { id: "diagnostics.cancel", message: "Cancel save" },
+  /* i18n */ { id: "diagnostics.saving", message: "Saving and verifying…" },
+  /* i18n */ { id: "diagnostics.save", message: "Save ZIP…" },
   /* i18n */ { id: "activity.title", message: "Session activity" },
   /* i18n */ {
     id: "activity.select",

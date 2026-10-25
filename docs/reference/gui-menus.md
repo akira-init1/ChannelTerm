@@ -57,6 +57,7 @@ for authentication, verification and cancellation.
 | Session > Attach Session... | `session.choose` | Reveal the existing sidebar and focus its search field while connected and idle. Selecting a row reuses `session.attach`; opening the picker does not change the attachment. |
 | Session > Session Information... | `session.info` | Reveal the existing details sidebar for the captured current attachment; no new Host query. |
 | Settings > Language | `language.change` | Follow the system or select one of the nine supported menu languages. Exactly one preference is checked. |
+| Help > Diagnostic ZIP... | `help.diagnostics` | Export the captured attachment snapshot or download an existing Host diagnostic ID to a new local file. Requires a connected idle Host. |
 | Help > Quick help | `help.quick` | Open a local, translated usage dialog. No external navigation. |
 
 Closing a **tab**, closing a **window**, disconnecting the **GUI from Host**, closing a
@@ -349,6 +350,24 @@ This is finite retained evidence, not durable logging or a total ordering across
 equal-millisecond timestamps use a stable stream/sequence tie-break. Empty and disconnected tabs
 show a selection hint. Read errors remain visible and polling resumes without replaying writes.
 
+## Diagnostic ZIP export
+
+**Help > Diagnostic ZIP...** offers a snapshot of the attachment captured when the dialog opens,
+or an existing `DIAG-` identifier from the connected Host. Snapshot defaults are metadata-only;
+**Include raw terminal output and write contents** explicitly opts into sensitive retained bytes.
+Existing archives are downloaded as created and may already include raw data. They are not
+redacted again by the GUI. The [Host contract](mcp-tools.md#terminal_export_diagnostics) owns ZIP
+contents, retention, expiry and completeness limits. This is a finite snapshot, not ongoing logging.
+
+The native save dialog chooses a **new** local filename. Existing files and symlinks are rejected,
+including after a native overwrite prompt; choose another name. Main verifies immutable size and
+SHA-256 while downloading bounded chunks. Success shows only the basename, diagnostic ID, byte
+count and hash. The GUI never uploads the file or exposes a destination path through Renderer IPC.
+Cancel, disconnect, detach of the snapshot attachment, malformed data, hash mismatch or Host
+failure removes the incomplete local file; removal failures are explicitly reported. An uncertain
+export is not automatically retried. Unknown, expired and evicted IDs show an unavailable-archive
+error; create another snapshot. A download has a 60-second budget including destination selection.
+
 ## Planning boundaries (not implemented)
 
 Except for the disabled Window entries above, these are placement decisions only, not runtime
@@ -361,7 +380,7 @@ menu entries or commitments to implement them.
 | Terminal | Split panes, output folding and remote PTY resize are not exposed. Find and its select-all control operate only on the current retained view. Existing clipboard, local clear, focus and conditional resume actions remain. |
 | View | A complete MCP request audit, status-bar visibility and a combined Reset Layout action are unimplemented. Session activity shows retained Host observations, not a complete audit; Session status is not a status-bar toggle. |
 | Settings | Application theme selection is unimplemented and not exposed. Shortcuts and terminal font/style settings persist locally. Language and layout state remain window-local; endpoint editing and Host process management are absent. |
-| Help | Online documentation navigation, updates, and diagnostic export require separate capability/security review. |
+| Help | Online documentation navigation and updates remain unimplemented. Diagnostic ZIP export follows the explicit local-save contract below. |
 
 No built-in AI Agent, new SSH/file-transfer implementation, Core use case, or MCP protocol change
 is implied by this menu organization.

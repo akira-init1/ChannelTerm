@@ -295,6 +295,91 @@ msgstr "Transporte"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "diagnostics.cancel"
+msgstr "Cancelar guardado"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "diagnostics.cancelled"
+msgstr "Guardado cancelado."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "diagnostics.close"
+msgstr "Cerrar"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "diagnostics.destination"
+msgstr "Elija un nombre nuevo. No se reemplazan archivos existentes. Las descargas se limitan a 16 MiB y se verifican con SHA-256."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "diagnostics.existing"
+msgstr "ID de diagnóstico existente"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "diagnostics.existingHint"
+msgstr "El archivo existente puede contener datos sin procesar. Los ID caducan a los 15 minutos, al descartarse o al salir del Host."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "diagnostics.hint"
+msgstr "Exporta una instantánea conservada, no un registro continuo ni completo. No se sube ningún contenido."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "diagnostics.id"
+msgstr "ID de diagnóstico"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "diagnostics.invalid"
+msgstr "Introduzca un identificador DIAG- válido."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "diagnostics.raw"
+msgstr "Incluir salida y entradas sin procesar del terminal"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "diagnostics.rawHint"
+msgstr "Desactivado por defecto. El contenido sin procesar puede incluir contraseñas u otros datos sensibles."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "diagnostics.save"
+msgstr "Guardar ZIP…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "diagnostics.saved"
+msgstr "ZIP guardado y verificado."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "diagnostics.saving"
+msgstr "Guardando y verificando…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "diagnostics.snapshot"
+msgstr "Instantánea de la sesión actual"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "diagnostics.source"
+msgstr "Origen del archivo"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "diagnostics.title"
+msgstr "ZIP de diagnóstico…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "display.fontFamily"
 msgstr "Familia de fuente"
 

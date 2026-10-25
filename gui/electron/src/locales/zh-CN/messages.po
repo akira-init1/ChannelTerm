@@ -295,6 +295,91 @@ msgstr "传输方式"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "diagnostics.cancel"
+msgstr "取消保存"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "diagnostics.cancelled"
+msgstr "已取消保存。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "diagnostics.close"
+msgstr "关闭"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "diagnostics.destination"
+msgstr "请选择新文件名。不会替换已有文件。下载上限为 16 MiB，并使用 SHA-256 校验。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "diagnostics.existing"
+msgstr "已有诊断 ID"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "diagnostics.existingHint"
+msgstr "已有归档可能包含原始内容。ID 在 15 分钟后、被淘汰或 Host 退出时失效。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "diagnostics.hint"
+msgstr "导出保留的快照，并非连续或完整日志。不会上传任何内容。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "diagnostics.id"
+msgstr "诊断 ID"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "diagnostics.invalid"
+msgstr "请输入有效的 DIAG- 标识符。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "diagnostics.raw"
+msgstr "包含原始终端输出和写入内容"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "diagnostics.rawHint"
+msgstr "默认关闭。原始内容可能包含密码或其他敏感信息。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "diagnostics.save"
+msgstr "保存 ZIP…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "diagnostics.saved"
+msgstr "ZIP 已保存并通过校验。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "diagnostics.saving"
+msgstr "正在保存并校验…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "diagnostics.snapshot"
+msgstr "当前会话快照"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "diagnostics.source"
+msgstr "归档来源"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "diagnostics.title"
+msgstr "诊断 ZIP…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "display.fontFamily"
 msgstr "字体样式（字体族）"
 

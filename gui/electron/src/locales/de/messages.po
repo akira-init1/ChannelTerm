@@ -295,6 +295,91 @@ msgstr "Transport"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "diagnostics.cancel"
+msgstr "Speichern abbrechen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "diagnostics.cancelled"
+msgstr "Speichern abgebrochen."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "diagnostics.close"
+msgstr "Schließen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "diagnostics.destination"
+msgstr "Wählen Sie einen neuen Dateinamen. Vorhandene Dateien werden nicht ersetzt. Downloads sind auf 16 MiB begrenzt und werden mit SHA-256 geprüft."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "diagnostics.existing"
+msgstr "Vorhandene Diagnose-ID"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "diagnostics.existingHint"
+msgstr "Das vorhandene Archiv kann Rohdaten enthalten. IDs verfallen nach 15 Minuten, bei Verdrängung oder beim Beenden des Hosts."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "diagnostics.hint"
+msgstr "Exportiert einen gespeicherten Schnappschuss, kein fortlaufendes oder vollständiges Protokoll. Es wird nichts hochgeladen."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "diagnostics.id"
+msgstr "Diagnose-ID"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "diagnostics.invalid"
+msgstr "Geben Sie eine gültige DIAG-Kennung ein."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "diagnostics.raw"
+msgstr "Rohe Terminalausgabe und Eingabeinhalte einschließen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "diagnostics.rawHint"
+msgstr "Standardmäßig deaktiviert. Rohdaten können Passwörter oder andere vertrauliche Informationen enthalten."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "diagnostics.save"
+msgstr "ZIP speichern…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "diagnostics.saved"
+msgstr "ZIP gespeichert und geprüft."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "diagnostics.saving"
+msgstr "Speichern und prüfen…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "diagnostics.snapshot"
+msgstr "Schnappschuss der aktuellen Sitzung"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "diagnostics.source"
+msgstr "Archivquelle"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "diagnostics.title"
+msgstr "Diagnose-ZIP…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "display.fontFamily"
 msgstr "Schriftfamilie"
 

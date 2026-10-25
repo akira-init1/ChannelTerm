@@ -1,4 +1,6 @@
 import { DesktopFiles, TransferConfirmation } from "./files";
+import { DesktopDiagnostics } from "./diagnostics";
+import { isDiagnosticRequest } from "../shared/diagnostics";
 import { DesktopSSHFiles } from "./ssh-files";
 import { copyAITarget } from "./target-copy";
 import {
@@ -65,6 +67,7 @@ interface WindowContext {
   transferConfirmation: TransferConfirmation;
   files: DesktopFiles;
   sshFiles: DesktopSSHFiles;
+  diagnostics: DesktopDiagnostics;
   menu: MenuState;
   handlers: Record<string, Handler>;
   autoConnect: boolean;
@@ -114,6 +117,7 @@ function disconnectHost(context: WindowContext): Promise<void> {
   context.transferConfirmation.dismiss();
   context.files.clearSelections();
   context.sshFiles.disconnect();
+  context.diagnostics.cancel();
   context.connectionVersion++;
   context.startupController.abort();
   context.connected = false;
@@ -329,6 +333,22 @@ async function acceptMovedTab(
 function createHandlers(context: WindowContext): Record<string, Handler> {
   let copyingTarget = false;
   const handlers: Record<string, (...args: unknown[]) => unknown> = {
+    [channels.saveDiagnostics]: (request) => {
+      if (!isDiagnosticRequest(request))
+        throw new HostError("invalid_input", "Invalid diagnostic request.");
+      return context.diagnostics.save(
+        currentHost(context),
+        request,
+        async () => {
+          const selected = await dialog.showSaveDialog(context.window, {
+            defaultPath: "channelterm-diagnostics.zip",
+            filters: [{ name: "ZIP", extensions: ["zip"] }],
+          });
+          return selected.canceled ? undefined : selected.filePath;
+        },
+      );
+    },
+    [channels.cancelDiagnostics]: () => context.diagnostics.cancel(),
     [channels.copyAITarget]: async (id, locale) => {
       identifier(id);
       if (copyingTarget)
@@ -616,6 +636,7 @@ function registerIPC(): void {
                     channels.closeSession,
                     channels.read,
                     channels.activity,
+                    channels.saveDiagnostics,
                     channels.readClipboard,
                     channels.menuState,
                     channels.openConnection,
@@ -674,6 +695,7 @@ function makeWindow(
     transferConfirmation: new TransferConfirmation(),
     files: new DesktopFiles(fileExecutable),
     sshFiles: new DesktopSSHFiles(fileExecutable),
+    diagnostics: new DesktopDiagnostics(),
     menu: { ...initialMenuState },
     handlers: {},
     autoConnect,

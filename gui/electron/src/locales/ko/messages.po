@@ -295,6 +295,91 @@ msgstr "전송 방식"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "diagnostics.cancel"
+msgstr "저장 취소"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "diagnostics.cancelled"
+msgstr "저장이 취소되었습니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "diagnostics.close"
+msgstr "닫기"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "diagnostics.destination"
+msgstr "새 파일 이름을 선택하세요. 기존 파일은 교체하지 않습니다. 최대 16 MiB이며 SHA-256으로 검증합니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "diagnostics.existing"
+msgstr "기존 진단 ID"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "diagnostics.existingHint"
+msgstr "기존 아카이브에 원시 내용이 포함될 수 있습니다. ID는 15분 후, 보관 대상에서 제외되거나 Host가 종료되면 만료됩니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "diagnostics.hint"
+msgstr "보존된 스냅샷을 내보냅니다. 연속적이거나 완전한 로그가 아닙니다. 업로드하지 않습니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "diagnostics.id"
+msgstr "진단 ID"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "diagnostics.invalid"
+msgstr "올바른 DIAG- 식별자를 입력하세요."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "diagnostics.raw"
+msgstr "원시 터미널 출력 및 입력 내용 포함"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "diagnostics.rawHint"
+msgstr "기본적으로 꺼져 있습니다. 원시 내용에는 암호 등 민감한 정보가 포함될 수 있습니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "diagnostics.save"
+msgstr "ZIP 저장…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "diagnostics.saved"
+msgstr "ZIP을 저장하고 검증했습니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "diagnostics.saving"
+msgstr "저장 및 검증 중…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "diagnostics.snapshot"
+msgstr "현재 세션 스냅샷"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "diagnostics.source"
+msgstr "아카이브 출처"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "diagnostics.title"
+msgstr "진단 ZIP…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "display.fontFamily"
 msgstr "글꼴 모음"
 

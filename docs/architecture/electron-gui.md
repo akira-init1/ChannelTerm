@@ -349,6 +349,23 @@ For blocked close/quit attempts, Main sends a fixed payload-free notification th
 Renderer deduplicates it into one themed notice and opens the transfer panel. Dismissal grants no
 close permission, cancels no operation and never schedules a deferred close.
 
+## Diagnostic saves
+
+Main's window-owned `DesktopDiagnostics` allows one pending save and a 60-second deadline,
+including the native picker. Renderer supplies only a validated snapshot attachment/raw opt-in
+or a bounded existing diagnostic ID, never a path. Host Client uses the existing export/read MCP
+tools and revalidates the exact attachment and connection after awaits. Download offsets are
+independent of terminal, activity and transfer cursors. The adapter accepts at most 16 MiB, one
+64 KiB chunk at a time, with exact Base64, contiguous offsets, stable metadata, EOF, total-size
+and SHA-256 checks. It never retries export or writes terminal bytes.
+
+The selected local file is created exclusively with owner-only mode where supported. Existing
+files and symlinks are not replaced. Main streams, syncs and closes verified output; errors and
+cancellation close and remove its partial file, with explicit cleanup failure reporting. Window
+closure, Host disconnect and cancellation abort the window-owned save. Only the basename and
+non-sensitive archive metadata return through IPC; raw ZIP bytes stay in Main and the selected
+file. See the [menu workflow](../reference/gui-menus.md#diagnostic-zip-export).
+
 ## Processes and communication
 
 Inside Electron, UI calls cross an isolated context and then a process boundary:

@@ -1,4 +1,9 @@
 import { ActivityFeed } from "./activity";
+import { diagnosticMetadata, downloadDiagnostic } from "./diagnostics";
+import {
+  isDiagnosticRequest,
+  type DiagnosticRequest,
+} from "../../shared/diagnostics";
 import type { ActivitySnapshot } from "../../shared/activity";
 import { SSHTrustExchange } from "./ssh-trust";
 import {
@@ -794,6 +799,75 @@ export class HostClient {
       );
     } finally {
       this.activityReading = false;
+    }
+  }
+
+  async downloadDiagnostic(
+    request: DiagnosticRequest,
+    signal: AbortSignal,
+    write: (data: Buffer) => Promise<void>,
+  ) {
+    if (!isDiagnosticRequest(request))
+      throw new HostError("invalid_input", "Invalid diagnostic request.");
+    const active =
+      request.kind === "snapshot"
+        ? this.attachment(request.attachmentId)
+        : undefined;
+    const connection = this.connection;
+    const abort = AbortSignal.any([
+      signal,
+      connection.signal,
+      ...(active ? [active.controller.signal] : []),
+    ]);
+    const validate = () => {
+      if (abort.aborted || connection !== this.connection)
+        throw new HostError("cancelled", "Diagnostic save cancelled.");
+      if (active) this.attachment(active.id);
+    };
+    try {
+      validate();
+      const exported =
+        request.kind === "snapshot"
+          ? await this.call(
+              "terminal_export_diagnostics",
+              {
+                session_id: active!.sessionId,
+                include_raw: request.includeRaw,
+              },
+              abort,
+            )
+          : undefined;
+      validate();
+      const expected = exported
+        ? diagnosticMetadata(exported, exported.diagnostic_id)
+        : undefined;
+      const id =
+        request.kind === "existing" ? request.diagnosticId : expected!.id;
+      const result = await downloadDiagnostic(
+        id,
+        async (offset) => {
+          validate();
+          const chunk = await this.call(
+            "terminal_read_diagnostic",
+            { diagnostic_id: id, offset, max_bytes: 65536 },
+            abort,
+          );
+          validate();
+          return chunk;
+        },
+        write,
+        abort,
+        expected,
+      );
+      validate();
+      return result;
+    } catch (error) {
+      validate();
+      if (error instanceof HostError) throw error;
+      throw new HostError(
+        "tool_error",
+        "Diagnostic archive is unavailable or the Host request failed. It may have expired or been evicted; create a new snapshot.",
+      );
     }
   }
 

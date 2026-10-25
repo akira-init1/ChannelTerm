@@ -1,4 +1,5 @@
 import { ActivityPanel } from "../sessions/ActivityPanel";
+import { DiagnosticsDialog } from "../sessions/DiagnosticsDialog";
 import { FileDialog } from "../transfers/FileDialog";
 import { FileCloseNotice } from "../transfers/FileCloseNotice";
 import { SSHFileDialog } from "../transfers/SSHFileDialog";
@@ -271,6 +272,10 @@ export function App() {
   );
   const t = (id: string) => i18n._(id);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [diagnostics, setDiagnostics] = useState<{ attachmentId?: string }>();
+  useEffect(() => {
+    if (!connected) setDiagnostics(undefined);
+  }, [connected]);
   const [fileCloseBlocked, setFileCloseBlocked] = useState(false);
   useEffect(
     () =>
@@ -644,6 +649,7 @@ export function App() {
     preferences.current.clear();
     setSettingsTarget(undefined);
     setConnectionKind(undefined);
+    setDiagnostics(undefined);
     setOperation("disconnecting");
     generation.current++;
     setTabs([]);
@@ -1042,6 +1048,9 @@ export function App() {
       case "help.quick":
         setHelpOpen(true);
         return;
+      case "help.diagnostics":
+        setDiagnostics({ attachmentId: attachment?.id });
+        return;
       case "terminal.copy":
         terminal?.copy();
         return;
@@ -1229,6 +1238,13 @@ export function App() {
           t={t}
           onOpen={openConnection}
           onClose={() => setConnectionKind(undefined)}
+        />
+      )}
+      {diagnostics && connected && (
+        <DiagnosticsDialog
+          attachmentId={diagnostics.attachmentId}
+          t={t}
+          onClose={() => setDiagnostics(undefined)}
         />
       )}
       {closeTarget && connected && (

@@ -1237,3 +1237,11 @@ main {
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
+
+.diagnostic-result {
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+.diagnostic-result code {
+  font-size: 12px;
+}

@@ -64,6 +64,7 @@ export type Action =
         | "settings.shortcuts"
         | "settings.display"
         | "help.quick"
+        | "help.diagnostics"
         | "app.quit";
     }
   | {
@@ -323,6 +324,12 @@ export function applicationMenu(state: MenuState): MenuEntry[] {
       label: "menu.help",
       children: [
         { id: "help.quick", label: "help.quick", action: { id: "help.quick" } },
+        {
+          id: "help.diagnostics",
+          label: "diagnostics.title",
+          action: { id: "help.diagnostics" },
+          enabled: actionEnabled({ id: "help.diagnostics" }, state),
+        },
       ],
     },
   ];
@@ -498,6 +505,7 @@ export function isAction(value: unknown): value is Action {
     case "settings.shortcuts":
     case "settings.display":
     case "help.quick":
+    case "help.diagnostics":
     case "app.quit":
       return exact(value, ["id"]);
     case "file.send":
@@ -625,6 +633,7 @@ export function actionEnabled(action: Action, state: MenuState): boolean {
         ((state.tabCount ?? 0) < 32 || !state.attachment)
       );
     case "host.disconnect":
+    case "help.diagnostics":
     case "session.choose":
     case "session.refresh":
     case "file.send":

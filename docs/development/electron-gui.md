@@ -473,6 +473,17 @@ output remains readable by another client, and checks hide/reopen and three-tab 
 `test-results/session-activity.png` captures the compact panel. The fixture uses private stdin
 controls with in-memory I/O; a synthesized report tests labeling, not an actual GDB audit.
 
+### Diagnostic ZIP checks
+
+Download tests cover exact chunk offsets, size/hash consistency, bounded Base64, checksum failure,
+cancellation, exclusive destination creation, overlapping requests and partial-file cleanup. Real
+isolated Host tests inspect ZIP entries to distinguish metadata-only and explicitly raw snapshots,
+verify byte-identical existing-ID downloads and reject evicted IDs. Native tests use production
+Renderer/IPC/Host paths while substituting only the destination picker; they verify default opt-out,
+raw opt-in, existing-ID download, unavailable archives and picker cancellation. The resulting dialog
+is captured in `test-results/diagnostic-export.png`. Destination files are disposable test artifacts.
+These checks do not establish physical device evidence or other native-platform filesystem behavior.
+
 ## Troubleshooting and limits
 
 | Symptom | Check / recovery |
