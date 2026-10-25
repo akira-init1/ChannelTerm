@@ -155,6 +155,46 @@ msgstr "Nom d’utilisateur"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "details.empty"
+msgstr "Attachez une session pour consulter ses détails."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "details.endpoint"
+msgstr "Point de connexion"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "details.id"
+msgstr "ID de session"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "details.lease"
+msgstr "Bail actif"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "details.session"
+msgstr "Session"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "details.state"
+msgstr "État"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "details.title"
+msgstr "Détails de la session"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "details.transport"
+msgstr "Transport"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "file.cancel"
 msgstr "Annuler le transfert"
 
@@ -202,6 +242,11 @@ msgstr "Continuer"
 #: src/shared/menu-messages.ts
 msgid "file.directory"
 msgstr "Dossier"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.empty"
+msgstr "Aucun transfert de fichiers. Utilisez le menu Session pour envoyer, recevoir ou reprendre un transfert."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -455,6 +500,16 @@ msgstr "Affichage"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "panel.close"
+msgstr "Masquer le panneau"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "panel.resize"
+msgstr "Redimensionner le panneau inférieur"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "session.attach"
 msgstr "Attacher une session"
 
@@ -462,6 +517,46 @@ msgstr "Attacher une session"
 #: src/shared/menu-messages.ts
 msgid "session.refresh"
 msgstr "Actualiser les sessions"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "settings.shortcuts"
+msgstr "Raccourcis clavier"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.conflict"
+msgstr "Chaque raccourci doit être unique. Modifiez ou supprimez le doublon."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.hint"
+msgstr "Sélectionnez un champ et appuyez sur Ctrl ou Command avec une lettre ou un chiffre ; Alt et Maj sont facultatifs. Les positions physiques des touches sont utilisées. Les raccourcis appliqués sont enregistrés localement et fonctionnent dans le terminal. Dialogues, menus, champs de texte et IME conservent leurs touches."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.invalid"
+msgstr "Utilisez Ctrl ou Command avec une lettre ou un chiffre. Les raccourcis courants de modification et de fenêtre sont réservés."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.remove"
+msgstr "Supprimer"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.reset"
+msgstr "Rétablir les valeurs par défaut"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.storageError"
+msgstr "Impossible de sauvegarder les raccourcis. Vérifiez l’accès au stockage local et réessayez."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.unassigned"
+msgstr "Non attribué"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -525,6 +620,26 @@ msgstr "Mode d’affichage"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "view.auxiliary"
+msgstr "Barre latérale secondaire"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "view.layout"
+msgstr "Commandes de disposition"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "view.panel"
+msgstr "Panneau inférieur"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "view.resizeAuxiliary"
+msgstr "Redimensionner la barre latérale secondaire"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "view.resizeSidebar"
 msgstr "Redimensionner le panneau des sessions"
 
@@ -537,3 +652,8 @@ msgstr "Faites glisser ou utilisez les flèches pour redimensionner. Double-cliq
 #: src/shared/menu-messages.ts
 msgid "view.sidebar"
 msgstr "Barre latérale des sessions"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "view.status"
+msgstr "État de la session"

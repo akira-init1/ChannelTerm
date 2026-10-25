@@ -228,6 +228,10 @@ The fixture uses the real MCP adapter, one authoritative Application, Manager, S
 with an in-memory echo endpoint. It listens on an ephemeral loopback port, uses a generated token,
 and takes test controls over private stdin. No physical serial port, credentials, external SSH
 server, or user Host is accessed. EOF on fixture stdin stops it and cleans up its own Session.
+Desktop test windows use a fresh profile under ignored `test-results/desktop-profile-*` for
+both Electron userData and sessionData, so shortcut persistence checks cannot overwrite the
+user's GUI preferences. A test-only Node preload sets these paths before application startup;
+no test profile control or additional IPC capability ships in the application.
 
 Startup tests cover existing-listener reuse, custom-endpoint exclusion, cancellation, launch
 failure, known process exit, and suppression of duplicate launches after uncertain timeouts.
@@ -269,13 +273,22 @@ and absence of redundant input/target elements. They drag the sidebar divider, e
 limits and composition guards, shrink the window, cancel pointer capture, and double-click to
 reset width while retaining the attachment and fitted terminal. Screenshots are saved as
 `test-results/workbench-compact-layout.png` and `workbench-compact-resized.png`.
+Panel checks toggle all three regions, resize the right/bottom dividers, fit both sidebars at
+minimum window size, switch bottom tabs with the keyboard, and verify unchanged attachment
+and zero terminal bytes from layout shortcuts. Settings checks cover conflicting/reserved
+combinations, custom dispatch, saved local bindings, storage failures, menu labels, reset,
+and editor focus. Fresh app processes check saved bindings and malformed-storage fallback.
+Screenshots: `workbench-panels.png`, `workbench-panels-compact.png`, and `workbench-shortcuts.png`.
+Unit checks cover platform defaults, Option/physical keys, IME/AltGr rejection, malformed or
+duplicate stored bindings, and bounded native menu hints.
 Menu checks cover native/renderer language and checkmark synchronization, sidebar actions,
 keyboard opening, Escape/focus restoration, outside-click dismissal, and disabled offline/empty/
 closed actions. They reject stale attachment callbacks and missing non-current context targets,
 verify local clear leaves Host history intact and sends no bytes, and exit the GUI with an
 independent observer still attached. Ctrl+C/Ctrl+L/Ctrl+W, Alt and F1 pass through xterm.
 Chromium CDP composition/commit checks cover Chinese input without duplicate bytes; real OS IME
-candidate windows still need manual native testing. No global shortcut is registered.
+candidate windows still need manual native testing. No OS-global shortcut is registered; the
+renderer handles only assigned layout chords under the documented focus policy.
 Empty/large-list and missing-context-target checks replace list IPC snapshots in disposable test processes;
 connection, terminal I/O, leases, and lifecycle checks use the real isolated Go Host. A fresh Electron
 process restores production IPC for subsequent recovery checks. No test-only controls ship in the app.

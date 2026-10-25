@@ -5,8 +5,10 @@ import { startFixture } from "../tests/fixture.ts";
 import { HostClient } from "../src/main/host/client.ts";
 import { checkConnections } from "./connection-checks.mjs";
 import { checkStartup } from "./startup-checks.mjs";
-import { checkCompactLayout } from "./layout-checks.mjs";
+import { checkCompactLayout, checkWorkbenchPanels } from "./layout-checks.mjs";
 import { randomBytes } from "node:crypto";
+import { mkdtemp, writeFile } from "node:fs/promises";
+import { resolve } from "node:path";
 import { createServer } from "vite";
 import { buildProcesses } from "./build.mjs";
 import {
@@ -44,6 +46,7 @@ async function checkLayout(desktop, page, state) {
           const main = rect("main");
           const bottom = rect(".statusbar");
           const surface = rect(".terminal-view, .terminal-empty");
+          const panel = rect(".bottom-panel");
           const screen = document
             .querySelector(".xterm-screen")
             ?.getBoundingClientRect();
@@ -53,7 +56,9 @@ async function checkLayout(desktop, page, state) {
             bottom: bottom.bottom <= innerHeight && bottom.top === main.bottom,
             right: main.right <= innerWidth,
             width: surface.width > innerWidth * 0.6,
-            height: surface.height > innerHeight * 0.5,
+            height:
+              surface.height + panel.height > innerHeight * 0.5 &&
+              surface.height > 80,
             scroll:
               document.documentElement.scrollWidth <= innerWidth &&
               document.documentElement.scrollHeight <= innerHeight,
@@ -114,6 +119,15 @@ async function checkLayout(desktop, page, state) {
 }
 
 const fixture = await startFixture();
+// Shortcut settings persist: keep every test window off the user's GUI profile.
+const profile = await mkdtemp(resolve("test-results/desktop-profile-"));
+const profilePreload = resolve(profile, "profile.cjs");
+await writeFile(
+  profilePreload,
+  `const { app } = require("electron");\napp.setPath("userData", ${JSON.stringify(profile)});\napp.setPath("sessionData", ${JSON.stringify(profile)});\n`,
+);
+const preloadArgs = ["-r", profilePreload];
+const launchArgs = [...preloadArgs, "."];
 const observer = new HostClient(fixture.endpoint, fixture.token);
 const desktopEnvironment = {
   ...process.env,
@@ -137,10 +151,14 @@ try {
   const sessionId = (await observer.list())[0].session_id;
   const attachment = await observer.attach(sessionId);
   desktop = await electron.launch({
-    args: ["."],
+    args: launchArgs,
     env: desktopEnvironment,
   });
   const page = await desktop.firstWindow();
+  assert.equal(
+    await desktop.evaluate(({ app }) => app.getPath("sessionData")),
+    profile,
+  );
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await expect(
@@ -196,7 +214,9 @@ try {
   await checkLayout(desktop, page, "disconnected");
   await page.screenshot({ path: "test-results/workbench-disconnected.png" });
   await page.getByRole("button", { name: "Connect to Host" }).click();
-  await expect(page.getByText("Host connected", { exact: true })).toBeVisible();
+  await expect(
+    page.locator(".host-panel").getByText("Host connected", { exact: true }),
+  ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Select a Session" }),
   ).toBeVisible();
@@ -215,6 +235,7 @@ try {
   ).toBeVisible();
   await checkLayout(desktop, page, "attached");
   await checkCompactLayout(desktop, page);
+  await checkWorkbenchPanels(desktop, page, observer, attachment);
   await checkFiles(desktop, page, fixture);
   // Searching/collapsing navigation only changes presentation, never attachment.
   await page
@@ -317,6 +338,14 @@ try {
   await page.getByRole("button", { name: /SER-1/ }).click();
   await expect(page.locator(".xterm-screen")).toBeVisible();
   // Exit GUI shares native close cleanup and leaves the Host/observer alive.
+  const savedPanelBinding =
+    process.platform === "darwin" ? "Meta+Shift+J" : "Ctrl+Shift+J";
+  await page.evaluate((binding) => {
+    const key = "channelterm.layout-shortcuts.v1";
+    const bindings = JSON.parse(localStorage.getItem(key));
+    bindings["view.panel"] = binding;
+    localStorage.setItem(key, JSON.stringify(bindings));
+  }, savedPanelBinding);
   await exitFromMenu(desktop, page);
   desktop = undefined;
   assert.equal((await observer.list())[0].state, "open");
@@ -328,8 +357,17 @@ try {
   assert.deepEqual(errors, []);
   // Test-only IPC snapshots exercise empty/large lists without adding Host
   // controls or opening hardware. A fresh process below restores real IPC.
-  desktop = await electron.launch({ args: ["."], env: desktopEnvironment });
+  desktop = await electron.launch({
+    args: launchArgs,
+    env: desktopEnvironment,
+  });
   const listPage = await desktop.firstWindow();
+  await expect(listPage.locator('[data-layout="view.panel"]')).toHaveAttribute(
+    "title",
+    process.platform === "darwin"
+      ? "Bottom panel (⌘⇧J)"
+      : "Bottom panel (Ctrl+Shift+J)",
+  );
   const listErrors = [];
   listPage.on("pageerror", (error) => listErrors.push(error.message));
   await desktop.evaluate(({ ipcMain }) => {
@@ -381,11 +419,26 @@ try {
   await expect(listPage.locator(".session").last()).toBeInViewport();
   await expect(listPage.locator(".statusbar")).toBeInViewport();
   assert.deepEqual(listErrors, []);
+  // Corrupt preferences recover to platform defaults on the next app launch.
+  await listPage.evaluate(() =>
+    localStorage.setItem("channelterm.layout-shortcuts.v1", "{invalid"),
+  );
   await exitFromNativeMenu(desktop);
   desktop = undefined;
   // A new window observes Session loss and then Host loss without taking ownership.
-  desktop = await electron.launch({ args: ["."], env: desktopEnvironment });
+  desktop = await electron.launch({
+    args: launchArgs,
+    env: desktopEnvironment,
+  });
   const recoveryPage = await desktop.firstWindow();
+  await expect(
+    recoveryPage.locator('[data-layout="view.panel"]'),
+  ).toHaveAttribute(
+    "title",
+    process.platform === "darwin"
+      ? "Bottom panel (⌘J)"
+      : "Bottom panel (Ctrl+J)",
+  );
   await recoveryPage.getByRole("button", { name: "Connect to Host" }).click();
   await recoveryPage.getByRole("button", { name: /SER-1/ }).click();
   await expect(recoveryPage.locator(".xterm-screen")).toBeVisible();
@@ -411,8 +464,8 @@ try {
     recoveryPage.getByRole("heading", { name: "Host unavailable" }),
   ).toBeVisible();
   await checkLayout(desktop, recoveryPage, "failed");
-  await checkConnections(desktopEnvironment);
-  await checkStartup(desktopEnvironment);
+  await checkConnections(desktopEnvironment, launchArgs);
+  await checkStartup(desktopEnvironment, preloadArgs);
   console.log(
     "PASS: native workbench at 760/1180/1500px, hover/keyboard flyouts, serial and SSH creation, authentication failure, shared I/O and lifetime, disconnected/empty/selection/attached/failure states, long lists, sandbox, lease blocking, overwrite, reconnect, detach/reattach, native close, surviving Host/observer, Session close and Host loss/retry. Empty/large lists use test-only IPC snapshots; connections use the real isolated Host with fake serial I/O and loopback SSH.",
   );

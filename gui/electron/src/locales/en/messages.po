@@ -155,6 +155,46 @@ msgstr "User name"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "details.empty"
+msgstr "Attach a Session to inspect its details."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "details.endpoint"
+msgstr "Endpoint"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "details.id"
+msgstr "Session ID"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "details.lease"
+msgstr "Active lease"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "details.session"
+msgstr "Session"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "details.state"
+msgstr "State"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "details.title"
+msgstr "Session details"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "details.transport"
+msgstr "Transport"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "file.cancel"
 msgstr "Cancel transfer"
 
@@ -202,6 +242,11 @@ msgstr "Continue"
 #: src/shared/menu-messages.ts
 msgid "file.directory"
 msgstr "Folder"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.empty"
+msgstr "No file transfers yet. Use the Session menu to send, receive or resume a transfer."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -455,6 +500,16 @@ msgstr "View"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "panel.close"
+msgstr "Hide panel"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "panel.resize"
+msgstr "Resize bottom panel"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "session.attach"
 msgstr "Attach Session"
 
@@ -462,6 +517,46 @@ msgstr "Attach Session"
 #: src/shared/menu-messages.ts
 msgid "session.refresh"
 msgstr "Refresh Sessions"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "settings.shortcuts"
+msgstr "Keyboard shortcuts"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.conflict"
+msgstr "Each shortcut must be unique. Change or remove the duplicate binding."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.hint"
+msgstr "Focus a field and press Ctrl or Command with a letter or number; Alt and Shift are optional. Uses physical key positions. Applied bindings are saved locally and work in the terminal. Dialogs, menus, text fields and IME keep their own keys."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.invalid"
+msgstr "Use Ctrl or Command with a letter or number. Common editing and window shortcuts are reserved."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.remove"
+msgstr "Remove"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.reset"
+msgstr "Restore defaults"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.storageError"
+msgstr "Could not save shortcuts. Check local storage access and try again."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.unassigned"
+msgstr "Unassigned"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -525,6 +620,26 @@ msgstr "View mode"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "view.auxiliary"
+msgstr "Secondary sidebar"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "view.layout"
+msgstr "Layout controls"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "view.panel"
+msgstr "Bottom panel"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "view.resizeAuxiliary"
+msgstr "Resize secondary sidebar"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "view.resizeSidebar"
 msgstr "Resize Session sidebar"
 
@@ -537,3 +652,8 @@ msgstr "Drag or use arrow keys to resize. Double-click to reset."
 #: src/shared/menu-messages.ts
 msgid "view.sidebar"
 msgstr "Session sidebar"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "view.status"
+msgstr "Session status"

@@ -155,6 +155,46 @@ msgstr "Nombre de usuario"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "details.empty"
+msgstr "Conecte una sesión para ver sus detalles."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "details.endpoint"
+msgstr "Punto de conexión"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "details.id"
+msgstr "ID de sesión"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "details.lease"
+msgstr "Concesión activa"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "details.session"
+msgstr "Sesión"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "details.state"
+msgstr "Estado"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "details.title"
+msgstr "Detalles de la sesión"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "details.transport"
+msgstr "Transporte"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "file.cancel"
 msgstr "Cancelar transferencia"
 
@@ -202,6 +242,11 @@ msgstr "Continuar"
 #: src/shared/menu-messages.ts
 msgid "file.directory"
 msgstr "Carpeta"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.empty"
+msgstr "Aún no hay transferencias. Use el menú Sesión para enviar, recibir o reanudar una transferencia."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -455,6 +500,16 @@ msgstr "Ver"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "panel.close"
+msgstr "Ocultar panel"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "panel.resize"
+msgstr "Cambiar altura del panel inferior"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "session.attach"
 msgstr "Adjuntar sesión"
 
@@ -462,6 +517,46 @@ msgstr "Adjuntar sesión"
 #: src/shared/menu-messages.ts
 msgid "session.refresh"
 msgstr "Actualizar sesiones"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "settings.shortcuts"
+msgstr "Atajos de teclado"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.conflict"
+msgstr "Cada atajo debe ser único. Cambie o quite la asignación duplicada."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.hint"
+msgstr "Seleccione un campo y pulse Ctrl o Command con una letra o un número; Alt y Mayús son opcionales. Se usan posiciones físicas de teclas. Los atajos aplicados se guardan localmente y funcionan en el terminal. Diálogos, menús, campos de texto e IME conservan sus propias teclas."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.invalid"
+msgstr "Use Ctrl o Command con una letra o un número. Los atajos habituales de edición y ventanas están reservados."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.remove"
+msgstr "Quitar"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.reset"
+msgstr "Restaurar valores predeterminados"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.storageError"
+msgstr "No se pudieron guardar los atajos. Compruebe el acceso al almacenamiento local e inténtelo de nuevo."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.unassigned"
+msgstr "Sin asignar"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -525,6 +620,26 @@ msgstr "Modo de vista"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "view.auxiliary"
+msgstr "Barra lateral secundaria"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "view.layout"
+msgstr "Controles de diseño"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "view.panel"
+msgstr "Panel inferior"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "view.resizeAuxiliary"
+msgstr "Cambiar ancho de la barra secundaria"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "view.resizeSidebar"
 msgstr "Cambiar el ancho del panel de sesiones"
 
@@ -537,3 +652,8 @@ msgstr "Arrastre o use las flechas para cambiar el ancho. Haga doble clic para r
 #: src/shared/menu-messages.ts
 msgid "view.sidebar"
 msgstr "Barra lateral de sesiones"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "view.status"
+msgstr "Estado de la sesión"

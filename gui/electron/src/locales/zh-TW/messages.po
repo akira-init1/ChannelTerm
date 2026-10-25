@@ -155,6 +155,46 @@ msgstr "使用者名稱"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "details.empty"
+msgstr "附加工作階段後即可查看詳細資訊。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "details.endpoint"
+msgstr "端點"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "details.id"
+msgstr "工作階段 ID"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "details.lease"
+msgstr "使用中的租約"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "details.session"
+msgstr "工作階段"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "details.state"
+msgstr "狀態"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "details.title"
+msgstr "工作階段詳細資訊"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "details.transport"
+msgstr "傳輸方式"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "file.cancel"
 msgstr "取消傳輸"
 
@@ -202,6 +242,11 @@ msgstr "繼續"
 #: src/shared/menu-messages.ts
 msgid "file.directory"
 msgstr "資料夾"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.empty"
+msgstr "尚無檔案傳輸。使用「工作階段」選單傳送、接收或續傳檔案。"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -455,6 +500,16 @@ msgstr "檢視"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "panel.close"
+msgstr "隱藏面板"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "panel.resize"
+msgstr "調整底部面板高度"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "session.attach"
 msgstr "附加工作階段"
 
@@ -462,6 +517,46 @@ msgstr "附加工作階段"
 #: src/shared/menu-messages.ts
 msgid "session.refresh"
 msgstr "重新整理工作階段"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "settings.shortcuts"
+msgstr "鍵盤快速鍵"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.conflict"
+msgstr "快速鍵不得重複。請修改或清除衝突的設定。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.hint"
+msgstr "將焦點移至欄位，按 Ctrl 或 Command 加字母或數字，可搭配 Alt 和 Shift。使用實體鍵位。套用後儲存於本機並在終端機中生效；對話方塊、選單、文字欄位和輸入法保留原有按鍵行為。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.invalid"
+msgstr "請使用 Ctrl 或 Command 加字母或數字。常用編輯和視窗快速鍵已保留。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.remove"
+msgstr "清除"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.reset"
+msgstr "還原預設值"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.storageError"
+msgstr "無法儲存快速鍵。請檢查本機儲存權限後重試。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.unassigned"
+msgstr "未指派"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -525,6 +620,26 @@ msgstr "檢視模式"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "view.auxiliary"
+msgstr "輔助側欄"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "view.layout"
+msgstr "版面控制"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "view.panel"
+msgstr "底部面板"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "view.resizeAuxiliary"
+msgstr "調整輔助側欄寬度"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "view.resizeSidebar"
 msgstr "調整工作階段側欄寬度"
 
@@ -537,3 +652,8 @@ msgstr "拖曳或使用方向鍵調整寬度，按兩下恢復預設。"
 #: src/shared/menu-messages.ts
 msgid "view.sidebar"
 msgstr "工作階段側邊欄"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "view.status"
+msgstr "工作階段狀態"

@@ -4,13 +4,13 @@ import { startFixture } from "../tests/fixture.ts";
 import { HostClient } from "../src/main/host/client.ts";
 
 /** Real GUI -> trusted IPC -> authenticated Host -> Application connection setup. */
-export async function checkConnections(environment) {
+export async function checkConnections(environment, launchArgs) {
   const fixture = await startFixture();
   const observer = new HostClient(fixture.endpoint, fixture.token);
   let desktop;
   try {
     desktop = await electron.launch({
-      args: ["."],
+      args: launchArgs,
       env: {
         ...environment,
         CHANNELTERM_GUI_ENDPOINT: fixture.endpoint,

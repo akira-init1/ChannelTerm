@@ -190,5 +190,5 @@ export async function checkFiles(desktop, page, fixture) {
   await expect(page.locator(".transfer-job").first()).toContainText(
     "Cancelled",
   );
-  await page.locator(".transfer-heading").click();
+  await page.locator('[data-layout="view.panel"]').click();
 }

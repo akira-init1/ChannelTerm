@@ -244,4 +244,54 @@ export const menuMessages = [
     message:
       "Base64 requires base64 and tr on the device. Raw is for compatible 8-bit links without XON/XOFF. File contents are unchanged.",
   },
+  /* i18n */ { id: "view.auxiliary", message: "Secondary sidebar" },
+  /* i18n */ { id: "view.panel", message: "Bottom panel" },
+  /* i18n */ { id: "view.status", message: "Session status" },
+  /* i18n */ { id: "view.layout", message: "Layout controls" },
+  /* i18n */ {
+    id: "view.resizeAuxiliary",
+    message: "Resize secondary sidebar",
+  },
+  /* i18n */ { id: "panel.close", message: "Hide panel" },
+  /* i18n */ { id: "panel.resize", message: "Resize bottom panel" },
+  /* i18n */ {
+    id: "file.empty",
+    message:
+      "No file transfers yet. Use the Session menu to send, receive or resume a transfer.",
+  },
+  /* i18n */ { id: "details.title", message: "Session details" },
+  /* i18n */ { id: "details.session", message: "Session" },
+  /* i18n */ { id: "details.endpoint", message: "Endpoint" },
+  /* i18n */ { id: "details.transport", message: "Transport" },
+  /* i18n */ { id: "details.state", message: "State" },
+  /* i18n */ { id: "details.id", message: "Session ID" },
+  /* i18n */ { id: "details.lease", message: "Active lease" },
+  /* i18n */ {
+    id: "details.empty",
+    message: "Attach a Session to inspect its details.",
+  },
+  /* i18n */ { id: "settings.shortcuts", message: "Keyboard shortcuts" },
+  /* i18n */ {
+    id: "shortcuts.hint",
+    message:
+      "Focus a field and press Ctrl or Command with a letter or number; Alt and Shift are optional. Uses physical key positions. Applied bindings are saved locally and work in the terminal. Dialogs, menus, text fields and IME keep their own keys.",
+  },
+  /* i18n */ { id: "shortcuts.unassigned", message: "Unassigned" },
+  /* i18n */ { id: "shortcuts.remove", message: "Remove" },
+  /* i18n */ { id: "shortcuts.reset", message: "Restore defaults" },
+  /* i18n */ {
+    id: "shortcuts.invalid",
+    message:
+      "Use Ctrl or Command with a letter or number. Common editing and window shortcuts are reserved.",
+  },
+  /* i18n */ {
+    id: "shortcuts.conflict",
+    message:
+      "Each shortcut must be unique. Change or remove the duplicate binding.",
+  },
+  /* i18n */ {
+    id: "shortcuts.storageError",
+    message:
+      "Could not save shortcuts. Check local storage access and try again.",
+  },
 ] satisfies MessageDescriptor[];

@@ -51,6 +51,11 @@ test("menu catalogs cover every implemented item in all nine languages and depth
         `Extract and translate ${message.id} for ${locale}`,
       );
       if (locale === "en") assert.equal(i18n._(message.id), message.message);
+      assert.doesNotMatch(
+        i18n._(message.id),
+        /\?{2,}|\uFFFD/,
+        `${locale}: ${message.id} must preserve Unicode`,
+      );
     }
     const entries = [
       ...flatten(applicationMenu({ ...initialMenuState, locale })),

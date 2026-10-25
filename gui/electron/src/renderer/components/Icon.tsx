@@ -10,9 +10,15 @@ export function Icon({
     | "refresh"
     | "close"
     | "chevron"
-    | "plug";
+    | "plug"
+    | "layout-left"
+    | "layout-right"
+    | "layout-bottom";
 }) {
   const paths = {
+    "layout-left": "M3 4h18v16H3z M9 4v16 M5 7h2 M5 10h2 M5 13h2",
+    "layout-right": "M3 4h18v16H3z M15 4v16 M17 7h2 M17 10h2 M17 13h2",
+    "layout-bottom": "M3 4h18v16H3z M3 14h18 M6 17h12",
     terminal: "M4 4h16v16H4z M7 8l3 3-3 3 M13 15h4",
     serial:
       "M5 5h14l2 8-4 4H7l-4-4z M8 9h.01 M12 9h.01 M16 9h.01 M10 13h.01 M14 13h.01 M12 17v4 M8 21h8",

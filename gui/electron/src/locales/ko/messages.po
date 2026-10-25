@@ -155,6 +155,46 @@ msgstr "사용자 이름"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "details.empty"
+msgstr "세션에 연결하면 세부 정보를 볼 수 있습니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "details.endpoint"
+msgstr "엔드포인트"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "details.id"
+msgstr "세션 ID"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "details.lease"
+msgstr "활성 임대"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "details.session"
+msgstr "세션"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "details.state"
+msgstr "상태"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "details.title"
+msgstr "세션 세부 정보"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "details.transport"
+msgstr "전송 방식"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "file.cancel"
 msgstr "전송 취소"
 
@@ -202,6 +242,11 @@ msgstr "계속"
 #: src/shared/menu-messages.ts
 msgid "file.directory"
 msgstr "폴더"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.empty"
+msgstr "아직 파일 전송이 없습니다. 세션 메뉴에서 전송, 수신 또는 재개할 수 있습니다."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -455,6 +500,16 @@ msgstr "보기"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "panel.close"
+msgstr "패널 숨기기"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "panel.resize"
+msgstr "하단 패널 높이 조절"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "session.attach"
 msgstr "세션에 연결"
 
@@ -462,6 +517,46 @@ msgstr "세션에 연결"
 #: src/shared/menu-messages.ts
 msgid "session.refresh"
 msgstr "세션 새로 고침"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "settings.shortcuts"
+msgstr "키보드 단축키"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.conflict"
+msgstr "단축키는 중복될 수 없습니다. 중복된 할당을 변경하거나 제거하세요."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.hint"
+msgstr "입력란에서 Ctrl 또는 Command와 문자나 숫자를 누르세요. Alt와 Shift도 조합할 수 있습니다. 물리적 키 위치를 사용합니다. 적용하면 로컬에 저장되어 터미널에서 작동합니다. 대화 상자, 메뉴, 텍스트 입력란 및 IME는 기존 키 동작을 유지합니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.invalid"
+msgstr "Ctrl 또는 Command와 문자나 숫자를 사용하세요. 일반적인 편집 및 창 단축키는 예약되어 있습니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.remove"
+msgstr "제거"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.reset"
+msgstr "기본값 복원"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.storageError"
+msgstr "단축키를 저장할 수 없습니다. 로컬 저장소 접근 권한을 확인하고 다시 시도하세요."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.unassigned"
+msgstr "지정 안 됨"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -525,6 +620,26 @@ msgstr "보기 모드"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "view.auxiliary"
+msgstr "보조 사이드바"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "view.layout"
+msgstr "레이아웃 제어"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "view.panel"
+msgstr "하단 패널"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "view.resizeAuxiliary"
+msgstr "보조 사이드바 너비 조절"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "view.resizeSidebar"
 msgstr "세션 사이드바 너비 조절"
 
@@ -537,3 +652,8 @@ msgstr "드래그하거나 방향키로 너비를 조절하세요. 두 번 클�
 #: src/shared/menu-messages.ts
 msgid "view.sidebar"
 msgstr "세션 사이드바"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "view.status"
+msgstr "세션 상태"

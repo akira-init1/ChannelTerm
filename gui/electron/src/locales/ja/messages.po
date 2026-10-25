@@ -155,6 +155,46 @@ msgstr "ユーザー名"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "details.empty"
+msgstr "セッションに接続すると詳細を表示できます。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "details.endpoint"
+msgstr "エンドポイント"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "details.id"
+msgstr "セッション ID"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "details.lease"
+msgstr "有効なリース"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "details.session"
+msgstr "セッション"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "details.state"
+msgstr "状態"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "details.title"
+msgstr "セッションの詳細"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "details.transport"
+msgstr "トランスポート"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "file.cancel"
 msgstr "転送をキャンセル"
 
@@ -202,6 +242,11 @@ msgstr "続行"
 #: src/shared/menu-messages.ts
 msgid "file.directory"
 msgstr "フォルダー"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.empty"
+msgstr "ファイル転送はまだありません。「セッション」メニューから送信、受信、再開できます。"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -455,6 +500,16 @@ msgstr "表示"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "panel.close"
+msgstr "パネルを非表示"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "panel.resize"
+msgstr "下部パネルの高さを変更"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "session.attach"
 msgstr "このセッションに接続"
 
@@ -462,6 +517,46 @@ msgstr "このセッションに接続"
 #: src/shared/menu-messages.ts
 msgid "session.refresh"
 msgstr "セッション一覧を更新"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "settings.shortcuts"
+msgstr "キーボードショートカット"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.conflict"
+msgstr "ショートカットが重複しています。重複する割り当てを変更または削除してください。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.hint"
+msgstr "入力欄を選択し、Ctrl または Command と英字・数字を押してください。Alt と Shift も併用できます。物理キー位置を使用します。適用するとローカルに保存され、ターミナルで有効になります。ダイアログ、メニュー、テキスト欄、IME のキー操作は維持されます。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.invalid"
+msgstr "Ctrl または Command と英字・数字を使用してください。一般的な編集・ウィンドウ操作のキーは予約されています。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.remove"
+msgstr "削除"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.reset"
+msgstr "既定値に戻す"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.storageError"
+msgstr "ショートカットを保存できません。ローカルストレージへのアクセスを確認して再試行してください。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.unassigned"
+msgstr "未割り当て"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -525,6 +620,26 @@ msgstr "表示モード"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "view.auxiliary"
+msgstr "セカンダリサイドバー"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "view.layout"
+msgstr "レイアウト操作"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "view.panel"
+msgstr "下部パネル"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "view.resizeAuxiliary"
+msgstr "セカンダリサイドバーの幅を変更"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "view.resizeSidebar"
 msgstr "セッションサイドバーの幅を変更"
 
@@ -537,3 +652,8 @@ msgstr "ドラッグまたは矢印キーで幅を変更します。ダブルク
 #: src/shared/menu-messages.ts
 msgid "view.sidebar"
 msgstr "セッションサイドバー"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "view.status"
+msgstr "セッションの状態"

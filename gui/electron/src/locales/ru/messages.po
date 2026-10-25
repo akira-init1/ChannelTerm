@@ -155,6 +155,46 @@ msgstr "Имя пользователя"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "details.empty"
+msgstr "Подключите сеанс, чтобы просмотреть сведения."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "details.endpoint"
+msgstr "Конечная точка"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "details.id"
+msgstr "ID сеанса"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "details.lease"
+msgstr "Активная аренда"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "details.session"
+msgstr "Сеанс"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "details.state"
+msgstr "Состояние"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "details.title"
+msgstr "Сведения о сеансе"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "details.transport"
+msgstr "Транспорт"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "file.cancel"
 msgstr "Отменить передачу"
 
@@ -202,6 +242,11 @@ msgstr "Продолжить"
 #: src/shared/menu-messages.ts
 msgid "file.directory"
 msgstr "Папка"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.empty"
+msgstr "Передач файлов пока нет. Используйте меню «Сеанс» для отправки, получения или возобновления передачи."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -455,6 +500,16 @@ msgstr "Вид"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "panel.close"
+msgstr "Скрыть панель"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "panel.resize"
+msgstr "Изменить высоту нижней панели"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "session.attach"
 msgstr "Присоединиться к сеансу"
 
@@ -462,6 +517,46 @@ msgstr "Присоединиться к сеансу"
 #: src/shared/menu-messages.ts
 msgid "session.refresh"
 msgstr "Обновить список сеансов"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "settings.shortcuts"
+msgstr "Сочетания клавиш"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.conflict"
+msgstr "Сочетания должны быть уникальными. Измените или удалите повторное назначение."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.hint"
+msgstr "Выберите поле и нажмите Ctrl или Command с буквой или цифрой; можно добавить Alt и Shift. Используются физические позиции клавиш. Применённые сочетания сохраняются локально и работают в терминале. Диалоги, меню, текстовые поля и IME сохраняют свои клавиши."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.invalid"
+msgstr "Используйте Ctrl или Command с буквой или цифрой. Стандартные сочетания для редактирования и окон зарезервированы."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.remove"
+msgstr "Удалить"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.reset"
+msgstr "Восстановить по умолчанию"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.storageError"
+msgstr "Не удалось сохранить сочетания. Проверьте доступ к локальному хранилищу и повторите попытку."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.unassigned"
+msgstr "Не назначено"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -525,6 +620,26 @@ msgstr "Режим просмотра"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "view.auxiliary"
+msgstr "Дополнительная боковая панель"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "view.layout"
+msgstr "Управление компоновкой"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "view.panel"
+msgstr "Нижняя панель"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "view.resizeAuxiliary"
+msgstr "Изменить ширину дополнительной панели"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "view.resizeSidebar"
 msgstr "Изменить ширину панели сеансов"
 
@@ -537,3 +652,8 @@ msgstr "Перетащите или используйте клавиши со �
 #: src/shared/menu-messages.ts
 msgid "view.sidebar"
 msgstr "Боковая панель сеансов"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "view.status"
+msgstr "Состояние сеанса"

@@ -41,6 +41,17 @@ import {
   type TerminalSettings,
 } from "../../shared/terminal-settings";
 import { TerminalSettingsDialog } from "./TerminalSettings";
+import { ShortcutSettings } from "./ShortcutSettings";
+import {
+  defaultShortcuts,
+  isShortcutBindings,
+  layoutActions,
+  shortcutFromEvent,
+  type ShortcutBindings,
+} from "../../shared/shortcuts";
+import { BottomPanel } from "./BottomPanel";
+
+const shortcutStorageKey = "channelterm.layout-shortcuts.v1";
 
 /**
  * App composes Host snapshots and local attachment controls into the workbench.
@@ -53,9 +64,37 @@ export function App() {
   // Collapsing navigation changes available space, not the active attachment.
   const [sidebarVisible, setSidebarVisible] = useState(true);
   const [sidebarWidth, setSidebarWidth] = useState<number>();
+  const [auxiliaryVisible, setAuxiliaryVisible] = useState(false);
+  const [auxiliaryWidth, setAuxiliaryWidth] = useState(260);
+  const [panelVisible, setPanelVisible] = useState(false);
+  const [panelTab, setPanelTab] = useState<"transfers" | "status">("transfers");
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const mac = /Mac/i.test(navigator.platform);
+  const [shortcuts, setShortcuts] = useState<ShortcutBindings>(() => {
+    try {
+      const stored: unknown = JSON.parse(
+        localStorage.getItem(shortcutStorageKey) ?? "null",
+      );
+      if (isShortcutBindings(stored)) return stored;
+    } catch {
+      /* Missing/unavailable storage uses platform defaults. */
+    }
+    return defaultShortcuts(mac);
+  });
   const [viewportWidth, setViewportWidth] = useState(window.innerWidth);
   const defaultSidebarWidth = viewportWidth <= 900 ? 210 : 260;
-  const maximumSidebarWidth = Math.max(180, Math.min(480, viewportWidth - 400));
+  const maximumSidebarWidth = Math.max(
+    180,
+    Math.min(
+      480,
+      sidebarVisible && auxiliaryVisible
+        ? Math.floor(
+            (viewportWidth - (viewportWidth <= 900 ? 40 : 48) - 320) / 2,
+          )
+        : viewportWidth - 400,
+    ),
+  );
+  const visibleAuxiliaryWidth = Math.min(auxiliaryWidth, maximumSidebarWidth);
   const visibleSidebarWidth = Math.min(
     sidebarWidth ?? defaultSidebarWidth,
     maximumSidebarWidth,
@@ -103,6 +142,16 @@ export function App() {
   }>();
   const [fileError, setFileError] = useState("");
   const [transferJobs, setTransferJobs] = useState<TransferStatus[]>([]);
+  const latestTransfer = useRef("");
+  useEffect(() => {
+    const latest = transferJobs.at(-1);
+    const key = latest ? `${latest.sessionId}:${latest.id}` : "";
+    if (key && key !== latestTransfer.current) {
+      setPanelVisible(true);
+      setPanelTab("transfers");
+    }
+    latestTransfer.current = key;
+  }, [transferJobs]);
   const observedSessions = sessions
     .filter((entry) => entry.state === "open" && entry.transport === "serial")
     .slice(0, 16)
@@ -159,6 +208,8 @@ export function App() {
     };
   }, [connected, observedSessions]);
   function startTransfer(request: TransferRequest) {
+    setPanelVisible(true);
+    setPanelTab("transfers");
     setFilePending(true);
     setFileError("");
     void unwrap(host.startTransfer(request))
@@ -166,6 +217,8 @@ export function App() {
       .finally(() => setFilePending(false));
   }
   function resumeTransfer(sessionId: string, id: string) {
+    setPanelVisible(true);
+    setPanelTab("transfers");
     setResumeTarget(undefined);
     setFilePending(true);
     setFileError("");
@@ -190,6 +243,9 @@ export function App() {
       sshAvailable: !!info?.sshAvailable,
       busy: working || !!fileDialog || filePending,
       sidebarVisible,
+      auxiliaryVisible,
+      panelVisible,
+      shortcuts,
       attachment,
       currentOpen: current?.state === "open",
       currentSerial: current?.transport === "serial",
@@ -205,6 +261,9 @@ export function App() {
       filePending,
       current?.transport,
       sidebarVisible,
+      auxiliaryVisible,
+      panelVisible,
+      shortcuts,
       attachment,
       current?.state,
       current?.lease,
@@ -212,6 +271,34 @@ export function App() {
     ],
   );
   const dispatchRef = useRef<(action: Action) => void>(() => {});
+  useEffect(() => {
+    // Capture before xterm so an explicitly assigned layout chord sends no bytes.
+    // Dialogs, menus, ordinary editors and IME retain their own keyboard behavior.
+    const keydown = (event: KeyboardEvent) => {
+      const target = event.target;
+      if (
+        !(target instanceof Element) ||
+        document.querySelector("dialog[open]")
+      )
+        return;
+      if (
+        target.closest('[role="menu"], .app-menu') ||
+        (target.closest('input, textarea, select, [contenteditable="true"]') &&
+          !target.closest(".xterm"))
+      )
+        return;
+      const binding = shortcutFromEvent(event);
+      const id = layoutActions.find(
+        (action) => binding && shortcuts[action] === binding,
+      );
+      if (!id) return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (!event.repeat) dispatchRef.current({ id });
+    };
+    window.addEventListener("keydown", keydown, true);
+    return () => window.removeEventListener("keydown", keydown, true);
+  }, [shortcuts]);
   useEffect(
     () => host.onMenuAction((action) => dispatchRef.current(action)),
     [],
@@ -459,6 +546,20 @@ export function App() {
       case "view.sidebar":
         setSidebarVisible((visible) => !visible);
         return;
+      case "view.auxiliary":
+        setAuxiliaryVisible((visible) => !visible);
+        return;
+      case "view.panel":
+        setPanelVisible((visible) => !visible);
+        return;
+      case "view.transfers":
+      case "view.status":
+        setPanelVisible(true);
+        setPanelTab(action.id === "view.transfers" ? "transfers" : "status");
+        return;
+      case "settings.shortcuts":
+        setShortcutsOpen(true);
+        return;
       case "language.change":
         setLocale(action.locale);
         return;
@@ -575,6 +676,27 @@ export function App() {
 
   return (
     <div className={`app ${sidebarVisible ? "" : "sidebar-hidden"}`}>
+      {shortcutsOpen && (
+        <ShortcutSettings
+          value={shortcuts}
+          mac={mac}
+          t={t}
+          onClose={() => setShortcutsOpen(false)}
+          onApply={(bindings) => {
+            if (!isShortcutBindings(bindings)) return false;
+            try {
+              localStorage.setItem(
+                shortcutStorageKey,
+                JSON.stringify(bindings),
+              );
+            } catch {
+              return false;
+            }
+            setShortcuts(bindings);
+            return true;
+          }}
+        />
+      )}
       {resumeTarget && connected && (
         <ResumeDialog
           {...resumeTarget}
@@ -614,7 +736,10 @@ export function App() {
       <div
         className="workspace"
         style={
-          { "--sidebar-width": `${visibleSidebarWidth}px` } as CSSProperties
+          {
+            "--sidebar-width": `${sidebarVisible ? visibleSidebarWidth : 0}px`,
+            "--auxiliary-width": `${auxiliaryVisible ? visibleAuxiliaryWidth : 0}px`,
+          } as CSSProperties
         }
       >
         <div className="activity-rail" aria-label="Workspace navigation">
@@ -884,20 +1009,97 @@ export function App() {
               </div>
             </div>
           )}
-          <TransferPanel
-            jobs={transferJobs}
-            connected={connected}
-            sessionNames={Object.fromEntries(
-              sessions.map((session) => [
-                session.session_id,
-                session.label || session.session_ref,
-              ]),
-            )}
-            pending={filePending}
-            error={fileError}
+          <BottomPanel
+            visible={panelVisible}
+            tab={panelTab}
+            onTab={setPanelTab}
+            onClose={() => dispatch({ id: "view.panel" })}
             t={t}
-          />
+            status={
+              <div className="panel-status">
+                <p>{hostStatus}</p>
+                <p>
+                  {current
+                    ? `${current.label || current.session_ref} · ${current.state}`
+                    : emptyTitle}
+                </p>
+                {error && <p role="alert">{error.message}</p>}
+                {current?.lease && (
+                  <p>
+                    {t("details.lease")}: {current.lease.type}
+                  </p>
+                )}
+              </div>
+            }
+          >
+            <TransferPanel
+              jobs={transferJobs}
+              connected={connected}
+              sessionNames={Object.fromEntries(
+                sessions.map((session) => [
+                  session.session_id,
+                  session.label || session.session_ref,
+                ]),
+              )}
+              pending={filePending}
+              error={fileError}
+              t={t}
+            />
+          </BottomPanel>
         </main>
+        <aside
+          id="auxiliary-sidebar"
+          className="auxiliary-sidebar"
+          hidden={!auxiliaryVisible}
+          aria-label={t("view.auxiliary")}
+        >
+          <div className="section-heading">
+            <h2>{t("details.title")}</h2>
+            <button
+              className="quiet icon-button"
+              aria-label={t("panel.close")}
+              onClick={() => dispatch({ id: "view.auxiliary" })}
+            >
+              <Icon name="close" />
+            </button>
+          </div>
+          <div className="session-details">
+            {current ? (
+              <dl>
+                <dt>{t("details.session")}</dt>
+                <dd>{current.label || current.session_ref}</dd>
+                <dt>{t("details.endpoint")}</dt>
+                <dd>{current.endpoint}</dd>
+                <dt>{t("details.transport")}</dt>
+                <dd>{current.transport}</dd>
+                <dt>{t("details.state")}</dt>
+                <dd>{current.state}</dd>
+                <dt>{t("details.id")}</dt>
+                <dd>{current.session_id}</dd>
+                {current.lease && (
+                  <>
+                    <dt>{t("details.lease")}</dt>
+                    <dd>{current.lease.type}</dd>
+                  </>
+                )}
+              </dl>
+            ) : (
+              <p>{t("details.empty")}</p>
+            )}
+          </div>
+          {auxiliaryVisible && (
+            <SidebarResizer
+              width={visibleAuxiliaryWidth}
+              maximum={maximumSidebarWidth}
+              defaultWidth={260}
+              edge="left"
+              controls="auxiliary-sidebar"
+              label={t("view.resizeAuxiliary")}
+              hint={t("view.resizeSidebarHelp")}
+              onResize={setAuxiliaryWidth}
+            />
+          )}
+        </aside>
       </div>
       <footer className="statusbar" aria-label="Workbench status">
         <span className="status-session" title={current?.endpoint}>

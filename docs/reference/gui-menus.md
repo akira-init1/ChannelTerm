@@ -26,7 +26,11 @@ only saves resumable data when **Keep a checkpoint for manual resume** is checke
 | Terminal > Focus terminal; terminal context menu | `terminal.focus` | Focus the captured xterm view; requires a current idle attachment. |
 | Terminal > Clear local display; terminal context menu | `terminal.clear` | Use xterm's local clear operation; requires a current idle attachment, including a read-only/closed view. |
 | Terminal > Resume input; error notice | `terminal.resume` | Visible in menus only while input is paused; enabled only for an open, unleased, idle attachment. Does not replay queued input. |
-| View > Session sidebar; activity rail | `view.sidebar` | Toggle navigation without detaching. Checkmark reflects visibility. |
+| View > Session sidebar; upper-left toggle; activity rail | `view.sidebar` | Toggle navigation without detaching. Checkmark reflects visibility. |
+| View > Secondary sidebar; upper-left toggle | `view.auxiliary` | Toggle the resizable current-Session details sidebar. |
+| View > Bottom panel; upper-left toggle | `view.panel` | Toggle the bottom panel, retaining its active tab and preferred height. |
+| View > File transfers / Session status | `view.transfers` / `view.status` | Open the bottom panel on the requested tab, including offline/empty states. |
+| Settings > Keyboard shortcuts | `settings.shortcuts` | Display, record, remove, reset and save local layout bindings. |
 | Connection > New connection > Serial / SSH | `connection.serial` / `connection.ssh` | Open a connection form on a connected idle Host. SSH additionally requires the desktop API capability. |
 | Settings > Language | `language.change` | Switch to one of the nine supported menu languages listed below. Checkmark reflects the active language. |
 | Help > Quick help | `help.quick` | Open a local, translated usage dialog. No external navigation. |
@@ -35,7 +39,8 @@ Closing a **tab**, disconnecting the **GUI from Host**, closing a **shared Sessi
 exiting the **GUI** are different operations. The first two release different client resources;
 exiting ends the app after client cleanup. None closes the shared Session or stops its Host.
 **Close shared Session is not implemented or exposed by the GUI.** The desktop still has only
-one attachment, not multiple independent tabs.
+one attachment, not multiple independent terminal tabs. Bottom-panel tabs are local views of
+transfers and Session status; they do not create additional Sessions or attachments.
 
 Local clear removes xterm scrollback above the current line, retaining that line and parser
 state. It does not send `clear`, `reset`, escape sequences, or any other bytes to the device.
@@ -50,7 +55,9 @@ description and send only a validated renderer action through a fixed Preload su
 The Main-owned native exit action and fixed IPC `quit` method share the same cleanup handler,
 so native quit remains available after a renderer crash or the last macOS window closes. A separate
 bounded `syncMenu` message supplies display hints; it accepts no arbitrary menu template,
-callback, accelerator, command, URL, or credential. A fixed `quit` method requests app cleanup.
+callback, executable accelerator, command, URL, or credential. Its three validated shortcut
+strings are display hints only; native menus append their labels without registering accelerators.
+A fixed `quit` method requests app cleanup.
 
 A right-click captures that row's opaque Session ID or that terminal/tab's attachment ID and
 Session ID. It never changes selection merely to open the menu. A non-current row cannot close
@@ -101,8 +108,9 @@ uses the English source fallback. See the [translation maintenance workflow](../
 No runtime ICU compiler or translation service is added. The Node 22.12 minimum, Go dependencies,
 and CGO requirements are unchanged; build tooling and its notices remain GUI-local.
 
-Menus register no Electron accelerators, mnemonic markers, default action roles, or global
-keyboard listeners. On Windows/Linux, the native application menu model is installed but its
+Menus register no Electron accelerators, mnemonic markers, default action roles, or OS-global
+shortcuts. The renderer handles only configured layout shortcuts under the focus policy below.
+On Windows/Linux, the native application menu model is installed but its
 window menu bar is removed, preserving the renderer strip and avoiding an extra Alt menu.
 macOS retains its system menu and an app menu for Exit GUI; native macOS validation remains
 separate from Windows testing.
@@ -118,8 +126,46 @@ submenu to the right; it flips left near the window edge. Click and Right also o
 returns focus to the parent. Escape closes
 the popup and restores its opener; an outside click dismisses it. These handlers run only inside
 the focused menu and ignore composition/229 events. Terminal Ctrl+C/Ctrl+L/Ctrl+W, Alt sequences,
-function keys, and IME composition remain in the terminal input path. OS-reserved shortcuts and
+function keys, and IME composition remain in the terminal input path. Explicitly assigned
+layout chords are the exception; clearing their bindings restores terminal handling. OS-reserved shortcuts and
 real IME candidate-window behavior require native platform checks.
+
+## Layout shortcuts
+
+| Action | Windows / Linux | macOS |
+| --- | --- | --- |
+| Session sidebar (left) | Ctrl+B | Command+B |
+| Secondary sidebar (right) | Ctrl+Alt+B | Command+Option+B |
+| Bottom panel | Ctrl+J | Command+J |
+
+These defaults follow the [VS Code sidebar layout](https://code.visualstudio.com/docs/configure/custom-layout)
+and [sidebar/panel shortcuts](https://code.visualstudio.com/docs/editing/getting-started/tips-and-tricks#toggle-sidebar).
+The upper-left pane icons and View checkmarks reflect the same state. Hover tooltips, renderer
+menus, and native menu labels display the current bindings. No shortcut is active outside this
+application window. Window-manager interception still depends on the desktop environment.
+
+**Settings > Keyboard shortcuts** records a combination when its field is focused. Press Ctrl
+or Command with a physical A-Z or 0-9 key; Alt/Option and Shift are optional. Physical positions
+keep Option-modified letters usable on macOS and do not depend on the produced character.
+Plain typing, function keys, Alt-only combinations, both Ctrl and Command together, and
+Ctrl/Command with A/C/V/X/Z/Y/W/Q/R/L (also with Shift) are not assignable. These reserved
+editing/window combinations retain their existing behavior. Duplicate bindings disable Apply.
+**Remove** unassigns a command; **Restore defaults** updates the draft; **Apply** validates and
+saves; Cancel/Escape discards the draft. A storage failure leaves the dialog open with an error.
+
+Bindings are stored in the GUI profile's renderer local storage under
+`channelterm.layout-shortcuts.v1` and survive reopening on the same origin/profile. Production
+and development origins have separate settings. Invalid stored data falls back to platform
+defaults. Reset and Apply recovers the defaults without editing Host configuration. Layout
+visibility, widths, selected bottom tab and height remain window-local and reset on reopening.
+
+Only exact modifier matches dispatch, once per press; key repeats are consumed without repeated
+toggling. IME composition/229 and AltGr are ignored. Open dialogs, focused menus, and ordinary
+input/select/contenteditable fields retain their keys. When xterm is focused, assigned layout
+chords are intercepted before xterm and send no bytes; unassigned chords retain terminal handling.
+All three paths (menu, icon, shortcut) use the same local action dispatcher and do not detach,
+close, write, or resize a remote Session. Native Windows testing does not establish macOS/Linux
+window-manager or physical IME behavior.
 
 ## File actions
 
@@ -141,7 +187,7 @@ These are placement decisions only, not runtime menu entries or commitments to i
 | Session | Closing a shared Session needs a separately reviewed destructive action, explicit target/confirmation semantics, and Host authority. Multiple tabs and recent history are also absent. |
 | Terminal | Split panes and remote PTY resize need their own supported lifecycle/capability work. |
 | View | A separate MCP activity panel remains unimplemented. |
-| Settings | Persistent preferences, endpoint editing, and Host process management are not provided by language switching. |
+| Settings | Only layout shortcuts persist locally. Language and layout state remain window-local; endpoint editing and Host process management are absent. |
 | Help | Online documentation navigation, updates, and diagnostic export require separate capability/security review. |
 
 No built-in AI Agent, new SSH/file-transfer implementation, Core use case, or MCP protocol change

@@ -8,6 +8,7 @@ import {
 import type { Action, MenuEntry, MenuState } from "../../shared/menus";
 import { applicationMenu } from "../../shared/menus";
 import { Icon } from "./Icon";
+import { layoutActions, shortcutLabel } from "../../shared/shortcuts";
 
 export interface MenuPopupRequest {
   entries: MenuEntry[];
@@ -169,9 +170,13 @@ export function WorkbenchMenu({
       const checked =
         entry.id === "view.sidebar"
           ? state.sidebarVisible
-          : entry.action?.id === "language.change"
-            ? state.locale === entry.action.locale
-            : entry.checked;
+          : entry.id === "view.auxiliary"
+            ? state.auxiliaryVisible
+            : entry.id === "view.panel"
+              ? state.panelVisible
+              : entry.action?.id === "language.change"
+                ? state.locale === entry.action.locale
+                : entry.checked;
       return (
         <div key={entry.id}>
           <button
@@ -220,6 +225,9 @@ export function WorkbenchMenu({
               {checked ? "✓" : ""}
             </span>
             {t(entry.label)}
+            {entry.shortcut && (
+              <kbd className="menu-shortcut">{entry.shortcut}</kbd>
+            )}
             {entry.children && (
               <span className="submenu-arrow">
                 <Icon name="chevron" />
@@ -260,6 +268,46 @@ export function WorkbenchMenu({
 
   return (
     <header className="topbar">
+      <div
+        className="layout-controls"
+        role="group"
+        aria-label={t("view.layout")}
+      >
+        {layoutActions.map((id, index) => (
+          <button
+            key={id}
+            className="quiet icon-button"
+            data-layout={id}
+            aria-label={t(id)}
+            title={`${t(id)}${state.shortcuts[id] ? ` (${shortcutLabel(state.shortcuts[id])})` : ""}`}
+            aria-pressed={
+              id === "view.sidebar"
+                ? state.sidebarVisible
+                : id === "view.auxiliary"
+                  ? state.auxiliaryVisible
+                  : state.panelVisible
+            }
+            aria-controls={
+              id === "view.sidebar"
+                ? "session-sidebar"
+                : id === "view.auxiliary"
+                  ? "auxiliary-sidebar"
+                  : "bottom-panel"
+            }
+            onClick={() => execute({ id })}
+          >
+            <Icon
+              name={
+                index === 0
+                  ? "layout-left"
+                  : index === 1
+                    ? "layout-right"
+                    : "layout-bottom"
+              }
+            />
+          </button>
+        ))}
+      </div>
       <nav
         ref={menubar}
         className="app-menu"

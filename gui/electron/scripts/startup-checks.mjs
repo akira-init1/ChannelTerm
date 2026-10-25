@@ -10,7 +10,7 @@ import {
 import { HostClient } from "../src/main/host/client.ts";
 
 /** Exercise Main's real launch path in a disposable app with a no-hardware Host. */
-export async function checkStartup(environment) {
+export async function checkStartup(environment, preloadArgs) {
   if (await localListener(new AbortController().signal)) {
     console.log(
       "SKIP automatic Host desktop test: port 37099 is already occupied; existing listener left untouched.",
@@ -49,7 +49,10 @@ export async function checkStartup(environment) {
   let ownsFixture = false;
   const applications = [];
   async function open(environment) {
-    desktop = await electron.launch({ args: [directory], env: environment });
+    desktop = await electron.launch({
+      args: [...preloadArgs, directory],
+      env: environment,
+    });
     applications.push(desktop);
     return desktop.firstWindow();
   }

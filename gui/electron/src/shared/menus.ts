@@ -1,4 +1,10 @@
 import type { Attachment } from "./api";
+import {
+  defaultShortcuts,
+  isShortcutBindings,
+  shortcutLabel,
+  type ShortcutBindings,
+} from "./shortcuts";
 
 export const locales = [
   "en",
@@ -21,6 +27,11 @@ export type Action =
         | "connection.ssh"
         | "session.refresh"
         | "view.sidebar"
+        | "view.auxiliary"
+        | "view.panel"
+        | "view.transfers"
+        | "view.status"
+        | "settings.shortcuts"
         | "help.quick"
         | "app.quit";
     }
@@ -41,6 +52,9 @@ export interface MenuState {
   sshAvailable: boolean;
   busy: boolean;
   sidebarVisible: boolean;
+  auxiliaryVisible: boolean;
+  panelVisible: boolean;
+  shortcuts: ShortcutBindings;
   attachment?: Attachment;
   currentOpen: boolean;
   currentSerial: boolean;
@@ -55,6 +69,7 @@ export interface MenuEntry {
   enabled?: boolean;
   checked?: boolean;
   children?: MenuEntry[];
+  shortcut?: string;
 }
 
 export const initialMenuState: MenuState = {
@@ -63,6 +78,9 @@ export const initialMenuState: MenuState = {
   sshAvailable: false,
   busy: false,
   sidebarVisible: true,
+  auxiliaryVisible: false,
+  panelVisible: false,
+  shortcuts: defaultShortcuts(false),
   currentOpen: false,
   currentSerial: false,
   inputPaused: false,
@@ -150,7 +168,32 @@ export function applicationMenu(state: MenuState): MenuEntry[] {
           id: "view.sidebar",
           label: "view.sidebar",
           checked: state.sidebarVisible,
+          shortcut: shortcutLabel(state.shortcuts["view.sidebar"]),
           action: { id: "view.sidebar" },
+        },
+        {
+          id: "view.auxiliary",
+          label: "view.auxiliary",
+          checked: state.auxiliaryVisible,
+          shortcut: shortcutLabel(state.shortcuts["view.auxiliary"]),
+          action: { id: "view.auxiliary" },
+        },
+        {
+          id: "view.panel",
+          label: "view.panel",
+          checked: state.panelVisible,
+          shortcut: shortcutLabel(state.shortcuts["view.panel"]),
+          action: { id: "view.panel" },
+        },
+        {
+          id: "view.transfers",
+          label: "file.transfers",
+          action: { id: "view.transfers" },
+        },
+        {
+          id: "view.status",
+          label: "view.status",
+          action: { id: "view.status" },
         },
       ],
     },
@@ -158,6 +201,11 @@ export function applicationMenu(state: MenuState): MenuEntry[] {
       id: "settings",
       label: "menu.settings",
       children: [
+        {
+          id: "settings.shortcuts",
+          label: "settings.shortcuts",
+          action: { id: "settings.shortcuts" },
+        },
         {
           id: "language",
           label: "menu.language",
@@ -278,6 +326,11 @@ export function isAction(value: unknown): value is Action {
     case "connection.ssh":
     case "session.refresh":
     case "view.sidebar":
+    case "view.auxiliary":
+    case "view.panel":
+    case "view.transfers":
+    case "view.status":
+    case "settings.shortcuts":
     case "help.quick":
     case "app.quit":
       return exact(value, ["id"]);
@@ -308,6 +361,9 @@ export function isMenuState(value: unknown): value is MenuState {
       "sshAvailable",
       "busy",
       "sidebarVisible",
+      "auxiliaryVisible",
+      "panelVisible",
+      "shortcuts",
       "attachment",
       "currentOpen",
       "currentSerial",
@@ -318,11 +374,14 @@ export function isMenuState(value: unknown): value is MenuState {
     return false;
   return (
     isMenuLocale(value.locale) &&
+    isShortcutBindings(value.shortcuts) &&
     [
       "connected",
       "sshAvailable",
       "busy",
       "sidebarVisible",
+      "auxiliaryVisible",
+      "panelVisible",
       "currentOpen",
       "currentSerial",
       "inputPaused",

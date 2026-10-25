@@ -231,9 +231,14 @@ p {
 .workspace {
   min-height: 0;
   display: grid;
-  grid-template-columns: 48px var(--sidebar-width, 260px) minmax(0, 1fr);
+  grid-template-columns: 48px var(--sidebar-width, 260px) minmax(0, 1fr) var(
+      --auxiliary-width,
+      0px
+    );
 }
 .activity-rail {
+  grid-column: 1;
+  grid-row: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -266,6 +271,8 @@ p {
   margin-bottom: 18px;
 }
 .sidebar {
+  grid-column: 2;
+  grid-row: 1;
   position: relative;
   min-height: 0;
   min-width: 0;
@@ -276,9 +283,6 @@ p {
 }
 .sidebar[hidden] {
   display: none;
-}
-.sidebar-hidden .workspace {
-  grid-template-columns: 48px minmax(0, 1fr);
 }
 .section-heading {
   height: 36px;
@@ -519,6 +523,8 @@ p {
   background: #307fce;
 }
 main {
+  grid-column: 3;
+  grid-row: 1;
   min-width: 0;
   min-height: 0;
   display: flex;
@@ -688,10 +694,10 @@ main {
 }
 @media (max-width: 900px) {
   .workspace {
-    grid-template-columns: 40px var(--sidebar-width, 210px) minmax(0, 1fr);
-  }
-  .sidebar-hidden .workspace {
-    grid-template-columns: 40px minmax(0, 1fr);
+    grid-template-columns: 40px var(--sidebar-width, 210px) minmax(0, 1fr) var(
+        --auxiliary-width,
+        0px
+      );
   }
   .rail-button {
     width: 39px;
@@ -814,26 +820,14 @@ main {
   color: var(--muted);
 }
 .transfer-panel {
-  flex-shrink: 0;
-  border-top: 1px solid var(--border);
   background: var(--panel-background);
-  min-height: 30px;
-  max-height: 45%;
-  overflow: auto;
-  resize: vertical;
-}
-.transfer-heading {
-  display: block;
-  width: 100%;
-  border: 0;
-  background: transparent;
-  text-align: left;
-  padding: 5px 10px;
-  font-size: 12px;
-  font-weight: 600;
 }
 .transfer-jobs {
-  padding: 0 10px 5px;
+  padding: 0 12px 8px;
+}
+.transfer-summary {
+  padding: 8px 12px;
+  color: var(--muted);
 }
 .transfer-job {
   padding: 5px 0;
@@ -889,4 +883,140 @@ main {
   color: var(--muted);
   overflow-wrap: anywhere;
   line-height: 1.5;
+}
+
+/* Layout controls use the existing slate chrome and blue selection accent. */
+[hidden] {
+  display: none !important;
+}
+.topbar {
+  gap: 8px;
+  padding: 0 8px;
+}
+.layout-controls {
+  display: flex;
+  gap: 2px;
+  padding-right: 8px;
+  border-right: 1px solid var(--border);
+}
+.layout-controls button {
+  width: 28px;
+  height: 26px;
+  color: var(--muted);
+}
+.layout-controls button[aria-pressed="true"] {
+  color: var(--foreground);
+  background: var(--selection);
+}
+.menu-shortcut {
+  margin-left: auto;
+  padding-left: 20px;
+  color: var(--muted);
+  font: inherit;
+}
+.auxiliary-sidebar {
+  grid-column: 4;
+  grid-row: 1;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  border-left: 1px solid var(--border);
+  background: var(--sidebar-background);
+}
+.auxiliary-sidebar h2 {
+  font-size: 12px;
+  font-weight: 600;
+}
+.session-details {
+  overflow: auto;
+  padding: 0 12px 12px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+.session-details dt {
+  margin-top: 12px;
+}
+.session-details dd {
+  margin: 2px 0 0;
+  color: var(--foreground);
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+.resize-left {
+  inset: 0 auto 0 -3px;
+}
+.resize-top {
+  inset: -3px 0 auto 0;
+  width: auto;
+  height: 6px;
+  cursor: row-resize;
+}
+.bottom-panel {
+  position: relative;
+  flex: 0 0 auto;
+  min-height: 100px;
+  max-height: 45%;
+  display: flex;
+  flex-direction: column;
+  background: var(--panel-background);
+  border-top: 1px solid var(--border);
+}
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 32px;
+  flex-shrink: 0;
+  padding: 0 6px 0 8px;
+  border-bottom: 1px solid var(--border);
+}
+.panel-header [role="tablist"] {
+  display: flex;
+  height: 100%;
+  min-width: 0;
+}
+.panel-header [role="tab"] {
+  border: 0;
+  border-radius: 0;
+  border-bottom: 2px solid transparent;
+  padding: 0 10px;
+  background: transparent;
+  color: var(--muted);
+}
+.panel-header [aria-selected="true"] {
+  color: var(--foreground);
+  border-bottom-color: var(--accent);
+}
+.bottom-panel [role="tabpanel"] {
+  min-height: 0;
+  overflow: auto;
+  flex: 1;
+}
+.panel-empty,
+.panel-status {
+  padding: 12px;
+  color: var(--muted);
+  line-height: 1.7;
+}
+.panel-status [role="alert"] {
+  color: #f3b6a6;
+  overflow-wrap: anywhere;
+}
+.shortcut-settings {
+  width: 560px;
+}
+.shortcut-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.shortcut-row label {
+  flex: 1;
+  margin: 0;
+}
+.shortcut-row button {
+  align-self: flex-end;
 }

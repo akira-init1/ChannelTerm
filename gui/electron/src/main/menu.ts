@@ -22,7 +22,8 @@ export function updateApplicationMenu(
   const convert = (entries: MenuEntry[]): MenuItemConstructorOptions[] =>
     entries.map((entry) => ({
       id: entry.id,
-      label: i18n._(entry.label),
+      label:
+        i18n._(entry.label) + (entry.shortcut ? ` (${entry.shortcut})` : ""),
       enabled: entry.enabled ?? true,
       type:
         entry.action?.id === "language.change"

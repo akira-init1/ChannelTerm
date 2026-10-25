@@ -155,6 +155,46 @@ msgstr "Benutzername"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "details.empty"
+msgstr "Verbinden Sie eine Sitzung, um Details anzuzeigen."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "details.endpoint"
+msgstr "Endpunkt"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "details.id"
+msgstr "Sitzungs-ID"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "details.lease"
+msgstr "Aktive Lease"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "details.session"
+msgstr "Sitzung"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "details.state"
+msgstr "Status"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "details.title"
+msgstr "Sitzungsdetails"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "details.transport"
+msgstr "Transport"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "file.cancel"
 msgstr "Übertragung abbrechen"
 
@@ -202,6 +242,11 @@ msgstr "Fortsetzen"
 #: src/shared/menu-messages.ts
 msgid "file.directory"
 msgstr "Ordner"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.empty"
+msgstr "Noch keine Dateiübertragungen. Im Menü Sitzung können Sie Dateien senden, empfangen oder eine Übertragung fortsetzen."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -455,6 +500,16 @@ msgstr "Ansicht"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "panel.close"
+msgstr "Panel ausblenden"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "panel.resize"
+msgstr "Höhe des unteren Panels ändern"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "session.attach"
 msgstr "An Sitzung anhängen"
 
@@ -462,6 +517,46 @@ msgstr "An Sitzung anhängen"
 #: src/shared/menu-messages.ts
 msgid "session.refresh"
 msgstr "Sitzungen aktualisieren"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "settings.shortcuts"
+msgstr "Tastenkombinationen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.conflict"
+msgstr "Jede Tastenkombination muss eindeutig sein. Ändern oder entfernen Sie die doppelte Belegung."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.hint"
+msgstr "Wählen Sie ein Feld und drücken Sie Strg oder Command mit einem Buchstaben oder einer Ziffer; Alt und Umschalt sind optional. Es gelten physische Tastenpositionen. Übernommene Belegungen werden lokal gespeichert und gelten im Terminal. Dialoge, Menüs, Textfelder und IME behalten ihre Tastenfunktionen."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.invalid"
+msgstr "Verwenden Sie Strg oder Command mit einem Buchstaben oder einer Ziffer. Übliche Bearbeitungs- und Fensterkürzel sind reserviert."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.remove"
+msgstr "Entfernen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.reset"
+msgstr "Standard wiederherstellen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.storageError"
+msgstr "Tastenkombinationen konnten nicht gespeichert werden. Prüfen Sie den Zugriff auf den lokalen Speicher und versuchen Sie es erneut."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "shortcuts.unassigned"
+msgstr "Nicht zugewiesen"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -525,6 +620,26 @@ msgstr "Ansichtsmodus"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "view.auxiliary"
+msgstr "Sekundäre Seitenleiste"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "view.layout"
+msgstr "Layout-Steuerung"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "view.panel"
+msgstr "Unteres Panel"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "view.resizeAuxiliary"
+msgstr "Breite der sekundären Seitenleiste ändern"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "view.resizeSidebar"
 msgstr "Sitzungsseitenleiste skalieren"
 
@@ -537,3 +652,8 @@ msgstr "Zum Skalieren ziehen oder Pfeiltasten verwenden. Doppelklicken zum Zurü
 #: src/shared/menu-messages.ts
 msgid "view.sidebar"
 msgstr "Sitzungsseitenleiste"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "view.status"
+msgstr "Sitzungsstatus"

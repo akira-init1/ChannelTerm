@@ -60,7 +60,9 @@ theme switcher or custom window-control API. This is application-defined styling
 
 The native title bar and minimum window size (760 × 500) remain unchanged. The application
 area has a 32 px application menu bar, a flexible workspace, and a 24 px full-width status bar.
-The menu bar contains only menus, without an application name, logo, or preview banner.
+The menu bar begins with three compact left/right/bottom layout toggles, followed by menus,
+without an application name, logo, or preview banner. The original slate/blue styling and
+locally drawn pane-outline icons remain independent of VS Code assets.
 **Connection, Session, Terminal, View, Settings, Help** expose the implemented actions described
 in the [menu reference](../reference/gui-menus.md). Renderer popovers and the native Electron
 application menu share finite action IDs, state hints, and Lingui catalogs. Language switching
@@ -73,11 +75,14 @@ A 48 px activity rail toggles the Session sidebar without changing the attachmen
 defaults to 260 px, or 210 px with a 40 px rail at viewport widths of 900 px or less. Its edge
 is a draggable, keyboard-focusable separator: Left/Right adjust by 10 px, Home/End select the
 allowed limits, and double-click restores the current viewport's default. Width is clamped
-between 180 and 480 px with additional viewport bounds to keep the terminal usable. This is
-window-local view state; hiding the sidebar preserves it, while reopening the GUI resets it.
+between 180 and 480 px with additional viewport bounds to keep the terminal usable. When both
+sidebars are visible, each is capped at half the width remaining after reserving 320 px for the
+terminal and the activity rail. The secondary sidebar starts hidden, displays current Session
+metadata, and has the same width controls on its left edge. This is window-local view state;
+hiding either sidebar preserves its preferred width, while reopening the GUI resets it.
 The terminal takes the remaining width and height; its 32 px header shows the single current
 attachment once as a tab-shaped title. The close icon performs **Close tab (detach)**,
-not Session close. There is no multi-tab state or background terminal.
+not Session close. There is no multi-tab terminal state or background terminal.
 
 Serial creation includes common baud-rate presets and a Custom option for integer rates
 from 1 to 4,000,000. The default
@@ -142,10 +147,23 @@ The measured terminal container has no padding; spacing sits outside it so FitAd
 overestimate the available cell area. Application styles do not target xterm's internal
 `.terminal` class.
 
-The right edge remains reserved for a future MCP activity panel, with no placeholder controls.
-The implemented transfer panel occupies the area above the status bar only when operations or
-results exist. It is collapsible and vertically resizable within 45% of the terminal workspace.
-Its 12 px labels and 6 px progress track keep transfer details compact relative to the terminal.
+The right sidebar displays the selected Session reference/label, endpoint, transport, state,
+opaque ID, and active lease type from existing snapshots. It provides no MCP/Agent controls.
+The bottom panel starts hidden and has **File transfers** and **Session status** tabs. View menu
+actions can open either tab even with no transfer history. A newly observed transfer or a local
+start/resume opens File transfers; later progress updates do not reopen a manually hidden panel.
+The top divider resizes the bottom panel from 100 px to 45% of the workspace, with Up/Down,
+Home/End, pointer dragging and double-click reset. Tab arrow keys and Home/End change tabs.
+Hiding panels or changing tabs keeps transfer observation and cancellation state mounted and
+never closes an attachment or changes a Host lease. Transfer labels remain 12 px with 6 px tracks.
+
+Layout shortcuts use a renderer capture listener and the same finite action dispatcher as menus
+and toolbar buttons. The listener excludes dialogs, menus, text editors, IME and AltGr; assigned
+chords in xterm are consumed before terminal input, without device writes. Shared pure validation
+limits stored bindings and native-menu display hints to the three layout actions. No OS-global
+shortcut or Electron accelerator is registered. Settings stores validated bindings in renderer
+local storage; no credentials or Host configuration are persisted there. See the
+[shortcut contract](../reference/gui-menus.md#layout-shortcuts) for defaults, focus rules and recovery.
 
 ## State ownership
 
