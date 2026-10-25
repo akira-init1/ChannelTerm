@@ -3,6 +3,15 @@ import type { MessageDescriptor } from "@lingui/core";
 // Lingui 5 extracts these official annotated descriptors without a runtime macro
 // transform. Translations belong in PO catalogs; this file owns IDs and English defaults.
 export const menuMessages = [
+  /* i18n */ {
+    id: "display.promptTimestamps",
+    message: "Local prompt timestamps",
+  },
+  /* i18n */ {
+    id: "display.promptTimestampHint",
+    message:
+      "Add local receipt time to recognized live shell prompts. Retained history and ordinary log lines are not timestamped; this is not device capture time.",
+  },
   /* i18n */ { id: "ssh.advanced", message: "Advanced SSH settings" },
   /* i18n */ {
     id: "ssh.advancedHint",

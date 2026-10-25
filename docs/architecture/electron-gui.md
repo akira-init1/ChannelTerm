@@ -210,6 +210,14 @@ or an IPC capability. Keep that dependency pinned and revalidate the native sear
 upgrading. The addon is pure JavaScript with no runtime dependencies; its MIT notice is bundled.
 Renderer code calls its public API and never exposes the terminal object through Preload.
 
+Optional prompt timestamps run before semantic highlighting in the renderer's bounded byte
+pipeline. The shell-prefix and exclusion patterns live in the same versioned definitions as
+CLI highlighting; the CLI retains its existing timestamp behavior. GUI candidates are limited
+to 8 KiB and share the 50 ms release timer with highlighting. Replay/preference transitions
+release incomplete candidates without a timestamp, and output loss resets presentation state.
+Only live text receives local recognition time; raw Host data, HEX and alternate screens remain
+unchanged. This is not a per-line acquisition clock or evidence of remote shell state.
+
 Search is scoped to one mounted view's retained decoded text (or displayed HEX text), with a
 256-code-unit query limit, 100 ms input debounce and highlights for at most 1000 matches. At the limit
 the UI reports a lower bound, not an exact total. The addon batches output-driven refreshes and

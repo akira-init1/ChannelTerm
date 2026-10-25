@@ -257,6 +257,21 @@
       "pattern": "bootloaderPromptPattern",
       "input": "Zynq> help",
       "captures": []
+    },
+    {
+      "pattern": "timestampPromptPattern",
+      "input": "root@board:~# ls",
+      "captures": []
+    },
+    {
+      "pattern": "timestampPromptPattern",
+      "input": "[root@board ~]# ",
+      "captures": []
+    },
+    {
+      "pattern": "timestampExcludedPattern",
+      "input": "barebox@board:/ # ",
+      "captures": []
     }
   ]
 }

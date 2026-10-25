@@ -15,6 +15,10 @@ export class HighlightVT {
     return this.state === "ground" && !this.alternate && !this.attributes.size;
   }
 
+  get alternateScreen() {
+    return this.alternate;
+  }
+
   /** True only when a presentation-neutral sequence establishes a prompt boundary. */
   feed(byte: number): boolean {
     const c1 = this.utf8C2 && byte >= 128 && byte <= 159;

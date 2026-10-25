@@ -225,6 +225,16 @@ msgstr "Vorschau des Terminalstils"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "display.promptTimestampHint"
+msgstr "Erkannte aktuelle Shell-Prompts erhalten die lokale Empfangszeit. Gespeicherter Verlauf und normale Logzeilen erhalten keinen Zeitstempel. Dies ist nicht die Erfassungszeit des Geräts."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "display.promptTimestamps"
+msgstr "Lokale Prompt-Zeitstempel"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "display.semantic"
 msgstr "Standard (CLI-Farben)"
 

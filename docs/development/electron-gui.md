@@ -154,6 +154,13 @@ while keeping terminal controls, selection and parser state. The preview and **R
 use the same palette. Existing font-only preferences migrate without losing font choices.
 HEX stays a byte display and does not receive semantic ANSI sequences.
 
+**Local prompt timestamps** in the same dialog defaults off and applies to recognized live shell
+prompts only. Its shared patterns are in `internal/cli/highlight/defaults.json`; preserve the CLI
+prompt tests when changing them. GUI tests cover split UTF-8/SGR, ordinary output, replay, settings
+transitions, bounded candidates and alternate-screen controls. Native checks compare visible
+timestamps against unchanged bytes from an independent Host client, then detach/reattach to verify
+retained history is unstamped. `test-results/terminal-prompt-timestamps.png` captures the live view.
+
 The native suite verifies semantic colors, 16/256/TrueColor and inverse suppression, OSC background
 changes, selection visibility, CR overwrite, alternate-screen entry/exit and restoration of retained
 colors when switching back. An independent Host observer confirms raw output is unchanged and

@@ -293,8 +293,18 @@ remote ANSI/full-screen output retains its own control semantics. Plain suppress
 semantic colors and remote foreground/background colors, including retained output, while keeping
 selection, cursor visibility and terminal controls. It does not change raw output or HEX bytes.
 Switching back restores the retained terminal attributes; it does not recover lost history.
+**Local prompt timestamps** is off by default. Enabling it adds `[HH:MM:SS]` in local time
+before recognized live shell prompts, using the CLI's shared prompt rules. This is a local
+receipt/recognition time, not the device's event time. Ordinary completed log lines, retained
+history replay, HEX, non-shell interactive prompts and alternate-screen output remain unstamped.
+The option affects future output without reattachment; existing displayed prefixes remain.
+Timestamp recognition is a heuristic, not shell state. Screen-control lines and incomplete
+candidates that exceed the bounded recognition window pass through unchanged. Copying displayed
+text includes its local prefixes; Host output and other clients' bytes remain unchanged.
+
 Settings persist in the GUI profile under `channelterm.display.v1`; old font-only settings gain
-the semantic default while retaining fonts, and malformed values use defaults.
+the semantic default while retaining fonts. Font/style settings gain `promptTimestamps:false`
+without losing existing choices, and malformed values use defaults.
 If saving fails, the dialog stays open. Wheel changes still apply locally with a storage notice.
 
 ## File actions

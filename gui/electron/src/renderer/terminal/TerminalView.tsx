@@ -16,6 +16,7 @@ import type { DisplaySettings } from "../../shared/display-settings";
 import { PastePreview } from "./PastePreview";
 import { SemanticHighlighter } from "./highlight";
 import { TerminalSearch } from "./TerminalSearch";
+import { PromptTimestamp } from "./prompt-timestamp";
 
 /** Controls for the current view; paste uses the existing bounded, authorized input path. */
 export interface TerminalControls {
@@ -63,9 +64,11 @@ export function TerminalView({
   const container = useRef<HTMLDivElement>(null);
   const local = useRef<Terminal | undefined>(undefined);
   const fitting = useRef<FitAddon | undefined>(undefined);
-  const highlighter = useRef<SemanticHighlighter | undefined>(undefined);
+  const releasePresentation = useRef<(() => void) | undefined>(undefined);
   const terminalStyle = useRef(display.terminalStyle);
   terminalStyle.current = display.terminalStyle;
+  const promptTimestamps = useRef(display.promptTimestamps);
+  promptTimestamps.current = display.promptTimestamps;
   const clipboardBusy = useRef(false);
   const inputEpoch = useRef(0);
   const pendingPaste = useRef(false);
@@ -160,7 +163,7 @@ export function TerminalView({
   useEffect(() => {
     const presentation = new TerminalPresentation(settings);
     const styling = new SemanticHighlighter();
-    highlighter.current = styling;
+    const timestamps = new PromptTimestamp();
     let pendingTimer: ReturnType<typeof setTimeout> | undefined;
     const terminal = new Terminal({
       cursorBlink: true,
@@ -206,6 +209,21 @@ export function TerminalView({
       terminal.focus();
     }
     let stopped = false;
+    const releasePending = () => {
+      if (stopped) return;
+      const upstream = styling.write(
+        timestamps.release(),
+        terminalStyle.current === "semantic",
+      );
+      const tail = styling.release();
+      if (upstream.length || tail.length) {
+        const pending = new Uint8Array(upstream.length + tail.length);
+        pending.set(upstream);
+        pending.set(tail, upstream.length);
+        terminal.write(pending);
+      }
+    };
+    releasePresentation.current = releasePending;
     // Historical device queries are not current requests to this attachment.
     // Intercept queries at the parser (not by filtering user keystrokes or raw output).
     // Live queries still reach xterm's standard handlers, including split sequences.
@@ -290,6 +308,7 @@ export function TerminalView({
             terminal.reset();
             presentation.reset();
             styling.reset();
+            timestamps.reset();
             clearTimeout(pendingTimer);
             pendingTimer = undefined;
             callbacks.current.onDropped();
@@ -305,14 +324,16 @@ export function TerminalView({
                   ? new TextEncoder().encode(rendered)
                   : rendered;
               rendered = styling.write(
-                bytes,
+                timestamps.write(bytes, promptTimestamps.current && !replay),
                 terminalStyle.current === "semantic",
               );
-              if (styling.hasPending && pendingTimer === undefined)
+              if (
+                (styling.hasPending || timestamps.hasPending) &&
+                pendingTimer === undefined
+              )
                 pendingTimer = setTimeout(() => {
                   pendingTimer = undefined;
-                  const pending = styling.release();
-                  if (!stopped && pending.length) terminal.write(pending);
+                  releasePending();
                 }, 50);
             }
             await new Promise<void>((done) => {
@@ -343,7 +364,7 @@ export function TerminalView({
       terminal.dispose();
       local.current = undefined;
       fitting.current = undefined;
-      highlighter.current = undefined;
+      releasePresentation.current = undefined;
       // Main owns detach/cancellation; React effect cleanup must not detach a
       // newly mounted view (including StrictMode effect replay).
     };
@@ -368,9 +389,8 @@ export function TerminalView({
 
   useEffect(() => {
     // A preference change cannot leave a half-styled line pending or reset xterm.
-    const pending = highlighter.current?.release();
-    if (pending?.length) local.current?.write(pending);
-  }, [display.terminalStyle]);
+    releasePresentation.current?.();
+  }, [display.terminalStyle, display.promptTimestamps]);
 
   return (
     <>

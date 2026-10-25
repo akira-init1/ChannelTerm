@@ -3,7 +3,6 @@ package command
 import (
 	"bytes"
 	"fmt"
-	"regexp"
 	"time"
 
 	"github.com/akira-init1/ChannelTerm/internal/cli/highlight"
@@ -113,7 +112,7 @@ func (r *promptTimestampRenderer) Write(data []byte) error {
 			}
 			r.pending = nil
 			r.rawUntilNewline = true
-		} else if promptPattern.Match(visible) {
+		} else if highlight.HasTimestampPromptPrefix(visible) {
 			stamp := []byte(fmt.Sprintf("[%s] ", r.now().Format("15:04:05")))
 			stamped := make([]byte, 0, len(stamp)+len(r.pending))
 			stamped = append(stamped, stamp...)
@@ -196,7 +195,3 @@ func promptVisibleText(data []byte) (visible []byte, complete, safe bool) {
 	}
 	return visible, true, true
 }
-
-// Recognize a prompt even when the same read already contains command echo.
-// Require whitespace before that echo while retaining prompts with no suffix.
-var promptPattern = regexp.MustCompile(`^(?:[A-Za-z0-9_.-]+@[A-Za-z0-9_.-]+:[^ \t\r\n]+[$#]|(?:ba)?sh-[0-9]+(?:\.[0-9]+)*[$#]|/[ \t]+#|\[[A-Za-z0-9_.-]+@[A-Za-z0-9_.-]+[ \t]+[^ \t\r\n\]]+\][$#])(?:[ \t]+|$)`)

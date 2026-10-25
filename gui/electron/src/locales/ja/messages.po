@@ -225,6 +225,16 @@ msgstr "端末スタイルのプレビュー"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "display.promptTimestampHint"
+msgstr "認識した現在のシェルプロンプトにローカル受信時刻を付けます。保持された履歴や通常のログ行には付けません。機器側の記録時刻ではありません。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "display.promptTimestamps"
+msgstr "ローカルプロンプト時刻"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "display.semantic"
 msgstr "既定（CLI 配色）"
 

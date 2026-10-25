@@ -225,6 +225,16 @@ msgstr "Aperçu du style du terminal"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "display.promptTimestampHint"
+msgstr "Ajoute l’heure locale de réception aux invites shell reconnues en direct. L’historique conservé et les lignes de journal ordinaires ne sont pas horodatés ; ce n’est pas l’heure de capture de l’appareil."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "display.promptTimestamps"
+msgstr "Horodatage local des invites"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "display.semantic"
 msgstr "Par défaut (couleurs CLI)"
 

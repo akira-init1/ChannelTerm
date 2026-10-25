@@ -24,7 +24,7 @@ var interactivePromptPatterns = []*regexp.Regexp{
 	// U-Boot variants.
 	regexp.MustCompile(`^(?:=>|(?:[A-Za-z0-9_.-]+[ \t]+)*U-Boot[ \t]*>|Zynq(?:MP)?[ \t]*>)`),
 	// barebox.
-	regexp.MustCompile(`^barebox@[^:\r\n]+:[^ \t\r\n]+(?:[ \t]+|$)`),
+	regexp.MustCompile(defaults.Prompts["timestampExcludedPattern"]),
 	// GRUB rescue.
 	regexp.MustCompile(`^grub[ \t]+rescue>`),
 	// UEFI filesystem shell.
@@ -44,3 +44,12 @@ var interactivePromptPatterns = []*regexp.Regexp{
 	// Interactive GDB.
 	regexp.MustCompile(`^\(gdb\)`),
 }
+
+// HasTimestampPromptPrefix recognizes supported shell prompts for local timestamps.
+// It is a presentation heuristic, not evidence of shell state or authority to write.
+// Prompt echo may follow whitespace; interactive/non-shell prompts remain unstamped.
+func HasTimestampPromptPrefix(line []byte) bool {
+	return !HasInteractivePromptPrefix(line) && timestampPromptPattern.Match(line)
+}
+
+var timestampPromptPattern = regexp.MustCompile(defaults.Prompts["timestampPromptPattern"])

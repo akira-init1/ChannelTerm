@@ -225,6 +225,16 @@ msgstr "터미널 스타일 미리보기"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "display.promptTimestampHint"
+msgstr "인식된 실시간 셸 프롬프트에 로컬 수신 시간을 추가합니다. 보관된 기록과 일반 로그 줄에는 추가하지 않으며, 장치의 수집 시간이 아닙니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "display.promptTimestamps"
+msgstr "로컬 프롬프트 타임스탬프"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "display.semantic"
 msgstr "기본값 (CLI 색상)"
 

@@ -225,6 +225,16 @@ msgstr "終端機風格預覽"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "display.promptTimestampHint"
+msgstr "為辨識到的即時 Shell 提示符加入本地接收時間。保留的歷史和一般日誌行不加時間戳記；這不是裝置擷取時間。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "display.promptTimestamps"
+msgstr "本地提示符時間戳記"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "display.semantic"
 msgstr "預設（CLI 配色）"
 

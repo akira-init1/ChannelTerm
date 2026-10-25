@@ -225,6 +225,16 @@ msgstr "Предпросмотр стиля терминала"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "display.promptTimestampHint"
+msgstr "Добавлять местное время получения к распознанным текущим приглашениям оболочки. Сохранённая история и обычные строки журнала не получают меток; это не время записи на устройстве."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "display.promptTimestamps"
+msgstr "Локальные метки времени приглашений"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "display.semantic"
 msgstr "По умолчанию (цвета CLI)"
 

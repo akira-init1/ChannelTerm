@@ -225,6 +225,16 @@ msgstr "Terminal style preview"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "display.promptTimestampHint"
+msgstr "Add local receipt time to recognized live shell prompts. Retained history and ordinary log lines are not timestamped; this is not device capture time."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "display.promptTimestamps"
+msgstr "Local prompt timestamps"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "display.semantic"
 msgstr "Default (CLI colors)"
 

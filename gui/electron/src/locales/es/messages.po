@@ -225,6 +225,16 @@ msgstr "Vista previa del estilo"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "display.promptTimestampHint"
+msgstr "Añade la hora local de recepción a los prompts de shell reconocidos en directo. No marca el historial retenido ni las líneas de registro normales; no es la hora de captura del dispositivo."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "display.promptTimestamps"
+msgstr "Marcas de tiempo locales del prompt"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "display.semantic"
 msgstr "Predeterminado (colores de CLI)"
 

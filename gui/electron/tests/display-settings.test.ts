@@ -49,11 +49,30 @@ test("display settings validate persisted bounds and font text", () => {
 
 test("font-only preferences migrate without losing choices and reject unknown styles", () => {
   assert.deepEqual(
+    restoreDisplaySettings({
+      fontSize: 18,
+      fontFamily: "Consolas",
+      terminalStyle: "monochrome",
+    }),
+    {
+      fontSize: 18,
+      fontFamily: "Consolas",
+      terminalStyle: "monochrome",
+      promptTimestamps: false,
+    },
+  );
+  for (const promptTimestamps of [0, "true", null])
+    assert.equal(
+      isDisplaySettings({ ...defaultDisplaySettings, promptTimestamps }),
+      false,
+    );
+  assert.deepEqual(
     restoreDisplaySettings({ fontSize: 20, fontFamily: "Courier New" }),
     {
       fontSize: 20,
       fontFamily: "Courier New",
       terminalStyle: "semantic",
+      promptTimestamps: false,
     },
   );
   assert.deepEqual(
