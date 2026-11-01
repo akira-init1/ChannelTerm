@@ -549,6 +549,18 @@ function createHandlers(context: WindowContext): Record<string, Handler> {
       currentHost(context).sshTrust.decide(id, accept),
     [channels.openConnection]: (request) =>
       currentHost(context).openConnection(request),
+    [channels.resize]: (id, size) => {
+      identifier(id);
+      if (context.outgoingMove)
+        throw new HostError("busy", "Tab move is in progress.");
+      return currentHost(context).resize(id, size);
+    },
+    [channels.resizeControl]: (id, action) => {
+      identifier(id);
+      if (context.outgoingMove)
+        throw new HostError("busy", "Tab move is in progress.");
+      return currentHost(context).resizeControl(id, action);
+    },
     [channels.attach]: (id, settings) => {
       identifier(id);
       return currentHost(context).attach(id, settings);
@@ -632,6 +644,8 @@ function registerIPC(): void {
           )
             throw new HostError("busy", "The incoming tab is not ready yet.");
           const expected = [
+            channels.resize,
+            channels.resizeControl,
             channels.moveTab,
             channels.acceptMovedTab,
             channels.attach,

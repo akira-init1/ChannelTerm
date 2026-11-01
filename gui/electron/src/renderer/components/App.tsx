@@ -1781,7 +1781,7 @@ export function App() {
         </span>
         <span className="status-detail">
           {attachment
-            ? `${terminalSettings.encoding.toUpperCase()} · ${terminalSettings.view === "hex" ? "HEX" : "xterm"} · Local resize only`
+            ? `${terminalSettings.encoding.toUpperCase()} · ${terminalSettings.view === "hex" ? "HEX" : "xterm"}${attachment.remoteSize ? "" : ` · ${t("terminal.sizeLocal")}`}`
             : "Host-owned Sessions"}
         </span>
       </footer>

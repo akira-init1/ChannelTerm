@@ -310,6 +310,68 @@ export async function checkConnections(environment, launchArgs) {
     const ssh = (await observer.list()).find((s) => s.label === "Created SSH");
     assert.ok(ssh);
     const attachment = await observer.attach(ssh.session_id);
+    const sizeControls = page.locator(
+      ".terminal-pane:not([hidden]) .remote-size-controls",
+    );
+    await expect(sizeControls).toContainText("Remote size follows this view");
+    let sizeOutput = Buffer.from(
+      (await observer.read(attachment.id)).data,
+    ).toString();
+    await desktop.evaluate(({ BrowserWindow }) =>
+      BrowserWindow.getAllWindows()[0].setSize(1100, 720),
+    );
+    await expect
+      .poll(async () => {
+        sizeOutput += Buffer.from(
+          (await observer.read(attachment.id)).data,
+        ).toString();
+        return [...sizeOutput.matchAll(/PTY SIZE (\d+) (\d+)/g)].length;
+      })
+      .toBeGreaterThan(0);
+    const beforeSizes = [...sizeOutput.matchAll(/PTY SIZE (\d+) (\d+)/g)].map(
+      (m) => m[0],
+    );
+    await desktop.evaluate(({ BrowserWindow }) =>
+      BrowserWindow.getAllWindows()[0].setSize(1400, 880),
+    );
+    await expect
+      .poll(async () => {
+        sizeOutput += Buffer.from(
+          (await observer.read(attachment.id)).data,
+        ).toString();
+        const sizes = [...sizeOutput.matchAll(/PTY SIZE (\d+) (\d+)/g)].map(
+          (m) => m[0],
+        );
+        return sizes.at(-1) !== beforeSizes.at(-1);
+      })
+      .toBe(true);
+    await observer.resizeControl(attachment.id, "take");
+    await expect(sizeControls).toContainText("Local fitting only");
+    await sizeControls
+      .getByRole("button", {
+        name: "Use this view for remote size",
+        exact: true,
+      })
+      .click();
+    await expect(sizeControls).toContainText("Remote size follows this view");
+    assert.equal(await observer.resizeControl(attachment.id, "status"), false);
+    await sizeControls
+      .getByRole("button", { name: "Release size control", exact: true })
+      .click();
+    await expect(sizeControls).toContainText("Local fitting only");
+    await sizeControls
+      .getByRole("button", {
+        name: "Use this view for remote size",
+        exact: true,
+      })
+      .click();
+    await expect(sizeControls).toContainText("Remote size follows this view");
+    const foreignSize = await page.evaluate(
+      (id) => window.channelterm.resize(id, { columns: 80, rows: 24 }),
+      attachment.id,
+    );
+    assert.equal(foreignSize.ok, false);
+    await page.screenshot({ path: "test-results/ssh-remote-size.png" });
     await checkSSHFiles(desktop, page, fixture);
     await page
       .locator(".terminal-pane:not([hidden]) .xterm-helper-textarea")

@@ -109,8 +109,8 @@ do not authorize writes independently; the Host validates each request. Output r
 while a valid lease is held. File-transfer lease expiry closes the original Session locally,
 so another client cannot restore access by reconnecting to the same Host entry.
 
-Multiple Applications are not inherently competing writers. The SSH command's separate setup
-Application shares the Host Manager but only opens the connection and performs resize; foreground
+Multiple Applications are not inherently competing writers. The SSH command uses one Application
+for setup, foreground Host tools and [remote size control](../modules/application.md); foreground
 writes use the Host tools. Local `serial` and private attachment use an Application with their own
 Manager. Discovery/target-resolution Applications do not write shared Sessions. The serial wake
 write occurs on a connection candidate before Manager registration, outside shared-client access.
@@ -128,14 +128,15 @@ The Electron client and any future GUI must preserve these boundaries:
 - Do not obtain a Session from Manager and call `Session.Write`, access Channel writes directly,
   or substitute GUI-local locks for Host lease checks. Session payload serialization alone does
   not enforce operation ownership. Query Host lease state rather than treating a local cache as
-  permission to write. Close and resize retain their existing policies.
+  permission to write. Remote resize uses a separate per-Session capability; it does not grant input
+  ownership or change Session close policy.
 
 The [Electron GUI](electron-gui.md) attaches to existing Sessions through authenticated MCP HTTP,
 with integration coverage using a disposable Go Host and in-memory terminal. Existing interfaces
 do not supply an MCP SSH-open or resize tool, or a tool that starts CLI file-send/receive orchestration; those
-operations currently have CLI/Core entry points. GUI file selection, transfer orchestration,
-and a reusable public client SDK are not implemented here. These gaps do not require a second
-arbitrator or a new GUI protocol in the current architecture.
+operations use CLI/Core entry points and the narrow [desktop Host API](../reference/gui-host-api.md).
+Electron retains its own trusted adapters for file selection and companion CLI orchestration;
+there is no reusable public client SDK or second arbitration authority.
 
 ## Current implementation boundaries
 

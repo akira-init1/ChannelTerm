@@ -1371,6 +1371,31 @@ msgstr "터미널 설정"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "terminal.sizeHint"
+msgstr "크기 제어를 전환하면 다른 보기에서 이 공유 SSH 터미널의 크기를 변경할 수 없습니다. 입력 권한은 변경되지 않습니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.sizeLocal"
+msgstr "로컬 표시만 조정"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.sizeOwned"
+msgstr "원격 크기가 이 보기를 따름"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.sizeRelease"
+msgstr "크기 제어 해제"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.sizeTake"
+msgstr "이 보기로 원격 크기 제어"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.text"
 msgstr "텍스트"
 

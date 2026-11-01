@@ -89,7 +89,7 @@ func newSSHHandler(application sshOpener) http.Handler {
 			return
 		}
 		if r.Method == http.MethodGet {
-			reply(w, 200, map[string]bool{"available": true, "advanced": true, "trust_confirmation": true})
+			reply(w, 200, map[string]bool{"available": true, "advanced": true, "trust_confirmation": true, "resize_control": true})
 			return
 		}
 		if r.Method != http.MethodPost {
@@ -175,7 +175,7 @@ func newSSHHandler(application sshOpener) http.Handler {
 			return
 		}
 		// Request completion/GUI detach never closes this Manager-owned Session.
-		streamSSHResult(w, input.ConfirmHostKey, 200, map[string]any{"session_id": opened.Info.ID, "reused": opened.Reused})
+		streamSSHResult(w, input.ConfirmHostKey, 200, map[string]any{"session_id": opened.Info.ID, "reused": opened.Reused, "resize_owner": opened.ResizeOwner})
 	})
 }
 

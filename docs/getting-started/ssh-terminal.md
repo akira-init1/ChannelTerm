@@ -80,7 +80,11 @@ output terminal, or its input terminal when output is redirected, with an 80-by-
 size querying is unavailable. `--cols` and `--rows` override the initial dimensions; after the
 owner's window changes, both dimensions follow the local terminal. Use `--term` for terminal type.
 Secondary `attach` windows share output but never resize the remote PTY, even if they are larger
-or smaller. There is no size-control handoff. With no local terminal, dimensions stay fixed.
+or smaller. Electron offers **Use this view for remote size** to explicitly take size control,
+including from the CLI creator. The previous CLI watcher stops on its next size notification;
+input and Host lifetime are unchanged. **Release size control** leaves the last remote dimensions
+in place, with no automatic successor. With no local terminal and no explicit takeover, dimensions
+stay fixed. A CLI secondary attachment has no takeover shortcut.
 
 Linux/macOS detect changes through `SIGWINCH`; Windows queries the visible console window every
 250 ms. Resizing the owner from 36 rows by 100 columns to 43 by 132 should make remote `stty size`

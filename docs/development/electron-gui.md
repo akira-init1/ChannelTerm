@@ -503,7 +503,7 @@ These checks do not establish physical device evidence or other native-platform 
 | Output overwritten | Earlier bytes are unavailable. xterm resets and continues from retained output; the warning remains while attached. Detaching removes that view's notice. |
 | Session closed | Refresh and select an open Session. Reattachment cannot reopen a closed device. |
 | Host disconnected / uncertain write | Check Host ownership/liveness, reconnect explicitly, and inspect remote state before retyping. Input is never automatically retried. |
-| Full-screen application size differs | xterm fits locally; MCP has no remote PTY resize tool. Use the CLI owner for remote sizing. |
+| Full-screen application size differs | In the intended SSH view, explicitly select **Use this view for remote size**. Other views fit locally. Older Hosts have no resize route; update the Host. |
 | Window will not launch | Check Electron download completion and native display availability. Scripts clear inherited `ELECTRON_RUN_AS_NODE` for the child process. |
 | Race tests fail before compilation | Install the supported C compiler and enable CGO for race testing; ordinary production Go builds remain CGO-free. |
 
@@ -511,3 +511,14 @@ Targets are Windows/Linux/macOS, x64/arm64. Native Windows x64 desktop testing i
 cross-compilation; each other native OS/architecture still needs runtime validation. Real serial
 settings and hardware are not involved in the fixture. Installer packaging, signing/notarization,
 update delivery, and release automation remain unimplemented.
+
+### Remote SSH size checks
+
+`tests/resize.test.ts` exercises two real Host Clients against the disposable loopback SSH server:
+creation versus reuse, actual `window-change` dimensions, explicit takeover, stale owner rejection,
+release/detach, foreign handles, malformed dimensions and serial-only local fitting. Additional
+checks cover late takeover cleanup and a bounded geometry queue. Go tests cover concurrent submission,
+permissions, registration reuse and the fixed HTTP boundary. Native connection checks resize the
+Electron window, observe changed wire dimensions, exercise takeover/release, and capture
+`test-results/ssh-remote-size.png`. These fixtures do not prove behavior of external SSH servers or
+full-screen programs on every native OS.

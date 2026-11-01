@@ -61,9 +61,18 @@ owns storage and precedence semantics.
 `ResizeSession(identifier, cols, rows)` resolves a managed Session and delegates to its existing
 optional Channel capability. Lookup, lifecycle, unsupported-capability, and Transport errors
 remain visible to the caller. It does not change Session lifecycle or write-lease semantics.
-Adapters own size authority: currently only the foreground SSH CLI installs a local size watcher;
-secondary attachments and MCP have no resize operation. The application API carries character
-dimensions only, never an OS terminal descriptor, signal, or SSH-library object.
+Application owns SSH size authority through `TakeResizeControl`, `ResizeSessionOwned`,
+`OwnsResizeControl` and `ReleaseResizeControl`. New SSH creation returns a private capability;
+reuse returns none. Explicit management takeover replaces it; stale resizes fail and stale releases
+cannot revoke a successor. Control is separate from client identity and writer leases. Releasing
+or losing a view never automatically promotes another observer. The trusted local `ResizeSession`
+primitive remains available internally; HTTP and CLI watchers use the owned path.
+
+Records are keyed by non-reused Manager references, pruned against live SSH registrations, and
+locked per Session across validation/submission. Competing requests return busy without queuing;
+other Sessions remain independent. Dimensions are positive uint16 character counts; the desktop route bounds them to 1-1000. Serial
+control is unsupported. Closing a Session can unblock transport I/O; a timeout cannot recall an
+already submitted window change. No OS descriptors or SSH-library types cross the application API.
 
 ## Serial open invariants
 

@@ -20,6 +20,9 @@ type OpenSSHRequest struct {
 type OpenSSHResult struct {
 	Info   session.SessionInfo
 	Reused bool
+	// ResizeOwner is a private size-control capability returned only to the
+	// creator. Adapters must never put it in public metadata or renderer IPC.
+	ResizeOwner string
 }
 
 // OpenSSH opens or reuses a Session for the exact SSH user, host, and port.
@@ -68,5 +71,12 @@ func (a *Application) openSSH(ctx context.Context, request OpenSSHRequest, creat
 	if err != nil {
 		return OpenSSHResult{}, err
 	}
-	return OpenSSHResult{Info: info, Reused: !created}, nil
+	result := OpenSSHResult{Info: info, Reused: !created}
+	if created {
+		result.ResizeOwner, err = a.takeResizeControl(ctx, info.ID, true)
+		if err != nil {
+			return result, fmt.Errorf("initialize SSH size control: %w", err)
+		}
+	}
+	return result, nil
 }

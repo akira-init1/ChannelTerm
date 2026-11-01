@@ -58,6 +58,9 @@ export interface HostInfo {
 export interface Attachment {
   id: string;
   sessionId: string;
+  /** Display capabilities only; the private resize owner stays in Main. */
+  remoteSize?: boolean;
+  ownsRemoteSize?: boolean;
 }
 export interface Output {
   data: number[];
@@ -147,6 +150,14 @@ export interface DesktopAPI {
   cancelSSHBrowse(): Promise<Result<void>>;
   read(attachmentId: string): Promise<Result<Output>>;
   write(attachmentId: string, data: string): Promise<Result<void>>;
+  resize(
+    attachmentId: string,
+    size: { columns: number; rows: number },
+  ): Promise<Result<boolean>>;
+  resizeControl(
+    attachmentId: string,
+    action: "status" | "take" | "release",
+  ): Promise<Result<boolean>>;
   syncMenu(state: MenuState): Promise<Result<void>>;
   onMenuAction(listener: (action: Action) => void): () => void;
   onFileCloseBlocked(listener: () => void): () => void;
@@ -195,6 +206,8 @@ export const channels = {
   cancelSSHBrowse: "ssh:cancel-browse",
   read: "host:read",
   write: "host:write",
+  resize: "host:resize",
+  resizeControl: "host:resize-control",
   menuState: "menu:state",
   menuAction: "menu:action",
   fileCloseBlocked: "files:close-blocked",

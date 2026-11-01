@@ -449,3 +449,28 @@ test("menu IPC rejects unknown actions, language, arbitrary templates and oversi
     assert.equal(isAction(value), false);
   assert.equal(isAction({ id: "session.attach", sessionId: "opaque" }), true);
 });
+
+test("size display hints preserve menu actions but never admit private capabilities", () => {
+  const attachment = {
+    id: "view",
+    sessionId: "session",
+    remoteSize: true,
+    ownsRemoteSize: true,
+  };
+  assert.equal(isMenuState({ ...initialMenuState, attachment }), true);
+  assert.equal(isAction({ id: "terminal.copy", attachment }), true);
+  assert.equal(
+    isMenuState({
+      ...initialMenuState,
+      attachment: { ...attachment, owner: "private" },
+    }),
+    false,
+  );
+  assert.equal(
+    isMenuState({
+      ...initialMenuState,
+      attachment: { ...attachment, ownsRemoteSize: "true" },
+    }),
+    false,
+  );
+});

@@ -471,9 +471,12 @@ function identifier(value: unknown): value is string {
 function isAttachment(value: unknown): value is Attachment {
   return (
     record(value) &&
-    exact(value, ["id", "sessionId"]) &&
+    exact(value, ["id", "sessionId", "remoteSize", "ownsRemoteSize"]) &&
     identifier(value.id) &&
-    identifier(value.sessionId)
+    identifier(value.sessionId) &&
+    (value.remoteSize === undefined || typeof value.remoteSize === "boolean") &&
+    (value.ownsRemoteSize === undefined ||
+      typeof value.ownsRemoteSize === "boolean")
   );
 }
 export function isMenuLocale(value: unknown): value is MenuLocale {

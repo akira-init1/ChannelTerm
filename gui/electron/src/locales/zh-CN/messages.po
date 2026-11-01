@@ -1371,6 +1371,31 @@ msgstr "终端设置"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "terminal.sizeHint"
+msgstr "切换尺寸控制权后，其他视图不能再调整此共享 SSH 终端的尺寸。输入权限不变。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.sizeLocal"
+msgstr "仅适配本地显示"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.sizeOwned"
+msgstr "远端尺寸跟随此视图"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.sizeRelease"
+msgstr "释放尺寸控制权"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.sizeTake"
+msgstr "由此视图控制远端尺寸"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.text"
 msgstr "文本"
 

@@ -1,3 +1,4 @@
+import { RemoteSize } from "./resize";
 import { ActivityFeed } from "./activity";
 import { diagnosticMetadata, downloadDiagnostic } from "./diagnostics";
 import {
@@ -44,6 +45,7 @@ import {
 } from "./validation";
 
 type ActiveAttachment = Attachment & {
+  sizeControl?: RemoteSize;
   feed: ActivityFeed;
   settings: TerminalSettings;
   codec: TerminalCodec;
@@ -75,6 +77,8 @@ export class HostClient {
   private sshTrustAvailable = false;
   private sshAvailable = false;
   private sshAdvanced = false;
+  private resizeAvailable = false;
+  private pendingSizes = new Map<string, RemoteSize>();
   private transferEvents = new Map<string, TransferEvents>();
   private eventReads = new Map<string, Promise<TransferEvents>>();
 
@@ -309,6 +313,20 @@ export class HostClient {
       }
       if (signal.aborted)
         throw new HostError("cancelled", "Connection cancelled.");
+      try {
+        const response = await fetch(new URL("/gui/v1/resize", this.endpoint), {
+          redirect: "error",
+          headers: { Authorization: `Bearer ${this.token}` },
+          signal: AbortSignal.any([signal, AbortSignal.timeout(2000)]),
+        });
+        this.resizeAvailable =
+          response.ok && object(await response.json()).available === true;
+        if (!response.ok) await response.body?.cancel();
+      } catch {
+        this.resizeAvailable = false;
+      }
+      if (signal.aborted)
+        throw new HostError("cancelled", "Connection cancelled.");
       return this.info();
     } catch (error) {
       await this.disconnect();
@@ -469,7 +487,7 @@ export class HostClient {
       throw new HostError("invalid_input", "Invalid connection settings.");
     if (!this.client || this.connection.signal.aborted)
       throw new HostError("disconnected", "Connect to a Host first.");
-    if (this.attachments.size >= 32)
+    if (this.attachments.size + this.pendingSizes.size >= 32)
       throw new HostError(
         "busy",
         "Close a terminal tab before opening a connection.",
@@ -590,6 +608,23 @@ export class HostClient {
         );
       identifier(result.session_id);
       if (typeof result.reused !== "boolean") throw incompatible();
+      if (request.kind === "ssh" && this.resizeAvailable && !result.reused) {
+        if (
+          result.resize_owner !== "" &&
+          !RemoteSize.validOwner(result.resize_owner)
+        )
+          throw incompatible();
+        this.pendingSizes.set(
+          result.session_id,
+          new RemoteSize(
+            this.endpoint,
+            this.token,
+            result.session_id,
+            result.resize_owner,
+            this.connection.signal,
+          ),
+        );
+      }
       return { sessionId: result.session_id, reused: result.reused };
     } catch (error) {
       if (error instanceof HostError) throw error;
@@ -634,14 +669,14 @@ export class HostClient {
           "closed",
           "Session is no longer open. Refresh the Session list.",
         );
-      if (connection.signal.aborted)
+      if (connection.signal.aborted || !this.client)
         throw new HostError("cancelled", "Attachment cancelled.");
       const attached = await this.call("terminal_session_attach", {
         session_id: sessionId,
         actor: "user",
       });
       if (attached.attached !== true) throw incompatible();
-      if (connection.signal.aborted)
+      if (connection.signal.aborted || !this.client)
         throw new HostError("cancelled", "Attachment cancelled.");
       const active: ActiveAttachment = {
         settings: preferences,
@@ -655,11 +690,60 @@ export class HostClient {
         writeVersion: 0,
         writes: Promise.resolve(),
       };
+      if (entry.transport === "ssh" && this.resizeAvailable) {
+        active.sizeControl =
+          this.pendingSizes.get(sessionId) ??
+          new RemoteSize(
+            this.endpoint,
+            this.token,
+            sessionId,
+            "",
+            connection.signal,
+          );
+        this.pendingSizes.delete(sessionId);
+      }
       this.attachments.set(active.id, active);
-      return { id: active.id, sessionId };
+      return {
+        id: active.id,
+        sessionId,
+        remoteSize: !!active.sizeControl,
+        ownsRemoteSize: active.sizeControl?.owned,
+      };
     } finally {
       this.changing = false;
     }
+  }
+
+  async resize(id: string, size: unknown): Promise<boolean> {
+    const active = this.attachment(id);
+    const value = object(size);
+    if (
+      Object.keys(value).length !== 2 ||
+      !Number.isInteger(value.columns) ||
+      !Number.isInteger(value.rows) ||
+      typeof value.columns !== "number" ||
+      typeof value.rows !== "number" ||
+      value.columns < 1 ||
+      value.columns > 1000 ||
+      value.rows < 1 ||
+      value.rows > 1000
+    )
+      throw new HostError("invalid_input", "Invalid terminal dimensions.");
+    return active.sizeControl
+      ? active.sizeControl.request("resize", value.columns, value.rows)
+      : false;
+  }
+
+  async resizeControl(id: string, action: unknown): Promise<boolean> {
+    const active = this.attachment(id);
+    if (action !== "status" && action !== "take" && action !== "release")
+      throw new HostError("invalid_input", "Invalid size action.");
+    if (!active.sizeControl)
+      throw new HostError(
+        "incompatible",
+        "Remote size control is unavailable.",
+      );
+    return active.sizeControl.request(action);
   }
 
   private attachment(id: string): ActiveAttachment {
@@ -707,6 +791,7 @@ export class HostClient {
     this.attachments.delete(id);
     if (!active) return;
     active.controller.abort();
+    await active.sizeControl?.dispose();
     // This records a lifecycle event only. No terminal_close, lease release, or Host shutdown.
     try {
       await this.call(
@@ -1040,6 +1125,13 @@ export class HostClient {
     const attachments = [...this.attachments.values()];
     this.attachments.clear();
     for (const active of attachments) active.controller.abort();
+    const sizes = [
+      ...this.pendingSizes.values(),
+      ...attachments.flatMap((active) =>
+        active.sizeControl ? [active.sizeControl] : [],
+      ),
+    ];
+    this.pendingSizes.clear();
     const client = this.client;
     this.client = undefined;
     if (client && !this.connection.signal.aborted) {
@@ -1061,10 +1153,16 @@ export class HostClient {
       );
     }
     this.connection.abort();
+    // A setup may have returned during the bounded detach notifications. Revoke
+    // those pending capabilities too, after disabling new attachment work.
+    sizes.push(...this.pendingSizes.values());
+    this.pendingSizes.clear();
+    await Promise.all(sizes.map((size) => size.dispose()));
     await client?.close().catch(() => {});
     this.lifetime = "unknown";
     this.sshAvailable = false;
     this.sshAdvanced = false;
+    this.resizeAvailable = false;
     this.transferEvents.clear();
     this.eventReads.clear();
   }

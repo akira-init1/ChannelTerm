@@ -1,3 +1,4 @@
+import { ResizeQueue } from "./resize";
 import {
   useEffect,
   useImperativeHandle,
@@ -70,6 +71,42 @@ export function TerminalView({
   const promptTimestamps = useRef(display.promptTimestamps);
   promptTimestamps.current = display.promptTimestamps;
   const clipboardBusy = useRef(false);
+  const sizeQueue = useRef<ResizeQueue | undefined>(undefined);
+  const sizeObservation = useRef<Promise<void> | undefined>(undefined);
+  const sizeOwned = useRef(!!attachment.ownsRemoteSize);
+  const [remoteOwned, setRemoteOwned] = useState(!!attachment.ownsRemoteSize);
+  const [sizeBusy, setSizeBusy] = useState(false);
+  const sizeActionPending = useRef(false);
+  function showSizeOwner(owned: boolean) {
+    sizeOwned.current = owned;
+    setRemoteOwned(owned);
+  }
+  async function changeSizeControl() {
+    if (sizeActionPending.current) return;
+    sizeActionPending.current = true;
+    setSizeBusy(true);
+    const target = local.current;
+    try {
+      await sizeObservation.current;
+      const owned = await unwrap(
+        host.resizeControl(
+          attachment.id,
+          sizeOwned.current ? "release" : "take",
+        ),
+      );
+      if (target && target === local.current) {
+        showSizeOwner(owned);
+        if (owned && visibility.current)
+          sizeQueue.current?.schedule(target.cols, target.rows);
+      }
+    } catch (error) {
+      if (target && target === local.current)
+        callbacks.current.onError(error as ClientError);
+    } finally {
+      sizeActionPending.current = false;
+      setSizeBusy(false);
+    }
+  }
   const inputEpoch = useRef(0);
   const pendingPaste = useRef(false);
   const [pasteDraft, setPasteDraft] = useState<{
@@ -209,6 +246,31 @@ export function TerminalView({
       terminal.focus();
     }
     let stopped = false;
+    const geometry = new ResizeQueue(
+      async (size) => {
+        // A bounded status observation must not make the final geometry busy.
+        await sizeObservation.current;
+        if (
+          stopped ||
+          !attachment.remoteSize ||
+          !visibility.current ||
+          !sizeOwned.current ||
+          sizeActionPending.current
+        )
+          return;
+        const owned = await unwrap(host.resize(attachment.id, size));
+        if (!stopped) showSizeOwner(owned);
+      },
+      (error) => {
+        if (!stopped && (error as ClientError).code !== "busy")
+          callbacks.current.onError(error as ClientError);
+      },
+    );
+    sizeQueue.current = geometry;
+    const sizeListener = terminal.onResize(({ cols, rows }) => {
+      if (visibility.current) geometry.schedule(cols, rows);
+    });
+    if (visibility.current) geometry.schedule(terminal.cols, terminal.rows);
     const releasePending = () => {
       if (stopped) return;
       const upstream = styling.write(
@@ -357,6 +419,9 @@ export function TerminalView({
       resumeRead.current = undefined;
       finishRender?.();
       resize.disconnect();
+      geometry.dispose();
+      sizeListener.dispose();
+      sizeQueue.current = undefined;
       element.removeEventListener("wheel", wheel, true);
       element.removeEventListener("paste", nativePaste, true);
       queryHandlers.forEach((handler) => handler.dispose());
@@ -376,6 +441,8 @@ export function TerminalView({
       return;
     }
     fitting.current?.fit();
+    if (local.current)
+      sizeQueue.current?.schedule(local.current.cols, local.current.rows);
     resumeRead.current?.();
     resumeRead.current = undefined;
   }, [visible]);
@@ -392,8 +459,54 @@ export function TerminalView({
     releasePresentation.current?.();
   }, [display.terminalStyle, display.promptTimestamps]);
 
+  useEffect(() => {
+    if (!visible || !attachment.remoteSize) return;
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout>;
+    const observe = async () => {
+      try {
+        if (!sizeActionPending.current && !sizeQueue.current?.busy) {
+          const owned = await unwrap(
+            host.resizeControl(attachment.id, "status"),
+          );
+          if (!stopped) showSizeOwner(owned);
+        }
+      } catch {
+        /* Keep the last display hint; every resize is checked by Host. */
+      }
+    };
+    const poll = async () => {
+      const pending = observe();
+      sizeObservation.current = pending;
+      await pending;
+      if (sizeObservation.current === pending)
+        sizeObservation.current = undefined;
+      if (!stopped) timer = setTimeout(() => void poll(), 2000);
+    };
+    timer = setTimeout(() => void poll(), 2000);
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+    };
+  }, [attachment.id, attachment.remoteSize, visible]);
+
   return (
     <>
+      {attachment.remoteSize && (
+        <div className="remote-size-controls">
+          <span>
+            {t(remoteOwned ? "terminal.sizeOwned" : "terminal.sizeLocal")}
+          </span>
+          <button
+            type="button"
+            disabled={sizeBusy}
+            title={t("terminal.sizeHint")}
+            onClick={() => void changeSizeControl()}
+          >
+            {t(remoteOwned ? "terminal.sizeRelease" : "terminal.sizeTake")}
+          </button>
+        </div>
+      )}
       {searchOpen && visible && local.current && (
         <TerminalSearch
           terminal={local.current}

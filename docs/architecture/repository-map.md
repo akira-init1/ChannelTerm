@@ -75,7 +75,7 @@ in the existing internal packages.
 
 The main ownership distinctions are deliberate:
 
-- **Desktop HTTP adapter:** `internal/guiapi` exposes bounded SSH creation and serial-profile operations on the existing
+- **Desktop HTTP adapter:** `internal/guiapi` exposes bounded SSH creation, SSH size control and serial-profile operations on the existing
   authenticated HTTP Host. CLI composition mounts it beside MCP with the same Application;
   it owns no Transport implementation or Session lifecycle. See the
   [desktop Host API](../reference/gui-host-api.md).

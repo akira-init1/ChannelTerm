@@ -16,6 +16,7 @@ import (
 	"github.com/akira-init1/ChannelTerm/internal/core/app"
 	"github.com/akira-init1/ChannelTerm/internal/core/config"
 	"github.com/akira-init1/ChannelTerm/internal/core/session"
+	"github.com/akira-init1/ChannelTerm/internal/guiapi"
 	sshtransport "github.com/akira-init1/ChannelTerm/internal/transport/ssh"
 	"golang.org/x/term"
 )
@@ -51,7 +52,7 @@ func runSSH(ctx context.Context, args []string, input io.Reader, output io.Write
 		fmt.Fprintln(output, "Interactive terminals can enter passwords and private-key passphrases (not saved). ssh-agent,")
 		fmt.Fprintln(output, "ssh_config, keyboard-interactive authentication, and arbitrary SSH exec are not supported.")
 		fmt.Fprintln(output, "Use the sftp or scp command for dedicated SSH file operations.")
-		fmt.Fprintln(output, "The owning terminal controls PTY resizing; secondary attachments do not resize it.")
+		fmt.Fprintln(output, "The creator initially controls PTY sizing; Electron can explicitly take control. Secondary CLI attachments fit locally.")
 		flags.PrintDefaults()
 	}
 	// Match target-first attach syntax while retaining standard flag-first use.
@@ -130,7 +131,7 @@ func runSSH(ctx context.Context, args []string, input io.Reader, output io.Write
 	if err != nil {
 		return err
 	}
-	registry, err := newMCPRegistry(manager, nil)
+	registry, err := newMCPRegistryForApplication(application)
 	if err != nil {
 		return err
 	}
@@ -183,7 +184,15 @@ func runSSH(ctx context.Context, args []string, input io.Reader, output io.Write
 	} else {
 		go func() {
 			resizeErr := terminalinput.WatchSize(resizeCtx, terminal, initialSize, func(cols, rows uint16) error {
-				return application.ResizeSession(opened.Info.ID, cols, rows)
+				err := application.ResizeSessionOwned(resizeCtx, opened.Info.ID, opened.ResizeOwner, cols, rows)
+				if errors.Is(err, app.ErrResizeNotOwned) {
+					stopResize() // Explicit GUI takeover ends only this watcher, not the Host.
+					return nil
+				}
+				if errors.Is(err, app.ErrSessionBusy) {
+					return nil
+				}
+				return err
 			})
 			if resizeCtx.Err() != nil {
 				resizeErr = nil
@@ -211,7 +220,7 @@ func runSSH(ctx context.Context, args []string, input io.Reader, output io.Write
 	defer stopServer()
 	serverDone := make(chan error, 1)
 	go func() {
-		serverDone <- serveMCPHTTP(serverCtx, registry, listener, defaultMCPPath, store, false, io.Discard, true, nil)
+		serverDone <- serveMCPHTTP(serverCtx, registry, listener, defaultMCPPath, store, false, io.Discard, true, guiapi.NewResizeHandler(application))
 		stopHost()
 	}()
 	defer func() {

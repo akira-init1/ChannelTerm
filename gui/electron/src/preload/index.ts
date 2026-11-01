@@ -62,6 +62,9 @@ const api: DesktopAPI = {
     ipcRenderer.invoke(channels.resolveSSHTrust, id, accept),
   openConnection: (request) =>
     ipcRenderer.invoke(channels.openConnection, request),
+  resize: (id, size) => ipcRenderer.invoke(channels.resize, id, size),
+  resizeControl: (id, action) =>
+    ipcRenderer.invoke(channels.resizeControl, id, action),
   attach: (id, settings) => ipcRenderer.invoke(channels.attach, id, settings),
   detach: (id) => ipcRenderer.invoke(channels.detach, id),
   closeSession: (id) => ipcRenderer.invoke(channels.closeSession, id),

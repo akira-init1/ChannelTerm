@@ -3,6 +3,21 @@ import type { MessageDescriptor } from "@lingui/core";
 // Lingui 5 extracts these official annotated descriptors without a runtime macro
 // transform. Translations belong in PO catalogs; this file owns IDs and English defaults.
 export const menuMessages = [
+  /* i18n */ {
+    id: "terminal.sizeOwned",
+    message: "Remote size follows this view",
+  },
+  /* i18n */ { id: "terminal.sizeLocal", message: "Local fitting only" },
+  /* i18n */ {
+    id: "terminal.sizeTake",
+    message: "Use this view for remote size",
+  },
+  /* i18n */ { id: "terminal.sizeRelease", message: "Release size control" },
+  /* i18n */ {
+    id: "terminal.sizeHint",
+    message:
+      "Switching size control stops other views from resizing this shared SSH terminal. It does not change input permissions.",
+  },
   /* i18n */ { id: "sshBrowser.title", message: "Browse SFTP" },
   /* i18n */ {
     id: "sshBrowser.hint",

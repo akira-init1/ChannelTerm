@@ -1371,6 +1371,31 @@ msgstr "端末設定"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "terminal.sizeHint"
+msgstr "サイズ制御を切り替えると、他のビューはこの共有 SSH 端末のサイズを変更できなくなります。入力権限は変更されません。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.sizeLocal"
+msgstr "ローカル表示のみ調整"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.sizeOwned"
+msgstr "リモートサイズはこのビューに追従"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.sizeRelease"
+msgstr "サイズ制御を解放"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.sizeTake"
+msgstr "このビューでリモートサイズを制御"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.text"
 msgstr "テキスト"
 

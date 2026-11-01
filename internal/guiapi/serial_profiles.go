@@ -55,6 +55,7 @@ func NewHandler(application *app.Application) http.Handler {
 	mux.Handle(SSHPath, ssh)
 	mux.Handle(SSHConfirmPath, ssh)
 	mux.Handle(SerialProfilesPath, newSerialProfilesHandler(application))
+	mux.Handle(ResizePath, NewResizeHandler(application))
 	return mux
 }
 

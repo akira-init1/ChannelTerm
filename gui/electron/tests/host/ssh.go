@@ -3,8 +3,10 @@ package main
 import (
 	"crypto/ed25519"
 	"crypto/rand"
+	"encoding/binary"
 	"encoding/pem"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"os"
@@ -115,7 +117,15 @@ func startSSHFixture() (port, trust string, cleanup func(), err error) {
 						ok := req.Type == "pty-req" || req.Type == "shell"
 						_ = req.Reply(ok, nil)
 						if req.Type == "shell" {
-							go gossh.DiscardRequests(requests)
+							go func() {
+								for resize := range requests {
+									valid := resize.Type == "window-change" && len(resize.Payload) == 16
+									if valid {
+										_, _ = fmt.Fprintf(stream, "\r\nPTY SIZE %d %d\r\n", binary.BigEndian.Uint32(resize.Payload[:4]), binary.BigEndian.Uint32(resize.Payload[4:8]))
+									}
+									_ = resize.Reply(valid, nil)
+								}
+							}()
 							_, _ = stream.Write([]byte("SSH fixture ready\r\n"))
 							_, _ = io.Copy(stream, stream)
 							_ = stream.Close()

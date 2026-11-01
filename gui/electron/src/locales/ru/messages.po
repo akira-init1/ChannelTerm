@@ -1371,6 +1371,31 @@ msgstr "Настройки терминала"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "terminal.sizeHint"
+msgstr "При смене управления размером другие окна больше не могут менять размер этого общего SSH-терминала. Права ввода не меняются."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.sizeLocal"
+msgstr "Только локальная подгонка"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.sizeOwned"
+msgstr "Удалённый размер следует за этим окном"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.sizeRelease"
+msgstr "Освободить управление размером"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.sizeTake"
+msgstr "Управлять удалённым размером из этого окна"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.text"
 msgstr "Текст"
 

@@ -1371,6 +1371,31 @@ msgstr "Paramètres du terminal"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "terminal.sizeHint"
+msgstr "Changer le contrôle de la taille empêche les autres vues de redimensionner ce terminal SSH partagé. Les droits de saisie restent inchangés."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.sizeLocal"
+msgstr "Ajustement local uniquement"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.sizeOwned"
+msgstr "La taille distante suit cette vue"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.sizeRelease"
+msgstr "Libérer le contrôle de la taille"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.sizeTake"
+msgstr "Utiliser cette vue pour la taille distante"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.text"
 msgstr "Texte"
 

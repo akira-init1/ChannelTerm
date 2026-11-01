@@ -303,7 +303,7 @@ remain scoped to terminal focus.
 fonts, with a monospace fallback; no fonts are downloaded. Apply and Restore defaults affect
 only local presentation. Cancel/Escape discards the draft. **Ctrl+wheel** over the terminal
 changes size by one pixel per wheel event within the same limits; it does not zoom the application
-chrome, send mouse reports, or issue a remote resize. Normal scrolling is unchanged.
+chrome or send mouse reports. An SSH size-controlling view also forwards its newly fitted geometry. Normal scrolling is unchanged.
 Display changes refit the existing xterm without clearing content, changing cursors or reattaching.
 **Terminal style** offers **Default (CLI colors)** and **Plain (white on black)**, with a local
 preview and Restore defaults. Default applies the shared semantic palette to safe plain text;
@@ -385,10 +385,18 @@ menu entries or commitments to implement them.
 | --- | --- |
 | Host / Session | SSH profiles and recent connections remain outside the explicit connection forms. Default-local Host startup is automatic; other endpoints remain explicit. |
 | Session | Recent connection history is not implemented. Shared close and multiple tabs follow the explicit contracts above. |
-| Terminal | Split panes, output folding and remote PTY resize are not exposed. Find and its select-all control operate only on the current retained view. Existing clipboard, local clear, focus and conditional resume actions remain. |
+| Terminal | Split panes and output folding are not exposed. SSH remote size control uses the terminal toolbar described below. Find and its select-all control operate only on the current retained view. Existing clipboard, local clear, focus and conditional resume actions remain. |
 | View | A complete MCP request audit, status-bar visibility and a combined Reset Layout action are unimplemented. Session activity shows retained Host observations, not a complete audit; Session status is not a status-bar toggle. |
 | Settings | Application theme selection is unimplemented and not exposed. Shortcuts and terminal font/style settings persist locally. Language and layout state remain window-local; endpoint editing and Host process management are absent. |
 | Help | Online documentation navigation and updates remain unimplemented. Diagnostic ZIP export follows the explicit local-save contract below. |
 
 No built-in AI Agent, new SSH/file-transfer implementation, Core use case, or MCP protocol change
 is implied by this menu organization.
+
+## SSH size toolbar
+
+On updated Hosts, each SSH terminal has **Use this view for remote size** / **Release size control**
+and a display hint identifying local-only fitting or control by this view. The explicit take action
+replaces the previous size controller; it does not change input permissions. Serial views have no
+remote size toolbar. No new top-level menu or shortcut is added. See the
+[desktop contract](gui-host-api.md#remote-pty-size-control).

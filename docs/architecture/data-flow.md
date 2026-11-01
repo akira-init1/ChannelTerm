@@ -193,14 +193,19 @@ The size-control path is separate from shared terminal bytes:
 ```text
 owner's local terminal (Linux/macOS SIGWINCH; Windows 250 ms size polling)
     -> CLI terminalinput watcher (latest valid changed dimensions)
-    -> Application.ResizeSession(id, cols, rows)
+    -> Application.ResizeSessionOwned(context, id, private owner, cols, rows)
     -> Session.Resize(cols, rows)
     -> optional channel.Resizer on the private SSH Channel
     -> existing backend shell.WindowChange(rows, cols)
     -> remote PTY / foreground application's window-change notification
 ```
 
-Only the foreground SSH command installs this watcher; attaching never grants resize authority.
+The foreground SSH creator receives the initial private size capability. Electron creators also
+receive it through the fixed desktop SSH route; Main retains it for the first attached view.
+Electron xterm fitting sends coalesced geometry through typed IPC and `/gui/v1/resize` to the same
+Application authority. Ordinary attachments and reused connections receive no capability. An
+explicit management action can switch control to a chosen Electron view; stale owners are rejected.
+The CLI stops only its watcher after takeover, leaving its foreground Host and input path intact.
 A startup recheck catches changes during connection setup. Cleanup cancels notifications, closes
 SSH I/O to release any blocked request, then joins the watcher and unregisters its signal/timer.
 The Channel and Session base interfaces, shared byte path, and MCP tools are unchanged.

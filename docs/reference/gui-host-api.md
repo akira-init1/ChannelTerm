@@ -1,6 +1,6 @@
 # Desktop Host API
 
-The standalone HTTP Host mounts `/gui/v1/ssh`, `/gui/v1/ssh/confirm` and `/gui/v1/serial-profiles` beside its configured MCP endpoint.
+The standalone HTTP Host mounts `/gui/v1/ssh`, `/gui/v1/ssh/confirm`, `/gui/v1/serial-profiles` and `/gui/v1/resize` beside its configured MCP endpoint.
 This is a separate authenticated HTTP adapter, not an MCP tool. Existing MCP names,
 schemas and stdio behavior are unchanged. `internal/guiapi` calls the same
 Application connection/configuration use cases and Session Manager used by the Host's CLI/MCP adapters.
@@ -10,8 +10,8 @@ Application connection/configuration use cases and Session Manager used by the H
 All methods require an
 [independent registered client credential](configuration.md#independent-http-client-credentials)
 and run behind Host authentication middleware. They inherit the Host listener;
-these desktop routes add no second listener or automatic Host startup. GET observations accept
-read access; all desktop mutations require a registered management credential. An agent write
+these desktop routes add no second listener or automatic Host startup. SSH/profile GET observations accept
+read access; resize discovery and operations require management access; all desktop mutations require a registered management credential. An agent write
 grant does not grant SSH/profile management through these routes. Insufficient grants return 403. The Electron
 client accepts numeric loopback HTTP endpoints and derives this fixed path in Main.
 Renderer cannot supply the API URL or access the Bearer token. Redirects are refused.
@@ -22,14 +22,14 @@ API grants an authenticated Host client the ability to initiate outbound SSH and
 read selected identity/trust files on that Host, and persist an explicitly approved unknown SSH key. A remotely exposed HTTP Host still
 requires the trusted-network precautions in the [Host workflow](../getting-started/mcp-server.md).
 
-Older Hosts, stdio Hosts and foreground CLI `ssh` owners do not expose this route.
+Older and stdio Hosts do not expose desktop routes. Foreground CLI `ssh` Hosts expose only the resize route, not SSH creation or profile management.
 If an explicitly configured MCP path equals a desktop route, that path keeps its MCP
 meaning and that desktop route is not mounted. The GUI probes availability and disables
 SSH creation when unavailable; existing shared SSH Sessions can still be attached.
 
 ## Requests and responses
 
-`GET /gui/v1/ssh` returns `200 {"available":true,"advanced":true,"trust_confirmation":true}` after authentication.
+`GET /gui/v1/ssh` returns `200 {"available":true,"advanced":true,"trust_confirmation":true,"resize_control":true}` after authentication.
 Older implementations may omit optional capabilities; clients must not send advanced settings or
 request trust confirmation without the corresponding advertisement. Query strings
 are not accepted. `POST` requires `Content-Type: application/json` and one JSON object;
@@ -84,7 +84,7 @@ temporary string copies. Nothing is written to GUI preferences or connection pro
 Without confirmation streaming, successful creation or reuse returns:
 
 ```json
-{"session_id":"opaque-session-id","reused":false}
+{"session_id":"opaque-session-id","reused":false,"resize_owner":"<private-capability>"}
 ```
 
 The GUI refreshes the shared list and attaches using existing Session tools. Closing
@@ -197,3 +197,32 @@ mutation is replayed. Configuration errors use fixed safe codes and never disclo
 Persistence uses Core's existing locked read/merge/replace transaction, preserving other profiles
 and modeled configuration sections. See [configuration](configuration.md#precedence-and-saving)
 for OS atomicity limits. No second GUI profile store, new TOML fields, listener or MCP tool is added.
+
+## Remote PTY size control
+
+`GET /gui/v1/resize` returns `200 {"available":true}` to a management client. `POST` accepts one
+JSON object of at most 2048 bytes, with no unknown fields or trailing JSON. Browser Origins and
+query strings are rejected. Four requests can be in flight per handler; excess returns 429 `busy`.
+Body reads are bounded to five seconds. Existing SSH Transport write timeout/close behavior
+applies to a submitted resize; an HTTP timeout does not prove that geometry was not sent.
+
+| Field | Contract |
+| --- | --- |
+| `action` | `status`, `take`, `release`, or `resize`. |
+| `session_id` | Required existing SSH Session ID or reference; maximum 128 bytes. |
+| `owner` | Private capability retained by the trusted client, at most 64 bytes. Required to resize or release an owned control. |
+| `columns`, `rows` | Integer character dimensions 1-1000 for `resize`; omitted for other actions. |
+
+Creation returns a random 64-hex-character `resize_owner` to the creator only. Reuse returns an
+empty value; it never transfers control. `take` explicitly replaces the current controller and
+returns `{"owned":true,"owner":"<private-capability>"}`. Other successful responses contain only
+`owned`; status tests the supplied capability, resize checks it before submission, and release
+is idempotent for stale owners. Release never promotes observers. These capabilities are separate
+from authentication, public client IDs and writer leases; they must not enter Renderer IPC, logs,
+clipboard or Session metadata. A remote resize still requires management authentication.
+
+Errors are bounded codes: 400 `invalid_input`, 403 `permission_denied`/`origin_forbidden`,
+404 `session_not_found`/`not_found`, 405 `method_not_allowed`, 415 `invalid_content_type`,
+409 `resize_not_owned`/`busy`, and 422 `unsupported`/`resize_failed`. HTTP 401 retains the existing
+authentication meaning. Stale capability rejection never retries a write or acquires control.
+Concurrent takeover waits for no transport queue: it returns busy if a resize is submitting.

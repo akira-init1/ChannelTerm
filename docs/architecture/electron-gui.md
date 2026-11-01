@@ -130,7 +130,7 @@ visually with their full value available on hover.
 The status bar distinguishes no attachment, enabled input, paused input, lease read-only,
 and an unavailable Session. These labels report client snapshots, not write authority. The
 terminal has no separate input-hint box or command composer. Input remains directly in xterm.
-Dragging only refits local xterm cells; it neither detaches nor sends a remote resize request.
+Dragging refits local xterm cells. Only the SSH view holding remote size control forwards geometry; dragging never detaches.
 No baud rate, throughput, recent-connection history, or other unavailable metadata is invented.
 
 The status bar's **Copy for AI** action sends only the captured attachment and resolved language
@@ -151,7 +151,7 @@ the clipboard retains it in full; see the [target copy contract](../reference/gu
 
 Empty states use a small heading and one actionable hint, without a welcome hero or onboarding
 steps. Notices scroll within at most 25% of the workspace height to retain terminal space.
-Window resizing only fits local xterm cells; it does not issue remote PTY resize requests.
+Window resizing fits local xterm cells and forwards geometry only for the SSH view holding size control.
 The measured terminal container has no padding; spacing sits outside it so FitAddon does not
 overestimate the available cell area. Application styles do not target xterm's internal
 `.terminal` class.
@@ -542,7 +542,26 @@ or arm64 compatibility. See [GUI development](../development/electron-gui.md) fo
 
 No MCP SSH-open, remote PTY resize, or client-file transfer orchestration API exists. SSH creation
 uses the separate desktop Host API. The serial file UI invokes the existing CLI and observes Host
-events; it adds no upload API. Local xterm fitting does not resize the Host's SSH PTY. Debug leases
+events; it adds no upload API. Authorized SSH views forward local fitting through the desktop size-control route. Debug leases
 are observed, not managed; serial transfer cancellation uses existing Host control tools.
 There is no built-in Agent, installer, persistence of terminal output, tab dragging, terminal splitting,
 or complete terminal-state migration. None of these gaps is filled by bypassing Application or changing MCP schemas.
+
+## SSH remote size control
+
+On a capable Host, a newly created SSH Session grants its creator a private size-control
+capability. Main binds it to the first attached view, never to Renderer or the shared `client_id`.
+Reused Sessions and ordinary attachments fit locally. The terminal toolbar explicitly takes or
+releases control; taking replaces another view's capability and does not grant device input rights.
+Serial remains local-only. Old Hosts omit the toolbar without breaking terminal attachment.
+
+Renderer coalesces geometry at 80 ms with one in-flight request and one latest pending size.
+Hidden views submit no geometry; visibility restores current fitting. Main validates dimensions,
+attachment ownership and fixed actions, allowing one size request per attachment in flight.
+Uncertain requests are not replayed. A visible view polls its ownership hint every two seconds
+with at most one poll in flight; Host validation remains authoritative on every resize.
+Detach/disconnect releases only that view's capability, best-effort when the Host is unavailable.
+A lost release leaves no automatic successor; explicit takeover recovers control. Moving a tab to
+a new window attaches as an observer and requires an explicit size-control action in that window.
+Shared Session, input, writer leases, raw output and MCP tool schemas are unchanged. See the
+[desktop resize contract](../reference/gui-host-api.md#remote-pty-size-control).

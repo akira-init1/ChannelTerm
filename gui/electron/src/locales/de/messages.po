@@ -1371,6 +1371,31 @@ msgstr "Terminaleinstellungen"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "terminal.sizeHint"
+msgstr "Beim Wechsel der Größensteuerung können andere Ansichten dieses geteilte SSH-Terminal nicht mehr skalieren. Eingaberechte bleiben unverändert."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.sizeLocal"
+msgstr "Nur lokale Größenanpassung"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.sizeOwned"
+msgstr "Die entfernte Größe folgt dieser Ansicht"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.sizeRelease"
+msgstr "Größensteuerung freigeben"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.sizeTake"
+msgstr "Diese Ansicht für die entfernte Größe verwenden"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.text"
 msgstr "Text"
 
