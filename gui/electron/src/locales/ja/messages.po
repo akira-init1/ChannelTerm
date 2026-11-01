@@ -1145,6 +1145,36 @@ msgstr "プロファイルで有効でも、ここで選択するまで起動用
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "recovery.host_companion_outdated"
+msgstr "同梱 Host が古いかビルドに失敗したため、自動起動を停止しました。共有 Session の作業を終えて Host を停止し、gui/electron で npm run host:build を実行して GUI を再起動してください。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.host_credential_invalid"
+msgstr "Host の識別情報または認証情報が無効です。信頼できるバックアップから復元するか、Host 管理者に診断を依頼してください。むやみに削除・再生成しないでください。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.host_credential_missing"
+msgstr "ローカル管理用の認証情報がありません。Host のアカウントと設定ディレクトリを確認し、共有 Session の作業後に対応する Host を再起動してください。Host の識別ファイルを削除したり共有 token を再利用したりしないでください。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.host_credential_unreadable"
+msgstr "Host の認証情報を読み取れません。ファイル権限と、GUI・Host のアカウントおよび設定ディレクトリが同じか確認してください。認証情報は変更されていません。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.host_identity_missing"
+msgstr "Host の識別ファイルがありません。GUI と Host が同じアカウントと CHANNELTERM_HOST_CONFIG_DIR を使うことを確認し、対応する新しい Host を起動して再試行してください。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.host_legacy_credentials"
+msgstr "旧 Host の設定が検出されました。新しい認証情報がありません。共有 Session の作業を終えてから Host を停止・更新し、GUI を再起動してください。移行用に旧ファイルを残してください。再試行だけでは更新されません。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "search.case"
 msgstr "大文字と小文字を区別"
 

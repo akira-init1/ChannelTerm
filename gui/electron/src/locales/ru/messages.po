@@ -1145,6 +1145,36 @@ msgstr "Пробуждение отключено, пока вы не выбер
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "recovery.host_companion_outdated"
+msgstr "Комплектный Host устарел или его сборка завершилась ошибкой; автоматический запуск заблокирован. Завершите работу в общих Session и остановите Host, выполните npm run host:build в gui/electron, затем перезапустите интерфейс."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.host_credential_invalid"
+msgstr "Недопустимый идентификатор или учётные данные Host. Восстановите доверенную резервную копию или обратитесь к администратору Host. Не удаляйте и не создавайте учётные данные заново без выяснения причины."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.host_credential_missing"
+msgstr "Отсутствуют локальные учётные данные управления. Проверьте учётную запись и каталог конфигурации Host. Завершите работу в общих Session перед перезапуском нужного Host. Не удаляйте его идентификатор и не используйте общий token повторно."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.host_credential_unreadable"
+msgstr "Не удалось прочитать учётные данные Host. Проверьте права файлов и совпадение учётной записи и каталога конфигурации у интерфейса и Host. Учётные данные не изменены."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.host_identity_missing"
+msgstr "Отсутствует файл идентификации Host. Убедитесь, что интерфейс и Host используют одну учётную запись и CHANNELTERM_HOST_CONFIG_DIR. Запустите соответствующий обновлённый Host и повторите попытку."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.host_legacy_credentials"
+msgstr "Обнаружена старая конфигурация Host; новые учётные данные отсутствуют. Завершите работу в общих Session, остановите и обновите Host, затем перезапустите интерфейс. Сохраните старые файлы для миграции. Повтор подключения не обновляет Host."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "search.case"
 msgstr "Учитывать регистр"
 

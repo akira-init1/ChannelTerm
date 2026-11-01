@@ -2,6 +2,11 @@ import { spawn } from "node:child_process";
 import { access, mkdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
+import {
+  hostSourceFingerprint,
+  recordHostBuild,
+  prepareHostBuild,
+} from "./host-freshness.mjs";
 
 /** Developer preparation only: Electron never executes Go or searches PATH for a Host. */
 export async function buildHost({
@@ -29,6 +34,7 @@ export async function buildHost({
   )
     return;
   await mkdir(directory, { recursive: true });
+  const source = fileClient ? undefined : await hostSourceFingerprint(root);
   const env = { ...process.env, CGO_ENABLED: "0" };
   // Always build for the machine running Electron, independent of cross-build settings.
   delete env.GOOS;
@@ -46,10 +52,12 @@ export async function buildHost({
         : reject(new Error("Companion Host build failed.")),
     );
   });
+  if (source) await recordHostBuild(executable, source);
 }
 
 /** Missing developer tooling must not prevent reuse of an already-running Host. */
 export async function prepareHost() {
+  delete process.env.CHANNELTERM_INTERNAL_GUI_COMPANION_STATE;
   // A running Windows Host locks its executable. Keep the independently updatable
   // file client in a separate fixed location; both are built from the same CLI.
   await buildHost({ onlyIfMissing: true, fileClient: true }).catch(() => {
@@ -62,11 +70,30 @@ export async function prepareHost() {
     process.env.CHANNELTERM_GUI_ENDPOINT !== "http://127.0.0.1:37099/mcp"
   )
     return;
-  await buildHost({ onlyIfMissing: true }).catch(() => {
-    console.error(
-      "Companion Host could not be prepared. The GUI can still connect to an existing Host; use npm run host:build to repair the companion.",
+  try {
+    const root = fileURLToPath(new URL("../../../", import.meta.url));
+    const executable = resolve(
+      root,
+      "gui/electron/dist/host",
+      process.platform === "win32" ? "channelterm.exe" : "channelterm",
     );
-  });
+    const state = await prepareHostBuild({
+      root,
+      executable,
+      build: () => buildHost(),
+    });
+    if (state === "outdated") {
+      process.env.CHANNELTERM_INTERNAL_GUI_COMPANION_STATE = "outdated";
+      console.error(
+        "Companion Host is outdated or unverified. An existing listener was preserved. Finish shared Session work and stop its Host, then run npm run host:build and restart the GUI.",
+      );
+    }
+  } catch {
+    process.env.CHANNELTERM_INTERNAL_GUI_COMPANION_STATE = "outdated";
+    console.error(
+      "Companion Host could not be verified or rebuilt. Existing Hosts remain available, but launching this companion is blocked. Run npm run host:build after stopping its Host, then restart the GUI.",
+    );
+  }
 }
 
 if (

@@ -1145,6 +1145,36 @@ msgstr "Le réveil reste désactivé tant que vous ne le sélectionnez pas ici, 
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "recovery.host_companion_outdated"
+msgstr "Le Host fourni est obsolète ou sa compilation a échoué ; le démarrage automatique est bloqué. Terminez le travail des Sessions partagées et arrêtez le Host, exécutez npm run host:build dans gui/electron, puis redémarrez l’interface."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.host_credential_invalid"
+msgstr "Identité ou identifiants du Host invalides. Restaurez une sauvegarde fiable ou demandez un diagnostic à l’administrateur du Host. Ne supprimez ni ne régénérez les identifiants à l’aveugle."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.host_credential_missing"
+msgstr "Les identifiants de gestion locale manquent. Vérifiez le compte du Host et son répertoire de configuration. Terminez le travail des Sessions partagées avant de redémarrer le Host correspondant. Ne supprimez pas son identité et ne réutilisez pas un token partagé."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.host_credential_unreadable"
+msgstr "Impossible de lire les identifiants du Host. Vérifiez les permissions et que l’interface et le Host utilisent le même compte et répertoire de configuration. Aucun identifiant n’a été modifié."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.host_identity_missing"
+msgstr "L’identité du Host manque. Vérifiez que l’interface et le Host utilisent le même compte et CHANNELTERM_HOST_CONFIG_DIR. Démarrez le Host mis à jour correspondant, puis réessayez."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.host_legacy_credentials"
+msgstr "Ancienne configuration Host détectée ; les nouveaux identifiants manquent. Terminez le travail des Sessions partagées, arrêtez et mettez à jour le Host, puis redémarrez l’interface. Conservez les anciens fichiers pour la migration. Réessayer ne met pas le Host à jour."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "search.case"
 msgstr "Respecter la casse"
 

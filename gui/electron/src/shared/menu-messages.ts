@@ -3,6 +3,36 @@ import type { MessageDescriptor } from "@lingui/core";
 // Lingui 5 extracts these official annotated descriptors without a runtime macro
 // transform. Translations belong in PO catalogs; this file owns IDs and English defaults.
 export const menuMessages = [
+  /* i18n */ {
+    id: "recovery.host_legacy_credentials",
+    message:
+      "Old Host configuration detected; new credentials are missing. Finish shared Session work, stop and update the Host, then restart the GUI. Keep the old files for migration. Retrying alone cannot upgrade the Host.",
+  },
+  /* i18n */ {
+    id: "recovery.host_identity_missing",
+    message:
+      "Host identity is missing. Check that GUI and Host use the same account and CHANNELTERM_HOST_CONFIG_DIR. Start the matching updated Host, then retry.",
+  },
+  /* i18n */ {
+    id: "recovery.host_credential_missing",
+    message:
+      "Local management credential is missing. Check the Host account and configuration directory. Finish shared Session work before restarting the matching Host. Do not delete the Host identity or reuse a shared token.",
+  },
+  /* i18n */ {
+    id: "recovery.host_credential_invalid",
+    message:
+      "Host identity or credential is invalid. Restore a trusted backup or ask the Host administrator to diagnose it. Do not blindly delete or regenerate credentials.",
+  },
+  /* i18n */ {
+    id: "recovery.host_credential_unreadable",
+    message:
+      "Cannot read Host credentials. Check file permissions and that GUI and Host use the same account and configuration directory. No credentials were changed.",
+  },
+  /* i18n */ {
+    id: "recovery.host_companion_outdated",
+    message:
+      "Companion Host is outdated or its build failed; automatic launch is blocked. Finish shared Session work and stop its Host, run npm run host:build in gui/electron, then restart the GUI.",
+  },
   /* i18n */ { id: "debug.title", message: "Debug" },
   /* i18n */ { id: "debug.refresh", message: "Refresh debug overview" },
   /* i18n */ { id: "debug.filter", message: "Filter debug operations" },

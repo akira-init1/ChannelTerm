@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { publicError } from "../src/main/host/errors";
+import { hostRecoveryMessage } from "../src/shared/host-recovery";
 import {
   loadToken,
   localClientTokenPath,
@@ -25,13 +27,26 @@ test("Main loads local management credentials without upgrading explicit or miss
     delete process.env.CHANNELTERM_HTTP_AUTH_TOKEN;
     const shared = hostIdentityPath(process.platform, process.env, directory);
     await mkdir(dirname(shared), { recursive: true });
+    await assert.rejects(loadToken(), { code: "host_identity_missing" });
+    await writeFile(join(directory, "http-auth-token"), "retired-token\n");
+    await assert.rejects(loadToken(), (error: unknown) => {
+      const diagnostic = publicError(error);
+      assert.equal(diagnostic.code, "host_legacy_credentials");
+      assert.equal(
+        hostRecoveryMessage(diagnostic, (id) => id),
+        "recovery.host_legacy_credentials",
+      );
+      assert.ok(!diagnostic.message.includes(directory));
+      assert.ok(!diagnostic.message.includes("retired-token"));
+      return true;
+    });
     const hostID = "H-0123456789abcdef0123456789abcdef";
     await writeFile(shared, JSON.stringify({ version: 1, host_id: hostID }), {
       mode: 0o600,
     });
     // A leftover old token must not grant access or select another path.
     await writeFile(join(directory, "http-auth-token"), "retired-token\n");
-    await assert.rejects(loadToken(), /management credential unavailable/);
+    await assert.rejects(loadToken(), { code: "host_credential_missing" });
     await writeFile(
       localClientTokenPath(shared, hostID),
       "test-local-management\n",
@@ -44,7 +59,10 @@ test("Main loads local management credentials without upgrading explicit or miss
       shared,
       JSON.stringify({ version: 1, host_id: "../escape" }),
     );
-    await assert.rejects(loadToken(), /management credential unavailable/);
+    await assert.rejects(loadToken(), { code: "host_credential_invalid" });
+    await rm(shared);
+    await mkdir(shared);
+    await assert.rejects(loadToken(), { code: "host_credential_unreadable" });
     process.env.CHANNELTERM_HTTP_AUTH_TOKEN = "test-explicit-read-only";
     assert.equal(await loadToken(), "test-explicit-read-only");
     process.env.CHANNELTERM_HTTP_AUTH_TOKEN = "   ";

@@ -4,6 +4,7 @@ import {
   LocalHostStartup,
   companionPath,
   defaultHostEndpoint,
+  launchCompanion,
 } from "../src/main/host/startup";
 import { HostError } from "../src/main/host/errors";
 
@@ -35,6 +36,29 @@ test("startup reuses occupied listeners and never starts for custom endpoints", 
     /host[\\/]channelterm.exe$/,
   );
   assert.match(companionPath(process.cwd(), "linux"), /host[\\/]channelterm$/);
+});
+
+test("a stale companion cannot launch after an occupied listener disappears", async () => {
+  const previous = process.env.CHANNELTERM_INTERNAL_GUI_COMPANION_STATE;
+  process.env.CHANNELTERM_INTERNAL_GUI_COMPANION_STATE = "outdated";
+  let listening = true;
+  const startup = new LocalHostStartup({
+    listening: async () => listening,
+    launch: (onExit) => launchCompanion("must-not-execute", onExit),
+    pause: async () => assert.fail("must not wait for an unverified binary"),
+  });
+  try {
+    await startup.ensure(defaultHostEndpoint, new AbortController().signal);
+    listening = false;
+    await assert.rejects(
+      startup.ensure(defaultHostEndpoint, new AbortController().signal),
+      { code: "host_companion_outdated" },
+    );
+  } finally {
+    if (previous === undefined)
+      delete process.env.CHANNELTERM_INTERNAL_GUI_COMPANION_STATE;
+    else process.env.CHANNELTERM_INTERNAL_GUI_COMPANION_STATE = previous;
+  }
 });
 
 test("startup launches once, waits for readiness, and cancellation cannot spawn", async () => {

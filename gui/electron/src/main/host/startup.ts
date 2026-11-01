@@ -54,6 +54,13 @@ export function launchCompanion(
   executable: string,
   onExit: () => void,
 ): Promise<void> {
+  if (process.env.CHANNELTERM_INTERNAL_GUI_COMPANION_STATE === "outdated")
+    return Promise.reject(
+      new HostError(
+        "host_companion_outdated",
+        "The companion Host is outdated or could not be rebuilt. Finish shared Session work, stop its Host, run npm run host:build, then restart the GUI.",
+      ),
+    );
   return new Promise((resolve, reject) => {
     const env = { ...process.env };
     delete env.ELECTRON_RUN_AS_NODE;

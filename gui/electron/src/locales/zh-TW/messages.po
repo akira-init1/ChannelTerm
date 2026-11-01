@@ -1145,6 +1145,36 @@ msgstr "即使設定檔啟用了喚醒，也須在此手動勾選才會傳送。
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "recovery.host_companion_outdated"
+msgstr "隨附 Host 已過期或建置失敗，已阻止自動啟動。請先完成共享工作階段中的工作並停止其 Host，在 gui/electron 中執行 npm run host:build，再重新啟動介面。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.host_credential_invalid"
+msgstr "Host 身分或憑證無效。請從可信備份還原，或由 Host 管理員診斷；不要盲目刪除或重新產生憑證。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.host_credential_missing"
+msgstr "缺少本機管理憑證。請檢查 Host 帳戶及設定目錄，完成共享工作階段中的工作後再重新啟動相符的 Host。不要刪除 Host 身分檔案或重用共享 token。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.host_credential_unreadable"
+msgstr "無法讀取 Host 憑證。請檢查檔案權限，並確認介面與 Host 使用相同帳戶及設定目錄。憑證未被修改。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.host_identity_missing"
+msgstr "缺少 Host 身分檔案。請確認介面與 Host 使用相同帳戶及 CHANNELTERM_HOST_CONFIG_DIR，啟動相符的新版 Host 後重試。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.host_legacy_credentials"
+msgstr "偵測到舊版 Host 設定，缺少新憑證。請先完成共享工作階段中的工作，再停止並更新 Host，然後重新啟動介面。保留舊檔案供移轉；僅重試無法升級 Host。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "search.case"
 msgstr "區分大小寫"
 

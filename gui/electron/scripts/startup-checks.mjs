@@ -8,9 +8,13 @@ import {
   defaultHostEndpoint,
 } from "../src/main/host/startup.ts";
 import { HostClient } from "../src/main/host/client.ts";
+import { startFixture } from "../tests/fixture.ts";
 
 /** Exercise Main's real launch path in a disposable app with a no-hardware Host. */
 export async function checkStartup(environment, preloadArgs) {
+  // This regression uses the suite's isolated endpoint, even when the user's
+  // default port is occupied. Never skip the legacy-configuration recovery path.
+  await checkCredentialRecovery(environment, preloadArgs);
   if (await localListener(new AbortController().signal)) {
     console.log(
       "SKIP automatic Host desktop test: port 37099 is already occupied; existing listener left untouched.",
@@ -162,5 +166,84 @@ export async function checkStartup(environment, preloadArgs) {
         .toBe(false);
     }
     await Promise.all(applications.map((app) => app.close().catch(() => {})));
+  }
+}
+
+async function checkCredentialRecovery(environment, preloadArgs) {
+  const directory = await mkdtemp(resolve("test-results/credential-recovery-"));
+  const config = resolve(directory, "config");
+  await mkdir(config);
+  const profilePreload = resolve(directory, "profile.cjs");
+  await writeFile(
+    profilePreload,
+    `const { app } = require("electron");\napp.setPath("userData", ${JSON.stringify(directory)});\napp.setPath("sessionData", ${JSON.stringify(directory)});\n`,
+  );
+  const legacyPath = resolve(config, "http-auth-token");
+  await writeFile(legacyPath, "retired-test-token\n");
+  const fixture = await startFixture();
+  const env = {
+    ...environment,
+    CHANNELTERM_HOST_CONFIG_DIR: config,
+    CHANNELTERM_GUI_ENDPOINT: fixture.endpoint,
+  };
+  delete env.CHANNELTERM_HTTP_AUTH_TOKEN;
+  const observer = new HostClient(fixture.endpoint, fixture.token);
+  let desktop;
+  try {
+    await observer.connect();
+    const sessions = await observer.list();
+    desktop = await electron.launch({
+      args: [...preloadArgs, "-r", profilePreload, "--lang=en-US", "."],
+      env,
+    });
+    const page = await desktop.firstWindow();
+    await page
+      .getByRole("button", { name: "Connect to Host", exact: true })
+      .click();
+    await expect(page.getByRole("alert")).toContainText(
+      "Old Host configuration detected",
+    );
+    await page
+      .getByRole("button", { name: "Retry connection", exact: true })
+      .click();
+    await expect(page.getByRole("alert")).toContainText(
+      "Retrying alone cannot upgrade",
+    );
+    await desktop.evaluate(({ Menu }) =>
+      Menu.getApplicationMenu().getMenuItemById("language.zh-CN").click(),
+    );
+    await expect(page.getByRole("alert")).toContainText(
+      "仅点击重试无法升级 Host",
+    );
+    await page.screenshot({
+      path: "test-results/host-credential-recovery.png",
+    });
+    assert.equal(await readFile(legacyPath, "utf8"), "retired-test-token\n");
+    assert.deepEqual(await observer.list(), sessions);
+    // Simulate completion of Host initialization; credentials stay private and
+    // the next explicit retry must reread files without restarting Electron.
+    const hostID = "H-0123456789abcdef0123456789abcdef";
+    await writeFile(
+      resolve(config, "http-clients-" + hostID + ".json.local-token"),
+      fixture.token,
+    );
+    await writeFile(
+      resolve(config, "http-host.json"),
+      JSON.stringify({ version: 1, host_id: hostID }),
+    );
+    await page
+      .getByRole("button", { name: "Retry connection", exact: true })
+      .click();
+    await expect(
+      page.getByRole("button", { name: "Disconnect Host", exact: true }),
+    ).toBeVisible();
+    assert.deepEqual(await observer.list(), sessions);
+    console.log(
+      "PASS legacy-only credentials on an occupied isolated Host: localized diagnostics, safe retry, preserved Sessions and recovery after initialization.",
+    );
+  } finally {
+    await desktop?.close().catch(() => {});
+    await observer.disconnect();
+    await fixture.stop();
   }
 }

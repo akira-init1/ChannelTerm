@@ -33,6 +33,12 @@ export interface SessionSummary {
 }
 
 export type ErrorCode =
+  | "host_legacy_credentials"
+  | "host_identity_missing"
+  | "host_credential_missing"
+  | "host_credential_invalid"
+  | "host_credential_unreadable"
+  | "host_companion_outdated"
   | "configuration"
   | "disconnected"
   | "unauthorized"

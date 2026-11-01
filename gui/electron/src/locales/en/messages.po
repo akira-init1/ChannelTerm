@@ -1145,6 +1145,36 @@ msgstr "Wake is always off until you select it here, even for profiles with wake
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "recovery.host_companion_outdated"
+msgstr "Companion Host is outdated or its build failed; automatic launch is blocked. Finish shared Session work and stop its Host, run npm run host:build in gui/electron, then restart the GUI."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.host_credential_invalid"
+msgstr "Host identity or credential is invalid. Restore a trusted backup or ask the Host administrator to diagnose it. Do not blindly delete or regenerate credentials."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.host_credential_missing"
+msgstr "Local management credential is missing. Check the Host account and configuration directory. Finish shared Session work before restarting the matching Host. Do not delete the Host identity or reuse a shared token."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.host_credential_unreadable"
+msgstr "Cannot read Host credentials. Check file permissions and that GUI and Host use the same account and configuration directory. No credentials were changed."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.host_identity_missing"
+msgstr "Host identity is missing. Check that GUI and Host use the same account and CHANNELTERM_HOST_CONFIG_DIR. Start the matching updated Host, then retry."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.host_legacy_credentials"
+msgstr "Old Host configuration detected; new credentials are missing. Finish shared Session work, stop and update the Host, then restart the GUI. Keep the old files for migration. Retrying alone cannot upgrade the Host."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "search.case"
 msgstr "Match case"
 

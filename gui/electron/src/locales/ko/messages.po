@@ -1145,6 +1145,36 @@ msgstr "프로필에서 활성화되어 있어도 여기서 선택하기 전에�
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "recovery.host_companion_outdated"
+msgstr "동봉된 Host가 오래되었거나 빌드에 실패하여 자동 시작이 차단되었습니다. 공유 Session 작업을 마치고 Host를 중지한 뒤 gui/electron에서 npm run host:build를 실행하고 GUI를 다시 시작하세요."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.host_credential_invalid"
+msgstr "Host 식별 정보 또는 자격 증명이 유효하지 않습니다. 신뢰할 수 있는 백업에서 복원하거나 Host 관리자에게 진단을 요청하세요. 무작정 삭제하거나 재생성하지 마세요."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.host_credential_missing"
+msgstr "로컬 관리 자격 증명이 없습니다. Host 계정과 설정 디렉터리를 확인하고 공유 Session 작업을 마친 뒤 해당 Host를 다시 시작하세요. Host 식별 파일을 삭제하거나 공유 token을 재사용하지 마세요."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.host_credential_unreadable"
+msgstr "Host 자격 증명을 읽을 수 없습니다. 파일 권한과 GUI 및 Host의 계정과 설정 디렉터리가 같은지 확인하세요. 자격 증명은 변경되지 않았습니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.host_identity_missing"
+msgstr "Host 식별 파일이 없습니다. GUI와 Host가 같은 계정 및 CHANNELTERM_HOST_CONFIG_DIR을 사용하는지 확인하고, 일치하는 새 Host를 시작한 뒤 다시 시도하세요."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.host_legacy_credentials"
+msgstr "이전 Host 설정이 감지되었으며 새 자격 증명이 없습니다. 공유 Session 작업을 마친 뒤 Host를 중지하고 업데이트한 다음 GUI를 다시 시작하세요. 마이그레이션을 위해 이전 파일을 보관하세요. 재시도만으로는 Host가 업데이트되지 않습니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "search.case"
 msgstr "대소문자 구분"
 

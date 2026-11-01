@@ -40,14 +40,42 @@ npm.cmd start
 `build` strictly compiles PO catalogs, type-checks TypeScript, bundles Main and sandbox-compatible Preload with esbuild, builds
 the React/xterm renderer with Vite, and collects runtime license texts into `dist/`. `start` loads
 those assets through the local application scheme. This produces runnable application assets,
-not an installer. `start` and `dev` prepare `dist/host/channelterm[.exe]` with Go only when it
-is missing and the default endpoint is selected. They never replace a running companion.
-If preparation fails (for example, Go is unavailable), the GUI still opens and can reuse an
-existing Host; otherwise its startup error offers retry after repairing the companion.
-To update it after Go source changes, finish shared Session work, stop that Host, and run
-`npm.cmd run host:build`. Node/npm are development requirements; a future packaged GUI includes
+not an installer. For the default endpoint, `start` and `dev` check the companion's build record
+against native platform/architecture, Go source/module/embedded-resource contents, and executable
+bytes. `host:build` records these inputs beside `dist/host/channelterm[.exe]`. A matching build
+needs no Go invocation; a missing, changed or unrecorded build requires preparation.
+Only refusal of the default TCP listener permits automatic rebuilding. An occupied listener or
+uncertain probe preserves existing processes; a stale companion is not launched if that listener
+later disappears. Preparation failure still allows connecting to an existing compatible Host,
+but blocks launching an unverified companion. This build record is not an authentication mechanism.
+To update an active companion, finish shared Session work, stop that Host, and run
+`npm.cmd run host:build`, then restart `start`/`dev`. No process is killed by preparation, and no
+credential is deleted or changed by the GUI. Custom endpoints skip companion Host preparation.
+Node/npm are development requirements; a future packaged GUI includes
 its own Electron runtime and the platform-matched Host under `resources/host/`. See the
 [release boundaries](../architecture/electron-gui.md#multiple-frontends-and-release-boundaries).
+
+### Old Host or missing credentials after an upgrade
+
+A GUI rebuild does not upgrade an already-running Host. If only the retired `http-auth-token`
+exists, the GUI displays a localized legacy-configuration diagnostic rather than repeatedly
+suggesting an unspecified credential failure. This is a migration hint, not proof of the listener's
+identity or version. Finish all shared Session work before stopping its Host; stopping it affects
+every client. Update/rebuild the Host, restart the GUI and let the new Host initialize/migrate its
+credentials. Retrying cannot update a running executable. Keep old files until migration has been
+verified; do not put the retired token in `CHANNELTERM_HTTP_AUTH_TOKEN`.
+
+Missing identity, missing local management credential, invalid files and unreadable files have
+separate structured diagnostics. Check that GUI and Host use the same OS account and
+`CHANNELTERM_HOST_CONFIG_DIR`. A valid explicit independent credential remains authoritative;
+the GUI never replaces it or falls back to the shared token. After correcting configuration, Retry
+rereads credentials. See [migration and rollback boundaries](../getting-started/http-authentication-migration.md).
+
+The native production/development suites test legacy-only configuration against an occupied isolated
+Host, localized errors, repeated safe retry, unchanged Sessions and successful connection after
+credential initialization. This regression runs even when the user's default port 37099 is occupied;
+only the separate default-port launch test is skipped in that case. Build-preparation tests cover
+dirty inputs, modified binaries, absent build records, compiler failure and uncertain listener probes.
 
 ## Multiple windows and terminal tabs
 

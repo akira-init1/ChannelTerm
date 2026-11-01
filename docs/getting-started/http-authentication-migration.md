@@ -107,7 +107,10 @@ part of automatic migration. Downgrading can re-enable old authorization and can
 changes; do not run old and new versions against the same live authentication state.
 
 For local CLI/Electron, unset an override containing the retired shared token to use the independent
-local management credential. For each AI client, use local administration under the Host account
+local management credential. Updating the GUI does not replace a running old Host. If Electron
+reports legacy configuration or missing credentials, follow the [Host upgrade recovery workflow](../development/electron-gui.md#old-host-or-missing-credentials-after-an-upgrade);
+do not delete the identity or copy the retired token into an override to bypass migration.
+For each AI client, use local administration under the Host account
 and matching `CHANNELTERM_HOST_CONFIG_DIR`:
 
 ```powershell

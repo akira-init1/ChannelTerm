@@ -1145,6 +1145,36 @@ msgstr "Aufwecken bleibt bis zur Auswahl hier deaktiviert, auch bei aktivierten 
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "recovery.host_companion_outdated"
+msgstr "Der mitgelieferte Host ist veraltet oder sein Build ist fehlgeschlagen; automatischer Start ist gesperrt. Beenden Sie gemeinsame Session-Arbeiten und stoppen Sie den Host. Führen Sie in gui/electron npm run host:build aus und starten Sie die GUI neu."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.host_credential_invalid"
+msgstr "Host-Identität oder Zugangsdaten sind ungültig. Stellen Sie eine vertrauenswürdige Sicherung wieder her oder wenden Sie sich an den Host-Administrator. Zugangsdaten nicht ungeprüft löschen oder neu erzeugen."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.host_credential_missing"
+msgstr "Lokale Verwaltungszugangsdaten fehlen. Prüfen Sie Host-Konto und Konfigurationsverzeichnis. Beenden Sie gemeinsame Session-Arbeiten vor dem Neustart des passenden Hosts. Host-Identität nicht löschen und kein gemeinsames Token wiederverwenden."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.host_credential_unreadable"
+msgstr "Host-Zugangsdaten können nicht gelesen werden. Prüfen Sie Dateirechte sowie übereinstimmende Konten und Konfigurationsverzeichnisse von GUI und Host. Zugangsdaten wurden nicht geändert."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.host_identity_missing"
+msgstr "Die Host-Identität fehlt. Prüfen Sie, ob GUI und Host dasselbe Konto und CHANNELTERM_HOST_CONFIG_DIR verwenden. Starten Sie den passenden aktualisierten Host und versuchen Sie es erneut."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.host_legacy_credentials"
+msgstr "Alte Host-Konfiguration erkannt; neue Zugangsdaten fehlen. Beenden Sie Arbeiten in gemeinsam genutzten Sessions, stoppen und aktualisieren Sie den Host und starten Sie die GUI neu. Alte Dateien für die Migration aufbewahren. Erneutes Verbinden aktualisiert den Host nicht."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "search.case"
 msgstr "Groß-/Kleinschreibung"
 

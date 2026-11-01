@@ -1145,6 +1145,36 @@ msgstr "La activación permanece deshabilitada hasta seleccionarla aquí, inclus
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "recovery.host_companion_outdated"
+msgstr "El Host incluido está desactualizado o su compilación falló; se bloqueó el inicio automático. Termine el trabajo compartido y detenga el Host, ejecute npm run host:build en gui/electron y reinicie la interfaz."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.host_credential_invalid"
+msgstr "La identidad o las credenciales del Host no son válidas. Restaure una copia fiable o pida un diagnóstico al administrador del Host. No borre ni regenere credenciales sin conocer la causa."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.host_credential_missing"
+msgstr "Faltan las credenciales de administración local. Compruebe la cuenta y el directorio de configuración del Host. Termine el trabajo compartido antes de reiniciar el Host correspondiente. No borre la identidad ni reutilice un token compartido."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.host_credential_unreadable"
+msgstr "No se pueden leer las credenciales del Host. Compruebe los permisos y que la interfaz y el Host usan la misma cuenta y directorio de configuración. No se modificaron credenciales."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.host_identity_missing"
+msgstr "Falta la identidad del Host. Compruebe que la interfaz y el Host usan la misma cuenta y CHANNELTERM_HOST_CONFIG_DIR. Inicie el Host actualizado correspondiente y reintente."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.host_legacy_credentials"
+msgstr "Se detectó una configuración antigua de Host; faltan las credenciales nuevas. Termine el trabajo en las Sessions compartidas, detenga y actualice el Host y reinicie la interfaz. Conserve los archivos antiguos para migrar. Reintentar no actualiza el Host."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "search.case"
 msgstr "Distinguir mayúsculas"
 

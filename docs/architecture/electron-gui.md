@@ -529,6 +529,13 @@ The executable is `dist/host/channelterm[.exe]` for source builds and
 `resources/host/channelterm[.exe]` for a future packaged distribution. Main never searches PATH,
 runs a shell/compiler, accepts an executable from Renderer, or forwards child output. The existing
 Host creates/loads its own credential; Main reads it after readiness. Startup errors are sanitized.
+Source-checkout launch scripts verify companion build provenance and rebuild outdated binaries only
+after the default listener refuses a connection. They leave occupied listeners untouched and block
+later automatic launch of an unverified companion. Main does not perform compilation or upgrades.
+Credential errors distinguish legacy-only configuration, missing identity/local credential,
+invalid files and read failures using typed, localized diagnostics; the presence of an old file
+does not authenticate or identify the listener. No error triggers credential regeneration, shared-token
+fallback or process termination. See the [recovery workflow](../development/electron-gui.md#old-host-or-missing-credentials-after-an-upgrade).
 The standalone Host survives GUI exit so CLI/MCP can continue sharing Sessions; stopping the Host
 explicitly closes its Sessions. Packaging must include the matching native companion and notices.
 

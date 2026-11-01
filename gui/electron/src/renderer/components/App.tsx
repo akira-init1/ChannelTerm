@@ -1,4 +1,5 @@
 import { DebugSidebar, useDebugOverview } from "../sessions/DebugSidebar";
+import { hostRecoveryMessage } from "../../shared/host-recovery";
 import { ActivityPanel } from "../sessions/ActivityPanel";
 import { DiagnosticsDialog } from "../sessions/DiagnosticsDialog";
 import { FileDialog } from "../transfers/FileDialog";
@@ -1594,7 +1595,7 @@ export function App() {
             )}
             {error && (
               <div role="alert" className="notice error">
-                {error.message}
+                {hostRecoveryMessage(error, t)}
                 {inputPaused &&
                   connected &&
                   attachment &&
@@ -1708,7 +1709,7 @@ export function App() {
                     ? `${current.label || current.session_ref} · ${current.state}`
                     : emptyTitle}
                 </p>
-                {error && <p role="alert">{error.message}</p>}
+                {error && <p role="alert">{hostRecoveryMessage(error, t)}</p>}
                 {current?.lease && (
                   <p>
                     {t("details.lease")}: {current.lease.type}
