@@ -565,3 +565,20 @@ A lost release leaves no automatic successor; explicit takeover recovers control
 a new window attaches as an observer and requires an explicit size-control action in that window.
 Shared Session, input, writer leases, raw output and MCP tool schemas are unchanged. See the
 [desktop resize contract](../reference/gui-host-api.md#remote-pty-size-control).
+
+## Debug overview sidebar
+
+The activity rail and View menu expose the same read-only Debug sidebar. It shares the existing
+sidebar area with Sessions; switching views never attaches/detaches or changes target state.
+Registration capabilities are not exposed in Renderer. Main calls only `debug_overview`, checks
+bounded typed public fields and allows one observation query in flight per window. The visible
+sidebar polls every two seconds; hiding it pauses polling. Cached snapshots older than ten seconds
+or failed queries are shown as stale/unknown, not an empty successful inventory. A Host disconnect
+clears live validity; old Hosts report unavailable without breaking terminal access.
+
+Selection, filtering, full-ID association, port-role details and locating an existing Session are
+local presentation. Debug badges also conservatively indicate existing debug leases without
+claiming a running/stopped inferior. External reports retain source labels and Host freshness;
+manual registrations remain unknown. No controls for launch, breakpoints, stepping, stopping or
+lease takeover are added. All new labels use the nine maintained Lingui catalogs. See the
+[observation contract](../reference/mcp-tools.md#unified-debug-observation).

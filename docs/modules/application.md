@@ -582,3 +582,22 @@ Application defines read/write/management checks; terminal tool adapters classif
 case before invocation, with unclassified tools requiring management. Desktop routes apply the
 same checks before mutation. Grants are snapshots for one accepted request, not leases or
 cancellation tokens; revocation affects subsequent requests and does not stop accepted work.
+
+## Unified debug observations
+
+`DebugOverview` copies bounded bridge/managed/explicit external operation state without taking
+I/O locks or renewing leases/heartbeats. Bridge and managed coordinators retain public creator
+identity and last state-update time. Existing bridge/managed public response contracts remain
+unchanged. Managed execution remains subject to its existing environment and recovery rules.
+
+`RegisterDebugObservation` and `ReportDebugObservation` own in-memory external observation
+records (128 per Host lifetime). Registration is idempotent per authenticated client/request ID;
+reports require the same client and private owner digest, with monotonically increasing sequence
+and exact latest-retry deduplication. A full optional Session ID associates context without
+acquiring that terminal's lease. Manual registrations stay unknown; structured MI reports are
+labelled client assertions, never promoted to Host verification. Thirty-second report expiry
+invalidates current states without deleting last evidence or controlling the debugger. There is
+no background registry worker, socket probing, automatic launch or persistent observation store.
+
+The [MCP contract](../reference/mcp-tools.md#unified-debug-observation) owns fields and limits;
+CLI and Electron are narrow consumers of this same application snapshot.

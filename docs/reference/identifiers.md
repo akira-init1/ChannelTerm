@@ -146,3 +146,12 @@ client-registration domain, not a Host process, endpoint, live Session or authen
 Hosts using the same authentication directory share it; separate `CHANNELTERM_HOST_CONFIG_DIR`
 directories isolate domains. Credential rotation does not change this ID. See
 [HTTP configuration](configuration.md#paths) for migration and storage.
+
+## Debug observation IDs
+
+Unified debug inventory uses an operation `id`, distinct from its optional full `session_id`.
+External registrations return opaque `OBS-...` IDs; existing managed/bridge operations retain their
+own IDs. An observation ID is neither a Session selector nor a credential. Independent TCP/SSH
+operations may have no associated Session and never require a fabricated terminal ID. Private
+report capabilities remain outside public inventory; the authenticated registered `client_id`
+identifies the reporter, not a process/window instance. See the [debug observation contract](mcp-tools.md#unified-debug-observation).

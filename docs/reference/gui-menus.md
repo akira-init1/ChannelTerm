@@ -400,3 +400,18 @@ and a display hint identifying local-only fitting or control by this view. The e
 replaces the previous size controller; it does not change input permissions. Serial views have no
 remote size toolbar. No new top-level menu or shortcut is added. See the
 [desktop contract](gui-host-api.md#remote-pty-size-control).
+
+## Debug sidebar
+
+**View → Debug** and the accessible Debug activity-rail button share one action. Clicking the
+active rail view hides the sidebar; switching between Sessions and Debug preserves terminal
+tabs and local selection/filter state. The sidebar offers refresh, filter, expandable read-only
+details and **Locate Session**, which focuses an existing Session row without attaching it.
+Full Session IDs are used for associations; missing Sessions stay unavailable and independent
+network operations appear without a Session. Session debug badges and the current-Session footer
+entry open the same sidebar. A debug lease alone never proves target execution state.
+
+The sidebar shows registered bridges, managed GDB and registered TCP/SSH observations, with
+separate connection/target/tunnel status, configured versus observed endpoints, endpoint roles,
+provenance and update time. Unavailable/expired observations remain explicitly unknown. See the
+[unified contract](mcp-tools.md#unified-debug-observation). No debugger control actions are added.

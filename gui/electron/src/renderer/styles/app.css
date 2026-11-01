@@ -1291,3 +1291,45 @@ main {
   font-size: inherit;
   padding: 2px 6px;
 }
+
+.session-sidebar-content,
+.debug-sidebar-content {
+  min-height: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+}
+.session-sidebar-content[hidden],
+.debug-sidebar-content[hidden] {
+  display: none;
+}
+.debug-sidebar {
+  padding: 12px;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.debug-sidebar input {
+  width: 100%;
+}
+.debug-entry {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+.debug-select {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  align-items: flex-start;
+}
+.debug-entry dl {
+  margin: 8px 0;
+}
+.debug-entry dt {
+  opacity: 0.7;
+  margin-top: 8px;
+}
+.debug-entry dd {
+  margin-left: 0;
+  user-select: text;
+}

@@ -518,10 +518,9 @@ export async function checkContextTargets(desktop, page, observer) {
   await expect(page.getByRole("alert")).toContainText(
     "Session is no longer open",
   );
-  await expect(page.getByRole("button", { name: /SER-1/ })).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  );
+  await expect(
+    page.locator("button.session").filter({ hasText: /SER-1/ }),
+  ).toHaveAttribute("aria-pressed", "true");
   await expect(page.locator(".xterm-screen")).toBeVisible();
   await page.getByRole("button", { name: "Resume input", exact: true }).click();
   await page.getByRole("button", { name: /SER-2/ }).click({ button: "right" });

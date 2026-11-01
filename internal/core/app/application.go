@@ -76,6 +76,7 @@ type Application struct {
 	diagnostics     diagnosticStore
 	build           BuildProvenance
 	resize          resizeControls
+	observations    debugObservations
 }
 
 // New creates an Application from Core runtime dependencies.

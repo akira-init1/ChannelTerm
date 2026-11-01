@@ -1,3 +1,4 @@
+import { checkDebugOverview } from "./debug-checks.mjs";
 import { checkFiles } from "./file-checks.mjs";
 import { checkTerminalControls } from "./terminal-checks.mjs";
 import { checkTerminalStyles } from "./highlight-checks.mjs";
@@ -228,16 +229,15 @@ try {
   await expect(
     page.getByRole("heading", { name: "Select a Session" }),
   ).toBeVisible();
-  await page.getByRole("button", { name: /SER-1/ }).click();
+  await page.locator("button.session").filter({ hasText: /SER-1/ }).click();
   await expect(page.locator(".xterm-screen")).toBeVisible();
   // FitAddon reads the container's size. Wrapper spacing must neither inflate
   // that size nor leak onto xterm's own .terminal class and clip fitted cells.
   await expect(page.locator(".terminal-view")).toHaveCSS("padding", "0px");
   await expect(page.locator(".xterm")).toHaveCSS("padding", "0px");
-  await expect(page.getByRole("button", { name: /SER-1/ })).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  );
+  await expect(
+    page.locator("button.session").filter({ hasText: /SER-1/ }),
+  ).toHaveAttribute("aria-pressed", "true");
   await expect(
     page.getByText("Attached · Input enabled", { exact: true }),
   ).toBeVisible();
@@ -245,6 +245,7 @@ try {
   await checkCompactLayout(desktop, page);
   await checkTargetCopy(desktop, page, fixture, sessionId);
   await checkWorkbenchPanels(desktop, page, observer, attachment);
+  await checkDebugOverview(desktop, page, fixture);
   await checkActivity(desktop, page, fixture, observer, attachment);
   await checkDiagnostics(desktop, page, observer, attachment);
   await checkFiles(desktop, page, fixture);
@@ -276,10 +277,9 @@ try {
     .toBeGreaterThan(beforeCollapse.width);
   await expect(page.locator(".xterm-screen")).toBeVisible();
   await page.getByRole("button", { name: "Toggle Session sidebar" }).click();
-  await expect(page.getByRole("button", { name: /SER-1/ })).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  );
+  await expect(
+    page.locator("button.session").filter({ hasText: /SER-1/ }),
+  ).toHaveAttribute("aria-pressed", "true");
   await page.screenshot({ path: "test-results/workbench-reference.png" });
   await page.locator(".xterm-helper-textarea").focus();
   await page.keyboard.type("desktop-roundtrip");
@@ -334,7 +334,7 @@ try {
   await expect(
     page.getByText(/Output overwritten in the Host buffer/),
   ).toHaveCount(0);
-  await page.getByRole("button", { name: /SER-1/ }).click();
+  await page.locator("button.session").filter({ hasText: /SER-1/ }).click();
   await expect(page.locator(".xterm-screen")).toBeVisible();
   await desktop.evaluate(() => globalThis.staleClose.click());
   // A second FIFO native action is a barrier before checking the stale callback.
@@ -350,7 +350,7 @@ try {
     page.getByText("Host disconnected", { exact: true }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Connect to Host" }).click();
-  await page.getByRole("button", { name: /SER-1/ }).click();
+  await page.locator("button.session").filter({ hasText: /SER-1/ }).click();
   await expect(page.locator(".xterm-screen")).toBeVisible();
   // Exit GUI shares native close cleanup and leaves the Host/observer alive.
   const savedPanelBinding =

@@ -973,3 +973,17 @@ cannot be used as a credential. See [credential storage and boundaries](configur
 `http-host.json` exists. It preserves independent client credentials and grants, never enables the
 old shared token, and refuses to merge or overwrite an initialized Host. Stop old Hosts first; see
 [the migration workflow](../getting-started/http-authentication-migration.md).
+
+### Unified GDB overview (`gdb-list --all`)
+
+`gdb-list --all [--endpoint URL] [--json]` queries `debug_overview` with the same ten-second
+observation deadline and authentication as the legacy bridge query. The table includes operation
+ID/name, mode, full optional Session ID, independent connection/target/tunnel state, evidence
+source, registered client ID, update time, staleness and role-labelled endpoints. Unknown and
+non-applicable ports remain explicit. JSON returns `{endpoint, observed_at, operations}` with
+the [unified observation contract](mcp-tools.md#unified-debug-observation).
+
+Without `--all`, the existing table, semantics and `{endpoint, bridges}` JSON remain unchanged.
+No query starts a Host, GDB or target connection, renews a lease, or scans ports. A Host lacking
+the new tool returns an error rather than a misleading empty inventory. See the
+[registration workflow](../getting-started/gdb-debugging.md#observe-all-registered-debug-paths).

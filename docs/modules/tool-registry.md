@@ -58,3 +58,10 @@ of TLS, target readiness, and debugger process ownership.
 `debug_bridge_report` translates caller-supplied command/result/state observations into Application
 report publication. It is an authenticated event-write tool, not GDB control. Its receipt confirms
 report acceptance only; observers use the existing `terminal_session_events` cursor interface.
+
+`debug_overview` exposes the Application's bounded, read-only unified debug inventory.
+`debug_observation_register` and `debug_observation_report` are write-authorized metadata operations
+with client-bound private capabilities and exact retry semantics; they do not execute debugger
+commands or renew leases. Their MCP adapters provide explicit schemas/titles/annotations while
+keeping observation state, freshness and MI interpretation in Application/Core. Existing bridge
+and managed command contracts remain unchanged. See the [unified contract](../reference/mcp-tools.md#unified-debug-observation).

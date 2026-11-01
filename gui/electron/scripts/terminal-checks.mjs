@@ -20,7 +20,7 @@ export async function checkTerminalControls(
     "\r\nhistorical-query\x1b[6n\x1b[?6n\x1b[c\x1b[>c",
   );
   await read();
-  await page.getByRole("button", { name: /SER-1/ }).click();
+  await page.locator("button.session").filter({ hasText: /SER-1/ }).click();
   await expect(terminal).toBeVisible();
   await terminal.focus();
   await page.keyboard.type("replay-complete");
@@ -190,7 +190,7 @@ export async function checkTerminalControls(
       Menu.getApplicationMenu().getMenuItemById("tab.close").click(),
     );
     await expect(preview).toHaveCount(0);
-    await page.getByRole("button", { name: /SER-1/ }).click();
+    await page.locator("button.session").filter({ hasText: /SER-1/ }).click();
     await expect(terminal).toBeVisible();
     assert.equal(
       await read(),

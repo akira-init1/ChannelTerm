@@ -1,3 +1,4 @@
+import { DebugSidebar, useDebugOverview } from "../sessions/DebugSidebar";
 import { ActivityPanel } from "../sessions/ActivityPanel";
 import { DiagnosticsDialog } from "../sessions/DiagnosticsDialog";
 import { FileDialog } from "../transfers/FileDialog";
@@ -98,6 +99,17 @@ export function App() {
   const [connected, setConnected] = useState(false);
   // Collapsing navigation changes available space, not the active attachment.
   const [sidebarVisible, setSidebarVisible] = useState(true);
+  const [sidebarView, setSidebarView] = useState<"sessions" | "debug">(
+    "sessions",
+  );
+  const debug = useDebugOverview(
+    connected,
+    sidebarVisible && sidebarView === "debug",
+  );
+  const [locateTarget, setLocateTarget] = useState<{
+    id: string;
+    revision: number;
+  }>();
   const [sidebarWidth, setSidebarWidth] = useState<number>();
   const [auxiliaryVisible, setAuxiliaryVisible] = useState(false);
   const [auxiliaryWidth, setAuxiliaryWidth] = useState(260);
@@ -1015,8 +1027,16 @@ export function App() {
         if (targetTab) setSelectedTabId(targetTab.id);
         setAuxiliaryVisible(true);
         return;
+      case "view.debug":
+        setSidebarVisible(sidebarView !== "debug" || !sidebarVisible);
+        setSidebarView("debug");
+        return;
+      case "view.sessions":
+        setSidebarVisible(sidebarView !== "sessions" || !sidebarVisible);
+        setSidebarView("sessions");
+        return;
       case "view.sidebar":
-        setSidebarVisible((visible) => !visible);
+        setSidebarVisible((value) => !value);
         return;
       case "view.auxiliary":
         setAuxiliaryVisible((visible) => !visible);
@@ -1296,11 +1316,22 @@ export function App() {
             className="rail-button"
             aria-label="Toggle Session sidebar"
             title="Toggle Session sidebar"
-            aria-expanded={sidebarVisible}
+            aria-expanded={sidebarVisible && sidebarView === "sessions"}
+            aria-pressed={sidebarVisible && sidebarView === "sessions"}
             aria-controls="session-sidebar"
-            onClick={() => dispatch({ id: "view.sidebar" })}
+            onClick={() => dispatch({ id: "view.sessions" })}
           >
             <Icon name="terminal" />
+          </button>
+          <button
+            className="rail-button"
+            aria-label={t("debug.title")}
+            title={t("debug.title")}
+            aria-pressed={sidebarVisible && sidebarView === "debug"}
+            aria-controls="session-sidebar"
+            onClick={() => dispatch({ id: "view.debug" })}
+          >
+            <Icon name="debug" />
           </button>
           <span
             className={`rail-host ${connected ? "online" : ""}`}
@@ -1313,53 +1344,94 @@ export function App() {
           ref={sessionSidebar}
           id="session-sidebar"
           className="sidebar"
-          aria-label="Session sidebar"
+          aria-label={
+            sidebarView === "debug" ? t("debug.title") : "Session sidebar"
+          }
           hidden={!sidebarVisible}
         >
-          <div className="section-heading">
-            <h2>
-              Sessions <span className="session-count">{sessions.length}</span>
-            </h2>
-            <button
-              className="quiet icon-button"
-              aria-label="Refresh"
-              title="Refresh Sessions"
+          <div
+            hidden={sidebarView !== "sessions"}
+            className="session-sidebar-content"
+          >
+            <div className="section-heading">
+              <h2>
+                Sessions{" "}
+                <span className="session-count">{sessions.length}</span>
+              </h2>
+              <button
+                className="quiet icon-button"
+                aria-label="Refresh"
+                title="Refresh Sessions"
+                disabled={!connected || working}
+                onClick={() => dispatch({ id: "session.refresh" })}
+              >
+                <Icon name="refresh" />
+              </button>
+            </div>
+            <SessionList
+              locateTarget={locateTarget}
+              debugIds={
+                new Set(
+                  debug.snapshot?.operations
+                    .map((r) => r.session_id)
+                    .filter(Boolean),
+                )
+              }
+              debugLabel={t("debug.title")}
+              onDebug={() => {
+                setSidebarView("debug");
+                setSidebarVisible(true);
+              }}
+              sessions={sessions}
+              selected={attachment?.sessionId}
               disabled={!connected || working}
-              onClick={() => dispatch({ id: "session.refresh" })}
-            >
-              <Icon name="refresh" />
-            </button>
-          </div>
-          <SessionList
-            sessions={sessions}
-            selected={attachment?.sessionId}
-            disabled={!connected || working}
-            emptyMessage={
-              connected
-                ? "No Sessions found."
-                : "Connect a Host to list Sessions."
-            }
-            onSelect={(item) =>
-              dispatch({ id: "session.attach", sessionId: item.session_id })
-            }
-            onContextMenu={(event, item) =>
-              openContext(
-                event,
-                sessionMenu(
-                  stateForTab(
-                    tabs.find(
-                      (tab) => tab.attachment?.sessionId === item.session_id,
+              emptyMessage={
+                connected
+                  ? "No Sessions found."
+                  : "Connect a Host to list Sessions."
+              }
+              onSelect={(item) =>
+                dispatch({ id: "session.attach", sessionId: item.session_id })
+              }
+              onContextMenu={(event, item) =>
+                openContext(
+                  event,
+                  sessionMenu(
+                    stateForTab(
+                      tabs.find(
+                        (tab) => tab.attachment?.sessionId === item.session_id,
+                      ),
                     ),
+                    item.session_id,
+                    item.state === "open" &&
+                      (item.transport === "ssh" || !item.lease),
+                    item.transport === "serial",
+                    item.transport === "ssh",
                   ),
-                  item.session_id,
-                  item.state === "open" &&
-                    (item.transport === "ssh" || !item.lease),
-                  item.transport === "serial",
-                  item.transport === "ssh",
-                ),
-              )
-            }
-          />
+                )
+              }
+            />
+          </div>
+          <div
+            hidden={sidebarView !== "debug"}
+            className="debug-sidebar-content"
+          >
+            <DebugSidebar
+              {...debug}
+              connected={connected}
+              sessions={sessions}
+              t={t}
+              refresh={() => void debug.refresh()}
+              locate={(id) => {
+                setSidebarView("sessions");
+                setSidebarVisible(true);
+                setLocateTarget((previous) => ({
+                  id,
+                  revision: (previous?.revision ?? 0) + 1,
+                }));
+              }}
+            />
+          </div>
           <section className="host-panel" aria-label="Host connection">
             <h2>Host connection</h2>
             <div className="host-connection">
@@ -1779,6 +1851,21 @@ export function App() {
                     : "Attached · Input enabled"
             : "No attachment"}
         </span>
+        {attachment &&
+          (debug.snapshot?.operations.some(
+            (r) => r.session_id === attachment.sessionId,
+          ) ||
+            sessions.find((s) => s.session_id === attachment.sessionId)?.lease
+              ?.type === "debug") && (
+            <button
+              onClick={() => {
+                setSidebarView("debug");
+                setSidebarVisible(true);
+              }}
+            >
+              {t("debug.title")}
+            </button>
+          )}
         <span className="status-detail">
           {attachment
             ? `${terminalSettings.encoding.toUpperCase()} · ${terminalSettings.view === "hex" ? "HEX" : "xterm"}${attachment.remoteSize ? "" : ` · ${t("terminal.sizeLocal")}`}`

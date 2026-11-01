@@ -255,6 +255,266 @@ msgstr "Имя пользователя"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "debug.client"
+msgstr "Зарегистрированный клиент"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.configured"
+msgstr "Настроенный адрес"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.connected"
+msgstr "Подключено"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.connecting"
+msgstr "Подключение"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.connection"
+msgstr "Соединение"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.disconnected"
+msgstr "Отключено"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.empty"
+msgstr "Нет зарегистрированных операций отладки"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.exited"
+msgstr "Завершено"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.filter"
+msgstr "Фильтр операций отладки"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.lastState"
+msgstr "Последнее наблюдаемое состояние цели"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.listening"
+msgstr "Ожидание соединения"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.loading"
+msgstr "Загрузка обзора отладки…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.locate"
+msgstr "Найти Session"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.managed"
+msgstr "GDB под управлением Host"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.not_applicable"
+msgstr "Неприменимо"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.observed"
+msgstr "Наблюдаемый адрес"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.offline"
+msgstr "Host отключён; состояние неизвестно"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.operation"
+msgstr "ID операции"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.perspective.executor"
+msgstr "Исполнитель"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.perspective.host"
+msgstr "Host"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.perspective.remote"
+msgstr "Удалённый Host"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.recovering"
+msgstr "Восстановление терминала"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.refresh"
+msgstr "Обновить обзор отладки"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.role.authenticated_bridge"
+msgstr "Адрес аутентифицированного моста"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.role.local_forward"
+msgstr "Адрес локального перенаправления"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.role.ssh"
+msgstr "Сервер SSH"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.role.target"
+msgstr "Адрес цели отладки"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.running"
+msgstr "Выполняется"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.scope"
+msgstr "Только зарегистрированные операции; без сканирования процессов и портов"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.serial"
+msgstr "Последовательный порт"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.serial_bridge"
+msgstr "Последовательный мост RSP"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.session"
+msgstr "Полный ID Session"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.sessionMissing"
+msgstr "Связанная Session недоступна"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.source"
+msgstr "Источник сведений"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.source.client_report"
+msgstr "Отчёт клиента; не проверен Host"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.source.host"
+msgstr "Наблюдение Host"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.source.manual"
+msgstr "Ручная регистрация; нет наблюдений"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.ssh"
+msgstr "SSH"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.ssh_stdio"
+msgstr "GDB через SSH stdio"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.ssh_terminal"
+msgstr "GDB в терминале SSH"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.ssh_terminal_tcp"
+msgstr "TCP GDB в терминале SSH"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.ssh_tunnel"
+msgstr "GDB через туннель SSH"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.stale"
+msgstr "Наблюдение устарело; текущее состояние неизвестно"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.stopped"
+msgstr "Приостановлено"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.targetState"
+msgstr "Состояние цели"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.tcp"
+msgstr "GDB через TCP"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.title"
+msgstr "Отладка"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.tunnel"
+msgstr "Соединение туннеля"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.unassociated"
+msgstr "Нет связанной Session"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.unavailable"
+msgstr "Обзор недоступен; прежнее состояние устарело"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.unknown"
+msgstr "Неизвестно"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.updated"
+msgstr "Обновлено"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "details.empty"
 msgstr "Подключите сеанс, чтобы просмотреть сведения."
 

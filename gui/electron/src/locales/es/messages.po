@@ -255,6 +255,266 @@ msgstr "Nombre de usuario"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "debug.client"
+msgstr "Cliente registrado"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.configured"
+msgstr "Extremo configurado"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.connected"
+msgstr "Conectado"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.connecting"
+msgstr "Conectando"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.connection"
+msgstr "Conexión"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.disconnected"
+msgstr "Desconectado"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.empty"
+msgstr "No hay operaciones de depuración registradas"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.exited"
+msgstr "Finalizado"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.filter"
+msgstr "Filtrar operaciones de depuración"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.lastState"
+msgstr "Último estado observado del destino"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.listening"
+msgstr "Esperando conexión"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.loading"
+msgstr "Cargando resumen de depuración…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.locate"
+msgstr "Localizar Session"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.managed"
+msgstr "GDB gestionado por el Host"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.not_applicable"
+msgstr "No corresponde"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.observed"
+msgstr "Extremo observado"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.offline"
+msgstr "Host desconectado; estado desconocido"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.operation"
+msgstr "ID de operación"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.perspective.executor"
+msgstr "Ejecutor"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.perspective.host"
+msgstr "Host"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.perspective.remote"
+msgstr "Host remoto"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.recovering"
+msgstr "Recuperando terminal"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.refresh"
+msgstr "Actualizar resumen de depuración"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.role.authenticated_bridge"
+msgstr "Extremo del puente autenticado"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.role.local_forward"
+msgstr "Extremo de reenvío local"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.role.ssh"
+msgstr "Servidor SSH"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.role.target"
+msgstr "Extremo de depuración"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.running"
+msgstr "En ejecución"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.scope"
+msgstr "Solo operaciones registradas; sin explorar procesos ni puertos"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.serial"
+msgstr "Serie"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.serial_bridge"
+msgstr "Puente RSP serie"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.session"
+msgstr "ID completo de Session"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.sessionMissing"
+msgstr "Session asociada no disponible"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.source"
+msgstr "Fuente de evidencia"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.source.client_report"
+msgstr "Informe del cliente; sin verificar por el Host"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.source.host"
+msgstr "Observación del Host"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.source.manual"
+msgstr "Registro manual; sin observación"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.ssh"
+msgstr "SSH"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.ssh_stdio"
+msgstr "GDB por SSH stdio"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.ssh_terminal"
+msgstr "GDB en terminal SSH"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.ssh_terminal_tcp"
+msgstr "GDB TCP en terminal SSH"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.ssh_tunnel"
+msgstr "GDB por túnel SSH"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.stale"
+msgstr "Observación desactualizada; estado actual desconocido"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.stopped"
+msgstr "Pausado"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.targetState"
+msgstr "Estado del destino"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.tcp"
+msgstr "GDB por TCP"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.title"
+msgstr "Depuración"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.tunnel"
+msgstr "Conexión del túnel"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.unassociated"
+msgstr "Sin Session asociada"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.unavailable"
+msgstr "Resumen no disponible; el estado anterior está desactualizado"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.unknown"
+msgstr "Desconocido"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.updated"
+msgstr "Actualizado"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "details.empty"
 msgstr "Conecte una sesión para ver sus detalles."
 

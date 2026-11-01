@@ -97,7 +97,7 @@ The main ownership distinctions are deliberate:
   dependency crosses into the GUI. The adjacent `testdata/defaults-cases.json` is the shared
   Go/JavaScript matching corpus, not runtime terminal content.
 - **Application:** `internal/core/app` orchestrates adapter-neutral use cases and managed debug
-  operations; it does not own the Host process lifetime or presentation.
+  operations and bounded unified debug observation records; it does not own the Host process lifetime or presentation.
   It also owns bounded serial directory snapshots in the existing transfer child shell,
   serial U-Boot entry orchestration and bounded diagnostic archive retention/download
   use cases. These reuse Session cursors and application leases without adding Transport ownership.
@@ -148,7 +148,7 @@ gui/electron/
 |   |-- locales/                   Per-locale PO sources, ignored compiled modules, process-neutral resource imports
 |   |-- renderer/
 |   |   |-- components/            React application shell and view state
-|   |   |-- sessions/              Session selection, terminal tab strip and display metadata
+|   |   |-- sessions/              Session selection, terminal tab strip, debug observation sidebar and display metadata
 |   |   |-- transfers/             Directory picker and structured transfer progress
 |   |   |-- terminal/              Per-view xterm presentation, bounded input, visibility-aware output pacing
 |   |   |-- styles/                Desktop presentation

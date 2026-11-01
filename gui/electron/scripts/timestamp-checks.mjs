@@ -42,7 +42,7 @@ export async function checkPromptTimestamps(
     .getByRole("button", { name: "Close tab (detach)", exact: true })
     .click();
   await expect(terminal).toHaveCount(0);
-  await page.getByRole("button", { name: /SER-1/ }).click();
+  await page.locator("button.session").filter({ hasText: /SER-1/ }).click();
   await expect(rows).toContainText("root@live:~#");
   await expect(rows).not.toContainText(stamp);
   assert.equal(

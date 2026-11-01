@@ -188,6 +188,14 @@ func run() error {
 		switch command.Action {
 		case "agent-input":
 			_, actionErr = application.WriteSession(context.Background(), core.ID(), session.WriteRequest{Actor: session.ActorAgent, Data: []byte(command.Data)})
+		case "debug-overview":
+			// Explicit fixture registration exercises the real Application snapshot.
+			ctx := app.WithClientIdentity(context.Background(), session.ClientIdentity{ID: "CL-fixture", Name: "Fixture executor", Kind: "user"})
+			registered, err := application.RegisterDebugObservation(ctx, app.DebugRegistration{Owner: strings.Repeat("fixture-owner", 3), RequestID: "overview", Name: "Network fixture", Mode: "ssh_tunnel", Executor: "mi", SessionID: core.ID(), Ports: []app.DebugPort{{Role: "ssh", Configured: "host.example:2222"}, {Role: "target", Configured: "127.0.0.1:2345"}, {Role: "local_forward", Configured: "127.0.0.1:0"}}})
+			actionErr = err
+			if err == nil {
+				_, actionErr = application.ReportDebugObservation(ctx, app.DebugObservationReport{ID: registered.ID, Owner: strings.Repeat("fixture-owner", 3), Sequence: 1, Connection: "connected", TunnelState: "connected", MI: `*stopped,reason="breakpoint-hit"`, Ports: []app.DebugPort{{Role: "ssh", Address: "192.0.2.10:2222"}, {Role: "local_forward", Address: "127.0.0.1:43210"}, {Role: "target", Address: "127.0.0.1:2345"}}})
+			}
 		case "debug-report":
 			// Test-only injection exercises presentation, not debug authorization.
 			core.PublishEvent(session.Event{Type: session.EventType("DEBUG_CLIENT_REPORT"), Actor: string(session.ActorAgent), Metadata: map[string]any{"text": command.Data, "complete_audit": false}})

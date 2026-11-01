@@ -1,5 +1,5 @@
 import type { SessionSummary } from "../../shared/api";
-import { useState, type MouseEvent } from "react";
+import { useEffect, useState, type MouseEvent } from "react";
 import { Icon } from "../components/Icon";
 
 /**
@@ -8,6 +8,10 @@ import { Icon } from "../components/Icon";
  * Disabled rows are a usability guard, not authority over Session lifecycle.
  */
 export function SessionList({
+  locateTarget,
+  debugIds,
+  onDebug,
+  debugLabel,
   sessions,
   selected,
   disabled,
@@ -15,6 +19,10 @@ export function SessionList({
   onSelect,
   onContextMenu,
 }: {
+  locateTarget?: { id: string; revision: number };
+  debugIds?: Set<string>;
+  onDebug?: () => void;
+  debugLabel?: string;
   sessions: SessionSummary[];
   selected?: string;
   disabled: boolean;
@@ -27,6 +35,20 @@ export function SessionList({
 }) {
   // Filtering only changes visible rows; it never detaches a hidden selection.
   const [query, setQuery] = useState("");
+  useEffect(() => {
+    if (!locateTarget) return;
+    setQuery("");
+    const frame = requestAnimationFrame(() => {
+      const target = document.querySelector<HTMLElement>(
+        `[data-session-id="${CSS.escape(locateTarget.id)}"]`,
+      );
+      const group = target?.closest("details");
+      if (group) group.open = true;
+      target?.scrollIntoView({ block: "nearest" });
+      target?.focus();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [locateTarget]);
   const search = query.trim().toLowerCase();
   const groups = new Map<string, SessionSummary[]>();
   for (const session of sessions) {
@@ -84,6 +106,7 @@ export function SessionList({
                 >
                   <button
                     key={session.session_id}
+                    data-session-id={session.session_id}
                     className={`session ${selected === session.session_id ? "selected" : ""}`}
                     aria-pressed={selected === session.session_id}
                     title={`${session.session_ref} · ${session.label || session.endpoint} · ${session.state}`}
@@ -117,6 +140,16 @@ export function SessionList({
                       </span>
                     </span>
                   </button>
+                  {(debugIds?.has(session.session_id) ||
+                    session.lease?.type === "debug") && (
+                    <button
+                      className="debug-badge"
+                      onClick={onDebug}
+                      aria-label={`${debugLabel} · ${session.session_ref}`}
+                    >
+                      {debugLabel}
+                    </button>
+                  )}
                 </div>
               ))}
             </details>

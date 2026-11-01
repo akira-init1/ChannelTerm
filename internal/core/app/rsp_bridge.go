@@ -69,19 +69,21 @@ type bridgeCoordinator struct {
 }
 
 type bridgeRun struct {
-	app         *Application
-	terminal    session.Session
-	request     BridgeStartRequest
-	fingerprint string
-	id, owner   string
-	op          sync.Mutex // Management mutations; never held by the relay worker.
-	mu          sync.Mutex // Status only; no blocking I/O while held.
-	status      BridgeStatus
-	endpoint    *debugger.Endpoint
-	cancel      context.CancelFunc
-	workerDone  chan struct{}
-	finished    chan struct{}
-	relayErr    error
+	updated        time.Time
+	clientIdentity session.ClientIdentity
+	app            *Application
+	terminal       session.Session
+	request        BridgeStartRequest
+	fingerprint    string
+	id, owner      string
+	op             sync.Mutex // Management mutations; never held by the relay worker.
+	mu             sync.Mutex // Status only; no blocking I/O while held.
+	status         BridgeStatus
+	endpoint       *debugger.Endpoint
+	cancel         context.CancelFunc
+	workerDone     chan struct{}
+	finished       chan struct{}
+	relayErr       error
 	// Report deduplication is bounded to the latest accepted sequence, under op.
 	reportSequence uint64
 	reportDigest   [32]byte
@@ -182,7 +184,7 @@ func (a *Application) StartRSPBridge(ctx context.Context, q BridgeStartRequest) 
 		return BridgeStartResult{}, err
 	}
 	workerCtx, cancel := context.WithCancel(context.Background())
-	r := &bridgeRun{app: a, terminal: terminal, request: q, fingerprint: string(encoded), id: "RSP-" + id, owner: owner, endpoint: endpoint, cancel: cancel, workerDone: make(chan struct{}), finished: make(chan struct{})}
+	r := &bridgeRun{updated: time.Now(), clientIdentity: ClientIdentityFromContext(ctx), app: a, terminal: terminal, request: q, fingerprint: string(encoded), id: "RSP-" + id, owner: owner, endpoint: endpoint, cancel: cancel, workerDone: make(chan struct{}), finished: make(chan struct{})}
 	now := time.Now()
 	r.status = BridgeStatus{BridgeID: r.id, SessionID: terminal.ID(), State: "listening", Address: endpoint.Connection().Address, ExpiresAt: now.Add(debugClientTTL), MaxExpiresAt: now.Add(bridgeMaxLifetime), TargetState: "unverified", Warning: bridgeReadinessWarning}
 	if a.bridges.runs == nil {
@@ -240,6 +242,7 @@ func (r *bridgeRun) publish(state string) {
 func (r *bridgeRun) setState(state string, err error) {
 	r.mu.Lock()
 	r.status.State = state
+	r.updated = time.Now()
 	if state != "connected" {
 		r.status.AutoKeepalive = false
 	}

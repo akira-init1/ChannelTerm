@@ -385,3 +385,18 @@ events; Session retains it without interpreting credentials. Transports still
 receive raw bytes only. Local registration and secret export belong to the CLI;
 there is no new listener or remote registration endpoint. See
 [credential boundaries](../reference/configuration.md#independent-http-client-credentials).
+
+## Read-only GDB overview
+
+```text
+Host serial bridge / managed GDB state + explicitly registered external MI reports
+    -> Application.DebugOverview (bounded public snapshots, no renewal or target I/O)
+    -> debug_overview MCP adapter
+        -> CLI gdb-list --all table/JSON
+        -> Electron Main validation -> fixed IPC -> Debug sidebar
+```
+
+External TCP/SSH executors register and report through separate capability- and client-bound
+observation tools. Parsed MI state remains client-reported; receipt time, stale state and port
+roles are explicit. No terminal text, process scan or port scan is a source. Session association
+uses full IDs and is optional for independent networking; it never creates a fake terminal.

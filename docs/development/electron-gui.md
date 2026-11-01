@@ -522,3 +522,15 @@ permissions, registration reuse and the fixed HTTP boundary. Native connection c
 Electron window, observe changed wire dimensions, exercise takeover/release, and capture
 `test-results/ssh-remote-size.png`. These fixtures do not prove behavior of external SSH servers or
 full-screen programs on every native OS.
+
+### Unified debug overview checks
+
+The disposable Host fixture explicitly registers a TCP-over-SSH observation through Application;
+it does not launch GDB or scan ports. `tests/debug.test.ts` checks the real MCP snapshot, independent
+port roles, provenance, unchanged Session state, safe IPC copying and malformed responses.
+`debug-checks.mjs` exercises native sidebar navigation, report labels, endpoint details and
+locating a Session without creating an attachment. Nine-language strict compilation includes all
+Debug labels. `test-results/debug-overview.png` is local ignored evidence. Core/CLI tests cover
+MI transitions, report expiry, identity/capability checks, legacy JSON and no-renewal semantics.
+External GDB process integration and physical target acceptance must be recorded separately;
+fixture evidence does not establish external executor report accuracy.

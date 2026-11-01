@@ -189,7 +189,7 @@ func runWithDependenciesWithInterrupts(ctx context.Context, args []string, input
 		fmt.Fprintln(output, "  attach  Attach to a Session hosted by local MCP HTTP")
 		fmt.Fprintln(output, "  events  Stream structured events from a shared Session")
 		fmt.Fprintln(output, "  file    Send or receive a file through a shared Session")
-		fmt.Fprintln(output, "  gdb-list List external GDB bridge ports in an existing Host")
+		fmt.Fprintln(output, "  gdb-list List GDB bridge ports or unified registered debug state")
 		fmt.Fprintln(output, "  help    Show this help message")
 		fmt.Fprintln(output, "  init    Configure supported MCP clients")
 		fmt.Fprintln(output, "  install Install ChannelTerm for the current user")

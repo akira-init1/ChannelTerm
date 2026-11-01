@@ -255,6 +255,266 @@ msgstr "使用者名稱"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "debug.client"
+msgstr "註冊用戶端"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.configured"
+msgstr "設定端點"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.connected"
+msgstr "已連線"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.connecting"
+msgstr "連線中"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.connection"
+msgstr "連線"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.disconnected"
+msgstr "已中斷"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.empty"
+msgstr "沒有已登記的偵錯操作"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.exited"
+msgstr "已結束"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.filter"
+msgstr "篩選偵錯操作"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.lastState"
+msgstr "上次觀察到的目標狀態"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.listening"
+msgstr "等待連線"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.loading"
+msgstr "正在載入偵錯總覽…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.locate"
+msgstr "定位至 Session"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.managed"
+msgstr "Host 管理的 GDB"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.not_applicable"
+msgstr "不適用"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.observed"
+msgstr "已觀察端點"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.offline"
+msgstr "Host 已中斷，狀態未知"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.operation"
+msgstr "操作 ID"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.perspective.executor"
+msgstr "執行器"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.perspective.host"
+msgstr "Host"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.perspective.remote"
+msgstr "遠端主機"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.recovering"
+msgstr "正在復原終端"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.refresh"
+msgstr "重新整理偵錯總覽"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.role.authenticated_bridge"
+msgstr "已驗證橋接端點"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.role.local_forward"
+msgstr "本機轉送端點"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.role.ssh"
+msgstr "SSH 伺服器"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.role.target"
+msgstr "偵錯目標端點"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.running"
+msgstr "執行中"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.scope"
+msgstr "僅列出已登記操作，不掃描程序或連接埠"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.serial"
+msgstr "序列埠"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.serial_bridge"
+msgstr "序列埠 RSP 橋接"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.session"
+msgstr "完整 Session ID"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.sessionMissing"
+msgstr "關聯 Session 無法使用"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.source"
+msgstr "證據來源"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.source.client_report"
+msgstr "用戶端回報，未經 Host 驗證"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.source.host"
+msgstr "Host 觀察"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.source.manual"
+msgstr "手動登記，尚未觀察"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.ssh"
+msgstr "SSH"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.ssh_stdio"
+msgstr "SSH stdio GDB"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.ssh_terminal"
+msgstr "SSH 終端內 GDB"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.ssh_terminal_tcp"
+msgstr "SSH 終端內 TCP GDB"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.ssh_tunnel"
+msgstr "SSH 通道 GDB"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.stale"
+msgstr "觀察已過期，目前狀態未知"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.stopped"
+msgstr "已暫停"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.targetState"
+msgstr "目標狀態"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.tcp"
+msgstr "TCP GDB"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.title"
+msgstr "偵錯"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.tunnel"
+msgstr "通道連線"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.unassociated"
+msgstr "未關聯 Session"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.unavailable"
+msgstr "總覽無法使用；先前狀態已過期"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.unknown"
+msgstr "未知"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "debug.updated"
+msgstr "更新時間"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "details.empty"
 msgstr "附加工作階段後即可查看詳細資訊。"
 

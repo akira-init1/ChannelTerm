@@ -159,7 +159,7 @@ export async function checkTerminalSearch(
     Menu.getApplicationMenu().getMenuItemById("tab.close").click(),
   );
   await expect(search).toHaveCount(0);
-  await page.getByRole("button", { name: /SER-1/ }).click();
+  await page.locator("button.session").filter({ hasText: /SER-1/ }).click();
   await expect(terminal).toBeVisible();
   await expect(search).toHaveCount(0);
   assert.equal(

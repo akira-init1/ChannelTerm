@@ -3,6 +3,7 @@ export function Icon({
   name,
 }: {
   name:
+    | "debug"
     | "terminal"
     | "serial"
     | "monitor"
@@ -16,6 +17,8 @@ export function Icon({
     | "layout-bottom";
 }) {
   const paths = {
+    debug:
+      "M8 8h8v9a4 4 0 0 1-8 0z M9 8V5h6v3 M4 10h4 M16 10h4 M4 15h4 M16 15h4 M5 21l4-3 M19 21l-4-3 M12 8v12",
     "layout-left": "M3 4h18v16H3z M9 4v16 M5 7h2 M5 10h2 M5 13h2",
     "layout-right": "M3 4h18v16H3z M15 4v16 M17 7h2 M17 10h2 M17 13h2",
     "layout-bottom": "M3 4h18v16H3z M3 14h18 M6 17h12",

@@ -53,6 +53,7 @@ const api: DesktopAPI = {
   connect: () => ipcRenderer.invoke(channels.connect),
   disconnect: () => ipcRenderer.invoke(channels.disconnect),
   list: () => ipcRenderer.invoke(channels.list),
+  debugOverview: () => ipcRenderer.invoke(channels.debugOverview),
   serialProfiles: () => ipcRenderer.invoke(channels.serialProfiles),
   changeSerialProfile: (request) =>
     ipcRenderer.invoke(channels.changeSerialProfile, request),

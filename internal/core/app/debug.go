@@ -83,6 +83,8 @@ type debugCommandResult struct {
 	err     error
 }
 type debugRun struct {
+	updated               time.Time
+	clientIdentity        session.ClientIdentity
 	app                   *Application
 	terminal              session.Session
 	request               DebugStartRequest
@@ -173,7 +175,7 @@ func (a *Application) StartDebug(ctx context.Context, request DebugStartRequest)
 		a.debug.mu.Unlock()
 		return DebugStatus{}, e
 	}
-	r := &debugRun{app: a, terminal: terminal, request: request, fingerprint: string(encoded), id: "DBG-" + token, token: token, owner: "debug-" + owner, state: "starting", expires: time.Now().Add(debugClientTTL), changed: make(chan struct{}), commands: map[string]debugCommandResult{}, finished: make(chan struct{})}
+	r := &debugRun{updated: time.Now(), clientIdentity: ClientIdentityFromContext(ctx), app: a, terminal: terminal, request: request, fingerprint: string(encoded), id: "DBG-" + token, token: token, owner: "debug-" + owner, state: "starting", expires: time.Now().Add(debugClientTTL), changed: make(chan struct{}), commands: map[string]debugCommandResult{}, finished: make(chan struct{})}
 	r.op.Lock()
 	defer r.op.Unlock()
 	if a.debug.runs == nil {
@@ -224,6 +226,7 @@ func (r *debugRun) transition(state string, e error) {
 	r.terminal.PublishEvent(session.Event{Type: session.EventDebugState, Actor: string(session.ActorSystem), Metadata: map[string]any{"debug_id": r.id, "state": state}})
 }
 func (r *debugRun) appendLocked(record debugger.Record) {
+	r.updated = time.Now()
 	encoded, _ := json.Marshal(record)
 	r.events = append(r.events, DebugEvent{Sequence: r.next, Record: record})
 	r.next++

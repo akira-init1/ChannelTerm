@@ -1,3 +1,4 @@
+import type { DebugOverview } from "./debug";
 import type { ActivitySnapshot } from "./activity";
 import type { DiagnosticRequest, DiagnosticSaved } from "./diagnostics";
 import type { SSHBrowseRequest, SSHBrowseResult } from "./ssh-browser";
@@ -87,6 +88,7 @@ export interface WindowInfo {
 
 /** One method per IPC channel; no arbitrary tool, URL, file, or process access. */
 export interface DesktopAPI {
+  debugOverview(): Promise<Result<DebugOverview>>;
   windowInfo(): Promise<Result<WindowInfo>>;
   newWindow(): Promise<Result<void>>;
   closeWindow(): Promise<Result<void>>;
@@ -190,6 +192,7 @@ export const channels = {
   connect: "host:connect",
   disconnect: "host:disconnect",
   list: "host:list",
+  debugOverview: "host:debug-overview",
   serialProfiles: "host:serial-profiles",
   changeSerialProfile: "host:change-serial-profile",
   serialPorts: "host:serial-ports",

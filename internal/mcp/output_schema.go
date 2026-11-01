@@ -23,6 +23,10 @@ type jsonSchema struct {
 func terminalOutputSchema(name string) (jsonSchema, bool) {
 	var schema jsonSchema
 	switch name {
+	case "debug_overview":
+		schema = objectSchema(map[string]jsonSchema{"observed_at": dateTimeSchema(), "operations": arraySchema(debugObservationSchema())}, "observed_at", "operations")
+	case "debug_observation_register", "debug_observation_report":
+		schema = objectSchema(map[string]jsonSchema{"operation": debugObservationSchema()}, "operation")
 	case "terminal_enter_uboot":
 		schema = objectSchema(map[string]jsonSchema{
 			"operation_id": stringSchema(), "session_id": stringSchema(), "status": stringSchema(),
@@ -329,4 +333,18 @@ func bridgeStatusSchema() jsonSchema {
 // clientIdentitySchema describes public provenance, never an authorization capability.
 func clientIdentitySchema() jsonSchema {
 	return objectSchema(map[string]jsonSchema{"client_id": stringSchema(), "name": stringSchema(), "kind": stringSchema("user", "agent")}, "client_id", "name", "kind")
+}
+
+func debugObservationSchema() jsonSchema {
+	p := map[string]jsonSchema{}
+	required := []string{}
+	for _, key := range []string{"id", "name", "mode", "session_id", "connection", "target_state", "last_target_state", "tunnel_state", "source"} {
+		p[key] = stringSchema()
+		required = append(required, key)
+	}
+	p["client"] = clientIdentitySchema()
+	p["updated_at"] = dateTimeSchema()
+	p["stale"] = booleanSchema()
+	p["ports"] = arraySchema(objectSchema(map[string]jsonSchema{"role": stringSchema(), "perspective": stringSchema(), "configured": stringSchema(), "address": stringSchema(), "port": integerSchema(), "state": stringSchema("observed", "unknown", "not_applicable")}, "role", "perspective", "configured", "address", "port", "state"))
+	return objectSchema(p, append(required, "client", "updated_at", "stale", "ports")...)
 }

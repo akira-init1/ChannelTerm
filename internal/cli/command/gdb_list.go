@@ -23,15 +23,17 @@ func runGDBList(ctx context.Context, args []string, output io.Writer, list func(
 	flags := flag.NewFlagSet("gdb-list", flag.ContinueOnError)
 	flags.SetOutput(output)
 	endpoint := flags.String("endpoint", defaultMCPEndpoint, "Session Host MCP HTTP endpoint to query")
+	all := flags.Bool("all", false, "read unified registered GDB observations instead of the legacy bridge list")
 	jsonOutput := flags.Bool("json", false, "write one JSON result object")
 	help := flags.Bool("help", false, "show help and exit")
 	shortHelp := flags.Bool("h", false, "show help and exit")
 	flags.Usage = func() {
-		fmt.Fprintln(output, "Usage: channelterm gdb-list [--endpoint URL] [--json]")
+		fmt.Fprintln(output, "Usage: channelterm gdb-list [--endpoint URL] [--json] [--all]")
 		fmt.Fprintln(output)
 		fmt.Fprintln(output, "List all unfinished external GDB bridges and their actual TCP ports in one existing Host.")
 		fmt.Fprintln(output, "Includes disconnected bridges until finalization. Does not renew leases, connect to GDB, or scan OS ports.")
 		fmt.Fprintln(output, "The query times out after 10 seconds; Host access failures return an error.")
+		fmt.Fprintln(output, "With --all, includes managed GDB and explicitly registered TCP/SSH observations; client reports are not Host verification.")
 		flags.PrintDefaults()
 	}
 	if err := flags.Parse(args); err != nil {
@@ -50,6 +52,9 @@ func runGDBList(ctx context.Context, args []string, output io.Writer, list func(
 	address := strings.TrimSpace(*endpoint)
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
+	if *all {
+		return printGDBOverview(ctx, address, *jsonOutput, output, listMCPDebugOverview)
+	}
 	items, err := list(ctx, address)
 	if err != nil {
 		return fmt.Errorf("list GDB bridges from %q: %w", address, err)

@@ -1063,3 +1063,83 @@ identity. HTTP rejects unregistered credentials, including the retired shared to
 Existing required fields and tool names are unchanged. Removal rejects future
 HTTP requests with 401; an invalid registration store returns 503 for independent
 credentials. It does not retroactively cancel work already accepted.
+
+## Unified debug observation
+
+`debug_overview` takes `{}` and returns `{observed_at, operations}` from the same Application
+used by `channelterm gdb-list --all`. It is read-only, needs no per-operation capability and
+never renews a heartbeat/lease, opens a target, scans ports/processes or reads terminal text.
+The bounded inventory includes unfinished external serial bridges, retained managed runs and
+explicit external registrations (at most 128 of each). Collection copies each owner's state;
+it is not an atomic transaction across running targets. Legacy `debug_bridge_list` is unchanged.
+
+Each operation contains `id`, `name`, `mode`, optional-in-meaning `session_id` (empty when absent),
+`connection`, `target_state`, `last_target_state`, `tunnel_state`, `source`, `client`, `updated_at`,
+`stale`, and `ports`. `client` contains public authenticated `client_id`, `name`, and `kind`;
+empty identity means unknown/local, never a verified human. Association uses the full Session ID,
+not a short reference or endpoint. Missing Session metadata must not be matched to a replacement.
+
+Modes are `serial_bridge`, `managed`, `tcp`, `ssh_tunnel`, `ssh_stdio`, `ssh_terminal`, and
+`ssh_terminal_tcp`. Connection evidence is independent of target state (`unknown`, `running`,
+`stopped`, `exited`). Serial bridges retain their listening/connected/disconnected/recovering
+states; an authenticated bridge connection does not prove the target is running or stopped.
+Managed state comes from the existing GDB/MI controller. Managed debugging uses its existing
+Unix-socket/serial relay and has no invented TCP target port; its Linux restrictions remain.
+
+Every port entry has `role`, `perspective`, `configured`, `address`, `port`, and `state`:
+
+| Role | Meaning |
+| --- | --- |
+| `authenticated_bridge` | Actual Host TLS bridge listener, not a bare RSP target. |
+| `local_forward` | Executor's local SSH forwarding endpoint. |
+| `ssh` | SSH server endpoint, including any explicit non-default port. |
+| `target` | Debug target endpoint; tunnel targets use the remote host's perspective. |
+
+`state` is `observed`, `unknown`, or `not_applicable`. Only observed endpoints carry a nonzero
+numeric `port` and `address`; configured endpoints remain separate, may contain port zero and
+are not evidence of a bound listener. IPv6 uses `[address]:port`. No DNS resolution or connection
+probe occurs. `perspective` is `host`, `executor`, or `remote`. SSH stdio and remote local GDB
+have a non-applicable target TCP port. SSH-terminal TCP debugging retains a separate target role.
+
+### External registration and structured reports
+
+`debug_observation_register` requires write authorization and accepts:
+
+- `owner`: private 32..128-character capability; never publish it in metadata.
+- `request_id`: 1..128 characters, deduplicated under the authenticated client. Exact retries
+  return the original operation; conflicting reuse fails.
+- `name`: nonempty printable UTF-8 display name, at most 128 bytes.
+- `mode`: `tcp`, `ssh_tunnel`, `ssh_stdio`, `ssh_terminal`, or `ssh_terminal_tcp`.
+- `executor`: `manual` or `mi`. This declares the integration path, not trusted provenance.
+- `session_id`: optional full ID; SSH-terminal modes require an existing SSH Session.
+- `ports`: optional role objects with configured endpoints only. Missing roles are explicitly
+  unknown/non-applicable; duplicate/irrelevant roles and invented stdio target ports fail.
+
+It returns `{operation}` with an opaque `OBS-...` ID. Registration performs no target/process I/O
+and grants no input lease. Manual registration remains unobserved. Registrations are in-memory
+and retained until Host restart, including ended operations; the 128-item bound rejects further
+registration rather than growing without limit. There is no speculative process discovery.
+
+`debug_observation_report` accepts `id`, `owner`, increasing `sequence` (1..9007199254740991),
+`connection` (`unknown`, `connecting`, `connected`, `disconnected`), optional `mi` (one structured
+GDB/MI record, at most 8192 bytes), and `ports` containing the current endpoint evidence.
+`ssh_tunnel` also requires independent `tunnel_state` using the same connection states; other
+modes omit it or use `not_applicable`. Configured endpoints cannot change. Omitted observed
+endpoints become unknown. The registering authenticated client and owner must both match;
+credentials cannot report as another client. It returns `{operation}`. Manual registrations
+cannot report an observed state. A new MI registration is needed to install a structured observer.
+
+Reports are always labelled `source=client_report`, even when MI parses successfully. The adapter
+extracts running/stopped/exited transitions, discards raw MI text and never injects commands into
+an existing GDB. An executor should forward its own MI stream and report connection/endpoint
+changes plus a fresh connection snapshot at intervals shorter than 30 seconds. Replaying the
+latest identical sequence is idempotent and does not refresh time; conflicting/older sequences
+fail. A fresh connected snapshot with no MI does not itself prove a running/stopped target.
+After 30 seconds without a new report, current connection/target state becomes unknown and
+`stale=true`; the last observed target state remains separately available. Disconnect likewise
+invalidates current target state. Neither reporting nor observation extends debugger leases.
+
+The Host timestamp is receipt time, not proof of when an external target changed. Reports require
+caller redaction of unrelated secrets; do not send raw RSP, credentials, expressions or program
+output merely to drive this overview. Reporting failures must not trigger debugger commands or
+automatic re-execution. Manual shell GDB that has no registered structured observer is not detected.

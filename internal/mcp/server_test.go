@@ -67,6 +67,7 @@ func TestServerListsAndUsesTerminalTools(t *testing.T) {
 	want := map[string]bool{
 		"terminal_enter_uboot": true, "terminal_export_diagnostics": true, "terminal_read_diagnostic": true,
 		"debug_start": true, "debug_command": true, "debug_events": true, "debug_stop": true,
+		"debug_overview": true, "debug_observation_register": true, "debug_observation_report": true,
 		"debug_bridge_list": true, "debug_bridge_start": true, "debug_bridge_status": true, "debug_bridge_renew": true, "debug_bridge_close": true, "debug_bridge_restore": true, "debug_bridge_report": true,
 		"terminal_close": true, "terminal_list_serial_ports": true, "terminal_list_sessions": true,
 		"terminal_open_serial": true, "terminal_read": true, "terminal_read_activity": true,
@@ -79,6 +80,7 @@ func TestServerListsAndUsesTerminalTools(t *testing.T) {
 	wantOutputProperty := map[string]string{
 		"terminal_enter_uboot": "status", "terminal_export_diagnostics": "diagnostic_id", "terminal_read_diagnostic": "data",
 		"debug_start": "status", "debug_stop": "status", "debug_command": "record", "debug_events": "events",
+		"debug_overview": "operations", "debug_observation_register": "operation", "debug_observation_report": "operation",
 		"debug_bridge_list": "bridges", "debug_bridge_start": "connection", "debug_bridge_status": "status", "debug_bridge_renew": "status", "debug_bridge_close": "status", "debug_bridge_restore": "status", "debug_bridge_report": "sequence",
 		"terminal_close":                        "closed",
 		"terminal_list_serial_ports":            "ports",
@@ -109,6 +111,7 @@ func TestServerListsAndUsesTerminalTools(t *testing.T) {
 	}
 	wantTitle := map[string]string{
 		"terminal_enter_uboot": "Enter U-Boot", "terminal_export_diagnostics": "Export Session Diagnostics", "terminal_read_diagnostic": "Download Diagnostic Archive",
+		"debug_overview": "Read Unified GDB Overview", "debug_observation_register": "Register External Debug Observation", "debug_observation_report": "Report Structured Debug Observation",
 		"debug_bridge_list": "List External GDB Bridge Ports", "debug_bridge_start": "Open External GDB Bridge", "debug_bridge_status": "Read External GDB Bridge Status", "debug_bridge_renew": "Renew External GDB Bridge", "debug_bridge_close": "Close External GDB Bridge and Session", "debug_bridge_restore": "Verify Terminal Restoration after RSP", "debug_bridge_report": "Report External GDB Activity from Codex",
 		"debug_start": "Start User-Space Debugging", "debug_command": "Control GDB", "debug_events": "Read Debug Events", "debug_stop": "End User-Space Debugging",
 		"terminal_close":                        "Close Terminal Session",
@@ -140,6 +143,7 @@ func TestServerListsAndUsesTerminalTools(t *testing.T) {
 	}
 	readOnlyAnnotations := map[string]bool{
 		"terminal_read_diagnostic": true,
+		"debug_overview":           true,
 		"debug_bridge_list":        true,
 		"debug_bridge_status":      true,
 		"terminal_list_sessions":   true, "terminal_read": true, "terminal_read_activity": true,
@@ -204,7 +208,7 @@ func TestServerListsAndUsesTerminalTools(t *testing.T) {
 			t.Errorf("terminal_write description must route file uploads to the existing CLI: %q", registered.Description)
 		}
 		assertOutputSchema(t, registered, wantOutputProperty[registered.Name])
-		assertToolAnnotations(t, registered, readOnlyAnnotations[registered.Name], destructiveAnnotations[registered.Name], openWorldAnnotations[registered.Name], registered.Name == "terminal_release_lease" || registered.Name == "debug_start" || registered.Name == "debug_command" || registered.Name == "debug_stop" || registered.Name == "debug_bridge_start" || registered.Name == "debug_bridge_close" || registered.Name == "debug_bridge_restore" || registered.Name == "debug_bridge_report")
+		assertToolAnnotations(t, registered, readOnlyAnnotations[registered.Name], destructiveAnnotations[registered.Name], openWorldAnnotations[registered.Name], registered.Name == "terminal_release_lease" || registered.Name == "debug_start" || registered.Name == "debug_command" || registered.Name == "debug_stop" || registered.Name == "debug_bridge_start" || registered.Name == "debug_bridge_close" || registered.Name == "debug_bridge_restore" || registered.Name == "debug_bridge_report" || registered.Name == "debug_observation_register" || registered.Name == "debug_observation_report")
 		if registered.Title != wantTitle[registered.Name] {
 			t.Errorf("%s title = %q, want %q", registered.Name, registered.Title, wantTitle[registered.Name])
 		}
@@ -333,6 +337,7 @@ func TestStreamableHTTPServerListsAndUsesTerminalTools(t *testing.T) {
 		want := map[string]bool{
 			"terminal_enter_uboot": true, "terminal_export_diagnostics": true, "terminal_read_diagnostic": true,
 			"debug_start": true, "debug_command": true, "debug_events": true, "debug_stop": true,
+			"debug_overview": true, "debug_observation_register": true, "debug_observation_report": true,
 			"debug_bridge_list": true, "debug_bridge_start": true, "debug_bridge_status": true, "debug_bridge_renew": true, "debug_bridge_close": true, "debug_bridge_restore": true, "debug_bridge_report": true,
 			"terminal_close": true, "terminal_list_serial_ports": true, "terminal_list_sessions": true,
 			"terminal_open_serial": true, "terminal_read": true, "terminal_read_activity": true,

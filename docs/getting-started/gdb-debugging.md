@@ -632,3 +632,43 @@ the port, and only a verified restore resumes normal writes. Windows/WSL2/Linux-
 that environment and must be reported separately from Linux PTY simulation and cross-builds.
 Collect `bridge_id`, lifecycle state/error, lease state, relevant target logs, and the exact test
 commands if behavior differs. Never include the owner, connection token, or private descriptor.
+
+## Observe all registered debug paths
+
+```sh
+channelterm gdb-list --all
+channelterm gdb-list --all --json
+```
+
+These query the existing Host's unified read-only snapshot. Omitting `--all` preserves the
+external serial bridge table and `{endpoint, bridges}` JSON contract. The new JSON mode uses
+`{endpoint, observed_at, operations}`. Electron's Debug sidebar consumes the same snapshot;
+opening it does not attach a terminal or acquire debugger control. Managed GDB's same-Linux
+prerequisites still apply, and an old Host without the observation tool reports unavailable.
+
+Independent TCP/OpenSSH/remote-terminal debuggers must be explicitly registered. Use the
+[observation tools](../reference/mcp-tools.md#external-registration-and-structured-reports) from
+an authenticated executor. For example, a client that owns a GDB/MI process can register:
+
+```json
+{"owner":"EXAMPLE-PRIVATE-OWNER-REPLACE-WITH-RANDOM","request_id":"example-tcp-1","name":"Board TCP","mode":"tcp","executor":"mi","ports":[{"role":"target","configured":"192.0.2.10:2345"}]}
+```
+
+Pass this to `debug_observation_register`, retain the returned operation ID privately with the
+owner, then send observed evidence to `debug_observation_report`:
+
+```json
+{"id":"OBS-example","owner":"EXAMPLE-PRIVATE-OWNER-REPLACE-WITH-RANDOM","sequence":1,"connection":"connected","mi":"*stopped,reason=\"breakpoint-hit\"","ports":[{"role":"target","address":"192.0.2.10:2345"}]}
+```
+
+The sample is illustrative; only report actual evidence from the executor's own MI connection.
+This does not launch GDB or verify the address. Client reports remain labelled separately from
+Host-managed observations. Send increasing snapshots more frequently than 30 seconds and report
+disconnection promptly. A lost response can retry the latest exact report; do not restart target
+commands. No owner capability is needed to read the overview.
+
+For manual inventory use `executor=manual`, which keeps state unknown. SSH-tunnel registrations
+include `local_forward`, `ssh` and remote `target` roles; SSH stdio and SSH-terminal local GDB
+have no target TCP port. Terminal modes require the full SSH Session ID. This observation API
+supports integration with external executors, not an automatic wrapper around arbitrary GDB
+processes or a new GDB launcher. Existing interactive shell sessions remain untouched.

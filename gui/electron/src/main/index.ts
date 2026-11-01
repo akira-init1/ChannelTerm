@@ -540,6 +540,7 @@ function createHandlers(context: WindowContext): Record<string, Handler> {
     [channels.resolveTransferCancel]: (id, confirm) =>
       context.transferConfirmation.resolve(id, confirm),
     [channels.list]: () => currentHost(context).list(),
+    [channels.debugOverview]: () => currentHost(context).debugOverview(),
     [channels.serialProfiles]: () => currentHost(context).serialProfiles(),
     [channels.changeSerialProfile]: (request) =>
       currentHost(context).changeSerialProfile(request),

@@ -17,13 +17,13 @@ func terminalToolAnnotations(name string) (*protocol.ToolAnnotations, bool) {
 		// Creates a bounded Host-local evidence archive without terminal writes.
 	case "terminal_read_diagnostic":
 		readOnly = true
-	case "debug_bridge_report":
+	case "debug_observation_register", "debug_observation_report", "debug_bridge_report":
 		idempotent = true // Sequence retries never duplicate a report.
 	case "debug_bridge_start", "debug_bridge_close", "debug_bridge_restore", "debug_start", "debug_command", "debug_stop":
 		destructive = true
 		openWorld = true
 		idempotent = true
-	case "debug_bridge_list", "debug_bridge_status":
+	case "debug_overview", "debug_bridge_list", "debug_bridge_status":
 		readOnly = true
 	case "debug_bridge_renew", "debug_events":
 		// Reading events extends the debug heartbeat.

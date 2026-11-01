@@ -178,6 +178,7 @@ func terminalToolsForApplication(application *app.Application) []tool.Tool {
 	tools := serialToolsForApplication(application)
 	tools = append(tools, debugToolsForApplication(application)...)
 	tools = append(tools, bridgeToolsForApplication(application)...)
+	tools = append(tools, debugObservationTools(application)...)
 	return append(tools, sessionToolsForApplication(application)...)
 }
 

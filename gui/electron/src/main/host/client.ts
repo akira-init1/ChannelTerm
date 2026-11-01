@@ -1,3 +1,4 @@
+import { debugOverview } from "./debug";
 import { RemoteSize } from "./resize";
 import { ActivityFeed } from "./activity";
 import { diagnosticMetadata, downloadDiagnostic } from "./diagnostics";
@@ -358,6 +359,22 @@ export class HostClient {
       throw new ToolFailure(text(details.code));
     }
     return object(result.structuredContent);
+  }
+
+  private debugPending = false;
+  async debugOverview() {
+    if (this.debugPending)
+      throw new HostError("busy", "Debug observation is in progress.");
+    this.debugPending = true;
+    const connection = this.connection;
+    try {
+      const result = await this.call("debug_overview", {}, connection.signal);
+      if (connection.signal.aborted || connection !== this.connection)
+        throw new HostError("cancelled", "Debug observation ended.");
+      return debugOverview(result);
+    } finally {
+      this.debugPending = false;
+    }
   }
 
   async list(): Promise<SessionSummary[]> {
