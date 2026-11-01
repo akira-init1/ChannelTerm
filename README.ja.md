@@ -79,7 +79,7 @@ Host は実行中でなくてもかまいません。接続できない場合、
 
 完全なオプション仕様は [CLI リファレンス](docs/reference/cli.md#list)を参照してください。
 
-HTTP を設定する前に、[認証情報の設定と移行手順](docs/getting-started/mcp-server.md#http-credential-upgrade)に従って独立した AI 認証情報を登録し、設定コマンド用に `CHANNELTERM_HTTP_AUTH_TOKEN` を指定してください。新しい AI 認証情報は、書き込みを明示的に許可するまで読み取り専用です。その後、次のコマンドを実行して HTTP を選択し、AI クライアントを再読み込みします。以下の書き込み例にはこの許可が必要です。旧共有 token は拒否されます。
+HTTP を設定する前に、[認証情報の設定と移行手順](docs/getting-started/http-authentication-migration.md)に従って独立した AI 認証情報を登録し、設定コマンド用に `CHANNELTERM_HTTP_AUTH_TOKEN` を指定してください。新しい AI 認証情報は、書き込みを明示的に許可するまで読み取り専用です。その後、次のコマンドを実行して HTTP を選択し、AI クライアントを再読み込みします。以下の書き込み例にはこの許可が必要です。旧共有 token は拒否されます。
 
 ```bash
 channelterm init --mcp

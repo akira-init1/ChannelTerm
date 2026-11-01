@@ -26,6 +26,7 @@ for command-line flags and defaults, the running program's `--help` output remai
 - [Transfer files over a shared Session or SFTP/SCP](getting-started/file-transfer.md)
 - [Debug Linux programs with managed GDB, serial RSP, or SSH/network GDB](getting-started/gdb-debugging.md)
 - [Run the MCP server](getting-started/mcp-server.md)
+- [Migrate HTTP authentication from v0.4.2 or independent-credential development builds](getting-started/http-authentication-migration.md)
 - [Troubleshoot common failures](getting-started/troubleshooting.md)
 
 ## Agent Skills

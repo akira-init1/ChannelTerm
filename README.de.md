@@ -80,7 +80,7 @@ Geräte und Profile weiterhin an.
 
 Den vollständigen Optionsvertrag finden Sie in der [CLI-Referenz](docs/reference/cli.md#list).
 
-Registrieren Sie für HTTP zuerst eigene KI-Zugangsdaten und setzen Sie `CHANNELTERM_HTTP_AUTH_TOKEN` für den Konfigurationsbefehl gemäß [Einrichtung und Migration](docs/getting-started/mcp-server.md#http-credential-upgrade). Neue KI-Zugangsdaten erlauben nur Lesen, bis Schreibzugriff ausdrücklich freigegeben wird. Führen Sie dann den folgenden Befehl aus, wählen Sie HTTP und laden Sie den KI-Client neu. Die folgenden Schreibbeispiele setzen diese Freigabe voraus. Alte gemeinsame Tokens werden abgewiesen.
+Registrieren Sie für HTTP zuerst eigene KI-Zugangsdaten und setzen Sie `CHANNELTERM_HTTP_AUTH_TOKEN` für den Konfigurationsbefehl gemäß [Einrichtung und Migration](docs/getting-started/http-authentication-migration.md). Neue KI-Zugangsdaten erlauben nur Lesen, bis Schreibzugriff ausdrücklich freigegeben wird. Führen Sie dann den folgenden Befehl aus, wählen Sie HTTP und laden Sie den KI-Client neu. Die folgenden Schreibbeispiele setzen diese Freigabe voraus. Alte gemeinsame Tokens werden abgewiesen.
 
 ```bash
 channelterm init --mcp

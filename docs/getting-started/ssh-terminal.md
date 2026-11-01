@@ -109,7 +109,7 @@ by default. No input is replayed, and reconnection still requires a new command.
 The default Host listens only on `127.0.0.1:37099/mcp` and requires ChannelTerm Bearer
 authentication. Its foreground owner uses a separate local management credential. The retired
 shared token is rejected; independent AI credentials require an explicit write grant. See the
-[HTTP migration workflow](mcp-server.md#http-credential-upgrade). SSH private keys stay in the
+[HTTP migration workflow](http-authentication-migration.md). SSH private keys stay in the
 opening process and never enter Session metadata.
 
 If another Host already occupies the default address, SSH fails before opening a remote connection.

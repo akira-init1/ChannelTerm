@@ -229,9 +229,9 @@ legal notices in the same change; do not add/remove attribution without a concre
 
 ## 8. Git and Commit Messages
 
-- On `main`/`master`, create a focused `feature/`, `fix/`, `refactor/`, `docs/`, or `chore/` branch before editing unless explicitly told to work directly there. Continue an appropriate existing branch, including its tests/docs/follow-up fixes.
+- Continue an appropriate existing branch, including its tests/docs/follow-up fixes. On `main`/`master`, obtain explicit authorization to create/switch to a focused branch or work directly there before editing; use the branch names below. Do not create or switch branches automatically.
 - Never push directly to `main`/`master`; default-branch changes go through a PR. Force-pushing/history rewriting requires an explicit maintainer request.
-- Every completed repository modification must hand off verified task changes staged. Do not stage unfinished work or work with failed required checks. Do not commit or push automatically.
+- Every completed repository modification must hand off verified task changes staged; this workflow authorizes staging those changes without a separate confirmation. Do not stage unfinished work or work with failed required checks. Provide the exact Conventional Commit command for the user to execute; do not commit or push automatically.
 - Before staging, inspect `git status`, `git diff`, and `git diff --check`. Stage only explicit task paths with `git add path/to/file`; never `git add .`/`git add -A` without an explicit request.
 - Preserve unrelated working-tree/index changes. For mixed files, safely isolate task hunks; otherwise leave them unstaged and explain why. Verify the task's index changes with `git diff --cached --stat` and the staged diff as needed. Report pre-existing staged work separately.
 - One independently acceptable feature/fix/refactor normally fits one final commit with its tests/docs. Do not split by file count or require contributors to have only one historical commit.
@@ -276,7 +276,7 @@ create/modify releases, change the license, or run `git reset --hard`, `git clea
    - `main` is the primary integration branch.
    - Develop independent features and fixes on short-lived branches.
    - After validation and approval, merge completed work into `main`.
-   - Create subsequent feature branches from the latest `main` whenever practical.
+   - When explicitly authorized to create a subsequent feature branch, base it on the latest `main` whenever practical.
    - Do not use permanent branches for individual GUI frameworks or features.
    - Do not automatically create, rename, switch, merge, or delete branches without explicit authorization.
 
@@ -299,7 +299,8 @@ create/modify releases, change the license, or run `git reset --hard`, `git clea
 5. **Completion and integration**
    - Run relevant tests and checks before recommending integration.
    - Report changes, test results, compatibility impact, and remaining limitations.
-   - Do not automatically stage, commit, push, merge, or publish without explicit user approval.
+   - Stage only verified task changes under the staging rules above, then provide the exact Conventional Commit command for the user to execute.
+   - Do not commit, push, merge, or publish without explicit user approval.
 
 ## 9. Maintaining This File
 

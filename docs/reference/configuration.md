@@ -74,7 +74,7 @@ private store/local-token files, then atomically publishes the public identity m
 Default migration reads an existing `http-auth-token` once; it never creates it or accepts it for
 HTTP authentication. Once the manifest exists, deleting or changing legacy files cannot affect the
 new identity. Corrupt identity/registration files fail closed; a missing store is not reset.
-See [migration and old-file cleanup](../getting-started/mcp-server.md#http-credential-upgrade).
+See [migration and old-file cleanup](../getting-started/http-authentication-migration.md).
 
 ## TOML schema
 
@@ -290,4 +290,4 @@ operation or its cleanup. It can prevent later protocol calls needed by a multi-
 operation; finish or cancel that operation normally before revoking. Existing lease
 expiry/recovery rules still apply. This is request authorization, not an emergency stop,
 per-Session human takeover, or OS-level isolation. Stdio/local process access remains
-trusted and unchanged. See the [upgrade workflow](../getting-started/mcp-server.md#http-credential-upgrade).
+trusted and unchanged. See the [upgrade workflow](../getting-started/http-authentication-migration.md).

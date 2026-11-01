@@ -80,7 +80,7 @@ offline y sigue mostrando los dispositivos y Profile locales.
 
 Consulta la [referencia de CLI](docs/reference/cli.md#list) para ver el contrato completo de opciones.
 
-Para configurar HTTP, registra primero una credencial independiente de IA y define `CHANNELTERM_HTTP_AUTH_TOKEN` para el comando de configuración, siguiendo la [guía de configuración y migración](docs/getting-started/mcp-server.md#http-credential-upgrade). Las credenciales nuevas son de solo lectura hasta autorizar explícitamente la escritura. Después ejecuta el comando siguiente, elige HTTP y recarga el cliente de IA. Los ejemplos de escritura requieren esa autorización. Los antiguos tokens compartidos se rechazan.
+Para configurar HTTP, registra primero una credencial independiente de IA y define `CHANNELTERM_HTTP_AUTH_TOKEN` para el comando de configuración, siguiendo la [guía de configuración y migración](docs/getting-started/http-authentication-migration.md). Las credenciales nuevas son de solo lectura hasta autorizar explícitamente la escritura. Después ejecuta el comando siguiente, elige HTTP y recarga el cliente de IA. Los ejemplos de escritura requieren esa autorización. Los antiguos tokens compartidos se rechazan.
 
 ```bash
 channelterm init --mcp

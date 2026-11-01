@@ -92,10 +92,11 @@ attachment-owned Host returns `X-ChannelTerm-Host-Lifetime: attachment` on every
 response so clients can distinguish it from a separately started persistent Host. The header does
 not change tool schemas or result objects.
 
-Legacy shared credentials and newly registered AI credentials are read-only. Explicit local grants
-enable AI device operations; management remains separate. Rejected tool invocations return
+Retired shared credentials are rejected with HTTP 401. Newly registered AI credentials are
+read-only until explicit local grants enable device operations; management remains separate.
+Tool invocations rejected by authorization return
 `isError: true` with `error.code: permission_denied` before the tool runs. Descriptive MCP annotations
-do not authorize operations. See the [HTTP upgrade workflow](../getting-started/mcp-server.md#http-credential-upgrade).
+do not authorize operations. See the [HTTP upgrade workflow](../getting-started/http-authentication-migration.md).
 
 ## Common cursor rules
 

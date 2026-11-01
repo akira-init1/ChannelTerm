@@ -75,7 +75,7 @@ local devices and profiles.
 
 See the [CLI reference](docs/reference/cli.md#list) for the complete option contract.
 
-For HTTP setup, first register an independent AI credential and set `CHANNELTERM_HTTP_AUTH_TOKEN` for the configuration command, following the [credential setup and migration workflow](docs/getting-started/mcp-server.md#http-credential-upgrade). New AI credentials are read-only until explicitly granted writes. Then run the command below, choose HTTP, and reload the AI client. The following AI writing examples require that grant. Retired shared tokens are rejected.
+For HTTP setup, first register an independent AI credential and set `CHANNELTERM_HTTP_AUTH_TOKEN` for the configuration command, following the [credential setup and migration workflow](docs/getting-started/http-authentication-migration.md). New AI credentials are read-only until explicitly granted writes. Then run the command below, choose HTTP, and reload the AI client. The following AI writing examples require that grant. Retired shared tokens are rejected.
 
 ```bash
 channelterm init --mcp

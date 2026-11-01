@@ -488,7 +488,7 @@ stop the affected work and are surfaced to the UI. Reconnection is explicit.
 Main reads the Host-created independent local management credential or an explicit process
 environment credential. It never upgrades an explicit read-only/invalid credential or falls back
 to the retired shared token. Main locates the management credential using the public
-`http-host.json` identity, not a token hash. See the [credential migration](../getting-started/mcp-server.md#http-credential-upgrade). No credential goes through
+`http-host.json` identity, not a token hash. See the [credential migration](../getting-started/http-authentication-migration.md). No credential goes through
 Preload, React, URL parameters, local storage, or renderer error messages. The prototype permits
 only numeric loopback HTTP endpoints, refuses redirects, bounds request durations, and requires
 the expected MCP server identity. It never opens devices directly; only the fixed local companion startup path may start a Host, and

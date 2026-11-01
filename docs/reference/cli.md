@@ -970,4 +970,4 @@ cannot be used as a credential. See [credential storage and boundaries](configur
 `clients migrate --legacy-token-file FILE` imports an existing legacy registration domain before
 `http-host.json` exists. It preserves independent client credentials and grants, never enables the
 old shared token, and refuses to merge or overwrite an initialized Host. Stop old Hosts first; see
-[the migration workflow](../getting-started/mcp-server.md#http-credential-upgrade).
+[the migration workflow](../getting-started/http-authentication-migration.md).

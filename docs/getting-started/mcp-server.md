@@ -11,7 +11,7 @@ structured partial evidence on failure.
 ## Configure supported MCP clients
 
 To add ChannelTerm to installed or already configured Codex, Claude Code, OpenCode, and Zoo Code
-clients, first [register a client credential](#http-credential-upgrade), set it in
+clients, first [register a client credential](http-authentication-migration.md), set it in
 `CHANNELTERM_HTTP_AUTH_TOKEN` for the configuration command, then run:
 
 ```powershell
@@ -247,62 +247,5 @@ GDB commands. Connection credentials differ from MCP authentication and must rem
 
 ## HTTP credential upgrade
 
-Upgrade the Host and bundled CLI/Electron together. Finish device operations, then stop old Hosts
-and local credential-administration commands before migration. Old processes retain their old
-permissions and registrations until stopped; upgrading files alone does not revoke them. Existing
-Sessions belong to the old process and are not restored by an upgrade.
-
-On first use without `http-host.json`, the new version imports the registration table selected by
-the existing default `http-auth-token`, preserving all client IDs, names, grants, credential digests
-and any valid local management token. It never registers the old shared token. The new Host rejects
-that token with HTTP 401 for both reads and writes. If only the old token exists, first use creates
-a fresh identity and local management registration; AI clients need new independent credentials.
-
-For custom legacy domains or multiple old registration tables, migration refuses to guess. Select
-the intended authentication directory with `CHANNELTERM_HOST_CONFIG_DIR` and run
-`channelterm clients migrate --legacy-token-file PATH` before initialization. PATH contains the old
-shared token, not an AI token; the matching old table must be in the selected directory. Keep
-separate domains in separate directories. Explicit migration refuses to overwrite an initialized
-Host or merge unrelated domains. Repair corrupt files or an invalid/revoked local credential
-before retrying; failed validation never publishes a new identity.
-
-After starting the new Host, verify existing independent credentials and grants still work, and
-that the old shared token receives 401. Once verified, old `http-auth-token`, its `.lock`, and the
-selected old `http-clients-<SHA-256-of-old-token>.json` / `.local-token` / adjacent lock files can be
-removed or archived privately: they are retained as backups, never consulted again after migration.
-Keep `http-host.json`, `http-clients-H-<id>.json` and its `.local-token`. Deleting old backups is not
-part of automatic migration. Downgrading can re-enable old authorization and cannot read new-domain
-changes; do not run old and new versions against the same live authentication state.
-
-For local CLI/Electron, unset an override containing the retired shared token to use the independent
-local management credential. For each AI client, use local administration under the Host account
-and matching `CHANNELTERM_HOST_CONFIG_DIR`:
-
-```powershell
-channelterm clients add --name "Board debugging agent" --kind agent --credential-file ./agent-token
-channelterm clients list
-channelterm clients grant CL-<ID-from-add>
-```
-
-`add` prints only public registration JSON and refuses to overwrite the credential file. The new
-agent is read-only until `grant`; this grant covers device operations on the whole Host, not a
-single Session. Give the issued token only to that client. In a separate client-configuration shell,
-set `CHANNELTERM_HTTP_AUTH_TOKEN` from this private file and use `channelterm init --mcp-show codex`
-(or the other supported client name) to generate the matching configuration. The printed
-configuration contains the secret: keep it private. Update the existing client entry/header;
-`init --mcp` intentionally does not replace existing entries. Reload that client afterward.
-Pass the same independent credential to any CLI transfer executor so attribution is preserved.
-
-Verify a list/read succeeds before granting; a write must return `permission_denied`. After the
-explicit grant, test an intended safe operation on the selected target. `clients revoke CL-...`
-restores read-only access for new requests; `clients remove CL-...` rejects all future requests.
-Revocation does not stop an already accepted command/transfer/debug operation. End it through its
-normal cancellation/recovery path first, then revoke. Do not treat a permission error as proof that
-previous device actions stopped or retry uncertain writes automatically.
-
-Agent grants allow the caller's capability-bound device/lease/debug workflows. They do not permit
-arbitrary `terminal_close`, cancellation of another transfer, or desktop configuration/SSH
-management routes. New unclassified tools default to management-only. Observation and
-attachment/detachment bookkeeping remain available without write permission. Raw output, Session
-IDs and sharing are unchanged. Stdio and local process execution retain the local OS account's
-trust; credentials do not sandbox an AI with access to that account or private configuration.
+See [HTTP authentication migration](http-authentication-migration.md) for the v0.4.2/current
+architecture diagrams, contract comparison, upgrade paths, verification and retired-file cleanup.

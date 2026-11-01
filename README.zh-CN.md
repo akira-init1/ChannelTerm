@@ -74,7 +74,7 @@ Profile。
 
 完整参数契约见 [CLI 参考](docs/reference/cli.md#list)。
 
-配置 HTTP 前，先按[凭据配置与迁移流程](docs/getting-started/mcp-server.md#http-credential-upgrade)注册独立 AI 凭据，并为配置命令设置 `CHANNELTERM_HTTP_AUTH_TOKEN`。新 AI 凭据默认只读，写入需要显式授权。然后运行下面的命令、选择 HTTP 并重新加载 AI 客户端。下方 AI 写入示例均要求该授权。旧共享 token 已不再接受。
+配置 HTTP 前，先按[凭据配置与迁移流程](docs/getting-started/http-authentication-migration.md)注册独立 AI 凭据，并为配置命令设置 `CHANNELTERM_HTTP_AUTH_TOKEN`。新 AI 凭据默认只读，写入需要显式授权。然后运行下面的命令、选择 HTTP 并重新加载 AI 客户端。下方 AI 写入示例均要求该授权。旧共享 token 已不再接受。
 
 ```bash
 channelterm init --mcp
