@@ -158,7 +158,8 @@ func waitSSHOutput(t *testing.T, output *lockedBuffer, expected string) string {
 
 // TestSSHCommandSharesShellWithAttach verifies authenticated shared reads/writes and owner cleanup.
 func TestSSHCommandSharesShellWithAttach(t *testing.T) {
-	t.Setenv(httpAuthTokenEnvVar, "test-ssh-host-token")
+	t.Setenv(config.HostConfigDirectoryEnv, t.TempDir())
+	t.Setenv(httpAuthTokenEnvVar, "")
 	args, closed := sshCommandServer(t)
 	args = append(args, "--keepalive-interval", "50ms", "--keepalive-count", "3", "--write-timeout", "2s")
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -280,7 +281,8 @@ func TestSSHCommandHelpAndValidation(t *testing.T) {
 
 // TestSSHCommandRejectsUntrustedHostAndOccupiedListener protects host verification and existing listeners.
 func TestSSHCommandRejectsUntrustedHostAndOccupiedListener(t *testing.T) {
-	t.Setenv(httpAuthTokenEnvVar, "test-ssh-host-token")
+	t.Setenv(config.HostConfigDirectoryEnv, t.TempDir())
+	t.Setenv(httpAuthTokenEnvVar, "")
 	t.Run("unknown-host", func(t *testing.T) {
 		args, _ := sshCommandServer(t)
 		empty := filepath.Join(t.TempDir(), "known_hosts")
@@ -310,7 +312,8 @@ func TestSSHCommandRejectsUntrustedHostAndOccupiedListener(t *testing.T) {
 
 // TestSSHCommandCancelledSetup ensures cancellation reaches the Application boundary.
 func TestSSHCommandCancelledSetup(t *testing.T) {
-	t.Setenv(httpAuthTokenEnvVar, "test-ssh-host-token")
+	t.Setenv(config.HostConfigDirectoryEnv, t.TempDir())
+	t.Setenv(httpAuthTokenEnvVar, "")
 	args, _ := sshCommandServer(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -323,7 +326,8 @@ func TestSSHCommandCancelledSetup(t *testing.T) {
 // TestSSHCommandTerminationClosesLiveObservers covers outstanding HTTP long
 // reads during shutdown, not just an already-detached secondary client.
 func TestSSHCommandTerminationClosesLiveObservers(t *testing.T) {
-	t.Setenv(httpAuthTokenEnvVar, "test-ssh-host-token")
+	t.Setenv(config.HostConfigDirectoryEnv, t.TempDir())
+	t.Setenv(httpAuthTokenEnvVar, "")
 	args, closed := sshCommandServer(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -400,7 +404,8 @@ func TestSSHCLIHelperProcess(t *testing.T) {
 
 // TestSSHAndAttachAcrossProcesses checks two independent CLI processes share SSH output and detach separately.
 func TestSSHAndAttachAcrossProcesses(t *testing.T) {
-	t.Setenv(httpAuthTokenEnvVar, "test-ssh-process-token")
+	t.Setenv(config.HostConfigDirectoryEnv, t.TempDir())
+	t.Setenv(httpAuthTokenEnvVar, "")
 	args, closed := sshCommandServer(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
@@ -470,14 +475,10 @@ func TestSSHAndAttachAcrossProcesses(t *testing.T) {
 }
 
 // sshTestClientContext models the explicitly registered local observer after
-// the shared-token read-only migration. It never changes the server token.
+// independent-credential migration. It never changes explicit client tokens.
 func sshTestClientContext(t *testing.T, ctx context.Context) context.Context {
 	t.Helper()
-	legacy, err := loadHTTPAuthToken()
-	if err != nil {
-		t.Fatal(err)
-	}
-	store, err := config.DefaultClientStore(legacy)
+	store, err := config.DefaultClientStore()
 	if err != nil {
 		t.Fatal(err)
 	}

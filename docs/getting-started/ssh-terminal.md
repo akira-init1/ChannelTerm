@@ -107,8 +107,8 @@ by default. No input is replayed, and reconnection still requires a new command.
 ## Host lifetime and other listeners
 
 The default Host listens only on `127.0.0.1:37099/mcp` and requires ChannelTerm Bearer
-authentication. Its foreground owner uses a separate local management credential. The legacy
-shared token observes only; independent AI credentials require an explicit write grant. See the
+authentication. Its foreground owner uses a separate local management credential. The retired
+shared token is rejected; independent AI credentials require an explicit write grant. See the
 [HTTP migration workflow](mcp-server.md#http-credential-upgrade). SSH private keys stay in the
 opening process and never enter Session metadata.
 

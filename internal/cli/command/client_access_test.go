@@ -13,7 +13,7 @@ import (
 	protocol "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-func TestHTTPClientGrantsEnforceLegacyReadOnlyAndImmediateRevocation(t *testing.T) {
+func TestHTTPClientGrantsEnforceReadOnlyAndImmediateRevocation(t *testing.T) {
 	host := newAttachTestHost(t)
 	defer host.close()
 	store := config.ClientStore{Path: filepath.Join(t.TempDir(), "clients.json")}
@@ -21,7 +21,7 @@ func TestHTTPClientGrantsEnforceLegacyReadOnlyAndImmediateRevocation(t *testing.
 	if err != nil {
 		t.Fatal(err)
 	}
-	server := httptest.NewServer(requireClientToken("legacy", store, host.server.Config.Handler))
+	server := httptest.NewServer(requireClientToken(store, host.server.Config.Handler))
 	defer server.Close()
 	connect := func(credential string) *protocol.ClientSession {
 		t.Helper()
@@ -37,7 +37,7 @@ func TestHTTPClientGrantsEnforceLegacyReadOnlyAndImmediateRevocation(t *testing.
 		t.Cleanup(func() { _ = connected.Close() })
 		return connected
 	}
-	legacy, ai := connect("legacy"), connect(token)
+	ai := connect(token)
 	call := func(client *protocol.ClientSession, name string, args map[string]any, wantDenied bool) {
 		t.Helper()
 		result, err := client.CallTool(context.Background(), &protocol.CallToolParams{Name: name, Arguments: args})
@@ -56,7 +56,7 @@ func TestHTTPClientGrantsEnforceLegacyReadOnlyAndImmediateRevocation(t *testing.
 		}
 	}
 	write := map[string]any{"session_id": "board", "data": "test\n", "actor": "user"}
-	for _, client := range []*protocol.ClientSession{legacy, ai} {
+	for _, client := range []*protocol.ClientSession{ai} {
 		call(client, "terminal_list_sessions", map[string]any{}, false)
 		call(client, "terminal_read", map[string]any{"session_id": "board"}, false)
 		call(client, "terminal_write", write, true)
@@ -69,7 +69,6 @@ func TestHTTPClientGrantsEnforceLegacyReadOnlyAndImmediateRevocation(t *testing.
 	}
 	call(ai, "terminal_write", write, false)
 	call(ai, "terminal_close", map[string]any{"session_id": "board"}, true)
-	call(legacy, "terminal_write", write, true)
 	if err := store.SetWriteAllowed(agent.ID, false); err != nil {
 		t.Fatal(err)
 	}
@@ -90,8 +89,8 @@ func TestDesktopMutationsRequireManagementNotAgentWriteGrant(t *testing.T) {
 		access       app.ClientAccess
 		want         int
 	}{
-		{"legacy read", http.MethodGet, app.ClientAccess{}, 204},
-		{"legacy mutation", http.MethodPost, app.ClientAccess{}, 403},
+		{"agent read", http.MethodGet, app.ClientAccess{}, 204},
+		{"agent read-only mutation", http.MethodPost, app.ClientAccess{}, 403},
 		{"agent mutation", http.MethodPost, app.ClientAccess{Write: true}, 403},
 		{"management", http.MethodPost, app.ClientAccess{Write: true, Manage: true}, 204},
 	} {
@@ -109,7 +108,7 @@ func TestDesktopMutationsRequireManagementNotAgentWriteGrant(t *testing.T) {
 }
 
 func TestExplicitClientTokenNeverFallsBackToManagement(t *testing.T) {
-	t.Setenv("APPDATA", t.TempDir())
+	t.Setenv(config.HostConfigDirectoryEnv, t.TempDir())
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	t.Setenv(httpAuthTokenEnvVar, "explicit-read-only-credential")
 	got, err := loadHTTPClientToken()
@@ -121,15 +120,11 @@ func TestExplicitClientTokenNeverFallsBackToManagement(t *testing.T) {
 		t.Fatal("malformed explicit credential fell back to management")
 	}
 	t.Setenv(httpAuthTokenEnvVar, "")
-	legacy, err := loadHTTPAuthToken()
-	if err != nil {
-		t.Fatal(err)
-	}
 	got, err = loadHTTPClientToken()
-	if err != nil || got == legacy {
+	if err != nil {
 		t.Fatal("implicit local client still uses shared token")
 	}
-	store, err := config.DefaultClientStore(legacy)
+	store, err := config.DefaultClientStore()
 	if err != nil {
 		t.Fatal(err)
 	}

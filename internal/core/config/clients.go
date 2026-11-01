@@ -44,17 +44,6 @@ type clientFile struct {
 // to edit this file; this is not isolation from processes running as that account.
 type ClientStore struct{ Path string }
 
-// DefaultClientStore scopes registrations to the shared Host credential so an
-// independently configured Host does not inherit another Host's clients.
-func DefaultClientStore(hostToken string) (ClientStore, error) {
-	path, err := DefaultHTTPAuthTokenPath()
-	if err != nil {
-		return ClientStore{}, err
-	}
-	digest := sha256.Sum256([]byte(hostToken))
-	return ClientStore{Path: filepath.Join(filepath.Dir(path), "http-clients-"+hex.EncodeToString(digest[:])+".json")}, nil
-}
-
 // Register creates a named independent credential. The returned secret is shown
 // only once; callers must deliver it privately. Registrations are bounded to 128.
 func (s ClientStore) Register(name, kind string) (ClientIdentity, string, error) {

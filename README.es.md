@@ -80,17 +80,11 @@ offline y sigue mostrando los dispositivos y Profile locales.
 
 Consulta la [referencia de CLI](docs/reference/cli.md#list) para ver el contrato completo de opciones.
 
-Si un cliente de IA debe unirse a la Session, configura una vez un cliente compatible antes de
-conectarte:
+Para configurar HTTP, registra primero una credencial independiente de IA y define `CHANNELTERM_HTTP_AUTH_TOKEN` para el comando de configuración, siguiendo la [guía de configuración y migración](docs/getting-started/mcp-server.md#http-credential-upgrade). Las credenciales nuevas son de solo lectura hasta autorizar explícitamente la escritura. Después ejecuta el comando siguiente, elige HTTP y recarga el cliente de IA. Los ejemplos de escritura requieren esa autorización. Los antiguos tokens compartidos se rechazan.
 
 ```bash
 channelterm init --mcp
 ```
-
-Elige HTTP o pulsa Enter para usar el valor predeterminado. La credencial compartida predeterminada es de solo lectura.
-Antes de permitir escrituras de IA, registra una credencial independiente y autor?zala expl?citamente siguiendo la
-[migraci?n de credenciales HTTP](docs/getting-started/mcp-server.md#http-credential-upgrade).
-Recarga el cliente de IA despu?s del cambio; los ejemplos de escritura siguientes requieren esa autorizaci?n.
 
 Después ejecuta únicamente el comando correspondiente a tu plataforma:
 
@@ -155,11 +149,7 @@ Para obtener una guía de flujo reutilizable, instala el
 incluido en un cliente compatible con Agent Skills. `channelterm init --mcp` configura clientes
 MCP, pero no instala el Skill.
 
-El Host HTTP exige autenticaci?n Bearer y escucha solo en loopback de forma predeterminada. Los clientes
-CLI/Electron locales usan una credencial de administraci?n separada; los clientes de IA usan credenciales
-independientes con permisos de escritura expl?citos. Tambi?n puede [escuchar en una LAN de confianza](docs/getting-started/mcp-server.md#listen-on-a-lan).
-Los clientes remotos env?an su propia credencial en `Authorization`. No expongas el endpoint sin TLS y
-controles de acceso de red adicionales.
+El Host HTTP exige credenciales Bearer registradas y escucha solo en loopback de forma predeterminada. Los clientes CLI/Electron locales usan una credencial de administración separada; los clientes de IA usan credenciales independientes con permisos de escritura explícitos. También puede [escuchar en una LAN de confianza](docs/getting-started/mcp-server.md#listen-on-a-lan). Los clientes remotos envían su propia credencial en `Authorization`. No expongas el endpoint sin TLS y controles de acceso de red adicionales.
 
 <a id="ejemplos-de-flujos"></a>
 <a id="depuración-de-linux-embebido"></a>
@@ -360,10 +350,7 @@ Las referencias compartidas como `SER-1` solo son válidas dentro del proceso Ho
 
 ## Configuración
 
-`config.toml` contiene los perfiles serie y la política de conexión administrados por el usuario.
-`state.json` es el estado de identidad de dispositivos administrado por ChannelTerm.
-`http-auth-token` es el secreto usado para autenticar clientes MCP HTTP; no lo compartas ni lo
-incluyas en commits.
+`config.toml` contiene perfiles serie y la política de conexión; `state.json` guarda las identidades de dispositivos administradas. `http-host.json` selecciona el registro de clientes HTTP independientes mediante un ID público del Host. Los tokens de cliente son secretos: no los compartas ni los incluyas en commits.
 
 ```powershell
 # Guardar y reutilizar un perfil serie.
@@ -376,7 +363,7 @@ channelterm serial --config ./channelterm.toml --profile board
 
 Las opciones habituales son `--profile`, `--save`, `--config`, `--port` y `--baud`; el Host MCP
 también acepta `--connection-policy ask|auto|deny`. `--config` solo cambia el `config.toml`
-seleccionado, no los archivos predeterminados `state.json` ni `http-auth-token`. Consulta
+seleccionado, no los archivos predeterminados `state.json` ni `http-host.json`. Consulta
 [Perfiles serie](docs/getting-started/serial-profiles.md) y la
 [referencia de configuración](docs/reference/configuration.md).
 

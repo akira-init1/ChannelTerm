@@ -4,7 +4,6 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 )
@@ -107,69 +106,6 @@ func TestUpdatePreservesConcurrentChanges(t *testing.T) {
 		if file.Serial.Profiles[name].Port != name {
 			t.Errorf("profile %q = %+v, want preserved", name, file.Serial.Profiles[name])
 		}
-	}
-}
-
-func TestLoadOrCreateHTTPAuthTokenPersistsOwnerOnlyCredential(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "nested", "http-auth-token")
-	first, err := LoadOrCreateHTTPAuthToken(path)
-	if err != nil {
-		t.Fatalf("LoadOrCreateHTTPAuthToken() error = %v", err)
-	}
-	second, err := LoadOrCreateHTTPAuthToken(path)
-	if err != nil {
-		t.Fatalf("second LoadOrCreateHTTPAuthToken() error = %v", err)
-	}
-	if first == "" || second != first {
-		t.Errorf("tokens = %q and %q, want one stable non-empty token", first, second)
-	}
-	info, err := os.Stat(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// Windows reports synthesized mode bits; access there is controlled by the
-	// ACL inherited from the per-user configuration directory.
-	if runtime.GOOS != "windows" {
-		if permissions := info.Mode().Perm(); permissions != 0o600 {
-			t.Errorf("token permissions = %o, want 600", permissions)
-		}
-	}
-}
-
-func TestLoadOrCreateHTTPAuthTokenSerializesConcurrentCreation(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "http-auth-token")
-	const callers = 16
-	results := make(chan string, callers)
-	errs := make(chan error, callers)
-	for range callers {
-		go func() {
-			token, err := LoadOrCreateHTTPAuthToken(path)
-			results <- token
-			errs <- err
-		}()
-	}
-	var want string
-	for range callers {
-		if err := <-errs; err != nil {
-			t.Fatalf("LoadOrCreateHTTPAuthToken() error = %v", err)
-		}
-		token := <-results
-		if want == "" {
-			want = token
-		}
-		if token != want {
-			t.Errorf("concurrent token = %q, want %q", token, want)
-		}
-	}
-}
-
-func TestLoadOrCreateHTTPAuthTokenRejectsTruncatedCredential(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "http-auth-token")
-	if err := os.WriteFile(path, []byte("a"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := LoadOrCreateHTTPAuthToken(path); err == nil || !strings.Contains(err.Error(), "32-byte Base64URL") {
-		t.Fatalf("LoadOrCreateHTTPAuthToken() error = %v, want credential length rejection", err)
 	}
 }
 

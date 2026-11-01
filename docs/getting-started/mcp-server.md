@@ -11,15 +11,16 @@ structured partial evidence on failure.
 ## Configure supported MCP clients
 
 To add ChannelTerm to installed or already configured Codex, Claude Code, OpenCode, and Zoo Code
-clients, run:
+clients, first [register a client credential](#http-credential-upgrade), set it in
+`CHANNELTERM_HTTP_AUTH_TOKEN` for the configuration command, then run:
 
 ```powershell
 channelterm init --mcp
 ```
 
 The command prompts for HTTP or stdio and defaults to HTTP when you press Enter. HTTP installs the
-shared endpoint `http://127.0.0.1:37099/mcp` with its Bearer credential (read-only when using the
-default legacy token; follow the [upgrade steps](#http-credential-upgrade) to enable AI writes); stdio installs an entry
+shared endpoint `http://127.0.0.1:37099/mcp` with the explicitly supplied independent Bearer credential
+(new AI credentials are read-only until granted writes); stdio installs an entry
 that starts `channelterm mcp`. The command preserves other entries, leaves an existing `channelterm`
 entry unchanged, and writes configuration atomically.
 
@@ -30,9 +31,9 @@ channelterm init --mcp-show
 ```
 
 This command presents the same HTTP-or-stdio prompt and also defaults to HTTP. The HTTP examples
-contain the actual per-user Bearer credential, so they can be pasted directly into Codex, Claude
-Code, OpenCode, or Zoo Code. Do not share, log, or commit HTTP output. Selecting HTTP creates
-`http-auth-token` on first use when necessary. Append `codex`, `claude`, `opencode`, or `zoo` to
+contain the explicit client Bearer credential, so they can be pasted into the intended client.
+Do not share, log, or commit HTTP output. Selecting HTTP requires `CHANNELTERM_HTTP_AUTH_TOKEN`;
+it never generates a shared token or falls back to local management. Append `codex`, `claude`, `opencode`, or `zoo` to
 display only one client's selected configuration.
 
 ## Install the bundled Agent Skill
@@ -119,15 +120,14 @@ Silence after that line is normal. Stop the server with the process cancellation
 `Ctrl+C` from a processed console. HTTP shutdown has a five-second graceful timeout; process cleanup
 then closes Manager-owned Sessions and the Device Registry.
 
-The Host requires `Authorization: Bearer <token>` on every HTTP request. On first use, ChannelTerm
-creates an owner-readable token named `http-auth-token` in its platform user configuration
-directory. This legacy credential now permits observations only. Implicit local commands such as
-`attach`, `list`, `events`, and `file` use a separate management registration. External MCP clients
-use independent credentials through their secret/header mechanism; enable AI device operations
-with an explicit local grant. `CHANNELTERM_HTTP_AUTH_TOKEN` selects the Host's shared-token domain
-when starting a Host, or the exact credential when used by a client. A client override is never
-silently exchanged for management authority. Built-in clients refuse
-cross-origin HTTP redirects so the credential cannot be forwarded to a different endpoint.
+The Host requires `Authorization: Bearer <token>` on every HTTP request and accepts only registered
+independent credentials. First use creates a public `http-host.json` identity and a separate local
+management registration. Implicit local commands such as `attach`, `list`, `events`, and `file` use
+that management credential. External MCP clients use independent credentials through their
+secret/header mechanism; enable AI device operations with an explicit local grant.
+`CHANNELTERM_HOST_CONFIG_DIR` selects an independent absolute authentication directory when needed.
+`CHANNELTERM_HTTP_AUTH_TOKEN` supplies only a client's exact credential; Host startup ignores it.
+Built-in clients refuse cross-origin HTTP redirects so credentials cannot be forwarded elsewhere.
 
 Customize the listener and endpoint path with:
 
@@ -247,18 +247,36 @@ GDB commands. Connection credentials differ from MCP authentication and must rem
 
 ## HTTP credential upgrade
 
-Upgrade the Host and bundled CLI/Electron together, then restart the Host deliberately after
-finishing active device operations. Existing Sessions belong to the old process and are not
-restored by an upgrade. Downgrading the Host restores the older authorization semantics; the
-read-only restriction requires the upgraded Host. The new Host keeps its loopback default and accepts the old shared token
-for reading, but rejects writes, lease changes and management with `permission_denied`.
-The default local CLI/Electron uses a separate Host-created management credential. If you previously
-set `CHANNELTERM_HTTP_AUTH_TOKEN` to the old shared token for these local clients, remove that
-explicit override to select the new local default, or configure an independent user credential.
-Never silently fall back to management when an explicit credential fails.
+Upgrade the Host and bundled CLI/Electron together. Finish device operations, then stop old Hosts
+and local credential-administration commands before migration. Old processes retain their old
+permissions and registrations until stopped; upgrading files alone does not revoke them. Existing
+Sessions belong to the old process and are not restored by an upgrade.
 
-For each AI client, run local administration under the Host's configuration account and shared-token
-domain (not in a shell whose override contains the AI credential):
+On first use without `http-host.json`, the new version imports the registration table selected by
+the existing default `http-auth-token`, preserving all client IDs, names, grants, credential digests
+and any valid local management token. It never registers the old shared token. The new Host rejects
+that token with HTTP 401 for both reads and writes. If only the old token exists, first use creates
+a fresh identity and local management registration; AI clients need new independent credentials.
+
+For custom legacy domains or multiple old registration tables, migration refuses to guess. Select
+the intended authentication directory with `CHANNELTERM_HOST_CONFIG_DIR` and run
+`channelterm clients migrate --legacy-token-file PATH` before initialization. PATH contains the old
+shared token, not an AI token; the matching old table must be in the selected directory. Keep
+separate domains in separate directories. Explicit migration refuses to overwrite an initialized
+Host or merge unrelated domains. Repair corrupt files or an invalid/revoked local credential
+before retrying; failed validation never publishes a new identity.
+
+After starting the new Host, verify existing independent credentials and grants still work, and
+that the old shared token receives 401. Once verified, old `http-auth-token`, its `.lock`, and the
+selected old `http-clients-<SHA-256-of-old-token>.json` / `.local-token` / adjacent lock files can be
+removed or archived privately: they are retained as backups, never consulted again after migration.
+Keep `http-host.json`, `http-clients-H-<id>.json` and its `.local-token`. Deleting old backups is not
+part of automatic migration. Downgrading can re-enable old authorization and cannot read new-domain
+changes; do not run old and new versions against the same live authentication state.
+
+For local CLI/Electron, unset an override containing the retired shared token to use the independent
+local management credential. For each AI client, use local administration under the Host account
+and matching `CHANNELTERM_HOST_CONFIG_DIR`:
 
 ```powershell
 channelterm clients add --name "Board debugging agent" --kind agent --credential-file ./agent-token

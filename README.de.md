@@ -80,17 +80,11 @@ Geräte und Profile weiterhin an.
 
 Den vollständigen Optionsvertrag finden Sie in der [CLI-Referenz](docs/reference/cli.md#list).
 
-Soll ein KI-Client der Session beitreten, konfigurieren Sie vor dem Verbinden einmalig einen
-unterstützten Client:
+Registrieren Sie für HTTP zuerst eigene KI-Zugangsdaten und setzen Sie `CHANNELTERM_HTTP_AUTH_TOKEN` für den Konfigurationsbefehl gemäß [Einrichtung und Migration](docs/getting-started/mcp-server.md#http-credential-upgrade). Neue KI-Zugangsdaten erlauben nur Lesen, bis Schreibzugriff ausdrücklich freigegeben wird. Führen Sie dann den folgenden Befehl aus, wählen Sie HTTP und laden Sie den KI-Client neu. Die folgenden Schreibbeispiele setzen diese Freigabe voraus. Alte gemeinsame Tokens werden abgewiesen.
 
 ```bash
 channelterm init --mcp
 ```
-
-W?hlen Sie HTTP oder dr?cken Sie Enter f?r den Standard. Der gemeinsame Standardzugang ist nur lesbar.
-Registrieren Sie vor KI-Schreibzugriffen eigene Zugangsdaten und erteilen Sie ausdr?cklich eine Freigabe gem??
-[HTTP-Zugangsmigration](docs/getting-started/mcp-server.md#http-credential-upgrade).
-Laden Sie danach den KI-Client neu. Die folgenden KI-Schreibbeispiele setzen diese Freigabe voraus.
 
 Führen Sie anschließend nur den Befehl für Ihre Plattform aus:
 
@@ -156,11 +150,7 @@ Installieren Sie für wiederverwendbare Workflow-Anleitungen den mitgelieferten
 in einem Agent-Skills-kompatiblen Client. `channelterm init --mcp` konfiguriert MCP-Clients,
 installiert den Skill jedoch nicht.
 
-Der HTTP-Host verlangt Bearer-Authentifizierung und lauscht standardm??ig nur auf Loopback. Lokale
-CLI/Electron-Clients verwenden separate Verwaltungszugangsdaten; KI-Clients erhalten eigene Zugangsdaten
-und ausdr?ckliche Schreibfreigaben. Der Host kann auch [in einem vertrauensw?rdigen LAN lauschen](docs/getting-started/mcp-server.md#listen-on-a-lan).
-Entfernte Clients senden ihre eigenen Zugangsdaten im `Authorization`-Header. Ver?ffentlichen Sie den
-Endpunkt nicht ohne TLS und zus?tzliche Netzwerkzugriffskontrollen.
+Der HTTP-Host verlangt registrierte Bearer-Zugangsdaten und lauscht standardmäßig nur auf Loopback. Lokale CLI/Electron-Clients verwenden separate Verwaltungszugangsdaten; KI-Clients verwenden eigene Zugangsdaten mit ausdrücklicher Schreibfreigabe. Der Host kann auch [in einem vertrauenswürdigen LAN lauschen](docs/getting-started/mcp-server.md#listen-on-a-lan). Entfernte Clients senden ihre eigenen Zugangsdaten im `Authorization`-Header. Veröffentlichen Sie den Endpunkt nicht ohne TLS und zusätzliche Netzwerkzugriffskontrollen.
 
 <a id="beispielabläufe"></a>
 <a id="embedded-linux-debugging"></a>
@@ -361,9 +351,7 @@ Gemeinsame Referenzen wie `SER-1` gelten nur innerhalb des besitzenden Host-Proz
 
 ## Konfiguration
 
-`config.toml` enthält benutzerverwaltete serielle Profile und die Verbindungsrichtlinie.
-`state.json` ist der von ChannelTerm verwaltete Gerätestatus. `http-auth-token` ist das Geheimnis zur
-Authentifizierung von MCP-HTTP-Clients; geben Sie es nicht weiter und committen Sie es nicht.
+`config.toml` enthält serielle Profile und die Verbindungsrichtlinie; `state.json` speichert verwaltete Geräteidentitäten. `http-host.json` wählt anhand einer öffentlichen Host-ID die unabhängige HTTP-Clientregistrierung aus. Client-Tokens sind geheim und dürfen weder geteilt noch eingecheckt werden.
 
 ```powershell
 # Ein serielles Profil speichern und wiederverwenden.
@@ -376,7 +364,7 @@ channelterm serial --config ./channelterm.toml --profile board
 
 Häufige Optionen sind `--profile`, `--save`, `--config`, `--port` und `--baud`. Der MCP-Host
 unterstützt außerdem `--connection-policy ask|auto|deny`. `--config` ändert nur die ausgewählte
-`config.toml`, nicht die standardmäßigen Dateien `state.json` oder `http-auth-token`. Siehe
+`config.toml`, nicht die standardmäßigen Dateien `state.json` oder `http-host.json`. Siehe
 [Serielle Profile](docs/getting-started/serial-profiles.md) und
 [Konfigurationsreferenz](docs/reference/configuration.md).
 

@@ -186,7 +186,7 @@ func TestRunInitShowReportsTokenLoadFailureBeforeWritingExamples(t *testing.T) {
 		[]initmcp.Adapter{&fakeInitAdapter{id: "codex", name: "Codex", example: "stdio\n", httpExample: "http\n"}},
 		func() (string, error) { return "", errors.New("credential unavailable") },
 	)
-	if err == nil || !strings.Contains(err.Error(), "load shared HTTP authentication token") {
+	if err == nil || !strings.Contains(err.Error(), "load independent HTTP client credential") {
 		t.Fatalf("runInitWithAdapters() error = %v, want token diagnostic", err)
 	}
 	if !strings.Contains(output.String(), "Select MCP transport:") || strings.Contains(output.String(), "Shared HTTP configurations") {

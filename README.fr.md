@@ -81,17 +81,11 @@ continuant d’afficher les périphériques et Profile locaux.
 
 Consultez la [référence CLI](docs/reference/cli.md#list) pour le contrat complet des options.
 
-Si un client IA doit rejoindre la Session, configurez une fois un client pris en charge avant la
-connexion :
+Pour configurer HTTP, enregistrez d’abord un identifiant IA indépendant et définissez `CHANNELTERM_HTTP_AUTH_TOKEN` pour la commande de configuration, selon le [guide de configuration et de migration](docs/getting-started/mcp-server.md#http-credential-upgrade). Les nouveaux identifiants IA sont en lecture seule jusqu’à une autorisation explicite d’écriture. Exécutez ensuite la commande ci-dessous, choisissez HTTP et rechargez le client IA. Les exemples d’écriture nécessitent cette autorisation. Les anciens tokens partagés sont refusés.
 
 ```bash
 channelterm init --mcp
 ```
-
-Choisissez HTTP ou appuyez sur Entr?e pour la valeur par d?faut. L?identifiant partag? par d?faut est en lecture seule.
-Avant toute ?criture par l?IA, enregistrez un identifiant distinct et accordez une autorisation explicite selon la
-[migration des identifiants HTTP](docs/getting-started/mcp-server.md#http-credential-upgrade).
-Rechargez ensuite le client IA ; les exemples d??criture ci-dessous n?cessitent cette autorisation.
 
 Exécutez ensuite uniquement la commande correspondant à votre plateforme :
 
@@ -157,11 +151,7 @@ Pour bénéficier d’un workflow guidé réutilisable, installez l’
 inclus dans un client compatible avec Agent Skills. `channelterm init --mcp` configure les clients
 MCP, mais n’installe pas le Skill.
 
-Le Host HTTP exige une authentification Bearer et ?coute uniquement sur l?interface de bouclage par d?faut.
-Les clients CLI/Electron locaux utilisent un identifiant de gestion distinct ; les clients IA disposent de leurs
-propres identifiants et d?autorisations d??criture explicites. Le Host peut aussi [?couter sur un r?seau local de confiance](docs/getting-started/mcp-server.md#listen-on-a-lan).
-Les clients distants envoient leur propre identifiant dans `Authorization`. N?exposez pas ce point de terminaison
-sans TLS ni contr?les d?acc?s r?seau suppl?mentaires.
+Le Host HTTP exige des identifiants Bearer enregistrés et écoute uniquement sur l’interface de bouclage par défaut. Les clients CLI/Electron locaux utilisent un identifiant de gestion distinct ; les clients IA disposent d’identifiants indépendants et d’autorisations explicites d’écriture. Le Host peut aussi [écouter sur un réseau local de confiance](docs/getting-started/mcp-server.md#listen-on-a-lan). Les clients distants envoient leur propre identifiant dans `Authorization`. N’exposez pas ce point de terminaison sans TLS et contrôles d’accès réseau supplémentaires.
 
 <a id="exemples-de-workflows"></a>
 <a id="débogage-linux-embarqué"></a>
@@ -362,10 +352,7 @@ Les références partagées comme `SER-1` ne sont valides que dans le processus 
 
 ## Configuration
 
-`config.toml` contient les profils série et la stratégie de connexion gérés par l’utilisateur.
-`state.json` contient l’état d’identité des périphériques géré par ChannelTerm. `http-auth-token`
-est le secret d’authentification des clients MCP HTTP ; ne le partagez pas et ne le validez pas dans
-le dépôt.
+`config.toml` contient les profils série et la politique de connexion ; `state.json` conserve les identités des périphériques. `http-host.json` sélectionne le registre des clients HTTP indépendants au moyen d’un ID public du Host. Les tokens clients sont secrets : ne les partagez pas et ne les ajoutez pas au dépôt.
 
 ```powershell
 # Enregistrer et réutiliser un profil série.
@@ -378,7 +365,7 @@ channelterm serial --config ./channelterm.toml --profile board
 
 Les options courantes sont `--profile`, `--save`, `--config`, `--port` et `--baud`. Le Host MCP
 accepte aussi `--connection-policy ask|auto|deny`. `--config` ne change que le `config.toml`
-sélectionné, pas les fichiers `state.json` ou `http-auth-token` par défaut. Consultez les
+sélectionné, pas les fichiers `state.json` ou `http-host.json` par défaut. Consultez les
 [profils série](docs/getting-started/serial-profiles.md) et la
 [référence de configuration](docs/reference/configuration.md).
 

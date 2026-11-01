@@ -106,7 +106,8 @@ The main ownership distinctions are deliberate:
 - **Core services:** `internal/core/channel`, `session`, `config`, `connectionpolicy`, `device`, and
   `tool` own their protocol-neutral responsibilities. Channel owns established stream I/O and
   lifecycle; Session owns sharing, retained bytes, activity, and write serialization above it.
-  `config` also owns bounded, digest-only independent HTTP client registrations. Application
+  `config` also owns stable public HTTP Host identities, atomic legacy-domain migration, and
+  bounded, digest-only independent HTTP client registrations. Application
   propagates authenticated public provenance through leases and operation events without adding
   a Session owner. Application owns request access checks; terminal/desktop adapters classify
   effects, and CLI composition owns HTTP authentication and local credential bootstrap.

@@ -113,7 +113,7 @@ func runSSH(ctx context.Context, args []string, input io.Reader, output io.Write
 	if _, err := sshtransport.New(configuration); err != nil {
 		return err
 	}
-	token, err := loadHTTPAuthToken()
+	store, err := config.DefaultClientStore()
 	if err != nil {
 		return err
 	}
@@ -211,7 +211,7 @@ func runSSH(ctx context.Context, args []string, input io.Reader, output io.Write
 	defer stopServer()
 	serverDone := make(chan error, 1)
 	go func() {
-		serverDone <- serveMCPHTTP(serverCtx, registry, listener, defaultMCPPath, token, false, io.Discard, true, nil)
+		serverDone <- serveMCPHTTP(serverCtx, registry, listener, defaultMCPPath, store, false, io.Discard, true, nil)
 		stopHost()
 	}()
 	defer func() {
@@ -222,10 +222,6 @@ func runSSH(ctx context.Context, args []string, input io.Reader, output io.Write
 		stopServer()
 		err = errors.Join(err, closeErr, <-serverDone)
 	}()
-	store, err := config.DefaultClientStore(token)
-	if err != nil {
-		return err
-	}
 	ownerToken, err := store.LoadOrCreateLocalClientToken()
 	if err != nil {
 		return err

@@ -7,8 +7,8 @@ Application connection/configuration use cases and Session Manager used by the H
 
 ## Exposure and authentication
 
-All methods require a Host Bearer credential (the shared token or an
-[independent registered client](configuration.md#independent-http-client-credentials))
+All methods require an
+[independent registered client credential](configuration.md#independent-http-client-credentials)
 and run behind Host authentication middleware. They inherit the Host listener;
 these desktop routes add no second listener or automatic Host startup. GET observations accept
 read access; all desktop mutations require a registered management credential. An agent write

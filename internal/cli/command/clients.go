@@ -15,25 +15,28 @@ import (
 // configuration is the authority; these commands do not expose a remote admin API.
 func runClients(args []string, output io.Writer) error {
 	if len(args) == 0 || args[0] == "--help" || args[0] == "-h" {
-		fmt.Fprintln(output, "Usage: channelterm clients <add|list|grant|revoke|remove> [options]")
+		fmt.Fprintln(output, "Usage: channelterm clients <add|list|grant|revoke|remove|migrate> [options]")
 		fmt.Fprintln(output, "  add --name NAME --kind user|agent --credential-file NEW_FILE")
 		fmt.Fprintln(output, "  list                  List public client registrations and grants as JSON")
 		fmt.Fprintln(output, "  New agents are read-only. Granting writes does not grant Host management; revocation does not stop accepted work.")
 		fmt.Fprintln(output, "  grant CLIENT_ID       Allow agent device operations across this Host")
 		fmt.Fprintln(output, "  revoke CLIENT_ID      Reject new agent device operations; keep reads")
 		fmt.Fprintln(output, "  remove CLIENT_ID      Reject this credential on subsequent HTTP requests")
-		fmt.Fprintln(output, "Run on the Host account. Credentials are scoped to its shared token. Never share credential files.")
+		fmt.Fprintln(output, "Run on the Host account. CHANNELTERM_HOST_CONFIG_DIR selects its identity and registrations. Never share credential files.")
+		fmt.Fprintln(output, "  migrate --legacy-token-file FILE  Import an old registration domain before initialization")
 		return nil
 	}
 	flags := flag.NewFlagSet("clients "+args[0], flag.ContinueOnError)
 	flags.SetOutput(output)
-	var name, kind, destination string
+	var name, kind, destination, legacyFile string
 	if args[0] == "add" {
 		flags.StringVar(&name, "name", "", "public display name")
 		flags.StringVar(&kind, "kind", "agent", "registered source: user or agent")
 		flags.StringVar(&destination, "credential-file", "", "new private file receiving the credential (never stdout)")
+	} else if args[0] == "migrate" {
+		flags.StringVar(&legacyFile, "legacy-token-file", "", "private old shared token file; stop old Hosts before migration")
 	} else if args[0] != "list" && args[0] != "remove" && args[0] != "grant" && args[0] != "revoke" {
-		return errors.New("expected clients add, list, grant, revoke, or remove")
+		return errors.New("expected clients add, list, grant, revoke, remove, or migrate")
 	}
 	if err := flags.Parse(args[1:]); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
@@ -48,11 +51,11 @@ func runClients(args []string, output io.Writer) error {
 	if args[0] == "add" && (name == "" || destination == "") {
 		return errors.New("clients add requires --name and --credential-file")
 	}
-	token, err := loadHTTPAuthToken()
-	if err != nil {
+	if args[0] == "migrate" {
+		_, err := config.MigrateHTTPClients(legacyFile)
 		return err
 	}
-	store, err := config.DefaultClientStore(token)
+	store, err := config.DefaultClientStore()
 	if err != nil {
 		return err
 	}

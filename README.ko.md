@@ -79,16 +79,11 @@ Host가 실행 중일 필요는 없습니다. 연결할 수 없으면 `list`는 
 
 전체 옵션 계약은 [CLI 참조](docs/reference/cli.md#list)를 확인하십시오.
 
-AI 클라이언트가 Session에 참여해야 한다면 연결하기 전에 지원되는 클라이언트를 한 번 설정합니다.
+HTTP를 설정하기 전에 [인증 정보 설정 및 이전 절차](docs/getting-started/mcp-server.md#http-credential-upgrade)에 따라 독립 AI 인증 정보를 등록하고 설정 명령에 사용할 `CHANNELTERM_HTTP_AUTH_TOKEN`을 지정하세요. 새 AI 인증 정보는 쓰기를 명시적으로 허용하기 전까지 읽기 전용입니다. 이후 아래 명령을 실행하여 HTTP를 선택하고 AI 클라이언트를 다시 로드하세요. 아래 쓰기 예제에는 해당 권한이 필요합니다. 이전 공유 token은 거부됩니다.
 
 ```bash
 channelterm init --mcp
 ```
-
-HTTP? ????? Enter? ???? ?????. ?? ?? ?? ??? ?? ?????.
-AI ?? ?? [HTTP ?? ?? ?? ??](docs/getting-started/mcp-server.md#http-credential-upgrade)? ??
-???? AI ?? ??? ???? ????? ??? ???? ???. ?? ? AI ?????? ?? ??????.
-?? AI ?? ??? ? ?? ??? ??? ???.
 
 그다음 현재 플랫폼에 맞는 명령 하나만 실행합니다.
 
@@ -152,11 +147,7 @@ Ctrl+] ?    로컬 이스케이프 도움말 표시
 [`cterm-serial-debug` Agent Skill](docs/getting-started/mcp-server.md#install-the-bundled-agent-skill)을
 설치하십시오. `channelterm init --mcp`는 MCP 클라이언트를 구성하지만 Skill은 설치하지 않습니다.
 
-HTTP Host? Bearer ??? ???? ????? ?????? ?????. ?? CLI/Electron?
-??? ?? ?? ??? ????, AI? ???? ?? ??? ???? ?? ??? ?????.
-[??? ? ?? LAN?? ??](docs/getting-started/mcp-server.md#listen-on-a-lan)? ?? ????.
-?? ?????? `Authorization` ??? ??? ?? ??? ????.
-TLS? ??? ???? ?? ?? ?? ?????? ???? ????.
+HTTP Host는 등록된 Bearer 인증 정보를 요구하며 기본적으로 루프백에서만 수신합니다. 로컬 CLI/Electron은 별도의 관리 인증 정보를, AI는 독립 인증 정보와 명시적 쓰기 권한을 사용합니다. [신뢰할 수 있는 LAN에서 수신](docs/getting-started/mcp-server.md#listen-on-a-lan)할 수도 있습니다. 원격 클라이언트는 자신의 인증 정보를 `Authorization` 헤더로 보냅니다. TLS 및 별도의 네트워크 접근 제어 없이 엔드포인트를 공개하지 마세요.
 
 <a id="워크플로-예"></a>
 <a id="임베디드-linux-디버깅"></a>
@@ -354,9 +345,7 @@ Session Host는 연결과 Session 수명을 소유합니다. Serial 또는 SSH T
 
 ## 설정
 
-`config.toml`에는 사용자가 관리하는 시리얼 Profile과 연결 정책이 저장됩니다. `state.json`은
-ChannelTerm이 관리하는 장치 식별 상태입니다. `http-auth-token`은 MCP HTTP 클라이언트 인증에
-사용되는 비밀 정보이므로 공유하거나 커밋하지 마십시오.
+`config.toml`은 시리얼 Profile과 연결 정책을, `state.json`은 관리되는 장치 식별 정보를 저장합니다. `http-host.json`은 공개 Host ID로 독립 HTTP 클라이언트 등록 정보를 선택합니다. 클라이언트 token은 비밀 인증 정보이므로 공유하거나 커밋하지 마세요.
 
 ```powershell
 # 시리얼 Profile을 저장하고 다시 사용합니다.
@@ -369,7 +358,7 @@ channelterm serial --config ./channelterm.toml --profile board
 
 주요 옵션은 `--profile`, `--save`, `--config`, `--port`, `--baud`입니다. MCP Host는
 `--connection-policy ask|auto|deny`도 지원합니다. `--config`는 선택한 `config.toml`만 변경하며
-기본 `state.json`이나 `http-auth-token`은 이동하지 않습니다. 전체 필드, 우선순위, 검증 및 영속화
+기본 `state.json`이나 `http-host.json`은 이동하지 않습니다. 전체 필드, 우선순위, 검증 및 영속화
 동작은 [시리얼 Profile](docs/getting-started/serial-profiles.md)과
 [설정 레퍼런스](docs/reference/configuration.md)를 참고하십시오.
 

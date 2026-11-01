@@ -99,8 +99,6 @@ func TestGDBListHelpValidationAndQueryErrors(t *testing.T) {
 }
 
 func TestGDBListQueriesAuthenticatedHost(t *testing.T) {
-	const token = "EXAMPLE-HTTP-TOKEN-NOT-A-SECRET"
-	t.Setenv(httpAuthTokenEnvVar, token)
 	m := session.NewManager()
 	defer m.Close()
 	s, err := session.New("list-board", newAttachTestTransport())
@@ -121,7 +119,9 @@ func TestGDBListQueriesAuthenticatedHost(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	server := httptest.NewServer(requireBearerToken(token, handler))
+	authenticated, token := registeredTestHandler(t, handler)
+	t.Setenv(httpAuthTokenEnvVar, token)
+	server := httptest.NewServer(authenticated)
 	defer server.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import type { IpcMainInvokeEvent, WebContents } from "electron";
 import {
   hostEndpoint,
-  tokenPath,
+  hostIdentityPath,
   localClientTokenPath,
 } from "../src/main/host/config";
 import {
@@ -72,27 +72,37 @@ test("credential paths follow the Host configuration root, not GUI userData", ()
   // Path separators follow the current test OS; all three selection rules are checked.
   const home = process.cwd();
   assert.ok(
-    tokenPath("win32", { APPDATA: home }, home).endsWith("http-auth-token"),
+    hostIdentityPath("win32", { APPDATA: home }, home).endsWith(
+      "http-host.json",
+    ),
   );
-  assert.ok(tokenPath("darwin", {}, home).includes("Application Support"));
   assert.ok(
-    tokenPath("linux", { XDG_CONFIG_HOME: home }, home).startsWith(home),
+    hostIdentityPath("darwin", {}, home).includes("Application Support"),
   );
-  assert.throws(() => tokenPath("win32", {}, home));
+  assert.ok(
+    hostIdentityPath("linux", { XDG_CONFIG_HOME: home }, home).startsWith(home),
+  );
+  assert.throws(() => hostIdentityPath("win32", {}, home));
   assert.throws(() =>
-    tokenPath("linux", { XDG_CONFIG_HOME: "relative" }, home),
+    hostIdentityPath("linux", { XDG_CONFIG_HOME: "relative" }, home),
   );
 });
 
-test("local management credentials are separate and bound to the shared Host domain", () => {
-  const shared = tokenPath(
+test("local management credentials are separate and bound to the public Host identity", () => {
+  const shared = hostIdentityPath(
     "linux",
     { XDG_CONFIG_HOME: process.cwd() },
     process.cwd(),
   );
-  const local = localClientTokenPath(shared, "example-host-token");
+  const local = localClientTokenPath(
+    shared,
+    "H-0123456789abcdef0123456789abcdef",
+  );
   assert.notEqual(local, shared);
   assert.ok(local.endsWith(".json.local-token"));
-  assert.notEqual(local, localClientTokenPath(shared, "another-host-token"));
-  assert.ok(!local.includes("example-host-token"));
+  assert.notEqual(
+    local,
+    localClientTokenPath(shared, "H-abcdef0123456789abcdef0123456789"),
+  );
+  assert.throws(() => localClientTokenPath(shared, "../invalid-host"));
 });

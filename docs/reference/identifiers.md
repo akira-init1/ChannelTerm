@@ -138,3 +138,11 @@ registered client; a CLI file-transfer subprocess should preserve the initiating
 client's credential. Registration survives reconnects, so it is not evidence
 that a client is online. Missing identity means unregistered/unknown, even if an
 old actor label says `user`. See [independent credentials](configuration.md#independent-http-client-credentials).
+
+## HTTP Host identity
+
+`H-<random-hex>` is the public persistent identity in `http-host.json`. It selects one local
+client-registration domain, not a Host process, endpoint, live Session or authentication capability.
+Hosts using the same authentication directory share it; separate `CHANNELTERM_HOST_CONFIG_DIR`
+directories isolate domains. Credential rotation does not change this ID. See
+[HTTP configuration](configuration.md#paths) for migration and storage.

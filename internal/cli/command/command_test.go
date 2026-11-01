@@ -165,7 +165,7 @@ func TestRunMCPHTTPShutsDownOnContextCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	var stderr bytes.Buffer
-	if err := runMCPHTTP(ctx, registry, "127.0.0.1:0", "/mcp", "test-token", false, &stderr, nil); err != nil {
+	if err := runMCPHTTP(ctx, registry, "127.0.0.1:0", "/mcp", config.ClientStore{Path: filepath.Join(t.TempDir(), "clients.json")}, false, &stderr, nil); err != nil {
 		t.Fatalf("runMCPHTTP() error = %v", err)
 	}
 	if !strings.Contains(stderr.String(), "MCP Streamable HTTP listening on http://127.0.0.1:") || !strings.Contains(stderr.String(), "/mcp") {
@@ -190,7 +190,7 @@ func TestRunMCPHTTPWarnsWhenNetworkExposed(t *testing.T) {
 	var stderr bytes.Buffer
 	listener := &networkWarningListener{closed: make(chan struct{})}
 	defer listener.Close()
-	if err := serveMCPHTTP(ctx, registry, listener, "/mcp", "test-token", false, &stderr, false, nil); err != nil {
+	if err := serveMCPHTTP(ctx, registry, listener, "/mcp", config.ClientStore{Path: filepath.Join(t.TempDir(), "clients.json")}, false, &stderr, false, nil); err != nil {
 		t.Fatalf("serveMCPHTTP() error = %v", err)
 	}
 	for _, warning := range []string{
@@ -230,7 +230,7 @@ func (l *networkWarningListener) Addr() net.Addr {
 
 func TestMCPHTTPBearerAuthentication(t *testing.T) {
 	called := false
-	handler := requireBearerToken("secret", http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+	handler, token := registeredTestHandler(t, http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
 		called = true
 	}))
 	for _, tt := range []struct {
@@ -240,7 +240,7 @@ func TestMCPHTTPBearerAuthentication(t *testing.T) {
 	}{
 		{name: "missing", status: http.StatusUnauthorized},
 		{name: "wrong", header: "Bearer wrong", status: http.StatusUnauthorized},
-		{name: "valid", header: "Bearer secret", status: http.StatusOK},
+		{name: "valid", header: "Bearer " + token, status: http.StatusOK},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			called = false
@@ -275,10 +275,15 @@ func TestGUIEndpointUsesHostAuthentication(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	store := config.ClientStore{Path: filepath.Join(t.TempDir(), "clients.json")}
+	credential, err := store.LoadOrCreateLocalClientToken()
+	if err != nil {
+		t.Fatal(err)
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)
 	go func() {
-		done <- serveMCPHTTP(ctx, registry, listener, "/custom-mcp", "fixture-token", false, io.Discard, false, guiapi.NewHandler(application))
+		done <- serveMCPHTTP(ctx, registry, listener, "/custom-mcp", store, false, io.Discard, false, guiapi.NewHandler(application))
 	}()
 	defer func() {
 		cancel()
@@ -295,7 +300,7 @@ func TestGUIEndpointUsesHostAuthentication(t *testing.T) {
 			token, origin string
 			status        int
 		}{
-			{"", "", 401}, {"wrong", "", 401}, {"fixture-token", "https://untrusted.invalid", 403}, {"fixture-token", "", 200},
+			{"", "", 401}, {"wrong", "", 401}, {credential, "https://untrusted.invalid", 403}, {credential, "", 200}, {"legacy", "", 401},
 		} {
 			r, err := http.NewRequest(http.MethodGet, "http://"+listener.Addr().String()+route, nil)
 			if err != nil {
@@ -327,11 +332,11 @@ func TestGUIEndpointUsesHostAuthentication(t *testing.T) {
 }
 
 func TestMCPHTTPAdvertisesTemporaryHostLifetimeAfterAuthentication(t *testing.T) {
-	handler := requireBearerToken("secret", advertiseHostLifetime(true, http.HandlerFunc(func(response http.ResponseWriter, _ *http.Request) {
+	handler, token := registeredTestHandler(t, advertiseHostLifetime(true, http.HandlerFunc(func(response http.ResponseWriter, _ *http.Request) {
 		response.WriteHeader(http.StatusNoContent)
 	})))
 	request := httptest.NewRequest(http.MethodPost, "/mcp", nil)
-	request.Header.Set("Authorization", "Bearer secret")
+	request.Header.Set("Authorization", "Bearer "+token)
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, request)
 	if got := response.Header().Get(httpHostLifetimeHeader); got != httpHostLifetimeAttachment {

@@ -75,16 +75,11 @@ local devices and profiles.
 
 See the [CLI reference](docs/reference/cli.md#list) for the complete option contract.
 
-If an AI client should join the Session, configure a supported client once before attaching:
+For HTTP setup, first register an independent AI credential and set `CHANNELTERM_HTTP_AUTH_TOKEN` for the configuration command, following the [credential setup and migration workflow](docs/getting-started/mcp-server.md#http-credential-upgrade). New AI credentials are read-only until explicitly granted writes. Then run the command below, choose HTTP, and reload the AI client. The following AI writing examples require that grant. Retired shared tokens are rejected.
 
 ```bash
 channelterm init --mcp
 ```
-
-Choose HTTP, or press Enter for the HTTP default. The default shared credential is read-only.
-Before AI writes, register an independent agent credential and explicitly grant access using the
-[HTTP credential upgrade workflow](docs/getting-started/mcp-server.md#http-credential-upgrade).
-Reload the AI client after updating its credential; the writing examples below require that grant.
 
 Then run the command for the current platform:
 
@@ -149,11 +144,7 @@ For reusable workflow guidance, install the bundled
 in an Agent Skills-compatible client. `channelterm init --mcp` configures MCP clients but does not
 install the Skill.
 
-The HTTP server requires Bearer authentication and defaults to a loopback-only listener. Local
-CLI/Electron clients use a separate management credential; AI clients use independent credentials
-with explicit write grants. It can also [listen on a trusted LAN](docs/getting-started/mcp-server.md#listen-on-a-lan);
-remote clients send their own credential through the `Authorization` header. Do not expose the
-endpoint without TLS and separate network access controls.
+The HTTP server requires registered Bearer credentials and defaults to a loopback-only listener. Local CLI/Electron clients use a separate management credential; AI clients use independent credentials with explicit write grants. It can also [listen on a trusted LAN](docs/getting-started/mcp-server.md#listen-on-a-lan); remote clients send their own credential through the `Authorization` header. Do not expose the endpoint without TLS and separate network access controls.
 
 <a id="example-workflows"></a>
 <a id="embedded-linux-debugging"></a>
@@ -358,9 +349,7 @@ Shared references such as `SER-1` are valid only within the owning Host process.
 
 ## Configuration
 
-`config.toml` contains user-owned serial profiles and connection policy. `state.json` is
-ChannelTerm-managed device identity state. `http-auth-token` is the secret used to authenticate MCP
-HTTP clients; do not share or commit it.
+`config.toml` contains user-owned serial profiles and connection policy; `state.json` stores managed device identity. `http-host.json` selects an independent HTTP client registry using a public Host ID. Client tokens are private credentials; never share or commit them.
 
 ```powershell
 # Save and reuse a serial profile.
@@ -373,7 +362,7 @@ channelterm serial --config ./channelterm.toml --profile board
 
 Common options are `--profile`, `--save`, `--config`, `--port`, and `--baud`; the MCP Host also
 accepts `--connection-policy ask|auto|deny`. `--config` changes only the selected `config.toml`, not
-the default `state.json` or `http-auth-token`. See [Serial profiles](docs/getting-started/serial-profiles.md)
+the default `state.json` or `http-host.json`. See [Serial profiles](docs/getting-started/serial-profiles.md)
 and the [configuration reference](docs/reference/configuration.md) for complete fields, precedence,
 validation, and persistence behavior.
 

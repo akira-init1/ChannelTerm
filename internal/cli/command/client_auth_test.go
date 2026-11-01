@@ -23,7 +23,7 @@ func TestClientAuthenticationRejectsForgeryAndRevocation(t *testing.T) {
 		t.Fatal(err)
 	}
 	var observed session.ClientIdentity
-	handler := requireClientToken("legacy", store, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := requireClientToken(store, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		observed = app.ClientIdentityFromContext(r.Context())
 		w.WriteHeader(http.StatusNoContent)
 	}))
@@ -31,7 +31,7 @@ func TestClientAuthenticationRejectsForgeryAndRevocation(t *testing.T) {
 		token string
 		code  int
 		id    string
-	}{{token, 204, identity.ID}, {"legacy", 204, ""}, {"wrong", 401, ""}, {identity.ID, 401, ""}} {
+	}{{token, 204, identity.ID}, {"legacy", 401, ""}, {"wrong", 401, ""}, {identity.ID, 401, ""}} {
 		observed = session.ClientIdentity{}
 		r := httptest.NewRequest("POST", "/mcp", nil)
 		r.Header.Set("Authorization", "Bearer "+test.token)
@@ -73,7 +73,7 @@ func TestRegisteredMCPClientProvenanceSurvivesCLIActorAndLease(t *testing.T) {
 	if err := store.SetWriteAllowed(identity.ID, true); err != nil {
 		t.Fatal(err)
 	}
-	server := httptest.NewServer(requireClientToken("legacy", store, host.server.Config.Handler))
+	server := httptest.NewServer(requireClientToken(store, host.server.Config.Handler))
 	defer server.Close()
 	transport, err := newBearerTokenTransport(server.URL, token)
 	if err != nil {
@@ -128,7 +128,7 @@ func TestRegisteredMCPClientProvenanceSurvivesCLIActorAndLease(t *testing.T) {
 }
 
 func TestClientsCommandDoesNotOverwriteOrPrintSecrets(t *testing.T) {
-	t.Setenv("APPDATA", t.TempDir())
+	t.Setenv(config.HostConfigDirectoryEnv, t.TempDir())
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	t.Setenv(httpAuthTokenEnvVar, "fixture-host-token")
 	destination := filepath.Join(t.TempDir(), "client-token")
@@ -150,5 +150,31 @@ func TestClientsCommandDoesNotOverwriteOrPrintSecrets(t *testing.T) {
 	after, err := os.ReadFile(destination)
 	if err != nil || !bytes.Equal(after, token) {
 		t.Fatal("credential changed")
+	}
+}
+
+// registeredTestHandler exercises production authentication with disposable clients.
+func registeredTestHandler(t *testing.T, next http.Handler) (http.Handler, string) {
+	t.Helper()
+	store := config.ClientStore{Path: filepath.Join(t.TempDir(), "clients.json")}
+	_, token, err := store.Register("test management client", "user")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return requireClientToken(store, next), token
+}
+
+func TestMCPInitRequiresExplicitClientCredential(t *testing.T) {
+	t.Setenv(config.HostConfigDirectoryEnv, t.TempDir())
+	t.Setenv(httpAuthTokenEnvVar, "")
+	if _, err := loadHTTPClientToken(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := explicitHTTPClientToken(); err == nil {
+		t.Fatal("init implicitly exported local management")
+	}
+	t.Setenv(httpAuthTokenEnvVar, "independent-ai-token")
+	if got, err := explicitHTTPClientToken(); err != nil || got != "independent-ai-token" {
+		t.Fatal("explicit configuration changed")
 	}
 }

@@ -368,11 +368,13 @@ serial byte path, starts GDB, parses RSP, or changes the relay lifecycle on repo
 
 ## HTTP client attribution
 
-CLI composition authenticates HTTP requests against the shared Host token or a
-bounded independent-client registration store owned by Core config. Independent
+CLI composition authenticates HTTP requests only against a
+bounded independent-client registration store owned by Core config. A public, persistent Host
+identity selects that store independently of credentials; Core config owns atomic one-time legacy
+migration before publishing the identity. Independent
 credentials attach public provenance and current request grants to the context before MCP/desktop
 adaptation. Application defines read/write/management access checks; adapters classify tool or
-route effects before invoking a use case. Legacy shared-token requests receive read access only.
+route effects before invoking a use case. Retired shared-token requests are rejected before adaptation.
 Application records that source through writes, leases and operation
 events; Session retains it without interpreting credentials. Transports still
 receive raw bytes only. Local registration and secret export belong to the CLI;

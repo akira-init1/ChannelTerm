@@ -74,15 +74,11 @@ Profile。
 
 完整參數契約請參閱 [CLI 參考](docs/reference/cli.md#list)。
 
-若需要 AI 用戶端加入 Session，請在連入前為支援的用戶端執行一次設定：
+設定 HTTP 前，先依[憑據設定與移轉流程](docs/getting-started/mcp-server.md#http-credential-upgrade)註冊獨立 AI 憑據，並為設定命令指定 `CHANNELTERM_HTTP_AUTH_TOKEN`。新 AI 憑據預設唯讀，寫入需要明確授權。然後執行下方命令、選擇 HTTP 並重新載入 AI 用戶端。下方 AI 寫入範例均需要該授權。舊共用 token 已不再接受。
 
 ```bash
 channelterm init --mcp
 ```
-
-?? HTTP??? Enter ???????????????????AI ???????
-[HTTP ??????](docs/getting-started/mcp-server.md#http-credential-upgrade)???? AI ????????
-????????? AI ???????? AI ???????????????
 
 接著只執行目前平台對應的一條命令：
 
@@ -144,10 +140,7 @@ Ctrl+] ?    顯示本機跳脫說明
 [`cterm-serial-debug` Agent Skill](docs/getting-started/mcp-server.md#install-the-bundled-agent-skill)。
 `channelterm init --mcp` 只會設定 MCP 客戶端，不會安裝 Skill。
 
-HTTP Host ?? Bearer ??????????????? CLI/Electron ?????????
-AI ???????????????????[??????????](docs/getting-started/mcp-server.md#listen-on-a-lan)?
-??????? `Authorization` ??????????????? TLS ?????????
-????????????????
+HTTP Host 要求已註冊的 Bearer 憑據，預設僅監聽回環位址。本機 CLI/Electron 使用獨立管理憑據，AI 使用獨立憑據並明確取得寫入授權。也可以[監聽可信任的區域網路](docs/getting-started/mcp-server.md#listen-on-a-lan)；遠端用戶端透過 `Authorization` 傳送自己的憑據。請勿在缺少 TLS 和額外網路存取控制的情況下公開端點。
 
 <a id="使用情境"></a>
 <a id="嵌入式-linux-除錯"></a>
@@ -343,8 +336,7 @@ Session Host 擁有連線並管理 Session 生命週期。Serial 或 SSH Transpo
 
 ## 設定
 
-`config.toml` 儲存使用者維護的序列埠 Profile 與連線原則；`state.json` 是 ChannelTerm 自動維護的
-裝置身分狀態；`http-auth-token` 是 MCP HTTP 用戶端的驗證密鑰，請勿分享或提交。
+`config.toml` 儲存序列埠 Profile 和連線原則，`state.json` 儲存裝置身分狀態。`http-host.json` 透過公開 Host ID 定位獨立 HTTP 用戶端註冊表。用戶端 token 是私密憑據，請勿分享或提交。
 
 ```powershell
 # 儲存並重複使用序列埠 Profile。
@@ -357,7 +349,7 @@ channelterm serial --config ./channelterm.toml --profile board
 
 常用參數包括 `--profile`、`--save`、`--config`、`--port` 與 `--baud`；MCP Host 也支援
 `--connection-policy ask|auto|deny`。`--config` 只會替換所選的 `config.toml`，不會移動預設的
-`state.json` 或 `http-auth-token`。完整欄位、優先順序、驗證與持久化行為請參閱
+`state.json` 或 `http-host.json`。完整欄位、優先順序、驗證與持久化行為請參閱
 [序列埠 Profile](docs/getting-started/serial-profiles.md)與[設定參考](docs/reference/configuration.md)。
 
 ## 文件

@@ -1,7 +1,7 @@
 package command
 
 import (
-	"crypto/subtle"
+	"fmt"
 	"net/http"
 	"os"
 	"strings"
@@ -12,9 +12,9 @@ import (
 )
 
 // requireClientToken binds public provenance to independent credentials before
-// MCP allocates protocol state. Legacy shared credentials are read-only;
+// MCP allocates protocol state. Only registered credentials are accepted;
 // neither actor arguments nor caller-provided client IDs establish identity.
-func requireClientToken(legacy string, store config.ClientStore, next http.Handler) http.Handler {
+func requireClientToken(store config.ClientStore, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		header := r.Header.Get("Authorization")
 		if len(r.Header.Values("Authorization")) != 1 || !strings.HasPrefix(header, "Bearer ") || len(header) > 4096 {
@@ -23,10 +23,6 @@ func requireClientToken(legacy string, store config.ClientStore, next http.Handl
 			return
 		}
 		token := strings.TrimPrefix(header, "Bearer ")
-		if legacy != "" && subtle.ConstantTimeCompare([]byte(token), []byte(legacy)) == 1 {
-			next.ServeHTTP(w, r.WithContext(app.WithClientAccess(r.Context(), app.ClientAccess{})))
-			return
-		}
 		client, ok, err := store.Authenticate(token)
 		if err != nil {
 			http.Error(w, "client authentication unavailable", http.StatusServiceUnavailable)
@@ -46,15 +42,24 @@ func requireClientToken(legacy string, store config.ClientStore, next http.Handl
 // loadHTTPClientToken preserves explicit client credentials. Only the trusted
 // local account's implicit default uses the separate management registration.
 func loadHTTPClientToken() (string, error) {
-	token, err := loadHTTPAuthToken()
-	if err != nil || strings.TrimSpace(os.Getenv(httpAuthTokenEnvVar)) != "" {
-		return token, err
+	if os.Getenv(httpAuthTokenEnvVar) != "" {
+		return explicitHTTPClientToken()
 	}
-	store, err := config.DefaultClientStore(token)
+	store, err := config.DefaultClientStore()
 	if err != nil {
 		return "", err
 	}
 	return store.LoadOrCreateLocalClientToken()
+}
+
+// explicitHTTPClientToken is also used for MCP client configuration. Requiring
+// an explicit independent credential prevents exporting local management by default.
+func explicitHTTPClientToken() (string, error) {
+	token := strings.TrimSpace(os.Getenv(httpAuthTokenEnvVar))
+	if token == "" || len(token) > 4096 || strings.ContainsAny(token, "\r\n \t") {
+		return "", fmt.Errorf("set %s to an independent client credential; use clients add --credential-file FILE first", httpAuthTokenEnvVar)
+	}
+	return token, nil
 }
 
 // requireDesktopManagement applies the same application grants to non-MCP

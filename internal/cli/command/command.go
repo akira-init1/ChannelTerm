@@ -3,7 +3,6 @@ package command
 import (
 	"bufio"
 	"context"
-	"crypto/subtle"
 	"errors"
 	"flag"
 	"fmt"
@@ -248,7 +247,7 @@ func runInit(args []string, input io.Reader, output io.Writer) error {
 	if err != nil {
 		return fmt.Errorf("initialize MCP client adapters: %w", err)
 	}
-	return runInitWithAdapters(args, input, output, adapters, loadHTTPAuthToken)
+	return runInitWithAdapters(args, input, output, adapters, explicitHTTPClientToken)
 }
 
 // runInitWithAdapters keeps init command tests independent from real user
@@ -268,7 +267,7 @@ func runInitWithAdapters(args []string, input io.Reader, output io.Writer, adapt
 		fmt.Fprintln(output)
 		fmt.Fprintln(output, "Transport choices:")
 		fmt.Fprintln(output, "  HTTP (default)  Connect clients to the shared ChannelTerm Host; multiple clients can share Sessions.")
-		fmt.Fprintln(output, "                  Uses Streamable HTTP at http://127.0.0.1:37099/mcp and requires a Bearer token.")
+		fmt.Fprintln(output, "                  Uses Streamable HTTP at http://127.0.0.1:37099/mcp and requires CHANNELTERM_HTTP_AUTH_TOKEN with an independent client credential.")
 		fmt.Fprintln(output, "  stdio           Each MCP client launches a local channelterm mcp child process over stdin/stdout.")
 		fmt.Fprintln(output)
 		fmt.Fprintln(output, "MCP transport specification:")
@@ -309,7 +308,7 @@ func runInitWithAdapters(args []string, input io.Reader, output io.Writer, adapt
 	if transport == initmcp.TransportStreamableHTTP {
 		token, err := loadToken()
 		if err != nil {
-			return fmt.Errorf("load shared HTTP authentication token: %w", err)
+			return fmt.Errorf("load independent HTTP client credential: %w", err)
 		}
 		endpoint = initmcp.Endpoint{
 			Transport: initmcp.TransportStreamableHTTP,
@@ -503,32 +502,12 @@ func runMCP(ctx context.Context, args []string, output io.Writer) (err error) {
 	if selectedTransport == "stdio" {
 		return mcp.Run(ctx, registry, version, &protocol.StdioTransport{})
 	}
-	token, err := loadHTTPAuthToken()
+	clientStore, err := config.DefaultClientStore()
 	if err != nil {
 		return err
 	}
 	temporaryHost := os.Getenv(internalTemporaryHostEnvVar) == "1"
-	return runMCPHTTP(ctx, registry, *listen, endpointPath, token, temporaryHost, os.Stderr, guiapi.NewHandler(application))
-}
-
-// loadHTTPAuthToken resolves the Host domain's legacy credential or an explicit
-// process credential. Implicit HTTP clients use loadHTTPClientToken to select
-// their separate management registration; init retains read-only defaults.
-func loadHTTPAuthToken() (string, error) {
-	if raw := os.Getenv(httpAuthTokenEnvVar); raw != "" && strings.TrimSpace(raw) == "" {
-		return "", fmt.Errorf("%s must not contain only whitespace", httpAuthTokenEnvVar)
-	}
-	if token := strings.TrimSpace(os.Getenv(httpAuthTokenEnvVar)); token != "" {
-		if strings.ContainsAny(token, "\r\n \t") {
-			return "", fmt.Errorf("%s must not contain whitespace", httpAuthTokenEnvVar)
-		}
-		return token, nil
-	}
-	path, err := config.DefaultHTTPAuthTokenPath()
-	if err != nil {
-		return "", err
-	}
-	return config.LoadOrCreateHTTPAuthToken(path)
+	return runMCPHTTP(ctx, registry, *listen, endpointPath, clientStore, temporaryHost, os.Stderr, guiapi.NewHandler(application))
 }
 
 // normalizeMCPPath validates the endpoint mounted for the HTTP MCP handler.
@@ -547,11 +526,7 @@ func normalizeMCPPath(path string) (string, error) {
 // The HTTP server is stopped with a bounded graceful shutdown. The handler owns
 // only temporary MCP request state; manager-owned terminal Sessions are closed
 // by runMCP after this function returns.
-func runMCPHTTP(ctx context.Context, registry *tool.Registry, listen, path, token string, temporaryHost bool, stderr io.Writer, gui http.Handler) error {
-	store, err := config.DefaultClientStore(token)
-	if err != nil {
-		return err
-	}
+func runMCPHTTP(ctx context.Context, registry *tool.Registry, listen, path string, store config.ClientStore, temporaryHost bool, stderr io.Writer, gui http.Handler) error {
 	if _, err := store.LoadOrCreateLocalClientToken(); err != nil {
 		return err
 	}
@@ -559,7 +534,7 @@ func runMCPHTTP(ctx context.Context, registry *tool.Registry, listen, path, toke
 	if err != nil {
 		return fmt.Errorf("listen for MCP Streamable HTTP on %q: %w", listen, err)
 	}
-	return serveMCPHTTP(ctx, registry, listener, path, token, temporaryHost, stderr, false, gui)
+	return serveMCPHTTP(ctx, registry, listener, path, store, temporaryHost, stderr, false, gui)
 }
 
 // serveMCPHTTP takes ownership of a bound listener. SSH reserves its local
@@ -567,7 +542,7 @@ func runMCPHTTP(ctx context.Context, registry *tool.Registry, listen, path, toke
 // closeOnCancel is used by a foreground SSH owner after closing its Sessions:
 // remaining client connections have no live Session to finish and are closed
 // immediately. Standalone MCP Hosts retain their graceful shutdown behavior.
-func serveMCPHTTP(ctx context.Context, registry *tool.Registry, listener net.Listener, path, token string, temporaryHost bool, stderr io.Writer, closeOnCancel bool, gui http.Handler) error {
+func serveMCPHTTP(ctx context.Context, registry *tool.Registry, listener net.Listener, path string, store config.ClientStore, temporaryHost bool, stderr io.Writer, closeOnCancel bool, gui http.Handler) error {
 	handler, err := mcp.NewStreamableHTTPHandler(registry, version)
 	if err != nil {
 		closeErr := listener.Close()
@@ -576,16 +551,11 @@ func serveMCPHTTP(ctx context.Context, registry *tool.Registry, listener net.Lis
 		}
 		return fmt.Errorf("create MCP Streamable HTTP handler: %w", err)
 	}
-	store, err := config.DefaultClientStore(token)
-	if err != nil {
-		_ = listener.Close()
-		return err
-	}
 	if _, err := store.LoadOrCreateLocalClientToken(); err != nil {
 		_ = listener.Close()
 		return err
 	}
-	authenticate := func(next http.Handler) http.Handler { return requireClientToken(token, store, next) }
+	authenticate := func(next http.Handler) http.Handler { return requireClientToken(store, next) }
 	mux := http.NewServeMux()
 	mux.Handle(path, authenticate(advertiseHostLifetime(temporaryHost, handler)))
 	// Preserve every existing custom MCP path, including a collision with this
@@ -646,21 +616,6 @@ func advertiseHostLifetime(temporary bool, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
 		if temporary {
 			response.Header().Set(httpHostLifetimeHeader, httpHostLifetimeAttachment)
-		}
-		next.ServeHTTP(response, request)
-	})
-}
-
-// requireBearerToken rejects requests before the MCP handler allocates any
-// protocol state. Constant-time comparison avoids leaking a valid token prefix.
-func requireBearerToken(token string, next http.Handler) http.Handler {
-	want := "Bearer " + token
-	return http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
-		got := request.Header.Get("Authorization")
-		if len(got) != len(want) || subtle.ConstantTimeCompare([]byte(got), []byte(want)) != 1 {
-			response.Header().Set("WWW-Authenticate", "Bearer")
-			http.Error(response, "unauthorized", http.StatusUnauthorized)
-			return
 		}
 		next.ServeHTTP(response, request)
 	})

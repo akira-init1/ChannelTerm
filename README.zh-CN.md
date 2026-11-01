@@ -74,15 +74,11 @@ Profile。
 
 完整参数契约见 [CLI 参考](docs/reference/cli.md#list)。
 
-如果需要 AI 客户端加入 Session，请在接入前为受支持的客户端执行一次配置：
+配置 HTTP 前，先按[凭据配置与迁移流程](docs/getting-started/mcp-server.md#http-credential-upgrade)注册独立 AI 凭据，并为配置命令设置 `CHANNELTERM_HTTP_AUTH_TOKEN`。新 AI 凭据默认只读，写入需要显式授权。然后运行下面的命令、选择 HTTP 并重新加载 AI 客户端。下方 AI 写入示例均要求该授权。旧共享 token 已不再接受。
 
 ```bash
 channelterm init --mcp
 ```
-
-?? HTTP??????????????????????AI ??????
-[HTTP ??????](docs/getting-started/mcp-server.md#http-credential-upgrade)???? AI ????????
-????????? AI ???????? AI ???????????????
 
 然后只执行当前平台对应的一条命令：
 
@@ -144,10 +140,7 @@ Ctrl+] ?    显示本地转义帮助
 [`cterm-serial-debug` Agent Skill](docs/getting-started/mcp-server.md#install-the-bundled-agent-skill)。
 `channelterm init --mcp` 只配置 MCP 客户端，不会安装 Skill。
 
-HTTP Host ?? Bearer ??????????????? CLI/Electron ?????????
-AI ??????????????????[?????????](docs/getting-started/mcp-server.md#listen-on-a-lan)?
-??????? `Authorization` ???????????????? TLS ?????????
-??????????????
+HTTP Host 要求已注册的 Bearer 凭据，默认仅监听回环地址。本机 CLI/Electron 使用独立管理凭据，AI 使用独立凭据并显式获得写入授权。也可以[监听可信局域网](docs/getting-started/mcp-server.md#listen-on-a-lan)；远程客户端通过 `Authorization` 发送自己的凭据。不要在缺少 TLS 和额外网络访问控制的情况下公开端点。
 
 <a id="使用场景"></a>
 <a id="嵌入式-linux-调试"></a>
@@ -343,8 +336,7 @@ Session Host 拥有连接并管理 Session 生命周期。Serial 或 SSH Transpo
 
 ## 配置
 
-`config.toml` 保存用户维护的串口 Profile 和连接策略；`state.json` 是 ChannelTerm 自动维护的
-设备身份状态；`http-auth-token` 是 MCP HTTP 客户端的认证密钥，请勿分享或提交。
+`config.toml` 保存串口 Profile 和连接策略，`state.json` 保存设备身份状态。`http-host.json` 通过公开 Host ID 定位独立 HTTP 客户端注册表。客户端 token 是私密凭据，请勿分享或提交。
 
 ```powershell
 # 保存并复用串口 Profile。
@@ -357,7 +349,7 @@ channelterm serial --config ./channelterm.toml --profile board
 
 常用参数包括 `--profile`、`--save`、`--config`、`--port` 和 `--baud`；MCP Host 还支持
 `--connection-policy ask|auto|deny`。`--config` 只替换所选的 `config.toml`，不会移动默认的
-`state.json` 或 `http-auth-token`。完整字段、优先级、校验和持久化行为见
+`state.json` 或 `http-host.json`。完整字段、优先级、校验和持久化行为见
 [串口 Profile](docs/getting-started/serial-profiles.md)和[配置参考](docs/reference/configuration.md)。
 
 ## 文档

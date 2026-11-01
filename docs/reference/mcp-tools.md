@@ -1057,7 +1057,8 @@ credential verification, never an input argument, actor label, header-supplied
 client ID or lease owner token. Attachment, transfer reports, managed operation
 events and lease-related activity preserve the initiating registration. System
 writes may retain `actor: system` while identifying an agent as the initiator.
-Legacy/unregistered callers omit `client`; this does not establish human identity.
+Trusted local/stdio callers without a registration omit `client`; this does not establish human
+identity. HTTP rejects unregistered credentials, including the retired shared token, with 401.
 Existing required fields and tool names are unchanged. Removal rejects future
 HTTP requests with 401; an invalid registration store returns 503 for independent
 credentials. It does not retroactively cancel work already accepted.

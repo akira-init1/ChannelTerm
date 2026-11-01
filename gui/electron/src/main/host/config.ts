@@ -1,5 +1,4 @@
 import { readFile } from "node:fs/promises";
-import { createHash } from "node:crypto";
 import { homedir } from "node:os";
 import { isAbsolute, join } from "node:path";
 import { HostError } from "./errors";
@@ -29,11 +28,19 @@ export function hostEndpoint(value = "http://127.0.0.1:37099/mcp"): URL {
 }
 
 /** Match Go os.UserConfigDir, not Electron's application-specific userData path. */
-export function tokenPath(
+export function hostIdentityPath(
   platform: NodeJS.Platform,
   env: NodeJS.ProcessEnv,
   home: string,
 ): string {
+  if (env.CHANNELTERM_HOST_CONFIG_DIR) {
+    if (!isAbsolute(env.CHANNELTERM_HOST_CONFIG_DIR))
+      throw new HostError(
+        "configuration",
+        "Host configuration directory must be absolute.",
+      );
+    return join(env.CHANNELTERM_HOST_CONFIG_DIR, "http-host.json");
+  }
   const root =
     platform === "win32"
       ? env.APPDATA
@@ -45,7 +52,7 @@ export function tokenPath(
       "configuration",
       "Cannot locate the Host credential directory.",
     );
-  return join(root, "channelterm", "http-auth-token");
+  return join(root, "channelterm", "http-host.json");
 }
 
 export async function loadToken(): Promise<string> {
@@ -57,10 +64,28 @@ export async function loadToken(): Promise<string> {
   let token = process.env.CHANNELTERM_HTTP_AUTH_TOKEN?.trim();
   if (!token) {
     try {
-      const sharedPath = tokenPath(process.platform, process.env, homedir());
-      const shared = (await readFile(sharedPath, "utf8")).trim();
+      const manifest = hostIdentityPath(
+        process.platform,
+        process.env,
+        homedir(),
+      );
+      const raw = await readFile(manifest, "utf8");
+      if (Buffer.byteLength(raw) > 4096) throw new Error("oversized identity");
+      const identity: unknown = JSON.parse(raw);
+      if (
+        !identity ||
+        typeof identity !== "object" ||
+        !("version" in identity) ||
+        identity.version !== 1 ||
+        !("host_id" in identity) ||
+        typeof identity.host_id !== "string" ||
+        Object.keys(identity).some(
+          (key) => key !== "version" && key !== "host_id",
+        )
+      )
+        throw new Error("invalid identity");
       token = (
-        await readFile(localClientTokenPath(sharedPath, shared), "utf8")
+        await readFile(localClientTokenPath(manifest, identity.host_id), "utf8")
       ).trim();
     } catch {
       throw new HostError(
@@ -77,9 +102,10 @@ export async function loadToken(): Promise<string> {
 
 /** Match Core config's Host-domain path; this capability stays in Main. */
 export function localClientTokenPath(
-  sharedPath: string,
-  sharedToken: string,
+  manifestPath: string,
+  hostID: string,
 ): string {
-  const digest = createHash("sha256").update(sharedToken).digest("hex");
-  return join(sharedPath, "..", `http-clients-${digest}.json.local-token`);
+  if (!/^H-[0-9a-f]{32}$/.test(hostID))
+    throw new HostError("configuration", "Invalid Host identity.");
+  return join(manifestPath, "..", `http-clients-${hostID}.json.local-token`);
 }

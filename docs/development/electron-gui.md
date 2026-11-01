@@ -274,8 +274,10 @@ Linux/macOS equivalent: `CHANNELTERM_GUI_ENDPOINT=http://127.0.0.1:37100/mcp npm
 The endpoint is configured in Main, not editable by the renderer. No Host config file or listener
 policy is changed.
 
-Main reads the Host's existing credential. Supply a custom token through the process environment
-using your normal secret-handling procedure;
+Main reads the independent local management credential selected by `http-host.json`. Match the
+Host's `CHANNELTERM_HOST_CONFIG_DIR` when it uses a non-default authentication directory. Supply
+an independent registered client token through `CHANNELTERM_HTTP_AUTH_TOKEN` using your normal
+secret-handling procedure;
 never put it in React code, a `VITE_` variable, source control, or URL parameters.
 
 **Session > New Connection...** opens the unified form after Host connection. Choose Serial or
@@ -494,7 +496,7 @@ These checks do not establish physical device evidence or other native-platform 
 | Symptom | Check / recovery |
 | --- | --- |
 | Companion missing / startup failed | For source builds run `npm.cmd run host:build`, verify local configuration and port 37099, then retry. Main never searches PATH. |
-| Token unavailable | Check that the Host runs under the same user, or supply its existing token to Main. The Host creates tokens; Electron does not. |
+| Token unavailable | Check the Host account and `CHANNELTERM_HOST_CONFIG_DIR`, or supply an independent registered token to Main. The retired shared token is rejected; Electron creates no credentials. |
 | Authentication rejected | Verify the configured endpoint and Main environment match the intended Host. Do not disable authentication or change CORS/Origin rules. |
 | No Sessions | Use Session > New Connection..., or open a Session through an existing CLI/MCP workflow and refresh. SSH creation requires the updated standalone Host API. |
 | Lease busy | Continue reading; wait for the owning operation. GUI neither steals nor releases leases. |
