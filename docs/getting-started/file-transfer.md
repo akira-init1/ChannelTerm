@@ -30,6 +30,11 @@ interop, local paths and the HTTP credential belong to the OS running the chosen
   Host-side `file-transfer` lease that blocks its other writers during transfer; it cannot prevent
   unsolicited output or writers that bypass ChannelTerm.
 
+Storage preflight requires target `stat -f -c` support for available blocks, allocation size and
+inodes. Receiving a directory also requires `find`, `stat -c` and `awk` to scan its metadata before
+creating a remote archive. Missing tools or malformed capacity responses stop the operation with
+an explicit error; an unknown capacity is never treated as sufficient.
+
 First create or join a shared serial Session in one terminal:
 
 ```powershell
@@ -346,6 +351,19 @@ releasing the lease. Directory transfers use the same acknowledged block boundar
 temporary target archive instead of draining the untransferred remainder. If the Session or device
 disappears, reconnect locally and run `stty sane` on the board console if its terminal mode was not
 restored.
+
+Before sending payload, ChannelTerm estimates additional peak storage on each affected filesystem.
+An upload directory needs its TAR plus the extracted tree; a download needs a remote temporary
+TAR and the local extracted tree. Existing source files are not counted as new allocations.
+Resumable transfers also check local snapshots and publication staging, combining simultaneous
+allocations when they share a volume. Capacity is checked again before extraction/publication.
+Each estimate includes allocation rounding and a 5% reserve (at least 1 MiB); inode limits are
+checked when reported. Remote TAR creation uses a conservative allowance for headers and long names.
+An insufficient-space error reports the path, estimated bytes, available bytes and inode counts.
+Choose a different destination or free space before retrying. `/tmp` may be a separate filesystem
+or tmpfs; the queried path determines which capacity is used. Preflight does not reserve storage
+against other processes, quotas or memory pressure, so writes can still fail. Ordinary cleanup
+and resumable checkpoint retention rules continue to apply.
 
 Directory tar streams use temporary target-side archives to make every raw-terminal interval
 bounded. PC-to-board creates a hidden archive beside the destination, then extracts into a hidden

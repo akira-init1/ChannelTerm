@@ -36,6 +36,10 @@ type TransferCheckpoint struct {
 	SHA256       string                   `json:"sha256"`
 	Offset       int64                    `json:"offset"`
 	PrefixSHA256 string                   `json:"prefix_sha256"`
+	// StorageBytes and StorageEntries retain the directory metadata scan for
+	// capacity checks across resume. Zero entries identifies an older record.
+	StorageBytes   int64 `json:"storage_bytes,omitempty"`
+	StorageEntries int64 `json:"storage_entries,omitempty"`
 	// Phase is preparing, transferring, publishing, or completed. Publishing is
 	// durable before any final rename, so an uncertain rename is never replayed.
 	Phase string `json:"phase"`
@@ -90,6 +94,18 @@ func CreateTransferCheckpoint(ctx context.Context, root, direction, localPath, r
 		if err != nil {
 			return c, err
 		}
+		footprint := transferFootprint{bytes: info.Size(), entries: 1}
+		var plan directoryPlan
+		if info.IsDir() {
+			plan, err = makeDirectoryPlan(localPath)
+			if err != nil {
+				return c, err
+			}
+			footprint.bytes = plan.size
+		}
+		if err := checkLocalTransferSpace(dir, footprint); err != nil {
+			return c, err
+		}
 		f, err := os.OpenFile(filepath.Join(dir, "payload"), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
 		if err != nil {
 			return c, err
@@ -97,11 +113,8 @@ func CreateTransferCheckpoint(ctx context.Context, root, direction, localPath, r
 		writer := &transferContextWriter{ctx: ctx, writer: f}
 		if info.IsDir() {
 			c.Kind = RemotePathDirectory
-			var plan directoryPlan
-			plan, err = makeDirectoryPlan(localPath)
-			if err == nil {
-				err = plan.writeTo(writer)
-			}
+			c.StorageBytes, c.StorageEntries = plan.footprint().bytes, plan.footprint().entries
+			err = plan.writeTo(writer)
 		} else if info.Mode().IsRegular() {
 			var source *os.File
 			source, err = os.Open(localPath)
@@ -174,7 +187,7 @@ func ReadTransferCheckpoint(root, id string) (TransferCheckpoint, error) {
 	if c.Version != 1 || c.ID != id || (c.Direction != "send" && c.Direction != "receive") ||
 		(c.Kind != RemotePathFile && c.Kind != RemotePathDirectory) || !filepath.IsAbs(c.LocalPath) ||
 		len(c.LocalPath) > 4096 || len(c.Peer) > 8192 || c.RemotePath == "" || c.RemotePath[0] != '/' ||
-		(c.Wire != FileTransferWireRaw && c.Wire != FileTransferWireBase64) || c.Size < 0 || c.Offset < 0 || c.Offset > c.Size ||
+		(c.Wire != FileTransferWireRaw && c.Wire != FileTransferWireBase64) || c.Size < 0 || c.Offset < 0 || c.Offset > c.Size || c.StorageBytes < 0 || c.StorageEntries < 0 ||
 		(c.Offset != c.Size && c.Offset%FileTransferChunkSize != 0) || !checkpointDigest.MatchString(c.PrefixSHA256) {
 		return c, errors.New("invalid transfer checkpoint")
 	}

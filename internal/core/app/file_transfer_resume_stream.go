@@ -112,6 +112,28 @@ func (p *fileProtocol) prepareCheckpoint(ctx context.Context, dir string, c *Tra
 		c.Kind = kind
 	}
 	// Persist resolved paths/kind before creating remote state.
+	if c.Direction == "receive" && c.Kind == RemotePathDirectory {
+		footprint, err := p.remoteDirectoryFootprint(ctx, c.RemotePath)
+		if err != nil {
+			return err
+		}
+		bound, err := footprint.tarBound()
+		if err != nil {
+			return err
+		}
+		c.StorageBytes, c.StorageEntries = footprint.bytes, footprint.entries
+		if err := p.checkRemoteTransferSpace(ctx, checkpointRemoteDirectory(*c), transferFootprint{bytes: bound, entries: 3}); err != nil {
+			return err
+		}
+		if err := checkLocalTransferAllocations([]string{dir, c.LocalPath}, []transferFootprint{{bytes: bound, entries: 1}, footprint}); err != nil {
+			return err
+		}
+	}
+	if c.Direction == "send" {
+		if err := p.checkCheckpointSpace(ctx, dir, *c); err != nil {
+			return err
+		}
+	}
 	if err := saveTransferCheckpoint(dir, *c); err != nil {
 		return err
 	}
@@ -172,6 +194,9 @@ func (p *fileProtocol) validateCheckpointPrefix(ctx context.Context, c TransferC
 }
 
 func (p *fileProtocol) streamCheckpoint(ctx context.Context, dir string, c *TransferCheckpoint, progress FileTransferProgress) error {
+	if err := p.checkCheckpointSpace(ctx, dir, *c); err != nil {
+		return err
+	}
 	local := filepath.Join(dir, "payload")
 	if c.Direction == "send" {
 		n, h, err := hashTransferFile(ctx, local, -1)

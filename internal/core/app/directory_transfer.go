@@ -285,6 +285,14 @@ func SendDirectory(ctx context.Context, terminal FileTransferSession, source, re
 	if err != nil {
 		return DirectoryTransferResult{}, err
 	}
+	footprint := plan.footprint()
+	peak := transferFootprint{bytes: plan.size + footprint.bytes, entries: footprint.entries + 1}
+	if peak.bytes < plan.size {
+		return DirectoryTransferResult{}, ErrTransferSpaceUnavailable
+	}
+	if err := protocol.checkRemoteTransferSpace(ctx, remotePath, peak); err != nil {
+		return DirectoryTransferResult{}, err
+	}
 	if err := protocol.command(ctx, directorySendInitCommand(protocol.token, quotedArchive, quotedDirectory)); err != nil {
 		return DirectoryTransferResult{}, err
 	}
@@ -300,6 +308,7 @@ func SendDirectory(ctx context.Context, terminal FileTransferSession, source, re
 	copyErr := copyDirectoryStream(ctx, protocol, io.TeeReader(stream, hash), plan.size, quotedArchive, progress)
 	streamErr := stream.Close()
 	if copyErr != nil {
+		copyErr = protocol.diagnoseRemoteStorage(ctx, remotePath, transferFootprint{}, copyErr)
 		cleanupErr := protocol.cleanupDirectory(quotedArchive, quotedStage)
 		return DirectoryTransferResult{}, errors.Join(copyErr, cleanupErr)
 	}
@@ -308,12 +317,16 @@ func SendDirectory(ctx context.Context, terminal FileTransferSession, source, re
 		return DirectoryTransferResult{}, errors.Join(fmt.Errorf("stream local directory: %w", streamErr), cleanupErr)
 	}
 	localDigest := hex.EncodeToString(hash.Sum(nil))
+	if err := protocol.checkRemoteTransferSpace(ctx, remotePath, footprint); err != nil {
+		return DirectoryTransferResult{}, errors.Join(err, protocol.cleanupDirectory(quotedArchive, quotedStage))
+	}
 	if err := protocol.command(ctx, directorySendFinishCommand(protocol.token, quotedPath, quotedStage, quotedArchive, plan.size, localDigest)); err != nil {
 		cleanupErr := protocol.cleanupDirectory(quotedArchive, quotedStage)
 		return DirectoryTransferResult{}, errors.Join(err, cleanupErr)
 	}
 	verified, err := protocol.expectPhase(ctx, "FINAL")
 	if err != nil {
+		err = protocol.diagnoseRemoteStorage(ctx, remotePath, footprint, err)
 		return DirectoryTransferResult{}, directoryTarError(err)
 	}
 	remoteSize, remoteDigest, err := parseVerifiedFile(verified)
@@ -409,6 +422,20 @@ func ReceiveDirectory(ctx context.Context, terminal FileTransferSession, remoteP
 	archivePath := posixDirectoryReceiveArchivePath(protocol.token)
 	quotedArchive, err := quoteRemotePath(archivePath)
 	if err != nil {
+		return DirectoryTransferResult{}, err
+	}
+	footprint, err := protocol.remoteDirectoryFootprint(ctx, remotePath)
+	if err != nil {
+		return DirectoryTransferResult{}, err
+	}
+	archiveBound, err := footprint.tarBound()
+	if err != nil {
+		return DirectoryTransferResult{}, err
+	}
+	if err := checkLocalTransferSpace(destination, footprint); err != nil {
+		return DirectoryTransferResult{}, err
+	}
+	if err := protocol.checkRemoteTransferSpace(ctx, archivePath, transferFootprint{bytes: archiveBound, entries: 1}); err != nil {
 		return DirectoryTransferResult{}, err
 	}
 	if err := protocol.command(ctx, directoryReceiveInitCommand(protocol.token, quotedPath, quotedArchive)); err != nil {

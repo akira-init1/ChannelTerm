@@ -24,6 +24,9 @@ The default directory is the platform directory returned by Go's `os.UserConfigD
 Transfer checkpoints are separate from connection configuration and Host Session state. They contain
 local/device paths, a non-secret Host/serial endpoint binding, wire mode, byte counts and SHA-256
 digests; never credentials. Upload snapshots and download partial files are stored as `payload`;
+directory records may also retain `storage_bytes` and `storage_entries` for capacity estimates.
+Older records remain readable; until their archive is local, missing directory counts use a
+conservative TAR-header bound for space checks.
 `checkpoint.json` is replaced from a synced temporary file and an OS-backed `lock` excludes another
 worker. POSIX directories/files use owner-only permissions; Windows uses the user's profile ACL.
 GUI and CLI on the same OS/user share these records. WSL and Windows have separate user directories.

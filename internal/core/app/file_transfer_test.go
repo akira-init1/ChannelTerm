@@ -503,6 +503,8 @@ var (
 )
 
 type fileTransferTestSession struct {
+	spaceResponses                 []string
+	spaceChecks                    int
 	wire                           FileTransferWireEncoding
 	missingBase64, malformedBase64 bool
 	mu                             sync.Mutex
@@ -717,6 +719,15 @@ func (s *fileTransferTestSession) Write(request session.WriteRequest) (int, erro
 	}
 	s.token = tokenMatch[1]
 	switch {
+	case strings.Contains(command, ":SPACE:"):
+		response := "1073741824:4096:1000000:2000000"
+		if s.spaceChecks < len(s.spaceResponses) {
+			response = s.spaceResponses[s.spaceChecks]
+		}
+		s.spaceChecks++
+		s.emitLocked(fmt.Sprintf("\n@CTERM:%s:SPACE:%s\n", s.token, response))
+	case strings.Contains(command, ":FOOTPRINT:"):
+		s.emitLocked(fmt.Sprintf("\n@CTERM:%s:FOOTPRINT:%d:4\n", s.token, len(s.remote)))
 	case strings.Contains(command, ":WIRE:OK"):
 		if s.missingBase64 {
 			s.emitLocked(fmt.Sprintf("\n@CTERM:%s:ERROR:base64-tools\n", s.token))

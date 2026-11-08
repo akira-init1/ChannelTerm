@@ -612,6 +612,9 @@ receive defaults to local `./<remote-basename>`. On Windows, the local path prom
 enclosing pair of double quotes added by terminal file drag-and-drop. It removes that pair before
 deriving defaults or accessing files, preserving spaces and backslashes without shell expansion.
 Remote path input and local paths on other platforms remain literal.
+Transfers perform storage preflight before payload and again before directory extraction. Unknown
+or insufficient capacity fails with an actionable error; see the
+[file-transfer workflow](../getting-started/file-transfer.md) for required tools and estimates.
 During an active shortcut transfer, `Ctrl+C` starts
 a new line and prints the untimestamped prompt `[ChannelTerm] Cancel file transfer? [y/N]:`. The
 worker pauses at its next safe block boundary while the prompt is pending, and the

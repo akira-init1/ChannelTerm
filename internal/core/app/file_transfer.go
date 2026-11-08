@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	posixpath "path"
 	"strconv"
 	"strings"
@@ -155,6 +156,9 @@ func SendFileWithCancellation(ctx context.Context, terminal FileTransferSession,
 	if err != nil {
 		return FileTransferResult{}, err
 	}
+	if err := protocol.checkRemoteTransferSpace(ctx, remotePath, transferFootprint{bytes: size, entries: 1}); err != nil {
+		return FileTransferResult{}, err
+	}
 	if err := protocol.command(ctx, sendInitCommand(protocol.token, quotedPath, quotedDirectory)); err != nil {
 		return FileTransferResult{}, err
 	}
@@ -181,6 +185,7 @@ func SendFileWithCancellation(ctx context.Context, terminal FileTransferSession,
 			return FileTransferResult{}, fmt.Errorf("read local file at byte %d: %w", transferred, err)
 		}
 		if err := protocol.sendBlock(ctx, quotedPath, chunk); err != nil {
+			err = protocol.diagnoseRemoteStorage(ctx, remotePath, transferFootprint{bytes: size - transferred, entries: 0}, err)
 			return FileTransferResult{}, fmt.Errorf("send file chunk at byte %d: %w", transferred, err)
 		}
 		if _, err := hasher.Write(chunk); err != nil {
@@ -323,6 +328,11 @@ func ReceiveFileWithCancellation(ctx context.Context, terminal FileTransferSessi
 	size, remoteDigest, err := parseVerifiedFile(metadata)
 	if err != nil {
 		return FileTransferResult{}, err
+	}
+	if file, ok := destination.(*os.File); ok {
+		if err := checkLocalTransferSpace(file.Name(), transferFootprint{bytes: size}); err != nil {
+			return FileTransferResult{}, err
+		}
 	}
 	if progress != nil && size > 0 {
 		if err := progress(0, size); err != nil {

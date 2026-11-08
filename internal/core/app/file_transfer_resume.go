@@ -92,6 +92,9 @@ func (s checkpointSession) AbortFileTransferRecovery(ctx context.Context) error 
 }
 
 func (p *fileProtocol) publishCheckpoint(ctx context.Context, dir string, c *TransferCheckpoint) error {
+	if err := p.checkCheckpointSpace(ctx, dir, *c); err != nil {
+		return err
+	}
 	if c.Direction == "send" {
 		// Extract into the owned directory before marking publication uncertain.
 		body := checkpointRemoteGuard(*c)

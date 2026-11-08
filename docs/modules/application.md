@@ -335,6 +335,14 @@ lease owner capability.
 
 ## Shared Session file transfer
 
+Application owns storage preflight above the existing Session byte stream. Native local volume
+queries are isolated in platform files; remote queries use bounded, tokenized shell responses.
+Capacity estimates include simultaneously live archives, snapshots and staging trees, allocation
+rounding, and a 5% reserve of at least 1 MiB. Known inode limits are checked as well. Missing or
+invalid capacity information fails closed with `ErrTransferSpaceUnavailable`; insufficient capacity
+returns `ErrTransferSpaceInsufficient`. Estimates are not reservations or durability guarantees.
+The [file-transfer workflow](../getting-started/file-transfer.md) owns tool requirements and recovery.
+
 File transfer uses the same Session write and output-cursor semantics. It obtains a `file-transfer`
 lease before its first protocol command, renews it every 10 seconds, and releases it after confirmed
 shell recovery on success, failure, or cancellation. Bundled clients continue renewing during
