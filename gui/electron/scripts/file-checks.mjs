@@ -251,9 +251,9 @@ export async function checkFiles(desktop, page, fixture) {
       };
     });
     ipcMain.removeHandler("files:choose");
-    ipcMain.handle("files:choose", () => ({
+    ipcMain.handle("files:choose", (_event, _session, _direction, kind) => ({
       ok: true,
-      value: { id: "test-selection", name: "downloads" },
+      value: { id: "test-selection", name: "downloads", kind },
     }));
     ipcMain.removeHandler("files:transfer");
     ipcMain.handle("files:transfer", (_event, request) => {
@@ -307,6 +307,7 @@ export async function checkFiles(desktop, page, fixture) {
   assert.equal(request.selectionId, "test-selection");
   assert.equal(request.wire, "base64");
   assert.equal(request.resumable, true);
+  await checkFileDrops(desktop, page);
   await desktop.evaluate(({ ipcMain }) => {
     ipcMain.removeHandler("files:checkpoints");
     ipcMain.handle("files:checkpoints", () => ({
@@ -373,4 +374,177 @@ export async function checkFiles(desktop, page, fixture) {
     "Cancelled",
   );
   await page.locator('[data-layout="view.panel"]').click();
+}
+
+/** Native Chromium drops cross the real sandboxed Preload and Main selection path.
+ * Only serial browsing/payload execution are replaced in this disposable process. */
+async function checkFileDrops(desktop, page) {
+  const root = await mkdtemp(join(tmpdir(), "channelterm-native-drop-"));
+  const file = join(root, "drop-file.bin");
+  const folder = join(root, "drop-folder");
+  await writeFile(file, "fixture");
+  await mkdir(folder);
+  const cdp = await page.context().newCDPSession(page);
+  async function drop(paths) {
+    const box = await page
+      .locator(".terminal-view")
+      .filter({ visible: true })
+      .first()
+      .boundingBox();
+    assert.ok(box);
+    const data = { items: [], files: paths, dragOperationsMask: 1 };
+    for (const type of ["dragEnter", "dragOver", "drop"])
+      await cdp.send("Input.dispatchDragEvent", {
+        type,
+        x: box.x + box.width / 2,
+        y: box.y + box.height / 2,
+        data,
+      });
+  }
+  try {
+    await desktop.evaluate(({ ipcMain }) => {
+      globalThis.dropRequests = [];
+      globalThis.failDrop = false;
+      ipcMain.removeHandler("files:transfer");
+      ipcMain.handle("files:transfer", async (_event, request) => {
+        globalThis.dropRequests.push(request);
+        return globalThis.failDrop
+          ? {
+              ok: false,
+              error: {
+                code: "cancelled",
+                message: "Fixture cancelled first item",
+              },
+            }
+          : { ok: true };
+      });
+    });
+    assert.equal(
+      (
+        await page.evaluate(() =>
+          window.channelterm.saveTransferPreference("ask"),
+        )
+      ).ok,
+      true,
+    );
+    const forged = await page.evaluate(() =>
+      window.channelterm.selectDroppedFiles("fake", [
+        new File(["fake"], "forged.bin"),
+      ]),
+    );
+    assert.equal(forged.error.code, "invalid_input");
+    await drop([file]);
+    await expect
+      .poll(() => desktop.evaluate(() => globalThis.dropRequests.length))
+      .toBe(1);
+    let requests = await desktop.evaluate(() => globalThis.dropRequests);
+    assert.equal(requests[0].remotePath, "/home/root/drop-file.bin");
+    assert.equal(requests[0].directoryMode, "tar");
+    assert.equal(JSON.stringify(requests).includes(root), false);
+    await expect(page.locator(".file-dialog")).toHaveCount(0);
+    await drop([file, folder]);
+    const question = page.getByRole("dialog", {
+      name: "Folder transfer method",
+      exact: true,
+    });
+    await expect(question).toBeVisible();
+    await expect(
+      question.getByRole("radio", { name: "Pack as TAR and extract" }),
+    ).toBeChecked();
+    await question
+      .getByRole("radio", { name: "Copy files individually" })
+      .check();
+    await question.getByRole("checkbox").check();
+    await page.screenshot({ path: "test-results/file-drop-directory.png" });
+    await question.getByRole("button", { name: "Start transfer" }).click();
+    await expect
+      .poll(() => desktop.evaluate(() => globalThis.dropRequests.length))
+      .toBe(3);
+    requests = await desktop.evaluate(() => globalThis.dropRequests);
+    assert.equal(requests[1].directoryMode, "files");
+    assert.equal(requests[2].directoryMode, "files");
+    assert.equal(requests[1].sessionId, requests[2].sessionId);
+    assert.equal(requests[2].remotePath, "/home/root/drop-folder");
+    assert.equal(
+      (await page.evaluate(() => window.channelterm.transferPreference()))
+        .value,
+      "files",
+    );
+    await expect(page.locator(".file-dialog")).toHaveCount(0);
+    await drop([folder]);
+    await expect
+      .poll(() => desktop.evaluate(() => globalThis.dropRequests.length))
+      .toBe(4);
+    await expect(question).toHaveCount(0);
+    await desktop.evaluate(({ Menu }) =>
+      Menu.getApplicationMenu().getMenuItemById("settings.transfers").click(),
+    );
+    const settings = page.getByRole("dialog", {
+      name: "File transfer",
+      exact: true,
+    });
+    await expect(settings.getByRole("combobox")).toHaveValue("files");
+    await settings.getByRole("combobox").selectOption("ask");
+    await settings.getByRole("button", { name: "Save preference" }).click();
+    await expect(settings).toHaveCount(0);
+    await drop([folder]);
+    await expect(question).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(question).toHaveCount(0);
+    assert.equal(
+      await desktop.evaluate(() => globalThis.dropRequests.length),
+      4,
+    );
+    await page.evaluate(() => window.channelterm.saveTransferPreference("tar"));
+    await desktop.evaluate(() => {
+      globalThis.failDrop = true;
+    });
+    await drop([file, folder]);
+    await expect
+      .poll(() => desktop.evaluate(() => globalThis.dropRequests.length))
+      .toBe(5);
+    await expect(page.getByText("Fixture cancelled first item")).toBeVisible();
+    assert.equal(
+      await desktop.evaluate(() => globalThis.dropRequests.length),
+      5,
+    );
+    await desktop.evaluate(() => {
+      globalThis.failDrop = false;
+    });
+    await page.evaluate(() => window.channelterm.saveTransferPreference("ask"));
+    await desktop.evaluate(({ Menu }) =>
+      Menu.getApplicationMenu().getMenuItemById("file.send").click(),
+    );
+    const picker = page.getByRole("dialog", {
+      name: "Send to device",
+      exact: true,
+    });
+    await picker
+      .getByRole("button", { name: "Choose folder", exact: true })
+      .click();
+    const resume = picker.getByRole("checkbox", {
+      name: "Keep a checkpoint for manual resume",
+    });
+    await resume.check();
+    await picker
+      .getByRole("button", { name: "Send to device", exact: true })
+      .click();
+    await expect(question).toBeVisible();
+    await question
+      .getByRole("radio", { name: "Copy files individually" })
+      .check();
+    await expect(
+      question.getByRole("button", { name: "Start transfer" }),
+    ).toBeDisabled();
+    await expect(question.getByRole("alert")).toContainText(
+      "Disable resume or choose TAR",
+    );
+    await question.getByRole("button", { name: "Cancel", exact: true }).click();
+    await expect(question).toHaveCount(0);
+    await expect(picker).toBeVisible();
+    await picker.getByRole("button", { name: "Cancel", exact: true }).click();
+  } finally {
+    await cdp.detach();
+    await rm(root, { recursive: true, force: true });
+  }
 }

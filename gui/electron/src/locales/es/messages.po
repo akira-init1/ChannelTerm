@@ -745,6 +745,31 @@ msgstr "Carpeta"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "file.directoryHint"
+msgstr "TAR no comprime y se extrae tras la transferencia. Ambos métodos generan carpetas."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.directoryQuestion"
+msgstr "Método de transferencia de carpetas"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.dropDestination"
+msgstr "Elija el directorio de destino y confirme las credenciales SSH para este lote."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.dropHint"
+msgstr "Suelte para enviar; la conexión serie usa el directorio actual del shell"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.dropUnavailable"
+msgstr "Seleccione una sesión disponible y termine la operación actual antes de soltar archivos."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "file.empty"
 msgstr "Aún no hay transferencias. Use el menú Sesión para enviar, recibir o reanudar una transferencia."
 
@@ -785,6 +810,26 @@ msgstr "Solo se aceptan claves de host de confianza. Verifica la clave del servi
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "file.mode.ask"
+msgstr "Preguntar cada vez"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.mode.files"
+msgstr "Copiar archivos individualmente"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.mode.tar"
+msgstr "Empaquetar como TAR y extraer"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.modeResumeConflict"
+msgstr "El modo por archivo no permite guardar puntos de reanudación. Desactive la reanudación o elija TAR."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "file.noCheckpoints"
 msgstr "No hay transferencias guardadas para este puerto."
 
@@ -802,6 +847,11 @@ msgstr "No compatible"
 #: src/shared/menu-messages.ts
 msgid "file.parent"
 msgstr "Subir"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.preferenceHint"
+msgstr "Se comparte con la CLI del mismo usuario en este equipo. Se aplica a directorios por serie; SSH usa copia recursiva."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -827,6 +877,11 @@ msgstr "Recibir esta carpeta"
 #: src/shared/menu-messages.ts
 msgid "file.recursive"
 msgstr "Descargar un directorio recursivamente"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.rememberMode"
+msgstr "Recordar para CLI y GUI"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -860,6 +915,11 @@ msgstr "Elegir carpeta de destino"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "file.savePreference"
+msgstr "Guardar preferencia"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "file.send"
 msgstr "Enviar al dispositivo"
 
@@ -877,6 +937,11 @@ msgstr "Solo archivos individuales. Seleccione el mismo origen y destino; los by
 #: src/shared/menu-messages.ts
 msgid "file.sshHint"
 msgstr "Usa una conexión SSH independiente desde este equipo. Introduzca rutas locales de claves y known_hosts. No se guardan credenciales. Las copias se verifican con SHA-256; SCP requiere sha256sum remoto. Cancelar puede dejar archivos parciales."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.startBatch"
+msgstr "Iniciar transferencia"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -1302,6 +1367,11 @@ msgstr "Preferencias..."
 #: src/shared/menu-messages.ts
 msgid "settings.shortcuts"
 msgstr "Atajos de teclado"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "settings.transfers"
+msgstr "Transferencia de archivos"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

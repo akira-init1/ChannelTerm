@@ -305,6 +305,22 @@ are implemented. See the [menu contracts](../reference/gui-menus.md#window-actio
 Each window's Main file adapters own native local selection capabilities and one in-flight desktop file
 operation. Renderer receives an opaque selection ID and display basename, not unrestricted file
 access. IDs are bound to Session/direction, expire after ten minutes, are cleared on disconnect, and are consumed on start.
+Native drops resolve OS-backed File objects only in sandboxed Preload through Electron `webUtils`;
+the fixed drop IPC validates the caller, at most 16 absolute paths, regular-file/directory types,
+and the original live Host before creating the same one-use selections. Renderer receives kinds
+and basenames, never local paths. A bounded Renderer batch captures one target/destination and
+awaits each existing transfer; cancellation, failure or Host replacement stops subsequent items.
+Serial drops resolve the shell directory through the existing browser. SSH drops reuse the
+credential form and recursive SFTP/SCP client.
+
+Directory choice UI is adapter-owned. Core config owns the shared local preference; Main reads and
+saves it through fixed `file preferences --json` companion invocations, with bounded output/time
+and existing config locks. It never edits TOML in JavaScript or changes the remote Host's grants.
+The default `ask` decision occurs once per directory batch, while normal files start directly.
+Both picker and drop pass an explicit `tar|files` value; per-file/resume conflicts are rejected.
+See [configuration](../reference/configuration.md#toml-schema) and the
+[drop workflow](../getting-started/file-transfer.md#shared-directory-preference-and-desktop-drops).
+
 For serial operations, the adapter invokes the fixed app-owned CLI using argument arrays and a Main-only credential
 environment, without a shell or PATH lookup. It reads bounded JSON records, never human progress
 or stderr. The CLI reuses Application transfers and the existing authenticated Host/Lease path.

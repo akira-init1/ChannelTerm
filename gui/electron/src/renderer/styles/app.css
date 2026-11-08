@@ -1333,3 +1333,28 @@ main {
   margin-left: 0;
   user-select: text;
 }
+
+.file-drop-hint {
+  position: fixed;
+  inset: 44px 16px auto;
+  z-index: 100;
+  padding: 20px;
+  border: 2px dashed currentColor;
+  border-radius: 8px;
+  background: #182331;
+  color: #e2e8f0;
+  pointer-events: none;
+}
+
+.directory-question label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.directory-question input[type="radio"],
+.directory-question input[type="checkbox"] {
+  width: auto;
+  margin: 0;
+  flex: none;
+}

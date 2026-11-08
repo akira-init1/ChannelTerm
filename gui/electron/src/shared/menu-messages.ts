@@ -3,6 +3,46 @@ import type { MessageDescriptor } from "@lingui/core";
 // Lingui 5 extracts these official annotated descriptors without a runtime macro
 // transform. Translations belong in PO catalogs; this file owns IDs and English defaults.
 export const menuMessages = [
+  /* i18n */ { id: "settings.transfers", message: "File transfer" },
+  /* i18n */ {
+    id: "file.directoryQuestion",
+    message: "Folder transfer method",
+  },
+  /* i18n */ {
+    id: "file.directoryHint",
+    message:
+      "TAR is uncompressed and extracted after transfer. Both methods produce folders.",
+  },
+  /* i18n */ { id: "file.mode.tar", message: "Pack as TAR and extract" },
+  /* i18n */ { id: "file.mode.files", message: "Copy files individually" },
+  /* i18n */ { id: "file.mode.ask", message: "Ask each time" },
+  /* i18n */ { id: "file.rememberMode", message: "Remember for CLI and GUI" },
+  /* i18n */ {
+    id: "file.modeResumeConflict",
+    message:
+      "Per-file mode cannot keep a resume checkpoint. Disable resume or choose TAR.",
+  },
+  /* i18n */ {
+    id: "file.preferenceHint",
+    message:
+      "Shared with CLI on this computer and user account. Applies to serial directories; SSH uses recursive copy.",
+  },
+  /* i18n */ { id: "file.savePreference", message: "Save preference" },
+  /* i18n */ { id: "file.startBatch", message: "Start transfer" },
+  /* i18n */ {
+    id: "file.dropDestination",
+    message:
+      "Choose the destination directory and confirm SSH credentials for this batch.",
+  },
+  /* i18n */ {
+    id: "file.dropHint",
+    message: "Drop to send; serial uses the current shell directory",
+  },
+  /* i18n */ {
+    id: "file.dropUnavailable",
+    message:
+      "Select an available Session and finish any current operation before dropping files.",
+  },
   /* i18n */ {
     id: "recovery.host_legacy_credentials",
     message:

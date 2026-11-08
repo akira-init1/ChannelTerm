@@ -3,6 +3,8 @@ import { hostRecoveryMessage } from "../../shared/host-recovery";
 import { ActivityPanel } from "../sessions/ActivityPanel";
 import { DiagnosticsDialog } from "../sessions/DiagnosticsDialog";
 import { FileDialog } from "../transfers/FileDialog";
+import { TransferSettings } from "../transfers/TransferSettings";
+import type { LocalSelection } from "../../shared/transfers";
 import { FileCloseNotice } from "../transfers/FileCloseNotice";
 import { SSHFileDialog } from "../transfers/SSHFileDialog";
 import { ResumeDialog } from "../transfers/ResumeDialog";
@@ -317,13 +319,19 @@ export function App() {
     sessionId: string;
     name: string;
     direction: "send" | "receive";
+    initial?: LocalSelection[];
   }>();
+  const [transferSettingsOpen, setTransferSettingsOpen] = useState(false);
+  const [draggingFiles, setDraggingFiles] = useState(false);
+  const dropPending = useRef(false);
+  const batchPending = useRef(false);
   const [filePending, setFilePending] = useState(false);
   const [sshFileDialog, setSSHFileDialog] = useState<{
     sessionId: string;
     name: string;
     endpoint: string;
     direction: "send" | "receive";
+    initial?: LocalSelection[];
   }>();
   const [resumeTarget, setResumeTarget] = useState<{
     sessionId: string;
@@ -406,23 +414,49 @@ export function App() {
       clearTimeout(timer);
     };
   }, [connected, observedSessions]);
-  function startTransfer(request: TransferRequest) {
+  function startTransfer(requests: TransferRequest[]) {
+    if (batchPending.current) return;
+    batchPending.current = true;
     setPanelVisible(true);
     setPanelTab("transfers");
     setFilePending(true);
     setFileError("");
-    void unwrap(host.startTransfer(request))
+    const epoch = generation.current;
+    void (async () => {
+      for (const request of requests) {
+        if (epoch !== generation.current)
+          throw { message: t("file.dropUnavailable") };
+        await unwrap(host.startTransfer(request));
+      }
+    })()
       .catch((error: ClientError) => setFileError(error.message))
-      .finally(() => setFilePending(false));
+      .finally(() => {
+        batchPending.current = false;
+        setFilePending(false);
+      });
   }
-  function startSSHTransfer(request: SSHTransferRequest) {
+  function startSSHTransfer(requests: SSHTransferRequest[]) {
+    if (batchPending.current) return;
+    batchPending.current = true;
     setPanelVisible(true);
     setPanelTab("transfers");
     setFilePending(true);
     setFileError("");
-    void unwrap(host.startSSHTransfer(request))
+    const epoch = generation.current;
+    void (async () => {
+      for (const request of requests) {
+        if (epoch !== generation.current)
+          throw { message: t("file.dropUnavailable") };
+        await unwrap(host.startSSHTransfer(request));
+        const jobs = await unwrap(host.sshTransfers());
+        if (jobs.at(-1)?.state !== "completed") break;
+      }
+    })()
       .catch((error: ClientError) => setFileError(error.message))
-      .finally(() => setFilePending(false));
+      .finally(() => {
+        batchPending.current = false;
+        setFilePending(false);
+      });
   }
   function resumeTransfer(sessionId: string, id: string) {
     setPanelVisible(true);
@@ -456,6 +490,7 @@ export function App() {
         !!activeTab?.moving ||
         !!fileDialog ||
         !!sshFileDialog ||
+        transferSettingsOpen ||
         filePending,
       sidebarVisible,
       auxiliaryVisible,
@@ -481,6 +516,7 @@ export function App() {
       closeTarget,
       fileDialog,
       sshFileDialog,
+      transferSettingsOpen,
       filePending,
       current?.transport,
       sidebarVisible,
@@ -859,6 +895,7 @@ export function App() {
         actionBusy.current ||
         !!fileDialog ||
         !!sshFileDialog ||
+        transferSettingsOpen ||
         filePending ||
         !!tab?.moving,
       currentOpen: session?.state === "open",
@@ -1060,6 +1097,9 @@ export function App() {
       case "settings.display":
         setDisplayOpen(true);
         return;
+      case "settings.transfers":
+        setTransferSettingsOpen(true);
+        return;
       case "settings.shortcuts":
         setShortcutsOpen(true);
         return;
@@ -1191,8 +1231,96 @@ export function App() {
         ? t("session.emptyHint")
         : "Choose an open Session from the sidebar to view output and send input.";
 
+  const canDropFiles =
+    connected &&
+    !working &&
+    !filePending &&
+    !fileDialog &&
+    !sshFileDialog &&
+    !transferSettingsOpen &&
+    !displayOpen &&
+    !shortcutsOpen &&
+    !connectionKind &&
+    !settingsTarget &&
+    !resumeTarget &&
+    current?.state === "open" &&
+    (current.transport === "ssh" || !current.lease) &&
+    (current.transport === "serial" || current.transport === "ssh");
+  async function dropFiles(files: File[]) {
+    if (!files.length) return;
+    if (
+      !canDropFiles ||
+      !current ||
+      dropPending.current ||
+      batchPending.current
+    ) {
+      setFileError(t("file.dropUnavailable"));
+      setPanelVisible(true);
+      return;
+    }
+    const target = current;
+    const epoch = generation.current;
+    dropPending.current = true;
+    setFilePending(true);
+    setFileError("");
+    try {
+      const initial = await unwrap(
+        host.selectDroppedFiles(target.session_id, files),
+      );
+      if (epoch !== generation.current) return;
+      const common = {
+        sessionId: target.session_id,
+        name: target.label || target.session_ref,
+        direction: "send" as const,
+        initial,
+      };
+      if (target.transport === "ssh")
+        setSSHFileDialog({ ...common, endpoint: target.endpoint });
+      else setFileDialog(common);
+    } catch (e) {
+      setFileError((e as ClientError).message);
+      setPanelVisible(true);
+    } finally {
+      dropPending.current = false;
+      setFilePending(false);
+    }
+  }
   return (
-    <div className={`app ${sidebarVisible ? "" : "sidebar-hidden"}`}>
+    <div
+      className={`app ${sidebarVisible ? "" : "sidebar-hidden"}`}
+      onDragOver={(event) => {
+        if (event.dataTransfer.types.includes("Files")) {
+          event.preventDefault();
+          setDraggingFiles(true);
+          event.dataTransfer.dropEffect = canDropFiles ? "copy" : "none";
+        }
+      }}
+      onDragLeave={(event) => {
+        if (
+          !(event.relatedTarget instanceof Node) ||
+          !event.currentTarget.contains(event.relatedTarget)
+        )
+          setDraggingFiles(false);
+      }}
+      onDrop={(event) => {
+        event.preventDefault();
+        setDraggingFiles(false);
+        void dropFiles(Array.from(event.dataTransfer.files));
+      }}
+    >
+      {draggingFiles && (
+        <div className="file-drop-hint" role="status">
+          {canDropFiles
+            ? `${t("file.dropHint")} · ${current?.label || current?.session_ref}`
+            : t("file.dropUnavailable")}
+        </div>
+      )}
+      {transferSettingsOpen && (
+        <TransferSettings
+          t={t}
+          onClose={() => setTransferSettingsOpen(false)}
+        />
+      )}
       {displayOpen && (
         <DisplaySettingsDialog
           value={display}

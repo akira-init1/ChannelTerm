@@ -605,7 +605,11 @@ Cancellation reports `[ChannelTerm] Escape cancelled` locally and returns the ne
 remote forwarding. Local status output resets the prompt presentation boundary, so later prompts
 remain eligible for timestamps and highlighting. `Ctrl+] t` toggles local-only prompt timestamps for
 this attachment, off by default; it does not change the shared Session or MCP output. `Ctrl+] f`
-opens a local file-transfer menu with a `Select:` prompt. Press `s`/`r` for send/receive with TAR
+opens a local file-transfer menu with a `Select:` prompt. Press `f`/`g` to send/receive using the
+[shared directory preference](configuration.md#toml-schema). The default asks only after detecting
+a directory: Enter/`t` selects TAR, `f` selects per-file copy, uppercase `T`/`F` also saves the choice,
+and Escape/Ctrl+C cancels locally. `channelterm file preferences` reads or changes the preference;
+its help documents `--config`, `--directory-mode` and `--json`. Press `s`/`r` for send/receive with TAR
 directories, or `u`/`d` for send/receive with per-file directory verification. The choice applies to
 this transfer only; the key is echoed locally after `Select:` and no Enter is needed. Invalid keys
 and menu `Esc` remain local. Send defaults to POSIX `/tmp/cterm/user-files/<local-basename>` and
@@ -733,7 +737,10 @@ start a Host itself. The default `attach` workflow starts the local Host when ne
 `--wire base64|raw` defaults to `base64`, requiring peer `base64 -d` and `tr`; explicit `raw`
 retains compatibility for eight-bit links without XON/XOFF. See
 [transfer encoding](../getting-started/file-transfer.md#transfer-encoding-and-compatibility).
-`--directory-mode tar|files` defaults to `tar` and affects directories only. `files` copies a staged
+`--directory-mode tar|files` overrides the [local directory preference](configuration.md#toml-schema)
+and affects directories only. With no override, `ask` resolves to TAR without prompting in standalone
+commands; `tar`/`files` use the saved choice. `--config` selects the local preference file.
+`files` copies a staged
 tree without an archive, verifies every file by SHA-256 readback, compares the final manifests,
 and publishes exclusively. It rejects `--resumable`. See
 [directory modes](../getting-started/file-transfer.md#choose-how-to-transfer-a-directory) for tool

@@ -521,6 +521,16 @@ These checks do not establish physical device evidence or other native-platform 
 
 ## Troubleshooting and limits
 
+Directory preference tests use temporary TOML files and verify CLI/GUI defaults, validation,
+explicit overrides and preservation of other config sections. File-selection tests reject invalid,
+duplicate, stale and oversized drops before launch. Native `file-checks.mjs` uses Chromium OS-backed
+drops through the real Preload/Main selection path, with serial browser/payload responses replaced
+only in the disposable test process. It checks direct files, one question per batch, TAR default,
+remembering/resetting the shared preference and stopping on cancellation/failure. Screenshot:
+`test-results/file-drop-directory.png`. Desktop processes use an isolated user configuration root;
+these tests do not read or modify personal transfer preferences. Native tests on other OS/architecture
+pairs and physical serial transfers remain separate validation.
+
 | Symptom | Check / recovery |
 | --- | --- |
 | Companion missing / startup failed | For source builds run `npm.cmd run host:build`, verify local configuration and port 37099, then retry. Main never searches PATH. |

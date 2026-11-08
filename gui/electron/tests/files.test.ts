@@ -12,6 +12,130 @@ import {
 } from "../src/main/files";
 import { HostClient } from "../src/main/host/client";
 import { startFixture } from "./fixture";
+import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+test("drops grant bounded one-use selections, preserve directories and reject stale hosts", async () => {
+  const root = await mkdtemp(join(tmpdir(), "channelterm-drop-"));
+  try {
+    const file = join(root, "Unicode 文件.bin");
+    const folder = join(root, "folder");
+    await writeFile(file, "fixture");
+    await mkdir(folder);
+    const files = new DesktopFiles("must-never-execute");
+    const host = { validateFileSession: async (_id: string) => {} };
+    const selected = await files.selectDropped(host, "original", [
+      file,
+      folder,
+    ]);
+    assert.deepEqual(
+      selected.map((s) => s.kind),
+      ["file", "directory"],
+    );
+    assert.equal(JSON.stringify(selected).includes(root), false);
+    assert.throws(() => files.takeSelection("other", selected[0]!.id, "send"), {
+      code: "invalid_input",
+    });
+    assert.equal(
+      files.takeSelection("original", selected[0]!.id, "send"),
+      file,
+    );
+    assert.throws(() =>
+      files.takeSelection("original", selected[0]!.id, "send"),
+    );
+    for (const value of [
+      [],
+      [file, file],
+      ["relative"],
+      [""],
+      [null],
+      [file + "\0"],
+      Array(17).fill(file),
+      [join(root, "missing")],
+    ]) {
+      await assert.rejects(files.selectDropped(host, "original", value), {
+        code: "invalid_input",
+      });
+    }
+    const changed = files.remember(file, "original", "send", "directory");
+    await assert.rejects(
+      files.transfer(new HostClient("http://127.0.0.1:1/mcp", "fake"), {
+        sessionId: "original",
+        direction: "send",
+        selectionId: changed.id,
+        remotePath: "/tmp/changed",
+      }),
+      { code: "invalid_input" },
+    );
+    const staleHost = {
+      validateFileSession: async (_id: string) => {
+        files.clearSelections();
+      },
+    };
+    await assert.rejects(files.selectDropped(staleHost, "original", [file]), {
+      code: "cancelled",
+    });
+    assert.throws(() =>
+      files.takeSelection("original", selected[1]!.id, "send"),
+    );
+    let finish!: () => void;
+    let calls = 0;
+    const pending = files.selectDropped(
+      {
+        validateFileSession: () =>
+          ++calls === 1
+            ? new Promise<void>((resolve) => {
+                finish = resolve;
+              })
+            : Promise.resolve(),
+      },
+      "original",
+      [file],
+    );
+    await assert.rejects(files.selectDropped(host, "original", [folder]), {
+      code: "busy",
+    });
+    files.clearSelections();
+    finish();
+    await assert.rejects(pending, { code: "cancelled" });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("directory options reject invalid modes and resume conflicts before consuming selections", async () => {
+  const files = new DesktopFiles("must-never-execute");
+  const host = new HostClient("http://127.0.0.1:1/mcp", "fake");
+  const selection = files.remember("fake", "session", "send");
+  for (const options of [
+    { directoryMode: "zip" },
+    { directoryMode: "ask" },
+    { directoryMode: "files", resumable: true },
+  ]) {
+    await assert.rejects(
+      files.transfer(host, {
+        sessionId: "session",
+        direction: "send",
+        selectionId: selection.id,
+        remotePath: "/tmp/file",
+        ...options,
+      }),
+      { code: "invalid_input" },
+    );
+  }
+  assert.equal(files.takeSelection("session", selection.id, "send"), "fake");
+  await assert.rejects(files.preference("zip"), { code: "invalid_input" });
+});
+
+test("simultaneous preference reads share one bounded companion operation", async () => {
+  const files = new DesktopFiles(process.execPath);
+  const first = files.preference();
+  const second = files.preference();
+  assert.equal(first, second);
+  await assert.rejects(first, { code: "configuration" });
+  await assert.rejects(second, { code: "configuration" });
+});
 
 test("saved transfer summaries are bounded and never expose paths or credentials", () => {
   const row = {

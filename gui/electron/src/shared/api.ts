@@ -94,6 +94,17 @@ export interface WindowInfo {
 
 /** One method per IPC channel; no arbitrary tool, URL, file, or process access. */
 export interface DesktopAPI {
+  /** File objects are consumed in Preload; only opaque selections return to Renderer. */
+  selectDroppedFiles(
+    sessionId: string,
+    files: File[],
+  ): Promise<Result<LocalSelection[]>>;
+  transferPreference(): Promise<
+    Result<import("./transfers").DirectoryPreference>
+  >;
+  saveTransferPreference(
+    mode: import("./transfers").DirectoryPreference,
+  ): Promise<Result<void>>;
   debugOverview(): Promise<Result<DebugOverview>>;
   windowInfo(): Promise<Result<WindowInfo>>;
   newWindow(): Promise<Result<void>>;
@@ -173,6 +184,9 @@ export interface DesktopAPI {
 }
 
 export const channels = {
+  selectDroppedFiles: "files:drop",
+  transferPreference: "files:preference",
+  saveTransferPreference: "files:preference-save",
   windowInfo: "window:info",
   newWindow: "window:new",
   closeWindow: "window:close",

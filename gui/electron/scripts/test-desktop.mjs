@@ -140,6 +140,10 @@ const launchArgs = [...preloadArgs, "--lang=en-US", "."];
 const observer = new HostClient(fixture.endpoint, fixture.token);
 const desktopEnvironment = {
   ...process.env,
+  APPDATA: profile,
+  XDG_CONFIG_HOME: profile,
+  // macOS Go user configuration is HOME/Library/Application Support.
+  ...(process.platform === "darwin" ? { HOME: profile } : {}),
   CHANNELTERM_GUI_ENDPOINT: fixture.endpoint,
   CHANNELTERM_HTTP_AUTH_TOKEN: fixture.token,
   CHANNELTERM_GUI_DEV_URL: "",

@@ -488,7 +488,19 @@ function createHandlers(context: WindowContext): Record<string, Handler> {
       if (context.host !== selectedHost)
         throw new HostError("cancelled", "Host changed during file selection.");
       await selectedHost.validateFileSession(id);
-      return context.files.remember(result.filePaths[0], id, direction);
+      return context.files.remember(result.filePaths[0], id, direction, kind);
+    },
+    [channels.selectDroppedFiles]: (id, paths) => {
+      identifier(id);
+      if (context.sshFiles.busy || context.sshBrowser.busy)
+        throw new HostError("busy", "Finish the SSH file operation first.");
+      return context.files.selectDropped(currentHost(context), id, paths);
+    },
+    [channels.transferPreference]: () => context.files.preference(),
+    [channels.saveTransferPreference]: async (mode) => {
+      if (mode !== "ask" && mode !== "tar" && mode !== "files")
+        throw new HostError("invalid_input", "Invalid directory preference.");
+      await context.files.preference(mode);
     },
     [channels.browseDirectory]: (id, path) => {
       if (context.sshFiles.busy)
@@ -658,6 +670,7 @@ function registerIPC(): void {
             channels.resolveTransferCancel,
             channels.resolveSSHTrust,
             channels.resumeTransfer,
+            channels.selectDroppedFiles,
           ].includes(channel as typeof channels.write)
             ? 2
             : channel === channels.chooseTransferPath
@@ -679,6 +692,7 @@ function registerIPC(): void {
                     channels.cancelSSHTransfer,
                     channels.transfers,
                     channels.transferCheckpoints,
+                    channels.saveTransferPreference,
                   ].includes(channel as typeof channels.detach)
                 ? 1
                 : 0;

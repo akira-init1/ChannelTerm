@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/akira-init1/ChannelTerm/internal/core/app"
+	"github.com/akira-init1/ChannelTerm/internal/core/config"
 	"github.com/akira-init1/ChannelTerm/internal/core/session"
 )
 
@@ -31,6 +32,7 @@ const fileTransferUserCancelled = "user_cancelled"
 const fileTransferWriteCancelGrace = 15 * time.Second
 
 type fileCommandDependencies struct {
+	chooseDirectoryMode     func(context.Context) (string, error)
 	transferRoot            func() (string, error)
 	newAttach               attachSessionFactory
 	listSessions            func(context.Context, string) ([]mcpListedSession, error)
@@ -185,6 +187,9 @@ func runFileWithDependencies(ctx context.Context, args []string, output io.Write
 		writeFileUsage(output)
 		return nil
 	}
+	if args[0] == "preferences" {
+		return runFilePreferences(ctx, args[1:], output)
+	}
 	if dependencies.newAttach == nil || dependencies.listSessions == nil {
 		return errors.New("file command dependencies must not be nil")
 	}
@@ -227,6 +232,12 @@ func runFileSend(ctx context.Context, args []string, output io.Writer, dependenc
 		return fmt.Errorf("stat local source %q: %w", localPath, err)
 	}
 	if info.IsDir() {
+		if dependencies.chooseDirectoryMode != nil {
+			options.directoryMode, err = dependencies.chooseDirectoryMode(ctx)
+			if err != nil {
+				return err
+			}
+		}
 		return runFileSendDirectory(ctx, localPath, remotePath, options, output, dependencies)
 	}
 	if !info.Mode().IsRegular() {
@@ -456,6 +467,12 @@ func runFileReceive(ctx context.Context, args []string, output io.Writer, depend
 			}
 			switch kind {
 			case app.RemotePathDirectory:
+				if dependencies.chooseDirectoryMode != nil {
+					options.directoryMode, err = dependencies.chooseDirectoryMode(ctx)
+					if err != nil {
+						return err
+					}
+				}
 				return runFileReceiveDirectory(ctx, terminal, attached, remotePath, requestedLocalPath, options.directoryMode, output, dependencies.transferCancelRequested)
 			case app.RemotePathMissing:
 				return fmt.Errorf("remote source %q does not exist", remotePath)
@@ -729,7 +746,8 @@ type fileOptions struct {
 func parseFileOptions(name string, args []string, output io.Writer, usage func(io.Writer)) (fileOptions, error) {
 	flags := flag.NewFlagSet(name, flag.ContinueOnError)
 	resumable := flags.Bool("resumable", false, "retain a snapshot and confirmed offset for manual file resume after interruption (absolute device path required)")
-	directoryMode := flags.String("directory-mode", "tar", "directory transfer: tar (default) or files (per-file SHA-256 readback; no resumable checkpoints)")
+	directoryMode := flags.String("directory-mode", "tar", "directory transfer: tar or files; omitted uses local preference (ask resolves to tar without prompting)")
+	configPath := flags.String("config", "", "local preferences configuration file")
 	flags.Bool("json", false, "emit structured transfer records instead of terminal progress")
 	flags.SetOutput(output)
 	wire := flags.String("wire", string(app.FileTransferWireBase64), "file wire encoding: base64 (requires peer base64 and tr) or raw (never with XON/XOFF)")
@@ -754,6 +772,25 @@ func parseFileOptions(name string, args []string, output io.Writer, usage func(i
 	showHelp := *help || *shortHelp
 	if showHelp {
 		flags.Usage()
+	}
+	explicitMode := false
+	flags.Visit(func(f *flag.Flag) {
+		if f.Name == "directory-mode" {
+			explicitMode = true
+		}
+	})
+	if !showHelp && !explicitMode && (name == "file send" || name == "file receive") {
+		preference, err := config.LoadTransferPreferences(*configPath)
+		if err != nil {
+			return fileOptions{}, err
+		}
+		mode, err := preference.Mode()
+		if err != nil {
+			return fileOptions{}, err
+		}
+		if mode != "ask" {
+			*directoryMode = mode
+		}
 	}
 	if !showHelp && *wire != string(app.FileTransferWireRaw) && *wire != string(app.FileTransferWireBase64) {
 		return fileOptions{}, errors.New("--wire must be base64 or raw")
@@ -1185,6 +1222,7 @@ func splitLocalFilenameExtension(filename string) (string, string) {
 
 func writeFileUsage(output io.Writer) {
 	fmt.Fprintln(output, "Usage: channelterm file send LOCAL_PATH [REMOTE_PATH] [options]")
+	fmt.Fprintln(output, "       channelterm file preferences [--directory-mode ask|tar|files] [--config PATH] [--json]")
 	fmt.Fprintln(output, "       channelterm file receive REMOTE_PATH LOCAL_PATH [options]")
 	fmt.Fprintln(output, "       channelterm file browse [REMOTE_DIRECTORY] [options] (JSON directory snapshot)")
 	fmt.Fprintln(output, "       channelterm file jobs [--json] [--session SESSION] [--endpoint URL]")

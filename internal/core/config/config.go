@@ -18,9 +18,7 @@ import (
 // managed transfers access to an explicit Host root and SSH profiles. They share one
 // config.toml lifecycle, while their responsibilities remain independent.
 //
-// Preferences is omitted from TOML until it contains persisted fields, so
-// adding this boundary does not rewrite existing configuration into a new
-// schema section.
+// Empty preferences are omitted from TOML; client choices do not grant Host access.
 type File struct {
 	Serial       Serial       `toml:"serial"`
 	Connection   Connection   `toml:"connection"`

@@ -3,9 +3,11 @@ import type {
   LocalSelection,
   RemoteDirectory,
   TransferRequest,
+  DirectoryPreference,
 } from "../../shared/transfers";
 import type { ClientError } from "../../shared/api";
 import { host, unwrap } from "../host";
+import { DirectoryQuestion } from "./DirectoryQuestion";
 
 /** Browse a snapshot in a child shell. UI navigation never changes the interactive cwd. */
 export function FileDialog({
@@ -15,13 +17,15 @@ export function FileDialog({
   t,
   onStart,
   onClose,
+  initial,
 }: {
   sessionId: string;
   name: string;
   direction: "send" | "receive";
   t: (id: string) => string;
-  onStart: (request: TransferRequest) => void;
+  onStart: (requests: TransferRequest[]) => void;
   onClose: () => void;
+  initial?: LocalSelection[];
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const inFlight = useRef(false);
@@ -29,13 +33,30 @@ export function FileDialog({
   const [directory, setDirectory] = useState<RemoteDirectory>();
   const [path, setPath] = useState(".");
   const [selected, setSelected] = useState("");
-  const [local, setLocal] = useState<LocalSelection>();
+  const [locals, setLocals] = useState<LocalSelection[]>(initial ?? []);
+  const local = locals[0];
+  const [preference, setPreference] = useState<DirectoryPreference>();
+  const [question, setQuestion] = useState(false);
+  const [automatic, setAutomatic] = useState(!!initial);
+  const submitted = useRef(false);
+  const alive = useRef(true);
   const [error, setError] = useState("");
   const [wire, setWire] = useState<"base64" | "raw">("base64");
   const [resumable, setResumable] = useState(false);
   useEffect(() => {
     dialog.current?.showModal();
     void browse(".");
+    alive.current = true;
+    void unwrap(host.transferPreference())
+      .then((value) => {
+        if (alive.current) setPreference(value);
+      })
+      .catch((e: ClientError) => {
+        if (alive.current) setError(e.message);
+      });
+    return () => {
+      alive.current = false;
+    };
   }, []);
   async function browse(wanted: string) {
     if (inFlight.current) return;
@@ -48,6 +69,7 @@ export function FileDialog({
       setPath(result.path);
       setSelected("");
     } catch (failure) {
+      setAutomatic(false);
       setError((failure as ClientError).message);
     } finally {
       inFlight.current = false;
@@ -63,7 +85,7 @@ export function FileDialog({
       const result = await unwrap(
         host.chooseTransferPath(sessionId, direction, kind),
       );
-      if (result) setLocal(result);
+      if (result) setLocals([result]);
     } catch (failure) {
       setError((failure as ClientError).message);
     } finally {
@@ -73,11 +95,86 @@ export function FileDialog({
   }
   const join = (name: string) =>
     `${directory?.path.replace(/\/$/, "")}/${name}`;
+  const hasDirectory =
+    direction === "send"
+      ? locals.some((item) => item.kind === "directory")
+      : !selected ||
+        directory?.entries.find((item) => item.name === selected)?.kind ===
+          "directory";
+  function start(mode: "tar" | "files") {
+    if (!local || !directory || submitted.current) return;
+    if (hasDirectory && mode === "files" && resumable) {
+      setError(t("file.modeResumeConflict"));
+      setQuestion(false);
+      return;
+    }
+    submitted.current = true;
+    onStart(
+      locals.map((item) => ({
+        wire,
+        resumable,
+        directoryMode: hasDirectory ? mode : "tar",
+        sessionId,
+        direction,
+        selectionId: item.id,
+        remotePath:
+          direction === "send"
+            ? join(item.name)
+            : selected
+              ? join(selected)
+              : directory.path,
+      })),
+    );
+    onClose();
+  }
+  function prepare() {
+    if (!preference || !local || !directory) return;
+    if (hasDirectory && preference === "ask") setQuestion(true);
+    else start(preference === "files" ? "files" : "tar");
+  }
+  useEffect(() => {
+    if (automatic && !busy && directory && preference && locals.length) {
+      setAutomatic(false);
+      prepare();
+    }
+  }, [automatic, busy, directory, preference, locals]);
   return (
     <dialog
       ref={dialog}
       className="connection-dialog file-dialog"
       aria-label={t(`file.${direction}`)}
+      onDragOver={(event) => {
+        if (event.dataTransfer.types.includes("Files")) {
+          event.preventDefault();
+          event.stopPropagation();
+          event.dataTransfer.dropEffect =
+            direction === "send" && !busy ? "copy" : "none";
+        }
+      }}
+      onDrop={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (direction !== "send" || inFlight.current || question) return;
+        const files = Array.from(event.dataTransfer.files);
+        if (!files.length) return;
+        inFlight.current = true;
+        setBusy(true);
+        setError("");
+        void unwrap(host.selectDroppedFiles(sessionId, files))
+          .then((items) => {
+            if (alive.current) {
+              setLocals(items);
+              setAutomatic(true);
+            }
+          })
+          .catch((e: ClientError) => {
+            if (alive.current) setError(e.message);
+          })
+          .finally(() => {
+            inFlight.current = false;
+            if (alive.current) setBusy(false);
+          });
+      }}
       onCancel={(event) => {
         event.preventDefault();
         if (!busy) onClose();
@@ -155,7 +252,7 @@ export function FileDialog({
             {t("file.saveFolder")}
           </button>
         )}
-        <span>{local?.name}</span>
+        <span>{locals.map((item) => item.name).join(", ")}</span>
       </div>
       {error && <p role="alert">{error}</p>}
       <label>
@@ -188,30 +285,25 @@ export function FileDialog({
         </button>
         <button
           className="primary"
-          disabled={busy || !local || !directory}
-          onClick={() => {
-            if (!local || !directory) return;
-            onStart({
-              wire,
-              resumable,
-              sessionId,
-              direction,
-              selectionId: local.id,
-              remotePath:
-                direction === "send"
-                  ? join(local.name)
-                  : selected
-                    ? join(selected)
-                    : directory.path,
-            });
-            onClose();
-          }}
+          disabled={busy || !local || !directory || !preference}
+          onClick={prepare}
         >
           {direction === "receive" && !selected
             ? t("file.receiveFolder")
             : t(`file.${direction}`)}
         </button>
       </footer>
+      {question && (
+        <DirectoryQuestion
+          t={t}
+          resumable={resumable}
+          onChoose={start}
+          onCancel={() => {
+            if (initial) onClose();
+            else setQuestion(false);
+          }}
+        />
+      )}
     </dialog>
   );
 }

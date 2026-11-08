@@ -16,23 +16,29 @@ export function SSHFileDialog({
   t,
   onStart,
   onClose,
+  initial,
 }: {
   sessionId: string;
   name: string;
   endpoint: string;
   direction: "send" | "receive";
   t: (id: string) => string;
-  onStart: (r: SSHTransferRequest) => void;
+  onStart: (r: SSHTransferRequest[]) => void;
   onClose: () => void;
+  initial?: LocalSelection[];
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const choosing = useRef(false);
-  const [local, setLocal] = useState<LocalSelection>();
+  const [locals, setLocals] = useState<LocalSelection[]>(initial ?? []);
+  const local = locals[0];
+  const [dropped, setDropped] = useState(!!initial);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [protocol, setProtocol] = useState<"sftp" | "scp">("sftp");
-  const [recursive, setRecursive] = useState(false);
+  const [recursive, setRecursive] = useState(
+    initial?.some((item) => item.kind === "directory") ?? false,
+  );
   const [resume, setResume] = useState(false);
   const [browserOpen, setBrowserOpen] = useState(false);
   const [browsing, setBrowsing] = useState(false);
@@ -49,7 +55,8 @@ export function SSHFileDialog({
         host.chooseTransferPath(sessionId, direction, kind),
       );
       if (selection) {
-        setLocal(selection);
+        setLocals([selection]);
+        setDropped(false);
         if (direction === "send") {
           setRecursive(kind === "directory");
           if (kind === "directory") setResume(false);
@@ -115,14 +122,66 @@ export function SSHFileDialog({
       .forEach((input) => {
         input.value = "";
       });
-    onStart(request);
+    onStart(
+      locals.map((item) => ({
+        ...request,
+        selectionId: item.id,
+        recursive: direction === "send" ? item.kind === "directory" : recursive,
+        resume: locals.length === 1 && resume,
+        remotePath:
+          direction === "send" && dropped
+            ? `${request.remotePath.replace(/\/$/, "")}/${item.name}`
+            : request.remotePath,
+      })),
+    );
     onClose();
+  }
+  async function drop(files: File[], remoteDirectory?: string) {
+    if (
+      direction !== "send" ||
+      choosing.current ||
+      busy ||
+      browsing ||
+      !files.length
+    )
+      return;
+    choosing.current = true;
+    setBusy(true);
+    setError("");
+    try {
+      const items = await unwrap(host.selectDroppedFiles(sessionId, files));
+      setLocals(items);
+      setDropped(true);
+      setRecursive(items.some((item) => item.kind === "directory"));
+      setResume(false);
+      const input = formRef.current?.elements.namedItem("remotePath");
+      if (remoteDirectory && input instanceof HTMLInputElement)
+        input.value = remoteDirectory;
+    } catch (e) {
+      setError((e as ClientError).message);
+    } finally {
+      choosing.current = false;
+      setBusy(false);
+    }
   }
   return (
     <dialog
       ref={dialog}
       className="connection-dialog file-dialog ssh-file-dialog"
       aria-label={t(`file.${direction}`)}
+      onDragOver={(e) => {
+        if (e.dataTransfer.types.includes("Files")) {
+          e.preventDefault();
+          e.stopPropagation();
+          e.dataTransfer.dropEffect =
+            direction === "send" && !busy && !browsing ? "copy" : "none";
+        }
+      }}
+      onDrop={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        void drop(Array.from(e.dataTransfer.files));
+      }}
       onCancel={(e) => {
         e.preventDefault();
         if (!busy) onClose();
@@ -133,6 +192,7 @@ export function SSHFileDialog({
       </h2>
       <p>{endpoint}</p>
       <p className="file-hint">{t("file.sshHint")}</p>
+      {dropped && <p>{t("file.dropDestination")}</p>}
       <form ref={formRef} onSubmit={submit}>
         <fieldset disabled={busy || browsing}>
           <label>
@@ -171,7 +231,7 @@ export function SSHFileDialog({
                 {t("file.chooseFolder")}
               </button>
             )}
-            <span>{local?.name}</span>
+            <span>{locals.map((item) => item.name).join(", ")}</span>
           </div>
           {direction === "receive" && (
             <label className="file-resumable">
@@ -190,7 +250,7 @@ export function SSHFileDialog({
             <input
               type="checkbox"
               checked={resume}
-              disabled={protocol !== "sftp" || recursive}
+              disabled={protocol !== "sftp" || recursive || locals.length > 1}
               onChange={(e) => setResume(e.target.checked)}
             />
             {t("file.sftpResume")}
@@ -234,6 +294,9 @@ export function SSHFileDialog({
         </fieldset>
         {browserOpen && protocol === "sftp" && (
           <SSHBrowser
+            onDrop={(files, path) => {
+              void drop(files, path);
+            }}
             t={t}
             onBusy={setBrowsing}
             query={(operation, path) =>

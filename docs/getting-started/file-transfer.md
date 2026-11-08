@@ -127,7 +127,7 @@ afterward.
 
 ### Choose how to transfer a directory
 
-The default `--directory-mode tar` packs a directory into an **uncompressed TAR**, transfers and
+With the default preference, `--directory-mode tar` packs a directory into an **uncompressed TAR**, transfers and
 verifies that archive, then extracts it. For a direct tree copy with individual file verification:
 
 ```powershell
@@ -156,8 +156,44 @@ Keep source, staging and destination trees unchanged until completion. This is a
 not incremental synchronization or a filesystem snapshot. `files` cannot be combined with
 `--resumable`; cancellation/failure cleans owned staging instead of retaining a checkpoint.
 An unconfirmed final remote rename requires inspecting the destination before retrying. Regular
-files still use the ordinary single-file workflow regardless of this directory option. Electron's
-picker continues to use the default TAR mode.
+files still use the ordinary single-file workflow regardless of this directory option.
+
+### Shared directory preference and desktop drops
+
+Choose **Settings > File transfer** in Electron, or save the same local preference from the CLI:
+
+```powershell
+channelterm file preferences --directory-mode ask
+channelterm file preferences --directory-mode tar
+channelterm file preferences --directory-mode files
+```
+
+Choose one command: `ask` is the default, `tar` always packs and extracts, and `files` always
+copies individual files. Both methods produce a destination folder, not a retained archive.
+In an attached CLI, press `Ctrl+] f`, then `f` to send or `g` to receive using this preference.
+For directories with `ask`, Enter/`t` chooses TAR and `f` chooses individual files. Uppercase `T`/`F`
+also remembers the choice for CLI and GUI. Escape/Ctrl+C cancels locally. Existing `s`/`r` TAR
+and `u`/`d` per-file shortcuts retain their explicit behavior. Standalone commands never prompt;
+`ask` resolves to TAR, and `--directory-mode` overrides the saved value. A `files` preference with
+`--resumable` is rejected; explicitly choose `--directory-mode tar` to keep a checkpoint.
+
+In Electron, drop up to 16 distinct files/folders onto a connected Session. Serial uploads resolve
+the current shell directory through the existing isolated browser, then start automatically for
+regular files or a saved `tar`/`files` choice. `ask` shows one directory question for the batch,
+with TAR selected; remembering the choice updates the shared local setting. Dropping into the
+send dialog uses its currently displayed remote directory. If browsing cannot resolve a directory,
+correct the path and start explicitly; no destination is guessed. The ordinary picker uses the same
+directory decision. A per-file/resume conflict requires changing the method or disabling resume.
+
+SSH drops populate the existing SFTP/SCP form: select the destination directory and confirm the
+dedicated connection credentials. Drops into an open SSH browser use its displayed directory.
+SSH folders copy recursively and do not use the serial TAR preference. Authentication and host-key
+checks remain in the existing SSH file client.
+
+Items run sequentially against the captured Session and destination. Cancelling or failing one
+stops the remaining batch; completed items remain published. Switching views cannot retarget a
+batch, and a disconnected/closed target requires a new selection. Local links/special files and
+oversized batches are rejected. Drops never paste paths or commands into the terminal.
 
 ### Manual resume for serial files and directories
 

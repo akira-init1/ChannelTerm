@@ -4,7 +4,11 @@ import type { ConnectionRequest } from "./connections";
 export interface LocalSelection {
   id: string;
   name: string;
+  kind?: "file" | "directory";
 }
+
+/** Local client choice, independent of Host managed-transfer grants. */
+export type DirectoryPreference = "ask" | "tar" | "files";
 export interface RemoteDirectory {
   path: string;
   entries: { name: string; kind: "file" | "directory" | "other" }[];
@@ -45,6 +49,7 @@ export interface SSHTransferRequest {
   connection: Extract<ConnectionRequest, { kind: "ssh" }>;
 }
 export interface TransferRequest {
+  directoryMode?: "tar" | "files";
   resumable?: boolean;
   /** Omitted older requests use the safe Base64 default. */
   wire?: "base64" | "raw";

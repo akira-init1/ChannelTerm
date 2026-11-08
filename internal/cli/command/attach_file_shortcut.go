@@ -616,8 +616,17 @@ func (c *fileTransferCancellation) signalStateChangeLocked() {
 // on the current attachment without turning a completed shortcut into a detach.
 type nonClosingAttachSession struct {
 	attachSession
-	cancellation  *fileTransferCancellation
-	directoryMode string
+	cancellation    *fileTransferCancellation
+	directoryMode   string
+	chooseDirectory func(context.Context) (string, error)
+}
+
+// chooseFileDirectoryMode runs only after the source is known to be a directory.
+func (s nonClosingAttachSession) chooseFileDirectoryMode(ctx context.Context) (string, error) {
+	if s.chooseDirectory != nil {
+		return s.chooseDirectory(ctx)
+	}
+	return s.fileTransferDirectoryMode(), nil
 }
 
 func (s nonClosingAttachSession) fileTransferDirectoryMode() string {
@@ -717,7 +726,7 @@ func (s nonClosingAttachSession) FileTransferCancellationCheckpoint(ctx context.
 	return nil
 }
 
-var fileTransferMenuText = []byte("\r\nFile transfer:\r\n  s  Send PC -> Board (directories: TAR)\r\n  r  Receive Board -> PC (directories: TAR)\r\n  u  Send PC -> Board (directories: per-file verification)\r\n  d  Receive Board -> PC (directories: per-file verification)\r\n  Esc  Cancel\r\nSelect: ")
+var fileTransferMenuText = []byte("\r\nFile transfer:\r\n  f  Send PC -> Board (shared directory preference)\r\n  g  Receive Board -> PC (shared directory preference)\r\n  s  Send PC -> Board (directories: TAR)\r\n  r  Receive Board -> PC (directories: TAR)\r\n  u  Send PC -> Board (directories: per-file verification)\r\n  d  Receive Board -> PC (directories: per-file verification)\r\n  Esc  Cancel\r\nSelect: ")
 var fileTransferInputIgnoredText = []byte("\r\n[ChannelTerm] Input ignored during file transfer. Ctrl+C to cancel.\r\n")
 
 var terminalCommandInputIgnoredText = []byte("\r\n[ChannelTerm] Input ignored while an AI command is running. Cancel it from the MCP client.\r\n")

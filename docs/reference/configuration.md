@@ -130,9 +130,30 @@ wake = false
 default_policy = "ask"
 ```
 
-`[serial]` and `[connection]` are the current persisted sections. The internal config model also
-contains an empty `Preferences` value, but it has no fields or TOML section and does not change
-files or serial behavior.
+`[serial]` and `[connection]` contain connection settings. Local transfer preferences are separate
+from connection settings and the managed Host grants above:
+
+```toml
+[preferences.file_transfer]
+directory_mode = "ask" # ask (default), tar, files
+```
+
+The preference is shared by CLI and Electron under the same local OS user. It does not configure
+the remote Host or grant access. `ask` prompts only in interactive preferred-mode shortcuts and GUI
+directory transfers; standalone file commands resolve it to TAR without reading stdin. `tar` uses
+an uncompressed archive and extracts it after transfer; `files` copies the tree with per-file
+verification. Explicit `--directory-mode tar|files` and explicit shortcut choices override this
+preference. SFTP/SCP continue to use recursive copies.
+
+`channelterm file preferences --directory-mode ask|tar|files` saves only this preference using the
+existing locked read/merge/write transaction. Omit the mode to read it; `--json` emits only
+`{"directory_mode":"ask"}` (with the resolved value). `--config PATH` selects a different local
+file for this command or standalone `file send`/`receive`. Electron and interactive preferred-mode
+shortcuts use the platform default config file. Reading a missing file returns `ask` without
+creating it; invalid values or malformed TOML fail rather than resetting configuration. Changes
+apply on the next transfer/settings read without restarting the Host. Existing files may omit the
+section; saving an unrelated serial profile preserves an existing preference and does not add an
+empty preferences table.
 
 | Field | Meaning | Resolution default |
 | --- | --- | --- |

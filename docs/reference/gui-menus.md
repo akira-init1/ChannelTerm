@@ -21,6 +21,12 @@ This reference describes implemented menu behavior, not additional Host capabili
 
 ## Implemented actions
 
+Dropping local files uses the same transfer flow as Send. Serial drops target the current shell
+directory, or the displayed directory when dropped into the send browser. Directory batches use
+the shared [directory preference](configuration.md#toml-schema), asking once by default. SSH drops
+populate the dedicated credential form; a drop in its browser chooses that displayed directory.
+See [limits, cancellation and destination behavior](../getting-started/file-transfer.md#shared-directory-preference-and-desktop-drops).
+
 **Session > File Transfer > Resume transfer** (`file.resume`) also appears on a serial Session's context menu.
 It binds to that clicked open, unleased Session and lists saved jobs for its Host/endpoint. Execution
 revalidates the job and target in Main and CLI before acquiring the existing Host Lease. A saved
@@ -60,6 +66,7 @@ for authentication, verification and cancellation.
 | View > File transfers / Session status / Session activity | `view.transfers` / `view.status` / `view.activity` | Open the bottom panel on the requested tab, including offline/empty states. |
 | Terminal > Copy terminal selection / Paste into terminal; terminal context menu | `terminal.copy` / `terminal.paste` | Copy selected xterm text or paste clipboard text through the existing input path. Paste requires writable text view; copy sends no device bytes. |
 | Settings > Keyboard shortcuts | `settings.shortcuts` | Search, record, remove, reset and save local layout, clipboard and terminal search bindings. |
+| Settings > File transfer | `settings.transfers` | Read/save the shared local CLI/GUI directory choice: ask, TAR or per-file. Applies to serial directories; SSH remains recursive. |
 | Settings > Preferences... | `settings.display` | Open the existing Display settings dialog; font changes apply without reattachment. Keyboard shortcuts retain their separate entry. |
 | Session > New Connection... | `connection.new` | Open the unified form on a connected idle Host. No protocol submenu. |
 | Session > Attach Session... | `session.choose` | Reveal the existing sidebar and focus its search field while connected and idle. Selecting a row reuses `session.attach`; opening the picker does not change the attachment. |

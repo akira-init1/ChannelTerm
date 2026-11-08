@@ -1,8 +1,12 @@
 import { randomUUID } from "node:crypto";
-import { spawn } from "node:child_process";
-import { basename, join } from "node:path";
+import { spawn, execFile } from "node:child_process";
+import { basename, join, isAbsolute } from "node:path";
 import { lstat } from "node:fs/promises";
-import type { LocalSelection, RemoteDirectory } from "../shared/transfers";
+import type {
+  LocalSelection,
+  RemoteDirectory,
+  DirectoryPreference,
+} from "../shared/transfers";
 import type { HostClient } from "./host/client";
 import { loadToken } from "./host/config";
 import { HostError } from "./host/errors";
@@ -192,9 +196,19 @@ export function directoryResult(value: unknown): RemoteDirectory {
 
 /** Main-owned paths and fixed companion invocation; no shell or Renderer-supplied command. */
 export class DesktopFiles {
+  private selecting = false;
+  private selectionGeneration = 0;
+  private preferencePending = false;
+  private preferenceRead?: Promise<DirectoryPreference>;
   private selections = new Map<
     string,
-    { path: string; sessionId: string; direction: string; expires: number }
+    {
+      path: string;
+      sessionId: string;
+      direction: string;
+      expires: number;
+      kind?: "file" | "directory";
+    }
   >();
   private active?: {
     transferId?: string;
@@ -206,6 +220,7 @@ export class DesktopFiles {
 
   /** A native selection authorizes only the current Host connection. */
   clearSelections(): void {
+    this.selectionGeneration++;
     this.selections.clear();
   }
 
@@ -213,6 +228,7 @@ export class DesktopFiles {
     path: string,
     sessionId: string,
     direction: "send" | "receive",
+    kind?: "file" | "directory",
   ): LocalSelection {
     if (this.selections.size >= 16)
       this.selections.delete(this.selections.keys().next().value!);
@@ -222,8 +238,140 @@ export class DesktopFiles {
       sessionId,
       direction,
       expires: Date.now() + 10 * 60_000,
+      kind,
     });
-    return { id, name: basename(path) };
+    return { id, name: basename(path), ...(kind ? { kind } : {}) };
+  }
+
+  /** Validate the whole bounded drop before granting single-use selections. */
+  async selectDropped(
+    host: { validateFileSession(id: string): Promise<unknown> },
+    sessionId: string,
+    value: unknown,
+  ): Promise<LocalSelection[]> {
+    identifier(sessionId);
+    if (this.busy || this.selecting)
+      throw new HostError("busy", "Finish the current file operation first.");
+    if (
+      !Array.isArray(value) ||
+      value.length < 1 ||
+      value.length > 16 ||
+      value.some(
+        (p) =>
+          typeof p !== "string" ||
+          !p ||
+          p.length > 4096 ||
+          p.includes("\0") ||
+          !isAbsolute(p),
+      ) ||
+      new Set(value).size !== value.length
+    )
+      throw new HostError(
+        "invalid_input",
+        "Drop up to 16 distinct local files or folders.",
+      );
+    const paths = value.map((path) => text(path));
+    this.selecting = true;
+    const generation = this.selectionGeneration;
+    try {
+      await host.validateFileSession(sessionId);
+      const kinds: ("file" | "directory")[] = [];
+      for (const path of paths) {
+        const info = await lstat(path).catch(() => {
+          throw new HostError(
+            "invalid_input",
+            "A dropped item is no longer readable.",
+          );
+        });
+        if (!info.isFile() && !info.isDirectory())
+          throw new HostError(
+            "invalid_input",
+            "Drop regular files or folders, not links or special files.",
+          );
+        kinds.push(info.isDirectory() ? "directory" : "file");
+      }
+      await host.validateFileSession(sessionId);
+      if (generation !== this.selectionGeneration)
+        throw new HostError("cancelled", "Host changed during file selection.");
+      return paths.map((path, i) =>
+        this.remember(path, sessionId, "send", kinds[i]),
+      );
+    } finally {
+      this.selecting = false;
+    }
+  }
+
+  /** The fixed companion owns config locking, platform paths and validation. */
+  preference(mode?: unknown): Promise<DirectoryPreference> {
+    if (mode !== undefined) return this.runPreference(mode);
+    // StrictMode effect replay and simultaneous local views share one bounded read.
+    if (this.preferenceRead) return this.preferenceRead;
+    const pending = this.runPreference().finally(() => {
+      if (this.preferenceRead === pending) this.preferenceRead = undefined;
+    });
+    this.preferenceRead = pending;
+    return pending;
+  }
+
+  private async runPreference(mode?: unknown): Promise<DirectoryPreference> {
+    if (
+      mode !== undefined &&
+      mode !== "ask" &&
+      mode !== "tar" &&
+      mode !== "files"
+    )
+      throw new HostError("invalid_input", "Invalid directory preference.");
+    if (this.preferencePending)
+      throw new HostError("busy", "A preference operation is already running.");
+    this.preferencePending = true;
+    try {
+      const args = [
+        "file",
+        "preferences",
+        "--json",
+        ...(mode === undefined ? [] : ["--directory-mode", mode]),
+      ];
+      const output = await new Promise<string>((resolve, reject) => {
+        execFile(
+          this.executable,
+          args,
+          {
+            windowsHide: true,
+            shell: false,
+            timeout: 10000,
+            maxBuffer: 8192,
+            encoding: "utf8",
+          },
+          (error, stdout) => {
+            if (error)
+              reject(
+                new HostError(
+                  "configuration",
+                  "Could not read or save local transfer preferences. Check config.toml and the bundled CLI.",
+                ),
+              );
+            else resolve(stdout);
+          },
+        );
+      });
+      let value: unknown;
+      try {
+        value = JSON.parse(output);
+      } catch {
+        throw incompatible();
+      }
+      const result = object(value);
+      if (
+        Object.keys(result).length !== 1 ||
+        (result.directory_mode !== "ask" &&
+          result.directory_mode !== "tar" &&
+          result.directory_mode !== "files")
+      )
+        throw incompatible();
+      return result.directory_mode;
+    } finally {
+      this.preferencePending = false;
+    }
   }
 
   /** Consume a native selection once; no renderer-supplied local path is accepted. */
@@ -272,6 +420,7 @@ export class DesktopFiles {
             "remotePath",
             "wire",
             "resumable",
+            "directoryMode",
           ].includes(key),
       )
     )
@@ -279,6 +428,14 @@ export class DesktopFiles {
     identifier(request.sessionId);
     identifier(request.selectionId);
     const wire = request.wire ?? "base64";
+    const directoryMode = request.directoryMode ?? "tar";
+    if (directoryMode !== "tar" && directoryMode !== "files")
+      throw new HostError("invalid_input", "Invalid directory mode.");
+    if (directoryMode === "files" && request.resumable)
+      throw new HostError(
+        "invalid_input",
+        "Per-file directory transfers cannot retain a resume checkpoint.",
+      );
     if (
       request.resumable !== undefined &&
       typeof request.resumable !== "boolean"
@@ -304,6 +461,14 @@ export class DesktopFiles {
           "invalid_input",
           "Choose a regular file or directory.",
         );
+      if (
+        selected.kind &&
+        selected.kind !== (info.isDirectory() ? "directory" : "file")
+      )
+        throw new HostError(
+          "invalid_input",
+          "The selected item changed type. Select it again.",
+        );
     }
     this.selections.delete(request.selectionId);
     await this.run(
@@ -317,6 +482,8 @@ export class DesktopFiles {
             path,
             "--wire",
             wire,
+            "--directory-mode",
+            directoryMode,
             ...(request.resumable ? ["--resumable"] : []),
           ]
         : [
@@ -326,6 +493,8 @@ export class DesktopFiles {
             join(selected.path, downloadName(path)),
             "--wire",
             wire,
+            "--directory-mode",
+            directoryMode,
             ...(request.resumable ? ["--resumable"] : []),
           ],
       false,

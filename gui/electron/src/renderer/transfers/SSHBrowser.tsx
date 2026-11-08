@@ -9,11 +9,13 @@ export function SSHBrowser({
   onSelect,
   onBusy,
   t,
+  onDrop,
 }: {
   query: (operation: "ls" | "stat", path: string) => Promise<SSHBrowseResult>;
   onSelect: (path: string, kind: SSHFileEntry["kind"]) => void;
   onBusy: (busy: boolean) => void;
   t: (id: string) => string;
+  onDrop?: (files: File[], directory: string) => void;
 }) {
   const [path, setPath] = useState("/"),
     [result, setResult] = useState<SSHBrowseResult>();
@@ -58,7 +60,16 @@ export function SSHBrowser({
   }
   const child = (name: string) => `${result!.path.replace(/\/$/, "")}/${name}`;
   return (
-    <section className="ssh-browser" aria-label={t("sshBrowser.title")}>
+    <section
+      className="ssh-browser"
+      aria-label={t("sshBrowser.title")}
+      onDrop={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!busy && result && onDrop)
+          onDrop(Array.from(e.dataTransfer.files), result.path);
+      }}
+    >
       <h3>{t("sshBrowser.title")}</h3>
       <p className="file-hint">{t("sshBrowser.hint")}</p>
       <label>

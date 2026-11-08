@@ -57,7 +57,7 @@ func DefaultTransferPath() (string, error) {
 //
 // It begins with DefaultPreferences so fields added in future releases can
 // default correctly when absent from an existing config.toml. It validates the
-// connection discovery policy but leaves serial value validation to the serial
+// connection discovery policy and client preferences but leaves serial value validation to the serial
 // opening boundary, preserving the existing resolution lifecycle.
 func Load(path string) (File, error) {
 	data, err := os.ReadFile(path)
@@ -71,14 +71,16 @@ func Load(path string) (File, error) {
 	if _, err := file.ConnectionPolicy(); err != nil {
 		return File{}, err
 	}
+	if _, err := file.Preferences.FileTransfer.Mode(); err != nil {
+		return File{}, err
+	}
 	return file, nil
 }
 
 // LoadOrCreate loads a TOML configuration file, creating the minimal template
 // when it does not exist. Existing configuration files are read only.
 //
-// The template intentionally contains no preferences section because the
-// current Preferences model has no persisted fields.
+// The template omits preferences, whose zero values resolve to defaults.
 func LoadOrCreate(path string) (File, error) {
 	file, err := Load(path)
 	if err == nil {

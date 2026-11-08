@@ -11,6 +11,7 @@ import (
 
 	"github.com/akira-init1/ChannelTerm/internal/cli/interactive"
 	"github.com/akira-init1/ChannelTerm/internal/core/app"
+	"github.com/akira-init1/ChannelTerm/internal/core/config"
 	"github.com/akira-init1/ChannelTerm/internal/core/session"
 )
 
@@ -28,6 +29,7 @@ const (
 	attachInputModeReceiveLocalPath
 	attachInputModeFileTransfer
 	attachInputModeFileTransferCancelConfirm
+	attachInputModeDirectoryChoice
 )
 
 const controlCRecoveryWindow = 500 * time.Millisecond
@@ -72,6 +74,8 @@ type attachInputDispatcher struct {
 	localPath                    string
 	remotePath                   string
 	directoryMode                string
+	directoryRequests            chan chan string
+	directoryAnswer              chan string
 	transferDone                 <-chan error
 	transferCancellation         *fileTransferCancellation
 	transferSummary              *fileTransferSummaryBuffer
@@ -104,6 +108,7 @@ func newAttachInputDispatcherWithPumpAndInterrupts(ctx context.Context, pump *at
 		stopAttach:            cancel,
 		controller:            interactive.NewController(interactive.DefaultEscapeByte),
 		mode:                  attachInputModeAttach,
+		directoryRequests:     make(chan chan string),
 		transferRunner:        runner,
 	}
 }
@@ -116,6 +121,9 @@ func (d *attachInputDispatcher) run() {
 	for {
 		if d.transferDone != nil {
 			select {
+			case answer := <-d.directoryRequests:
+				d.directoryAnswer = answer
+				d.presentDirectoryChoice()
 			case err := <-d.transferDone:
 				d.finishTransfer(err)
 				continue
@@ -189,6 +197,8 @@ func (d *attachInputDispatcher) handleControlC() bool {
 		return true
 	}
 	switch d.mode {
+	case attachInputModeDirectoryChoice:
+		d.answerDirectoryChoice(0x1b)
 	case attachInputModeAttach:
 		if d.beginExternalTransferCancellationConfirmation() {
 			return true
@@ -229,6 +239,9 @@ func (d *attachInputDispatcher) dispatch(data []byte) bool {
 			continue
 		}
 		switch d.mode {
+		case attachInputModeDirectoryChoice:
+			d.answerDirectoryChoice(data[0])
+			return true // Never replay pasted tails into the terminal.
 		case attachInputModeAttach:
 			return d.dispatchAttach(data)
 		case attachInputModeFileMenu:
@@ -344,7 +357,10 @@ func (d *attachInputDispatcher) dispatchFileMenuByte(value byte) {
 	switch value {
 	case 0x1b:
 		d.cancelFileShortcut()
-	case 's', 'S', 'u', 'U':
+	case 's', 'S', 'u', 'U', 'f', 'F':
+		if value == 'f' || value == 'F' {
+			d.directoryMode = "preferred"
+		}
 		if value == 'u' || value == 'U' {
 			d.directoryMode = "files"
 		}
@@ -357,7 +373,10 @@ func (d *attachInputDispatcher) dispatchFileMenuByte(value byte) {
 		if d.writeLocal([]byte("\r\nLocal path: ")) != nil {
 			d.cancelAttach()
 		}
-	case 'r', 'R', 'd', 'D':
+	case 'r', 'R', 'd', 'D', 'g', 'G':
+		if value == 'g' || value == 'G' {
+			d.directoryMode = "preferred"
+		}
 		if value == 'd' || value == 'D' {
 			d.directoryMode = "files"
 		}
@@ -483,7 +502,13 @@ func (d *attachInputDispatcher) startTransfer(direction, firstPath, secondPath s
 			case <-cancelWatchDone:
 			}
 		}()
-		err := d.transferRunner(workerCtx, nonClosingAttachSession{attachSession: d.terminal, cancellation: cancellation, directoryMode: directoryMode}, localOutputWriter{
+		choose := func(ctx context.Context) (string, error) {
+			if directoryMode != "preferred" {
+				return directoryMode, nil
+			}
+			return choosePreferredDirectory(ctx, d.directoryRequests)
+		}
+		err := d.transferRunner(workerCtx, nonClosingAttachSession{attachSession: d.terminal, cancellation: cancellation, directoryMode: directoryMode, chooseDirectory: choose}, localOutputWriter{
 			write:                          d.writeLocal,
 			suppressFileTransferResultText: true,
 			deferredSummary:                d.transferSummary,
@@ -571,6 +596,19 @@ func (d *attachInputDispatcher) resolveTransferCancellationConfirmation(cancel b
 		return
 	}
 	_ = d.writeLocal(fileTransferResumedText)
+	d.presentDirectoryChoice()
+}
+
+// presentDirectoryChoice never replaces a pending cancellation confirmation.
+// The worker remains cancellable while its directory decision is deferred.
+func (d *attachInputDispatcher) presentDirectoryChoice() {
+	if d.directoryAnswer == nil || d.mode != attachInputModeFileTransfer {
+		return
+	}
+	d.mode = attachInputModeDirectoryChoice
+	if d.writeLocal == nil || d.writeLocal([]byte("\r\nDirectory transfer: [Enter/t] TAR (uncompressed, auto-extract), [f] per-file; [T/F] remember for CLI and GUI; Esc cancel: ")) != nil {
+		d.requestTransferCancellation()
+	}
 }
 
 func (d *attachInputDispatcher) resolveExternalTransferCancellationConfirmation(cancel bool) {
@@ -692,7 +730,7 @@ func (d *attachInputDispatcher) ignoreTransferInput() bool {
 }
 
 func (d *attachInputDispatcher) requestTransferCancellation() {
-	if (d.mode != attachInputModeFileTransfer && d.mode != attachInputModeFileTransferCancelConfirm) || d.transferCancellation == nil {
+	if (d.mode != attachInputModeFileTransfer && d.mode != attachInputModeFileTransferCancelConfirm && d.mode != attachInputModeDirectoryChoice) || d.transferCancellation == nil {
 		return
 	}
 	d.transferCancellation.Request()
@@ -700,7 +738,7 @@ func (d *attachInputDispatcher) requestTransferCancellation() {
 
 func (d *attachInputDispatcher) finishTransfer(err error) {
 	cancelled := d.transferCancellation != nil && d.transferCancellation.Cancelled()
-	confirmationPending := d.mode == attachInputModeFileTransferCancelConfirm
+	confirmationPending := d.mode == attachInputModeFileTransferCancelConfirm || d.mode == attachInputModeDirectoryChoice
 	progress := fileTransferCancellationSnapshot{}
 	if d.transferCancellation != nil {
 		progress = d.transferCancellation.Progress()
@@ -713,6 +751,7 @@ func (d *attachInputDispatcher) finishTransfer(err error) {
 		verificationSummary = d.transferSummary.take()
 	}
 	d.transferDone = nil
+	d.directoryAnswer = nil
 	d.transferCancellation = nil
 	d.transferSummary = nil
 	d.inputIgnoredAnnounced = false
@@ -782,6 +821,11 @@ func runAttachShortcutFileTransfer(ctx context.Context, attached attachSession, 
 		},
 		transferCancelRequested: cancelRequested,
 	}
+	if chooser, ok := attached.(interface {
+		chooseFileDirectoryMode(context.Context) (string, error)
+	}); ok {
+		dependencies.chooseDirectoryMode = chooser.chooseFileDirectoryMode
+	}
 	if direction == "send" {
 		return runFileSend(ctx, shortcutTransferArguments(attached, firstPath, secondPath), output, dependencies)
 	}
@@ -793,8 +837,74 @@ func runAttachShortcutFileTransfer(ctx context.Context, attached attachSession, 
 
 func shortcutTransferArguments(attached attachSession, first, second string) []string {
 	args := []string{first, second, "--session", "attached"}
+	mode := "tar"
 	if selected, ok := attached.(interface{ fileTransferDirectoryMode() string }); ok && selected.fileTransferDirectoryMode() == "files" {
-		args = append(args, "--directory-mode", "files")
+		mode = "files"
 	}
+	args = append(args, "--directory-mode", mode)
 	return args
+}
+
+// choosePreferredDirectory keeps console reads in the dispatcher. Cancellation
+// releases the worker even while it is waiting for a local choice under a lease.
+func choosePreferredDirectory(ctx context.Context, requests chan<- chan string) (string, error) {
+	preference, err := config.LoadTransferPreferences("")
+	if err != nil {
+		return "", err
+	}
+	mode, err := preference.Mode()
+	if err != nil || mode != "ask" {
+		return mode, err
+	}
+	answer := make(chan string, 1)
+	select {
+	case requests <- answer:
+	case <-ctx.Done():
+		return "", ctx.Err()
+	}
+	var choice string
+	select {
+	case choice = <-answer:
+	case <-ctx.Done():
+		return "", ctx.Err()
+	}
+	if choice == "" {
+		return "", context.Canceled
+	}
+	mode = "tar"
+	if choice == "f" || choice == "F" {
+		mode = "files"
+	}
+	if choice == "T" || choice == "F" {
+		path, err := config.DefaultPath()
+		if err != nil {
+			return "", err
+		}
+		if err := config.UpdateContext(ctx, path, func(file *config.File) error { file.Preferences.FileTransfer.DirectoryMode = mode; return nil }); err != nil {
+			return "", err
+		}
+	}
+	return mode, nil
+}
+
+func (d *attachInputDispatcher) answerDirectoryChoice(value byte) {
+	choice := string(value)
+	switch value {
+	case '\r', '\n':
+		choice = "t"
+	case 0x1b:
+		choice = ""
+		d.requestTransferCancellation()
+	case 't', 'T', 'f', 'F':
+	default:
+		return
+	}
+	if d.directoryAnswer != nil {
+		d.directoryAnswer <- choice
+		d.directoryAnswer = nil
+	}
+	d.mode = attachInputModeFileTransfer
+	if d.writeLocal != nil {
+		_ = d.writeLocal([]byte("\r\n"))
+	}
 }

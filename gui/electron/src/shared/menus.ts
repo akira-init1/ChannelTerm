@@ -65,6 +65,7 @@ export type Action =
         | "view.sessions"
         | "settings.shortcuts"
         | "settings.display"
+        | "settings.transfers"
         | "help.quick"
         | "help.diagnostics"
         | "app.quit";
@@ -305,6 +306,12 @@ export function applicationMenu(state: MenuState): MenuEntry[] {
       label: "menu.settings",
       children: [
         {
+          id: "settings.transfers",
+          label: "settings.transfers",
+          action: { id: "settings.transfers" },
+          enabled: !state.busy,
+        },
+        {
           id: "settings.display",
           label: "settings.preferences",
           action: { id: "settings.display" },
@@ -516,6 +523,7 @@ export function isAction(value: unknown): value is Action {
     case "view.activity":
     case "settings.shortcuts":
     case "settings.display":
+    case "settings.transfers":
     case "help.quick":
     case "help.diagnostics":
     case "app.quit":
@@ -615,6 +623,8 @@ export function isMenuState(value: unknown): value is MenuState {
 /** Recheck live view state before dispatch, including attachment identity after async changes. */
 export function actionEnabled(action: Action, state: MenuState): boolean {
   switch (action.id) {
+    case "settings.transfers":
+      return !state.busy;
     case "window.new":
       return (state.windowCount ?? 1) < 16;
     case "window.close":

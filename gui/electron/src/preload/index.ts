@@ -1,8 +1,28 @@
-import { contextBridge, ipcRenderer } from "electron";
+import { contextBridge, ipcRenderer, webUtils } from "electron";
 import { channels, type DesktopAPI } from "../shared/api";
 import { isAction } from "../shared/menus";
 
 const api: DesktopAPI = {
+  selectDroppedFiles: async (id, files) => {
+    try {
+      if (!Array.isArray(files) || files.length < 1 || files.length > 16)
+        throw new Error();
+      const paths = files.map((file) => webUtils.getPathForFile(file));
+      if (paths.some((path) => !path)) throw new Error();
+      return await ipcRenderer.invoke(channels.selectDroppedFiles, id, paths);
+    } catch {
+      return {
+        ok: false,
+        error: {
+          code: "invalid_input",
+          message: "Drop up to 16 files or folders from the file manager.",
+        },
+      };
+    }
+  },
+  transferPreference: () => ipcRenderer.invoke(channels.transferPreference),
+  saveTransferPreference: (mode) =>
+    ipcRenderer.invoke(channels.saveTransferPreference, mode),
   windowInfo: () => ipcRenderer.invoke(channels.windowInfo),
   newWindow: () => ipcRenderer.invoke(channels.newWindow),
   closeWindow: () => ipcRenderer.invoke(channels.closeWindow),
