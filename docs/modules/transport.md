@@ -1,5 +1,10 @@
 # Channel and Transport Modules
 
+Dedicated SSH `Files.Storage` adapts SFTP `statvfs` into allocation/inode availability without
+creating a remote path. Unsupported queries remain errors; Application decides the required
+footprint and headroom. Managed MCP transfers reuse these dedicated file connections without a
+Channel or Session. See [the transfer contract](../reference/mcp-tools.md#file_transfer).
+
 ## Channel contract
 
 `internal/core/channel.Channel` is an established protocol-neutral bidirectional byte stream:

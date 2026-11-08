@@ -233,6 +233,10 @@ GUI と CLI のファイル転送は標準で Base64 を使用し、デバイス
 
 任意の断点再開はファイルとフォルダーの双方向転送に対応し、GUI／Host の再起動後も手動で再開できます。GUI のチェックポイントを有効にするか、`--resumable` を指定し、`file resume JOB_ID --session SESSION` で再開します。スナップショット、検証、公開結果が不明な場合の扱いは[再開手順](docs/getting-started/file-transfer.md#manual-resume-for-serial-files-and-directories)を参照してください。
 
+AI クライアントは単一の MCP ツール `file_transfer` で、Host 上のファイル、複数の選択項目、
+ディレクトリ、任意の TAR/gzip アーカイブをシリアルまたは SSH 経由で転送できます。先に専用の
+Host 転送ディレクトリを設定してください。[転送手順](docs/getting-started/file-transfer.md#managed-mcp-transfers)を参照してください。
+
 <a id="gdb-debugging"></a>
 
 ## GDB によるリモートデバッグ

@@ -222,6 +222,10 @@ GUI 和 CLI 文件传输默认使用 Base64，设备需提供 `base64` 和 `tr`�
 
 可选断点续传支持文件和文件夹双向传输，GUI／Host 重启后也可手动恢复。勾选 GUI 保留断点，或使用 `--resumable`，再执行 `file resume JOB_ID --session SESSION`。快照、校验和最终发布结果不确定时的处理见[续传流程](docs/getting-started/file-transfer.md#manual-resume-for-serial-files-and-directories)。
 
+AI 客户端可通过统一的 `file_transfer` MCP 工具，经串口或 SSH 传输 Host 本机的单文件、多选文件、
+目录及可选的 TAR/gzip 归档。使用前需配置专用的 Host 传输目录，参见
+[托管传输流程](docs/getting-started/file-transfer.md#managed-mcp-transfers)。
+
 <a id="gdb-debugging"></a>
 
 ## 使用 GDB 远程调试

@@ -491,10 +491,15 @@ func runMCP(ctx context.Context, args []string, output io.Writer) (err error) {
 	if err := devices.Start(ctx); err != nil {
 		return fmt.Errorf("initialize device registry: %w", err)
 	}
-	application, err := app.New(app.Dependencies{Manager: manager, Devices: devices, Policy: resolvedPolicy, Build: app.BuildProvenance{Version: version, Commit: buildCommit, Time: buildTime}})
+	application, err := app.New(app.Dependencies{Manager: manager, Devices: devices, Policy: resolvedPolicy, FileTransfer: file.FileTransfer, Build: app.BuildProvenance{Version: version, Commit: buildCommit, Time: buildTime}})
 	if err != nil {
 		return fmt.Errorf("create Host application: %w", err)
 	}
+	defer func() {
+		shutdown, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		err = errors.Join(err, application.CloseFileTransfers(shutdown))
+	}()
 	registry, err := newMCPRegistryForApplication(application)
 	if err != nil {
 		return err

@@ -234,6 +234,11 @@ channelterm file receive /var/log/myapp ./myapp --session SER-1
 
 Возобновляемая передача по выбору поддерживает файлы и каталоги в обоих направлениях, в том числе ручное восстановление после перезапуска GUI/Host. Включите контрольную точку в GUI или используйте `--resumable`, затем `file resume JOB_ID --session SESSION`. Снимки, проверки и неопределённая публикация описаны в [инструкции по возобновлению](docs/getting-started/file-transfer.md#manual-resume-for-serial-files-and-directories).
 
+Клиенты ИИ могут использовать единый инструмент MCP `file_transfer` для передачи файлов Host,
+нескольких выбранных объектов, каталогов и необязательных архивов TAR/gzip через последовательный
+порт или SSH. Сначала настройте отдельный каталог передачи на Host; см.
+[порядок передачи](docs/getting-started/file-transfer.md#managed-mcp-transfers).
+
 <a id="gdb-debugging"></a>
 
 ## Удалённая отладка с GDB

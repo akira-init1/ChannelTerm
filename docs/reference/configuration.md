@@ -1,13 +1,45 @@
 # Configuration Reference
 
-ChannelTerm keeps three independent user-configuration responsibilities in one `config.toml`:
-connection configuration, connection policy, and user preferences. It separately stores
+ChannelTerm keeps connection configuration, connection policy, user preferences and explicit
+managed file-transfer grants in one `config.toml`. It separately stores
 automatically managed device identity state.
 
 Diagnostic archives are ephemeral Host memory, not files under the configuration directory.
 Their fixed retention limits and explicit raw-content opt-in are documented in the
 [diagnostic export contract](mcp-tools.md#terminal_export_diagnostics). There are no new persistent
 configuration fields or automatic raw-terminal logging settings.
+
+## Managed file-transfer grants
+
+Managed MCP transfers are disabled until the Host's `config.toml` contains an absolute existing
+`file_transfer.root`. Restart the standalone `channelterm mcp` Host after changing these grants.
+Tool paths are relative to this directory, on the Host rather than the MCP client's machine.
+This is a read/write grant to authorized clients, not a per-request consent prompt: use a dedicated
+directory and control who can modify its contents.
+
+```toml
+[file_transfer]
+root = '/srv/channelterm-files'
+
+[file_transfer.ssh.board]
+user = 'operator'
+host = '192.0.2.10'
+port = 22
+private_key = '/home/operator/.ssh/id_ed25519'
+known_hosts = '/home/operator/.ssh/known_hosts'
+```
+
+On Windows, use absolute paths such as `root = 'D:\Transfer'` and absolute Windows key/trust paths.
+SSH names select fixed destinations; omitted/zero port means 22. Authentication is noninteractive
+key authentication with strict existing `known_hosts` verification. This tool has no password,
+key-passphrase or unknown-host acceptance callback. Configure trust and credentials locally first;
+never put key contents in TOML or pass credentials to an AI.
+
+An omitted section stays omitted when saving configuration. Foreground `channelterm ssh` sharing
+Hosts do not enable these grants; use a standalone MCP Host. HTTP write grants are additionally
+required to start/cancel tasks. Listener defaults, authentication and existing CLI transfers do not
+change. See [the MCP contract](mcp-tools.md#file_transfer) and
+[workflow](../getting-started/file-transfer.md#managed-mcp-transfers).
 
 ## Paths
 

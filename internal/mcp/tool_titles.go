@@ -4,6 +4,8 @@ package mcp
 // MCP tool. Machine-readable terminal_* names remain the compatibility key.
 func terminalToolTitle(name string) (string, bool) {
 	switch name {
+	case "file_transfer":
+		return "Transfer Files and Directories", true
 	case "debug_overview":
 		return "Read Unified GDB Overview", true
 	case "debug_observation_register":

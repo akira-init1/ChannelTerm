@@ -879,6 +879,11 @@ command failure.
 
 ## `mcp`
 
+The standalone Host loads optional managed file-transfer grants from `config.toml`; these enable
+the `file_transfer` MCP tool without new CLI flags. See
+[configuration](configuration.md#managed-file-transfer-grants). Shutdown cancels and joins accepted
+transfers before closing terminal Sessions. Existing CLI file commands retain their own path access.
+
 Purpose: start a long-running MCP server and own its Session Manager and Device Registry for the
 process lifetime.
 

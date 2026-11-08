@@ -55,6 +55,8 @@ type Dependencies struct {
 	Policy          connectionpolicy.Policy
 	Serial          SerialDependencies
 	ListSerialPorts func() ([]serialtransport.Port, error)
+	// FileTransfer is an explicit Host filesystem/SSH grant. Empty disables it.
+	FileTransfer config.FileTransfer
 }
 
 // Application is the UI-independent entry point for ChannelTerm use cases.
@@ -77,6 +79,7 @@ type Application struct {
 	build           BuildProvenance
 	resize          resizeControls
 	observations    debugObservations
+	transfers       transferCoordinator
 }
 
 // New creates an Application from Core runtime dependencies.
@@ -113,6 +116,11 @@ func New(dependencies Dependencies) (*Application, error) {
 		listSerialPorts: listPorts,
 	}
 	application.leases.onExpired = application.publishExpiredLease
+	application.transfers.settings = dependencies.FileTransfer
+	application.transfers.settings.SSH = make(map[string]config.FileTransferSSH, len(dependencies.FileTransfer.SSH))
+	for name, profile := range dependencies.FileTransfer.SSH {
+		application.transfers.settings.SSH[name] = profile
+	}
 	return application, nil
 }
 

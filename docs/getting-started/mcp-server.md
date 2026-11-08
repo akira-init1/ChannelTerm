@@ -1,5 +1,11 @@
 # MCP Server
 
+For files already on the Host, enable a dedicated
+[transfer root](../reference/configuration.md#managed-file-transfer-grants) and use `file_transfer`
+for serial/SFTP/SCP, multiple paths and optional TAR/gzip output. It is disabled by default. See the
+[managed workflow](file-transfer.md#managed-mcp-transfers) for start, status, cancellation and the
+distinction between Host paths and client-local files.
+
 ChannelTerm exposes the same terminal Tool Registry over MCP stdio and stateless Streamable HTTP.
 
 For short bootloader windows, use the Host-side U-Boot operation and

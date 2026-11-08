@@ -231,6 +231,10 @@ GUI와 CLI 파일 전송은 기본적으로 Base64를 사용하며 장치에 `ba
 
 선택적 이어받기는 파일과 폴더의 양방향 전송을 지원하며 GUI/Host 재시작 후에도 수동으로 재개할 수 있습니다. GUI 체크포인트 옵션을 켜거나 `--resumable`을 사용한 뒤 `file resume JOB_ID --session SESSION`으로 재개하세요. 스냅샷, 검증, 불확실한 게시 결과는 [재개 절차](docs/getting-started/file-transfer.md#manual-resume-for-serial-files-and-directories)를 참조하세요.
 
+AI 클라이언트는 단일 MCP 도구 `file_transfer`로 Host의 파일, 여러 선택 항목, 디렉터리 및 선택적인
+TAR/gzip 묶음을 시리얼이나 SSH로 전송할 수 있습니다. 먼저 전용 Host 전송 디렉터리를 설정하세요.
+[전송 절차](docs/getting-started/file-transfer.md#managed-mcp-transfers)를 참고하세요.
+
 <a id="gdb-debugging"></a>
 
 ## GDB 원격 디버깅

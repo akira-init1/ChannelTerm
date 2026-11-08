@@ -7,11 +7,46 @@ ChannelTerm can stream a regular file or a directory through an existing shared 
 AI client or a separately installed board-side transfer program. The board side remains an ordinary
 interactive Linux shell.
 
-Agents copying programs or debugging ELFs use this same CLI workflow. MCP exposes its transfer
-control/events, but has no client-file upload tool. Do not build a separate Base64/heredoc transfer
+Agents can use [managed MCP transfers](#managed-mcp-transfers) for files in an authorized Host
+directory, or this CLI workflow for files on the CLI computer. MCP does not upload bytes from
+another client's filesystem. Do not build a separate Base64/heredoc transfer
 with `terminal_write`; those writes are ordinary input and may be displayed and echoed. If the CLI,
 local file, or owning HTTP Host is inaccessible, report the missing access instead. With WSL/Windows
 interop, local paths and the HTTP credential belong to the OS running the chosen CLI executable.
+
+## Managed MCP transfers
+
+Configure a [Host transfer root and optional SSH profiles](../reference/configuration.md#managed-file-transfer-grants),
+then start `channelterm mcp` with its usual stdio or authenticated HTTP transport. Stdio remains
+silent on stdout until protocol traffic; HTTP prints its listening endpoint to stderr. Connect the
+MCP client and use `file_transfer` for all actions. Existing CLI transfers still work.
+
+With `firmware.bin` and `configs/` under the configured Host root:
+
+```json
+{"action":"start","request_id":"deploy-001","direction":"send","transport":"serial","session_id":"SER-1","sources":["firmware.bin","configs"],"destination":"/tmp/release","mode":"auto"}
+```
+
+Poll using the returned managed task ID:
+
+```json
+{"action":"status","transfer_id":"FT-<returned-id>","wait_ms":10000}
+```
+
+The AI chooses literal paths according to the user's intent. `auto` preserves files; ChannelTerm
+reports whether the serial upload used temporary TAR or per-file copies. For retained compressed
+output, use `mode="tar.gz"` and a filename such as `/tmp/release.tar.gz`. For SSH, use
+`transport="sftp"` and `ssh_profile="board"` instead of `session_id`. One directory's contents become
+the destination directory; multiple selections retain their basenames. Receive reverses the sides.
+See the [complete contract](../reference/mcp-tools.md#file_transfer) for bounds and protocol requirements.
+
+`action="cancel"` with the same ID requests cancellation; poll until cleanup finishes. Closing the
+client does not cancel accepted work while the Host remains running. A stdio Host exits on stdin
+EOF; that shutdown cancels its tasks. Stop the Host with Ctrl+C for orderly task cancellation.
+A blocked or unrecoverable serial write closes that original Session; check the board shell before
+reconnecting. Capacity checks are estimates, not reservations. Failed publication/SSH uploads can
+leave partial destinations. No overwrite is requested; legacy SCP's existence guard cannot reserve
+a destination against concurrent remote writers.
 
 ## Preconditions
 

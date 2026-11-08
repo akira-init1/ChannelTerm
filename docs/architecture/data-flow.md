@@ -1,5 +1,12 @@
 # Runtime Data Flow
 
+Managed transfer follows `MCP file_transfer -> Application task -> existing serial transfer or
+dedicated SSH file connection`. Application owns rooted Host selection, private staging, mode
+selection, verification and cancellation. Serial uses the existing leased Session; SFTP/SCP have
+independent connections without a synthetic Session. Composition cancels and joins tasks before
+closing the Manager. See [Application](../modules/application.md#managed-file-transfer-tasks) and
+[the public contract](../reference/mcp-tools.md#file_transfer).
+
 ## Electron attachment
 
 The [Electron process and IPC diagram](electron-gui.md#processes-and-communication) separates

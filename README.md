@@ -235,6 +235,10 @@ Use `--wire raw` only for compatible eight-bit links without XON/XOFF; file cont
 
 Opt-in resumable transfers support files and directories in both directions, including manual recovery after GUI/Host restart. Enable the GUI checkpoint option or use `--resumable`, then `file resume JOB_ID --session SESSION`. See the [resume workflow](docs/getting-started/file-transfer.md#manual-resume-for-serial-files-and-directories) for snapshots, validation and uncertain publication.
 
+AI clients can use the single `file_transfer` MCP tool for Host-local files, multiple selections,
+directories and optional TAR/gzip bundles over serial or SSH. Enable a dedicated Host transfer root
+first; see the [managed transfer workflow](docs/getting-started/file-transfer.md#managed-mcp-transfers).
+
 <a id="gdb-debugging"></a>
 
 ## Remote debugging with GDB

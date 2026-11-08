@@ -238,6 +238,11 @@ Utilisez `--wire raw` uniquement sur des liaisons compatibles 8 bits sans XON/XO
 
 La reprise facultative prend en charge les fichiers et dossiers dans les deux sens, même après un redémarrage de la GUI ou du Host. Activez le point de reprise dans la GUI ou utilisez `--resumable`, puis `file resume JOB_ID --session SESSION`. Consultez le [guide de reprise](docs/getting-started/file-transfer.md#manual-resume-for-serial-files-and-directories) pour les instantanés, la vérification et la publication incertaine.
 
+Les clients IA peuvent utiliser l'outil MCP unique `file_transfer` pour transférer des fichiers du
+Host, plusieurs sélections, des répertoires et des archives TAR/gzip facultatives par liaison série
+ou SSH. Configurez d'abord un répertoire de transfert dédié sur le Host ; consultez le
+[guide de transfert](docs/getting-started/file-transfer.md#managed-mcp-transfers).
+
 <a id="gdb-debugging"></a>
 
 ## Débogage distant avec GDB

@@ -11,6 +11,8 @@ func terminalToolAnnotations(name string) (*protocol.ToolAnnotations, bool) {
 	idempotent := false
 
 	switch name {
+	case "file_transfer":
+		destructive, openWorld = true, true
 	case "terminal_enter_uboot":
 		destructive, openWorld = true, true
 	case "terminal_export_diagnostics":

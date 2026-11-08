@@ -13,6 +13,7 @@ Honor the user's chosen protocol. Otherwise choose from the actual reachable ser
 
 | Available connection | Workflow | Ownership and result |
 | --- | --- | --- |
+| Configured MCP Host transfer root, with files already on that Host | `file_transfer` start/status/cancel | One client-bound managed task for serial/SSH, multiple selections and optional archive output |
 | SSH server with SFTP subsystem | Prefer `channelterm sftp` | Dedicated file connection; CLI exit status and verification output |
 | SSH server requiring legacy SCP, with POSIX shell and `scp` | `channelterm scp` | Dedicated file connection; CLI exit status and verification output |
 | Existing shared serial Session at an idle Linux shell | `channelterm file send` / `receive` | Host-managed transfer lease; CLI result and optional MCP transfer events |
@@ -23,7 +24,8 @@ SFTP/SCP do not reuse the terminal's SSH connection, create a Session, or publis
 ## Resolve files and execution access
 
 - Identify direction, source, destination, and the intended Session/Host or SSH account/address. A local path belongs to the machine running the CLI; a file on the user's PC is not automatically accessible to an agent elsewhere. `localhost` also refers to that execution environment.
-- Initiating any of these transfers requires CLI execution access and access to the relevant local files. MCP has no client-file upload tool and no SFTP/SCP tools. If the agent cannot run the CLI in the right environment, give the user the exact command to run there. For serial transfers, `Ctrl+] f` in their attachment is another entry point; MCP can still observe the result.
+- If `file_transfer` is advertised and the Host has configured transfer grants, use its schema for Host-relative paths and named SSH profiles. Default to `auto` to preserve files; choose `tar` or `tar.gz` only for explicitly requested archive output. Poll the same managed task ID; retry a lost start response with identical arguments and request ID. Never pass credentials or invent profile names. MCP cannot upload bytes from another client's filesystem.
+- Otherwise, initiating transfers requires CLI execution access and access to the relevant local files. If that environment is unavailable, give the user the exact command to run there. For serial transfers, `Ctrl+] f` in their attachment is another entry point; MCP can still observe the result.
 - Check the installed subcommand's `--help` before relying on version-specific options. Quote local-shell arguments, use board/SSH paths in POSIX form, and do not put passwords or private-key contents in commands or reports.
 
 ## SFTP and legacy SCP

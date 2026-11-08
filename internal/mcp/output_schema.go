@@ -23,6 +23,14 @@ type jsonSchema struct {
 func terminalOutputSchema(name string) (jsonSchema, bool) {
 	var schema jsonSchema
 	switch name {
+	case "file_transfer":
+		schema = objectSchema(map[string]jsonSchema{"status": objectSchema(map[string]jsonSchema{
+			"transfer_id": stringSchema(), "state": stringSchema(), "phase": stringSchema(), "transport": stringSchema(), "mode": stringSchema(),
+			"wire_mode": stringSchema(), "selection_reason": stringSchema(), "resolved_path": stringSchema(), "session_transfer_id": stringSchema(), "current_file": stringSchema(),
+			"bytes": integerSchema(), "total_bytes": integerSchema(), "files_verified": integerSchema(), "files_total": integerSchema(),
+			"current_bytes": integerSchema(), "current_total": integerSchema(),
+			"sha256": stringSchema(), "checksum_scope": stringSchema(), "error": stringSchema(),
+		}, "transfer_id", "state", "phase", "transport", "mode", "bytes", "total_bytes", "files_verified", "files_total")}, "status")
 	case "debug_overview":
 		schema = objectSchema(map[string]jsonSchema{"observed_at": dateTimeSchema(), "operations": arraySchema(debugObservationSchema())}, "observed_at", "operations")
 	case "debug_observation_register", "debug_observation_report":

@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"net"
 	"os"
+	"path"
 	"sync"
 	"time"
 
@@ -20,6 +21,43 @@ type FileInfo struct {
 	Size     int64       `json:"size"`
 	Mode     fs.FileMode `json:"mode"`
 	Modified time.Time   `json:"modified"`
+}
+
+// FileStorage reports available allocation units and inodes from the SFTP
+// statvfs extension. It is a snapshot, not a reservation. Zero TotalFiles means
+// the server does not advertise an inode limit.
+type FileStorage struct {
+	AvailableBlocks uint64
+	BlockSize       uint64
+	AvailableFiles  uint64
+	TotalFiles      uint64
+}
+
+// Storage queries the nearest existing ancestor without creating anything.
+// Unsupported statvfs is an error; callers must not treat unknown space as free.
+func (f *Files) Storage(remote string) (FileStorage, error) {
+	if err := f.requireSFTP(); err != nil {
+		return FileStorage{}, err
+	}
+	for {
+		_, err := f.Stat(remote)
+		if err == nil {
+			break
+		}
+		if !errors.Is(err, fs.ErrNotExist) {
+			return FileStorage{}, err
+		}
+		parent := path.Dir(remote)
+		if parent == remote {
+			return FileStorage{}, err
+		}
+		remote = parent
+	}
+	v, err := f.sftp.StatVFS(remote)
+	if err != nil {
+		return FileStorage{}, fmt.Errorf("SFTP statvfs is required for capacity checks: %w", err)
+	}
+	return FileStorage{AvailableBlocks: v.Bavail, BlockSize: v.Frsize, AvailableFiles: v.Favail, TotalFiles: v.Files}, nil
 }
 
 // fileInfo rejects uint64 wire sizes that overflow the backend's int64 view

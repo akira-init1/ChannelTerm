@@ -46,6 +46,7 @@ and logs. The `terminal_*` name remains the stable machine-readable compatibilit
 
 | Tool name | Display title |
 | --- | --- |
+| `file_transfer` | Transfer Files and Directories |
 | `terminal_enter_uboot` | Enter U-Boot |
 | `terminal_export_diagnostics` | Export Session Diagnostics |
 | `terminal_read_diagnostic` | Download Diagnostic Archive |
@@ -97,6 +98,67 @@ read-only until explicit local grants enable device operations; management remai
 Tool invocations rejected by authorization return
 `isError: true` with `error.code: permission_denied` before the tool runs. Descriptive MCP annotations
 do not authorize operations. See the [HTTP upgrade workflow](../getting-started/http-authentication-migration.md).
+
+## `file_transfer`
+
+One managed entry point transfers files between the **Host computer** and a remote endpoint.
+It does not upload bytes from another MCP client's computer. Enable the
+[Host transfer grant](configuration.md#managed-file-transfer-grants) first.
+
+- `action=start` requires `request_id`, `direction=send|receive`, `transport=serial|sftp|scp`,
+  `sources` (1..128 literal paths) and `destination`. Serial requires only `session_id`; SSH
+  requires only `ssh_profile`, a locally configured name. No credentials, key paths, globs or
+  shell expressions are accepted. Host paths are relative children of the configured root;
+  remote paths are absolute, normalized POSIX paths. Source basenames must be distinct,
+  including case-insensitive comparison.
+- `mode=auto` (default) preserves ordinary files and directory structure. A single directory
+  copies its **contents** into `destination`; multiple sources retain their basenames below it.
+  One file uses the exact destination filename. Existing archives are never implicitly unpacked.
+- `mode=files` forces per-file serial copies. In `auto`, serial uploads with at least 16 files
+  use temporary TAR when remote TAR and archive-plus-tree capacity are available; otherwise
+  they use per-file copying. Both verify every file and the complete tree. SSH and serial
+  downloads use per-file copying. `wire_mode` and `selection_reason` report the choice.
+- `mode=tar|tar.gz` explicitly delivers one retained archive. TAR is uncompressed; tar.gz uses
+  gzip. Receive bundles are assembled on the Host after verified downloads, not compressed
+  remotely. This output choice is separate from temporary transport bundling. Archive output
+  reports `checksum_scope=archive` and `files_total=files_verified=1`; these identify the archive,
+  not a remote extracted tree.
+- `timeout_seconds` defaults to 3600, maximum 86400, including preparation and publication.
+  Serial recovery has a separate bounded cleanup allowance.
+- Start returns `{ "status": { "transfer_id": "FT-...", "state": "running", ... } }` immediately.
+  `action=status|cancel` accepts only `transfer_id` and optional `wait_ms` (0..30000). A wait
+  timeout returns a snapshot without cancelling work. Accepted tasks survive request cancellation
+  and client disconnects while the Host remains running.
+  Cancel is idempotent; wait for a terminal state before treating cleanup as finished.
+
+States are `running`, `completed`, `failed`, and `cancelled`. Status includes phase, transport,
+effective mode, current transfer-unit bytes (`current_bytes/current_total`), file counts and final
+byte count, SHA-256, checksum scope and resolved path. Failures after admission return a task state
+with `error`; invocation failures use the usual MCP error result. Completion follows verification
+and serial shell restoration/lease release. Local resolved paths remain root-relative. Serial also
+reports `session_transfer_id`, correlating the existing Session events; use the managed task ID for
+this tool's status/cancel. Existing CLI events, waits and cancellation tools remain compatible.
+
+Start/cancel require write access, even for downloads. Status requires read access and the same
+authenticated client. Stdio shares the trusted local-account identity but still requires configured
+grants. At most four tasks run concurrently and 128 retry records are retained; admission evicts
+the oldest completed record. Exact `request_id` retries are deduplicated only while retained in
+this Host process; conflicting reuse fails. No persistent resume/replay survives Host restart.
+
+Space checks fail closed when capacity is unavailable. They include headroom but cannot reserve
+space against other writers. SFTP uploads require `statvfs`. Explicit SCP also requires SFTP for
+metadata/capacity/tree readback, plus remote `sha256sum` for SCP verification. SSH uses dedicated
+connections, never a synthetic Session. Existing SSH CLI behavior is unchanged.
+
+Host/SSH destination parents must exist. Host and SSH collisions fail; serial retains collision-name
+selection. No mode requests overwrite; SCP's existing-path guard is not an atomic reservation
+against concurrent remote namespace changes, so use SFTP when that matters. Failed SSH uploads or Host publication may leave partial data
+at the reported destination: inspect it and choose a new path before retrying with a new request ID.
+Host access uses `os.Root` and private temporary snapshots. Symlinks/special entries are rejected;
+trees use the existing portable manifest contract and a 10000-entry bound. Keep sources stable
+during snapshot creation. Copies do not preserve all filesystem metadata or provide a filesystem-wide
+transaction. The combined tool advertises destructive/open-world behavior conservatively; annotations
+do not replace authorization.
 
 ## Common cursor rules
 
@@ -682,8 +744,9 @@ For files and debugging ELFs, run `channelterm file send` / `receive` from an en
 read the local file and reach the Session's HTTP Host. Select `--session` and the owning `--endpoint`,
 then observe `terminal_wait_file_transfer` as described in the [transfer workflow](../getting-started/file-transfer.md).
 Do not construct Base64/heredoc uploads with `terminal_write`: they bypass managed transfer progress
-and payload suppression. If CLI or file access is unavailable, report that limitation. MCP provides
-transfer control and observation, not a client-file upload tool; the CLI opens no additional serial port.
+and payload suppression. For files already under a configured Host root, use
+[`file_transfer`](#file_transfer). Otherwise, if CLI or file access is unavailable, report that
+limitation. MCP does not upload bytes from another client's filesystem; the CLI opens no additional serial port.
 
 When another operation owns an exclusive lease, this unchanged tool returns a busy error such as
 `Session SER-1 is locked by file-transfer`. It never waits for the lease or accepts an owner

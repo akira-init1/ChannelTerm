@@ -237,6 +237,11 @@ Verwenden Sie `--wire raw` nur bei kompatiblen 8-Bit-Verbindungen ohne XON/XOFF;
 
 Optionale fortsetzbare Übertragungen unterstützen Dateien und Verzeichnisse in beide Richtungen, auch nach einem GUI-/Host-Neustart. Aktivieren Sie den GUI-Prüfpunkt oder verwenden Sie `--resumable` und danach `file resume JOB_ID --session SESSION`. Details zu Momentaufnahmen, Prüfung und ungewisser Veröffentlichung stehen im [Resume-Ablauf](docs/getting-started/file-transfer.md#manual-resume-for-serial-files-and-directories).
 
+KI-Clients können mit dem einzelnen MCP-Tool `file_transfer` lokale Host-Dateien, mehrere Auswahlen,
+Verzeichnisse und optionale TAR/gzip-Archive über die serielle Verbindung oder SSH übertragen.
+Zuerst ein eigenes Host-Transferverzeichnis konfigurieren; siehe den
+[Transferablauf](docs/getting-started/file-transfer.md#managed-mcp-transfers).
+
 <a id="gdb-debugging"></a>
 
 ## Remote-Debugging mit GDB

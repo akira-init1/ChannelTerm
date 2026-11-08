@@ -14,6 +14,23 @@ The standalone HTTP Host shares one Application between MCP and the
 [desktop connection adapter](../reference/gui-host-api.md). GUI SSH creation reuses `OpenSSH`;
 no GUI-specific lifecycle or authentication policy is added to Core.
 
+## Managed file-transfer tasks
+
+`StartFileTransfer`, `FileTransferStatus` and `CloseFileTransfers` own bounded jobs over the existing
+serial and SSH copy use cases. MCP only translates arguments/results. Composition passes explicit
+configuration grants and cancels/joins tasks before closing the Session Manager. Accepted task
+lifetime survives its starting request; client identity and exact retry fingerprints bind admission,
+observation and cancellation. Serial captures a never-reused registration reference, renews a private
+lease and restores the child shell before release. Failed recovery closes that Session. SFTP/SCP
+retain dedicated connections without a Session/lease.
+
+Rooted Host selections enter private snapshots before remote mutation. Downloads are verified there,
+then copied exclusively into the configured root; publication errors may leave a partial new path.
+Auto serial TAR uploads compare extracted manifests before exclusive publication. SSH reuses the
+existing copy engine plus SFTP metadata/capacity/readback and configured key/trust paths. Bounds,
+mode semantics, progress and retry retention belong to the
+[public contract](../reference/mcp-tools.md#file_transfer).
+
 ## Serial profile configuration
 
 `ReadSerialProfiles`, `SaveSerialProfile` and `SetSerialDefault` use the Serial service configuration

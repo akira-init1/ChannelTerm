@@ -23,6 +23,10 @@ func (t authorizedTool) Call(ctx context.Context, input json.RawMessage) (tool.R
 // authorization until their actual side effects have been reviewed here.
 func clientEffect(name string) app.ClientEffect {
 	switch name {
+	case "file_transfer":
+		// Application checks start/cancel write grants and task ownership;
+		// status remains available after a client's write grant is revoked.
+		return app.ClientRead
 	case "terminal_list_sessions", "terminal_read", "terminal_read_activity", "terminal_session_events", "terminal_wait_file_transfer",
 		"terminal_list_serial_ports", "terminal_list_devices", "terminal_read_device_events", "terminal_get_connection_decision",
 		"terminal_read_diagnostic", "debug_overview", "debug_bridge_list", "debug_bridge_status", "terminal_session_attach", "terminal_session_detach":

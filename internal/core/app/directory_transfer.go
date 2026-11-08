@@ -76,6 +76,12 @@ func PlanDirectory(source string) (int64, error) {
 }
 
 func makeDirectoryPlan(source string) (directoryPlan, error) {
+	return makeDirectoryPlanContext(context.Background(), source)
+}
+
+// makeDirectoryPlanContext bounds metadata traversal and TAR sizing by the
+// managed operation deadline, including sizing large regular files.
+func makeDirectoryPlanContext(ctx context.Context, source string) (directoryPlan, error) {
 	root, err := filepath.Abs(source)
 	if err != nil {
 		return directoryPlan{}, fmt.Errorf("resolve local directory %q: %w", source, err)
@@ -89,6 +95,9 @@ func makeDirectoryPlan(source string) (directoryPlan, error) {
 	}
 	plan := directoryPlan{}
 	err = filepath.WalkDir(root, func(current string, entry fs.DirEntry, walkErr error) error {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		if walkErr != nil {
 			return walkErr
 		}
@@ -125,7 +134,7 @@ func makeDirectoryPlan(source string) (directoryPlan, error) {
 		return directoryPlan{}, fmt.Errorf("scan local directory %q: %w", source, err)
 	}
 	count := &countingWriter{}
-	if err := plan.writeTo(count); err != nil {
+	if err := plan.writeToContext(ctx, count); err != nil {
 		return directoryPlan{}, err
 	}
 	plan.size = count.size
@@ -133,13 +142,20 @@ func makeDirectoryPlan(source string) (directoryPlan, error) {
 }
 
 func (p directoryPlan) writeTo(destination io.Writer) (err error) {
-	writer := tar.NewWriter(destination)
+	return p.writeToContext(context.Background(), destination)
+}
+
+func (p directoryPlan) writeToContext(ctx context.Context, destination io.Writer) (err error) {
+	writer := tar.NewWriter(&transferContextWriter{ctx: ctx, writer: destination})
 	defer func() {
 		if closeErr := writer.Close(); err == nil {
 			err = closeErr
 		}
 	}()
 	for _, entry := range p.entries {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		head := entry.head
 		if err := writer.WriteHeader(&head); err != nil {
 			return err
@@ -246,7 +262,7 @@ func SendDirectory(ctx context.Context, terminal FileTransferSession, source, re
 		})
 		return result, err
 	}
-	plan, err := makeDirectoryPlan(source)
+	plan, err := makeDirectoryPlanContext(ctx, source)
 	if err != nil {
 		return DirectoryTransferResult{}, err
 	}

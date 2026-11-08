@@ -236,6 +236,11 @@ Use `--wire raw` solo en enlaces compatibles de 8 bits sin XON/XOFF; el contenid
 
 La reanudación opcional admite archivos y carpetas en ambas direcciones, incluso después de reiniciar la GUI o el Host. Activa el punto de control en la GUI o usa `--resumable` y luego `file resume JOB_ID --session SESSION`. Consulta el [flujo de reanudación](docs/getting-started/file-transfer.md#manual-resume-for-serial-files-and-directories) para las instantáneas, la verificación y la publicación incierta.
 
+Los clientes de IA pueden usar una única herramienta MCP, `file_transfer`, para transferir archivos
+del Host, selecciones múltiples, directorios y archivos TAR/gzip opcionales por puerto serie o SSH.
+Configure primero un directorio de transferencia dedicado en el Host; consulte el
+[flujo de transferencia](docs/getting-started/file-transfer.md#managed-mcp-transfers).
+
 <a id="gdb-debugging"></a>
 
 ## Depuración remota con GDB

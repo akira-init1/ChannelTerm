@@ -34,7 +34,7 @@ func TestServerInstructionsCoverRoutingAndSafety(t *testing.T) {
 		"terminal_exec",
 		"terminal_write",
 		"terminal_wait_file_transfer",
-		"channelterm file send/receive",
+		"file_transfer",
 		"For discovered devices",
 		"terminal_get_connection_decision",
 		"ask requires approval",
@@ -65,7 +65,7 @@ func TestServerListsAndUsesTerminalTools(t *testing.T) {
 		t.Fatalf("ListTools() error = %v", err)
 	}
 	want := map[string]bool{
-		"terminal_enter_uboot": true, "terminal_export_diagnostics": true, "terminal_read_diagnostic": true,
+		"file_transfer": true, "terminal_enter_uboot": true, "terminal_export_diagnostics": true, "terminal_read_diagnostic": true,
 		"debug_start": true, "debug_command": true, "debug_events": true, "debug_stop": true,
 		"debug_overview": true, "debug_observation_register": true, "debug_observation_report": true,
 		"debug_bridge_list": true, "debug_bridge_start": true, "debug_bridge_status": true, "debug_bridge_renew": true, "debug_bridge_close": true, "debug_bridge_restore": true, "debug_bridge_report": true,
@@ -78,7 +78,7 @@ func TestServerListsAndUsesTerminalTools(t *testing.T) {
 		"terminal_list_devices": true, "terminal_read_device_events": true, "terminal_wait_device_event": true, "terminal_get_connection_decision": true,
 	}
 	wantOutputProperty := map[string]string{
-		"terminal_enter_uboot": "status", "terminal_export_diagnostics": "diagnostic_id", "terminal_read_diagnostic": "data",
+		"file_transfer": "status", "terminal_enter_uboot": "status", "terminal_export_diagnostics": "diagnostic_id", "terminal_read_diagnostic": "data",
 		"debug_start": "status", "debug_stop": "status", "debug_command": "record", "debug_events": "events",
 		"debug_overview": "operations", "debug_observation_register": "operation", "debug_observation_report": "operation",
 		"debug_bridge_list": "bridges", "debug_bridge_start": "connection", "debug_bridge_status": "status", "debug_bridge_renew": "status", "debug_bridge_close": "status", "debug_bridge_restore": "status", "debug_bridge_report": "sequence",
@@ -110,7 +110,7 @@ func TestServerListsAndUsesTerminalTools(t *testing.T) {
 		"terminal_get_connection_decision":      "action",
 	}
 	wantTitle := map[string]string{
-		"terminal_enter_uboot": "Enter U-Boot", "terminal_export_diagnostics": "Export Session Diagnostics", "terminal_read_diagnostic": "Download Diagnostic Archive",
+		"file_transfer": "Transfer Files and Directories", "terminal_enter_uboot": "Enter U-Boot", "terminal_export_diagnostics": "Export Session Diagnostics", "terminal_read_diagnostic": "Download Diagnostic Archive",
 		"debug_overview": "Read Unified GDB Overview", "debug_observation_register": "Register External Debug Observation", "debug_observation_report": "Report Structured Debug Observation",
 		"debug_bridge_list": "List External GDB Bridge Ports", "debug_bridge_start": "Open External GDB Bridge", "debug_bridge_status": "Read External GDB Bridge Status", "debug_bridge_renew": "Renew External GDB Bridge", "debug_bridge_close": "Close External GDB Bridge and Session", "debug_bridge_restore": "Verify Terminal Restoration after RSP", "debug_bridge_report": "Report External GDB Activity from Codex",
 		"debug_start": "Start User-Space Debugging", "debug_command": "Control GDB", "debug_events": "Read Debug Events", "debug_stop": "End User-Space Debugging",
@@ -154,16 +154,16 @@ func TestServerListsAndUsesTerminalTools(t *testing.T) {
 		"terminal_wait_device_event": true, "terminal_get_connection_decision": true,
 	}
 	destructiveAnnotations := map[string]bool{
-		"terminal_enter_uboot": true,
-		"debug_start":          true, "debug_command": true, "debug_stop": true,
+		"file_transfer": true, "terminal_enter_uboot": true,
+		"debug_start": true, "debug_command": true, "debug_stop": true,
 		"debug_bridge_start": true, "debug_bridge_close": true, "debug_bridge_restore": true,
 		"terminal_open_serial": true, "terminal_exec": true, "terminal_write": true, "terminal_write_leased": true,
 		"terminal_resolve_file_transfer_cancel": true, "terminal_release_lease": true,
 		"terminal_close": true,
 	}
 	openWorldAnnotations := map[string]bool{
-		"terminal_enter_uboot": true,
-		"debug_start":          true, "debug_command": true, "debug_stop": true,
+		"file_transfer": true, "terminal_enter_uboot": true,
+		"debug_start": true, "debug_command": true, "debug_stop": true,
 		"debug_bridge_start": true, "debug_bridge_close": true, "debug_bridge_restore": true,
 		"terminal_open_serial": true, "terminal_exec": true, "terminal_write": true, "terminal_write_leased": true,
 	}
@@ -335,7 +335,7 @@ func TestStreamableHTTPServerListsAndUsesTerminalTools(t *testing.T) {
 			t.Fatalf("ListTools() error = %v", err)
 		}
 		want := map[string]bool{
-			"terminal_enter_uboot": true, "terminal_export_diagnostics": true, "terminal_read_diagnostic": true,
+			"file_transfer": true, "terminal_enter_uboot": true, "terminal_export_diagnostics": true, "terminal_read_diagnostic": true,
 			"debug_start": true, "debug_command": true, "debug_events": true, "debug_stop": true,
 			"debug_overview": true, "debug_observation_register": true, "debug_observation_report": true,
 			"debug_bridge_list": true, "debug_bridge_start": true, "debug_bridge_status": true, "debug_bridge_renew": true, "debug_bridge_close": true, "debug_bridge_restore": true, "debug_bridge_report": true,
