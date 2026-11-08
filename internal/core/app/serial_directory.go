@@ -77,7 +77,8 @@ func ListSerialDirectory(ctx context.Context, terminal FileTransferSession, path
 }
 
 // Hex-encoded records preserve whitespace and Unicode without parsing ls output.
-// Hidden entries are included; symlinks are classified before their referents.
+// od -v preserves repeated bytes in names and the current directory. Hidden
+// entries are included; symlinks are classified before their referents.
 func serialDirectoryCommand(token, quoted string) string {
-	return fmt.Sprintf(`t='%s'; if ! command -v od >/dev/null 2>&1 || ! command -v tr >/dev/null 2>&1; then printf '\n@CTERM:%%s:ERROR:tools\n' "$t"; elif ! cd -- %s 2>/dev/null || [ ! -r . ] || [ ! -x . ]; then printf '\n@CTERM:%%s:ERROR:directory\n' "$t"; else p=$(pwd -P); h=$(printf '%%s' "$p" | od -An -tx1 | tr -d ' \n'); printf '\n@CTERM:%%s:LIST:CWD:%%s\n' "$t" "$h"; n=0; more=0; for f in ./* ./.[!.]* ./..?*; do [ -e "$f" ] || [ -L "$f" ] || continue; if [ "$n" -ge 256 ]; then more=1; break; fi; k=other; if [ -L "$f" ]; then :; elif [ -d "$f" ]; then k=directory; elif [ -f "$f" ]; then k=file; fi; h=$(printf '%%s' "${f#./}" | od -An -tx1 | tr -d ' \n'); printf '\n@CTERM:%%s:LIST:%%s:%%s\n' "$t" "$k" "$h"; n=$((n+1)); done; printf '\n@CTERM:%%s:LIST:DONE:%%s\n' "$t" "$more"; fi`, token, quoted)
+	return fmt.Sprintf(`t='%s'; if ! command -v od >/dev/null 2>&1 || ! command -v tr >/dev/null 2>&1; then printf '\n@CTERM:%%s:ERROR:tools\n' "$t"; elif ! cd -- %s 2>/dev/null || [ ! -r . ] || [ ! -x . ]; then printf '\n@CTERM:%%s:ERROR:directory\n' "$t"; else p=$(pwd -P); h=$(printf '%%s' "$p" | od -An -v -tx1 | tr -d ' \n'); printf '\n@CTERM:%%s:LIST:CWD:%%s\n' "$t" "$h"; n=0; more=0; for f in ./* ./.[!.]* ./..?*; do [ -e "$f" ] || [ -L "$f" ] || continue; if [ "$n" -ge 256 ]; then more=1; break; fi; k=other; if [ -L "$f" ]; then :; elif [ -d "$f" ]; then k=directory; elif [ -f "$f" ]; then k=file; fi; h=$(printf '%%s' "${f#./}" | od -An -v -tx1 | tr -d ' \n'); printf '\n@CTERM:%%s:LIST:%%s:%%s\n' "$t" "$k" "$h"; n=$((n+1)); done; printf '\n@CTERM:%%s:LIST:DONE:%%s\n' "$t" "$more"; fi`, token, quoted)
 }

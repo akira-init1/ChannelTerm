@@ -224,9 +224,10 @@ func (p *fileProtocol) directoryManifest(ctx context.Context, source string) (di
 }
 
 // Names are hex encoded, hashes use stdin so filename quoting cannot alter the
-// record, and only the final DONE re-enables the shell heartbeat.
+// record, and only the final DONE re-enables the shell heartbeat. od -v prevents
+// repeated filename bytes from becoming a display-only '*' abbreviation.
 func directoryManifestCommand(token, quoted string) string {
-	return fmt.Sprintf(`t='%s'; root=%s; if [ ! -L "$root" ] && (cd -- "$root" && command -v od >/dev/null && command -v tr >/dev/null && command -v sha256sum >/dev/null && find . -exec sh -c 't=$1; shift; for f do [ "$f" != . ] || continue; k=other; n=0; h=-; if [ -L "$f" ]; then :; elif [ -d "$f" ]; then k=directory; elif [ -f "$f" ]; then k=file; n=$(wc -c < "$f") || exit 1; h=$(sha256sum < "$f") || exit 1; h=${h%%%% *}; fi; v=$(printf "%%s" "${f#./}" | od -An -tx1 | tr -d " \n"); printf "\n@CTERM:%%s:TREE:%%s:%%s:%%s:%%s\n" "$t" "$k" "$n" "$h" "$v"; done' sh "$t" {} +); then printf '\n@CTERM:%%s:TREE:DONE\n' "$t"; else printf '\n@CTERM:%%s:ERROR:directory-manifest\n' "$t"; fi`, token, quoted)
+	return fmt.Sprintf(`t='%s'; root=%s; if [ ! -L "$root" ] && (cd -- "$root" && command -v od >/dev/null && command -v tr >/dev/null && command -v sha256sum >/dev/null && find . -exec sh -c 't=$1; shift; for f do [ "$f" != . ] || continue; k=other; n=0; h=-; if [ -L "$f" ]; then :; elif [ -d "$f" ]; then k=directory; elif [ -f "$f" ]; then k=file; n=$(wc -c < "$f") || exit 1; h=$(sha256sum < "$f") || exit 1; h=${h%%%% *}; fi; v=$(printf "%%s" "${f#./}" | od -An -v -tx1 | tr -d " \n"); printf "\n@CTERM:%%s:TREE:%%s:%%s:%%s:%%s\n" "$t" "$k" "$n" "$h" "$v"; done' sh "$t" {} +); then printf '\n@CTERM:%%s:TREE:DONE\n' "$t"; else printf '\n@CTERM:%%s:ERROR:directory-manifest\n' "$t"; fi`, token, quoted)
 }
 
 // beginDirectoryCommand starts an independent control operation at the current

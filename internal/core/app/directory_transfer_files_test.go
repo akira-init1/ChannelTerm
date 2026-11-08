@@ -117,6 +117,10 @@ func TestDirectoryFilesActualShellRoundTripAndCollision(t *testing.T) {
 	}
 	mustWriteDirectoryTestFile(t, filepath.Join(source, "nested", "a ' file"), content)
 	mustWriteDirectoryTestFile(t, filepath.Join(source, "empty file"), nil)
+	// od must emit repeated byte groups verbatim instead of its display-only
+	// '*' abbreviation; this relative name contains several identical rows.
+	repeatedName := strings.Repeat("a", 80) + ".bin"
+	mustWriteDirectoryTestFile(t, filepath.Join(source, repeatedName), []byte("repeated"))
 	if err := os.Mkdir(filepath.Join(source, "empty directory"), 0700); err != nil {
 		t.Fatal(err)
 	}
@@ -129,19 +133,22 @@ func TestDirectoryFilesActualShellRoundTripAndCollision(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if sent.RemotePath != target+"_1" || sent.Files != 2 || verified != 2 || sent.Bytes != int64(len(content)) {
+	if sent.RemotePath != target+"_1" || sent.Files != 3 || verified != 3 || sent.Bytes != int64(len(content)+len("repeated")) {
 		t.Fatalf("result=%+v verified=%d", sent, verified)
 	}
 	got, err := ReceiveDirectoryFiles(ctx, directoryFilesShell(t, ctx), sent.RemotePath, destination, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.SHA256 != sent.SHA256 || got.Files != 2 {
+	if got.SHA256 != sent.SHA256 || got.Files != 3 {
 		t.Fatalf("send=%+v receive=%+v", sent, got)
 	}
 	data, err := os.ReadFile(filepath.Join(destination, "nested", "a ' file"))
 	if err != nil || !bytes.Equal(data, content) {
 		t.Fatalf("binary roundtrip: %v", err)
+	}
+	if data, err := os.ReadFile(filepath.Join(destination, repeatedName)); err != nil || string(data) != "repeated" {
+		t.Fatalf("repeated path roundtrip: %q %v", data, err)
 	}
 	if info, err := os.Stat(filepath.Join(destination, "empty directory")); err != nil || !info.IsDir() {
 		t.Fatalf("empty directory: %v", err)

@@ -1160,6 +1160,66 @@ func TestWaitFileTransferWaitsForMatchingLeaseRelease(t *testing.T) {
 	}
 }
 
+func TestWaitFileTransferPreservesDirectoryVerificationMetadata(t *testing.T) {
+	manager := session.NewManager()
+	terminal := newFakeSession("session-1")
+	if err := terminal.Connect(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if err := manager.RegisterWithMetadata(terminal, session.SessionMetadata{Transport: "serial", Endpoint: "COM8"}); err != nil {
+		t.Fatal(err)
+	}
+	tools := newTestTools(t, manager, config.File{}, nil)
+	lease, err := callTool(tools, "terminal_acquire_lease", context.Background(), `{"session_id":"SER-1","owner":"transfer-owner","type":"file-transfer"}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	transferID := lease["transfer_id"].(string)
+	events, err := callTool(tools, "terminal_session_events", context.Background(), `{"session_id":"SER-1"}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cursor := events["next"].(uint64)
+	completed := fmt.Sprintf(`{"session_id":"SER-1","owner":"transfer-owner","transfer_id":%q,"type":"FILE_TRANSFER_COMPLETED","metadata":{"kind":"directory","directory_mode":"files","checksum_scope":"manifest","files_verified":3,"source_path":"build","requested_path":"/tmp/build","resolved_path":"/tmp/build_1","renamed":true,"sha256":%q}}`, transferID, strings.Repeat("a", 64))
+	if _, err := callTool(tools, "terminal_report_file_transfer", context.Background(), completed); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := callTool(tools, "terminal_release_lease", context.Background(), `{"session_id":"SER-1","owner":"transfer-owner"}`); err != nil {
+		t.Fatal(err)
+	}
+	result, err := callTool(tools, "terminal_wait_file_transfer", context.Background(), fmt.Sprintf(`{"session_id":"SER-1","transfer_id":%q,"cursor":%d,"timeout_ms":1000}`, transferID, cursor))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Check the JSON result consumed by MCP clients, including additive metadata
+	// inside event. The existing wait tool must not discard manifest semantics.
+	encoded, err := json.Marshal(result)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var decoded struct {
+		State         string `json:"state"`
+		LeaseReleased bool   `json:"lease_released"`
+		Event         struct {
+			Metadata struct {
+				Kind          string `json:"kind"`
+				DirectoryMode string `json:"directory_mode"`
+				ChecksumScope string `json:"checksum_scope"`
+				FilesVerified int    `json:"files_verified"`
+				ResolvedPath  string `json:"resolved_path"`
+				SHA256        string `json:"sha256"`
+			} `json:"metadata"`
+		} `json:"event"`
+	}
+	if err := json.Unmarshal(encoded, &decoded); err != nil {
+		t.Fatal(err)
+	}
+	m := decoded.Event.Metadata
+	if decoded.State != "completed" || !decoded.LeaseReleased || m.Kind != "directory" || m.DirectoryMode != "files" || m.ChecksumScope != "manifest" || m.FilesVerified != 3 || m.ResolvedPath != "/tmp/build_1" || m.SHA256 != strings.Repeat("a", 64) {
+		t.Fatalf("directory result lost verification metadata: %s", encoded)
+	}
+}
+
 func TestReportFileTransferRequiresMatchingLeaseAndCompleteMetadata(t *testing.T) {
 	manager := session.NewManager()
 	terminal := newFakeSession("session-1")

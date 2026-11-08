@@ -1,6 +1,7 @@
 package app
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
 	"fmt"
@@ -76,10 +77,15 @@ func TestSerialDirectoryShellQuotingAndParentDirectory(t *testing.T) {
 	if err != nil {
 		t.Skip("POSIX shell unavailable")
 	}
-	dir := t.TempDir()
-	name := "a' file.txt"
-	if err := os.WriteFile(filepath.Join(dir, name), []byte("test"), 0600); err != nil {
+	dir := filepath.Join(t.TempDir(), strings.Repeat("b", 80))
+	if err := os.Mkdir(dir, 0700); err != nil {
 		t.Fatal(err)
+	}
+	names := []string{"a' file.txt", strings.Repeat("a", 80) + ".txt"}
+	for _, name := range names {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte("test"), 0600); err != nil {
+			t.Fatal(err)
+		}
 	}
 	quoted, _ := quoteRemotePath(filepath.ToSlash(dir))
 	command := exec.Command(sh, "-c", "before=$(pwd); ("+serialDirectoryCommand("test", quoted)+"); [ \"$before\" = \"$(pwd)\" ]")
@@ -87,7 +93,18 @@ func TestSerialDirectoryShellQuotingAndParentDirectory(t *testing.T) {
 	if err != nil {
 		t.Fatalf("shell query failed: %v %s", err, output)
 	}
-	if !strings.Contains(string(output), "LIST:file:"+hex.EncodeToString([]byte(name))) || !strings.Contains(string(output), "LIST:DONE:0") {
+	for _, name := range names {
+		if !strings.Contains(string(output), "LIST:file:"+hex.EncodeToString([]byte(name))) {
+			t.Errorf("missing filename %q in listing: %s", name, output)
+		}
+	}
+	// Ask the selected shell for its physical path: Git Bash and native Windows
+	// can name the same directory differently, as can macOS temporary symlinks.
+	physical, err := exec.Command(sh, "-c", "cd -- "+quoted+" && pwd -P").Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(output), "LIST:CWD:"+hex.EncodeToString(bytes.TrimSpace(physical))) || !strings.Contains(string(output), "LIST:DONE:0") {
 		t.Fatalf("bad listing: %s", output)
 	}
 }
