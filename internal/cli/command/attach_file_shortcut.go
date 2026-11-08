@@ -209,6 +209,10 @@ func runAttachFileShortcut(ctx context.Context, pump *attachInputPump, attached 
 		return true
 	}
 	switch choice {
+	case "u":
+		return runAttachSendShortcut(ctx, pump, nonClosingAttachSession{attachSession: attached, directoryMode: "files"}, writeLocal)
+	case "d":
+		return runAttachReceiveShortcut(ctx, pump, nonClosingAttachSession{attachSession: attached, directoryMode: "files"}, writeLocal)
 	case "s":
 		return runAttachSendShortcut(ctx, pump, attached, writeLocal)
 	case "r":
@@ -232,18 +236,18 @@ func readFileTransferChoice(pump *attachInputPump, writeLocal func([]byte) error
 			case 0x1b:
 				pump.prepend(result.data[index+1:])
 				return "", true, true
-			case 's', 'S':
+			case 's', 'S', 'u', 'U':
 				if writeLocal([]byte{value}) != nil {
 					return "", false, false
 				}
 				pump.prepend(result.data[index+1:])
-				return "s", false, true
-			case 'r', 'R':
+				return strings.ToLower(string(value)), false, true
+			case 'r', 'R', 'd', 'D':
 				if writeLocal([]byte{value}) != nil {
 					return "", false, false
 				}
 				pump.prepend(result.data[index+1:])
-				return "r", false, true
+				return strings.ToLower(string(value)), false, true
 			}
 		}
 	}
@@ -612,7 +616,18 @@ func (c *fileTransferCancellation) signalStateChangeLocked() {
 // on the current attachment without turning a completed shortcut into a detach.
 type nonClosingAttachSession struct {
 	attachSession
-	cancellation *fileTransferCancellation
+	cancellation  *fileTransferCancellation
+	directoryMode string
+}
+
+func (s nonClosingAttachSession) fileTransferDirectoryMode() string {
+	if s.directoryMode != "" {
+		return s.directoryMode
+	}
+	if selected, ok := s.attachSession.(interface{ fileTransferDirectoryMode() string }); ok {
+		return selected.fileTransferDirectoryMode()
+	}
+	return "tar"
 }
 
 func (nonClosingAttachSession) Close() error { return nil }
@@ -702,7 +717,7 @@ func (s nonClosingAttachSession) FileTransferCancellationCheckpoint(ctx context.
 	return nil
 }
 
-var fileTransferMenuText = []byte("\r\nFile transfer:\r\n  s  Send PC -> Board\r\n  r  Receive Board -> PC\r\n  Esc  Cancel\r\nSelect: ")
+var fileTransferMenuText = []byte("\r\nFile transfer:\r\n  s  Send PC -> Board (directories: TAR)\r\n  r  Receive Board -> PC (directories: TAR)\r\n  u  Send PC -> Board (directories: per-file verification)\r\n  d  Receive Board -> PC (directories: per-file verification)\r\n  Esc  Cancel\r\nSelect: ")
 var fileTransferInputIgnoredText = []byte("\r\n[ChannelTerm] Input ignored during file transfer. Ctrl+C to cancel.\r\n")
 
 var terminalCommandInputIgnoredText = []byte("\r\n[ChannelTerm] Input ignored while an AI command is running. Cancel it from the MCP client.\r\n")

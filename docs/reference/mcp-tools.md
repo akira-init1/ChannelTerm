@@ -488,8 +488,12 @@ Bundled CLI progress metadata carries `sent` or `received`, `total`, `percent`, 
 `speed`. A failed event retains those last confirmed progress values. User-confirmed cancellation
 uses the stable `reason` value `user_cancelled`. A successful regular-file completion additionally
 carries full lowercase `local_sha256` and `remote_sha256` values; because completion follows
-verification, they match. Directory completion uses the same fields for the verified tar-stream
-digest.
+verification, they match. Default directory completion uses the same fields for the verified
+tar-stream digest. The optional CLI per-file directory mode uses `directory_mode: "files"` and
+`checksum_scope: "manifest"`; those hashes identify the verified manifest. It adds `files_verified`
+to completion, and `current_file`, `files_verified`, and `files_total` to progress metadata.
+These are additive metadata fields; the tools and result schemas are unchanged. See
+[directory modes](../getting-started/file-transfer.md#choose-how-to-transfer-a-directory).
 
 ## `terminal_enter_uboot`
 

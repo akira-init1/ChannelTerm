@@ -71,6 +71,7 @@ type attachInputDispatcher struct {
 	skipLineFeed                 bool
 	localPath                    string
 	remotePath                   string
+	directoryMode                string
 	transferDone                 <-chan error
 	transferCancellation         *fileTransferCancellation
 	transferSummary              *fileTransferSummaryBuffer
@@ -334,6 +335,7 @@ func (d *attachInputDispatcher) ignoreTerminalCommandInput() bool {
 }
 
 func (d *attachInputDispatcher) enterFileMenu() bool {
+	d.directoryMode = "tar"
 	d.mode = attachInputModeFileMenu
 	return d.writeLocal != nil && d.writeLocal(fileTransferMenuText) == nil
 }
@@ -342,7 +344,10 @@ func (d *attachInputDispatcher) dispatchFileMenuByte(value byte) {
 	switch value {
 	case 0x1b:
 		d.cancelFileShortcut()
-	case 's', 'S':
+	case 's', 'S', 'u', 'U':
+		if value == 'u' || value == 'U' {
+			d.directoryMode = "files"
+		}
 		if d.writeLocal == nil || d.writeLocal([]byte{value}) != nil {
 			d.cancelAttach()
 			return
@@ -352,7 +357,10 @@ func (d *attachInputDispatcher) dispatchFileMenuByte(value byte) {
 		if d.writeLocal([]byte("\r\nLocal path: ")) != nil {
 			d.cancelAttach()
 		}
-	case 'r', 'R':
+	case 'r', 'R', 'd', 'D':
+		if value == 'd' || value == 'D' {
+			d.directoryMode = "files"
+		}
 		if d.writeLocal == nil || d.writeLocal([]byte{value}) != nil {
 			d.cancelAttach()
 			return
@@ -459,6 +467,7 @@ func (d *attachInputDispatcher) startTransfer(direction, firstPath, secondPath s
 	done := make(chan error, 1)
 	d.transferDone = done
 	cancellation := d.transferCancellation
+	directoryMode := d.directoryMode
 	go func() {
 		// Detaching still requests the same safe cancellation through the latch,
 		// but an explicit confirmed cancellation also closes the worker Context.
@@ -474,7 +483,7 @@ func (d *attachInputDispatcher) startTransfer(direction, firstPath, secondPath s
 			case <-cancelWatchDone:
 			}
 		}()
-		err := d.transferRunner(workerCtx, nonClosingAttachSession{attachSession: d.terminal, cancellation: cancellation}, localOutputWriter{
+		err := d.transferRunner(workerCtx, nonClosingAttachSession{attachSession: d.terminal, cancellation: cancellation, directoryMode: directoryMode}, localOutputWriter{
 			write:                          d.writeLocal,
 			suppressFileTransferResultText: true,
 			deferredSummary:                d.transferSummary,
@@ -774,10 +783,18 @@ func runAttachShortcutFileTransfer(ctx context.Context, attached attachSession, 
 		transferCancelRequested: cancelRequested,
 	}
 	if direction == "send" {
-		return runFileSend(ctx, []string{firstPath, secondPath, "--session", "attached"}, output, dependencies)
+		return runFileSend(ctx, shortcutTransferArguments(attached, firstPath, secondPath), output, dependencies)
 	}
 	if direction == "receive" {
-		return runFileReceive(ctx, []string{firstPath, secondPath, "--session", "attached"}, output, dependencies)
+		return runFileReceive(ctx, shortcutTransferArguments(attached, firstPath, secondPath), output, dependencies)
 	}
 	return fmt.Errorf("unsupported attach shortcut transfer direction %q", direction)
+}
+
+func shortcutTransferArguments(attached attachSession, first, second string) []string {
+	args := []string{first, second, "--session", "attached"}
+	if selected, ok := attached.(interface{ fileTransferDirectoryMode() string }); ok && selected.fileTransferDirectoryMode() == "files" {
+		args = append(args, "--directory-mode", "files")
+	}
+	return args
 }

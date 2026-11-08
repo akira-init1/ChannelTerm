@@ -22,7 +22,7 @@ interop, local paths and the HTTP credential belong to the OS running the chosen
   The default Base64 mode also requires `base64` (including `-d`) and `tr`.
   BusyBox or GNU userland may provide these commands. Send uses `iflag=fullblock` when available;
   minimal BusyBox builds use one-byte input blocks to count the exact payload without that option.
-  Directory transfer also requires `tar`;
+  The default directory mode also requires `tar`;
   ChannelTerm checks `command -v tar` and does not install it.
 - The serial settings already match the board. File transfer does not change baud rate, data bits,
   parity, stop bits, or flow control.
@@ -31,7 +31,7 @@ interop, local paths and the HTTP credential belong to the OS running the chosen
   unsolicited output or writers that bypass ChannelTerm.
 
 Storage preflight requires target `stat -f -c` support for available blocks, allocation size and
-inodes. Receiving a directory also requires `find`, `stat -c` and `awk` to scan its metadata before
+inodes. Receiving a TAR directory also requires `find`, `stat -c` and `awk` to scan its metadata before
 creating a remote archive. Missing tools or malformed capacity responses stop the operation with
 an explicit error; an unknown capacity is never treated as sufficient.
 
@@ -89,6 +89,40 @@ channelterm file receive /tmp/log.txt ./log.txt --session SER-1
 `--endpoint` selects a non-default Session Host endpoint. The file command never starts a host or
 opens a Serial Transport itself; it attaches to an already-open Session and leaves that Session open
 afterward.
+
+### Choose how to transfer a directory
+
+The default `--directory-mode tar` packs a directory into an **uncompressed TAR**, transfers and
+verifies that archive, then extracts it. For a direct tree copy with individual file verification:
+
+```powershell
+channelterm file send .\build\release /tmp/release --session SER-1 --directory-mode files
+channelterm file receive /var/log/myapp .\myapp --session SER-1 --directory-mode files
+```
+
+`files` creates no TAR. It copies regular files and empty directories into a private staging tree,
+checks each file's size and SHA-256 against destination readback, then compares complete source
+and destination manifests before publishing the directory. A changed source, missing/extra file,
+or mismatched hash fails the transfer. Existing destinations retain the `_N` collision policy;
+publication also refuses a name created by another process during the copy. Progress shows the
+current file and verified file count, and byte totals count original file contents. The final
+SHA-256 identifies the sorted manifest, not archive bytes or any individual file.
+
+Per-file mode requires `find`, `od`, `tr`, `wc`, and `sha256sum`, plus the ordinary file-transfer
+tools and storage queries. Upload publication requires `mv -nT`; its non-replacing, non-nesting
+behavior is probed before file payload. Download publication requires an exclusive rename on the
+local filesystem. Unsupported tools/filesystems fail closed. A directory is limited to 10,000
+entries and 8 MiB of relative-path metadata; names must be UTF-8, locally safe and contain no
+backslash, NUL, CR or LF. Links and special files are rejected. Very long paths that exceed bounded
+shell commands are rejected as well.
+
+The extra per-file commands and hash scans cost time, especially for many small files over serial.
+Keep source, staging and destination trees unchanged until completion. This is a verified copy,
+not incremental synchronization or a filesystem snapshot. `files` cannot be combined with
+`--resumable`; cancellation/failure cleans owned staging instead of retaining a checkpoint.
+An unconfirmed final remote rename requires inspecting the destination before retrying. Regular
+files still use the ordinary single-file workflow regardless of this directory option. Electron's
+picker continues to use the default TAR mode.
 
 ### Manual resume for serial files and directories
 
@@ -238,14 +272,17 @@ Session, Application transfer implementation, 8 KiB streaming, SHA-256 verificat
 ```text
 Ctrl+] f
 File transfer:
-  s  Send PC -> Board
-  r  Receive Board -> PC
+  s  Send PC -> Board (directories: TAR)
+  r  Receive Board -> PC (directories: TAR)
+  u  Send PC -> Board (directories: per-file verification)
+  d  Receive Board -> PC (directories: per-file verification)
   Esc  Cancel
 Select:
 ```
 
-Press `s` or `r` once; no Enter is required. Invalid keys remain local, and `Esc` closes only the
-menu. Send prompts for a local path and defaults the board destination to
+Press `s`/`r` for TAR or `u`/`d` for per-file send/receive; no Enter is required. The selection
+applies only to this transfer. Invalid keys remain local, and `Esc` closes only the menu.
+Send prompts for a local path and defaults the board destination to
 `/tmp/cterm/user-files/<local-basename>`. Receive prompts for a board path and defaults the local
 destination to `./<remote-basename>` relative to the directory where `attach` started. Board paths
 use POSIX syntax; local paths use the current platform's rules.
@@ -353,8 +390,10 @@ disappears, reconnect locally and run `stty sane` on the board console if its te
 restored.
 
 Before sending payload, ChannelTerm estimates additional peak storage on each affected filesystem.
-An upload directory needs its TAR plus the extracted tree; a download needs a remote temporary
-TAR and the local extracted tree. Existing source files are not counted as new allocations.
+A TAR upload needs its archive plus the extracted tree; a TAR download needs a remote temporary
+archive and the local extracted tree. Per-file mode needs the destination staging tree, without
+archive storage, and checks capacity before copying and before each file. Existing source files
+are not counted as new allocations.
 Resumable transfers also check local snapshots and publication staging, combining simultaneous
 allocations when they share a volume. Capacity is checked again before extraction/publication.
 Each estimate includes allocation rounding and a 5% reserve (at least 1 MiB); inode limits are
@@ -377,7 +416,8 @@ success, so corruption is rejected even when the damaged stream remains a valid 
 Extraction and staging commit must also succeed. The digest verifies the transferred archive bytes;
 it is not a canonical content hash that remains stable across separate tar creation runs.
 
-The current implementation does not provide resume, compression, zip, incremental synchronization,
+Without `--resumable`, interrupted transfers cannot resume. Neither directory mode provides
+compression, zip, incremental synchronization,
 sparse-file preservation, permissions/ownership preservation, symlink or hard-link handling,
 per-chunk checksums, coordination with writers that bypass the Host, or non-Linux shell support.
 

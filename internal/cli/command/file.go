@@ -327,9 +327,12 @@ func resolveFileSendPaths(args []string) (localPath, remotePath string, optionAr
 }
 
 func runFileSendDirectory(ctx context.Context, localPath, remotePath string, options fileOptions, output io.Writer, dependencies fileCommandDependencies) (err error) {
-	archiveSize, err := app.PlanDirectory(localPath)
-	if err != nil {
-		return err
+	var archiveSize int64
+	if options.directoryMode != "files" {
+		archiveSize, err = app.PlanDirectory(localPath)
+		if err != nil {
+			return err
+		}
 	}
 	attached, identifier, err := attachFileSession(ctx, options, output, dependencies)
 	if err != nil {
@@ -345,6 +348,10 @@ func runFileSendDirectory(ctx context.Context, localPath, remotePath string, opt
 		terminal := internalFileTransferSession{attachSession: attached, wire: options.wire}
 		metadata := fileTransferPathMetadata("send", localPath, remotePath)
 		metadata["kind"] = "directory"
+		if options.directoryMode == "files" {
+			metadata["directory_mode"] = "files"
+			metadata["checksum_scope"] = "manifest"
+		}
 		metadata["total"] = archiveSize
 		if eventErr := reportFileTransferEvent(ctx, attached, session.EventFileTransferStarted, metadata); eventErr != nil {
 			return eventErr
@@ -352,7 +359,17 @@ func runFileSendDirectory(ctx context.Context, localPath, remotePath string, opt
 		defer reportFailedFileTransfer(ctx, attached, metadata, &operationErr)
 		progress := newFileTransferProgress(ctx, output, attached, metadata)
 		defer func() { operationErr = finishFileTransferPresentation(output, progress, operationErr) }()
-		result, transferErr := app.SendDirectory(ctx, terminal, localPath, remotePath, fileTransferProgressWithCancellation(progress.Report, dependencies.transferCancelRequested))
+		var result app.DirectoryTransferResult
+		var transferErr error
+		var files int
+		if options.directoryMode == "files" {
+			r, err := app.SendDirectoryFiles(ctx, terminal, localPath, remotePath, progress.directoryFileProgress(dependencies.transferCancelRequested))
+			result = app.DirectoryTransferResult{Size: r.Bytes, SHA256: r.SHA256, RemotePath: r.RemotePath}
+			files = r.Files
+			transferErr = err
+		} else {
+			result, transferErr = app.SendDirectory(ctx, terminal, localPath, remotePath, fileTransferProgressWithCancellation(progress.Report, dependencies.transferCancelRequested))
+		}
 		if transferErr != nil {
 			return transferErr
 		}
@@ -364,6 +381,9 @@ func runFileSendDirectory(ctx context.Context, localPath, remotePath string, opt
 		completed["sha256"] = result.SHA256
 		completed["local_sha256"] = result.SHA256
 		completed["remote_sha256"] = result.SHA256
+		if options.directoryMode == "files" {
+			completed["files_verified"] = files
+		}
 		if eventErr := reportFileTransferEvent(ctx, attached, session.EventFileTransferCompleted, completed); eventErr != nil {
 			return eventErr
 		}
@@ -372,6 +392,9 @@ func runFileSendDirectory(ctx context.Context, localPath, remotePath string, opt
 		}
 		if finishErr := progress.finish(); finishErr != nil {
 			return finishErr
+		}
+		if options.directoryMode == "files" {
+			return writeDirectoryFilesVerificationSummary(output, result.SHA256, result.RemotePath, files)
 		}
 		return writeFileTransferVerificationSummary(output, result.SHA256, result.RemotePath)
 	})
@@ -433,7 +456,7 @@ func runFileReceive(ctx context.Context, args []string, output io.Writer, depend
 			}
 			switch kind {
 			case app.RemotePathDirectory:
-				return runFileReceiveDirectory(ctx, terminal, attached, remotePath, requestedLocalPath, output, dependencies.transferCancelRequested)
+				return runFileReceiveDirectory(ctx, terminal, attached, remotePath, requestedLocalPath, options.directoryMode, output, dependencies.transferCancelRequested)
 			case app.RemotePathMissing:
 				return fmt.Errorf("remote source %q does not exist", remotePath)
 			case app.RemotePathUnsupported:
@@ -511,8 +534,8 @@ func runFileReceive(ctx context.Context, args []string, output io.Writer, depend
 }
 
 // runFileReceiveDirectory runs while the caller holds the one file-transfer
-// lease, including remote tar probing, extraction, and final local rename.
-func runFileReceiveDirectory(ctx context.Context, terminal app.FileTransferSession, attached attachSession, remotePath, localPath string, output io.Writer, cancelRequested func() bool) (operationErr error) {
+// lease, including remote planning, directory verification, and local publication.
+func runFileReceiveDirectory(ctx context.Context, terminal app.FileTransferSession, attached attachSession, remotePath, localPath, directoryMode string, output io.Writer, cancelRequested func() bool) (operationErr error) {
 	requestedLocalPath := localPath
 	resolvedLocalPath, err := nextAvailableLocalDirectory(requestedLocalPath)
 	if err != nil {
@@ -525,6 +548,10 @@ func runFileReceiveDirectory(ctx context.Context, terminal app.FileTransferSessi
 	defer func() { _ = os.RemoveAll(staging) }()
 	metadata := fileTransferPathMetadata("receive", remotePath, requestedLocalPath)
 	metadata["kind"] = "directory"
+	if directoryMode == "files" {
+		metadata["directory_mode"] = "files"
+		metadata["checksum_scope"] = "manifest"
+	}
 	setResolvedTransferPathMetadata(metadata, requestedLocalPath, resolvedLocalPath, filepath.Clean(requestedLocalPath) != filepath.Clean(resolvedLocalPath))
 	if eventErr := reportFileTransferEvent(ctx, attached, session.EventFileTransferStarted, metadata); eventErr != nil {
 		return eventErr
@@ -532,11 +559,31 @@ func runFileReceiveDirectory(ctx context.Context, terminal app.FileTransferSessi
 	defer reportFailedFileTransfer(ctx, attached, metadata, &operationErr)
 	progress := newFileTransferProgress(ctx, output, attached, metadata)
 	defer func() { operationErr = finishFileTransferPresentation(output, progress, operationErr) }()
-	result, transferErr := app.ReceiveDirectory(ctx, terminal, remotePath, staging, fileTransferProgressWithCancellation(progress.Report, cancelRequested))
+	var result app.DirectoryTransferResult
+	var transferErr error
+	var files int
+	if directoryMode == "files" {
+		r, err := app.ReceiveDirectoryFiles(ctx, terminal, remotePath, staging, progress.directoryFileProgress(cancelRequested))
+		result = app.DirectoryTransferResult{Size: r.Bytes, SHA256: r.SHA256, RemotePath: r.RemotePath}
+		files = r.Files
+		transferErr = err
+	} else {
+		result, transferErr = app.ReceiveDirectory(ctx, terminal, remotePath, staging, fileTransferProgressWithCancellation(progress.Report, cancelRequested))
+	}
 	if transferErr != nil {
 		return transferErr
 	}
-	if err := replaceReceivedDirectory(staging, resolvedLocalPath); err != nil {
+	install := replaceReceivedDirectory
+	if directoryMode == "files" {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		if cancelRequested != nil && cancelRequested() {
+			return context.Canceled
+		}
+		install = app.PublishReceivedDirectory
+	}
+	if err := install(staging, resolvedLocalPath); err != nil {
 		return fmt.Errorf("install received directory %q: %w", resolvedLocalPath, err)
 	}
 	completed := copyFileTransferMetadata(metadata)
@@ -546,6 +593,9 @@ func runFileReceiveDirectory(ctx context.Context, terminal app.FileTransferSessi
 	completed["sha256"] = result.SHA256
 	completed["local_sha256"] = result.SHA256
 	completed["remote_sha256"] = result.SHA256
+	if directoryMode == "files" {
+		completed["files_verified"] = files
+	}
 	if eventErr := reportFileTransferEvent(ctx, attached, session.EventFileTransferCompleted, completed); eventErr != nil {
 		return eventErr
 	}
@@ -554,6 +604,9 @@ func runFileReceiveDirectory(ctx context.Context, terminal app.FileTransferSessi
 	}
 	if finishErr := progress.finish(); finishErr != nil {
 		return finishErr
+	}
+	if directoryMode == "files" {
+		return writeDirectoryFilesVerificationSummary(output, result.SHA256, resolvedLocalPath, files)
 	}
 	return writeFileTransferVerificationSummary(output, result.SHA256, resolvedLocalPath)
 }
@@ -664,17 +717,19 @@ func fileTransferFailureMetadata(metadata map[string]any, operationErr error) ma
 }
 
 type fileOptions struct {
-	resumable bool
-	wire      app.FileTransferWireEncoding
-	json      bool
-	session   string
-	endpoint  string
-	help      bool
+	directoryMode string
+	resumable     bool
+	wire          app.FileTransferWireEncoding
+	json          bool
+	session       string
+	endpoint      string
+	help          bool
 }
 
 func parseFileOptions(name string, args []string, output io.Writer, usage func(io.Writer)) (fileOptions, error) {
 	flags := flag.NewFlagSet(name, flag.ContinueOnError)
 	resumable := flags.Bool("resumable", false, "retain a snapshot and confirmed offset for manual file resume after interruption (absolute device path required)")
+	directoryMode := flags.String("directory-mode", "tar", "directory transfer: tar (default) or files (per-file SHA-256 readback; no resumable checkpoints)")
 	flags.Bool("json", false, "emit structured transfer records instead of terminal progress")
 	flags.SetOutput(output)
 	wire := flags.String("wire", string(app.FileTransferWireBase64), "file wire encoding: base64 (requires peer base64 and tr) or raw (never with XON/XOFF)")
@@ -703,7 +758,13 @@ func parseFileOptions(name string, args []string, output io.Writer, usage func(i
 	if !showHelp && *wire != string(app.FileTransferWireRaw) && *wire != string(app.FileTransferWireBase64) {
 		return fileOptions{}, errors.New("--wire must be base64 or raw")
 	}
-	return fileOptions{resumable: *resumable, wire: app.FileTransferWireEncoding(*wire), json: machine, session: strings.TrimSpace(*identifier), endpoint: strings.TrimSpace(*endpoint), help: showHelp}, nil
+	if !showHelp && (*directoryMode != "tar" && *directoryMode != "files") {
+		return fileOptions{}, errors.New("--directory-mode must be tar or files")
+	}
+	if !showHelp && *directoryMode == "files" && (*resumable || name == "file resume" || name == "file jobs" || name == "file browse") {
+		return fileOptions{}, errors.New("--directory-mode files is supported only for non-resumable send and receive")
+	}
+	return fileOptions{directoryMode: *directoryMode, resumable: *resumable, wire: app.FileTransferWireEncoding(*wire), json: machine, session: strings.TrimSpace(*identifier), endpoint: strings.TrimSpace(*endpoint), help: showHelp}, nil
 }
 
 func attachFileSession(ctx context.Context, options fileOptions, output io.Writer, dependencies fileCommandDependencies) (attachSession, string, error) {

@@ -380,6 +380,24 @@ oversized commands and malformed/incorrectly sized encoded records. Progress and
 refer to original bytes, including directory tar streams. Control records are bounded to 64 KiB.
 No Session transformation, additional Transport, or MCP schema is introduced.
 
+`SendDirectoryFiles` and `ReceiveDirectoryFiles` implement optional archive-free copies above the
+same file protocol and caller-held lease. Application owns the sorted path/type/size/SHA-256 manifest,
+per-file verification, capacity checks, final source/destination comparison and remote publication.
+Empty directories are included. Relative names and metadata sizes are bounded before use; links,
+special entries and unsafe paths are rejected. `TREE` responses keep the child shell busy until
+their explicit end marker, preventing idle heartbeats from interrupting a multi-record scan.
+The workflow owns the [limits and tool requirements](../getting-started/file-transfer.md#choose-how-to-transfer-a-directory).
+
+Uploads copy into an exclusively created private directory and publish with probed `mv -nT` after
+all checks succeed. Downloads copy into an empty caller-owned staging directory, sync and reread
+each file, and return only after both manifests match. The CLI supplies that staging directory,
+uses `PublishReceivedDirectory` for a same-volume exclusive rename, and owns local cleanup.
+An existing or racing destination is never replaced or used as a parent. Interrupted ordinary
+operations remove owned staging; unconfirmed upload publication reports
+`ErrTransferPublicationUncertain` without replaying the rename. These are consistency checks,
+not snapshots, filesystem locks, or per-file resume checkpoints. The result explicitly identifies
+its checksum as a manifest digest and counts original regular-file bytes.
+
 `CreateTransferCheckpoint`, `ListTransferCheckpoints`, and `RunResumableTransfer` provide opt-in
 client-side persistence above the same transfer protocol. The CLI supplies the private store path,
 validates the saved Host/serial endpoint against an explicit live Session, and retains Host Lease

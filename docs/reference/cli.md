@@ -605,8 +605,9 @@ Cancellation reports `[ChannelTerm] Escape cancelled` locally and returns the ne
 remote forwarding. Local status output resets the prompt presentation boundary, so later prompts
 remain eligible for timestamps and highlighting. `Ctrl+] t` toggles local-only prompt timestamps for
 this attachment, off by default; it does not change the shared Session or MCP output. `Ctrl+] f`
-opens a local file-transfer menu with a `Select:` prompt. Press `s` or `r` once to choose send or
-receive immediately; the key is echoed locally after `Select:` and no Enter is needed. Invalid keys
+opens a local file-transfer menu with a `Select:` prompt. Press `s`/`r` for send/receive with TAR
+directories, or `u`/`d` for send/receive with per-file directory verification. The choice applies to
+this transfer only; the key is echoed locally after `Select:` and no Enter is needed. Invalid keys
 and menu `Esc` remain local. Send defaults to POSIX `/tmp/cterm/user-files/<local-basename>` and
 receive defaults to local `./<remote-basename>`. On Windows, the local path prompt accepts a single
 enclosing pair of double quotes added by terminal file drag-and-drop. It removes that pair before
@@ -732,6 +733,14 @@ start a Host itself. The default `attach` workflow starts the local Host when ne
 `--wire base64|raw` defaults to `base64`, requiring peer `base64 -d` and `tr`; explicit `raw`
 retains compatibility for eight-bit links without XON/XOFF. See
 [transfer encoding](../getting-started/file-transfer.md#transfer-encoding-and-compatibility).
+`--directory-mode tar|files` defaults to `tar` and affects directories only. `files` copies a staged
+tree without an archive, verifies every file by SHA-256 readback, compares the final manifests,
+and publishes exclusively. It rejects `--resumable`. See
+[directory modes](../getting-started/file-transfer.md#choose-how-to-transfer-a-directory) for tool
+requirements, path/entry limits and cost. Per-file progress includes the current path and verified
+file count; `--json` adds `file_progress` records with `path`, `files_verified`, `files_total`,
+`transferred`, and `total`. Its final `verified` record includes `checksum_scope: "manifest"`
+and `files_verified`. Byte totals exclude directory metadata and wire encoding overhead.
 Both directions use bounded acknowledged blocks and display confirmed progress on one refreshed line.
 The 20-cell ASCII progress bar includes percentage, transferred and total sizes, speed, and ETA. A
 successful regular-file transfer finishes with `Local SHA-256`, `Remote SHA-256`, `Verify`, and
@@ -756,8 +765,8 @@ invalidates its local question at its answer deadline; the next key dismisses th
 becoming device input. A late answer rejected by the Host does not imply that transfer resumed:
 it may have completed or closed. Already accepted cancellation continues through normal cleanup.
 
-The remote shell must provide `mkdir`, `stty`, `dd`, `wc`, `sha256sum`, and `sleep`; directory transfer
-additionally requires `tar`. The input line must be empty, including any recalled history command.
+The remote shell must provide `mkdir`, `stty`, `dd`, `wc`, `sha256sum`, and `sleep`; default TAR
+directory transfer additionally requires `tar`. The input line must be empty, including any recalled history command.
 See the [file-transfer preconditions](../getting-started/file-transfer.md#preconditions) for minimal
 BusyBox compatibility and clearing pending input. A transfer uses one non-interactive child shell.
 Bash removes only the bootstrap's matching history entry; another POSIX shell may retain one
@@ -770,14 +779,16 @@ and `resolved_path` is the final destination actually saved. For send, the sourc
 destination is on the board; for receive, the source is on the board and the destination is local. A
 completed transfer includes all three fields plus boolean `renamed`; consumers must use
 `resolved_path` for later operations on the saved file. The former `local_path` and `remote_path`
-fields are removed without compatibility aliases. Regular-file completion also includes `sha256`;
-directory completion omits a directory digest.
+fields are removed without compatibility aliases. Completion includes `sha256`: a regular-file
+digest, a TAR-stream digest in default directory mode, or a manifest digest with
+`directory_mode: "files"` and `checksum_scope: "manifest"` in per-file mode. The latter also reports
+`files_verified`; progress metadata adds `current_file`, `files_verified`, and `files_total`.
 
-Regular files use byte-count and SHA-256 verification. Directories use staged tar archives; local
+Regular files use byte-count and SHA-256 verification. By default, directories use staged tar archives; local
 extraction rejects absolute or parent-traversal paths, links, devices, FIFOs, sockets, and other
 special entries. ChannelTerm commits a staged destination only after complete transfer and
-successful extraction. Directory completion represents verified tar-stream transfer, not a stable
-directory content hash.
+successful extraction. Default directory completion represents verified tar-stream transfer, not a
+stable directory content hash. Per-file mode verifies the tree as described above.
 
 Shared attachments observe structured progress while suppressing local rendering of ChannelTerm's
 internal commands, markers, and payload bytes. They continue advancing independent raw-output
