@@ -404,6 +404,7 @@ func (d *attachInputDispatcher) finishPathLine() {
 	d.line = d.line[:0]
 	switch d.mode {
 	case attachInputModeSendLocalPath:
+		value = normalizeShortcutLocalPath(value)
 		if strings.TrimSpace(value) == "" {
 			d.cancelFileShortcut()
 			return
@@ -431,6 +432,7 @@ func (d *attachInputDispatcher) finishPathLine() {
 			d.cancelAttach()
 		}
 	case attachInputModeReceiveLocalPath:
+		value = normalizeShortcutLocalPath(value)
 		if strings.TrimSpace(value) == "" {
 			value = defaultLocalTransferPath(d.remotePath)
 		}

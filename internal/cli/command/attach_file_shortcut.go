@@ -9,6 +9,7 @@ import (
 	"os"
 	posixpath "path"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -256,6 +257,7 @@ func runAttachSendShortcut(ctx context.Context, pump *attachInputPump, attached 
 	if !ok {
 		return false
 	}
+	localPath = normalizeShortcutLocalPath(localPath)
 	if cancelled || strings.TrimSpace(localPath) == "" {
 		_ = writeLocal(fileTransferCancelledText(time.Now()))
 		return true
@@ -302,6 +304,7 @@ func runAttachReceiveShortcut(ctx context.Context, pump *attachInputPump, attach
 		_ = writeLocal(fileTransferCancelledText(time.Now()))
 		return true
 	}
+	localPath = normalizeShortcutLocalPath(localPath)
 	if strings.TrimSpace(localPath) == "" {
 		localPath = defaultLocal
 	}
@@ -401,6 +404,17 @@ func readShortcutLine(pump *attachInputPump, writeLocal func([]byte) error) (str
 			}
 		}
 	}
+}
+
+// normalizeShortcutLocalPath accepts the double quotes Windows terminals add
+// when dropping a local file. Strip only one enclosing pair, without shell
+// unescaping or expansion; backslashes and spaces belong to the path. Other
+// platforms retain literal quotes, which are valid filename characters there.
+func normalizeShortcutLocalPath(value string) string {
+	if runtime.GOOS == "windows" && len(value) >= 2 && value[0] == '"' && value[len(value)-1] == '"' {
+		return value[1 : len(value)-1]
+	}
+	return value
 }
 
 func defaultRemoteTransferPath(localPath string) string {

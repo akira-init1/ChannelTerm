@@ -608,7 +608,11 @@ this attachment, off by default; it does not change the shared Session or MCP ou
 opens a local file-transfer menu with a `Select:` prompt. Press `s` or `r` once to choose send or
 receive immediately; the key is echoed locally after `Select:` and no Enter is needed. Invalid keys
 and menu `Esc` remain local. Send defaults to POSIX `/tmp/cterm/user-files/<local-basename>` and
-receive defaults to local `./<remote-basename>`. During an active shortcut transfer, `Ctrl+C` starts
+receive defaults to local `./<remote-basename>`. On Windows, the local path prompt accepts a single
+enclosing pair of double quotes added by terminal file drag-and-drop. It removes that pair before
+deriving defaults or accessing files, preserving spaces and backslashes without shell expansion.
+Remote path input and local paths on other platforms remain literal.
+During an active shortcut transfer, `Ctrl+C` starts
 a new line and prints the untimestamped prompt `[ChannelTerm] Cancel file transfer? [y/N]:`. The
 worker pauses at its next safe block boundary while the prompt is pending, and the
 `file-transfer` lease remains held so ordinary AI/MCP `terminal_write` calls stay blocked. The

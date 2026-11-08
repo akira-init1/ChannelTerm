@@ -245,6 +245,11 @@ menu. Send prompts for a local path and defaults the board destination to
 destination to `./<remote-basename>` relative to the directory where `attach` started. Board paths
 use POSIX syntax; local paths use the current platform's rules.
 
+On Windows, you can drag a file into the local path prompt even when the terminal wraps its path
+in double quotes, for example `"C:\build files\firmware.bin"`. The prompt accepts paths with or
+without that enclosing pair; spaces do not need escaping. This applies to both the send source
+and receive destination. See the [CLI reference](../reference/cli.md) for path-input semantics.
+
 Normal attach `Ctrl+C` goes to the board. During a transfer, ordinary keys are discarded locally and
 `Ctrl+C` instead opens `[ChannelTerm] Cancel file transfer? [y/N]:`. Only `y` or `Y` confirms; every
 other answer resumes. The Host retains its lease while the question is pending, so another
