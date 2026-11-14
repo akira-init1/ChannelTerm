@@ -674,3 +674,38 @@ no background registry worker, socket probing, automatic launch or persistent ob
 
 The [MCP contract](../reference/mcp-tools.md#unified-debug-observation) owns fields and limits;
 CLI and Electron are narrow consumers of this same application snapshot.
+
+## Default Session control and recovery
+
+Application owns control alongside its existing lease coordinator. Every protocol writer needs an
+authenticated user/agent, a registered instance and a captured control generation. Agent raw writes
+also need an explicit multi-call scope. Scope/lease admission shares the write gate; each payload
+and each short-write continuation rechecks control. Reader cursors remain independent. Ordinary
+human input is permitted while idle; active scopes exclude other instances. Human takeover requires
+user identity and management permission, fences the generation first, and cancels the captured
+worker outside the coordinator mutex. Duplicate/late requests cannot interrupt a successor.
+
+Host-managed commands and serial transfers use their existing bounded shell recovery. Managed debug
+uses its existing stop path. Unknown raw work, external executors, failed recovery and abandoned
+scopes close the captured registration instead of declaring the shell safe. An already admitted
+transport call cannot be recalled. Recovery cannot prove that a reboot or background remote job
+stopped. Known command/transfer recovery waits at most ten seconds before closing. A successful
+human takeover pins control to that instance and keeps AI paused until explicit allowance advances
+the generation again. No operation or input is automatically replayed.
+
+Control records are volatile and limited to 256 live Session registrations. Dead registrations are
+pruned; live human pauses are never evicted. Scopes have a 30-second TTL. Accepted Host-managed
+serial preparation owns and renews its captured scope, survives request/presence loss, and must pass
+lease admission before any device bytes. Lease release and automatic scope completion are atomic;
+explicit raw scopes end only by their owner's request or expiry. Scope expiry closes the original
+Session, including an untouched scope. Trusted in-process composition and private, captured recovery
+contexts are not protocol escape hatches; every MCP call is marked external even without identity.
+
+Exact fields, metadata, retained outcomes and migration are owned by
+[the control protocol](../reference/mcp-tools.md#session-control). Initial Transport setup (including
+an explicitly configured serial wake before registration) precedes shared Session control. Dedicated
+SFTP/SCP does not acquire a PTY scope. Session/Channel/Transport own no control arbitration state.
+
+A validated, single-use, target-bound child delegation may execute its parent instance's control
+scope under the same credential. Automatic child leases return paused human ownership to the
+original parent; unrelated instances cannot inherit it.

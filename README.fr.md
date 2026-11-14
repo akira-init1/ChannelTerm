@@ -13,6 +13,8 @@ Avec GDB, l’IA peut poser des points d’arrêt, parcourir un programme Linux 
 
 Pour les courtes fenêtres de démarrage, le Host peut interrompre U-Boot et vérifier l’invite. Exportez un ZIP de diagnostic, avec les octets bruts en option, pour analyser les échecs. [Procédure U-Boot et diagnostic](docs/getting-started/serial-terminal.md#enter-u-boot-and-export-evidence).
 
+Toutes les Sessions utilisent désormais un contrôle des opérations authentifié. Les clients CLI/Electron actuels s’adaptent automatiquement ; les anciens clients en écriture et stdio non enregistré doivent migrer. La reprise humaine bloque les anciennes opérations avant la restauration et suspend l’IA jusqu’à une autorisation explicite. Une restauration non confirmée peut fermer la Session ; les entrées interrompues ne sont jamais rejouées. Voir le [guide de migration](docs/getting-started/http-authentication-migration.md#default-controlled-sessions).
+
 ## Pourquoi ChannelTerm ?
 
 Gardez votre terminal ouvert pendant que l’IA utilise la même connexion à l’appareil :
@@ -393,7 +395,7 @@ Pour les options exactes et leurs valeurs par défaut, la sortie `--help` du pro
 
 ## Feuille de route
 
-Les connexions série et les shells SSH PTY sont des Transports implémentés ; des clients de fichiers dédiés SFTP et SCP traditionnel sont également disponibles. SSH exec arbitraire, Telnet et une coordination plus forte entre plusieurs clients en écriture restent des orientations futures, et non des fonctionnalités implémentées ou des engagements de livraison.
+Les connexions série et les shells SSH PTY sont des Transports implémentés ; des clients de fichiers dédiés SFTP et SCP traditionnel sont également disponibles. SSH exec arbitraire et Telnet restent des orientations futures, et non des fonctionnalités implémentées ou des engagements de livraison.
 
 ChannelTerm n’implémente actuellement ni JTAG/OpenOCD, ni périphériques série virtuels, ni IA intégrée, ni orchestration multi-agents.
 

@@ -173,3 +173,11 @@ own IDs. An observation ID is neither a Session selector nor a credential. Indep
 operations may have no associated Session and never require a fabricated terminal ID. Private
 report capabilities remain outside public inventory; the authenticated registered `client_id`
 identifies the reporter, not a process/window instance. See the [debug observation contract](mcp-tools.md#unified-debug-observation).
+
+## Control generations and operations
+
+`CV-...` is a volatile Session control generation; `OC-...` identifies a multi-call control scope.
+Both are opaque public fencing values, distinct from Session IDs, `CU-...` provenance uses and private
+lease/instance proofs. A takeover/result key includes the full Session ID and original generation
+and scope ID. Ending a scope, takeover and allowance invalidate old generations; never substitute a
+successor's values to retry work. See [Session control](mcp-tools.md#session-control).

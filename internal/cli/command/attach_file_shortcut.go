@@ -33,8 +33,9 @@ type attachInputPump struct {
 }
 
 type attachInputResult struct {
-	data []byte
-	err  error
+	readAt time.Time
+	data   []byte
+	err    error
 }
 
 func newAttachInputPump(input io.Reader) attachInputPump {
@@ -52,7 +53,7 @@ func newAttachInputPumpContext(ctx context.Context, input io.Reader) attachInput
 			n, err := input.Read(buffer)
 			if n > 0 {
 				data := append([]byte(nil), buffer[:n]...)
-				if !sendAttachInputResult(ctx, results, attachInputResult{data: data}) {
+				if !sendAttachInputResult(ctx, results, attachInputResult{data: data, readAt: time.Now()}) {
 					return
 				}
 			}

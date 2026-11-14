@@ -29,8 +29,29 @@ func (t authorizedTool) Call(ctx context.Context, input json.RawMessage) (tool.R
 		// do not implicitly keep every device in use. Business input is unchanged.
 		var target struct {
 			SessionID string `json:"session_id"`
+			DebugID   string `json:"debug_id"`
+			BridgeID  string `json:"bridge_id"`
 		}
 		_ = json.Unmarshal(input, &target)
+		if t.Name() != "terminal_control" && clientEffect(t.Name()) != app.ClientRead {
+			if err = app.RequireControlIdentity(ctx); err != nil {
+				return nil, err
+			}
+			if target.SessionID != "" {
+				if t.Name() == "terminal_close" || t.Name() == "terminal_begin_file_transfer_cancel" || t.Name() == "terminal_resolve_file_transfer_cancel" {
+					err = t.application.CheckControlGeneration(ctx, target.SessionID)
+				} else {
+					err = t.application.CheckSessionControl(ctx, target.SessionID)
+				}
+			} else if target.DebugID != "" {
+				err = t.application.CheckOperationControl(ctx, target.DebugID)
+			} else if target.BridgeID != "" {
+				err = t.application.CheckOperationControl(ctx, target.BridgeID)
+			}
+			if err != nil {
+				return nil, err
+			}
+		}
 		var done func()
 		ctx, done, err = t.application.BeginClientCall(ctx, target.SessionID, t.Name(), clientEffect(t.Name()) != app.ClientRead)
 		if err != nil {
@@ -45,7 +66,7 @@ func (t authorizedTool) Call(ctx context.Context, input json.RawMessage) (tool.R
 // authorization until their actual side effects have been reviewed here.
 func clientEffect(name string) app.ClientEffect {
 	switch name {
-	case "client_instance", "file_transfer", "file_transfer_list":
+	case "client_instance", "terminal_control", "file_transfer", "file_transfer_list":
 		// Application checks start/cancel write grants and task ownership;
 		// status remains available after a client's write grant is revoked.
 		return app.ClientRead

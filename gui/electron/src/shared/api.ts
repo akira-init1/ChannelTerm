@@ -20,9 +20,11 @@ import type {
 } from "./menus";
 import type { ConnectionRequest, OpenedConnection } from "./connections";
 import type { TerminalSettings } from "./terminal-settings";
+import type { ControlSnapshot } from "./control";
 
 /** Display-only snapshots. The Host remains authoritative for lifecycle and leases. */
 export interface SessionSummary {
+  control?: ControlSnapshot;
   session_id: string;
   session_ref: string;
   transport: string;

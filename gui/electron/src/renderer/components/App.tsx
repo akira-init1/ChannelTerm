@@ -1410,6 +1410,7 @@ export function App() {
     !working &&
     current?.state === "open" &&
     !current.lease &&
+    current.control?.writable !== false &&
     !inputPaused;
   // Distinguish pending/failed operations from a successfully loaded empty list
   // instead of using the same empty-state heading for every unattached view.
@@ -2025,6 +2026,12 @@ export function App() {
                     display={display}
                     onZoom={zoomDisplay}
                     visible={tab.id === selectedTabId}
+                    controlVersion={
+                      sessions.find(
+                        (entry) =>
+                          entry.session_id === tab.attachment?.sessionId,
+                      )?.control?.version
+                    }
                     writable={
                       tab.id === selectedTabId &&
                       writable &&
@@ -2223,7 +2230,7 @@ export function App() {
               ? "Session unavailable · Read-only"
               : current.lease
                 ? "Read-only · Lease active"
-                : inputPaused
+                : inputPaused || current.control?.writable === false
                   ? "Input paused"
                   : terminalSettings.view === "hex"
                     ? t("terminal.hex")

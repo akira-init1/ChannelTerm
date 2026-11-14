@@ -178,3 +178,8 @@ Session, or manage leases. The Go fixture is test composition only, not a second
 or Core implementation. It opens no hardware and is not included in GUI production assets.
 The `gui/` boundary can accommodate a future independent frontend; no Qt project is present.
 See [GUI architecture](electron-gui.md) and [GUI development](../development/electron-gui.md).
+
+Application's existing lease coordinator also owns default Session control scopes, generation
+fencing, human takeover and bounded recovery results. This adds no package or secondary lifecycle
+owner. The [Application module](../modules/application.md#default-session-control-and-recovery)
+owns the detailed contract.

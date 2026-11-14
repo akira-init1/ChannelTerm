@@ -370,3 +370,7 @@ serial profiles. They do not configure Session/Transport ownership or provide CL
 See [GUI preferences and workspace recovery](gui-menus.md#preferences-and-workspace-recovery)
 and [recent connections](gui-menus.md#recent-connections-and-ssh-favorites) for keys, limits and
 excluded sensitive/runtime state.
+
+Session control is default-on and volatile; no opt-in configuration field is available. Registered
+write grants remain necessary but do not replace instance/scope/version validation. Unregistered
+stdio cannot use file-transfer grants to write. See [control migration](../getting-started/http-authentication-migration.md#default-controlled-sessions).

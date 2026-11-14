@@ -34,6 +34,7 @@ func (s *cliInstances) close() {
 }
 
 type instanceMCPClient struct {
+	controls commandControls
 	*protocol.ClientSession
 	proof     app.InstanceProof
 	scoped    bool
@@ -48,6 +49,9 @@ type instanceMCPClient struct {
 
 func newInstanceMCPClient(ctx context.Context, remote *protocol.ClientSession, endpoint string) (*instanceMCPClient, error) {
 	c := &instanceMCPClient{ClientSession: remote, stop: make(chan struct{}), done: make(chan struct{}), monitors: make(map[string]string)}
+	c.controls.targets = make(map[string]string)
+	c.controls.scopes = make(map[string]app.ControlProof)
+	c.controls.leases = make(map[string]app.ControlProof)
 	// Capability discovery distinguishes old Hosts from registration failures. Never
 	// silently downgrade provenance after a new Host rejects an offered delegation.
 	listed, err := remote.ListTools(ctx, nil)
@@ -57,6 +61,7 @@ func newInstanceMCPClient(ctx context.Context, remote *protocol.ClientSession, e
 	found := false
 	for _, t := range listed.Tools {
 		found = found || t.Name == "client_instance"
+		c.controls.available = c.controls.available || t.Name == "terminal_control"
 	}
 	delegation := os.Getenv("CHANNELTERM_CLIENT_DELEGATION")
 	if delegation != "" && os.Getenv("CHANNELTERM_CLIENT_DELEGATION_ENDPOINT") != endpoint {
@@ -70,7 +75,8 @@ func newInstanceMCPClient(ctx context.Context, remote *protocol.ClientSession, e
 		return c, nil
 	}
 	var registered struct {
-		Credential app.InstanceProof `json:"credential"`
+		Credential app.InstanceProof  `json:"credential"`
+		Instance   app.ClientInstance `json:"instance"`
 	}
 	err = callMCPTool(ctx, remote, "client_instance", map[string]any{"action": "register", "name": "ChannelTerm CLI", "entry": "cli", "delegation": delegation}, &registered)
 	if err != nil {
@@ -80,6 +86,7 @@ func newInstanceMCPClient(ctx context.Context, remote *protocol.ClientSession, e
 		return nil, errors.New("invalid instance registration response")
 	}
 	c.proof = registered.Credential
+	c.controls.kind = registered.Instance.Client.Kind
 	go c.renew()
 	return c, nil
 }
@@ -95,6 +102,9 @@ func (c *instanceMCPClient) renew() {
 		case <-ticker.C:
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			err := callMCPTool(ctx, c.ClientSession, "client_instance", map[string]any{"action": "renew", "credential": c.proof}, nil)
+			if err == nil {
+				err = c.renewControls(ctx)
+			}
 			cancel()
 			if err != nil {
 				c.mu.Lock()
@@ -121,7 +131,52 @@ func (c *instanceMCPClient) CallTool(ctx context.Context, params *protocol.CallT
 		}
 		q.Meta["io.channelterm/instance"] = c.proof
 	}
+	target, controlErr := c.controlMetadata(ctx, &q)
+	if controlErr != nil {
+		return nil, controlErr
+	}
 	result, err := c.ClientSession.CallTool(ctx, &q)
+	if (q.Name == "debug_start" || q.Name == "debug_bridge_start") && err == nil && !result.IsError {
+		encoded, _ := json.Marshal(result.StructuredContent)
+		var r struct {
+			Status struct {
+				DebugID  string `json:"debug_id"`
+				BridgeID string `json:"bridge_id"`
+			} `json:"status"`
+		}
+		_ = json.Unmarshal(encoded, &r)
+		c.controls.mu.Lock()
+		if r.Status.DebugID != "" {
+			c.controls.targets[r.Status.DebugID] = target
+		}
+		if r.Status.BridgeID != "" {
+			c.controls.targets[r.Status.BridgeID] = target
+		}
+		c.controls.mu.Unlock()
+
+	}
+	if q.Name == "terminal_acquire_lease" && err == nil && !result.IsError {
+		encoded, _ := json.Marshal(result.StructuredContent)
+		var lease struct {
+			Control app.ControlProof `json:"control"`
+		}
+		_ = json.Unmarshal(encoded, &lease)
+		if lease.Control.Version != "" {
+			c.controls.mu.Lock()
+			c.controls.leases[target] = lease.Control
+			c.controls.mu.Unlock()
+		}
+	}
+	if q.Name == "terminal_release_lease" && err == nil && !result.IsError {
+		c.controls.mu.Lock()
+		delete(c.controls.leases, target)
+		c.controls.mu.Unlock()
+	}
+	if q.Name == "terminal_acquire_lease" && (err != nil || result.IsError) {
+		c.controls.mu.Lock()
+		delete(c.controls.leases, target)
+		c.controls.mu.Unlock()
+	}
 	if err != nil || result.IsError || c.proof.ID == "" {
 		return result, err
 	}
@@ -165,6 +220,7 @@ func (c *instanceMCPClient) finish() error {
 		<-c.done
 		if c.proof.ID != "" {
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+			c.endControls(ctx)
 			_ = callMCPTool(ctx, c.ClientSession, "client_instance", map[string]any{"action": "end", "credential": c.proof}, nil)
 			cancel()
 		}

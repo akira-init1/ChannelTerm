@@ -603,3 +603,8 @@ profile while the isolated Host survives. It verifies language/layout/defaults, 
 and closed targets, no Session recreation, no replay of a pending DOM draft or historical terminal
 queries, and usable views after storage failure. The test writes no personal configuration and
 opens no physical device. The screenshot is ignored local evidence at `test-results/workspace-restored.png`.
+
+Control regressions must cover old-client rejection, stale queued input, per-window human ownership,
+private metadata filtering and generation changes invalidating paste. Use isolated Host fixtures;
+failed or unknown recovery must never advertise writable input. Protocol behavior is owned by
+[Session control](../reference/mcp-tools.md#session-control).

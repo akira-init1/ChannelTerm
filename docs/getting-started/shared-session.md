@@ -63,8 +63,11 @@ write does not race cleanup.
 
 Session's byte-serialization guarantee does not coordinate the meaning of concurrent commands. The
 Session layer has no writer ownership, transaction, priority, arbitration, or shell-state model.
-Application-level leases temporarily exclude other ChannelTerm writers for operations such as file
-transfer, but Clients must otherwise avoid conflicting command sequences themselves.
+Application control scopes coordinate authenticated multi-call operations above Session and share
+the existing lease gate. All writers need current control metadata; AI raw work requires an explicit
+scope. Human takeover revokes old writes before recovery and keeps AI paused until explicit allowance.
+Unknown recovery closes the captured Session. See the [control contract](../reference/mcp-tools.md#session-control)
+and [migration steps](http-authentication-migration.md#default-controlled-sessions).
 
 After attachment, the CLI watches new activity from the current tail and renders non-empty Agent
 writes as local `AI` activity blocks. It does not replay older activity, and writes containing only

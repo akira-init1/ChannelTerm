@@ -14,6 +14,8 @@ Con GDB, la IA puede establecer puntos de interrupción, recorrer programas Linu
 
 Para ventanas de arranque cortas, el Host puede interrumpir U-Boot y verificar el prompt. Exporte un ZIP de diagnóstico con bytes sin procesar opcionales para investigar fallos. [Flujo de U-Boot y diagnóstico](docs/getting-started/serial-terminal.md#enter-u-boot-and-export-evidence).
 
+Todas las Sessions usan ahora control de operaciones autenticado. Los clientes CLI/Electron actuales se adaptan automáticamente; los escritores antiguos y stdio sin registro deben migrar. La toma de control humana bloquea las operaciones antiguas antes de la recuperación y pausa la IA hasta una autorización explícita. Una recuperación no confirmada puede cerrar la Session; nunca se reenvían las entradas interrumpidas. Consulte la [guía de migración](docs/getting-started/http-authentication-migration.md#default-controlled-sessions).
+
 ## ¿Por qué ChannelTerm?
 
 Mantenga su terminal abierto mientras la IA usa la misma conexión al dispositivo:
@@ -391,7 +393,7 @@ La salida `--help` del programa en ejecución es la referencia para los indicado
 
 ## Hoja de ruta
 
-Las conexiones serie y las shells SSH PTY son Transports implementados; también están disponibles clientes dedicados de archivos SFTP y SCP tradicional. SSH exec arbitrario, Telnet y una coordinación más fuerte entre múltiples escritores siguen siendo direcciones futuras, no funciones implementadas ni compromisos de lanzamiento.
+Las conexiones serie y las shells SSH PTY son Transports implementados; también están disponibles clientes dedicados de archivos SFTP y SCP tradicional. SSH exec arbitrario y Telnet siguen siendo direcciones futuras, no funciones implementadas ni compromisos de lanzamiento.
 
 ChannelTerm no implementa actualmente JTAG/OpenOCD, dispositivos serie virtuales, una IA integrada ni orquestación de múltiples agentes.
 

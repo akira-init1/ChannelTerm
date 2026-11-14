@@ -13,6 +13,8 @@ GDB を使えば、AI にブレークポイント設定、Linux プログラム�
 
 短い起動待ち時間でも、Host が U-Boot を中断し、プロンプトを確認できます。障害調査用の診断 ZIP を出力でき、生バイトの収録は任意です。[U-Boot と診断の手順](docs/getting-started/serial-terminal.md#enter-u-boot-and-export-evidence)。
 
+すべての Session は認証済み操作制御を標準で使用します。新版 CLI/Electron は自動対応しますが、旧書き込みクライアントと未認証 stdio は移行が必要です。人間による引き継ぎは旧操作の書き込みを失効させてから復旧し、明示的に許可するまで AI を停止します。復旧を確認できない場合は Session を閉じます。中断した入力は再送しません。[移行ガイド](docs/getting-started/http-authentication-migration.md#default-controlled-sessions)を参照してください。
+
 ## ChannelTerm を使う理由
 
 端末を開いたまま、AI と同じデバイス接続を使えます。
@@ -387,7 +389,7 @@ channelterm serial --config ./channelterm.toml --profile board
 
 ## ロードマップ
 
-シリアルと SSH PTY シェルは実装済みの Transport です。専用の SFTP および従来の SCP ファイルクライアントも利用できます。任意の SSH exec、Telnet、より強い複数書き込み側の協調は今後の方向性であり、実装済み機能やリリースの約束ではありません。
+シリアルと SSH PTY シェルは実装済みの Transport です。専用の SFTP および従来の SCP ファイルクライアントも利用できます。任意の SSH exec と Telnetは今後の方向性であり、実装済み機能やリリースの約束ではありません。
 
 ChannelTerm は現在、JTAG/OpenOCD、仮想シリアルデバイス、組み込み AI、マルチエージェントのオーケストレーションを実装していません。
 

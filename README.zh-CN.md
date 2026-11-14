@@ -13,6 +13,8 @@ ChannelTerm 让你和 AI 客户端共享真实的串口或 SSH 终端：读取�
 
 对于短暂的启动窗口，可由 Host 打断 U-Boot 并确认提示符。排查失败时可导出诊断 ZIP，按需包含原始字节。[U-Boot 与诊断操作流程](docs/getting-started/serial-terminal.md#enter-u-boot-and-export-evidence)。
 
+所有 Session 现在默认采用经过身份验证的操作控制。新版 CLI/Electron 自动适配；旧写入客户端和无身份 stdio 需要迁移。人工接管先撤销旧操作的写入，再执行恢复，并持续暂停 AI，直到明确允许。无法确认恢复时可能关闭 Session；不重放被打断的输入。参见[迁移指南](docs/getting-started/http-authentication-migration.md#default-controlled-sessions)。
+
 ## 为什么使用 ChannelTerm？
 
 保持终端连接，让 AI 使用同一条设备连接协助操作：
@@ -375,7 +377,7 @@ channelterm serial --config ./channelterm.toml --profile board
 
 ## 路线图
 
-串口与 SSH PTY shell 已实现为 Transport；专用 SFTP 和传统 SCP 文件客户端也已提供。任意 SSH exec、Telnet 和更强的多写入者协调仍是未来方向，不属于已实现功能或版本承诺。
+串口与 SSH PTY shell 已实现为 Transport；专用 SFTP 和传统 SCP 文件客户端也已提供。任意 SSH exec 和 Telnet仍是未来方向，不属于已实现功能或版本承诺。
 
 ChannelTerm 目前尚未实现 JTAG/OpenOCD、虚拟串口设备、内置 AI 或多 Agent 编排。
 

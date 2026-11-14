@@ -122,6 +122,7 @@ func (a *Application) EnterUBoot(ctx context.Context, identifier string, r UBoot
 		return result, err
 	}
 	owner := "uboot-" + ownerToken
+	ctx = context.WithValue(ctx, controlKindKey{}, "uboot")
 	if _, err = a.AcquireLeaseForClient(ctx, t.ID(), owner, LeaseTypeTerminal); err != nil {
 		return result, err
 	}
@@ -130,6 +131,7 @@ func (a *Application) EnterUBoot(ctx context.Context, identifier string, r UBoot
 	ctx, stop := context.WithTimeout(ctx, r.Timeout)
 	defer stop()
 	runCtx, cancel := context.WithCancelCause(ctx)
+	defer a.bindControlCancellation(t.ID(), owner, cancel)()
 	done := make(chan struct{})
 	go a.renewTerminalCommandLease(runCtx, cancel, t.ID(), owner, done)
 	var capture *diagnosticCapture

@@ -253,6 +253,12 @@ func TestOpenSerialBindsMetadataToEachSession(t *testing.T) {
 		{ID: "session-a", Reference: "SER-1", Transport: "serial", Endpoint: "COM8", Label: "imx6ull-left", State: "open"},
 		{ID: "session-b", Reference: "SER-2", Transport: "serial", Endpoint: "COM6", Label: "zynq-debug", State: "open"},
 	}
+	for i := range sessions {
+		if sessions[i].Control == nil || sessions[i].Control.State != "idle" || sessions[i].Control.Version == "" {
+			t.Fatal("missing default control", sessions[i])
+		}
+		sessions[i].Control = nil // The metadata comparison below excludes random control versions.
+	}
 	if !reflect.DeepEqual(sessions, want) {
 		t.Errorf("sessions = %#v, want %#v", sessions, want)
 	}

@@ -176,7 +176,7 @@ func newSerialTools(manager *session.Manager, serviceDependencies app.SerialDepe
 
 func terminalToolsForApplication(application *app.Application) []tool.Tool {
 	tools := serialToolsForApplication(application)
-	tools = append(tools, &fileTransferTool{application: application}, &clientInstanceTool{application: application}, &listFileTransfersTool{application: application})
+	tools = append(tools, &controlTool{application: application}, &fileTransferTool{application: application}, &clientInstanceTool{application: application}, &listFileTransfersTool{application: application})
 	tools = append(tools, debugToolsForApplication(application)...)
 	tools = append(tools, bridgeToolsForApplication(application)...)
 	tools = append(tools, debugObservationTools(application)...)
@@ -571,6 +571,9 @@ func (t *listSessionsTool) Call(ctx context.Context, _ json.RawMessage) (tool.Re
 		}
 		if lease, active, err := t.application.LeaseStatus(info.ID); err == nil && active {
 			summary.Lease = &leaseSummary{Type: string(lease.Type), TransferID: lease.TransferID, CreatedAt: lease.CreatedAt.Format(time.RFC3339Nano), ExpiresAt: lease.ExpiresAt.Format(time.RFC3339Nano), State: lease.State}
+		}
+		if control, err := t.application.SessionControl(ctx, info.ID); err == nil {
+			summary.Control = &control
 		}
 		result = append(result, summary)
 	}
@@ -1440,7 +1443,7 @@ func (t *closeTool) Call(ctx context.Context, input json.RawMessage) (tool.Resul
 	if identifier == "" {
 		return nil, ErrSessionIDRequired
 	}
-	closed, err := t.application.CloseSession(identifier)
+	closed, err := t.application.CloseSessionForClient(ctx, identifier)
 	if err != nil {
 		if errors.Is(err, app.ErrSessionNotFound) {
 			return nil, fmt.Errorf("%w: %q", ErrSessionNotFound, identifier)
@@ -1601,13 +1604,14 @@ type closeInput struct {
 }
 
 type sessionSummary struct {
-	ID        string        `json:"session_id"`
-	Reference string        `json:"session_ref"`
-	Transport string        `json:"transport"`
-	Endpoint  string        `json:"endpoint"`
-	Label     string        `json:"label"`
-	State     string        `json:"state"`
-	Lease     *leaseSummary `json:"lease,omitempty"`
+	Control   *app.ControlStatus `json:"control,omitempty"`
+	ID        string             `json:"session_id"`
+	Reference string             `json:"session_ref"`
+	Transport string             `json:"transport"`
+	Endpoint  string             `json:"endpoint"`
+	Label     string             `json:"label"`
+	State     string             `json:"state"`
+	Lease     *leaseSummary      `json:"lease,omitempty"`
 }
 
 type leaseSummary struct {
@@ -1620,6 +1624,9 @@ type leaseSummary struct {
 
 func leaseResult(lease app.SessionLease) tool.Result {
 	result := tool.Result{"session_id": lease.SessionID, "type": string(lease.Type), "created_at": lease.CreatedAt.Format(time.RFC3339Nano), "expires_at": lease.ExpiresAt.Format(time.RFC3339Nano), "state": lease.State}
+	if lease.Control.Version != "" {
+		result["control"] = lease.Control
+	}
 	if lease.Client != (session.ClientIdentity{}) {
 		result["client"] = lease.Client
 	}

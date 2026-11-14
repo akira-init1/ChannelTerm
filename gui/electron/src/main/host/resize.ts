@@ -12,6 +12,7 @@ export class RemoteSize {
     private readonly sessionId: string,
     private owner: string,
     private readonly connection: AbortSignal,
+    private readonly controlMetadata?: () => Record<string, unknown>,
   ) {}
 
   static validOwner(owner: unknown): owner is string {
@@ -57,6 +58,7 @@ export class RemoteSize {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
+          ...this.controlMetadata?.(),
           action,
           session_id: this.sessionId,
           owner: this.owner,

@@ -7,6 +7,10 @@ for serial/SFTP/SCP, multiple paths and optional TAR/gzip output. It is disabled
 distinction between Host paths and client-local files.
 
 ChannelTerm exposes the same terminal Tool Registry over MCP stdio and stateless Streamable HTTP.
+All Session writes now require registered HTTP identity, instance and control metadata. Unregistered
+stdio remains read-only. Upgrade third-party writers using the
+[control migration guide](http-authentication-migration.md#default-controlled-sessions); agent raw
+workflows must explicitly begin/renew/end a scope and never retry interrupted input.
 
 For short bootloader windows, use the Host-side U-Boot operation and
 [diagnostic export workflow](serial-terminal.md#enter-u-boot-and-export-evidence). Keep the owning

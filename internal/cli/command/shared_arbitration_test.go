@@ -8,6 +8,7 @@ import (
 	"testing/synctest"
 	"time"
 
+	"github.com/akira-init1/ChannelTerm/internal/core/app"
 	"github.com/akira-init1/ChannelTerm/internal/core/session"
 	mcpadapter "github.com/akira-init1/ChannelTerm/internal/mcp"
 	protocol "github.com/modelcontextprotocol/go-sdk/mcp"
@@ -59,7 +60,7 @@ func TestSharedArbitrationAcrossCLIAndMCP(t *testing.T) {
 			assertSharedLease(t, ctx, attached.client, agent, attached.transferID)
 			for _, name := range []string{"terminal_write", "terminal_write_leased", "terminal_acquire_lease", "terminal_renew_lease", "terminal_release_lease"} {
 				args := arbitrationArguments(name, "board", "agent")
-				assertArbitrationToolError(t, ctx, agent, name, args, "locked by file-transfer", "not owned by caller")
+				assertArbitrationToolError(t, ctx, agent, name, args, "locked by file-transfer", "not owned by caller", "control is occupied")
 			}
 			if _, err := cli.Write(session.WriteRequest{Actor: session.ActorUser, Data: []byte("cli-owned")}); err != nil {
 				t.Fatal(err)
@@ -109,7 +110,7 @@ func TestSharedArbitrationAcrossCLIAndMCP(t *testing.T) {
 				if localOwner != "" {
 					wantError = "not owned by caller"
 				}
-				if n, err := cli.Write(session.WriteRequest{Actor: session.ActorUser, Data: []byte("rejected")}); n != 0 || err == nil || !strings.Contains(err.Error(), wantError) {
+				if n, err := cli.Write(session.WriteRequest{Actor: session.ActorUser, Data: []byte("rejected")}); n != 0 || err == nil || !strings.Contains(err.Error(), wantError) && !strings.Contains(err.Error(), "control is occupied") {
 					t.Fatalf("CLI owner %q write = %d, %v", localOwner, n, err)
 				}
 			}
@@ -119,6 +120,7 @@ func TestSharedArbitrationAcrossCLIAndMCP(t *testing.T) {
 			call("terminal_write_leased", map[string]any{"session_id": "board", "owner": "agent", "data": "agent-owned"}, nil)
 			call("terminal_release_lease", leaseArgs, nil)
 			assertSharedLease(t, ctx, attached.client, agent, "")
+			agent.endControls(ctx)
 			if _, err := cli.Write(session.WriteRequest{Actor: session.ActorUser, Data: []byte("cli-normal\n")}); err != nil {
 				t.Fatal(err)
 			}
@@ -172,16 +174,20 @@ func TestSharedArbitrationAcrossMCPClientsAfterLeaseExpiry(t *testing.T) {
 			t.Fatal(err)
 		}
 		ctx := context.Background()
-		clients := make([]*protocol.ClientSession, 2)
+		clients := make([]*instanceMCPClient, 2)
+		serverCtx := app.WithClientAccess(app.WithClientIdentity(ctx, session.ClientIdentity{ID: "CL-test", Kind: "user"}), app.ClientAccess{Write: true, Manage: true})
 		for i := range clients {
 			serverTransport, clientTransport := protocol.NewInMemoryTransports()
-			serverSession, err := server.Connect(ctx, serverTransport, nil)
+			serverSession, err := server.Connect(serverCtx, serverTransport, nil)
 			if err != nil {
 				t.Fatal(err)
 			}
 			defer func() { _ = serverSession.Close() }()
 			client := protocol.NewClient(&protocol.Implementation{Name: "arbitration-test", Version: "test"}, nil)
-			clients[i], err = client.Connect(ctx, clientTransport, nil)
+			remote, err := client.Connect(ctx, clientTransport, nil)
+			if err == nil {
+				clients[i], err = newInstanceMCPClient(ctx, remote, "memory")
+			}
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -197,7 +203,7 @@ func TestSharedArbitrationAcrossMCPClientsAfterLeaseExpiry(t *testing.T) {
 		if !lease.ExpiresAt.After(time.Now()) {
 			t.Fatal("lease did not return a future expiry")
 		}
-		assertArbitrationToolError(t, ctx, clients[1], "terminal_write", map[string]any{"session_id": "board", "data": "blocked"}, "locked by file-transfer")
+		assertArbitrationToolError(t, ctx, clients[1], "terminal_write", map[string]any{"session_id": "board", "data": "blocked"}, "locked by file-transfer", "control is occupied")
 		time.Sleep(time.Until(lease.ExpiresAt) + time.Nanosecond)
 		synctest.Wait()
 		if original.State() != session.StateClosed {
@@ -281,6 +287,11 @@ func assertArbitrationToolError(t *testing.T, ctx context.Context, client mcpToo
 	t.Helper()
 	result, err := client.CallTool(ctx, &protocol.CallToolParams{Name: name, Arguments: args})
 	if err != nil {
+		for _, message := range messages {
+			if strings.Contains(err.Error(), message) {
+				return
+			}
+		}
 		t.Fatalf("%s transport failed instead of returning a Host decision: %v", name, err)
 	}
 	if !result.IsError {

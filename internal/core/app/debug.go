@@ -83,6 +83,8 @@ type debugCommandResult struct {
 	err     error
 }
 type debugRun struct {
+	// controlRecovery permits only this run's relay while stop holds op.
+	controlRecovery       bool
 	updated               time.Time
 	clientIdentity        session.ClientIdentity
 	app                   *Application
@@ -141,6 +143,7 @@ func (c *debugCoordinator) get(id, owner string) (*debugRun, error) {
 // be proven; a duplicate request returns the original operation, never launches
 // another inferior. At most 128 operations are retained per Application.
 func (a *Application) StartDebug(ctx context.Context, request DebugStartRequest) (DebugStatus, error) {
+	ctx = context.WithValue(ctx, controlKindKey{}, "debug")
 	if len(request.Owner) < 32 || len(request.Owner) > 128 || len(request.RequestID) < 1 || len(request.RequestID) > 128 {
 		return DebugStatus{}, errors.New("owner must have 32..128 characters and request_id 1..128")
 	}
@@ -257,6 +260,12 @@ func (r *debugRun) record(record debugger.Record) {
 	r.appendLocked(record)
 }
 func (r *debugRun) write(ctx context.Context, b []byte) error {
+	r.mu.Lock()
+	recovering := r.controlRecovery
+	r.mu.Unlock()
+	if recovering {
+		ctx = context.WithValue(ctx, controlRecoveryKey{}, true)
+	}
 	_, e := r.app.writeSession(ctx, r.terminal.ID(), r.owner, session.WriteRequest{Actor: session.ActorSystem, Data: b})
 	return e
 }
@@ -368,6 +377,9 @@ func (a *Application) DebugCommand(ctx context.Context, q DebugCommandRequest) (
 	}
 	r.op.Lock()
 	defer r.op.Unlock()
+	if e = a.CheckSessionControl(ctx, r.terminal.ID()); e != nil {
+		return debugger.Record{}, e
+	}
 	if old, ok := r.commands[q.RequestID]; ok {
 		if old.request != q {
 			return debugger.Record{}, errors.New("command request_id reused with different parameters")

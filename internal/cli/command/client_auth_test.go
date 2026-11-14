@@ -85,9 +85,14 @@ func TestRegisteredMCPClientProvenanceSurvivesCLIActorAndLease(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer connected.Close()
+	controlled, err := newInstanceMCPClient(context.Background(), connected, server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer controlled.Close()
 	call := func(name string, args map[string]any) *protocol.CallToolResult {
 		t.Helper()
-		result, err := connected.CallTool(context.Background(), &protocol.CallToolParams{Name: name, Arguments: args})
+		result, err := controlled.CallTool(context.Background(), &protocol.CallToolParams{Name: name, Arguments: args})
 		if err != nil || result.IsError {
 			t.Fatalf("%s: %v %v", name, result, err)
 		}

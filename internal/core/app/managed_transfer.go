@@ -103,8 +103,12 @@ func (r *transferRun) update(f func(*TransferStatus)) {
 // before admission has no effect; after admission the task survives disconnects.
 // Retry the same request_id and exact arguments to retrieve the retained task.
 // All external callers need write access; configured root/SSH grants are still
-// required for trusted stdio callers. CloseFileTransfers belongs to composition.
+// required for trusted internal callers. Unregistered stdio is read-only.
+// CloseFileTransfers belongs to composition.
 func (a *Application) StartFileTransfer(ctx context.Context, q TransferRequest) (TransferStatus, error) {
+	if err := RequireControlIdentity(ctx); err != nil {
+		return TransferStatus{}, err
+	}
 	if err := CheckClientAccess(ctx, ClientWrite); err != nil {
 		return TransferStatus{}, err
 	}
@@ -147,6 +151,11 @@ func (a *Application) StartFileTransfer(ctx context.Context, q TransferRequest) 
 			active++
 		}
 	}
+	if q.Transport == "serial" {
+		if err := a.CheckSessionControl(ctx, q.SessionID); err != nil {
+			return TransferStatus{}, err
+		}
+	}
 	if active >= 4 {
 		return TransferStatus{}, errors.New("four file transfers are already active; wait or cancel one")
 	}
@@ -178,6 +187,17 @@ func (a *Application) StartFileTransfer(ctx context.Context, q TransferRequest) 
 	if presenceErr != nil {
 		return TransferStatus{}, presenceErr
 	}
+	var preparation ControlProof
+	if q.Transport == "serial" && controlExternal(ctx) {
+		p, _ := ctx.Value(controlProofKey{}).(ControlProof)
+		scope, err := a.beginControl(ctx, q.SessionID, p, true)
+		if err != nil {
+			finishUse()
+			return TransferStatus{}, err
+		}
+		preparation = ControlProof{Version: scope.Version, OperationID: scope.OperationID}
+		operationContext = context.WithValue(WithControlProof(operationContext, preparation), controlWorkerKey{}, true)
+	}
 	worker, cancel := context.WithTimeout(context.WithoutCancel(operationContext), time.Duration(q.TimeoutSeconds)*time.Second)
 	id := "FT-" + rand.Text()
 	sessionID := ""
@@ -195,7 +215,43 @@ func (a *Application) StartFileTransfer(ctx context.Context, q TransferRequest) 
 	}
 	c.runs[id] = r
 	r.status.SessionID = sessionID
+	finishPreparation := func() {}
+	if preparation.Version != "" {
+		finishPreparation = a.bindPreparingControl(sessionID, preparation, cancel)
+	}
+	// Host-owned preparation renews its own captured scope. Presence expiration
+	// does not cancel accepted work, while takeover still fences every admission.
+	controlDone := make(chan struct{})
+	if preparation.Version != "" {
+		go func() {
+			defer close(controlDone)
+			ticker := time.NewTicker(10 * time.Second)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-worker.Done():
+					return
+				case <-ticker.C:
+					a.leases.mu.Lock()
+					current := a.leases.controls.entries[sessionID]
+					live := current != nil && current.view.Version == preparation.Version && current.view.OperationID == preparation.OperationID && current.view.State == "active"
+					if live {
+						a.renewControlLocked(current)
+					}
+					a.leases.mu.Unlock()
+					if !live {
+						cancel()
+						return
+					}
+				}
+			}
+		}()
+	} else {
+		close(controlDone)
+	}
 	go func() {
+		defer func() { cancel(); <-controlDone }()
+		defer finishPreparation()
 		defer finishUse()
 		defer close(r.done)
 		defer cancel()

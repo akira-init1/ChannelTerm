@@ -1,5 +1,6 @@
 import type { SessionSummary } from "../../shared/api";
 import { HostError } from "./errors";
+import type { ControlSnapshot } from "../../shared/control";
 
 export function object(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value))
@@ -21,13 +22,19 @@ export function integer(value: unknown): number {
     throw incompatible();
   return value;
 }
-export function sessions(value: unknown): SessionSummary[] {
+export function sessions(
+  value: unknown,
+  parseControl?: (value: unknown) => ControlSnapshot,
+): SessionSummary[] {
   const entries = object(value).sessions;
   if (!Array.isArray(entries) || entries.length > 10000) throw incompatible();
   return entries.map((entry) => {
     const item = object(entry);
     const lease = item.lease === undefined ? undefined : object(item.lease);
     return {
+      ...(item.control === undefined || !parseControl
+        ? {}
+        : { control: parseControl(item.control) }),
       session_id: text(item.session_id),
       session_ref: text(item.session_ref),
       transport: text(item.transport),

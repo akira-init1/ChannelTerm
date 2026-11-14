@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/akira-init1/ChannelTerm/internal/core/app"
@@ -23,7 +24,7 @@ func TestHTTPClientGrantsEnforceReadOnlyAndImmediateRevocation(t *testing.T) {
 	}
 	server := httptest.NewServer(requireClientToken(store, host.server.Config.Handler))
 	defer server.Close()
-	connect := func(credential string) *protocol.ClientSession {
+	connect := func(credential string) *instanceMCPClient {
 		t.Helper()
 		transport, err := newBearerTokenTransport(server.URL, credential)
 		if err != nil {
@@ -34,14 +35,21 @@ func TestHTTPClientGrantsEnforceReadOnlyAndImmediateRevocation(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		t.Cleanup(func() { _ = connected.Close() })
-		return connected
+		controlled, err := newInstanceMCPClient(context.Background(), connected, server.URL)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { _ = controlled.Close() })
+		return controlled
 	}
 	ai := connect(token)
-	call := func(client *protocol.ClientSession, name string, args map[string]any, wantDenied bool) {
+	call := func(client *instanceMCPClient, name string, args map[string]any, wantDenied bool) {
 		t.Helper()
 		result, err := client.CallTool(context.Background(), &protocol.CallToolParams{Name: name, Arguments: args})
 		if err != nil {
+			if wantDenied && strings.Contains(err.Error(), app.ErrClientPermissionDenied.Error()) {
+				return
+			}
 			t.Fatalf("%s: %v", name, err)
 		}
 		if result.IsError != wantDenied {
@@ -56,7 +64,7 @@ func TestHTTPClientGrantsEnforceReadOnlyAndImmediateRevocation(t *testing.T) {
 		}
 	}
 	write := map[string]any{"session_id": "board", "data": "test\n", "actor": "user"}
-	for _, client := range []*protocol.ClientSession{ai} {
+	for _, client := range []*instanceMCPClient{ai} {
 		call(client, "terminal_list_sessions", map[string]any{}, false)
 		call(client, "terminal_read", map[string]any{"session_id": "board"}, false)
 		call(client, "terminal_write", write, true)
@@ -69,6 +77,7 @@ func TestHTTPClientGrantsEnforceReadOnlyAndImmediateRevocation(t *testing.T) {
 	}
 	call(ai, "terminal_write", write, false)
 	call(ai, "terminal_close", map[string]any{"session_id": "board"}, true)
+	ai.endControls(context.Background())
 	if err := store.SetWriteAllowed(agent.ID, false); err != nil {
 		t.Fatal(err)
 	}

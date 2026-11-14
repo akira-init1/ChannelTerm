@@ -106,3 +106,13 @@ Verify native amd64/arm64 ELF, GDB, gdbserver, Bash, `setsid`, and required util
 Report the selected path, target/tool versions, symbol match, actual observations, and final process/Session state. Distinguish prepared commands, local checks, and real-target evidence; redact secrets and identify uncertain recovery.
 
 Full examples: [GDB workflow](../../docs/getting-started/gdb-debugging.md). Exact interfaces: [MCP contracts](../../docs/reference/mcp-tools.md#debug-tools) and [SSH workflow](../../docs/getting-started/ssh-terminal.md). Installed bundles may omit repository docs; use the essential steps above with installed help/schemas.
+
+## Controlled Session writes
+
+Use registered HTTP identity and the [Session control protocol](../../docs/reference/mcp-tools.md#session-control)
+for shared-device mutations. Renew the instance and any explicit raw workflow scope before expiry.
+Capture the operation/version for each request; human takeover or stale/paused errors mean stop,
+discard pending input and inspect the exact outcome, never refresh and replay. Unregistered stdio is
+read-only. Bundled CLI executors adapt automatically; inherit the initiating credential and use
+target-bound instance delegation when continuing a parent-owned scope. Dedicated SFTP/SCP does not
+lock an unrelated PTY.

@@ -18,6 +18,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/akira-init1/ChannelTerm/internal/cli/interactive"
+	"github.com/akira-init1/ChannelTerm/internal/core/app"
 	"github.com/akira-init1/ChannelTerm/internal/core/channel"
 	"github.com/akira-init1/ChannelTerm/internal/core/session"
 	mcpadapter "github.com/akira-init1/ChannelTerm/internal/mcp"
@@ -595,13 +596,13 @@ func TestMCPAttachReadsIndependentFileTransferEvents(t *testing.T) {
 	}
 }
 
-func TestMCPAttachWriteAndAgentWriteAreAtomic(t *testing.T) {
+func TestMCPAttachAndSecondHumanWriteAreAtomic(t *testing.T) {
 	host := newAttachTestHost(t)
 	defer host.close()
 	host.device.shortWrites = true
 	attached := newAttachedForTest(t, host.server.URL)
 	defer func() { _ = attached.Close() }()
-	agent, closeAgent := newAttachTestAgent(t, host.server.URL)
+	agent, closeAgent := newAttachTestPeer(t, host.server.URL, "user")
 	defer closeAgent()
 
 	cliPayload := []byte("AAAAAAAA")
@@ -939,6 +940,18 @@ func newAttachTestHostWithLifetime(t *testing.T, temporary bool) *attachTestHost
 		t.Fatalf("NewStreamableHTTPHandler() error = %v", err)
 	}
 	handler = advertiseHostLifetime(temporary, handler)
+	base := handler
+	handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		if app.ClientIdentityFromContext(ctx).ID == "" {
+			kind := "user"
+			if r.Header.Get("X-ChannelTerm-Test-Actor") == "agent" {
+				kind = "agent"
+			}
+			ctx = app.WithClientIdentity(ctx, session.ClientIdentity{ID: "CL-test-" + kind, Name: "Test " + kind, Kind: kind})
+		}
+		base.ServeHTTP(w, r.WithContext(ctx))
+	})
 	return &attachTestHost{manager: manager, device: device, server: httptest.NewServer(handler)}
 }
 
@@ -961,14 +974,31 @@ func newAttachedForTest(t *testing.T, endpoint string) attachSession {
 
 // newAttachTestAgent creates an independent MCP cursor and writer, modeling
 // the Agent side of a shared Session without opening another Transport.
-func newAttachTestAgent(t *testing.T, endpoint string) (*protocol.ClientSession, func()) {
+func newAttachTestAgent(t *testing.T, endpoint string) (*instanceMCPClient, func()) {
+	return newAttachTestPeer(t, endpoint, "agent")
+}
+
+type testActorTransport struct{ kind string }
+
+func (t testActorTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	q := r.Clone(r.Context())
+	q.Header = q.Header.Clone()
+	q.Header.Set("X-ChannelTerm-Test-Actor", t.kind)
+	return http.DefaultTransport.RoundTrip(q)
+}
+
+func newAttachTestPeer(t *testing.T, endpoint, kind string) (*instanceMCPClient, func()) {
 	t.Helper()
 	client := protocol.NewClient(&protocol.Implementation{Name: "attach-test-agent", Version: "test"}, nil)
-	attached, err := client.Connect(context.Background(), &protocol.StreamableClientTransport{Endpoint: endpoint, DisableStandaloneSSE: true}, nil)
+	attached, err := client.Connect(context.Background(), &protocol.StreamableClientTransport{Endpoint: endpoint, DisableStandaloneSSE: true, HTTPClient: &http.Client{Transport: testActorTransport{kind: kind}}}, nil)
 	if err != nil {
 		t.Fatalf("Agent Connect() error = %v", err)
 	}
-	return attached, func() { _ = attached.Close() }
+	controlled, err := newInstanceMCPClient(context.Background(), attached, endpoint)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return controlled, func() { _ = controlled.Close() }
 }
 
 // attachTestTransport provides one blocking read path for Core's dedicated

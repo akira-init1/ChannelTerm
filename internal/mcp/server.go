@@ -27,7 +27,7 @@ var (
 	ErrRequiredCursor = errors.New("cursor is required for wait tools")
 )
 
-const serverInstructions = `cterm means ChannelTerm. terminal_list_sessions finds Sessions. Idle Bash: terminal_exec; keys: terminal_write. Files: file_transfer; CLI: terminal_wait_file_transfer. For discovered devices: terminal_get_connection_decision; ask requires approval. terminal_close closes the Session for all clients. Lease and file-transfer controls are not for normal use. Linux MI: debug_start/command/events/stop. External GDB: debug_bridge_*; renew and verify shell recovery.`
+const serverInstructions = `cterm means ChannelTerm. terminal_list_sessions finds Sessions. Writers: register client_instance; use terminal_control and current version metadata. Agent raw keys need begin/renew/end; never retry interrupted input. Idle Bash: terminal_exec; keys: terminal_write. Files: file_transfer; CLI: terminal_wait_file_transfer. For discovered devices: terminal_get_connection_decision; ask requires approval. terminal_close closes the Session for all clients. Lease and file-transfer controls are not for normal use.`
 
 // NewServer creates an MCP Server backed by registry and reports version in
 // protocol implementation metadata. An empty version is reported as devel.
@@ -342,7 +342,7 @@ func newAdapter(registry *tool.Registry) (*adapter, error) {
 		{name: "terminal_get_connection_decision", target: connectionDecision.Name(), description: connectionDecision.Description(), schema: connectionDecision.InputSchema()},
 		{name: "terminal_close", target: closeTool.Name(), description: closeTool.Description(), schema: closeTool.InputSchema()},
 	}
-	for _, name := range []string{"client_instance", "file_transfer_list", "file_transfer", "terminal_enter_uboot", "terminal_export_diagnostics", "terminal_read_diagnostic", "debug_start", "debug_command", "debug_events", "debug_stop", "debug_overview", "debug_observation_register", "debug_observation_report", "debug_bridge_list", "debug_bridge_start", "debug_bridge_status", "debug_bridge_renew", "debug_bridge_close", "debug_bridge_restore", "debug_bridge_report"} {
+	for _, name := range []string{"terminal_control", "client_instance", "file_transfer_list", "file_transfer", "terminal_enter_uboot", "terminal_export_diagnostics", "terminal_read_diagnostic", "debug_start", "debug_command", "debug_events", "debug_stop", "debug_overview", "debug_observation_register", "debug_observation_report", "debug_bridge_list", "debug_bridge_start", "debug_bridge_status", "debug_bridge_renew", "debug_bridge_close", "debug_bridge_restore", "debug_bridge_report"} {
 		if registered, ok := registry.Get(name); ok {
 			exposed = append(exposed, exposedTool{name: name, target: name, description: registered.Description(), schema: registered.InputSchema()})
 		}
@@ -385,9 +385,18 @@ func waitSchema(schema tool.InputSchema) tool.InputSchema {
 // to an Agent instead of hiding them behind a protocol-level JSON-RPC failure.
 func (a *adapter) handler(exposed exposedTool) protocol.ToolHandler {
 	return func(ctx context.Context, request *protocol.CallToolRequest) (*protocol.CallToolResult, error) {
+		ctx = app.ExternalControl(ctx)
 		var input json.RawMessage
 		if request != nil && request.Params != nil {
 			input = request.Params.Arguments
+			if raw, ok := request.Params.Meta["io.channelterm/control"]; ok {
+				encoded, err := json.Marshal(raw)
+				var proof app.ControlProof
+				if err != nil || len(encoded) > 512 || json.Unmarshal(encoded, &proof) != nil || proof.Version == "" || len(proof.Version) > 128 || len(proof.OperationID) > 128 {
+					return errorResult(exposed.name, app.ErrControlRequired), nil
+				}
+				ctx = app.WithControlProof(ctx, proof)
+			}
 			if raw, ok := request.Params.Meta["io.channelterm/instance"]; ok {
 				encoded, err := json.Marshal(raw)
 				var proof app.InstanceProof
@@ -446,6 +455,16 @@ func errorResult(name string, err error) *protocol.CallToolResult {
 	code := "tool_error"
 	var classified interface{ ErrorCode() string }
 	switch {
+	case errors.Is(err, app.ErrControlRequired):
+		code = "control_required"
+	case errors.Is(err, app.ErrControlStale):
+		code = "control_stale"
+	case errors.Is(err, app.ErrControlBusy):
+		code = "control_busy"
+	case errors.Is(err, app.ErrAgentPaused):
+		code = "ai_paused"
+	case errors.Is(err, app.ErrControlInterrupted):
+		code = "user_interrupted"
 	case errors.As(err, &classified):
 		code = classified.ErrorCode()
 	case errors.Is(err, app.ErrClientPermissionDenied):

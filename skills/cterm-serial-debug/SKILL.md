@@ -77,3 +77,13 @@ This skill covers serial terminal diagnosis and file-transfer handoff. ChannelTe
 ## Report Evidence
 
 Report the selected endpoint and known serial settings, the Session reference, actions taken, and the relevant device output. Distinguish automated or local-command evidence from real-hardware confirmation. If no physical device was exercised, say so explicitly.
+
+## Controlled Session writes
+
+Use registered HTTP identity and the [Session control protocol](../../docs/reference/mcp-tools.md#session-control)
+for shared-device mutations. Renew the instance and any explicit raw workflow scope before expiry.
+Capture the operation/version for each request; human takeover or stale/paused errors mean stop,
+discard pending input and inspect the exact outcome, never refresh and replay. Unregistered stdio is
+read-only. Bundled CLI executors adapt automatically; inherit the initiating credential and use
+target-bound instance delegation when continuing a parent-owned scope. Dedicated SFTP/SCP does not
+lock an unrelated PTY.

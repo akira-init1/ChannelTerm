@@ -1046,3 +1046,13 @@ Without `--all`, the existing table, semantics and `{endpoint, bridges}` JSON re
 No query starts a Host, GDB or target connection, renews a lease, or scans ports. A Host lacking
 the new tool returns an error rather than a misleading empty inventory. See the
 [registration workflow](../getting-started/gdb-debugging.md#observe-all-registered-debug-paths).
+
+## Default Session control
+
+Current CLI invocations register instances and supply captured control metadata automatically.
+Agent credentials start an explicit scope for raw multi-call work; invocation shutdown ends owned
+scopes best-effort. Renewal failure rejects further calls. Host-managed command/transfer leases
+retain their existing recovery boundary. Queued foreground SSH input captures its generation before
+waiting and is discarded after rejection. No old payload is retried under a refreshed generation.
+Unregistered stdio is read-only. See [migration](../getting-started/http-authentication-migration.md#default-controlled-sessions)
+and [control semantics](mcp-tools.md#session-control).

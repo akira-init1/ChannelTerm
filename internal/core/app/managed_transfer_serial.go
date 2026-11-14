@@ -79,6 +79,7 @@ func (s managedTransferSession) AbortFileTransferRecovery(context.Context) error
 }
 
 func (r *transferRun) withSerial(ctx context.Context, work func(context.Context, FileTransferSession) error) (err error) {
+	ctx = context.WithValue(ctx, controlKindKey{}, "transfer")
 	q, a := r.request, r.app
 	terminal, err := a.session(q.SessionID)
 	if err != nil {
@@ -94,6 +95,7 @@ func (r *transferRun) withSerial(ctx context.Context, work func(context.Context,
 		return a.ReportFileTransferEventForClient(ctx, q.SessionID, owner, lease.TransferID, session.EventFileTransferProgress, "system", map[string]any{"managed_transfer_id": s.ID, "current_file": s.CurrentFile, "transferred": s.CurrentBytes, "total": s.CurrentTotal, "files_verified": s.FilesVerified, "files_total": s.FilesTotal})
 	}
 	worker, cancel := context.WithCancel(ctx)
+	defer a.bindControlCancellation(terminal.ID(), owner, func(error) { cancel() })()
 	done := make(chan struct{})
 	stop := make(chan struct{})
 	go func() {
@@ -130,6 +132,7 @@ func (r *transferRun) withSerial(ctx context.Context, work func(context.Context,
 			metadata["error"] = err.Error()
 		}
 		reportErr := a.ReportFileTransferEventForClient(ctx, q.SessionID, owner, lease.TransferID, typ, "system", metadata)
+		a.controlRecovered(terminal.ID(), owner)
 		releaseErr := a.ReleaseLease(q.SessionID, owner)
 		err = errors.Join(err, reportErr, releaseErr)
 	}()

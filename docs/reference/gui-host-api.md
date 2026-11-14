@@ -226,3 +226,8 @@ Errors are bounded codes: 400 `invalid_input`, 403 `permission_denied`/`origin_f
 409 `resize_not_owned`/`busy`, and 422 `unsupported`/`resize_failed`. HTTP 401 retains the existing
 authentication meaning. Stale capability rejection never retries a write or acquires control.
 Concurrent takeover waits for no transport queue: it returns busy if a resize is submitting.
+
+Resize `take`/`resize` also accepts `instance: {id, secret}` and
+`control: {version, operation_id?}`. Missing or rejected control returns 409 `control_required`;
+Host rechecks under the shared write gate before resize submission. Status and release remain
+read/cleanup operations and do not grant stream-write authority. See [Session control](mcp-tools.md#session-control).

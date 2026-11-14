@@ -67,6 +67,7 @@ type TerminalCommandResult struct {
 // the wrapper to restore terminal echo. If recovery cannot be confirmed, the
 // Session is closed rather than releasing a possibly corrupted terminal.
 func (a *Application) ExecuteTerminalCommand(ctx context.Context, identifier, command string) (result TerminalCommandResult, err error) {
+	ctx = context.WithValue(ctx, controlKindKey{}, "command")
 	if err := ctx.Err(); err != nil {
 		return TerminalCommandResult{}, err
 	}
@@ -121,6 +122,7 @@ func (a *Application) ExecuteTerminalCommand(ctx context.Context, identifier, co
 	})
 
 	executionCtx, cancelExecution := context.WithCancelCause(ctx)
+	defer a.bindControlCancellation(terminal.ID(), owner, cancelExecution)()
 	renewDone := make(chan struct{})
 	go a.renewTerminalCommandLease(executionCtx, cancelExecution, terminal.ID(), owner, renewDone)
 	defer func() {
@@ -163,6 +165,7 @@ func (a *Application) ExecuteTerminalCommand(ctx context.Context, identifier, co
 	}
 	result.ExitCode = exitCode
 	result.OutputEnd = outputEnd
+	a.controlRecovered(terminal.ID(), owner)
 	terminal.PublishEvent(session.Event{
 		Type:  session.EventTerminalCommandCompleted,
 		Actor: string(session.ActorAgent),
@@ -292,12 +295,13 @@ func (a *Application) renewTerminalCommandLease(ctx context.Context, cancel cont
 
 func (a *Application) recoverTerminalCommand(terminal session.Session, owner, commandID string, protocol *terminalCommandProtocol, result TerminalCommandResult, cause error, cancel context.CancelCauseFunc) (TerminalCommandResult, error) {
 	cancel(cause)
-	recoveryCtx, stopRecovery := context.WithTimeout(context.Background(), terminalCommandRecoveryTimeout)
+	recoveryCtx, stopRecovery := context.WithTimeout(context.WithValue(context.Background(), controlRecoveryKey{}, true), terminalCommandRecoveryTimeout)
 	defer stopRecovery()
 	_, interruptErr := a.writeSession(recoveryCtx, terminal.ID(), owner, session.WriteRequest{Actor: session.ActorSystem, Data: []byte{0x03}})
 	if interruptErr == nil {
 		exitCode, outputEnd, markerEnd, waitErr := protocol.waitEnd(recoveryCtx)
 		if waitErr == nil {
+			a.controlRecovered(terminal.ID(), owner)
 			result.ExitCode = exitCode
 			result.OutputEnd = outputEnd
 			a.publishTerminalCommandFailed(terminal, commandID, cause, outputEnd, markerEnd)

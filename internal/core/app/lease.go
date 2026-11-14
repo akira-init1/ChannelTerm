@@ -65,6 +65,10 @@ func (typ LeaseType) Valid() bool {
 // Owner is an opaque caller-selected capability and must not be presented as a
 // human identity.
 type SessionLease struct {
+	// Control fences this lease's external calls without revealing its owner.
+	Control        ControlProof
+	controlVersion string
+	controlKind    string
 	// Client is the initiating registration, never the secret Owner capability.
 	Client    session.ClientIdentity
 	SessionID string
@@ -144,6 +148,7 @@ func (*SessionBusyError) Unwrap() error { return ErrSessionBusy }
 // uses Session metadata only; raw buffering and write serialization remain
 // Session responsibilities. It owns no stream or Session lifecycle.
 type leaseCoordinator struct {
+	controls          controlStore
 	mu                sync.Mutex
 	leases            map[string]SessionLease
 	timers            map[string]*time.Timer
@@ -178,6 +183,11 @@ func (c *leaseCoordinator) acquire(sessionID, owner string, typ LeaseType) (Sess
 }
 
 func (c *leaseCoordinator) acquireReferenced(sessionID, owner string, typ LeaseType, reference string, client session.ClientIdentity) (SessionLease, error) {
+	return c.acquireChecked(sessionID, owner, typ, reference, client, nil, nil)
+}
+
+// acquireChecked runs admission under the same mutex/gate as lease creation.
+func (c *leaseCoordinator) acquireChecked(sessionID, owner string, typ LeaseType, reference string, client session.ClientIdentity, check func() error, created func(*SessionLease)) (SessionLease, error) {
 	owner = strings.TrimSpace(owner)
 	if owner == "" {
 		return SessionLease{}, ErrInvalidLeaseOwner
@@ -189,6 +199,12 @@ func (c *leaseCoordinator) acquireReferenced(sessionID, owner string, typ LeaseT
 	gate.Lock()
 	defer gate.Unlock()
 	c.mu.Lock()
+	if check != nil {
+		if err := check(); err != nil {
+			c.mu.Unlock()
+			return SessionLease{}, err
+		}
+	}
 	if _, recovering := c.recovering[sessionID]; recovering {
 		c.mu.Unlock()
 		return SessionLease{}, fmt.Errorf("%w: Session %s is closing after lease expiry", ErrSessionBusy, sessionID)
@@ -207,10 +223,19 @@ func (c *leaseCoordinator) acquireReferenced(sessionID, owner string, typ LeaseT
 		c.mu.Lock()
 	}
 	now := time.Now().UTC()
+	if check != nil {
+		if err := check(); err != nil {
+			c.mu.Unlock()
+			return SessionLease{}, err
+		}
+	}
 	lease := SessionLease{Client: client, SessionID: sessionID, Owner: owner, Type: typ, CreatedAt: now, ExpiresAt: now.Add(c.ttl), State: "active", sessionReference: reference}
 	if typ == LeaseTypeFileTransfer {
 		c.nextTransferID++
 		lease.TransferID = fmt.Sprintf("FT-%d", c.nextTransferID)
+	}
+	if created != nil {
+		created(&lease)
 	}
 	c.leases[sessionID] = lease
 	c.scheduleExpiryLocked(lease)
@@ -273,6 +298,9 @@ func (c *leaseCoordinator) release(sessionID, owner string) (SessionLease, bool,
 	}
 	c.stopExpiryLocked(sessionID)
 	delete(c.leases, sessionID)
+	if r := c.controls.entries[sessionID]; r != nil && r.automatic && r.view.State == "active" && r.view.Version == active.controlVersion {
+		finishControlLocked(r)
+	}
 	var cancelled *FileTransferCancelResolution
 	if control := c.fileTransfers[sessionID]; control != nil {
 		control.stopConfirmationTimer()

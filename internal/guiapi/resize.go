@@ -18,11 +18,13 @@ import (
 const ResizePath = "/gui/v1/resize"
 
 type resizeRequest struct {
-	Action    string `json:"action"`
-	SessionID string `json:"session_id"`
-	Owner     string `json:"owner"`
-	Columns   uint16 `json:"columns"`
-	Rows      uint16 `json:"rows"`
+	Instance  app.InstanceProof `json:"instance"`
+	Control   app.ControlProof  `json:"control"`
+	Action    string            `json:"action"`
+	SessionID string            `json:"session_id"`
+	Owner     string            `json:"owner"`
+	Columns   uint16            `json:"columns"`
+	Rows      uint16            `json:"rows"`
 }
 
 // NewResizeHandler exposes only size control; authentication is supplied by the Host.
@@ -76,11 +78,23 @@ func NewResizeHandler(application *app.Application) http.Handler {
 			return
 		}
 		_ = controller.SetReadDeadline(time.Time{})
+		ctx := r.Context()
+		if input.Action == "take" || input.Action == "resize" {
+			ctx, err = application.BindClientInstance(app.WithInstanceProof(app.ExternalControl(ctx), input.Instance), "desktop")
+			if err == nil {
+				ctx = app.WithControlProof(ctx, input.Control)
+				err = application.CheckSessionControl(ctx, input.SessionID)
+			}
+			if err != nil {
+				fail(409, "control_required")
+				return
+			}
+		}
 		result := map[string]any{"owned": false}
 		switch input.Action {
 		case "take":
 			var owner string
-			owner, err = application.TakeResizeControl(r.Context(), input.SessionID)
+			owner, err = application.TakeResizeControl(ctx, input.SessionID)
 			result["owner"], result["owned"] = owner, err == nil
 		case "release":
 			err = application.ReleaseResizeControl(input.SessionID, input.Owner)
@@ -91,7 +105,7 @@ func NewResizeHandler(application *app.Application) http.Handler {
 				fail(400, "invalid_input")
 				return
 			}
-			err = application.ResizeSessionOwned(r.Context(), input.SessionID, input.Owner, input.Columns, input.Rows)
+			err = application.ResizeSessionOwned(ctx, input.SessionID, input.Owner, input.Columns, input.Rows)
 			result["owned"] = err == nil
 		default:
 			fail(400, "invalid_input")

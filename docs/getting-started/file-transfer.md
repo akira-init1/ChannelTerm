@@ -685,3 +685,9 @@ partial file (SFTP)**. This is separate from **Session > File Transfer > Resume 
 SCP and directory transfers have progress but no resume option. Existing files otherwise fail
 rather than being overwritten. Only one desktop file operation runs at a time; active operations
 block Host changes and normal app close. SSH display history is bounded and is not persisted.
+
+Shared serial transfers now require current [Session control](../reference/mcp-tools.md#session-control).
+The bundled CLI/Electron supplies it; generic MCP clients must migrate. Human takeover of an external
+raw executor can close the Session because arbitrary shell cleanup cannot be proven. Host-managed
+serial workers use their existing bounded recovery. Dedicated SFTP/SCP remains independent of PTY
+control, and cancellation never injects Ctrl+C into an unrelated terminal.

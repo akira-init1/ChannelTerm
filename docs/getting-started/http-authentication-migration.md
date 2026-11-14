@@ -13,7 +13,7 @@ shared token did not distinguish human and AI clients; a caller-provided `actor`
 authenticated identity. The new implementation binds credentials to public client identities
 and checks their grants before admitting an operation.
 
-These diagrams show HTTP access. Stdio retains the local OS account's trust boundary. The Electron
+These diagrams show HTTP access. Unregistered stdio can observe but cannot write under default Session control. The Electron
 client shown in the second diagram was not part of v0.4.2.
 
 **v0.4.2: clients share the same credential.**
@@ -60,7 +60,8 @@ flowchart TB
 This changes authentication, authorization and provenance, not the underlying shared-terminal
 ownership model. It adds registration and migration state in exchange for independent client
 control. A write grant currently covers the whole Host. Revocation does not stop an accepted
-operation; per-Session AI pause, cross-call control and human takeover are not implemented.
+operation. Default Session control separately implements per-Session AI pause, cross-call scopes
+and explicit human takeover; see the migration matrix below.
 See [current data flow](../architecture/data-flow.md#http-client-attribution) for layer ownership.
 
 The earlier development-only arrangement that accepted the old token as read-only and used its
@@ -148,3 +149,28 @@ management routes. New unclassified tools default to management-only. Observatio
 attachment/detachment bookkeeping remain available without write permission. Raw output, Session
 IDs and sharing are unchanged. Stdio and local process execution retain the local OS account's
 trust; credentials do not sandbox an AI with access to that account or private configuration.
+
+## Default controlled Sessions
+
+All current Sessions require the control protocol; there is no opt-in compatibility mode. Upgrade
+CLI and Electron together with the Host. Generic MCP writers must register `client_instance`, renew
+presence, read `terminal_control status`, and attach the captured instance/control metadata to each
+mutation. Agent raw workflows must explicitly begin, renew and end a scope. Use an independent
+registered HTTP agent credential with a write grant; local stdio has no authenticated user/agent and
+is read-only. A caller-supplied `actor` never bypasses this restriction.
+
+| Client/request | Current behavior |
+| --- | --- |
+| Old reader or unknown stdio | Reads remain available under the existing access boundary |
+| Old writer, missing instance or generation | Rejected with a migration error; no automatic retry |
+| Current CLI/Electron | Automatically carries instance and captured generation metadata |
+| Agent raw workflow | Requires an explicit live scope; a write grant alone is insufficient |
+| Human input | Current generation; blocked during another scope or recovery |
+| Takeover | User + management; exact operation/version; verified recovery pins the requesting instance |
+| Explicit allowance | Advances generation and permits new AI work; never replays interrupted work |
+
+Upgrade third-party writers before using device operations. If `control_stale`, `control_busy`,
+`ai_paused` or `user_interrupted` occurs, discard queued input and inspect the retained result. Do not
+refresh the version and retry the same command. Scope expiry or unverified recovery can close the
+Session; reconnect only as a new explicit action. Host restart discards scopes and instances.
+Protocol details and limits are in [Session control](../reference/mcp-tools.md#session-control).

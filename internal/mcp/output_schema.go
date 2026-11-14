@@ -23,6 +23,12 @@ type jsonSchema struct {
 func terminalOutputSchema(name string) (jsonSchema, bool) {
 	var schema jsonSchema
 	switch name {
+	case "terminal_control":
+		schema = objectSchema(map[string]jsonSchema{
+			"action":  stringSchema(),
+			"control": objectSchema(map[string]jsonSchema{"session_id": stringSchema(), "version": stringSchema(), "operation_id": stringSchema(), "state": stringSchema(), "client": clientIdentitySchema(), "ai_paused": booleanSchema(), "writable": booleanSchema(), "expires_at": stringSchema()}, "session_id", "version", "state", "ai_paused"),
+			"result":  objectSchema(map[string]jsonSchema{"session_id": stringSchema(), "version": stringSchema(), "operation_id": stringSchema(), "status": stringSchema(), "reason": stringSchema(), "recovery": stringSchema(), "requested_by": clientIdentitySchema(), "retry_allowed": booleanSchema()}, "session_id", "version", "status", "reason", "recovery", "retry_allowed"),
+		}, "action")
 	case "file_transfer_list":
 		schema = objectSchema(map[string]jsonSchema{"transfers": arraySchema(objectSchema(map[string]jsonSchema{
 			"transfer_id": stringSchema(), "session_id": stringSchema(), "session_transfer_id": stringSchema(), "client": clientIdentitySchema(), "transport": stringSchema(), "direction": stringSchema(), "state": stringSchema(), "phase": stringSchema(), "bytes": integerSchema(), "total_bytes": integerSchema(),
@@ -213,6 +219,7 @@ func sessionSummarySchema() jsonSchema {
 		"label":       stringSchema(),
 		"state":       stringSchema("new", "connecting", "open", "closing", "closed", "failed"),
 		"lease":       leaseSummarySchema(),
+		"control":     controlStatusSchema(),
 	}, "session_id", "session_ref", "transport", "endpoint", "label", "state")
 }
 
@@ -292,6 +299,7 @@ func fileTransferResultSchema() jsonSchema {
 
 func leaseSchema() jsonSchema {
 	return objectSchema(map[string]jsonSchema{
+		"control":     objectSchema(map[string]jsonSchema{"version": stringSchema(), "operation_id": stringSchema()}, "version"),
 		"client":      clientIdentitySchema(),
 		"session_id":  stringSchema(),
 		"type":        leaseTypeSchema(),
@@ -369,4 +377,8 @@ func instanceUseSchema() jsonSchema {
 }
 func instanceSchema() jsonSchema {
 	return objectSchema(map[string]jsonSchema{"id": stringSchema(), "client": clientIdentitySchema(), "name": stringSchema(), "declared_entry": stringSchema(), "parent_instance_id": stringSchema(), "parent_operation_id": stringSchema(), "state": stringSchema("online", "expired", "ended"), "expires_at": dateTimeSchema(), "uses_truncated": booleanSchema(), "uses": arraySchema(instanceUseSchema())}, "id", "client", "name", "declared_entry", "state", "expires_at", "uses")
+}
+
+func controlStatusSchema() jsonSchema {
+	return objectSchema(map[string]jsonSchema{"session_id": stringSchema(), "version": stringSchema(), "operation_id": stringSchema(), "state": stringSchema(), "client": clientIdentitySchema(), "ai_paused": booleanSchema(), "writable": booleanSchema(), "expires_at": stringSchema()}, "session_id", "version", "state", "ai_paused", "writable")
 }

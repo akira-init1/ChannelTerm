@@ -56,12 +56,13 @@ type terminalCommandActivity interface {
 // attachInputPump is its sole stdin/Console reader; menu, path, and transfer
 // modes consume only the pump's ordered results and never read stdin directly.
 type attachInputDispatcher struct {
-	ctx         context.Context
-	pump        *attachInputPump
-	interrupts  <-chan os.Signal
-	terminal    attachSession
-	writeLocal  func([]byte) error
-	writeStatus func([]byte) error
+	discardBefore time.Time
+	ctx           context.Context
+	pump          *attachInputPump
+	interrupts    <-chan os.Signal
+	terminal      attachSession
+	writeLocal    func([]byte) error
+	writeStatus   func([]byte) error
 	// writeRemote optionally schedules owner input without blocking local
 	// escape processing. Ordinary attachments retain synchronous writes.
 	writeRemote                  func([]byte) error
@@ -133,7 +134,7 @@ func (d *attachInputDispatcher) run() {
 					d.finishTransfer(<-d.transferDone)
 					return
 				}
-				if !d.dispatch(result.data) {
+				if !d.dispatchResult(result) {
 					return
 				}
 			case interrupt := <-d.interrupts:
@@ -151,7 +152,7 @@ func (d *attachInputDispatcher) run() {
 		}
 
 		if result, ok := d.pump.takePending(); ok {
-			if result.err != nil || !d.dispatch(result.data) {
+			if result.err != nil || !d.dispatchResult(result) {
 				return
 			}
 			continue
@@ -166,7 +167,7 @@ func (d *attachInputDispatcher) run() {
 		case <-d.ctx.Done():
 			return
 		case result, ok := <-d.pump.results:
-			if !ok || result.err != nil || !d.dispatch(result.data) {
+			if !ok || result.err != nil || !d.dispatchResult(result) {
 				return
 			}
 		}
@@ -212,6 +213,15 @@ func (d *attachInputDispatcher) handleControlC() bool {
 		return true
 	}
 	return true
+}
+
+// dispatchResult discards application-buffered input captured before rejection.
+// Local controls remain available in subsequent input; no old bytes are retried.
+func (d *attachInputDispatcher) dispatchResult(result attachInputResult) bool {
+	if !result.readAt.IsZero() && result.readAt.Before(d.discardBefore) {
+		return true
+	}
+	return d.dispatch(result.data)
 }
 
 func (d *attachInputDispatcher) dispatch(data []byte) bool {
@@ -281,7 +291,15 @@ func (d *attachInputDispatcher) dispatchAttach(data []byte) bool {
 		if write == nil {
 			write = func(data []byte) error { return writeSession(d.terminal, session.ActorUser, data) }
 		}
-		if err := write(remote); err != nil {
+		payload := remote
+		remote = nil // A failed batch must never be appended and retried at the next local escape.
+		if err := write(payload); err != nil {
+			d.discardBefore = time.Now()
+			if d.pump != nil {
+				d.pump.mu.Lock()
+				d.pump.pending = nil
+				d.pump.mu.Unlock()
+			}
 			return d.writeLocal != nil && d.writeLocal(writeFailureText(err)) == nil
 		}
 		remote = remote[:0]

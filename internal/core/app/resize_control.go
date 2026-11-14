@@ -167,5 +167,15 @@ func (a *Application) ResizeSessionOwned(ctx context.Context, identifier, owner 
 	if owner == "" || owner != control.owner {
 		return ErrResizeNotOwned
 	}
+	// Share the write gate so recovery cannot report an idle terminal while a
+	// previously admitted resize is still in flight.
+	gate := a.leases.gate(terminal.ID())
+	if !gate.TryLock() {
+		return ErrControlBusy
+	}
+	defer gate.Unlock()
+	if err := a.CheckSessionControl(ctx, terminal.ID()); err != nil {
+		return err
+	}
 	return terminal.Resize(cols, rows)
 }

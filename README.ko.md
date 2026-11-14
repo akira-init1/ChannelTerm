@@ -13,6 +13,8 @@ GDB를 통해 AI가 중단점을 설정하고 Linux 프로그램을 단계 실�
 
 짧은 부팅 대기 시간에도 Host가 U-Boot를 중단하고 프롬프트를 확인할 수 있습니다. 문제 조사용 진단 ZIP을 내보낼 수 있으며 원시 바이트 포함은 선택 사항입니다. [U-Boot 및 진단 절차](docs/getting-started/serial-terminal.md#enter-u-boot-and-export-evidence).
 
+모든 Session은 이제 인증된 작업 제어를 기본으로 사용합니다. 최신 CLI/Electron은 자동으로 대응하며, 이전 쓰기 클라이언트와 인증되지 않은 stdio는 마이그레이션이 필요합니다. 사용자가 제어를 인계하면 이전 작업의 쓰기를 차단한 뒤 복구하며, 명시적으로 허용할 때까지 AI를 일시 중지합니다. 복구를 확인하지 못하면 Session을 닫을 수 있습니다. 중단된 입력을 재전송하지 않습니다. [마이그레이션 안내](docs/getting-started/http-authentication-migration.md#default-controlled-sessions)를 참고하세요.
+
 ## ChannelTerm을 사용하는 이유
 
 터미널을 열어 둔 채 AI와 같은 장치 연결을 사용하세요.
@@ -385,7 +387,7 @@ channelterm serial --config ./channelterm.toml --profile board
 
 ## 로드맵
 
-시리얼과 SSH PTY 셸은 구현된 Transport이며, 전용 SFTP 및 기존 SCP 파일 클라이언트도 사용할 수 있습니다. 임의의 SSH exec, Telnet, 더 강력한 다중 쓰기 조정은 향후 방향이며 구현된 기능이나 릴리스 약속이 아닙니다.
+시리얼과 SSH PTY 셸은 구현된 Transport이며, 전용 SFTP 및 기존 SCP 파일 클라이언트도 사용할 수 있습니다. 임의의 SSH exec 및 Telnet은 향후 방향이며 구현된 기능이나 릴리스 약속이 아닙니다.
 
 ChannelTerm은 현재 JTAG/OpenOCD, 가상 시리얼 장치, 내장 AI 또는 다중 에이전트 오케스트레이션을 구현하지 않습니다.
 

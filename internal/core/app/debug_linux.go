@@ -350,7 +350,13 @@ func (s *debugSessionStream) Read(ctx context.Context) ([]byte, bool, error) {
 func (s *debugSessionStream) Write(ctx context.Context, b []byte) error { return s.run.write(ctx, b) }
 
 func (r *debugRun) stop(terminate bool) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	// The MI stop sequence also needs its authenticated RSP relay to deliver ACKs.
+	// op excludes caller commands; this private permission ends before op unlocks.
+	r.mu.Lock()
+	r.controlRecovery = true
+	r.mu.Unlock()
+	defer func() { r.mu.Lock(); r.controlRecovery = false; r.mu.Unlock() }()
+	ctx, cancel := context.WithTimeout(context.WithValue(context.Background(), controlRecoveryKey{}, true), 10*time.Second)
 	defer cancel()
 	s := r.status()
 	if s.State == "running" {

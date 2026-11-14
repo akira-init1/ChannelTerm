@@ -41,6 +41,7 @@ export function TerminalView({
   display,
   onZoom,
   writable,
+  controlVersion,
   visible,
   onReady,
   onError,
@@ -55,6 +56,7 @@ export function TerminalView({
   display: DisplaySettings;
   onZoom: (delta: number) => void;
   writable: boolean;
+  controlVersion?: string;
   visible: boolean;
   onReady: () => void;
   onError: (error: ClientError) => void;
@@ -108,6 +110,11 @@ export function TerminalView({
     }
   }
   const inputEpoch = useRef(0);
+  const generation = useRef(controlVersion);
+  if (generation.current !== controlVersion) {
+    inputEpoch.current++;
+    generation.current = controlVersion;
+  }
   const pendingPaste = useRef(false);
   const [pasteDraft, setPasteDraft] = useState<{
     text: string;
@@ -333,9 +340,15 @@ export function TerminalView({
       }
       pendingBytes += bytes;
       const version = inputVersion;
+      const epoch = inputEpoch.current;
       writes = writes
         .then(async () => {
-          if (stopped || version !== inputVersion || !inputEnabled.current)
+          if (
+            stopped ||
+            version !== inputVersion ||
+            epoch !== inputEpoch.current ||
+            !inputEnabled.current
+          )
             return;
           await unwrap(host.write(attachment.id, data));
         })

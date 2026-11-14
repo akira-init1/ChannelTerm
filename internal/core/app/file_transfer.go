@@ -663,7 +663,7 @@ func (p *fileProtocol) recoveryError(err error) error {
 // fileTransferRecoveryContext remains usable after the caller's operation is
 // cancelled but bounds recovery when the target shell stops responding.
 func fileTransferRecoveryContext() (context.Context, context.CancelFunc) {
-	return context.WithTimeout(context.Background(), fileTransferRecoveryTimeout)
+	return context.WithTimeout(context.WithValue(context.Background(), controlRecoveryKey{}, true), fileTransferRecoveryTimeout)
 }
 
 func writeFilePayload(ctx context.Context, terminal FileTransferSession, data []byte) (int, error) {

@@ -22,7 +22,13 @@ func forwardSSHOwnerInput(ctx context.Context, input io.Reader, terminal attachS
 	ctx, stop := context.WithCancel(ctx)
 	var once sync.Once
 	shutdown := func() { once.Do(func() { stop(); cancel(); stopOwner() }) }
-	queue := make(chan []byte, 256)
+	type queuedInput struct {
+		data  []byte
+		ctx   context.Context
+		epoch int64
+	}
+	queue := make(chan queuedInput, 256)
+	var epoch atomic.Int64
 	done := make(chan struct{})
 	var pending atomic.Int64
 	go func() {
@@ -31,13 +37,18 @@ func forwardSSHOwnerInput(ctx context.Context, input io.Reader, terminal attachS
 			select {
 			case <-ctx.Done():
 				return
-			case data := <-queue:
+			case item := <-queue:
+				if item.epoch != epoch.Load() {
+					pending.Add(-1)
+					continue
+				}
 				if ctx.Err() != nil {
 					return
 				}
-				err := writeSession(sshOwnerWriter{ctx: ctx, terminal: terminal}, session.ActorUser, data)
+				err := writeSession(sshOwnerWriter{ctx: item.ctx, terminal: terminal}, session.ActorUser, item.data)
 				pending.Add(-1)
 				if err != nil {
+					epoch.Add(1)
 					if ctx.Err() != nil {
 						return
 					}
@@ -76,9 +87,20 @@ func forwardSSHOwnerInput(ctx context.Context, input io.Reader, terminal attachS
 		if err := ctx.Err(); err != nil {
 			return err
 		}
+		captured := ctx
+		if source, ok := terminal.(interface {
+			captureControlInput(context.Context) (context.Context, error)
+		}); ok {
+			var err error
+			captured, err = source.captureControlInput(ctx)
+			if err != nil {
+				return err
+			}
+		}
+		item := queuedInput{data: append([]byte(nil), data...), ctx: captured, epoch: epoch.Load()}
 		pending.Add(1)
 		select {
-		case queue <- append([]byte(nil), data...):
+		case queue <- item:
 			return nil
 		default:
 			pending.Add(-1)

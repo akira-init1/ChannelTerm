@@ -176,3 +176,8 @@ starts or controls GDB. Application uses fresh liveness evidence for automatic
 management renewal. MCP retains explicit lifecycle management. Target preparation and debugger control remain with the external operator. No additional Transport, Session reader,
 Agent Runtime, or RSP implementation is introduced. Failure/recovery ownership remains in
 [Application](../modules/application.md#external-serial-rsp-bridge).
+
+Default protocol control scopes and human takeover are implemented at Application above Session.
+They share the existing lease admission/write gate, validate authenticated instance and generation,
+and preserve independent readers. CLI/Electron snapshots are presentation hints, never authority.
+Recovery boundaries are owned by [Application](../modules/application.md#default-session-control-and-recovery).

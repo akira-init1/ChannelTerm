@@ -1,4 +1,6 @@
 import { ClientPresence } from "./presence";
+import type { ControlSnapshot } from "../../shared/control";
+import { controlSnapshot } from "./control";
 import { managedTransferSummaries } from "./provenance";
 import type { TransferStatus } from "../../shared/transfers";
 import { debugOverview } from "./debug";
@@ -69,6 +71,7 @@ class ToolFailure extends Error {
 
 /** An MCP client only: owns cursors/cancellation, never Session or lease authority. */
 export class HostClient {
+  private controls = new Map<string, ControlSnapshot>();
   private client?: Client;
   private presence?: ClientPresence;
   private lifetime: HostInfo["lifetime"] = "unknown";
@@ -359,16 +362,46 @@ export class HostClient {
     }
   }
 
+  private resizeMetadata(sessionId: string): Record<string, unknown> {
+    const control = this.controls.get(sessionId);
+    return {
+      instance: this.presence?.metadata()?.["io.channelterm/instance"],
+      control: control
+        ? { version: control.version, operation_id: control.operation_id }
+        : undefined,
+    };
+  }
+
   private async call(
     name: string,
     args: Record<string, unknown>,
     signal?: AbortSignal,
+    capturedControl?: ControlSnapshot,
   ): Promise<Record<string, unknown>> {
     const client = this.client;
     if (!client || this.connection.signal.aborted)
       throw new HostError("disconnected", "Connect to a Host first.");
+    const control =
+      capturedControl ??
+      (typeof args.session_id === "string"
+        ? this.controls.get(args.session_id)
+        : undefined);
     const result = await client.callTool(
-      { name, arguments: args, _meta: this.presence?.metadata() },
+      {
+        name,
+        arguments: args,
+        _meta: {
+          ...this.presence?.metadata(),
+          ...(control
+            ? {
+                "io.channelterm/control": {
+                  version: control.version,
+                  operation_id: control.operation_id,
+                },
+              }
+            : {}),
+        },
+      },
       undefined,
       {
         signal,
@@ -404,7 +437,18 @@ export class HostClient {
   }
 
   async list(): Promise<SessionSummary[]> {
-    return sessions(await this.call("terminal_list_sessions", {}));
+    const entries = sessions(
+      await this.call("terminal_list_sessions", {}),
+      controlSnapshot,
+    );
+    this.controls.clear();
+    for (const entry of entries)
+      if (entry.control) this.controls.set(entry.session_id, entry.control);
+    for (const active of this.attachments.values()) {
+      const control = this.controls.get(active.sessionId);
+      if (control && !control.writable) active.writeVersion++;
+    }
+    return entries;
   }
 
   private sshRequest(
@@ -665,6 +709,7 @@ export class HostClient {
             result.session_id,
             result.resize_owner,
             this.connection.signal,
+            () => this.resizeMetadata(text(result.session_id)),
           ),
         );
       }
@@ -743,6 +788,7 @@ export class HostClient {
             sessionId,
             "",
             connection.signal,
+            () => this.resizeMetadata(sessionId),
           );
         this.pendingSizes.delete(sessionId);
       }
@@ -1095,6 +1141,12 @@ export class HostClient {
   async write(id: string, data: string): Promise<void> {
     input(data);
     const active = this.attachment(id);
+    const control = this.controls.get(active.sessionId);
+    if (control && !control.writable)
+      throw new HostError(
+        "busy",
+        "Host control blocks input; input was discarded.",
+      );
     if (this.closing.has(active.sessionId))
       throw new HostError(
         "busy",
@@ -1129,6 +1181,7 @@ export class HostClient {
             actor: "user",
           },
           active.controller.signal,
+          control,
         );
         if (integer(result.bytes_written) !== bytes)
           throw new HostError(
@@ -1194,6 +1247,7 @@ export class HostClient {
   }
 
   async disconnect(): Promise<void> {
+    this.controls.clear();
     // Abort immediately, including an in-progress handshake. Detach is advisory;
     // a disconnected MCP client never owns the underlying Session lifetime.
     const attachments = [...this.attachments.values()];

@@ -142,6 +142,8 @@ func run() error {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
+		ctx := app.WithClientIdentity(r.Context(), session.ClientIdentity{ID: "CL-fixture", Name: "Fixture user", Kind: "user"})
+		r = r.WithContext(app.WithClientAccess(ctx, app.ClientAccess{Write: true, Manage: true}))
 		if r.URL.Path == guiapi.SSHPath || r.URL.Path == guiapi.SSHConfirmPath || r.URL.Path == guiapi.SerialProfilesPath || r.URL.Path == guiapi.ResizePath {
 			sshHandler.ServeHTTP(w, r)
 			return

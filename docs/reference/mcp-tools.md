@@ -11,7 +11,7 @@ distinguish single non-interactive Bash commands from raw or interactive writes,
 output or file-transfer wait tool, apply the discovery connection decision before a discovery-driven
 open, obtain explicit approval for an `ask` decision, treat Session close as shared-client
 destructive, reserve lease and file-transfer control tools for managed multi-step operations, and
-select debug_start/command/events/stop for native Linux user-space GDB.
+require registered instances and control versions for writers. Tool descriptions retain the native Linux GDB routing guidance.
 
 Every tool advertised by `tools/list` includes an `outputSchema` for its structured result. Required
 properties are present on every successful result; optional properties describe conditional data,
@@ -27,7 +27,7 @@ Structured inputs decoded by the terminal adapter reject unknown fields.
 
 ## Client instance presence
 
-`client_instance` is optional presence bookkeeping, available to read-only registered clients.
+`client_instance` is presence bookkeeping, optional for readers and required for protocol writers.
 It grants no device writes, management authority, lease or cross-call control scope. The existing
 per-request credential/grant checks continue to apply. All successful results include `action`.
 
@@ -74,7 +74,7 @@ For other tools, pass the returned private proof in MCP call metadata, outside b
 ```
 
 Metadata is limited to 512 encoded bytes. An optional `use_id` must refer to this instance's
-operation use and the call's Session. Missing metadata preserves legacy instance-unknown calls;
+operation use and the call's Session. Missing metadata preserves legacy instance-unknown reads; writes require it;
 invalid, foreign, ended or expired proofs fail with `instance_unavailable` before device work.
 Malformed metadata returns `invalid_input`. Never retry without metadata to bypass a failure.
 Reconnect/register explicitly and do not replay uncertain writes.
@@ -1230,7 +1230,7 @@ credential verification, never an input argument, actor label, header-supplied
 client ID or lease owner token. Attachment, transfer reports, managed operation
 events and lease-related activity preserve the initiating registration. System
 writes may retain `actor: system` while identifying an agent as the initiator.
-Trusted local/stdio callers without a registration omit `client`; this does not establish human
+Trusted internal callers and stdio observations without a registration omit `client`; this does not establish human
 identity. HTTP rejects unregistered credentials, including the retired shared token, with 401.
 Existing required fields and tool names are unchanged. Removal rejects future
 HTTP requests with 401; an invalid registration store returns 503 for independent
@@ -1315,3 +1315,54 @@ The Host timestamp is receipt time, not proof of when an external target changed
 caller redaction of unrelated secrets; do not send raw RSP, credentials, expressions or program
 output merely to drive this overview. Reporting failures must not trigger debugger commands or
 automatic re-execution. Manual shell GDB that has no registered structured observer is not detected.
+
+## Session control
+
+All Sessions are controlled by default. This is a breaking change for old writers: missing registered
+identity, live instance proof or control version returns `control_required`. Unregistered stdio is
+read-only; use a registered HTTP credential for writes. `client_instance` is optional for readers,
+but required for writers. See [migration](../getting-started/http-authentication-migration.md#default-controlled-sessions).
+
+Each mutating Session request carries both `_meta["io.channelterm/instance"] = {id, secret}` and
+`_meta["io.channelterm/control"] = {version, operation_id?}`. Control metadata is public fencing data,
+not a credential. Debug/bridge ID-based mutations carry the same Session generation. The version
+must be captured for that request, never silently refreshed after rejection. New connection creation
+has no existing Session generation; authentication/instance and connection grants still apply.
+
+`terminal_control` returns `action` on success. Actions use the complete opaque `session_id`:
+
+| Action | Additional input | Successful result |
+| --- | --- | --- |
+| `status` | None | `control` |
+| `begin` | Captured `version`, current `operation_id` if any | `control` for an exclusive multi-call scope |
+| `renew`, `end` | Exact scope `version` and `operation_id` | `control` |
+| `takeover` | Exact observed `version` and `operation_id` if active | `result`; requires user + management |
+| `allow` | Exact current `version` and `operation_id` if present | `control`; requires user + management |
+| `result` | Original takeover/expired `version` and `operation_id` | Retained `result`, including after Session closure |
+
+`control` has `session_id`, `version`, `state` (`idle`, `active`, `stopping`, `human`, `failed`),
+`writable`, `ai_paused`, and optional `operation_id`, public `client`, `expires_at`. `writable` is a
+human-input hint for the requesting instance, never authorization. Session lists include the same
+snapshot. Scope TTL is 30 seconds; renew before expiry. Reading does not renew it. Agent raw writes
+require `begin` and the returned operation ID; managed operations associate their existing lease
+with control automatically. Lease acquisition returns optional public `control` metadata; use it
+for subsequent leased requests. An explicit outer scope outlives an inner lease until `end`.
+
+`result` contains `session_id`, original `version`/`operation_id`, `status` (`stopping`, `taken_over`,
+`failed`), `reason` (`user_interrupted`, `control_expired`), `recovery` (`pending`, `restored`,
+`session_closed`), optional public `requested_by`, and `retry_allowed: false`. Poll the exact captured
+key; never substitute the current operation. Outcomes last up to five minutes, with at most 128
+retained entries and earlier capacity eviction. Completion also publishes `OPERATION_STATE` with
+`metadata.operation: "control"` and `metadata.result`. This is bounded observation, not an audit log.
+
+Takeover revokes old writes before recovery. Only verified recovery grants the requesting human
+instance input; another human must explicitly take over. AI remains paused until `allow`, which
+permits new work without restarting old work. Unknown raw/external execution or failed recovery
+closes the captured Session. Expiry also closes it. Closing does not prove all remote processes
+stopped. Ordinary reads and dedicated SFTP/SCP do not hold PTY control. Errors include `control_stale`,
+`control_busy`, `ai_paused`, `instance_unavailable` and `user_interrupted`; discard unsent input and
+never retry automatically. Private Host recovery can finish only the originally captured lease.
+
+A validated, single-use, target-bound child delegation may execute its parent instance's control
+scope under the same credential. Automatic child leases return paused human ownership to the
+original parent; unrelated instances cannot inherit it.

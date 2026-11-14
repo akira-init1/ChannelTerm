@@ -10,6 +10,8 @@ Use GDB to let AI set breakpoints, step through Linux programs, and inspect vari
 
 For short boot windows, let the Host interrupt U-Boot and verify the prompt. Export a diagnostic ZIP with optional raw bytes when investigating failures. [U-Boot and diagnostic workflow](docs/getting-started/serial-terminal.md#enter-u-boot-and-export-evidence).
 
+All Sessions now use authenticated operation control. Current CLI/Electron clients adapt automatically; older writers and unregistered stdio must migrate. Human takeover fences old operations before recovery and keeps AI paused until explicitly allowed. Unknown recovery can close the Session; interrupted input is never replayed. See the [migration guide](docs/getting-started/http-authentication-migration.md#default-controlled-sessions).
+
 ## Why ChannelTerm?
 
 Keep your terminal open while the AI works with the same device connection:
@@ -389,7 +391,7 @@ For exact command flags and defaults, the running program's `--help` output is a
 
 ## Roadmap
 
-Serial and SSH PTY shells are implemented Transports; dedicated SFTP and legacy SCP file clients are also available. Arbitrary SSH exec, Telnet, and stronger multi-writer coordination remain future directions rather than implemented features or release commitments.
+Serial and SSH PTY shells are implemented Transports; dedicated SFTP and legacy SCP file clients are also available. Arbitrary SSH exec and Telnet remain future directions rather than implemented features or release commitments.
 
 ChannelTerm does not currently implement JTAG/OpenOCD, virtual serial devices, a built-in AI, or multi-agent orchestration.
 

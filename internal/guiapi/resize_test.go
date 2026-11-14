@@ -28,7 +28,7 @@ func TestResizeRouteRejectsUnauthorizedAndMalformedRequests(t *testing.T) {
 		{name: "oversized", method: "POST", body: strings.Repeat(" ", 2049), status: 400},
 		{name: "fraction", method: "POST", body: `{"action":"resize","session_id":"missing","columns":1.5}`, status: 400},
 		{name: "unknown action", method: "POST", body: `{"action":"execute","session_id":"missing"}`, status: 400},
-		{name: "unknown session", method: "POST", body: `{"action":"take","session_id":"missing"}`, status: 404},
+		{name: "missing control instance", method: "POST", body: `{"action":"take","session_id":"missing"}`, status: 409},
 		{name: "query", method: "POST", path: ResizePath + "?owner=secret", status: 404},
 		{name: "method", method: "DELETE", status: 405},
 		{name: "media", method: "POST", media: "text/plain", status: 415},

@@ -1029,3 +1029,34 @@ func (r *countingInputReader) maxConcurrentReads() int {
 	defer r.mu.Unlock()
 	return r.maxActive
 }
+
+func TestAttachControlRejectionDiscardsBufferedInputAndDoesNotReplayBatch(t *testing.T) {
+	pump := attachInputPump{pending: []byte("old-pending")}
+	d := newAttachInputDispatcherWithPump(context.Background(), &pump, &fakeAttachSession{}, func([]byte) error { return nil }, func() error { return nil }, func() {}, nil)
+	var writes []string
+	fail := true
+	d.writeRemote = func(b []byte) error {
+		writes = append(writes, string(b))
+		if fail {
+			return errors.New("control version stale; input discarded")
+		}
+		return nil
+	}
+	queued := time.Now().Add(-time.Second)
+	if !d.dispatchAttach([]byte("rejected\x1d?")) {
+		t.Fatal("local help became unavailable")
+	}
+	fail = false
+	if !d.dispatchResult(attachInputResult{data: []byte("queued-before-rejection"), readAt: queued}) {
+		t.Fatal("discard ended attachment")
+	}
+	if _, ok := pump.takePending(); ok {
+		t.Fatal("pending input survived rejection")
+	}
+	if !d.dispatchResult(attachInputResult{data: []byte("new-input"), readAt: time.Now()}) {
+		t.Fatal("new input unavailable")
+	}
+	if strings.Join(writes, "|") != "rejected|new-input" {
+		t.Fatal("input replayed", writes)
+	}
+}

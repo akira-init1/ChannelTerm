@@ -11,6 +11,8 @@ func terminalToolAnnotations(name string) (*protocol.ToolAnnotations, bool) {
 	idempotent := false
 
 	switch name {
+	case "terminal_control":
+		destructive, openWorld = true, true
 	case "client_instance":
 		// Bounded presence bookkeeping; does not grant device access.
 	case "file_transfer":

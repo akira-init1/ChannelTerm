@@ -362,6 +362,28 @@ func (a *Application) writeSession(ctx context.Context, identifier, owner string
 	request.Client = ClientIdentityFromContext(ctx)
 	request.Actor = clientActor(ctx, request.Actor)
 	return a.leases.write(terminal.ID(), owner, strings.TrimSpace(identifier), func() (int, error) {
+		ref, ok := a.manager.Reference(terminal.ID())
+		if !ok {
+			return 0, ErrSessionNotFound
+		}
+		a.leases.mu.Lock()
+		controlErr := a.checkControlLocked(ctx, terminal, ref, owner)
+		if controlErr == nil && controlExternal(ctx) && owner == "" {
+			r := a.leases.controls.entries[terminal.ID()]
+			if ClientIdentityFromContext(ctx).Kind == "agent" && r.view.State != "active" {
+				controlErr = ErrControlRequired
+			}
+		}
+		if controlErr == nil {
+			r := a.leases.controls.entries[terminal.ID()]
+			if r.view.State == "active" {
+				r.touched = true
+			}
+		}
+		a.leases.mu.Unlock()
+		if controlErr != nil {
+			return 0, controlErr
+		}
 		if owner != "" {
 			request.Client = a.leases.writeClient(terminal.ID(), owner)
 		}
@@ -370,6 +392,12 @@ func (a *Application) writeSession(ctx context.Context, identifier, owner string
 		for len(remaining) > 0 {
 			if err := ctx.Err(); err != nil {
 				return written, err
+			}
+			a.leases.mu.Lock()
+			controlErr = a.checkControlLocked(ctx, terminal, ref, owner)
+			a.leases.mu.Unlock()
+			if controlErr != nil {
+				return written, controlErr
 			}
 			n, err := terminal.Write(session.WriteRequest{Actor: request.Actor, Client: request.Client, Data: remaining})
 			written += n
@@ -405,7 +433,19 @@ func (a *Application) AcquireLeaseForClient(ctx context.Context, identifier, own
 	if !ok {
 		return SessionLease{}, ErrSessionNotFound
 	}
-	lease, err := a.leases.acquireReferenced(terminal.ID(), owner, typ, reference, ClientIdentityFromContext(ctx))
+	lease, err := a.leases.acquireChecked(terminal.ID(), owner, typ, reference, ClientIdentityFromContext(ctx), func() error {
+		return a.checkControlLocked(ctx, terminal, reference, "")
+	}, func(lease *SessionLease) {
+		if controlExternal(ctx) {
+			r := a.leases.controls.entries[terminal.ID()]
+			if r.view.State != "active" {
+				a.startControlLocked(r, ClientIdentityFromContext(ctx), true)
+			}
+			lease.controlVersion = r.view.Version
+			lease.Control = ControlProof{Version: r.view.Version, OperationID: r.view.OperationID}
+			lease.controlKind, _ = ctx.Value(controlKindKey{}).(string)
+		}
+	})
 	if err != nil {
 		return SessionLease{}, err
 	}
@@ -444,7 +484,15 @@ func (a *Application) RenewLease(identifier, owner string) (SessionLease, error)
 	if err != nil {
 		return SessionLease{}, err
 	}
-	return a.leases.renew(terminal.ID(), owner)
+	lease, err := a.leases.renew(terminal.ID(), owner)
+	if err == nil {
+		a.leases.mu.Lock()
+		if r := a.leases.controls.entries[terminal.ID()]; r != nil && r.automatic && r.view.State == "active" && r.view.Version == lease.controlVersion {
+			a.renewControlLocked(r)
+		}
+		a.leases.mu.Unlock()
+	}
+	return lease, err
 }
 
 // ReleaseLease releases identifier's lease only when owner matches its owner

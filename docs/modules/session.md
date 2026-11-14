@@ -52,8 +52,8 @@ Channel is responsible for releasing an in-progress blocking write and avoids a 
 
 This serialization protects byte-level write boundaries only. Session does not infer writer intent
 and does not provide writer ownership, an exclusive lease, a transaction, priority, arbitration, or
-shell-state coordination. Clients that need semantic coordination must currently arrange it outside
-Session.
+shell-state coordination. Application implements authenticated control scopes and human takeover outside Session; see
+[Application control](application.md#default-session-control-and-recovery).
 
 ## Activity
 
@@ -167,3 +167,7 @@ heartbeats, and presence changes never rewrite buffered provenance or terminal b
 Transfer events distinguish authenticated `client` from client-reported `checkpoint_origin`
 metadata. The latter is historical correlation only. Existing bounded event retention and drop
 semantics apply; a missing initial event or source field never proves human initiation.
+
+Control completion uses the existing `OPERATION_STATE` event with public, bounded result metadata.
+It does not alter raw output or the byte-serialization contract. Application owns generation fencing,
+AI pause and restoration decisions; Session only retains the event in its existing finite buffer.

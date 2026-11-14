@@ -78,3 +78,13 @@ The CLI manages the transfer lease, renewal, and cleanup. Do not acquire a compe
 Report the chosen protocol, endpoint/Session, direction, actual saved path, verification result, and any partial-file cleanup still needed. Separate local-command evidence from real-device or real-server verification. Never report a successful transfer solely from a prepared command.
 
 In a source checkout, use the [file-transfer guide](../../docs/getting-started/file-transfer.md), [CLI reference](../../docs/reference/cli.md), and [MCP transfer result contract](../../docs/reference/mcp-tools.md#terminal_wait_file_transfer). Installed bundles may omit repository docs; these instructions are self-contained, and installed CLI help and MCP schemas determine version-specific capabilities.
+
+## Controlled Session writes
+
+Use registered HTTP identity and the [Session control protocol](../../docs/reference/mcp-tools.md#session-control)
+for shared-device mutations. Renew the instance and any explicit raw workflow scope before expiry.
+Capture the operation/version for each request; human takeover or stale/paused errors mean stop,
+discard pending input and inspect the exact outcome, never refresh and replay. Unregistered stdio is
+read-only. Bundled CLI executors adapt automatically; inherit the initiating credential and use
+target-bound instance delegation when continuing a parent-owned scope. Dedicated SFTP/SCP does not
+lock an unrelated PTY.

@@ -21,8 +21,8 @@ new calls until explicit reconnect and never retries input. Older Hosts remain i
 Serial file helpers inherit the initiating Host credential and a short-lived, target-bound parent
 delegation through private environment values. Independent SSH file helpers use a window-declared
 operation intent; their separate SSH connection is not a Host-managed worker or a second online
-Host instance. Desktop HTTP setup/resize routes retain registered-client attribution and do not
-yet carry instance proofs. See the [MCP contract](../reference/mcp-tools.md#client-instance-presence)
+Host instance. Desktop HTTP setup retains registered-client attribution. Resize take/submit also carries
+instance and control proofs; status/release uses the existing private resize capability. See the [MCP contract](../reference/mcp-tools.md#client-instance-presence)
 for public provenance and its limits. Existing activity and transfer panels show bounded source
 projections; this adds no takeover authority.
 
@@ -665,3 +665,11 @@ Language/layout changes save locally; terminal defaults affect new views, while 
 their individual settings. Existing font/shortcut keys remain compatible. Storage errors leave
 current views usable and surface a notice; malformed or oversized snapshots are ignored. See
 [the workflow and storage contract](../reference/gui-menus.md#preferences-and-workspace-recovery).
+
+## Default Session control snapshots
+
+Main projects public control snapshots from Session lists, captures the generation before queuing
+input, and sends instance/control metadata to Host. Renderer invalidates queued input and pending
+paste on generation changes and disables input when Host reports it unavailable. No control proof
+is an authorization capability. SSH resize submission uses the same Host write gate. These guards
+never retry rejected bytes or grant an observer control. See [the protocol](../reference/mcp-tools.md#session-control).

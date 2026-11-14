@@ -420,3 +420,11 @@ External TCP/SSH executors register and report through separate capability- and 
 observation tools. Parsed MI state remains client-reported; receipt time, stale state and port
 roles are explicit. No terminal text, process scan or port scan is a source. Session association
 uses full IDs and is optional for independent networking; it never creates a fake terminal.
+
+## Controlled protocol writes
+
+Registered credential -> live instance -> captured control version/operation -> Application's shared
+lease/write gate -> Session -> Channel. The control store belongs to the existing Application lease
+coordinator, not a frontend or Session. Takeover advances the generation before cancelling a captured
+worker; only private, lease-bound recovery can then write. Completion is observed through existing
+events and bounded result lookup. See [Application control](../modules/application.md#default-session-control-and-recovery).
