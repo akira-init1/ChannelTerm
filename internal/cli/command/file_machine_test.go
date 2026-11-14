@@ -66,6 +66,10 @@ func TestFileMachineSendUsesSharedHostAndEmitsIdentifiedResult(t *testing.T) {
 	if started["type"] != "started" || started["transfer_id"] == "" || started["transfer_id"] == nil || verified["type"] != "verified" || verified["resolved_path"] != "/tmp/payload.bin" {
 		t.Fatalf("unexpected records: %v, %v", started, verified)
 	}
+	client, ok := started["client"].(map[string]any)
+	if !ok || client["instance_id"] == "" || client["operation_id"] == "" || client["declared_entry"] != "cli" {
+		t.Fatalf("missing public transfer origin: %+v", client)
+	}
 	var extra any
 	if err := decoder.Decode(&extra); err != io.EOF {
 		t.Fatalf("unexpected trailing output: %v, %v", extra, err)

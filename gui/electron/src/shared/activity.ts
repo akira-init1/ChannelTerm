@@ -1,5 +1,8 @@
+import type { OperationSource } from "./provenance";
+
 /** Sanitized observations, never raw write payloads or lease capabilities. */
 export interface ActivityRow {
+  source?: OperationSource;
   id: string;
   timestamp: string;
   actor: string;

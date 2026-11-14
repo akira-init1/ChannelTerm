@@ -12,6 +12,7 @@ import { loadToken } from "./host/config";
 import { HostError } from "./host/errors";
 import { identifier, object, text, incompatible } from "./host/validation";
 import type { TransferCheckpoint } from "../shared/transfers";
+import { operationSource } from "./host/provenance";
 
 export function checkpointIdentifier(value: unknown): string {
   if (typeof value !== "string" || !/^[a-f0-9]{24}$/.test(value))
@@ -55,6 +56,7 @@ export function checkpointResult(value: unknown): TransferCheckpoint[] {
       offset: row.offset,
       total: row.total,
       phase: row.phase,
+      originalSource: operationSource(row.origin),
     };
   });
 }

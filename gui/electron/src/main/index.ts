@@ -526,7 +526,11 @@ function createHandlers(context: WindowContext): Record<string, Handler> {
         context.files.takeSelection(r.sessionId, r.selectionId, r.direction),
       );
     },
-    [channels.sshTransfers]: () => context.sshFiles.snapshots(),
+    [channels.sshTransfers]: () => {
+      const jobs = context.sshFiles.snapshots();
+      return context.host?.decorateTransfers(jobs) ?? jobs;
+    },
+    [channels.managedTransfers]: () => currentHost(context).managedTransfers(),
     [channels.cancelSSHTransfer]: (id) => context.sshFiles.cancel(id),
     [channels.transferCheckpoints]: (id) => {
       identifier(id);

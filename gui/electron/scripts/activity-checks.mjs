@@ -26,6 +26,11 @@ export async function checkActivity(
     panel.getByRole("row").filter({ hasText: "Agent" }).last(),
   ).toContainText("22 B");
   await expect(panel).toContainText("Initial history");
+  await expect(
+    panel.getByRole("columnheader", { name: "Initiator" }),
+  ).toBeVisible();
+  // A legacy actor label must not become authenticated human/AI identity.
+  await expect(panel).toContainText("Source unconfirmed");
   await expect(panel).not.toContainText("activity-private-input");
   assert.match(
     Buffer.from((await observer.read(attachment.id)).data).toString(),

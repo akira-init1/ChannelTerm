@@ -23,7 +23,21 @@ delegation through private environment values. Independent SSH file helpers use 
 operation intent; their separate SSH connection is not a Host-managed worker or a second online
 Host instance. Desktop HTTP setup/resize routes retain registered-client attribution and do not
 yet carry instance proofs. See the [MCP contract](../reference/mcp-tools.md#client-instance-presence)
-for public provenance and its limits. This adds no renderer control panel or takeover authority.
+for public provenance and its limits. Existing activity and transfer panels show bounded source
+projections; this adds no takeover authority.
+
+Main selects public identity/instance/entry fields, discarding unknown fields before IPC. Current
+instance states come from coalesced snapshots (at most one query per two seconds per window).
+Failed, missing or disconnected observations become unknown; retained identity does not imply
+online presence. Actor labels and declared executable names remain separate from credential kind.
+The new fixed `managedTransfers` bridge reads public Host summaries without exposing private paths
+or granting cancellation. Serial Session events, Host task summaries and local SSH jobs retain
+their distinct authority and visibility. The existing 200-row activity/32-per-Session transfer
+bounds and 64-job workbench history remain; the panel renders the latest eight jobs.
+
+Serial resume shows current provenance separately from the checkpoint's reported origin. Independent
+SSH prefix resume has no saved original identity and displays unknown. Source and correlation details
+are localized in all nine catalogs; neither raw input nor capabilities enter these views.
 
 ## Code dependencies
 

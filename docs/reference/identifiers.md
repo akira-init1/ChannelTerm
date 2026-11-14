@@ -159,6 +159,12 @@ Private instance proofs and one-use delegation secrets are separate from these I
 end/expiry does not end accepted operations. Host restart invalidates proofs while the stable
 registered client ID survives. See [instance presence](mcp-tools.md#client-instance-presence).
 
+Transfer displays correlate a Host-managed `FT-...` task with its optional Session transfer ID;
+independent SSH tasks do not need a fake Session. A serial checkpoint ID stays fixed across resume,
+while each execution has a new transfer/operation ID and current initiator. Its retained `origin`
+is a client report, never a capability or proof of the original Host identity. GUI abbreviations
+are display only; expanded details retain complete public identifiers.
+
 ## Debug observation IDs
 
 Unified debug inventory uses an operation `id`, distinct from its optional full `session_id`.

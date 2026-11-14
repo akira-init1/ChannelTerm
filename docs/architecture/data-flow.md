@@ -400,6 +400,12 @@ connections. CLI invocation and Electron window adapters own their own renewal/e
 Explicit Session-use records and snapshots of existing leases are observations, not a new writer
 authority or an idle-close policy. See [instance ownership](../modules/application.md#volatile-client-instances).
 
+Source presentation follows `Session activity/events or Application transfer summary -> Main public
+field projection -> fixed IPC -> activity/transfer panel`. CLI transfer progress consumes the same
+public lease initiator. Client-retained checkpoint origins travel as explicitly unverified reports,
+separately from the Host-assigned current identity. Independent desktop SSH tasks remain local
+window observations; no generic remote command or cancellation capability crosses this path.
+
 ## Read-only GDB overview
 
 ```text

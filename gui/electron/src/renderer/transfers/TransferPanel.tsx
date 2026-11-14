@@ -3,6 +3,7 @@ import { CancelTransferDialog } from "./CancelTransferDialog";
 import type { TransferStatus } from "../../shared/transfers";
 import { host, unwrap } from "../host";
 import type { ClientError } from "../../shared/api";
+import { OperationSource } from "../components/OperationSource";
 
 /** Structured progress from all observed clients, never CLI output rendered into xterm. */
 export function TransferPanel({
@@ -77,7 +78,9 @@ export function TransferPanel({
             <div className="transfer-job" key={`${job.sessionId}:${job.id}`}>
               <div title={`${job.source} → ${job.destination}`}>
                 <small title={job.sessionId}>
-                  {sessionNames[job.sessionId] || job.sessionId.slice(0, 8)}{" "}
+                  {sessionNames[job.sessionId] ||
+                    job.sessionId.slice(0, 8) ||
+                    t("source.host")}{" "}
                   &middot; {job.protocol && `${job.protocol.toUpperCase()} · `}
                   {job.direction === "receive"
                     ? t("file.receive")
@@ -86,6 +89,27 @@ export function TransferPanel({
                 <strong>{job.source.split(/[\\/]/).pop() || job.id}</strong>
                 <span>{t(`file.${job.state}`)}</span>
               </div>
+              <OperationSource source={job.initiator} t={t} />
+              {job.scope === "local" && <small>{t("source.local")}</small>}
+              {job.scope === "host" && <small>{t("source.host")}</small>}
+              <details className="operation-source">
+                <summary>{t("source.correlation")}</summary>
+                <div>session_id: {job.sessionId || "—"}</div>
+                <div>transfer_id: {job.id}</div>
+                {job.managedId && (
+                  <div>managed_transfer_id: {job.managedId}</div>
+                )}
+                {job.checkpointId && (
+                  <div>checkpoint_id: {job.checkpointId}</div>
+                )}
+              </details>
+              {(job.resumed || job.checkpointId) && (
+                <div>
+                  {job.resumed && <small>{t("source.resumed")}</small>}
+                  <small>{t("source.original")}</small>
+                  <OperationSource source={job.originalSource} t={t} />
+                </div>
+              )}
               <progress
                 aria-label={job.source || job.id}
                 max={Math.max(1, job.total)}
@@ -103,7 +127,7 @@ export function TransferPanel({
                   {job.total.toLocaleString()} B ·{" "}
                   {Math.round(job.speed).toLocaleString()} B/s
                 </small>
-                {!job.released && (
+                {!job.released && job.scope !== "host" && (
                   <button
                     disabled={!!cancelling}
                     onClick={async () => {

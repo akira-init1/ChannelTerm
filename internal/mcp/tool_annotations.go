@@ -19,7 +19,7 @@ func terminalToolAnnotations(name string) (*protocol.ToolAnnotations, bool) {
 		destructive, openWorld = true, true
 	case "terminal_export_diagnostics":
 		// Creates a bounded Host-local evidence archive without terminal writes.
-	case "terminal_read_diagnostic":
+	case "terminal_read_diagnostic", "file_transfer_list":
 		readOnly = true
 	case "debug_observation_register", "debug_observation_report", "debug_bridge_report":
 		idempotent = true // Sequence retries never duplicate a report.

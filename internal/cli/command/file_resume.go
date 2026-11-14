@@ -124,6 +124,7 @@ func executeFileCheckpoint(ctx context.Context, root string, c app.TransferCheck
 	}
 	defer func() { err = errors.Join(err, attached.Close()) }()
 	err = withFileTransferLease(ctx, attached, id, func(ctx context.Context) (operationErr error) {
+		ctx = app.WithClientIdentity(ctx, fileTransferClient(attached))
 		source, target := c.LocalPath, c.RemotePath
 		if c.Direction == "receive" {
 			source, target = c.RemotePath, c.LocalPath
@@ -157,11 +158,16 @@ func executeFileCheckpoint(ctx context.Context, root string, c app.TransferCheck
 			}
 		}
 		if machine, ok := output.(*fileMachineWriter); ok {
-			if err := machine.emit(map[string]any{"type": "checkpoint", "checkpoint_id": c.ID}); err != nil {
+			if err := machine.emit(map[string]any{"type": "checkpoint", "checkpoint_id": c.ID, "original_client": c.Origin, "client": fileTransferClient(attached), "resumed": !create}); err != nil {
 				return err
 			}
 		} else {
 			fmt.Fprintf(output, "Resume checkpoint: %s\n", c.ID)
+			fmt.Fprintf(output, "Original source (checkpoint report): %s\n", formatTransferClient(c.Origin))
+		}
+		metadata["checkpoint_id"], metadata["checkpoint_origin"], metadata["resumed"] = c.ID, c.Origin, !create
+		if err := reportFileTransferEvent(ctx, attached, session.EventFileTransferProgress, metadata); err != nil {
+			return err
 		}
 		result, err := app.RunResumableTransfer(ctx, terminal, root, c.ID, fileTransferProgressWithCancellation(progress.Report, dependencies.transferCancelRequested))
 		if err != nil && result.Phase != "completed" {
@@ -240,13 +246,14 @@ func withFilePreparationCancellation(ctx context.Context, terminal internalFileT
 // fileCheckpointSummary intentionally omits local paths and Host binding from
 // the machine listing used by the GUI. Job IDs are validated again on execution.
 type fileCheckpointSummary struct {
-	ID        string             `json:"id"`
-	Name      string             `json:"name"`
-	Direction string             `json:"direction"`
-	Kind      app.RemotePathKind `json:"kind"`
-	Offset    int64              `json:"offset"`
-	Total     int64              `json:"total"`
-	Phase     string             `json:"phase"`
+	Origin    session.ClientIdentity `json:"origin,omitzero"`
+	ID        string                 `json:"id"`
+	Name      string                 `json:"name"`
+	Direction string                 `json:"direction"`
+	Kind      app.RemotePathKind     `json:"kind"`
+	Offset    int64                  `json:"offset"`
+	Total     int64                  `json:"total"`
+	Phase     string                 `json:"phase"`
 }
 
 func runFileJobs(ctx context.Context, args []string, output io.Writer, dependencies fileCommandDependencies) error {
@@ -278,13 +285,14 @@ func runFileJobs(ctx context.Context, args []string, output io.Writer, dependenc
 		if c.Direction == "receive" {
 			name = path.Base(c.RemotePath)
 		}
-		rows = append(rows, fileCheckpointSummary{c.ID, name, c.Direction, c.Kind, c.Offset, c.Size, c.Phase})
+		rows = append(rows, fileCheckpointSummary{c.Origin, c.ID, name, c.Direction, c.Kind, c.Offset, c.Size, c.Phase})
 	}
 	if options.json {
 		return json.NewEncoder(output).Encode(map[string]any{"jobs": rows})
 	}
 	for _, c := range rows {
 		fmt.Fprintf(output, "%s  %s  %s  %d/%d B  %s  %s\n", c.ID, c.Direction, c.Kind, c.Offset, c.Total, c.Phase, c.Name)
+		fmt.Fprintf(output, "  Original source (checkpoint report): %s\n", formatTransferClient(c.Origin))
 	}
 	if len(rows) == 0 {
 		fmt.Fprintln(output, "No resumable transfers.")

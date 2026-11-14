@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { TransferCheckpoint } from "../../shared/transfers";
 import type { ClientError } from "../../shared/api";
 import { host, unwrap } from "../host";
+import { OperationSource } from "../components/OperationSource";
 
 /** A saved job is intent, not a live Session. Main revalidates both at execution. */
 export function ResumeDialog({
@@ -60,6 +61,9 @@ export function ResumeDialog({
         {jobs.map((job) => (
           <section key={job.id} className="resume-job">
             <strong>{job.name}</strong>
+            <small>checkpoint_id: {job.id}</small>
+            <small>{t("source.original")}</small>
+            <OperationSource source={job.originalSource} t={t} />
             <span>
               {t(`file.${job.direction}`)} · {t(`file.${job.kind}`)} ·{" "}
               {job.offset.toLocaleString()} / {job.total.toLocaleString()} B

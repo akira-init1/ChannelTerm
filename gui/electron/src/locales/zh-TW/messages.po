@@ -1450,6 +1450,76 @@ msgstr "未指派"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "source.agent"
+msgstr "AI 憑證"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "source.correlation"
+msgstr "目標與關聯 ID"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "source.declared"
+msgstr "用戶端自報"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "source.endedPresence"
+msgstr "執行個體已結束"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "source.expiredPresence"
+msgstr "執行個體已過期"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "source.host"
+msgstr "Host 管理的工作"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "source.initiator"
+msgstr "發起者"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "source.local"
+msgstr "僅此視窗可見 · 獨立 SSH 連線"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "source.onlinePresence"
+msgstr "執行個體在線"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "source.original"
+msgstr "原始來源（checkpoint 報告，未經 Host 驗證）"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "source.resumed"
+msgstr "本次續傳 · 目前發起者見上方"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "source.unknown"
+msgstr "來源未確認"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "source.unknownPresence"
+msgstr "執行個體狀態未知"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "source.user"
+msgstr "使用者憑證"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "ssh.advanced"
 msgstr "SSH 進階設定"
 

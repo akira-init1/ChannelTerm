@@ -403,9 +403,9 @@ export async function checkAttachedMenus(
       keys += Buffer.from(
         (await observer.read(observerAttachment.id)).data,
       ).toString();
-      return keys;
+      return keys.includes("\x03\x0c\x17\x1bx") && /\x1b(OP|\[11~)/.test(keys);
     })
-    .toContain("\x03\x0c\x17\x1bx");
+    .toBe(true);
   assert.match(keys, /\x1b(OP|\[11~)/);
   await expect(page.locator(".xterm-screen")).toBeVisible();
   await expect(popup(page)).not.toBeVisible();

@@ -95,7 +95,7 @@ func runSSHFilesJSON(ctx context.Context, output io.Writer, r app.SSHFilesReques
 		}
 		return encode(map[string]any{"type": kind, "name": event.Name})
 	}
-	if err := encode(map[string]any{"type": "started"}); err != nil {
+	if err := encode(map[string]any{"type": "started", "source_state": "unknown", "scope": "local", "entry": "cli"}); err != nil {
 		return err
 	}
 	result, err := run(ctx, r)

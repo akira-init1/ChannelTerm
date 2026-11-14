@@ -541,22 +541,21 @@ func (c *leaseCoordinator) recordFileTransferProgress(sessionID string, metadata
 	control.percent = fileTransferMetadataFloat64(metadata, "percent")
 }
 
-// validateFileTransferReporter verifies the capability and transfer identity
-// together while the lease state is locked. Event publication remains outside
-// this coordinator because Session owns the structured event buffer.
-func (c *leaseCoordinator) validateFileTransferReporter(sessionID, owner, transferID string) error {
+// fileTransferReporter captures the initiator with capability/transfer validation
+// under the lease lock. Publication remains outside: Session owns the event buffer.
+func (c *leaseCoordinator) fileTransferReporter(sessionID, owner, transferID string) (session.ClientIdentity, error) {
 	owner = strings.TrimSpace(owner)
 	transferID = strings.TrimSpace(transferID)
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	lease, exists := c.leases[sessionID]
 	if !exists || lease.Type != LeaseTypeFileTransfer || lease.Owner != owner {
-		return ErrLeaseNotOwned
+		return session.ClientIdentity{}, ErrLeaseNotOwned
 	}
 	if transferID == "" || lease.TransferID != transferID {
-		return ErrFileTransferIDMismatch
+		return session.ClientIdentity{}, ErrFileTransferIDMismatch
 	}
-	return nil
+	return lease.Client, nil
 }
 
 func (c *leaseCoordinator) fileTransferCancelConfirmed(sessionID string) bool {

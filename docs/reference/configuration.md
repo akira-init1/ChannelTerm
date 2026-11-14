@@ -57,6 +57,10 @@ Transfer checkpoints are separate from connection configuration and Host Session
 local/device paths, a non-secret Host/serial endpoint binding, wire mode, byte counts and SHA-256
 digests; never credentials. Upload snapshots and download partial files are stored as `payload`;
 directory records may also retain `storage_bytes` and `storage_entries` for capacity estimates.
+Version-1 records may include `origin`, the original public client/instance/operation summary.
+It contains no instance proof or lease owner, is bounded on load, and is a local report rather
+than Host-authenticated history. Resume does not replace it with the current initiator. Older
+records without it remain unknown; older binaries may discard this optional field when saving.
 Older records remain readable; until their archive is local, missing directory counts use a
 conservative TAR-header bound for space checks.
 `checkpoint.json` is replaced from a synced temporary file and an OS-backed `lock` excludes another

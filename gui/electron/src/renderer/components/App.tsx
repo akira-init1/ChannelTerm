@@ -1,3 +1,4 @@
+import { retainedTransfer } from "../../shared/transfers";
 import {
   preferencesKey,
   workspaceKey,
@@ -402,16 +403,18 @@ export function App() {
       setFileDialog(undefined);
       setSSHFileDialog(undefined);
       setResumeTarget(undefined);
-      setTransferJobs((previous) =>
-        previous.map((job) =>
-          job.released ? job : { ...job, state: "unknown" },
-        ),
-      );
+      setTransferJobs((previous) => previous.map(retainedTransfer));
       return;
     }
     async function poll() {
       const jobs: TransferStatus[] = [];
       let sshUnavailable = false;
+      let managedUnavailable = false;
+      try {
+        jobs.push(...(await unwrap(host.managedTransfers())));
+      } catch {
+        managedUnavailable = true;
+      }
       try {
         jobs.push(...(await unwrap(host.sshTransfers())));
       } catch {
@@ -430,17 +433,22 @@ export function App() {
       }
       setTransferJobs((previous) => {
         const retained = new Map(
-          previous.map((job) => [job.sessionId + ":" + job.id, job]),
+          previous.map((job) => [
+            job.sessionId + ":" + job.id,
+            retainedTransfer(job),
+          ]),
         );
         for (const job of jobs) retained.set(job.sessionId + ":" + job.id, job);
         return [...retained.values()]
           .slice(-64)
           .map((job) =>
             !job.released &&
-            (job.protocol
-              ? sshUnavailable
-              : !observedSessions.split(",").includes(job.sessionId) ||
-                unavailable.has(job.sessionId))
+            (job.scope === "host"
+              ? managedUnavailable
+              : job.protocol
+                ? sshUnavailable
+                : !observedSessions.split(",").includes(job.sessionId) ||
+                  unavailable.has(job.sessionId))
               ? { ...job, state: "unknown" }
               : job,
           );

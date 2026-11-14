@@ -1,4 +1,6 @@
 import { ClientPresence } from "./presence";
+import { managedTransferSummaries } from "./provenance";
+import type { TransferStatus } from "../../shared/transfers";
 import { debugOverview } from "./debug";
 import { RemoteSize } from "./resize";
 import { ActivityFeed } from "./activity";
@@ -144,7 +146,23 @@ export class HostClient {
 
   async transfers(sessionId: string) {
     identifier(sessionId);
-    return (await this.events(sessionId)).snapshots();
+    const jobs = (await this.events(sessionId)).snapshots();
+    return this.decorateTransfers(jobs);
+  }
+
+  async managedTransfers(): Promise<TransferStatus[]> {
+    if (!this.presence?.managedTransfersAvailable) return [];
+    const result = await this.call("file_transfer_list", {});
+    return this.decorateTransfers(managedTransferSummaries(result.transfers));
+  }
+
+  async decorateTransfers(jobs: TransferStatus[]): Promise<TransferStatus[]> {
+    const decorate = await this.presence?.sources();
+    return jobs.map((job) => ({
+      ...job,
+      initiator: decorate?.(job.initiator) ?? job.initiator,
+      originalSource: decorate?.(job.originalSource) ?? job.originalSource,
+    }));
   }
 
   async validateSerial(sessionId: string): Promise<void> {
@@ -916,7 +934,16 @@ export class HostClient {
         second = results[1];
       if (first?.status !== "fulfilled" || second?.status !== "fulfilled")
         throw incompatible();
-      return active.feed.apply(first.value, second.value);
+      const snapshot = active.feed.apply(first.value, second.value);
+      const decorate = await this.presence?.sources();
+      this.attachment(id);
+      return {
+        ...snapshot,
+        rows: snapshot.rows.map((row) => ({
+          ...row,
+          source: decorate?.(row.source) ?? row.source,
+        })),
+      };
     } catch (error) {
       if (error instanceof HostError) throw error;
       throw new HostError(
@@ -1160,6 +1187,7 @@ export class HostClient {
     return (
       this.presence?.operation(sessionId, delegate) ?? {
         delegation: "",
+        source: undefined,
         done: async () => {},
       }
     );

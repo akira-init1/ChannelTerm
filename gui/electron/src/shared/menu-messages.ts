@@ -3,6 +3,35 @@ import type { MessageDescriptor } from "@lingui/core";
 // Lingui 5 extracts these official annotated descriptors without a runtime macro
 // transform. Translations belong in PO catalogs; this file owns IDs and English defaults.
 export const menuMessages = [
+  /* i18n */ { id: "source.user", message: "User credential" },
+  /* i18n */ { id: "source.agent", message: "AI credential" },
+  /* i18n */ { id: "source.unknown", message: "Source unconfirmed" },
+  /* i18n */ { id: "source.declared", message: "client-declared" },
+  /* i18n */ { id: "source.onlinePresence", message: "Instance online" },
+  /* i18n */ { id: "source.expiredPresence", message: "Instance expired" },
+  /* i18n */ { id: "source.endedPresence", message: "Instance ended" },
+  /* i18n */ {
+    id: "source.unknownPresence",
+    message: "Instance state unknown",
+  },
+  /* i18n */ { id: "source.initiator", message: "Initiator" },
+  /* i18n */ {
+    id: "source.local",
+    message: "This window only · independent SSH connection",
+  },
+  /* i18n */ { id: "source.host", message: "Host-managed task" },
+  /* i18n */ {
+    id: "source.correlation",
+    message: "Target and correlation IDs",
+  },
+  /* i18n */ {
+    id: "source.resumed",
+    message: "Resume attempt · current initiator shown above",
+  },
+  /* i18n */ {
+    id: "source.original",
+    message: "Original source (checkpoint report, not Host-verified)",
+  },
   /* i18n */ { id: "settings.transfers", message: "File transfer" },
   /* i18n */ {
     id: "file.directoryQuestion",

@@ -117,6 +117,7 @@ and logs. The `terminal_*` name remains the stable machine-readable compatibilit
 | Tool name | Display title |
 | --- | --- |
 | `client_instance` | Client Instance Presence |
+| `file_transfer_list` | List Public Transfer Sources |
 | `file_transfer` | Transfer Files and Directories |
 | `terminal_enter_uboot` | Enter U-Boot |
 | `terminal_export_diagnostics` | Export Session Diagnostics |
@@ -171,6 +172,26 @@ Tool invocations rejected by authorization return
 do not authorize operations. See the [HTTP upgrade workflow](../getting-started/http-authentication-migration.md).
 
 ## `file_transfer`
+
+### Public source inventory
+
+`file_transfer_list` accepts an empty object and returns `transfers`, at most 128 retained public
+Host-managed task summaries across credentials. Each contains `transfer_id`, optional full
+`session_id` and `session_transfer_id`, optional public `client`, `transport`, `direction`,
+`state`, `phase`, `bytes`, and `total_bytes`. Independent SSH tasks have no terminal Session;
+no artificial Session ID is created. The list omits paths, SSH profiles, errors, digests and
+capabilities. It is a read-only observation, available to authenticated readers, with no heartbeat,
+device I/O or cancellation side effect. Retention follows the existing managed-task coordinator.
+
+This projection does not authorize private `file_transfer status` or `cancel`: those remain bound
+to the initiating registered client and existing grants. Independent CLI/desktop SSH copies do not
+appear here. Serial managed tasks also emit Session events with `managed_transfer_id`, correlating
+with their `session_transfer_id` without duplicate jobs.
+
+### Managed task operations
+
+Status retains the initial public `client` and optional full `session_id`. Instance/operation
+provenance survives the initiator going offline; it does not imply current liveness or control.
 
 One managed entry point transfers files between the **Host computer** and a remote endpoint.
 It does not upload bytes from another MCP client's computer. Enable the
@@ -598,6 +619,19 @@ of the inspected range was no longer retained. Important errors: missing/null cu
 invalid limit or timeout, cancellation, deadline, EOF, or event-buffer failure.
 
 ## Attachment and file-transfer reporting tools
+
+Lease acquisition/renewal results include optional public `client` provenance. Transfer event
+reports retain that lease's initiator and operation ID across separate reporting calls; a later
+reporter cannot replace the initiating identity. Legacy leases without identity retain request
+provenance when available.
+
+Resumable CLI reports add `checkpoint_id` (24 lowercase hex characters), boolean `resumed`, and
+optional `checkpoint_origin` to event metadata. The origin is a bounded, client-retained report,
+**not authenticated evidence of the original Host initiator**. Host projects only public identity
+fields, rejects malformed/oversized values and strips unknown origin fields. This claim never
+replaces the event's independently assigned `client`, changes permissions or authorizes resume.
+New executions have new transfer IDs even when the checkpoint ID remains the same. Old records
+without these fields have unknown original provenance; missing event history is not reconstructed.
 
 `terminal_session_attach` and `terminal_session_detach` record a CLI attachment lifecycle event.
 They require `session_id` and accept an optional `actor`; they neither acquire a lease nor write or

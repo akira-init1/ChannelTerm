@@ -1450,6 +1450,76 @@ msgstr "지정 안 됨"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "source.agent"
+msgstr "AI 자격 증명"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "source.correlation"
+msgstr "대상 및 연결 ID"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "source.declared"
+msgstr "클라이언트 자체 보고"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "source.endedPresence"
+msgstr "인스턴스 종료됨"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "source.expiredPresence"
+msgstr "인스턴스 만료됨"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "source.host"
+msgstr "Host 관리 작업"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "source.initiator"
+msgstr "시작 주체"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "source.local"
+msgstr "이 창에서만 표시 · 독립 SSH 연결"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "source.onlinePresence"
+msgstr "인스턴스 온라인"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "source.original"
+msgstr "원래 출처 (checkpoint 보고, Host 미검증)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "source.resumed"
+msgstr "이번 재개 · 현재 시작 주체는 위에 표시"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "source.unknown"
+msgstr "출처 미확인"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "source.unknownPresence"
+msgstr "인스턴스 상태 알 수 없음"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "source.user"
+msgstr "사용자 자격 증명"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "ssh.advanced"
 msgstr "SSH 고급 설정"
 

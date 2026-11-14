@@ -1450,6 +1450,76 @@ msgstr "Не назначено"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "source.agent"
+msgstr "Учётные данные ИИ"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "source.correlation"
+msgstr "Цель и связанные ID"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "source.declared"
+msgstr "заявлено клиентом"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "source.endedPresence"
+msgstr "Экземпляр завершён"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "source.expiredPresence"
+msgstr "Срок экземпляра истёк"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "source.host"
+msgstr "Задача под управлением Host"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "source.initiator"
+msgstr "Инициатор"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "source.local"
+msgstr "Только в этом окне · отдельное SSH-соединение"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "source.onlinePresence"
+msgstr "Экземпляр в сети"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "source.original"
+msgstr "Исходный источник (отчёт checkpoint, не проверен Host)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "source.resumed"
+msgstr "Попытка возобновления · текущий инициатор указан выше"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "source.unknown"
+msgstr "Источник не подтверждён"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "source.unknownPresence"
+msgstr "Состояние экземпляра неизвестно"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "source.user"
+msgstr "Учётные данные пользователя"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "ssh.advanced"
 msgstr "Дополнительные настройки SSH"
 

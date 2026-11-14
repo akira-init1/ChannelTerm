@@ -1450,6 +1450,76 @@ msgstr "Unassigned"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "source.agent"
+msgstr "AI credential"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "source.correlation"
+msgstr "Target and correlation IDs"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "source.declared"
+msgstr "client-declared"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "source.endedPresence"
+msgstr "Instance ended"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "source.expiredPresence"
+msgstr "Instance expired"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "source.host"
+msgstr "Host-managed task"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "source.initiator"
+msgstr "Initiator"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "source.local"
+msgstr "This window only · independent SSH connection"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "source.onlinePresence"
+msgstr "Instance online"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "source.original"
+msgstr "Original source (checkpoint report, not Host-verified)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "source.resumed"
+msgstr "Resume attempt · current initiator shown above"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "source.unknown"
+msgstr "Source unconfirmed"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "source.unknownPresence"
+msgstr "Instance state unknown"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "source.user"
+msgstr "User credential"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "ssh.advanced"
 msgstr "Advanced SSH settings"
 

@@ -5,6 +5,7 @@ import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/
 import { HostClient } from "../src/main/host/client";
 import { object, text } from "../src/main/host/validation";
 import { startFixture } from "./fixture";
+import { setTimeout as delay } from "node:timers/promises";
 
 test("window instances distinguish views, pin file intent, preserve output provenance and end without closing Sessions", async () => {
   const fixture = await startFixture();
@@ -30,6 +31,7 @@ test("window instances distinguish views, pin file intent, preserve output prove
     };
     await first.connect();
     await second.connect();
+    assert.deepEqual(await first.managedTransfers(), []);
     const initial = await views();
     assert.equal(initial.length, 2);
     assert.notEqual(initial[0]!.id, initial[1]!.id);
@@ -41,7 +43,7 @@ test("window instances distinguish views, pin file intent, preserve output prove
     const target = (await first.list())[0]!.session_id;
     const a = await first.attach(target),
       b = await first.attach(target);
-    await second.attach(target);
+    const observing = await second.attach(target);
     const attached = await views();
     assert.deepEqual(
       attached.map((view) => (view.uses as unknown[]).length).sort(),
@@ -57,6 +59,12 @@ test("window instances distinguish views, pin file intent, preserve output prove
     assert.equal(source.declared_entry, "electron");
     assert.ok(initial.some((view) => view.id === source.instance_id));
     assert.ok(text(source.operation_id).startsWith("CU-"));
+    const live = await second.activity(observing.id);
+    assert.equal(
+      live.rows.find((row) => row.source?.instanceId === source.instance_id)
+        ?.source?.presence,
+      "online",
+    );
     const operation = await first.fileOperation(target);
     assert.ok(operation.delegation.length >= 20);
     const delegated = await call("client_instance", {
@@ -77,6 +85,13 @@ test("window instances distinguish views, pin file intent, preserve output prove
     await operation.done();
     await first.detach(b.id);
     await first.disconnect();
+    await delay(2100); // Presence snapshots are intentionally coalesced for two seconds.
+    const offline = await second.activity(observing.id);
+    assert.equal(
+      offline.rows.find((row) => row.source?.instanceId === source.instance_id)
+        ?.source?.presence,
+      "ended",
+    );
     const remaining = await views();
     assert.equal(remaining.filter((view) => view.state === "online").length, 1);
     assert.equal((await second.list())[0]!.state, "open");

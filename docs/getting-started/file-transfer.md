@@ -16,6 +16,18 @@ interop, local paths and the HTTP credential belong to the OS running the chosen
 
 ## Managed MCP transfers
 
+To inspect who initiated a Host-managed task without opening private transfer details, call
+`file_transfer_list` with `{}`. It returns bounded public source/ID/progress summaries across
+clients; listing does not grant access to another client's paths or cancellation controls.
+Electron combines these summaries with observed serial events and separately labels its independent
+SSH jobs as visible only in the current window. Expand source details for full client/instance/
+operation IDs; executable labels marked client-declared are not verified operator identities.
+
+For serial resume, the checkpoint identifies the same saved task while each attempt has a new
+transfer and current initiator. The original source is a client-retained checkpoint report, not
+Host-verified evidence. Older checkpoints and independent SFTP prefix resumes may have unknown
+original sources. An ended/expired instance does not prove its accepted operation has stopped.
+
 Configure a [Host transfer root and optional SSH profiles](../reference/configuration.md#managed-file-transfer-grants),
 then start `channelterm mcp` with its usual stdio or authenticated HTTP transport. Stdio remains
 silent on stdout until protocol traffic; HTTP prints its listening endpoint to stderr. Connect the

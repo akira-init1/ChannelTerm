@@ -1214,8 +1214,12 @@ main {
   margin: 0 0 8px;
   color: #b3bdc9;
 }
+.activity-table-scroll {
+  overflow-x: auto;
+}
 .session-activity table {
   width: 100%;
+  min-width: 760px;
   border-collapse: collapse;
   text-align: left;
 }
@@ -1236,6 +1240,9 @@ main {
 .session-activity td:first-child {
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
+}
+.session-activity td:nth-child(2) {
+  white-space: nowrap;
 }
 
 .diagnostic-result {
@@ -1357,4 +1364,24 @@ main {
   width: auto;
   margin: 0;
   flex: none;
+}
+/* Correlation identifiers remain selectable without widening narrow workbench panels. */
+.operation-source {
+  font-size: 11px;
+  overflow-wrap: anywhere;
+  max-width: 100%;
+}
+.operation-source summary {
+  cursor: pointer;
+  color: var(--muted);
+}
+.operation-source dl {
+  margin: 4px 0;
+}
+.operation-source dt {
+  opacity: 0.7;
+}
+.operation-source dd {
+  margin: 0 0 4px;
+  user-select: text;
 }

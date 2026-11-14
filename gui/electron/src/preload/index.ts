@@ -59,6 +59,7 @@ const api: DesktopAPI = {
   startSSHTransfer: (request) =>
     ipcRenderer.invoke(channels.startSSHTransfer, request),
   sshTransfers: () => ipcRenderer.invoke(channels.sshTransfers),
+  managedTransfers: () => ipcRenderer.invoke(channels.managedTransfers),
   cancelSSHTransfer: (id) => ipcRenderer.invoke(channels.cancelSSHTransfer, id),
   transferCheckpoints: (sessionId) =>
     ipcRenderer.invoke(channels.transferCheckpoints, sessionId),

@@ -264,10 +264,17 @@ func (a *Application) ReportFileTransferEventForClient(ctx context.Context, iden
 		return err
 	}
 	transferID = strings.TrimSpace(transferID)
-	if err := a.leases.validateFileTransferReporter(terminal.ID(), owner, transferID); err != nil {
+	initiator, err := a.leases.fileTransferReporter(terminal.ID(), owner, transferID)
+	if err != nil {
 		return err
 	}
+	if initiator != (session.ClientIdentity{}) {
+		ctx = WithClientIdentity(ctx, initiator)
+	}
 	eventMetadata := copyFileTransferEventMetadata(metadata)
+	if err := normalizeCheckpointEventMetadata(eventMetadata); err != nil {
+		return err
+	}
 	eventMetadata["transfer_id"] = transferID
 	if typ == session.EventFileTransferCompleted {
 		if err := validateCompletedFileTransferMetadata(eventMetadata); err != nil {

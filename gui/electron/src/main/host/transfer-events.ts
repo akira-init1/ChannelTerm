@@ -1,5 +1,6 @@
 import type { TransferStatus } from "../../shared/transfers";
 import { integer, object, text, incompatible } from "./validation";
+import { operationSource } from "./provenance";
 
 /** Bounded presentation history. Only Host cursor metadata suppresses terminal bytes. */
 export class TransferEvents {
@@ -85,10 +86,26 @@ export class TransferEvents {
           total: 0,
           speed: 0,
           released: false,
+          scope: "session",
+          initiator: operationSource(event.client),
         };
         this.jobs.set(id, job);
         if (this.jobs.size > 32)
           this.jobs.delete(this.jobs.keys().next().value!);
+      }
+      // Freeze the first known initiator; later cleanup/reporting is not a new job.
+      job.initiator ??= operationSource(event.client);
+      if (m.checkpoint_id !== undefined) {
+        const checkpoint = text(m.checkpoint_id);
+        if (!/^[a-f0-9]{24}$/.test(checkpoint)) throw incompatible();
+        job.checkpointId = checkpoint;
+        job.originalSource ??= operationSource(m.checkpoint_origin);
+        job.resumed = m.resumed === true;
+      }
+      if (m.managed_transfer_id !== undefined) {
+        const managed = text(m.managed_transfer_id);
+        if (!/^FT-[A-Za-z0-9]{16,64}$/.test(managed)) throw incompatible();
+        job.managedId = managed;
       }
       for (const [field, key] of [
         ["direction", "direction"],
@@ -152,6 +169,12 @@ export class TransferEvents {
     return { data, dropped: start < this.historyCutoff };
   }
   snapshots(): TransferStatus[] {
-    return [...this.jobs.values()].map((job) => ({ ...job }));
+    return [...this.jobs.values()].map((job) => ({
+      ...job,
+      initiator: job.initiator ? { ...job.initiator } : undefined,
+      originalSource: job.originalSource
+        ? { ...job.originalSource }
+        : undefined,
+    }));
   }
 }

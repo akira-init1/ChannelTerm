@@ -14,6 +14,27 @@ import (
 
 type fileTransferTool struct{ application *app.Application }
 
+type listFileTransfersTool struct{ application *app.Application }
+
+func (*listFileTransfersTool) Name() string { return "file_transfer_list" }
+func (*listFileTransfersTool) Description() string {
+	return "Read up to 128 public Host-managed transfer summaries across clients. Only initiator, correlation IDs, state and byte counts; no paths, SSH profiles, errors or cancellation authority. Independent CLI/desktop SSH copies are not Host tasks. Does not renew presence or wait for device I/O."
+}
+func (*listFileTransfersTool) InputSchema() tool.InputSchema {
+	return tool.InputSchema{Type: "object", Properties: map[string]tool.InputProperty{}}
+}
+func (t *listFileTransfersTool) Call(ctx context.Context, input json.RawMessage) (tool.Result, error) {
+	var q *struct{}
+	if err := decodeDebug(input, &q); err != nil {
+		return nil, err
+	}
+	if q == nil {
+		return nil, errors.New("transfer list requires an empty object")
+	}
+	rows, err := t.application.ListFileTransfers(ctx)
+	return tool.Result{"transfers": rows}, err
+}
+
 func (t *fileTransferTool) Name() string { return "file_transfer" }
 func (t *fileTransferTool) Description() string {
 	return "Transfer Host-local files through one managed task: start, status or cancel. Supports one file, multiple paths, directories, TAR and tar.gz over serial or SSH. auto preserves files and may temporarily bundle serial uploads; tar/tar.gz explicitly keeps an archive. Host paths are relative to configured file_transfer.root, not the MCP client's computer. SSH uses a configured profile with strict host-key checking. All copies verify SHA-256 and preflight space. Start returns immediately; poll status until completed/failed/cancelled. Retry start with the same request_id and unchanged arguments. No automatic overwrite or resume."

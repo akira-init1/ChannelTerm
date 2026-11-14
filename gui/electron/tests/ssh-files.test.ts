@@ -96,6 +96,8 @@ test("SCP companion requires completion plus exit success and keeps credentials 
         success ? "completed" : "failed",
       );
       assert.ok(!JSON.stringify(files.snapshots()).includes("fixture-secret"));
+      assert.equal(files.snapshots()[0]?.scope, "local");
+      assert.equal(files.snapshots()[0]?.initiator, undefined);
     }
   } finally {
     await rm(root, { recursive: true, force: true });
@@ -289,6 +291,11 @@ test(
         await delay(5);
       }
       assert.ok(active, "missing intermediate SFTP progress");
+      assert.equal(active.scope, "local");
+      assert.ok(active.initiator?.instanceId);
+      assert.ok(active.initiator?.operationId);
+      assert.equal(active.initiator?.entry, "desktop");
+      assert.equal(active.originalSource, undefined);
       await assert.rejects(
         files.transfer(host, r, () => local),
         /already running/,

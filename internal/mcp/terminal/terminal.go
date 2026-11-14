@@ -176,7 +176,7 @@ func newSerialTools(manager *session.Manager, serviceDependencies app.SerialDepe
 
 func terminalToolsForApplication(application *app.Application) []tool.Tool {
 	tools := serialToolsForApplication(application)
-	tools = append(tools, &fileTransferTool{application: application}, &clientInstanceTool{application: application})
+	tools = append(tools, &fileTransferTool{application: application}, &clientInstanceTool{application: application}, &listFileTransfersTool{application: application})
 	tools = append(tools, debugToolsForApplication(application)...)
 	tools = append(tools, bridgeToolsForApplication(application)...)
 	tools = append(tools, debugObservationTools(application)...)
@@ -1620,6 +1620,9 @@ type leaseSummary struct {
 
 func leaseResult(lease app.SessionLease) tool.Result {
 	result := tool.Result{"session_id": lease.SessionID, "type": string(lease.Type), "created_at": lease.CreatedAt.Format(time.RFC3339Nano), "expires_at": lease.ExpiresAt.Format(time.RFC3339Nano), "state": lease.State}
+	if lease.Client != (session.ClientIdentity{}) {
+		result["client"] = lease.Client
+	}
 	if lease.TransferID != "" {
 		result["transfer_id"] = lease.TransferID
 	}

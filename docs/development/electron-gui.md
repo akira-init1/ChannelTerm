@@ -508,6 +508,13 @@ with the same shared Host Session lifecycle. No developer SSH trust file is acce
 
 ### Session activity checks
 
+Source regressions cover missing identities despite `actor: user`, public field projection,
+secret exclusion, distinct current/original initiators, malformed/oversized summaries, snapshot
+copy isolation, bounded histories after event loss, multi-window online/ended instances and local
+SSH task visibility. Disconnect/history retention clears liveness without erasing provenance.
+The native activity scenario checks the separate initiator column and unknown-source label.
+Source translations use the same official extraction/strict compilation workflow as menus.
+
 Activity tests cover independent cursors, input/metadata redaction, UTC normalization, malformed
 responses without cursor advancement, timeout, the 200-row bound, loss notices, overlapping reads,
 foreign/stale attachments and detach during a read. The native scenario observes Agent input,

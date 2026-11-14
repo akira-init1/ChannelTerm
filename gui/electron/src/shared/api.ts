@@ -130,6 +130,7 @@ export interface DesktopAPI {
   startTransfer(request: TransferRequest): Promise<Result<void>>;
   startSSHTransfer(request: SSHTransferRequest): Promise<Result<void>>;
   sshTransfers(): Promise<Result<TransferStatus[]>>;
+  managedTransfers(): Promise<Result<TransferStatus[]>>;
   cancelSSHTransfer(id: string): Promise<Result<void>>;
   transferCheckpoints(sessionId: string): Promise<Result<TransferCheckpoint[]>>;
   resumeTransfer(
@@ -204,6 +205,7 @@ export const channels = {
   startTransfer: "files:transfer",
   startSSHTransfer: "files:ssh-start",
   sshTransfers: "files:ssh-status",
+  managedTransfers: "files:managed-status",
   cancelSSHTransfer: "files:ssh-cancel",
   transferCheckpoints: "files:checkpoints",
   resumeTransfer: "files:resume",

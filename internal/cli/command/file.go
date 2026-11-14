@@ -880,9 +880,30 @@ func newFileTransferProgress(ctx context.Context, output io.Writer, attached att
 		if owner, ok := attached.(interface{ FileTransferID() string }); ok {
 			id = owner.FileTransferID()
 		}
-		p.machineError = machine.emit(map[string]any{"type": "started", "transfer_id": id})
+		p.machineError = machine.emit(map[string]any{"type": "started", "transfer_id": id, "client": fileTransferClient(attached)})
+	} else if source, ok := attached.(interface{ FileTransferClient() session.ClientIdentity }); ok {
+		_, p.machineError = fmt.Fprintf(output, "Source: %s\n", formatTransferClient(source.FileTransferClient()))
+		if owner, ok := attached.(interface{ FileTransferID() string }); ok && p.machineError == nil {
+			_, p.machineError = fmt.Fprintf(output, "Transfer ID: %q\n", owner.FileTransferID())
+		}
 	}
 	return p
+}
+
+func fileTransferClient(attached attachSession) session.ClientIdentity {
+	if source, ok := attached.(interface{ FileTransferClient() session.ClientIdentity }); ok {
+		return source.FileTransferClient()
+	}
+	return session.ClientIdentity{}
+}
+
+// formatTransferClient quotes all external labels so terminal control bytes cannot execute.
+func formatTransferClient(c session.ClientIdentity) string {
+	kind := "unknown"
+	if c.ID != "" && (c.Kind == "user" || c.Kind == "agent") {
+		kind = c.Kind
+	}
+	return fmt.Sprintf("%s name=%q client=%q instance=%q parent=%q operation=%q entry=%q declared_entry=%q (client-declared)", kind, c.Name, c.ID, c.InstanceID, c.ParentInstanceID, c.OperationID, c.Entry, c.DeclaredEntry)
 }
 
 // Report renders and publishes one confirmed transfer progress update.

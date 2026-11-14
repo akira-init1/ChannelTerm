@@ -34,3 +34,27 @@ func TestFileTransferToolRejectsInvalidInputAndEnforcesWrites(t *testing.T) {
 		t.Fatal("read-only status denied")
 	}
 }
+
+func TestFileTransferListAllowsReadersAndRejectsUnexpectedArguments(t *testing.T) {
+	manager := session.NewManager()
+	defer manager.Close()
+	a, err := app.New(app.Dependencies{Manager: manager})
+	if err != nil {
+		t.Fatal(err)
+	}
+	tool := authorizedTool{Tool: &listFileTransfersTool{application: a}, application: a}
+	ctx := app.WithClientAccess(context.Background(), app.ClientAccess{})
+	result, err := tool.Call(ctx, json.RawMessage(`{}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows, ok := result["transfers"].([]app.TransferSummary)
+	if !ok || rows == nil || len(rows) != 0 {
+		t.Fatalf("expected empty public list, got %#v", result)
+	}
+	for _, input := range []string{`null`, `{"cancel":true}`, `{"transfer_id":"FT-example"}`, `{} {}`} {
+		if _, err := tool.Call(ctx, json.RawMessage(input)); err == nil {
+			t.Fatalf("accepted %s", input)
+		}
+	}
+}

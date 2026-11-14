@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"path"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -38,6 +39,7 @@ type TransferRequest struct {
 // restoration and lease release. A failed/cancelled upload can leave remote
 // partial data; ResolvedPath identifies the attempted destination when known.
 type TransferStatus struct {
+	SessionID         string                 `json:"session_id,omitempty"`
 	Client            session.ClientIdentity `json:"client,omitzero"`
 	ID                string                 `json:"transfer_id"`
 	State             string                 `json:"state"`
@@ -178,6 +180,12 @@ func (a *Application) StartFileTransfer(ctx context.Context, q TransferRequest) 
 	}
 	worker, cancel := context.WithTimeout(context.WithoutCancel(operationContext), time.Duration(q.TimeoutSeconds)*time.Second)
 	id := "FT-" + rand.Text()
+	sessionID := ""
+	if q.SessionID != "" {
+		if terminal, lookupErr := a.session(q.SessionID); lookupErr == nil {
+			sessionID = terminal.ID()
+		}
+	}
 	r := &transferRun{app: a, request: q, fingerprint: string(encoded), client: client, created: time.Now(), cancel: cancel, done: make(chan struct{}), status: TransferStatus{Client: ClientIdentityFromContext(operationContext), ID: id, State: "running", Phase: "preflight", Transport: q.Transport, Mode: q.Mode}}
 	if c.runs == nil {
 		c.runs = make(map[string]*transferRun)
@@ -186,6 +194,7 @@ func (a *Application) StartFileTransfer(ctx context.Context, q TransferRequest) 
 		delete(c.runs, oldest.status.ID)
 	}
 	c.runs[id] = r
+	r.status.SessionID = sessionID
 	go func() {
 		defer finishUse()
 		defer close(r.done)
@@ -239,6 +248,41 @@ func (a *Application) FileTransferStatus(ctx context.Context, id string, cancel 
 		}
 	}
 	return r.snapshot(), nil
+}
+
+// TransferSummary is a public observation, excluding paths, profiles, errors and capabilities.
+// It conveys no right to query private status or cancel another client's task.
+type TransferSummary struct {
+	ID                string                 `json:"transfer_id"`
+	SessionID         string                 `json:"session_id,omitempty"`
+	SessionTransferID string                 `json:"session_transfer_id,omitempty"`
+	Client            session.ClientIdentity `json:"client,omitzero"`
+	Transport         string                 `json:"transport"`
+	Direction         string                 `json:"direction"`
+	State             string                 `json:"state"`
+	Phase             string                 `json:"phase"`
+	Bytes             int64                  `json:"bytes"`
+	TotalBytes        int64                  `json:"total_bytes"`
+}
+
+// ListFileTransfers copies at most 128 retained task summaries without renewing,
+// cancelling or waiting for I/O. The existing coordinator bounds retention.
+func (a *Application) ListFileTransfers(ctx context.Context) ([]TransferSummary, error) {
+	if err := CheckClientAccess(ctx, ClientRead); err != nil {
+		return nil, err
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	a.transfers.mu.Lock()
+	defer a.transfers.mu.Unlock()
+	rows := make([]TransferSummary, 0, len(a.transfers.runs))
+	for _, r := range a.transfers.runs {
+		s := r.snapshot()
+		rows = append(rows, TransferSummary{ID: s.ID, SessionID: s.SessionID, SessionTransferID: s.SessionTransferID, Client: s.Client, Transport: s.Transport, Direction: r.request.Direction, State: s.State, Phase: s.Phase, Bytes: s.Bytes, TotalBytes: s.TotalBytes})
+	}
+	sort.Slice(rows, func(i, j int) bool { return rows[i].ID < rows[j].ID })
+	return rows, nil
 }
 
 // CloseFileTransfers prevents admission, cancels and joins all managed workers.

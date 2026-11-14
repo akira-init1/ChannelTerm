@@ -164,3 +164,6 @@ Session owner or authentication service. Empty provenance remains unknown.
 Application owns online instance lifetime separately. `entry` identifies the accepting adapter;
 `declared_entry` is an unverified client label. Session does not process instance proofs or
 heartbeats, and presence changes never rewrite buffered provenance or terminal bytes.
+Transfer events distinguish authenticated `client` from client-reported `checkpoint_origin`
+metadata. The latter is historical correlation only. Existing bounded event retention and drop
+semantics apply; a missing initial event or source field never proves human initiation.

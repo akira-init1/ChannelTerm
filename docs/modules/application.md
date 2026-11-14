@@ -622,6 +622,13 @@ Unregistered callers without instance metadata retain empty identity. See the
 
 ### Volatile client instances
 
+Transfer reports capture the lease initiator under the same lock as capability/transfer-ID
+validation, keeping the original operation stable across reporting requests. `ListFileTransfers`
+copies bounded public summaries from the existing coordinator, with no filesystem paths, profiles,
+errors, private status access or cancellation authority. It is independent of Session event cursors.
+Resumable checkpoints retain an optional initial public identity; reports normalize that local claim
+separately from authenticated current provenance. Neither observation path changes lease lifetime.
+
 Application owns bounded instance registration, renewal, end, public snapshots and explicit
 Session uses. Registration binds the authenticated client, while names and declared executable
 labels remain unverified claims. Private capability digests stay in Application memory; public

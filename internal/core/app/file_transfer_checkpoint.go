@@ -12,6 +12,10 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
+	"unicode"
+
+	"github.com/akira-init1/ChannelTerm/internal/core/session"
 
 	"github.com/gofrs/flock"
 )
@@ -24,6 +28,9 @@ var checkpointDigest = regexp.MustCompile(`^[a-f0-9]{64}$`)
 // the caller must validate it against the explicitly selected live Session.
 // Directory transfers use an immutable tar snapshot; offsets count archive bytes.
 type TransferCheckpoint struct {
+	// Origin is client-retained provenance, not authenticated Host evidence or authority.
+	// A resumed execution has a separate current initiator; this stays fixed.
+	Origin       session.ClientIdentity   `json:"origin,omitzero"`
 	Version      int                      `json:"version"`
 	ID           string                   `json:"id"`
 	Direction    string                   `json:"direction"`
@@ -78,6 +85,10 @@ func CreateTransferCheckpoint(ctx context.Context, root, direction, localPath, r
 		return c, err
 	}
 	c = TransferCheckpoint{Version: 1, ID: hex.EncodeToString(id[:]), Direction: direction, Kind: RemotePathFile, LocalPath: localPath, RemotePath: remotePath, Peer: peer, Wire: wire, Phase: "preparing", PrefixSHA256: emptyTransferDigest()}
+	c.Origin = ClientIdentityFromContext(ctx)
+	if !validCheckpointOrigin(c.Origin) {
+		return c, errors.New("invalid checkpoint origin")
+	}
 	dir := filepath.Join(root, c.ID)
 	if err := os.Mkdir(dir, 0700); err != nil {
 		return c, err
@@ -184,6 +195,9 @@ func ReadTransferCheckpoint(root, id string) (TransferCheckpoint, error) {
 	if err := json.Unmarshal(data, &c); err != nil {
 		return c, err
 	}
+	if !validCheckpointOrigin(c.Origin) {
+		return c, errors.New("invalid checkpoint origin")
+	}
 	if c.Version != 1 || c.ID != id || (c.Direction != "send" && c.Direction != "receive") ||
 		(c.Kind != RemotePathFile && c.Kind != RemotePathDirectory) || !filepath.IsAbs(c.LocalPath) ||
 		len(c.LocalPath) > 4096 || len(c.Peer) > 8192 || c.RemotePath == "" || c.RemotePath[0] != '/' ||
@@ -207,6 +221,50 @@ func ReadTransferCheckpoint(root, id string) (TransferCheckpoint, error) {
 		return c, errors.New("invalid checkpoint phase")
 	}
 	return c, nil
+}
+
+// normalizeCheckpointEventMetadata keeps only bounded public checkpoint claims.
+// The current initiator is supplied independently by the Host's lease authority.
+func normalizeCheckpointEventMetadata(metadata map[string]any) error {
+	if raw, present := metadata["checkpoint_id"]; present {
+		id, ok := raw.(string)
+		if !ok || !checkpointID.MatchString(id) {
+			return errors.New("invalid checkpoint ID in transfer event")
+		}
+	}
+	if raw, present := metadata["resumed"]; present {
+		if _, ok := raw.(bool); !ok {
+			return errors.New("invalid resumed flag in transfer event")
+		}
+	}
+	if raw, present := metadata["checkpoint_origin"]; present {
+		if _, ok := metadata["checkpoint_id"]; !ok {
+			return errors.New("checkpoint origin requires checkpoint ID")
+		}
+		data, err := json.Marshal(raw)
+		if err != nil || len(data) > 4096 {
+			return errors.New("invalid checkpoint origin in transfer event")
+		}
+		var origin session.ClientIdentity
+		if json.Unmarshal(data, &origin) != nil || !validCheckpointOrigin(origin) {
+			return errors.New("invalid checkpoint origin in transfer event")
+		}
+		metadata["checkpoint_origin"] = origin
+	}
+	return nil
+}
+
+// validCheckpointOrigin bounds a local display claim; it never validates credentials.
+func validCheckpointOrigin(c session.ClientIdentity) bool {
+	if c.Kind != "" && c.Kind != "user" && c.Kind != "agent" && c.Kind != "unknown" {
+		return false
+	}
+	for _, s := range []string{c.ID, c.Name, c.Kind, c.InstanceID, c.ParentInstanceID, c.OperationID, c.Entry, c.DeclaredEntry} {
+		if len(s) > 128 || strings.ContainsFunc(s, unicode.IsControl) {
+			return false
+		}
+	}
+	return len(c.Entry) <= 32 && len(c.DeclaredEntry) <= 32
 }
 
 // ListTransferCheckpoints returns at most 128 incomplete jobs. Corrupt records

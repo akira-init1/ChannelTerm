@@ -145,6 +145,9 @@ func (p *fileTransferPresentation) handle(event session.Event, local bool, write
 		p.speed = 0
 		if !local {
 			text = fileTransferStatusPrefix(event.Timestamp) + "File transfer started: " + fileTransferEventPaths(event.Metadata) + "\r\n"
+			if event.Client != (session.ClientIdentity{}) {
+				text += "[ChannelTerm] Source: " + formatTransferClient(event.Client) + "\r\n"
+			}
 		}
 	case session.EventFileTransferProgress:
 		// A retained observer can begin at a progress event when older events

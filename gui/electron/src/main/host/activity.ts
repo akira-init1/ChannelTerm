@@ -1,5 +1,6 @@
 import type { ActivityRow, ActivitySnapshot } from "../../shared/activity";
 import { incompatible, integer, object, text } from "./validation";
+import { operationSource } from "./provenance";
 
 const pageSize = 32;
 const retainedRows = 200;
@@ -85,6 +86,7 @@ export class ActivityFeed {
           details: "",
           history: cursor === undefined,
           clientReport: false,
+          source: operationSource(event.client),
         };
         if (kind === "activity") {
           row.type = label(event.operation);
@@ -116,6 +118,8 @@ export class ActivityFeed {
             "state",
             "operation_id",
             "transfer_id",
+            "managed_transfer_id",
+            "checkpoint_id",
             "kind",
             "reason",
           ]
@@ -153,7 +157,10 @@ export class ActivityFeed {
     this.activityCursor = activityCursor;
     this.eventCursor = eventCursor;
     return {
-      rows: this.rows.map((row) => ({ ...row })),
+      rows: this.rows.map((row) => ({
+        ...row,
+        source: row.source ? { ...row.source } : undefined,
+      })),
       dropped: this.dropped,
       truncated: this.truncated,
     };

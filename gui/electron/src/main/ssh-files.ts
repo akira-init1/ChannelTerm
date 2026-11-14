@@ -127,7 +127,10 @@ export class DesktopSSHFiles {
     this.jobs = [];
   }
   snapshots(): TransferStatus[] {
-    return this.jobs.map((job) => ({ ...job }));
+    return this.jobs.map((job) => ({
+      ...job,
+      initiator: job.initiator ? { ...job.initiator } : undefined,
+    }));
   }
   cancel(id: unknown): void {
     identifier(id);
@@ -157,6 +160,8 @@ export class DesktopSSHFiles {
       total: 0,
       speed: 0,
       released: false,
+      scope: "local",
+      resumed: r.resume,
     };
     const active: NonNullable<DesktopSSHFiles["active"]> = {
       job,
@@ -168,6 +173,7 @@ export class DesktopSSHFiles {
     try {
       const entry = await host.validateFileSession(r.sessionId);
       provenance = await host.fileOperation?.(r.sessionId, false);
+      job.initiator = provenance?.source;
       const c = r.connection;
       const address = c.host.includes(":") ? `[${c.host}]` : c.host;
       if (

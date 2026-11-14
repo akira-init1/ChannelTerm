@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { ActivitySnapshot } from "../../shared/activity";
 import type { ClientError } from "../../shared/api";
 import { host, unwrap } from "../host";
+import { OperationSource } from "../components/OperationSource";
 
 /** Mounted only for the visible panel; old reads cannot populate a different attachment. */
 export function ActivityPanel({
@@ -48,44 +49,57 @@ export function ActivityPanel({
       {snapshot?.dropped && <p role="status">{t("activity.dropped")}</p>}
       {snapshot?.truncated && <p role="status">{t("activity.truncated")}</p>}
       {snapshot?.rows.length === 0 && <p>{t("activity.empty")}</p>}
-      <table aria-label={t("activity.title")}>
-        <thead>
-          <tr>
-            <th>{t("activity.time")}</th>
-            <th>{t("activity.actor")}</th>
-            <th>{t("activity.event")}</th>
-            <th>{t("activity.details")}</th>
-            <th>{t("activity.origin")}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {snapshot?.rows.map((row) => (
-            <tr key={row.id}>
-              <td title={row.timestamp}>
-                {row.timestamp.slice(11, 23).replace(/Z$/, "")}
-              </td>
-              <td>
-                {["user", "agent", "system"].includes(row.actor)
-                  ? t(`activity.${row.actor}`)
-                  : t("activity.other")}
-              </td>
-              <td>
-                {row.bytes !== undefined
-                  ? t("activity.write")
-                  : row.clientReport
-                    ? t("activity.clientReport")
-                    : row.type}
-              </td>
-              <td>
-                {row.bytes !== undefined ? `${row.bytes} B` : row.details}
-              </td>
-              <td>
-                {t(row.history ? "activity.history" : "activity.observed")}
-              </td>
+      <div className="activity-table-scroll">
+        <table aria-label={t("activity.title")}>
+          <thead>
+            <tr>
+              <th>{t("activity.time")}</th>
+              <th>{t("activity.actor")}</th>
+              <th>{t("source.initiator")}</th>
+              <th>{t("activity.event")}</th>
+              <th>{t("activity.details")}</th>
+              <th>{t("activity.origin")}</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {snapshot?.rows.map((row) => (
+              <tr key={row.id}>
+                <td title={row.timestamp}>
+                  {row.timestamp.slice(11, 23).replace(/Z$/, "")}
+                </td>
+                <td>
+                  {["user", "agent", "system"].includes(row.actor)
+                    ? t(`activity.${row.actor}`)
+                    : t("activity.other")}
+                </td>
+                <td>
+                  <OperationSource
+                    source={
+                      error && row.source
+                        ? { ...row.source, presence: "unknown" }
+                        : row.source
+                    }
+                    t={t}
+                  />
+                </td>
+                <td>
+                  {row.bytes !== undefined
+                    ? t("activity.write")
+                    : row.clientReport
+                      ? t("activity.clientReport")
+                      : row.type}
+                </td>
+                <td>
+                  {row.bytes !== undefined ? `${row.bytes} B` : row.details}
+                </td>
+                <td>
+                  {t(row.history ? "activity.history" : "activity.observed")}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

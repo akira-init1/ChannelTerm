@@ -10,6 +10,10 @@ import { locales } from "../src/shared/menus.ts";
 
 async function language(desktop, page, locale) {
   await page.bringToFront();
+  const window = await desktop.browserWindow(page);
+  await expect
+    .poll(() => window.evaluate((window) => window.isFocused()))
+    .toBe(true);
   await desktop.evaluate(
     ({ Menu }, locale) =>
       Menu.getApplicationMenu().getMenuItemById(`language.${locale}`).click(),

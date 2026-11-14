@@ -23,11 +23,15 @@ type jsonSchema struct {
 func terminalOutputSchema(name string) (jsonSchema, bool) {
 	var schema jsonSchema
 	switch name {
+	case "file_transfer_list":
+		schema = objectSchema(map[string]jsonSchema{"transfers": arraySchema(objectSchema(map[string]jsonSchema{
+			"transfer_id": stringSchema(), "session_id": stringSchema(), "session_transfer_id": stringSchema(), "client": clientIdentitySchema(), "transport": stringSchema(), "direction": stringSchema(), "state": stringSchema(), "phase": stringSchema(), "bytes": integerSchema(), "total_bytes": integerSchema(),
+		}, "transfer_id", "transport", "direction", "state", "phase", "bytes", "total_bytes"))}, "transfers")
 	case "client_instance":
 		schema = objectSchema(map[string]jsonSchema{"action": stringSchema(), "instance": instanceSchema(), "instances": arraySchema(instanceSchema()), "credential": objectSchema(map[string]jsonSchema{"id": stringSchema(), "secret": stringSchema()}, "id", "secret"), "use": instanceUseSchema(), "ended": booleanSchema(), "delegation": stringSchema()}, "action")
 	case "file_transfer":
 		schema = objectSchema(map[string]jsonSchema{"status": objectSchema(map[string]jsonSchema{
-			"client": clientIdentitySchema(), "transfer_id": stringSchema(), "state": stringSchema(), "phase": stringSchema(), "transport": stringSchema(), "mode": stringSchema(),
+			"client": clientIdentitySchema(), "session_id": stringSchema(), "transfer_id": stringSchema(), "state": stringSchema(), "phase": stringSchema(), "transport": stringSchema(), "mode": stringSchema(),
 			"wire_mode": stringSchema(), "selection_reason": stringSchema(), "resolved_path": stringSchema(), "session_transfer_id": stringSchema(), "current_file": stringSchema(),
 			"bytes": integerSchema(), "total_bytes": integerSchema(), "files_verified": integerSchema(), "files_total": integerSchema(),
 			"current_bytes": integerSchema(), "current_total": integerSchema(),
@@ -288,6 +292,7 @@ func fileTransferResultSchema() jsonSchema {
 
 func leaseSchema() jsonSchema {
 	return objectSchema(map[string]jsonSchema{
+		"client":      clientIdentitySchema(),
 		"session_id":  stringSchema(),
 		"type":        leaseTypeSchema(),
 		"transfer_id": stringSchema(),

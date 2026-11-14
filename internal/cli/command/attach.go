@@ -74,10 +74,11 @@ type attachSessionFactory func(context.Context, string, string) (attachSession, 
 // existing MCP terminal tools. The remote Manager continues to own the actual
 // Session and its single Transport reader.
 type mcpAttachSession struct {
-	id         string
-	client     mcpToolClient
-	leaseOwner string
-	transferID string
+	id             string
+	client         mcpToolClient
+	leaseOwner     string
+	transferID     string
+	transferClient session.ClientIdentity
 	// recoveryReference identifies the original Host registration for delayed
 	// file-transfer cleanup, even if a caller-supplied Session ID is reused.
 	recoveryReference string
@@ -945,7 +946,8 @@ func (s *mcpAttachSession) AcquireFileTransferLease(ctx context.Context) error {
 	}
 	owner := "file-transfer-" + hex.EncodeToString(token[:])
 	var result struct {
-		TransferID string `json:"transfer_id"`
+		TransferID string                 `json:"transfer_id"`
+		Client     session.ClientIdentity `json:"client"`
 	}
 	if err := s.call(ctx, "terminal_acquire_lease", map[string]any{
 		"session_id": s.id,
@@ -960,6 +962,7 @@ func (s *mcpAttachSession) AcquireFileTransferLease(ctx context.Context) error {
 	}
 	s.leaseOwner = owner
 	s.transferID = strings.TrimSpace(result.TransferID)
+	s.transferClient = result.Client
 	return nil
 }
 
@@ -990,6 +993,7 @@ func (s *mcpAttachSession) ReleaseFileTransferLease(ctx context.Context) error {
 	}
 	s.leaseOwner = ""
 	s.transferID = ""
+	s.transferClient = session.ClientIdentity{}
 	return nil
 }
 
@@ -1453,3 +1457,6 @@ func writeDetachStatus(output io.Writer, lastOutputEndedLine bool) error {
 
 // FileTransferID returns the public correlation ID, never the owner capability.
 func (s *mcpAttachSession) FileTransferID() string { return s.transferID }
+
+// FileTransferClient returns public Host-bound initiator metadata, never the lease capability.
+func (s *mcpAttachSession) FileTransferClient() session.ClientIdentity { return s.transferClient }

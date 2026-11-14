@@ -43,6 +43,9 @@ func (p *sshFileProgress) Report(name string, transferred, total int64) error {
 				return err
 			}
 		} else {
+			if _, err := fmt.Fprintln(p.output, "Source: unknown; independent CLI SSH connection (local observation only)."); err != nil {
+				return err
+			}
 			if _, err := fmt.Fprintf(p.output, "%s %s: Ctrl+C cancels.\n", strings.ToUpper(p.request.Protocol), p.request.Operation); err != nil {
 				return err
 			}

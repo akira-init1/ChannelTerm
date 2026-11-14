@@ -37,6 +37,20 @@ link a CLI child to an exact parent operation using the private
 the inherited credential preserves registered identity but the new instance has no parent link.
 Presence is not a writer lease or proof that accepted background work has stopped.
 
+File transfer progress prints the Host-bound registered identity, instance, operation and transfer
+ID before the progress line; declared executable labels are explicitly client-declared. Shared
+attach observers show available source information on transfer-start events. Labels are quoted to
+keep control characters inert. Missing identity stays unknown, even when an old actor says `user`.
+`file --json` started records add public `client`; resumable checkpoint records add `original_client`,
+current `client` and `resumed`. `file jobs` includes the retained origin; JSON summaries add `origin`.
+These additions contain no proof secrets or lease owners and do not change terminal bytes.
+
+Serial resume preserves the checkpoint's initial origin while the new lease identifies the current
+initiator. Checkpoint origins are client-retained reports, not Host-verified history. Independent
+SFTP/SCP CLI execution has no authenticated Host source: interactive progress says unknown/local,
+and JSON started records carry `source_state: unknown`, `scope: local`, `entry: cli`. SFTP prefix
+resume has no persistent checkpoint origin, so it cannot establish the original initiator.
+
 ## Diagnostic export
 
 `channelterm diagnostics` uses an existing MCP Host and writes a ZIP on the calling machine. It
