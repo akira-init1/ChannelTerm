@@ -79,7 +79,7 @@ between 180 and 480 px with additional viewport bounds to keep the terminal usab
 sidebars are visible, each is capped at half the width remaining after reserving 320 px for the
 terminal and the activity rail. The secondary sidebar starts hidden, displays current Session
 metadata, and has the same width controls on its left edge. This is window-local view state;
-hiding either sidebar preserves its preferred width, while reopening the GUI resets it.
+hiding either sidebar preserves its preferred width. Language, layout and terminal defaults survive GUI restart; see [workspace persistence](#preferences-and-workspace-recovery).
 The terminal takes the remaining width and height. Its header contains independent terminal tabs
 and a New Tab button. Each tab owns an attachment or an empty Session chooser. Selecting a Session
 fills the selected empty tab, activates an existing view for that Session, or adds a tab. To attach
@@ -96,7 +96,7 @@ Serial presentation includes the [common terminal encodings](../getting-started/
 and an optional local description. The compact encoding button in the attached serial header
 opens the same presentation settings. Applying them reattaches this client and replays only
 retained Host output; it does not clear Host buffers, reset the device, or close the shared Session.
-Up to 64 Session preferences are retained per window until Host disconnection; they are not
+Up to 64 Session preferences are cached per window until Host disconnection. Open-tab settings also persist in the local workspace snapshot; these are not
 saved profiles or shared metadata. Descriptions allow one line of at most 512 UTF-8 bytes without
 control characters. No SSH setup, electrical serial settings, or MCP schemas change.
 
@@ -277,7 +277,7 @@ codecs, cancellation and write queues belong to individual attachments, even for
 A process-wide startup coordinator reuses the same local Host; creating a window never creates a
 second Session or a second Host manager. New windows inherit the source language preference and,
 when connected, connect to the same configured Host. Later locale/layout changes are window-local.
-Display and shortcut defaults still use the existing local storage; live windows keep their own state.
+Display, shortcut and workbench defaults use local storage; live windows keep their own state. Workspace snapshots use independent bounded window slots.
 
 **Move Tab to New Window** captures the clicked attachment, including a background tab. Main
 checks ownership and the source file-operation gate, blocks new source writes, and waits for accepted
@@ -613,3 +613,27 @@ local storage. Recent connections and SSH favorites are presentation/form data, 
 Transport ownership. They exclude credentials, credential paths and wake intent; loading a record
 only fills the connection dialog. Main and Host retain all existing validation and creation authority.
 Malformed or oversized persisted data is discarded. See the [workflow and storage contract](../reference/gui-menus.md#recent-connections-and-ssh-favorites).
+
+## Preferences and workspace recovery
+
+Renderer owns validated local language/layout/terminal defaults and bounded workspace snapshots.
+Main assigns each live window a distinct slot from 0 to 15 through the existing trusted window-info
+bridge; slots confer no Host authority. Snapshots hold up to 32 ordered tab targets and local view
+settings, scoped to the configured Host endpoint. A window takes the lowest free slot, so manually
+opening another window can restore that slot's saved views. Windows are not automatically reopened.
+An incoming tab handoff takes precedence over a saved workspace. Concurrent application processes
+sharing one GUI profile can overwrite the same slots; this is not synchronized workspace storage.
+
+After Host connection and a successful Session listing, Renderer matches each full Session ID,
+transport and endpoint against current open Sessions before attaching sequentially through the
+existing Main adapter. Missing/closed/changed targets remain closable placeholders with a notice.
+Host still revalidates attach, and generation checks prevent late results after disconnect from
+reviving views. Restoration never calls connection setup, takes resize ownership or writes input.
+It rebuilds xterm only from the existing bounded Host snapshot and existing historical-query guard.
+No local output, complete screen/parser state, cursors, attachment IDs, leases, credentials, input
+queues or unsent drafts are persisted. Closing the GUI retains shared Sessions as before.
+
+Language/layout changes save locally; terminal defaults affect new views, while saved tabs retain
+their individual settings. Existing font/shortcut keys remain compatible. Storage errors leave
+current views usable and surface a notice; malformed or oversized snapshots are ignored. See
+[the workflow and storage contract](../reference/gui-menus.md#preferences-and-workspace-recovery).

@@ -813,4 +813,23 @@ export const menuMessages = [
     message:
       "Could not save connection history. Check local storage; do not repeat a successful connection.",
   },
+  /* i18n */ {
+    id: "workspace.defaults",
+    message: "Terminal defaults for new views",
+  },
+  /* i18n */ {
+    id: "workspace.hint",
+    message:
+      "Workspace view restored. Only recent Host output (up to 64 KiB) is available; full screen state and unsent input are not restored.",
+  },
+  /* i18n */ {
+    id: "workspace.missing",
+    message:
+      "The saved Session is closed, missing or changed. It was not recreated. Close this tab or explicitly choose a live Session.",
+  },
+  /* i18n */ {
+    id: "workspace.storageError",
+    message:
+      "Could not save or load local preferences/workspace. Current views remain usable; check local storage access.",
+  },
 ] satisfies MessageDescriptor[];

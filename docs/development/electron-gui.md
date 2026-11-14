@@ -578,3 +578,13 @@ fixture evidence does not establish external executor report accuracy.
 `connection-history.test.ts` covers credential/path exclusion on write/read, serial wake reset,
 malformed storage, bounded eviction, favorites and successful-use accounting. Native connection
 checks reopen a saved serial record and verify prefilled parameters without connection or wake.
+
+### Workspace recovery checks
+
+`workspace.test.ts` validates bounded persisted preferences and tab order/settings, rejects malformed
+or foreign-Host snapshots, strips runtime/input/output fields and matches full live Session identity.
+`workspace-checks.mjs`, included in the native desktop suite, restarts Electron with a disposable
+profile while the isolated Host survives. It verifies language/layout/defaults, ordered surviving
+and closed targets, no Session recreation, no replay of a pending DOM draft or historical terminal
+queries, and usable views after storage failure. The test writes no personal configuration and
+opens no physical device. The screenshot is ignored local evidence at `test-results/workspace-restored.png`.

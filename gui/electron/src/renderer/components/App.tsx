@@ -1,3 +1,13 @@
+import {
+  preferencesKey,
+  workspaceKey,
+  restoreWorkbenchPreferences,
+  restoreWorkspace,
+  workspaceSession,
+  type WorkspaceTarget,
+  type WorkspaceSnapshot,
+  type WorkbenchPreferences,
+} from "../../shared/workspace";
 import { DebugSidebar, useDebugOverview } from "../sessions/DebugSidebar";
 import { hostRecoveryMessage } from "../../shared/host-recovery";
 import { ActivityPanel } from "../sessions/ActivityPanel";
@@ -52,10 +62,7 @@ import { menuCatalogs } from "../../locales/catalogs";
 import { ConnectionDialog } from "./ConnectionDialog";
 import { SidebarResizer } from "./SidebarResizer";
 import type { ConnectionRequest } from "../../shared/connections";
-import {
-  defaultTerminalSettings,
-  type TerminalSettings,
-} from "../../shared/terminal-settings";
+import { type TerminalSettings } from "../../shared/terminal-settings";
 import { TerminalSettingsDialog } from "./TerminalSettings";
 import { ShortcutSettings } from "./ShortcutSettings";
 import {
@@ -88,6 +95,9 @@ interface TerminalTab {
   moving?: boolean;
   restored?: boolean;
   moveId?: string;
+  savedTarget?: WorkspaceTarget;
+  workspaceRestored?: boolean;
+  workspaceMissing?: boolean;
 }
 
 const shortcutStorageKey = "channelterm.layout-shortcuts.v1";
@@ -98,12 +108,33 @@ const shortcutStorageKey = "channelterm.layout-shortcuts.v1";
  * Terminal bytes stay in TerminalView rather than passing through React state.
  */
 export function App() {
+  const [initialPreferences] = useState(() => {
+    try {
+      return restoreWorkbenchPreferences(localStorage.getItem(preferencesKey));
+    } catch {
+      return restoreWorkbenchPreferences(null);
+    }
+  });
+  const [terminalDefaults, setTerminalDefaults] = useState(
+    initialPreferences.terminal,
+  );
+  const [panelHeight, setPanelHeight] = useState(
+    initialPreferences.panelHeight,
+  );
+  const [preferenceError, setPreferenceError] = useState(false);
+  const [workspaceReady, setWorkspaceReady] = useState(false);
+  const workspaceSlot = useRef<number | undefined>(undefined);
+  const pendingWorkspace = useRef(false);
+  const [sessionsKnown, setSessionsKnown] = useState(false);
+  const [restoringWorkspace, setRestoringWorkspace] = useState(false);
   const [info, setInfo] = useState<HostInfo>();
   const [connected, setConnected] = useState(false);
   // Collapsing navigation changes available space, not the active attachment.
-  const [sidebarVisible, setSidebarVisible] = useState(true);
+  const [sidebarVisible, setSidebarVisible] = useState(
+    initialPreferences.sidebarVisible,
+  );
   const [sidebarView, setSidebarView] = useState<"sessions" | "debug">(
-    "sessions",
+    initialPreferences.sidebarView,
   );
   const debug = useDebugOverview(
     connected,
@@ -113,12 +144,20 @@ export function App() {
     id: string;
     revision: number;
   }>();
-  const [sidebarWidth, setSidebarWidth] = useState<number>();
-  const [auxiliaryVisible, setAuxiliaryVisible] = useState(false);
-  const [auxiliaryWidth, setAuxiliaryWidth] = useState(260);
-  const [panelVisible, setPanelVisible] = useState(false);
+  const [sidebarWidth, setSidebarWidth] = useState<number | undefined>(
+    initialPreferences.sidebarWidth ?? undefined,
+  );
+  const [auxiliaryVisible, setAuxiliaryVisible] = useState(
+    initialPreferences.auxiliaryVisible,
+  );
+  const [auxiliaryWidth, setAuxiliaryWidth] = useState(
+    initialPreferences.auxiliaryWidth,
+  );
+  const [panelVisible, setPanelVisible] = useState(
+    initialPreferences.panelVisible,
+  );
   const [panelTab, setPanelTab] = useState<"transfers" | "status" | "activity">(
-    "transfers",
+    initialPreferences.panelTab,
   );
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const mac = /Mac/i.test(navigator.platform);
@@ -194,7 +233,7 @@ export function App() {
   const [operation, setOperation] = useState<
     "connecting" | "disconnecting" | "attaching" | "detaching" | "opening"
   >();
-  const working = operation !== undefined;
+  const working = operation !== undefined || restoringWorkspace;
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [tabs, setTabState] = useState<TerminalTab[]>([]);
   const tabsRef = useRef(tabs);
@@ -212,7 +251,7 @@ export function App() {
   selectedTabRef.current = selectedTabId;
   const activeTab = tabs.find((tab) => tab.id === selectedTabId);
   const attachment = activeTab?.attachment;
-  const terminalSettings = activeTab?.settings ?? defaultTerminalSettings;
+  const terminalSettings = activeTab?.settings ?? terminalDefaults;
   const dropped = activeTab?.dropped ?? false;
   const inputPaused = activeTab?.inputPaused ?? false;
   const preferences = useRef(new Map<string, TerminalSettings>());
@@ -259,7 +298,7 @@ export function App() {
     if (tabsRef.current.length >= 32) return;
     const tab: TerminalTab = {
       id: crypto.randomUUID(),
-      settings: defaultTerminalSettings,
+      settings: terminalDefaults,
       dropped: false,
       inputPaused: false,
     };
@@ -269,7 +308,7 @@ export function App() {
     setChoosingSession(true);
   }
   const [languagePreference, setLanguagePreference] =
-    useState<LanguagePreference>("system");
+    useState<LanguagePreference>(initialPreferences.language);
   const [systemLocale, setSystemLocale] = useState(() =>
     systemMenuLocale(navigator.languages),
   );
@@ -616,7 +655,10 @@ export function App() {
     const version = generation.current;
     try {
       const result = await unwrap(host.list());
-      if (version === generation.current) setSessions(result);
+      if (version === generation.current) {
+        setSessions(result);
+        setSessionsKnown(true);
+      }
     } catch (error) {
       if (version === generation.current) report(error as ClientError);
     } finally {
@@ -632,6 +674,35 @@ export function App() {
         initialConnection.current = true;
         setInfo(next);
         setWindowCount(windowState.count);
+        workspaceSlot.current = windowState.workspaceSlot;
+        if (!windowState.incoming) {
+          try {
+            const saved = restoreWorkspace(
+              localStorage.getItem(
+                `${workspaceKey}.${windowState.workspaceSlot}`,
+              ),
+              next.endpoint,
+            );
+            if (saved) {
+              const restored = saved.tabs.map((tab) => ({
+                id: crypto.randomUUID(),
+                settings: tab.settings,
+                savedTarget: tab.target,
+                dropped: false,
+                inputPaused: false,
+                workspaceRestored: true,
+              }));
+              setTabs(restored);
+              setSelectedTabId(restored[saved.selected]?.id);
+              pendingWorkspace.current = restored.some(
+                (tab) => !!tab.savedTarget,
+              );
+            }
+          } catch {
+            setPreferenceError(true);
+          }
+        }
+        setWorkspaceReady(true);
         if (windowState.languagePreference)
           setLanguagePreference(windowState.languagePreference);
         if (windowState.connected) {
@@ -682,6 +753,7 @@ export function App() {
     setOperation("connecting");
     setError(undefined);
     generation.current++;
+    setSessionsKnown(false);
     try {
       setInfo(await unwrap(host.connect()));
       setConnected(true);
@@ -693,6 +765,129 @@ export function App() {
       setOperation(undefined);
     }
   }
+
+  // Recovery only attaches listed live Sessions. It has no connection-creation or write path.
+  useEffect(() => {
+    if (
+      !pendingWorkspace.current ||
+      !connected ||
+      !sessionsKnown ||
+      working ||
+      actionBusy.current
+    )
+      return;
+    pendingWorkspace.current = false;
+    setRestoringWorkspace(true);
+    actionBusy.current = true;
+    const version = generation.current;
+    const selected = selectedTabRef.current;
+    const candidates = tabsRef.current.slice();
+    void (async () => {
+      try {
+        for (const tab of candidates) {
+          if (version !== generation.current) break;
+          if (!tab.savedTarget) continue;
+          const session = workspaceSession(tab.savedTarget, sessions);
+          if (session) await select(session, tab.settings, tab.id);
+          else
+            updateTab(tab.id, {
+              error: { code: "closed", message: t("workspace.missing") },
+              workspaceMissing: true,
+            });
+        }
+        if (version === generation.current) setSelectedTabId(selected);
+      } finally {
+        actionBusy.current = false;
+        setRestoringWorkspace(false);
+      }
+    })();
+  }, [connected, sessionsKnown, sessions, working]);
+
+  const workbenchPreferences: WorkbenchPreferences = {
+    language: languagePreference,
+    sidebarVisible,
+    sidebarView,
+    sidebarWidth: sidebarWidth ?? null,
+    auxiliaryVisible,
+    auxiliaryWidth,
+    panelVisible,
+    panelTab,
+    panelHeight,
+    terminal: terminalDefaults,
+  };
+  function saveWorkbench(value: WorkbenchPreferences): boolean {
+    try {
+      localStorage.setItem(preferencesKey, JSON.stringify(value));
+      return true;
+    } catch {
+      setPreferenceError(true);
+      return false;
+    }
+  }
+  useEffect(() => {
+    saveWorkbench(workbenchPreferences);
+  }, [
+    languagePreference,
+    sidebarVisible,
+    sidebarView,
+    sidebarWidth,
+    auxiliaryVisible,
+    auxiliaryWidth,
+    panelVisible,
+    panelTab,
+    panelHeight,
+    terminalDefaults,
+  ]);
+
+  useEffect(() => {
+    if (
+      !workspaceReady ||
+      !connected ||
+      pendingWorkspace.current ||
+      restoringWorkspace ||
+      workspaceSlot.current === undefined ||
+      !info
+    )
+      return;
+    const snapshot: WorkspaceSnapshot = {
+      endpoint: info.endpoint,
+      selected: tabs.findIndex((tab) => tab.id === selectedTabId),
+      tabs: tabs.map((tab) => ({
+        settings: tab.settings,
+        target:
+          tab.savedTarget ??
+          (() => {
+            const session = sessions.find(
+              (entry) => entry.session_id === tab.attachment?.sessionId,
+            );
+            return session
+              ? {
+                  sessionId: session.session_id,
+                  label: session.label,
+                  transport: session.transport,
+                  endpoint: session.endpoint,
+                }
+              : undefined;
+          })(),
+      })),
+    };
+    try {
+      localStorage.setItem(
+        `${workspaceKey}.${workspaceSlot.current}`,
+        JSON.stringify(snapshot),
+      );
+    } catch {
+      setPreferenceError(true);
+    }
+  }, [
+    workspaceReady,
+    connected,
+    restoringWorkspace,
+    info,
+    tabs,
+    selectedTabId,
+    sessions,
+  ]);
 
   async function disconnect() {
     preferences.current.clear();
@@ -717,8 +912,7 @@ export function App() {
 
   async function select(
     session: SessionSummary,
-    settings = preferences.current.get(session.session_id) ??
-      defaultTerminalSettings,
+    settings = preferences.current.get(session.session_id) ?? terminalDefaults,
     replaceTabId?: string,
   ) {
     const selected = tabsRef.current.find(
@@ -769,6 +963,13 @@ export function App() {
       const tab: TerminalTab = {
         id: tabId,
         attachment: next,
+        savedTarget: {
+          sessionId: session.session_id,
+          label: session.label,
+          transport: session.transport,
+          endpoint: session.endpoint,
+        },
+        workspaceRestored: target?.workspaceRestored,
         settings,
         inputPaused: false,
         dropped: false,
@@ -1204,7 +1405,7 @@ export function App() {
     !inputPaused;
   // Distinguish pending/failed operations from a successfully loaded empty list
   // instead of using the same empty-state heading for every unattached view.
-  const emptyTitle = working
+  const emptyTitle = operation
     ? {
         connecting: "Connecting to Host…",
         disconnecting: "Disconnecting Host…",
@@ -1324,8 +1525,18 @@ export function App() {
       {displayOpen && (
         <DisplaySettingsDialog
           value={display}
+          terminalDefaults={terminalDefaults}
           t={t}
-          onApply={saveDisplay}
+          onApply={(value, defaults) => {
+            if (
+              !saveWorkbench({ ...workbenchPreferences, terminal: defaults }) ||
+              !saveDisplay(value)
+            )
+              return false;
+            setTerminalDefaults(defaults);
+            setPreferenceError(false);
+            return true;
+          }}
           onClose={() => setDisplayOpen(false)}
         />
       )}
@@ -1382,6 +1593,7 @@ export function App() {
         <ConnectionDialog
           key={connectionKind}
           kind={connectionKind}
+          terminalDefaults={terminalDefaults}
           sshAvailable={!!info?.sshAvailable}
           sshAdvanced={!!info?.sshAdvanced}
           t={t}
@@ -1622,8 +1834,12 @@ export function App() {
                 return {
                   id: tab.id,
                   label:
-                    session?.label || session?.session_ref || t("tab.empty"),
-                  transport: session?.transport,
+                    session?.label ||
+                    session?.session_ref ||
+                    tab.savedTarget?.label ||
+                    tab.savedTarget?.sessionId ||
+                    t("tab.empty"),
+                  transport: session?.transport ?? tab.savedTarget?.transport,
                   moving: tab.moving,
                 };
               })}
@@ -1697,6 +1913,16 @@ export function App() {
             />
           )}
           <div className="notices" aria-label="Terminal notices">
+            {activeTab?.workspaceRestored && (
+              <div role="status" className="notice">
+                {t("workspace.hint")}
+              </div>
+            )}
+            {preferenceError && (
+              <div role="alert" className="notice">
+                {t("workspace.storageError")}
+              </div>
+            )}
             {activeTab?.restored && (
               <div role="status" className="notice">
                 {t("tab.restoreHint")}
@@ -1729,7 +1955,9 @@ export function App() {
             )}
             {error && (
               <div role="alert" className="notice error">
-                {hostRecoveryMessage(error, t)}
+                {activeTab?.workspaceMissing
+                  ? t("workspace.missing")
+                  : hostRecoveryMessage(error, t)}
                 {inputPaused &&
                   connected &&
                   attachment &&
@@ -1823,6 +2051,8 @@ export function App() {
             </div>
           )}
           <BottomPanel
+            height={panelHeight}
+            onHeight={setPanelHeight}
             visible={panelVisible}
             tab={panelTab}
             onTab={setPanelTab}
@@ -1843,7 +2073,13 @@ export function App() {
                     ? `${current.label || current.session_ref} · ${current.state}`
                     : emptyTitle}
                 </p>
-                {error && <p role="alert">{hostRecoveryMessage(error, t)}</p>}
+                {error && (
+                  <p role="alert">
+                    {activeTab?.workspaceMissing
+                      ? t("workspace.missing")
+                      : hostRecoveryMessage(error, t)}
+                  </p>
+                )}
                 {current?.lease && (
                   <p>
                     {t("details.lease")}: {current.lease.type}

@@ -347,3 +347,12 @@ operation; finish or cancel that operation normally before revoking. Existing le
 expiry/recovery rules still apply. This is request authorization, not an emergency stop,
 per-Session human takeover, or OS-level isolation. Stdio/local process access remains
 trusted and unchanged. See the [upgrade workflow](../getting-started/http-authentication-migration.md).
+
+## Electron local preferences
+
+GUI display, shortcuts, language/layout/terminal defaults, recent connections and workspace views
+are stored in the Electron profile's renderer local storage, separately from Host TOML and CLI
+serial profiles. They do not configure Session/Transport ownership or provide CLI SSH profiles.
+See [GUI preferences and workspace recovery](gui-menus.md#preferences-and-workspace-recovery)
+and [recent connections](gui-menus.md#recent-connections-and-ssh-favorites) for keys, limits and
+excluded sensitive/runtime state.

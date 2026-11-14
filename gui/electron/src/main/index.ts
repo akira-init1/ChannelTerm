@@ -74,6 +74,7 @@ interface WindowContext {
   handlers: Record<string, Handler>;
   autoConnect: boolean;
   languagePreference?: LanguagePreference;
+  workspaceSlot: number;
   incoming?: WindowInfo["incoming"];
   incomingMove?: TabMove;
   outgoingMove?: TabMove;
@@ -389,6 +390,7 @@ function createHandlers(context: WindowContext): Record<string, Handler> {
     },
     [channels.windowInfo]: (): WindowInfo => ({
       count: Math.max(1, windowContexts().length),
+      workspaceSlot: context.workspaceSlot,
       connected: context.connected,
       autoConnect: context.autoConnect,
       languagePreference: context.languagePreference,
@@ -734,6 +736,12 @@ function makeWindow(
   });
   const context: WindowContext = {
     window: created,
+    workspaceSlot: Array.from({ length: 16 }, (_, index) => index).find(
+      (slot) =>
+        ![...desktop.windows.values()].some(
+          (entry) => entry.workspaceSlot === slot,
+        ),
+    )!,
     connected: false,
     connecting: false,
     disposed: false,

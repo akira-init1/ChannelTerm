@@ -1858,3 +1858,23 @@ msgstr "上一個視窗"
 #: src/shared/menu-messages.ts
 msgid "window.tab.close"
 msgstr "關閉分頁"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workspace.defaults"
+msgstr "新檢視的終端預設值"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workspace.hint"
+msgstr "工作區檢視已恢復。僅可讀取 Host 最近保留的輸出（最多 64 KiB）；不恢復完整畫面或未傳送的輸入。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workspace.missing"
+msgstr "儲存的 Session 已關閉、不存在或已變更。未重新建立它。請關閉此分頁或手動選擇存活的 Session。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workspace.storageError"
+msgstr "無法儲存或載入本機偏好/工作區。目前檢視仍可使用；請檢查本機儲存權限。"

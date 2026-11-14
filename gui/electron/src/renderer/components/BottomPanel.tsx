@@ -4,6 +4,8 @@ import { Icon } from "./Icon";
 
 /** Hidden tabs stay mounted so transfer confirmation and progress keep their lifetime. */
 export function BottomPanel({
+  height,
+  onHeight,
   visible,
   tab,
   onTab,
@@ -13,6 +15,8 @@ export function BottomPanel({
   status,
   activity,
 }: {
+  height: number;
+  onHeight: (height: number) => void;
   visible: boolean;
   tab: "transfers" | "status" | "activity";
   onTab: (tab: "transfers" | "status" | "activity") => void;
@@ -22,7 +26,6 @@ export function BottomPanel({
   status: ReactNode;
   activity: ReactNode;
 }) {
-  const [height, setHeight] = useState(220);
   const [viewportHeight, setViewportHeight] = useState(innerHeight);
   useEffect(() => {
     const resize = () => setViewportHeight(innerHeight);
@@ -48,7 +51,7 @@ export function BottomPanel({
           controls="bottom-panel"
           label={t("panel.resize")}
           hint={t("view.resizeSidebarHelp")}
-          onResize={setHeight}
+          onResize={onHeight}
         />
       )}
       <div className="panel-header">

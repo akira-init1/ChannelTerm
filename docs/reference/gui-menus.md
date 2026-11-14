@@ -67,7 +67,7 @@ for authentication, verification and cancellation.
 | Terminal > Copy terminal selection / Paste into terminal; terminal context menu | `terminal.copy` / `terminal.paste` | Copy selected xterm text or paste clipboard text through the existing input path. Paste requires writable text view; copy sends no device bytes. |
 | Settings > Keyboard shortcuts | `settings.shortcuts` | Search, record, remove, reset and save local layout, clipboard and terminal search bindings. |
 | Settings > File transfer | `settings.transfers` | Read/save the shared local CLI/GUI directory choice: ask, TAR or per-file. Applies to serial directories; SSH remains recursive. |
-| Settings > Preferences... | `settings.display` | Open the existing Display settings dialog; font changes apply without reattachment. Keyboard shortcuts retain their separate entry. |
+| Settings > Preferences... | `settings.display` | Open Display settings and terminal defaults for new views; font changes apply without reattachment. Keyboard shortcuts retain their separate entry. |
 | Session > New Connection... | `connection.new` | Open the unified form on a connected idle Host. No protocol submenu. |
 | Session > Attach Session... | `session.choose` | Reveal the existing sidebar and focus its search field while connected and idle. Selecting a row reuses `session.attach`; opening the picker does not change the attachment. |
 | Session > Session Information... | `session.info` | Reveal the existing details sidebar for the captured current attachment; no new Host query. |
@@ -178,8 +178,9 @@ Host client resources.
 
 Lingui Core runs in Main and Renderer with separate instances of the same compiled PO catalogs. Renderer owns the
 active menu locale and synchronizes it with native labels/checks; open context-menu labels and
-help content also use that locale. The preference lasts for the current window only and defaults
-to **Follow System**. A new or moved window inherits it; later changes remain independent. System tags resolve to supported catalogs (for example `ja-JP` to `ja`,
+help content also use that locale. The preference defaults to **Follow System** and is saved for
+future windows/restarts. A new or moved window inherits the source preference; later changes in live
+windows remain independent. System tags resolve to supported catalogs (for example `ja-JP` to `ja`,
 `zh-Hant-HK` to `zh-TW`), with English as fallback. Browser `languagechange` notifications update
 menus while following the system; explicit selections remain unchanged. This is menu/help
 localization, not a claim that Host diagnostics or the entire
@@ -264,7 +265,8 @@ and development origins have separate settings. Invalid stored data falls back t
 defaults. Original three-action and five-action preferences retain every saved binding and gain
 new defaults only when their chords are free. If Ctrl+Shift+F is already assigned, Find remains
 unbound and a notice links to Keyboard shortcuts. Reset and Apply recovers the defaults without editing Host configuration. Layout
-visibility, widths, selected bottom tab and height remain window-local and reset on reopening.
+visibility, widths, selected bottom tab and height remain independent in live windows and persist
+as defaults for reopening; see [workspace recovery](#preferences-and-workspace-recovery).
 
 Only exact modifier matches dispatch, once per press; key repeats are consumed without repeated
 toggling. IME composition/229 and AltGr are ignored. Open dialogs, focused menus, and ordinary
@@ -385,16 +387,15 @@ error; create another snapshot. A download has a 60-second budget including dest
 
 ## Planning boundaries (not implemented)
 
-Except for the disabled Window entries above, these are placement decisions only, not runtime
-menu entries or commitments to implement them.
+The remaining scope below is not a commitment to implement additional menu entries. Existing
+actions follow the contracts above; connection history and workspace recovery are described below.
 
 | Proposed category | Unimplemented scope / prerequisite |
 | --- | --- |
-| Host / Session | Recent connections and SSH favorites prefill explicit connection forms; CLI has no SSH profile persistence. Default-local Host startup is automatic; other endpoints remain explicit. |
-| Session | Recent connection history is not implemented. Shared close and multiple tabs follow the explicit contracts above. |
+| Host / Session | Automatic device reconnection and recreation of closed Sessions are not provided. Recent connections and SSH favorites prefill explicit forms; see [recent connections and SSH favorites](#recent-connections-and-ssh-favorites). Shared close and multiple tabs follow the contracts above. |
 | Terminal | Split panes and output folding are not exposed. SSH remote size control uses the terminal toolbar described below. Find and its select-all control operate only on the current retained view. Existing clipboard, local clear, focus and conditional resume actions remain. |
 | View | A complete MCP request audit, status-bar visibility and a combined Reset Layout action are unimplemented. Session activity shows retained Host observations, not a complete audit; Session status is not a status-bar toggle. |
-| Settings | Application theme selection is unimplemented and not exposed. Shortcuts and terminal font/style settings persist locally. Language and layout state remain window-local; endpoint editing and Host process management are absent. |
+| Settings | Application theme selection, endpoint editing and Host process management are absent. Local preferences and workspace recovery are described below. |
 | Help | Online documentation navigation and updates remain unimplemented. Diagnostic ZIP export follows the explicit local-save contract below. |
 
 No built-in AI Agent, new SSH/file-transfer implementation, Core use case, or MCP protocol change
@@ -441,3 +442,35 @@ not update successful-use history. Storage failure reports a notice without retr
 These records are local form presets, separate from the Host-owned serial profiles shared with
 CLI. CLI has no persistent SSH profiles; this feature adds no CLI profile compatibility. Storage
 is shared by windows in the same GUI profile; independent simultaneous edits use last-writer wins.
+
+## Preferences and workspace recovery
+
+Language menu choices, sidebar visibility/view/width, secondary-sidebar visibility/width and bottom
+panel visibility/tab/height are saved locally. **Settings > Preferences...** also provides encoding,
+text/hex view and description defaults for new terminal views without cached Session-specific
+settings. Applying defaults leaves current tabs unchanged; restored tabs keep their saved settings.
+Font and shortcut settings retain their
+existing storage and behavior. Display Reset resets only the display fields, not terminal defaults.
+
+On restart, the window restores saved tab targets, order and selection. After connecting to the
+same configured Host, it rechecks full Session IDs, transport and endpoint against the live Session
+list. Surviving Sessions receive fresh client attachments without remote-size control; unavailable
+targets show a notice and can be closed or replaced by explicitly selecting a live Session.
+Restore never recreates a closed Session,
+connects to a device, restores size-control ownership or resends input. Only up to 64 KiB of currently
+retained Host output can rebuild each view; complete terminal screen state and earlier history are
+not recoverable. No terminal output or unsent input is stored on disk by this feature.
+
+The GUI profile's renderer local storage uses `channelterm.preferences.v1` (language/layout/terminal
+defaults, maximum accepted JSON length 8,192 UTF-16 code units) and `channelterm.workspace.v1.0`
+through `.15` (per-window snapshots, maximum accepted JSON length 131,072 UTF-16 code units and
+32 tabs each). Slots are assigned
+in window-opening order using the lowest free slot. Additional windows are opened manually; an
+incoming moved tab replaces the saved slot's view. Current windows remain independent; preference
+edits and concurrent application processes sharing a profile use last-writer wins. Invalid data
+falls back to defaults or no workspace. Persistence failure shows a notice without retrying I/O.
+
+Explicitly closing tabs updates the saved workspace while connected. Disconnect/Host failure
+preserves the last saved view snapshot; manually connecting again starts the current empty view
+unless this is the initial restart recovery. Recovery waits for a successful Host connection and
+does not change existing automatic-local-Host startup or explicit remote-Host connection policy.

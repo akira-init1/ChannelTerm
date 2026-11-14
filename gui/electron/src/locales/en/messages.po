@@ -1858,3 +1858,23 @@ msgstr "Previous Window"
 #: src/shared/menu-messages.ts
 msgid "window.tab.close"
 msgstr "Close Tab"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workspace.defaults"
+msgstr "Terminal defaults for new views"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workspace.hint"
+msgstr "Workspace view restored. Only recent Host output (up to 64 KiB) is available; full screen state and unsent input are not restored."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workspace.missing"
+msgstr "The saved Session is closed, missing or changed. It was not recreated. Close this tab or explicitly choose a live Session."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workspace.storageError"
+msgstr "Could not save or load local preferences/workspace. Current views remain usable; check local storage access."

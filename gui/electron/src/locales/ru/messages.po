@@ -1858,3 +1858,23 @@ msgstr "Предыдущее окно"
 #: src/shared/menu-messages.ts
 msgid "window.tab.close"
 msgstr "Закрыть вкладку"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workspace.defaults"
+msgstr "Настройки терминала для новых вкладок"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workspace.hint"
+msgstr "Рабочая область восстановлена. Доступен лишь недавний вывод Host (до 64 KiB); полный экран и неотправленный ввод не восстанавливаются."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workspace.missing"
+msgstr "Сохранённая Session закрыта, отсутствует или изменилась. Она не создана заново. Закройте вкладку или выберите активную Session."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workspace.storageError"
+msgstr "Не удалось сохранить или загрузить настройки или рабочую область. Текущие вкладки доступны; проверьте локальное хранилище."

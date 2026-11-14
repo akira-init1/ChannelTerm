@@ -1858,3 +1858,23 @@ msgstr "前のウィンドウ"
 #: src/shared/menu-messages.ts
 msgid "window.tab.close"
 msgstr "タブを閉じる"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workspace.defaults"
+msgstr "新しいビューのターミナル既定値"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workspace.hint"
+msgstr "ワークスペースを復元しました。利用できるのは Host の最近の出力（最大 64 KiB）のみです。画面全体や未送信の入力は復元されません。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workspace.missing"
+msgstr "保存された Session は終了、消失、または変更されています。再作成はしていません。このタブを閉じるか、有効な Session を選択してください。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workspace.storageError"
+msgstr "設定またはワークスペースを保存・読み込みできません。現在のビューは利用できます。ローカルストレージを確認してください。"

@@ -1858,3 +1858,23 @@ msgstr "이전 창"
 #: src/shared/menu-messages.ts
 msgid "window.tab.close"
 msgstr "탭 닫기"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workspace.defaults"
+msgstr "새 보기의 터미널 기본값"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workspace.hint"
+msgstr "작업 공간 보기를 복원했습니다. 최근 Host 출력(최대 64 KiB)만 사용할 수 있으며 전체 화면과 보내지 않은 입력은 복원되지 않습니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workspace.missing"
+msgstr "저장된 Session이 닫혔거나 없거나 변경되었습니다. 다시 만들지 않았습니다. 탭을 닫거나 활성 Session을 선택하세요."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workspace.storageError"
+msgstr "로컬 설정 또는 작업 공간을 저장하거나 불러오지 못했습니다. 현재 보기는 계속 사용할 수 있습니다. 로컬 저장소를 확인하세요."

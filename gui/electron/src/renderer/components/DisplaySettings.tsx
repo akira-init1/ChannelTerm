@@ -1,3 +1,8 @@
+import {
+  TerminalSettingsFields,
+  readTerminalSettings,
+} from "./TerminalSettings";
+import type { TerminalSettings } from "../../shared/terminal-settings";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
   defaultDisplaySettings,
@@ -9,13 +14,15 @@ import { defaultHighlights } from "../../shared/default-highlights";
 /** A local display draft; applying it never replaces the attachment or xterm buffer. */
 export function DisplaySettingsDialog({
   value,
+  terminalDefaults,
   t,
   onApply,
   onClose,
 }: {
   value: DisplaySettings;
+  terminalDefaults: TerminalSettings;
   t: (id: string) => string;
-  onApply: (value: DisplaySettings) => boolean;
+  onApply: (value: DisplaySettings, defaults: TerminalSettings) => boolean;
   onClose: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
@@ -24,10 +31,12 @@ export function DisplaySettingsDialog({
   useEffect(() => {
     dialog.current?.showModal();
   }, []);
-  function submit(event: FormEvent) {
+  function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!isDisplaySettings(draft)) return;
-    if (onApply(draft)) onClose();
+    const defaults = readTerminalSettings(new FormData(event.currentTarget));
+    if (!defaults) return;
+    if (onApply(draft, defaults)) onClose();
     else setError("display.storageError");
   }
   return (
@@ -114,6 +123,8 @@ export function DisplaySettingsDialog({
           {t("display.promptTimestamps")}
         </label>
         <p className="connection-hint">{t("display.promptTimestampHint")}</p>
+        <h3>{t("workspace.defaults")}</h3>
+        <TerminalSettingsFields t={t} value={terminalDefaults} />
         {error && <p role="alert">{t(error)}</p>}
         <footer>
           <button

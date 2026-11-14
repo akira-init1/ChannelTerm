@@ -25,6 +25,7 @@ import { commonBaudRates } from "../../shared/serial-settings";
 /** Collect explicit user intent. Credentials live in password inputs, never preferences. */
 export function ConnectionDialog({
   kind: initialKind,
+  terminalDefaults,
   sshAvailable,
   sshAdvanced,
   t,
@@ -33,6 +34,7 @@ export function ConnectionDialog({
   onClose,
 }: {
   kind: ConnectionRequest["kind"];
+  terminalDefaults: TerminalSettings;
   sshAvailable: boolean;
   sshAdvanced: boolean;
   t: (id: string) => string;
@@ -560,7 +562,9 @@ export function ConnectionDialog({
               {t("history.favorite")}
             </label>
           )}
-          {kind === "serial" && <TerminalSettingsFields t={t} />}
+          {kind === "serial" && (
+            <TerminalSettingsFields t={t} value={terminalDefaults} />
+          )}
         </fieldset>
         {error && <p role="alert">{error}</p>}
         {kind === "ssh" && busy && <SSHTrustConfirmation t={t} />}

@@ -1858,3 +1858,23 @@ msgstr "Fenêtre précédente"
 #: src/shared/menu-messages.ts
 msgid "window.tab.close"
 msgstr "Fermer l’onglet"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workspace.defaults"
+msgstr "Réglages du terminal pour les nouvelles vues"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workspace.hint"
+msgstr "Vue restaurée. Seule la sortie récente du Host (64 KiB maximum) est disponible ; l’écran complet et la saisie non envoyée ne sont pas restaurés."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workspace.missing"
+msgstr "La Session enregistrée est fermée, absente ou modifiée. Elle n’a pas été recréée. Fermez cet onglet ou choisissez une Session active."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workspace.storageError"
+msgstr "Impossible d’enregistrer ou de charger les préférences ou l’espace de travail. Les vues restent utilisables ; vérifiez le stockage local."

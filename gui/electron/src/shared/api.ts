@@ -80,6 +80,8 @@ export interface Output {
 
 /** Window-local bootstrap data, never credentials or permission to close a shared Session. */
 export interface WindowInfo {
+  /** Bounded local persistence slot; never a Host identifier or capability. */
+  workspaceSlot: number;
   count: number;
   connected: boolean;
   autoConnect: boolean;

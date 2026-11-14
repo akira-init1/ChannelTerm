@@ -1858,3 +1858,23 @@ msgstr "Ventana anterior"
 #: src/shared/menu-messages.ts
 msgid "window.tab.close"
 msgstr "Cerrar pestaña"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workspace.defaults"
+msgstr "Valores del terminal para vistas nuevas"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workspace.hint"
+msgstr "Vista restaurada. Solo está disponible la salida reciente del Host (hasta 64 KiB); no se restaura la pantalla completa ni la entrada sin enviar."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workspace.missing"
+msgstr "La Session guardada está cerrada, ausente o cambió. No se ha recreado. Cierre la pestaña o elija una Session activa."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workspace.storageError"
+msgstr "No se pudieron guardar o cargar las preferencias o el espacio de trabajo. Las vistas siguen disponibles; revise el almacenamiento local."

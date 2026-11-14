@@ -1,3 +1,4 @@
+import { checkWorkspace } from "./workspace-checks.mjs";
 import { checkDebugOverview } from "./debug-checks.mjs";
 import { checkFiles } from "./file-checks.mjs";
 import { checkTerminalControls } from "./terminal-checks.mjs";
@@ -364,6 +365,12 @@ try {
     const bindings = JSON.parse(localStorage.getItem(key));
     bindings["view.panel"] = binding;
     localStorage.setItem(key, JSON.stringify(bindings));
+    // Empty/large-list geometry below intentionally uses automatic sidebar width.
+    // Explicit width persistence is covered by the separate restart scenario.
+    const preferencesKey = "channelterm.preferences.v1";
+    const preferences = JSON.parse(localStorage.getItem(preferencesKey));
+    preferences.sidebarWidth = null;
+    localStorage.setItem(preferencesKey, JSON.stringify(preferences));
   }, savedPanelBinding);
   await exitFromMenu(desktop, page);
   desktop = undefined;
@@ -402,6 +409,14 @@ try {
   ).toBeVisible();
   await expect(listPage.getByRole("button", { name: "Refresh" })).toBeEnabled();
   await expect(listPage.getByText("0 Sessions", { exact: true })).toBeVisible();
+  // Restart now retains a missing-target placeholder. Closing it restores the
+  // genuinely empty workbench used by the existing empty-list/menu assertions.
+  await expect(listPage.locator(".notices")).toContainText(
+    "The saved Session is closed, missing or changed",
+  );
+  await expect(listPage.locator(".xterm-screen")).toHaveCount(0);
+  await listPage.locator(".terminal-tab .icon-button").click();
+  await expect(listPage.locator(".terminal-tab")).toHaveCount(0);
   await checkMenuAvailability(desktop, true);
   await checkLayout(desktop, listPage, "empty");
   await desktop.evaluate(({ ipcMain }) => {
@@ -548,6 +563,7 @@ try {
   await checkLayout(desktop, recoveryPage, "failed");
   await checkConnections(desktopEnvironment, launchArgs);
   await checkWindows(desktopEnvironment);
+  await checkWorkspace(desktopEnvironment);
   await checkStartup(desktopEnvironment, preloadArgs);
   console.log(
     "PASS: native workbench at 760/1180/1500px, hover/keyboard flyouts, serial and SSH creation, authentication failure, shared I/O and lifetime, disconnected/empty/selection/attached/failure states, long lists, sandbox, lease blocking, overwrite, reconnect, detach/reattach, native close, surviving Host/observer, Session close and Host loss/retry. Empty/large lists use test-only IPC snapshots; connections use the real isolated Host with fake serial I/O and loopback SSH.",
