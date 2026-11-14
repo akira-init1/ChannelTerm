@@ -1015,6 +1015,36 @@ msgstr "ChannelTerm 사용 방법"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "history.favorite"
+msgstr "SSH 즐겨찾기"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "history.hint"
+msgstr "로컬 설정입니다. 선택하고 검토한 후 연결하세요. 인증 정보와 경로를 다시 입력하세요. 직렬 프로필은 CLI와 공유됩니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "history.remove"
+msgstr "연결 기록 삭제"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "history.storageError"
+msgstr "연결 기록을 저장하지 못했습니다. 로컬 저장소를 확인하고 성공한 연결을 반복하지 마세요."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "history.title"
+msgstr "최근 연결 및 SSH 즐겨찾기"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "history.unfavorite"
+msgstr "즐겨찾기 해제"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "host.connect"
 msgstr "호스트에 연결..."
 

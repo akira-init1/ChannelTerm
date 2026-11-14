@@ -1015,6 +1015,36 @@ msgstr "ChannelTerm の使い方"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "history.favorite"
+msgstr "SSH をお気に入りに登録"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "history.hint"
+msgstr "ローカルの設定です。選択して確認後、接続してください。認証情報とパスは再入力が必要です。シリアルプロファイルは CLI と共有されます。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "history.remove"
+msgstr "接続記録を削除"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "history.storageError"
+msgstr "接続履歴を保存できません。ローカルストレージを確認し、成功した接続を繰り返さないでください。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "history.title"
+msgstr "最近の接続と SSH お気に入り"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "history.unfavorite"
+msgstr "お気に入りを解除"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "host.connect"
 msgstr "ホストに接続..."
 

@@ -229,6 +229,18 @@ export async function checkConnections(environment, launchArgs) {
     await dialog.getByRole("button", { name: "Apply", exact: true }).click();
     await expect(dialog).not.toBeVisible();
     await expect(page.locator(".input-status")).toContainText("Input enabled");
+    dialog = await open("serial");
+    await dialog.locator(".connection-history summary").click();
+    await dialog
+      .locator(".connection-history")
+      .getByRole("button", { name: "Created serial", exact: true })
+      .click();
+    await expect(dialog.locator('[name="port"]')).toHaveValue("COM-FIXTURE");
+    await expect(dialog.locator('[name="label"]')).toHaveValue(
+      "Created serial",
+    );
+    await expect(dialog.locator('[name="wake"]')).not.toBeChecked();
+    await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
     dialog = await open("ssh");
     await dialog
       .getByRole("combobox", { name: "Authentication", exact: true })
@@ -274,6 +286,9 @@ export async function checkConnections(environment, launchArgs) {
     );
     await dialog.locator('[name="password"]').fill("fixture-password");
     await dialog.locator('[name="label"]').fill("Created SSH");
+    await dialog
+      .getByRole("checkbox", { name: "Favorite SSH", exact: true })
+      .check();
     await dialog.getByText("Advanced SSH settings", { exact: true }).click();
     await expect(dialog.locator('[name="timeoutSeconds"]')).toHaveValue("10");
     await dialog.locator('[name="timeoutSeconds"]').fill("12");
@@ -307,6 +322,27 @@ export async function checkConnections(environment, launchArgs) {
     await expect(page.locator(".terminal-tab.active")).toContainText(
       "Created SSH",
     );
+    const stored = await page.evaluate(() =>
+      localStorage.getItem("channelterm.connections.v1"),
+    );
+    assert.ok(!stored.includes("fixture-password"));
+    assert.ok(!stored.includes(fixture.knownHosts));
+    assert.equal(
+      JSON.parse(stored).find((entry) => entry.request.kind === "ssh").favorite,
+      true,
+    );
+    const beforePreset = (await observer.list()).length;
+    dialog = await open("ssh");
+    await dialog.locator(".connection-history summary").click();
+    await dialog
+      .locator(".connection-history")
+      .getByRole("button", { name: /Created SSH/ })
+      .click();
+    await expect(dialog.locator('[name="user"]')).toHaveValue("fixture-user");
+    await expect(dialog.locator('[name="keyPassphrase"]')).toHaveValue("");
+    await expect(dialog.locator('[name="knownHostsFile"]')).toHaveValue("");
+    assert.equal((await observer.list()).length, beforePreset);
+    await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
     const ssh = (await observer.list()).find((s) => s.label === "Created SSH");
     assert.ok(ssh);
     const attachment = await observer.attach(ssh.session_id);

@@ -572,3 +572,9 @@ Debug labels. `test-results/debug-overview.png` is local ignored evidence. Core/
 MI transitions, report expiry, identity/capability checks, legacy JSON and no-renewal semantics.
 External GDB process integration and physical target acceptance must be recorded separately;
 fixture evidence does not establish external executor report accuracy.
+
+### Connection history checks
+
+`connection-history.test.ts` covers credential/path exclusion on write/read, serial wake reset,
+malformed storage, bounded eviction, favorites and successful-use accounting. Native connection
+checks reopen a saved serial record and verify prefilled parameters without connection or wake.

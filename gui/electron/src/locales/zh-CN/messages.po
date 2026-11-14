@@ -1015,6 +1015,36 @@ msgstr "使用 ChannelTerm"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "history.favorite"
+msgstr "收藏 SSH"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "history.hint"
+msgstr "仅为本地表单预设：选择、核对后手动连接。凭据及路径需重新输入。串口 profiles 仍与 CLI 共享。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "history.remove"
+msgstr "删除连接记录"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "history.storageError"
+msgstr "无法保存连接记录。请检查本地存储；不要重复已成功的连接。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "history.title"
+msgstr "最近连接与 SSH 收藏"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "history.unfavorite"
+msgstr "取消收藏"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "host.connect"
 msgstr "连接到 Host..."
 

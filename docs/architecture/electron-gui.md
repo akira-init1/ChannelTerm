@@ -131,7 +131,7 @@ The status bar distinguishes no attachment, enabled input, paused input, lease r
 and an unavailable Session. These labels report client snapshots, not write authority. The
 terminal has no separate input-hint box or command composer. Input remains directly in xterm.
 Dragging refits local xterm cells. Only the SSH view holding remote size control forwards geometry; dragging never detaches.
-No baud rate, throughput, recent-connection history, or other unavailable metadata is invented.
+No baud rate, throughput, or other unavailable Session metadata is invented.
 
 The status bar's **Copy for AI** action sends only the captured attachment and resolved language
 through a fixed IPC method. Main fetches current target metadata, revalidates ownership, validates
@@ -605,3 +605,11 @@ claiming a running/stopped inferior. External reports retain source labels and H
 manual registrations remain unknown. No controls for launch, breakpoints, stepping, stopping or
 lease takeover are added. All new labels use the nine maintained Lingui catalogs. See the
 [observation contract](../reference/mcp-tools.md#unified-debug-observation).
+
+## Local connection presets
+
+Renderer projects successful explicit connection requests through a strict allowlist into bounded
+local storage. Recent connections and SSH favorites are presentation/form data, not Session or
+Transport ownership. They exclude credentials, credential paths and wake intent; loading a record
+only fills the connection dialog. Main and Host retain all existing validation and creation authority.
+Malformed or oversized persisted data is discarded. See the [workflow and storage contract](../reference/gui-menus.md#recent-connections-and-ssh-favorites).

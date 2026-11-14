@@ -1386,6 +1386,12 @@ export function App() {
           sshAdvanced={!!info?.sshAdvanced}
           t={t}
           onOpen={openConnection}
+          onStorageError={() =>
+            setError({
+              code: "configuration",
+              message: t("history.storageError"),
+            })
+          }
           onClose={() => setConnectionKind(undefined)}
         />
       )}

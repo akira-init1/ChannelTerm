@@ -1,3 +1,9 @@
+import {
+  connectionHistoryKey,
+  restoreConnections,
+  recordConnection,
+  type ConnectionRecord,
+} from "../../shared/connection-history";
 import { SSHTrustConfirmation } from "./SSHTrustConfirmation";
 import { SerialProfilesFields } from "./SerialProfiles";
 import type { SerialProfile } from "../../shared/serial-profiles";
@@ -23,6 +29,7 @@ export function ConnectionDialog({
   sshAdvanced,
   t,
   onOpen,
+  onStorageError,
   onClose,
 }: {
   kind: ConnectionRequest["kind"];
@@ -33,8 +40,37 @@ export function ConnectionDialog({
     request: ConnectionRequest,
     settings?: TerminalSettings,
   ) => Promise<void>;
+  onStorageError: () => void;
   onClose: () => void;
 }) {
+  const [history, setHistory] = useState(() => {
+    try {
+      return restoreConnections(localStorage.getItem(connectionHistoryKey));
+    } catch {
+      return [];
+    }
+  });
+  const [preset, setPreset] = useState<ConnectionRequest>();
+  const [revision, setRevision] = useState(0);
+  const [favorite, setFavorite] = useState(false);
+  function saveHistory(entries: ConnectionRecord[]) {
+    try {
+      localStorage.setItem(connectionHistoryKey, JSON.stringify(entries));
+      setHistory(entries);
+    } catch {
+      setError(t("history.storageError"));
+      onStorageError();
+    }
+  }
+  function applyPreset(request: ConnectionRequest) {
+    setKind(request.kind);
+    setPreset(request);
+    setRevision((value) => value + 1);
+    setAuth("key");
+    setFavorite(false);
+    if (request.kind === "serial") applySerial({ ...request, wake: false });
+  }
+  const sshPreset = preset?.kind === "ssh" ? preset : undefined;
   const formRef = useRef<HTMLFormElement>(null);
   const [serialDefaults, setSerialDefaults] = useState<SerialProfile>();
   const [serialRevision, setSerialRevision] = useState(0);
@@ -153,6 +189,17 @@ export function ConnectionDialog({
       });
     try {
       await onOpen(request, settings);
+      try {
+        saveHistory(
+          recordConnection(
+            restoreConnections(localStorage.getItem(connectionHistoryKey)),
+            request,
+            favorite,
+          ),
+        );
+      } catch {
+        onStorageError();
+      }
       onClose();
     } catch (error) {
       setError((error as ClientError).message);
@@ -203,6 +250,57 @@ export function ConnectionDialog({
       >
         <h2 id="connection-title">{t("connection.new")}</h2>
         <fieldset disabled={busy || scanning}>
+          <details className="connection-history">
+            <summary>{t("history.title")}</summary>
+            <p className="connection-hint">{t("history.hint")}</p>
+            {history.map((entry, index) => (
+              <div key={index}>
+                <button
+                  type="button"
+                  disabled={entry.request.kind === "ssh" && !sshAvailable}
+                  onClick={() => applyPreset(entry.request)}
+                >
+                  {entry.favorite ? "★ " : ""}
+                  {entry.request.label ||
+                    (entry.request.kind === "ssh"
+                      ? `${entry.request.user}@${entry.request.host}:${entry.request.port}`
+                      : entry.request.port)}
+                </button>
+                <small>
+                  {" "}
+                  {new Date(entry.lastUsed).toLocaleString()} · {entry.uses}
+                </small>
+                {entry.request.kind === "ssh" && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      saveHistory(
+                        history.map((item, i) =>
+                          i === index
+                            ? { ...item, favorite: !item.favorite }
+                            : item,
+                        ),
+                      )
+                    }
+                  >
+                    {t(
+                      entry.favorite
+                        ? "history.unfavorite"
+                        : "history.favorite",
+                    )}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() =>
+                    saveHistory(history.filter((_, i) => i !== index))
+                  }
+                >
+                  {t("history.remove")}
+                </button>
+              </div>
+            ))}
+          </details>
           <label>
             {t("connection.protocol")}
             <select
@@ -212,6 +310,8 @@ export function ConnectionDialog({
                 if (next !== "serial" && (next !== "ssh" || !sshAvailable))
                   return;
                 setKind(next);
+                setPreset(undefined);
+                setFavorite(false);
                 setError("");
                 setAuth("key");
                 setBaudChoice("115200");
@@ -226,7 +326,7 @@ export function ConnectionDialog({
           </label>
         </fieldset>
         {/* Remount protocol fields so secrets and overlapping field names cannot cross forms. */}
-        <fieldset key={kind} disabled={busy || scanning}>
+        <fieldset key={`${kind}-${revision}`} disabled={busy || scanning}>
           {kind === "serial" ? (
             <>
               <SerialProfilesFields
@@ -328,7 +428,12 @@ export function ConnectionDialog({
               <div className="connection-grid">
                 <label>
                   {t("connection.host")}
-                  <input name="host" required maxLength={253} />
+                  <input
+                    name="host"
+                    defaultValue={sshPreset?.host}
+                    required
+                    maxLength={253}
+                  />
                 </label>
                 <label>
                   {t("connection.port")}
@@ -337,14 +442,19 @@ export function ConnectionDialog({
                     type="number"
                     min={1}
                     max={65535}
-                    defaultValue={22}
+                    defaultValue={sshPreset?.port ?? 22}
                     required
                   />
                 </label>
               </div>
               <label>
                 {t("connection.user")}
-                <input name="user" required maxLength={128} />
+                <input
+                  name="user"
+                  defaultValue={sshPreset?.user}
+                  required
+                  maxLength={128}
+                />
               </label>
               <label>
                 {t("connection.auth")}
@@ -412,7 +522,10 @@ export function ConnectionDialog({
                           max={max}
                           step={1}
                           required
-                          defaultValue={defaultSSHAdvanced[name]}
+                          defaultValue={
+                            sshPreset?.advanced?.[name] ??
+                            defaultSSHAdvanced[name]
+                          }
                         />
                       </label>
                     ))}
@@ -424,7 +537,9 @@ export function ConnectionDialog({
                       maxLength={64}
                       pattern={"[a-zA-Z0-9_.+\\-]+"}
                       required
-                      defaultValue={defaultSSHAdvanced.term}
+                      defaultValue={
+                        sshPreset?.advanced?.term ?? defaultSSHAdvanced.term
+                      }
                     />
                   </label>
                 </details>
@@ -433,8 +548,18 @@ export function ConnectionDialog({
           )}
           <label>
             {t("connection.label")}
-            <input name="label" maxLength={128} />
+            <input name="label" defaultValue={preset?.label} maxLength={128} />
           </label>
+          {kind === "ssh" && (
+            <label className="display-checkbox">
+              <input
+                type="checkbox"
+                checked={favorite}
+                onChange={(event) => setFavorite(event.target.checked)}
+              />
+              {t("history.favorite")}
+            </label>
+          )}
           {kind === "serial" && <TerminalSettingsFields t={t} />}
         </fieldset>
         {error && <p role="alert">{error}</p>}

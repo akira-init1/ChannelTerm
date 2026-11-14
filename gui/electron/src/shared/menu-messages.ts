@@ -796,4 +796,21 @@ export const menuMessages = [
     message:
       "Could not save display settings. Check local storage access and try again.",
   },
+  /* i18n */ {
+    id: "history.title",
+    message: "Recent connections and SSH favorites",
+  },
+  /* i18n */ {
+    id: "history.hint",
+    message:
+      "Local form presets only; select, review and connect explicitly. Credentials and credential paths must be entered again. Serial profiles remain shared with CLI.",
+  },
+  /* i18n */ { id: "history.favorite", message: "Favorite SSH" },
+  /* i18n */ { id: "history.unfavorite", message: "Remove favorite" },
+  /* i18n */ { id: "history.remove", message: "Forget connection" },
+  /* i18n */ {
+    id: "history.storageError",
+    message:
+      "Could not save connection history. Check local storage; do not repeat a successful connection.",
+  },
 ] satisfies MessageDescriptor[];

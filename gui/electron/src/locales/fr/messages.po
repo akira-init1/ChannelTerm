@@ -1015,6 +1015,36 @@ msgstr "Utiliser ChannelTerm"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "history.favorite"
+msgstr "Favori SSH"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "history.hint"
+msgstr "Préréglages locaux : sélectionnez, vérifiez puis connectez. Ressaisissez identifiants et chemins. Les profils série restent partagés avec CLI."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "history.remove"
+msgstr "Oublier la connexion"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "history.storageError"
+msgstr "Historique non enregistré. Vérifiez le stockage local ; ne répétez pas une connexion réussie."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "history.title"
+msgstr "Connexions récentes et favoris SSH"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "history.unfavorite"
+msgstr "Retirer des favoris"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "host.connect"
 msgstr "Se connecter à l’hôte..."
 

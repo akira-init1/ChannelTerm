@@ -390,7 +390,7 @@ menu entries or commitments to implement them.
 
 | Proposed category | Unimplemented scope / prerequisite |
 | --- | --- |
-| Host / Session | SSH profiles and recent connections remain outside the explicit connection forms. Default-local Host startup is automatic; other endpoints remain explicit. |
+| Host / Session | Recent connections and SSH favorites prefill explicit connection forms; CLI has no SSH profile persistence. Default-local Host startup is automatic; other endpoints remain explicit. |
 | Session | Recent connection history is not implemented. Shared close and multiple tabs follow the explicit contracts above. |
 | Terminal | Split panes and output folding are not exposed. SSH remote size control uses the terminal toolbar described below. Find and its select-all control operate only on the current retained view. Existing clipboard, local clear, focus and conditional resume actions remain. |
 | View | A complete MCP request audit, status-bar visibility and a combined Reset Layout action are unimplemented. Session activity shows retained Host observations, not a complete audit; Session status is not a status-bar toggle. |
@@ -422,3 +422,22 @@ The sidebar shows registered bridges, managed GDB and registered TCP/SSH observa
 separate connection/target/tunnel status, configured versus observed endpoints, endpoint roles,
 provenance and update time. Unavailable/expired observations remain explicitly unknown. See the
 [unified contract](mcp-tools.md#unified-debug-observation). No debugger control actions are added.
+
+## Recent connections and SSH favorites
+
+**Session > New Connection... > Recent connections and SSH favorites** lists up to 50
+successful GUI connections, with names, last-use times and use counts. Select a record to prefill
+its form, review the settings and explicitly connect. SSH records can be favorited/unfavorited;
+any record can be forgotten. Favorites are retained before older recent records when the bound
+is reached. The connection label names the record; editing it creates a distinct preset.
+
+The GUI profile stores only allowlisted serial/SSH parameters in renderer local storage under
+`channelterm.connections.v1`. Passwords, private-key passphrases, identity/trust-file paths,
+terminal input and output are excluded. Re-enter authentication and custom credential paths.
+Serial wake is always reset to off. Selecting a record never connects, sends input or grants trust;
+existing Host validation and SSH host-key confirmation still apply. Failed connection attempts do
+not update successful-use history. Storage failure reports a notice without retrying the connection.
+
+These records are local form presets, separate from the Host-owned serial profiles shared with
+CLI. CLI has no persistent SSH profiles; this feature adds no CLI profile compatibility. Storage
+is shared by windows in the same GUI profile; independent simultaneous edits use last-writer wins.
