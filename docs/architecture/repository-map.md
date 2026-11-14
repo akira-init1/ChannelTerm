@@ -97,7 +97,8 @@ The main ownership distinctions are deliberate:
   dependency crosses into the GUI. The adjacent `testdata/defaults-cases.json` is the shared
   Go/JavaScript matching corpus, not runtime terminal content.
 - **Application:** `internal/core/app` orchestrates adapter-neutral use cases and managed debug
-  operations, bounded managed file transfers and unified debug observation records; it does not own the Host process lifetime or presentation.
+  operations, bounded managed file transfers, unified debug observation records, and volatile
+  credential-bound client instances/Session uses; it does not own the Host process lifetime or presentation.
   It also owns bounded serial directory snapshots in the existing transfer child shell,
   serial U-Boot entry orchestration and bounded diagnostic archive retention/download
   use cases. These reuse Session cursors and application leases without adding Transport ownership.

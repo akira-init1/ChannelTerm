@@ -23,9 +23,11 @@ type jsonSchema struct {
 func terminalOutputSchema(name string) (jsonSchema, bool) {
 	var schema jsonSchema
 	switch name {
+	case "client_instance":
+		schema = objectSchema(map[string]jsonSchema{"action": stringSchema(), "instance": instanceSchema(), "instances": arraySchema(instanceSchema()), "credential": objectSchema(map[string]jsonSchema{"id": stringSchema(), "secret": stringSchema()}, "id", "secret"), "use": instanceUseSchema(), "ended": booleanSchema(), "delegation": stringSchema()}, "action")
 	case "file_transfer":
 		schema = objectSchema(map[string]jsonSchema{"status": objectSchema(map[string]jsonSchema{
-			"transfer_id": stringSchema(), "state": stringSchema(), "phase": stringSchema(), "transport": stringSchema(), "mode": stringSchema(),
+			"client": clientIdentitySchema(), "transfer_id": stringSchema(), "state": stringSchema(), "phase": stringSchema(), "transport": stringSchema(), "mode": stringSchema(),
 			"wire_mode": stringSchema(), "selection_reason": stringSchema(), "resolved_path": stringSchema(), "session_transfer_id": stringSchema(), "current_file": stringSchema(),
 			"bytes": integerSchema(), "total_bytes": integerSchema(), "files_verified": integerSchema(), "files_total": integerSchema(),
 			"current_bytes": integerSchema(), "current_total": integerSchema(),
@@ -340,7 +342,7 @@ func bridgeStatusSchema() jsonSchema {
 
 // clientIdentitySchema describes public provenance, never an authorization capability.
 func clientIdentitySchema() jsonSchema {
-	return objectSchema(map[string]jsonSchema{"client_id": stringSchema(), "name": stringSchema(), "kind": stringSchema("user", "agent")}, "client_id", "name", "kind")
+	return objectSchema(map[string]jsonSchema{"client_id": stringSchema(), "name": stringSchema(), "kind": stringSchema("user", "agent", "unknown"), "instance_id": stringSchema(), "parent_instance_id": stringSchema(), "operation_id": stringSchema(), "entry": stringSchema(), "declared_entry": stringSchema()}, "client_id", "name", "kind")
 }
 
 func debugObservationSchema() jsonSchema {
@@ -355,4 +357,11 @@ func debugObservationSchema() jsonSchema {
 	p["stale"] = booleanSchema()
 	p["ports"] = arraySchema(objectSchema(map[string]jsonSchema{"role": stringSchema(), "perspective": stringSchema(), "configured": stringSchema(), "address": stringSchema(), "port": integerSchema(), "state": stringSchema("observed", "unknown", "not_applicable")}, "role", "perspective", "configured", "address", "port", "state"))
 	return objectSchema(p, append(required, "client", "updated_at", "stale", "ports")...)
+}
+
+func instanceUseSchema() jsonSchema {
+	return objectSchema(map[string]jsonSchema{"id": stringSchema(), "session_id": stringSchema(), "kind": stringSchema("observe", "monitor", "operation"), "label": stringSchema(), "active": booleanSchema()}, "id", "session_id", "kind", "label", "active")
+}
+func instanceSchema() jsonSchema {
+	return objectSchema(map[string]jsonSchema{"id": stringSchema(), "client": clientIdentitySchema(), "name": stringSchema(), "declared_entry": stringSchema(), "parent_instance_id": stringSchema(), "parent_operation_id": stringSchema(), "state": stringSchema("online", "expired", "ended"), "expires_at": dateTimeSchema(), "uses_truncated": booleanSchema(), "uses": arraySchema(instanceUseSchema())}, "id", "client", "name", "declared_entry", "state", "expires_at", "uses")
 }

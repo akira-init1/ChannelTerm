@@ -155,8 +155,12 @@ parse escape sequences, or change retained bytes. Debug lease coordination belon
 ## Client provenance
 
 Write activity and structured events can carry optional public `client` metadata
-(`client_id`, `name`, `kind`). Application/Host adapters establish it; Session
+(`client_id`, `name`, `kind`, and optional `instance_id`, `parent_instance_id`,
+`operation_id`, `entry`, `declared_entry`). Application/Host adapters establish it; Session
 only retains it in the existing bounded buffers, independently of raw bytes.
 The `actor` field remains an execution/source label; system cleanup can carry an
 agent's initiating client identity. This is neither a complete audit nor a new
 Session owner or authentication service. Empty provenance remains unknown.
+Application owns online instance lifetime separately. `entry` identifies the accepting adapter;
+`declared_entry` is an unverified client label. Session does not process instance proofs or
+heartbeats, and presence changes never rewrite buffered provenance or terminal bytes.

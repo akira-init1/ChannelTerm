@@ -10,11 +10,33 @@ import (
 
 // authorizedTool enforces the application access contract for each invocation.
 // MCP readOnlyHint annotations are descriptive and are never authorization.
-type authorizedTool struct{ tool.Tool }
+type authorizedTool struct {
+	tool.Tool
+	application *app.Application
+}
 
 func (t authorizedTool) Call(ctx context.Context, input json.RawMessage) (tool.Result, error) {
 	if err := app.CheckClientAccess(ctx, clientEffect(t.Name())); err != nil {
 		return nil, err
+	}
+	if t.application != nil && t.Name() != "client_instance" {
+		var err error
+		ctx, err = t.application.BindClientInstance(ctx, "mcp")
+		if err != nil {
+			return nil, err
+		}
+		// Only explicit Session targets create call-use records. Lists and discovery
+		// do not implicitly keep every device in use. Business input is unchanged.
+		var target struct {
+			SessionID string `json:"session_id"`
+		}
+		_ = json.Unmarshal(input, &target)
+		var done func()
+		ctx, done, err = t.application.BeginClientCall(ctx, target.SessionID, t.Name(), clientEffect(t.Name()) != app.ClientRead)
+		if err != nil {
+			return nil, err
+		}
+		defer done()
 	}
 	return t.Tool.Call(ctx, input)
 }
@@ -23,7 +45,7 @@ func (t authorizedTool) Call(ctx context.Context, input json.RawMessage) (tool.R
 // authorization until their actual side effects have been reviewed here.
 func clientEffect(name string) app.ClientEffect {
 	switch name {
-	case "file_transfer":
+	case "client_instance", "file_transfer":
 		// Application checks start/cancel write grants and task ownership;
 		// status remains available after a client's write grant is revoked.
 		return app.ClientRead
@@ -41,9 +63,9 @@ func clientEffect(name string) app.ClientEffect {
 	}
 }
 
-func authorizeTools(tools []tool.Tool) []tool.Tool {
+func authorizeTools(tools []tool.Tool, application *app.Application) []tool.Tool {
 	for i := range tools {
-		tools[i] = authorizedTool{Tool: tools[i]}
+		tools[i] = authorizedTool{Tool: tools[i], application: application}
 	}
 	return tools
 }

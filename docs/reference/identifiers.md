@@ -147,6 +147,18 @@ Hosts using the same authentication directory share it; separate `CHANNELTERM_HO
 directories isolate domains. Credential rotation does not change this ID. See
 [HTTP configuration](configuration.md#paths) for migration and storage.
 
+## Client instance and use IDs
+
+`CI-...` identifies a volatile runtime instance under a registered client; one credential can
+have multiple instances. `CU-...` identifies an explicit Session use or accepted call. An operation
+captures its originating use ID, and a delegated child retains its parent's operation ID. These
+opaque public IDs are neither Session selectors nor credentials. Public lease-use snapshots have
+`lease:<session_id>` IDs and do not expose lease owner capabilities.
+
+Private instance proofs and one-use delegation secrets are separate from these IDs. Instance
+end/expiry does not end accepted operations. Host restart invalidates proofs while the stable
+registered client ID survives. See [instance presence](mcp-tools.md#client-instance-presence).
+
 ## Debug observation IDs
 
 Unified debug inventory uses an operation `id`, distinct from its optional full `session_id`.

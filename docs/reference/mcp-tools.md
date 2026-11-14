@@ -25,6 +25,76 @@ Recoverable tool failures return an MCP tool result with `isError: true` and tex
 `invalid_input`, `session_busy`, and `session_not_found`. Successful result shapes are unchanged.
 Structured inputs decoded by the terminal adapter reject unknown fields.
 
+## Client instance presence
+
+`client_instance` is optional presence bookkeeping, available to read-only registered clients.
+It grants no device writes, management authority, lease or cross-call control scope. The existing
+per-request credential/grant checks continue to apply. All successful results include `action`.
+
+| Action | Inputs beyond `action` | Result |
+| --- | --- | --- |
+| `register` | `name`, `entry`; optional `delegation` | `instance`, private `credential: {id, secret}` |
+| `renew` | `credential` | `instance` |
+| `end` | `credential` | `ended: true` |
+| `list` | None | public `instances` |
+| `use` | `credential`, `key`, `session_id`, `kind` | `use` |
+| `unuse` | `credential`, `use_id` | `ended: true` |
+| `delegate` | `credential`, operation `use_id` | private `delegation` |
+
+Names/keys are nonempty trimmed UTF-8 up to 128 bytes; `entry` is up to 32 bytes. Control characters
+are rejected. The action payload is limited to 4096 bytes. `entry` is an unverified display claim
+(for example `cli`, `electron` or `agent`), not the authenticated `kind`. Host binds the registration
+to the request credential; stdio/local registration has `kind: unknown` and no registered client ID.
+
+Instances expire after 60 seconds; renew every 20 seconds. End is idempotent while its record is
+retained, but expired/ended instances cannot be renewed or used for new calls. There are at most
+128 records and 64 uses per instance. Inactive history is retained for up to five minutes after
+expiry/end, with earlier eviction under capacity pressure. Accepted calls, transfer workers and
+existing leases retain their source while active. A full live registry rejects admission with
+`capacity`; it never discards live work. Host restart discards presence and invalidates all proofs.
+
+Public instances contain `id`, authenticated `client`, `name`, `declared_entry`, `state`
+(`online`, `expired`, `ended`), `expires_at`, `uses`, `uses_truncated` and optional parent instance/
+operation IDs. Uses contain `id`, full `session_id`, `kind` (`observe`, `monitor`, `operation`),
+`label` and `active`. Explicit uses are client intent (`active: false`); accepted calls/workers and
+lease snapshots are Host activity (`active: true`). Lease snapshots can make the bounded use list
+incomplete, indicated by `uses_truncated`. This inventory is not an idle-resource authority or a
+complete audit. List polling neither renews presence nor claims every Session. Repeating `use`
+with the same key/target/kind is idempotent; rebinding the key fails. Missing `unuse` succeeds;
+active Host uses cannot be removed by that action.
+
+For other tools, pass the returned private proof in MCP call metadata, outside business arguments:
+
+```json
+{
+  "name": "terminal_read",
+  "arguments": {"session_id": "<full-session-id>"},
+  "_meta": {"io.channelterm/instance": {"id": "<instance-id>", "secret": "<private-secret>"}}
+}
+```
+
+Metadata is limited to 512 encoded bytes. An optional `use_id` must refer to this instance's
+operation use and the call's Session. Missing metadata preserves legacy instance-unknown calls;
+invalid, foreign, ended or expired proofs fail with `instance_unavailable` before device work.
+Malformed metadata returns `invalid_input`. Never retry without metadata to bypass a failure.
+Reconnect/register explicitly and do not replay uncertain writes.
+
+`delegate` returns a one-use secret valid for 30 seconds, bound to the same authenticated client,
+live parent instance, operation use and exact Session. A child's `register` consumes it; the child
+gets its own proof and renewal lifetime. Child calls retain `parent_instance_id` and the parent
+`operation_id` and cannot use this proof on another Session. The ticket provides attribution,
+not a sandbox for a client already holding the underlying Host credential. Pass that credential
+separately to the child. Public IDs alone cannot delegate or impersonate an instance.
+
+Session activity/events, leases, and managed transfer status can carry optional public `client`
+fields `instance_id`, `parent_instance_id`, `operation_id`, `entry` and `declared_entry` alongside
+the registered identity. `entry: mcp` is adapter-bound; `declared_entry` is a client claim. Accepted
+asynchronous work keeps its initial source after end/expiry. End/expiry changes no credential
+grant, Session, lease or recovery behavior; existing lease expiry still applies independently.
+Capabilities must stay out of renderer state, public snapshots, logs and persistent configuration.
+
+## Tool metadata
+
 Every advertised tool also includes MCP behavioral annotations. These are planning hints, not
 authorization or safety enforcement:
 
@@ -46,6 +116,7 @@ and logs. The `terminal_*` name remains the stable machine-readable compatibilit
 
 | Tool name | Display title |
 | --- | --- |
+| `client_instance` | Client Instance Presence |
 | `file_transfer` | Transfer Files and Directories |
 | `terminal_enter_uboot` | Enter U-Boot |
 | `terminal_export_diagnostics` | Export Session Diagnostics |

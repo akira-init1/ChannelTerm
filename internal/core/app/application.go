@@ -80,6 +80,7 @@ type Application struct {
 	resize          resizeControls
 	observations    debugObservations
 	transfers       transferCoordinator
+	instances       clientInstances
 }
 
 // New creates an Application from Core runtime dependencies.

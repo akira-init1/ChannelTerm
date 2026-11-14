@@ -128,6 +128,13 @@ configuration contains the secret: keep it private. Update the existing client e
 `init --mcp` intentionally does not replace existing entries. Reload that client afterward.
 Pass the same independent credential to any CLI transfer executor so attribution is preserved.
 
+Capable CLI/Electron clients also register volatile runtime instances. Generic MCP clients must
+explicitly adopt [instance presence](../reference/mcp-tools.md#client-instance-presence); old callers
+remain instance-unknown. After Host restart, reconnect/register explicitly without replaying writes.
+A child delegation links a CLI executor to a parent operation, while credential inheritance alone
+preserves only registered identity. Neither mechanism identifies the real operator when credentials
+are shared, and instance end/expiry does not cancel accepted work or grant human takeover.
+
 Verify a list/read succeeds before granting; a write must return `permission_denied`. After the
 explicit grant, test an intended safe operation on the selected target. `clients revoke CL-...`
 restores read-only access for new requests; `clients remove CL-...` rejects all future requests.

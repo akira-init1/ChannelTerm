@@ -22,6 +22,21 @@ channelterm uninstall --help
 The current parser also implements `channelterm connect --help`, although `connect` is not listed in
 the current top-level help text.
 
+## Runtime presence
+
+Host-backed CLI commands discover `client_instance` and register one runtime instance per invocation
+and Host/credential. Internal connections reuse it; attach declares a monitor use, detach removes
+that use, and command exit best-effort ends the instance. Heartbeats renew presence only. A failed
+renewal rejects subsequent calls, requiring explicit reconnection without replaying input. Commands
+that never contact a Host, including independent SSH file connections, do not start a Host merely
+to advertise presence. Older Hosts without the tool retain instance-unknown behavior.
+
+The authenticated credential determines user/agent identity, not the CLI executable. A caller may
+link a CLI child to an exact parent operation using the private
+[delegation environment](configuration.md#independent-http-client-credentials). Without delegation,
+the inherited credential preserves registered identity but the new instance has no parent link.
+Presence is not a writer lease or proof that accepted background work has stopped.
+
 ## Diagnostic export
 
 `channelterm diagnostics` uses an existing MCP Host and writes a ZIP on the calling machine. It

@@ -137,7 +137,8 @@ export class DesktopSSHFiles {
     this.active.child?.kill();
   }
   async transfer(
-    host: Pick<HostClient, "validateFileSession">,
+    host: Pick<HostClient, "validateFileSession"> &
+      Partial<Pick<HostClient, "fileOperation">>,
     value: unknown,
     select: (r: SSHTransferRequest) => string,
   ): Promise<void> {
@@ -162,8 +163,11 @@ export class DesktopSSHFiles {
       cancelled: false,
     };
     this.active = active;
+    let provenance:
+      Awaited<ReturnType<HostClient["fileOperation"]>> | undefined;
     try {
       const entry = await host.validateFileSession(r.sessionId);
+      provenance = await host.fileOperation?.(r.sessionId, false);
       const c = r.connection;
       const address = c.host.includes(":") ? `[${c.host}]` : c.host;
       if (
@@ -311,6 +315,7 @@ export class DesktopSSHFiles {
       job.state = active.cancelled ? "cancelled" : "failed";
       throw error;
     } finally {
+      await provenance?.done();
       job.released = true;
       job.speed = 0;
       if (this.active === active) this.active = undefined;

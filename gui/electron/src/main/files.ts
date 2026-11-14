@@ -542,9 +542,12 @@ export class DesktopFiles {
     // Reserve before validation/credential awaits, so two clicks cannot spawn twice.
     const job: NonNullable<DesktopFiles["active"]> = {};
     this.active = job;
+    let provenance:
+      Awaited<ReturnType<HostClient["fileOperation"]>> | undefined;
     const operation = (async () => {
       await host.validateSerial(sessionId);
       const token = await loadToken();
+      provenance = await host.fileOperation(sessionId);
       return new Promise<unknown>((resolve, reject) => {
         const child = spawn(
           this.executable,
@@ -560,7 +563,12 @@ export class DesktopFiles {
             shell: false,
             windowsHide: true,
             stdio: ["ignore", "pipe", "pipe"],
-            env: { ...process.env, CHANNELTERM_HTTP_AUTH_TOKEN: token },
+            env: {
+              ...process.env,
+              CHANNELTERM_HTTP_AUTH_TOKEN: token,
+              CHANNELTERM_CLIENT_DELEGATION: provenance?.delegation ?? "",
+              CHANNELTERM_CLIENT_DELEGATION_ENDPOINT: host.info().endpoint,
+            },
           },
         );
         let pending = "";
@@ -641,6 +649,7 @@ export class DesktopFiles {
     try {
       return await operation;
     } finally {
+      await provenance?.done();
       if (this.active === job) this.active = undefined;
     }
   }

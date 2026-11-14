@@ -29,8 +29,13 @@ func listMCPDebugOverview(ctx context.Context, endpoint string) (app.DebugOvervi
 	if err != nil {
 		return result, err
 	}
-	defer client.Close()
-	err = callMCPTool(ctx, client, "debug_overview", map[string]any{}, &result)
+	wrapped, presenceErr := newInstanceMCPClient(ctx, client, endpoint)
+	if presenceErr != nil {
+		_ = client.Close()
+		return result, presenceErr
+	}
+	defer wrapped.Close()
+	err = callMCPTool(ctx, wrapped, "debug_overview", map[string]any{}, &result)
 	return result, err
 }
 

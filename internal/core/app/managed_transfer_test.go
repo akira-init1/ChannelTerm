@@ -82,6 +82,32 @@ func managedWait(t *testing.T, a *Application, ctx context.Context, q TransferRe
 	return s
 }
 
+func TestManagedTransferRetainsInstanceAfterCallerEnds(t *testing.T) {
+	root := t.TempDir()
+	mustWriteDirectoryTestFile(t, filepath.Join(root, "one.txt"), []byte("provenance"))
+	a := managedTestApplication(t, root, managedFileServer(t, 1<<30, false))
+	ctx := WithClientIdentity(context.Background(), session.ClientIdentity{ID: "CL-test", Kind: "agent"})
+	_, proof := registerInstance(t, a, ctx)
+	bound, err := a.BindClientInstance(WithInstanceProof(ctx, proof), "mcp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	started, err := a.StartFileTransfer(bound, TransferRequest{RequestID: "origin", Direction: "send", Transport: "sftp", SSHProfile: "board", Sources: []string{"one.txt"}, Destination: "/output", Mode: "files"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = a.EndClientInstance(ctx, proof); err != nil {
+		t.Fatal(err)
+	}
+	finished, err := a.FileTransferStatus(ctx, started.ID, false, 10*time.Second)
+	if err != nil || finished.State != "completed" {
+		t.Fatalf("instance end stopped accepted transfer: %+v, %v", finished, err)
+	}
+	if finished.Client != started.Client || finished.Client.InstanceID != proof.ID || finished.Client.OperationID == "" || finished.Client.Kind != "agent" {
+		t.Fatalf("transfer origin changed: %+v", finished.Client)
+	}
+}
+
 func TestManagedTransferSFTPRoundTripSelectionAndArchives(t *testing.T) {
 	for _, mode := range []string{"auto", "files", "tar", "tar.gz"} {
 		t.Run(mode, func(t *testing.T) {

@@ -79,6 +79,14 @@ dirty inputs, modified binaries, absent build records, compiler failure and unce
 
 ## Multiple windows and terminal tabs
 
+Host Client presence integration tests use isolated Go Hosts to check distinct window instances,
+multiple attachment uses, parent delegation, write provenance, malformed registration rejection,
+and disconnect without Session closure. The ordinary Host Client tests also retain structured
+busy/timeout error checks: tool discovery must not replace Main's result validation with an SDK
+success schema applied to error results. Native desktop suites exercise window cleanup and the
+existing workspace restore path. Instance inventory is currently a protocol capability; no new
+renderer presence or takeover UI is implied.
+
 Use **Window > New Window** to open another GUI window on the same configured Host. A connected
 source creates a connected destination without starting another Host. **New Tab** (or the strip's
 plus button) opens an empty tab with the Session chooser. Select an open Session or use

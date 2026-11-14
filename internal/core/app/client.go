@@ -39,7 +39,7 @@ func clientActor(ctx context.Context, actor session.Actor) session.Actor {
 func (a *Application) sessionForClient(ctx context.Context, identifier string) (session.Session, error) {
 	terminal, err := a.session(identifier)
 	client := ClientIdentityFromContext(ctx)
-	if err != nil || client.ID == "" {
+	if err != nil || client.ID == "" && client.InstanceID == "" {
 		return terminal, err
 	}
 	decorated := &clientSession{Session: terminal, client: client}

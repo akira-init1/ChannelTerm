@@ -39,6 +39,13 @@ type ClientIdentity struct {
 	ID   string `json:"client_id"`
 	Name string `json:"name"`
 	Kind string `json:"kind"`
+	// Instance and operation identifiers are public correlation, not capabilities.
+	InstanceID       string `json:"instance_id,omitempty"`
+	ParentInstanceID string `json:"parent_instance_id,omitempty"`
+	OperationID      string `json:"operation_id,omitempty"`
+	Entry            string `json:"entry,omitempty"`
+	// DeclaredEntry is an unverified client label, never an authorization fact.
+	DeclaredEntry string `json:"declared_entry,omitempty"`
 }
 
 // SessionEvent records a completed stream operation and its internal source.

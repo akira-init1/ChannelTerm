@@ -120,11 +120,16 @@ func listMCPBridges(ctx context.Context, endpoint string) ([]app.BridgeSummary, 
 	if err != nil {
 		return nil, err
 	}
-	defer client.Close()
+	wrapped, presenceErr := newInstanceMCPClient(ctx, client, endpoint)
+	if presenceErr != nil {
+		_ = client.Close()
+		return nil, presenceErr
+	}
+	defer wrapped.Close()
 	var result struct {
 		Bridges []app.BridgeSummary `json:"bridges"`
 	}
-	if err := callMCPTool(ctx, client, "debug_bridge_list", map[string]any{}, &result); err != nil {
+	if err := callMCPTool(ctx, wrapped, "debug_bridge_list", map[string]any{}, &result); err != nil {
 		return nil, err
 	}
 	return result.Bridges, nil

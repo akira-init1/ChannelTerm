@@ -341,6 +341,16 @@ silently recreated. To deliberately register again, remove only its `.local-toke
 file after verifying the Host domain. This registration identifies the local account's
 client group, not each window/process. Independent named credentials remain available.
 
+Runtime instances are separate volatile state, described by
+[instance presence](mcp-tools.md#client-instance-presence); no new persistent config field is added.
+For a delegated CLI subprocess, pass the one-use `client_instance` delegation result through
+`CHANNELTERM_CLIENT_DELEGATION` and the exact intended MCP endpoint through
+`CHANNELTERM_CLIENT_DELEGATION_ENDPOINT`, together with the initiating client's
+`CHANNELTERM_HTTP_AUTH_TOKEN`. Endpoint mismatch, an unsupported Host, or invalid delegation fails
+registration rather than silently changing provenance. These environment values are private
+per-child handoff data, never command-line arguments or saved preferences. Ordinary CLI invocations
+need neither delegation variable. The Electron serial file helper performs this handoff in Main.
+
 Revoking a write grant does not cancel an accepted command, file transfer, debug
 operation or its cleanup. It can prevent later protocol calls needed by a multi-step
 operation; finish or cancel that operation normally before revoking. Existing lease

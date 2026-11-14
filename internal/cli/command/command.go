@@ -110,6 +110,10 @@ func runWithDependencies(ctx context.Context, args []string, input io.Reader, ou
 }
 
 func runWithDependenciesWithInterrupts(ctx context.Context, args []string, input io.Reader, output io.Writer, newSession serialSessionFactory, newAttach attachSessionFactory, interrupts <-chan os.Signal) error {
+	instances := &cliInstances{clients: make(map[string]*instanceMCPClient)}
+	ctx = context.WithValue(ctx, cliInstancesKey{}, instances)
+	defer instances.close()
+
 	// The private cleanup command must run before normal CLI setup. A temporary
 	// Windows helper invokes it after the installed parent executable exits.
 	if len(args) > 0 && args[0] == "__uninstall-cleanup" {

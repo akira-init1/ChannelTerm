@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/akira-init1/ChannelTerm/internal/core/config"
+	"github.com/akira-init1/ChannelTerm/internal/core/session"
 )
 
 // TransferRequest starts a Host-local transfer. Sources and Destination are
@@ -37,25 +38,26 @@ type TransferRequest struct {
 // restoration and lease release. A failed/cancelled upload can leave remote
 // partial data; ResolvedPath identifies the attempted destination when known.
 type TransferStatus struct {
-	ID                string `json:"transfer_id"`
-	State             string `json:"state"`
-	Phase             string `json:"phase"`
-	Transport         string `json:"transport"`
-	Mode              string `json:"mode"`
-	WireMode          string `json:"wire_mode,omitempty"`
-	Reason            string `json:"selection_reason,omitempty"`
-	ResolvedPath      string `json:"resolved_path,omitempty"`
-	SessionTransferID string `json:"session_transfer_id,omitempty"`
-	CurrentFile       string `json:"current_file,omitempty"`
-	CurrentBytes      int64  `json:"current_bytes"`
-	CurrentTotal      int64  `json:"current_total"`
-	Bytes             int64  `json:"bytes"`
-	TotalBytes        int64  `json:"total_bytes"`
-	FilesVerified     int    `json:"files_verified"`
-	FilesTotal        int    `json:"files_total"`
-	SHA256            string `json:"sha256,omitempty"`
-	ChecksumScope     string `json:"checksum_scope,omitempty"`
-	Error             string `json:"error,omitempty"`
+	Client            session.ClientIdentity `json:"client,omitzero"`
+	ID                string                 `json:"transfer_id"`
+	State             string                 `json:"state"`
+	Phase             string                 `json:"phase"`
+	Transport         string                 `json:"transport"`
+	Mode              string                 `json:"mode"`
+	WireMode          string                 `json:"wire_mode,omitempty"`
+	Reason            string                 `json:"selection_reason,omitempty"`
+	ResolvedPath      string                 `json:"resolved_path,omitempty"`
+	SessionTransferID string                 `json:"session_transfer_id,omitempty"`
+	CurrentFile       string                 `json:"current_file,omitempty"`
+	CurrentBytes      int64                  `json:"current_bytes"`
+	CurrentTotal      int64                  `json:"current_total"`
+	Bytes             int64                  `json:"bytes"`
+	TotalBytes        int64                  `json:"total_bytes"`
+	FilesVerified     int                    `json:"files_verified"`
+	FilesTotal        int                    `json:"files_total"`
+	SHA256            string                 `json:"sha256,omitempty"`
+	ChecksumScope     string                 `json:"checksum_scope,omitempty"`
+	Error             string                 `json:"error,omitempty"`
 }
 
 // The coordinator bounds active I/O and retained retry records separately.
@@ -170,9 +172,13 @@ func (a *Application) StartFileTransfer(ctx context.Context, q TransferRequest) 
 	if q.TimeoutSeconds == 0 {
 		q.TimeoutSeconds = 3600
 	}
-	worker, cancel := context.WithTimeout(context.WithoutCancel(ctx), time.Duration(q.TimeoutSeconds)*time.Second)
+	operationContext, finishUse, presenceErr := a.BeginClientCall(ctx, q.SessionID, "file_transfer", true)
+	if presenceErr != nil {
+		return TransferStatus{}, presenceErr
+	}
+	worker, cancel := context.WithTimeout(context.WithoutCancel(operationContext), time.Duration(q.TimeoutSeconds)*time.Second)
 	id := "FT-" + rand.Text()
-	r := &transferRun{app: a, request: q, fingerprint: string(encoded), client: client, created: time.Now(), cancel: cancel, done: make(chan struct{}), status: TransferStatus{ID: id, State: "running", Phase: "preflight", Transport: q.Transport, Mode: q.Mode}}
+	r := &transferRun{app: a, request: q, fingerprint: string(encoded), client: client, created: time.Now(), cancel: cancel, done: make(chan struct{}), status: TransferStatus{Client: ClientIdentityFromContext(operationContext), ID: id, State: "running", Phase: "preflight", Transport: q.Transport, Mode: q.Mode}}
 	if c.runs == nil {
 		c.runs = make(map[string]*transferRun)
 	}
@@ -181,6 +187,7 @@ func (a *Application) StartFileTransfer(ctx context.Context, q TransferRequest) 
 	}
 	c.runs[id] = r
 	go func() {
+		defer finishUse()
 		defer close(r.done)
 		defer cancel()
 		err := r.execute(worker, c.settings)

@@ -402,9 +402,6 @@ try {
   });
   await listPage.getByRole("button", { name: "Connect to Host" }).click();
   await expect(
-    listPage.getByRole("heading", { name: "No Sessions available" }),
-  ).toBeVisible();
-  await expect(
     listPage.getByText("Host connected", { exact: true }),
   ).toBeVisible();
   await expect(listPage.getByRole("button", { name: "Refresh" })).toBeEnabled();
@@ -417,6 +414,9 @@ try {
   await expect(listPage.locator(".xterm-screen")).toHaveCount(0);
   await listPage.locator(".terminal-tab .icon-button").click();
   await expect(listPage.locator(".terminal-tab")).toHaveCount(0);
+  await expect(
+    listPage.getByRole("heading", { name: "No Sessions available" }),
+  ).toBeVisible();
   await checkMenuAvailability(desktop, true);
   await checkLayout(desktop, listPage, "empty");
   await desktop.evaluate(({ ipcMain }) => {

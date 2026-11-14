@@ -393,6 +393,13 @@ receive raw bytes only. Local registration and secret export belong to the CLI;
 there is no new listener or remote registration endpoint. See
 [credential boundaries](../reference/configuration.md#independent-http-client-credentials).
 
+Optional MCP instance metadata flows through adapter validation into Application's volatile
+instance registry. Application captures instance/operation provenance before Session work and
+retains it through asynchronous execution; it never infers online clients from stateless HTTP
+connections. CLI invocation and Electron window adapters own their own renewal/end calls.
+Explicit Session-use records and snapshots of existing leases are observations, not a new writer
+authority or an idle-close policy. See [instance ownership](../modules/application.md#volatile-client-instances).
+
 ## Read-only GDB overview
 
 ```text

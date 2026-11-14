@@ -1,3 +1,4 @@
+import { ClientPresence } from "./presence";
 import { debugOverview } from "./debug";
 import { RemoteSize } from "./resize";
 import { ActivityFeed } from "./activity";
@@ -67,6 +68,7 @@ class ToolFailure extends Error {
 /** An MCP client only: owns cursors/cancellation, never Session or lease authority. */
 export class HostClient {
   private client?: Client;
+  private presence?: ClientPresence;
   private lifetime: HostInfo["lifetime"] = "unknown";
   private connection = new AbortController();
   private attachments = new Map<string, ActiveAttachment>();
@@ -298,6 +300,8 @@ export class HostClient {
         throw new HostError("cancelled", "Connection cancelled.");
       if (client.getServerVersion()?.name !== "channelterm")
         throw incompatible();
+      this.presence = new ClientPresence(client, signal);
+      await this.presence.start();
       await this.list();
       // Older/foreground Hosts may expose MCP only. Probe a fixed same-origin
       // route; never derive a URL or credential from Renderer input.
@@ -345,10 +349,14 @@ export class HostClient {
     const client = this.client;
     if (!client || this.connection.signal.aborted)
       throw new HostError("disconnected", "Connect to a Host first.");
-    const result = await client.callTool({ name, arguments: args }, undefined, {
-      signal,
-      timeout: 10000,
-    });
+    const result = await client.callTool(
+      { name, arguments: args, _meta: this.presence?.metadata() },
+      undefined,
+      {
+        signal,
+        timeout: 10000,
+      },
+    );
     if (result.isError) {
       const details = object(object(result.structuredContent).error);
       if (details.code === "permission_denied")
@@ -677,6 +685,7 @@ export class HostClient {
       );
     this.changing = true;
     const connection = this.connection;
+    const presence = this.presence;
     try {
       const entry = (await this.list()).find(
         (entry) => entry.session_id === sessionId,
@@ -718,6 +727,15 @@ export class HostClient {
             connection.signal,
           );
         this.pendingSizes.delete(sessionId);
+      }
+      await presence?.use(active.id, sessionId, "monitor");
+      if (
+        connection.signal.aborted ||
+        this.connection !== connection ||
+        !this.client
+      ) {
+        await presence?.unuse(active.id);
+        throw new HostError("cancelled", "Attachment cancelled.");
       }
       this.attachments.set(active.id, active);
       return {
@@ -809,6 +827,7 @@ export class HostClient {
     if (!active) return;
     active.controller.abort();
     await active.sizeControl?.dispose();
+    await this.presence?.unuse(active.id);
     // This records a lifecycle event only. No terminal_close, lease release, or Host shutdown.
     try {
       await this.call(
@@ -1136,6 +1155,16 @@ export class HostClient {
     );
   }
 
+  /** Private Main-to-companion provenance, never a Renderer capability. */
+  async fileOperation(sessionId: string, delegate = true) {
+    return (
+      this.presence?.operation(sessionId, delegate) ?? {
+        delegation: "",
+        done: async () => {},
+      }
+    );
+  }
+
   async disconnect(): Promise<void> {
     // Abort immediately, including an in-progress handshake. Detach is advisory;
     // a disconnected MCP client never owns the underlying Session lifetime.
@@ -1150,6 +1179,8 @@ export class HostClient {
     ];
     this.pendingSizes.clear();
     const client = this.client;
+    const presence = this.presence;
+    this.presence = undefined;
     this.client = undefined;
     if (client && !this.connection.signal.aborted) {
       await Promise.all(
@@ -1158,6 +1189,7 @@ export class HostClient {
             await client.callTool(
               {
                 name: "terminal_session_detach",
+                _meta: presence?.metadata(),
                 arguments: { session_id: active.sessionId, actor: "user" },
               },
               undefined,
@@ -1169,6 +1201,7 @@ export class HostClient {
         }),
       );
     }
+    await presence?.close();
     this.connection.abort();
     // A setup may have returned during the bounded detach notifications. Revoke
     // those pending capabilities too, after disabling new attachment work.

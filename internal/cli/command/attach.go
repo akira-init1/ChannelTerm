@@ -75,7 +75,7 @@ type attachSessionFactory func(context.Context, string, string) (attachSession, 
 // Session and its single Transport reader.
 type mcpAttachSession struct {
 	id         string
-	client     *protocol.ClientSession
+	client     mcpToolClient
 	leaseOwner string
 	transferID string
 	// recoveryReference identifies the original Host registration for delayed
@@ -1301,13 +1301,21 @@ func (s *mcpAttachSession) call(ctx context.Context, name string, arguments map[
 // connectMCPClient opens a short-lived or attached MCP HTTP client. endpoint
 // must identify a Streamable HTTP handler; this function does not open a
 // terminal Session or send terminal bytes.
-func connectMCPClient(ctx context.Context, endpoint string) (*protocol.ClientSession, bool, error) {
+func connectMCPClient(ctx context.Context, endpoint string) (*instanceMCPClient, bool, error) {
 	token, err := loadHTTPClientToken()
 	if owned, ok := ctx.Value(localHTTPTokenKey{}).(string); ok {
 		token, err = owned, nil
 	}
 	if err != nil {
 		return nil, false, err
+	}
+	scope, _ := ctx.Value(cliInstancesKey{}).(*cliInstances)
+	if scope != nil {
+		scope.mu.Lock()
+		defer scope.mu.Unlock()
+		if c := scope.clients[instanceConnectionKey(endpoint, token)]; c != nil {
+			return c, c.temporary, nil
+		}
 	}
 	transport, err := newBearerTokenTransport(endpoint, token)
 	if err != nil {
@@ -1322,7 +1330,17 @@ func connectMCPClient(ctx context.Context, endpoint string) (*protocol.ClientSes
 	if err != nil {
 		return nil, false, fmt.Errorf("connect MCP endpoint %q: %w", endpoint, err)
 	}
-	return remote, transport.temporaryHost.Load(), nil
+	wrapped, err := newInstanceMCPClient(ctx, remote, endpoint)
+	if err != nil {
+		_ = remote.Close()
+		return nil, false, err
+	}
+	wrapped.temporary = transport.temporaryHost.Load()
+	if scope != nil {
+		wrapped.scoped = true
+		scope.clients[instanceConnectionKey(endpoint, token)] = wrapped
+	}
+	return wrapped, wrapped.temporary, nil
 }
 
 type bearerTokenTransport struct {
@@ -1391,7 +1409,7 @@ func httpOrigin(value *url.URL) string {
 // callMCPTool invokes one MCP tool and decodes its structured result. It keeps
 // tool-level failures distinct from transport failures so both attach and list
 // can report an unavailable host without hiding a server-side diagnostic.
-func callMCPTool(ctx context.Context, client *protocol.ClientSession, name string, arguments map[string]any, destination any) error {
+func callMCPTool(ctx context.Context, client mcpToolClient, name string, arguments map[string]any, destination any) error {
 	result, err := client.CallTool(ctx, &protocol.CallToolParams{Name: name, Arguments: arguments})
 	if err != nil {
 		return fmt.Errorf("call MCP tool %q: %w", name, err)

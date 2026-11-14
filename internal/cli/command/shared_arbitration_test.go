@@ -241,10 +241,10 @@ func registerArbitrationSession(t *testing.T, manager *session.Manager, id strin
 }
 
 // Compare the Host's complete public lease summaries, not adapter-local tokens.
-func assertSharedLease(t *testing.T, ctx context.Context, first, second *protocol.ClientSession, transferID string) {
+func assertSharedLease(t *testing.T, ctx context.Context, first, second mcpToolClient, transferID string) {
 	t.Helper()
 	var leases [2]map[string]any
-	for i, client := range []*protocol.ClientSession{first, second} {
+	for i, client := range []mcpToolClient{first, second} {
 		var result struct {
 			Sessions []struct {
 				ID    string         `json:"session_id"`
@@ -277,7 +277,7 @@ func assertSharedLease(t *testing.T, ctx context.Context, first, second *protoco
 	}
 }
 
-func assertArbitrationToolError(t *testing.T, ctx context.Context, client *protocol.ClientSession, name string, args map[string]any, messages ...string) {
+func assertArbitrationToolError(t *testing.T, ctx context.Context, client mcpToolClient, name string, args map[string]any, messages ...string) {
 	t.Helper()
 	result, err := client.CallTool(ctx, &protocol.CallToolParams{Name: name, Arguments: args})
 	if err != nil {

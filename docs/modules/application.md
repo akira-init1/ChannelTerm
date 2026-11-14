@@ -617,7 +617,30 @@ execution and recovery. Managed command, U-Boot and debug operation references
 retain provenance when publishing events after the initiating request returns.
 These references delegate to the existing Session and own no resources or locks.
 Client identity does not grant a lease or override existing operation controls.
-Unregistered callers retain empty identity. See the [identifier contract](../reference/identifiers.md#registered-client-ids).
+Unregistered callers without instance metadata retain empty identity. See the
+[identifier contract](../reference/identifiers.md#registered-client-ids).
+
+### Volatile client instances
+
+Application owns bounded instance registration, renewal, end, public snapshots and explicit
+Session uses. Registration binds the authenticated client, while names and declared executable
+labels remain unverified claims. Private capability digests stay in Application memory; public
+instance/use IDs are not authorization. Local/stdio registration has unknown identity rather than
+an invented human identity. The [MCP instance contract](../reference/mcp-tools.md#client-instance-presence)
+defines limits and protocol fields.
+
+Adapters validate an optional proof before accepting an operation and capture immutable provenance
+in the request context. Active calls and Host-managed transfer workers retain their use until
+completion. Existing leases also contribute public active-use snapshots; lease state is copied
+before taking the instance lock, with no renewal, cancellation or new lease authority. Explicit
+client uses describe intent; they cannot prove resource idleness. Lists never implicitly associate
+every Session with the observer.
+
+Ending or expiring an instance hides its inactive uses but preserves accepted work and its captured
+source. It does not revoke credentials, cancel work, release leases or close Sessions. Existing lease
+expiry/recovery rules still apply independently. Host restart loses all instance proofs; callers must
+register explicitly and must not replay writes. One-use child delegation binds the same credential,
+parent operation and exact Session without granting additional permissions.
 
 
 Trusted HTTP adapters also bind request grants, independently of the public actor label.

@@ -11,6 +11,20 @@ Electron/React/xterm contributions. This document owns the architecture and curr
 the scoped rules define review requirements without claiming that all future test cases or
 features already exist.
 
+## Runtime presence
+
+Each connected window's Main-owned Host Client registers its own volatile instance on capable
+Hosts. Attachments declare distinct monitor uses under that instance. Main owns renewal and
+best-effort end; proof secrets never cross IPC or enter saved preferences. A failed renewal blocks
+new calls until explicit reconnect and never retries input. Older Hosts remain instance-unknown.
+
+Serial file helpers inherit the initiating Host credential and a short-lived, target-bound parent
+delegation through private environment values. Independent SSH file helpers use a window-declared
+operation intent; their separate SSH connection is not a Host-managed worker or a second online
+Host instance. Desktop HTTP setup/resize routes retain registered-client attribution and do not
+yet carry instance proofs. See the [MCP contract](../reference/mcp-tools.md#client-instance-presence)
+for public provenance and its limits. This adds no renderer control panel or takeover authority.
+
 ## Code dependencies
 
 ```mermaid

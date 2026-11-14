@@ -342,7 +342,7 @@ func newAdapter(registry *tool.Registry) (*adapter, error) {
 		{name: "terminal_get_connection_decision", target: connectionDecision.Name(), description: connectionDecision.Description(), schema: connectionDecision.InputSchema()},
 		{name: "terminal_close", target: closeTool.Name(), description: closeTool.Description(), schema: closeTool.InputSchema()},
 	}
-	for _, name := range []string{"file_transfer", "terminal_enter_uboot", "terminal_export_diagnostics", "terminal_read_diagnostic", "debug_start", "debug_command", "debug_events", "debug_stop", "debug_overview", "debug_observation_register", "debug_observation_report", "debug_bridge_list", "debug_bridge_start", "debug_bridge_status", "debug_bridge_renew", "debug_bridge_close", "debug_bridge_restore", "debug_bridge_report"} {
+	for _, name := range []string{"client_instance", "file_transfer", "terminal_enter_uboot", "terminal_export_diagnostics", "terminal_read_diagnostic", "debug_start", "debug_command", "debug_events", "debug_stop", "debug_overview", "debug_observation_register", "debug_observation_report", "debug_bridge_list", "debug_bridge_start", "debug_bridge_status", "debug_bridge_renew", "debug_bridge_close", "debug_bridge_restore", "debug_bridge_report"} {
 		if registered, ok := registry.Get(name); ok {
 			exposed = append(exposed, exposedTool{name: name, target: name, description: registered.Description(), schema: registered.InputSchema()})
 		}
@@ -388,6 +388,14 @@ func (a *adapter) handler(exposed exposedTool) protocol.ToolHandler {
 		var input json.RawMessage
 		if request != nil && request.Params != nil {
 			input = request.Params.Arguments
+			if raw, ok := request.Params.Meta["io.channelterm/instance"]; ok {
+				encoded, err := json.Marshal(raw)
+				var proof app.InstanceProof
+				if err != nil || len(encoded) > 512 || json.Unmarshal(encoded, &proof) != nil || proof.ID == "" || proof.Secret == "" {
+					return errorResult(exposed.name, app.ErrClientInstanceInput), nil
+				}
+				ctx = app.WithInstanceProof(ctx, proof)
+			}
 		}
 		if exposed.requireCursor {
 			if err := validateWaitInput(exposed.name, input); err != nil {
@@ -442,6 +450,12 @@ func errorResult(name string, err error) *protocol.CallToolResult {
 		code = classified.ErrorCode()
 	case errors.Is(err, app.ErrClientPermissionDenied):
 		code = "permission_denied"
+	case errors.Is(err, app.ErrClientInstance):
+		code = "instance_unavailable"
+	case errors.Is(err, app.ErrClientInstanceInput):
+		code = "invalid_input"
+	case errors.Is(err, app.ErrClientInstanceLimit):
+		code = "capacity"
 	case errors.Is(err, context.DeadlineExceeded):
 		code = "timeout"
 	case errors.Is(err, context.Canceled):
