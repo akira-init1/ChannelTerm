@@ -1056,3 +1056,32 @@ retain their existing recovery boundary. Queued foreground SSH input captures it
 waiting and is discarded after rejection. No old payload is retried under a refreshed generation.
 Unregistered stdio is read-only. See [migration](../getting-started/http-authentication-migration.md#default-controlled-sessions)
 and [control semantics](mcp-tools.md#session-control).
+
+### Human interruption from an attachment
+
+With a current authenticated Host, `Ctrl+] i` captures the full Session ID, control version and
+operation ID, shows the target and asks `[y/N]`. Only `y`/`Y` submits that captured request. Input
+received with the shortcut or confirmation is discarded, including pasted tails. Changing or
+finishing the operation while the question is open cannot retarget the request. Human takeover
+requires a live **user** instance with management permission.
+
+The local dispatcher remains responsive to escape commands during managed commands. While a
+control request is pending it discards ordinary input; `Ctrl+] q` detaches. It queries the original
+result for up to twelve seconds, then leaves uncertain input paused. `Ctrl+] r` queries the same
+original takeover again without repeating the mutation. Successful recovery still requires a
+fresh writable Host observation before local input resumes. An expired/unavailable result is
+unknown, not proof of failure or permission to retry. The key is shown locally; after leaving the
+attachment, an authorized MCP reader can query it while Host retention lasts.
+
+`Ctrl+] a` separately confirms allowing **new** AI operations. It never restarts a cancelled
+operation or restores discarded input. Ordinary Ctrl+C retains its existing behavior. During a
+file transfer owned by this local attachment, `Ctrl+] i` opens the existing safe file-cancellation
+confirmation, just like its existing Ctrl+C path; this cancels that transfer rather than acquiring
+a persistent human pause. Finish recovery before a later Session takeover. Direct private serial
+input reports these shared-control shortcuts unavailable.
+
+Managed command, serial-transfer and debug takeover follows the Host recovery contract. Unknown
+external work or unconfirmed recovery can close the original Session; neither closure nor a
+recovery result proves that remote background jobs or a reboot stopped. Dedicated SFTP/SCP
+commands retain their existing process cancellation on their private connection and never send
+Ctrl+C into the shared terminal.

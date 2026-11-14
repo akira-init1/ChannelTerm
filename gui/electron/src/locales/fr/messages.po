@@ -255,6 +255,96 @@ msgstr "Nom d’utilisateur"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "control.allow"
+msgstr "Autoriser les opérations IA"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.allowed"
+msgstr "Pause IA levée · aucune tâche relancée"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.allowWarning"
+msgstr "Autoriser de nouvelles opérations IA ? Les tâches annulées et les saisies abandonnées ne seront pas relancées."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.confirm"
+msgstr "Confirmer"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.dismiss"
+msgstr "Annuler"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.failed"
+msgstr "Échec de récupération · session initiale fermée ; les tâches distantes peuvent continuer"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.interrupt"
+msgstr "Interrompre l’IA"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.paused"
+msgstr "IA en pause"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.processing"
+msgstr "Demande en cours · la saisie nécessite la confirmation du Host"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.query"
+msgstr "Consulter le résultat initial"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.sshWarning"
+msgstr "Annuler cette tâche SSH indépendante ? Sa connexion dédiée sera fermée ; les sessions de terminal resteront ouvertes. Des fichiers partiels peuvent subsister."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.stale"
+msgstr "Opération modifiée ou terminée. Actualiser et vérifier avant une nouvelle demande."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.stopping"
+msgstr "Arrêt en cours · récupération en attente ; garder la saisie en pause"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.taken_over"
+msgstr "Récupération confirmée · IA toujours en pause"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.takeover"
+msgstr "Prendre le contrôle"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.title"
+msgstr "Contrôle de session"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.unknown"
+msgstr "Résultat non confirmé ou demande refusée. Consulter la demande initiale ; ne pas répéter la saisie."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.warning"
+msgstr "Arrêter cette opération capturée et prendre le contrôle ? La récupération peut fermer cette session. Les tâches distantes en arrière-plan peuvent continuer."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "debug.client"
 msgstr "Client enregistré"
 

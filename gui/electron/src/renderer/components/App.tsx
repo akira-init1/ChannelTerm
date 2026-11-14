@@ -1,3 +1,4 @@
+import { ControlPanel } from "../sessions/ControlPanel";
 import { retainedTransfer } from "../../shared/transfers";
 import {
   preferencesKey,
@@ -247,6 +248,30 @@ export function App() {
     tabsRef.current = next;
     setTabState(next);
   }
+  const [controlBlocked, setControlBlocked] = useState<
+    Map<string, { version: string; confirmed: boolean }>
+  >(() => new Map());
+  useEffect(() => {
+    // A pre-request list response may arrive late. A confirmed action can only
+    // unblock input after Host reports a different, writable generation.
+    const targets = new Set(tabs.map((tab) => tab.attachment?.sessionId));
+    setControlBlocked((previous) => {
+      const next = new Map(previous);
+      for (const [id, pending] of previous) {
+        const control = sessions.find(
+          (entry) => entry.session_id === id,
+        )?.control;
+        if (
+          !targets.has(id) ||
+          (pending.confirmed &&
+            control?.writable &&
+            control.version !== pending.version)
+        )
+          next.delete(id);
+      }
+      return next.size === previous.size ? previous : next;
+    });
+  }, [tabs, sessions]);
   const [selectedTabId, setSelectedTabId] = useState<string>();
   const selectedTabRef = useRef(selectedTabId);
   selectedTabRef.current = selectedTabId;
@@ -1411,6 +1436,7 @@ export function App() {
     current?.state === "open" &&
     !current.lease &&
     current.control?.writable !== false &&
+    !controlBlocked.has(current.session_id) &&
     !inputPaused;
   // Distinguish pending/failed operations from a successfully loaded empty list
   // instead of using the same empty-state heading for every unattached view.
@@ -2001,6 +2027,19 @@ export function App() {
               </div>
             )}
           </div>
+          <ControlPanel
+            current={current}
+            connected={connected}
+            t={t}
+            refresh={refresh}
+            pauseInput={(id, version, paused) =>
+              setControlBlocked((previous) => {
+                const next = new Map(previous);
+                next.set(id, { version, confirmed: !paused });
+                return next;
+              })
+            }
+          />
           {tabs.map(
             (tab) =>
               tab.attachment && (
@@ -2230,7 +2269,9 @@ export function App() {
               ? "Session unavailable · Read-only"
               : current.lease
                 ? "Read-only · Lease active"
-                : inputPaused || current.control?.writable === false
+                : inputPaused ||
+                    current.control?.writable === false ||
+                    controlBlocked.has(current.session_id)
                   ? "Input paused"
                   : terminalSettings.view === "hex"
                     ? t("terminal.hex")

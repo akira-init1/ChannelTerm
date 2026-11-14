@@ -39,6 +39,8 @@ type TransferRequest struct {
 // restoration and lease release. A failed/cancelled upload can leave remote
 // partial data; ResolvedPath identifies the attempted destination when known.
 type TransferStatus struct {
+	// StopReason identifies an explicit human interruption without claiming cleanup has completed.
+	StopReason        string                 `json:"stop_reason,omitempty"`
 	SessionID         string                 `json:"session_id,omitempty"`
 	Client            session.ClientIdentity `json:"client,omitzero"`
 	ID                string                 `json:"transfer_id"`
@@ -307,8 +309,9 @@ func (a *Application) FileTransferStatus(ctx context.Context, id string, cancel 
 }
 
 // TransferSummary is a public observation, excluding paths, profiles, errors and capabilities.
-// It conveys no right to query private status or cancel another client's task.
+// It conveys no right to query private status; interruption requires separate human management authority.
 type TransferSummary struct {
+	StopReason        string                 `json:"stop_reason,omitempty"`
 	ID                string                 `json:"transfer_id"`
 	SessionID         string                 `json:"session_id,omitempty"`
 	SessionTransferID string                 `json:"session_transfer_id,omitempty"`
@@ -334,11 +337,48 @@ func (a *Application) ListFileTransfers(ctx context.Context) ([]TransferSummary,
 	defer a.transfers.mu.Unlock()
 	rows := make([]TransferSummary, 0, len(a.transfers.runs))
 	for _, r := range a.transfers.runs {
-		s := r.snapshot()
-		rows = append(rows, TransferSummary{ID: s.ID, SessionID: s.SessionID, SessionTransferID: s.SessionTransferID, Client: s.Client, Transport: s.Transport, Direction: r.request.Direction, State: s.State, Phase: s.Phase, Bytes: s.Bytes, TotalBytes: s.TotalBytes})
+		rows = append(rows, r.summary())
 	}
 	sort.Slice(rows, func(i, j int) bool { return rows[i].ID < rows[j].ID })
 	return rows, nil
+}
+
+// InterruptSSHFileTransfer requests cancellation of one immutable managed SSH task
+// for a live user instance with management permission. It never touches a terminal
+// Session or returns private paths. Completion can win the race; a running result
+// means cleanup is still pending. Query ListFileTransfers for the final state.
+func (a *Application) InterruptSSHFileTransfer(ctx context.Context, id string) (TransferSummary, error) {
+	if err := requireHumanControl(ctx); err != nil {
+		return TransferSummary{}, err
+	}
+	if err := a.validateControlIdentity(ctx, ""); err != nil {
+		return TransferSummary{}, err
+	}
+	if len(id) < 19 || len(id) > 67 || !strings.HasPrefix(id, "FT-") {
+		return TransferSummary{}, errors.New("invalid managed SSH task ID")
+	}
+	a.transfers.mu.Lock()
+	r := a.transfers.runs[id]
+	a.transfers.mu.Unlock()
+	if r == nil {
+		return TransferSummary{}, errors.New("managed SSH task unavailable")
+	}
+	if r.request.Transport != "sftp" && r.request.Transport != "scp" {
+		return TransferSummary{}, errors.New("serial tasks require exact Session takeover")
+	}
+	// Keep the captured worker pointer even if retention changes concurrently.
+	// cancel is idempotent and does not claim that remote background work stopped.
+	r.update(func(s *TransferStatus) {
+		if s.State == "running" {
+			s.StopReason = "user_interrupted"
+		}
+	})
+	r.cancel()
+	return r.summary(), nil
+}
+func (r *transferRun) summary() TransferSummary {
+	s := r.snapshot()
+	return TransferSummary{StopReason: s.StopReason, ID: s.ID, SessionID: s.SessionID, SessionTransferID: s.SessionTransferID, Client: s.Client, Transport: s.Transport, Direction: r.request.Direction, State: s.State, Phase: s.Phase, Bytes: s.Bytes, TotalBytes: s.TotalBytes}
 }
 
 // CloseFileTransfers prevents admission, cancels and joins all managed workers.

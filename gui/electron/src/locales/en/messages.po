@@ -255,6 +255,96 @@ msgstr "User name"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "control.allow"
+msgstr "Allow AI operations"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.allowed"
+msgstr "AI pause removed · no work restarted"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.allowWarning"
+msgstr "Allow new AI operations? Cancelled work and discarded input will not restart."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.confirm"
+msgstr "Confirm"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.dismiss"
+msgstr "Dismiss"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.failed"
+msgstr "Recovery failed · original Session closed; remote work may continue"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.interrupt"
+msgstr "Interrupt AI"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.paused"
+msgstr "AI paused"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.processing"
+msgstr "Request pending · input requires Host confirmation"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.query"
+msgstr "Query original result"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.sshWarning"
+msgstr "Cancel this independent SSH task? Its dedicated connection will close; terminal Sessions stay open. Partial files may remain."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.stale"
+msgstr "Operation changed or completed. Refresh and inspect before a new request."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.stopping"
+msgstr "Stopping · recovery pending; keep input paused"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.taken_over"
+msgstr "Recovery confirmed · AI remains paused"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.takeover"
+msgstr "Take control"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.title"
+msgstr "Session control"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.unknown"
+msgstr "Result unconfirmed or request denied. Query the original request; do not retry input."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.warning"
+msgstr "Stop this captured operation and take control? Recovery may close this Session. Remote background work may continue."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "debug.client"
 msgstr "Registered client"
 

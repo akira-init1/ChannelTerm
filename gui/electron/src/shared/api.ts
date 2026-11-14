@@ -20,7 +20,7 @@ import type {
 } from "./menus";
 import type { ConnectionRequest, OpenedConnection } from "./connections";
 import type { TerminalSettings } from "./terminal-settings";
-import type { ControlSnapshot } from "./control";
+import type { ControlSnapshot, ControlRequest, ControlReply } from "./control";
 
 /** Display-only snapshots. The Host remains authoritative for lifecycle and leases. */
 export interface SessionSummary {
@@ -35,6 +35,7 @@ export interface SessionSummary {
 }
 
 export type ErrorCode =
+  | "control_stale"
   | "host_legacy_credentials"
   | "host_identity_missing"
   | "host_credential_missing"
@@ -98,6 +99,7 @@ export interface WindowInfo {
 
 /** One method per IPC channel; no arbitrary tool, URL, file, or process access. */
 export interface DesktopAPI {
+  control(request: ControlRequest): Promise<Result<ControlReply>>;
   /** File objects are consumed in Preload; only opaque selections return to Renderer. */
   selectDroppedFiles(
     sessionId: string,
@@ -132,6 +134,7 @@ export interface DesktopAPI {
   startTransfer(request: TransferRequest): Promise<Result<void>>;
   startSSHTransfer(request: SSHTransferRequest): Promise<Result<void>>;
   sshTransfers(): Promise<Result<TransferStatus[]>>;
+  interruptSSHTransfer(id: string): Promise<Result<void>>;
   managedTransfers(): Promise<Result<TransferStatus[]>>;
   cancelSSHTransfer(id: string): Promise<Result<void>>;
   transferCheckpoints(sessionId: string): Promise<Result<TransferCheckpoint[]>>;
@@ -189,6 +192,7 @@ export interface DesktopAPI {
 }
 
 export const channels = {
+  control: "host:control",
   selectDroppedFiles: "files:drop",
   transferPreference: "files:preference",
   saveTransferPreference: "files:preference-save",
@@ -207,6 +211,7 @@ export const channels = {
   startTransfer: "files:transfer",
   startSSHTransfer: "files:ssh-start",
   sshTransfers: "files:ssh-status",
+  interruptSSHTransfer: "files:managed-interrupt",
   managedTransfers: "files:managed-status",
   cancelSSHTransfer: "files:ssh-cancel",
   transferCheckpoints: "files:checkpoints",

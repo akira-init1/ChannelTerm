@@ -30,6 +30,8 @@ const (
 	attachInputModeFileTransfer
 	attachInputModeFileTransferCancelConfirm
 	attachInputModeDirectoryChoice
+	attachInputModeControlConfirm
+	attachInputModeControlWait
 )
 
 const controlCRecoveryWindow = 500 * time.Millisecond
@@ -56,13 +58,17 @@ type terminalCommandActivity interface {
 // attachInputPump is its sole stdin/Console reader; menu, path, and transfer
 // modes consume only the pump's ordered results and never read stdin directly.
 type attachInputDispatcher struct {
-	discardBefore time.Time
-	ctx           context.Context
-	pump          *attachInputPump
-	interrupts    <-chan os.Signal
-	terminal      attachSession
-	writeLocal    func([]byte) error
-	writeStatus   func([]byte) error
+	controlInputPaused bool
+	controlDraft       *attachControlRequest
+	controlLast        *attachControlRequest
+	controlDone        <-chan attachControlReply
+	discardBefore      time.Time
+	ctx                context.Context
+	pump               *attachInputPump
+	interrupts         <-chan os.Signal
+	terminal           attachSession
+	writeLocal         func([]byte) error
+	writeStatus        func([]byte) error
 	// writeRemote optionally schedules owner input without blocking local
 	// escape processing. Ordinary attachments retain synchronous writes.
 	writeRemote                  func([]byte) error
@@ -158,6 +164,8 @@ func (d *attachInputDispatcher) run() {
 			continue
 		}
 		select {
+		case reply := <-d.controlDone:
+			d.finishControlRequest(reply)
 		case <-d.externalConfirmationTimeout():
 			d.expireExternalConfirmation()
 		case interrupt := <-d.interrupts:
@@ -236,10 +244,9 @@ func (d *attachInputDispatcher) dispatch(data []byte) bool {
 	if d.mode == attachInputModeFileTransferCancelConfirm && time.Now().Before(d.ignoreControlCUntil) && len(data) > 0 && (data[0] == 'c' || data[0] == 'C') {
 		return true
 	}
-	if d.terminalCommandInputActive() {
-		return d.ignoreTerminalCommandInput()
+	if !d.terminalCommandInputActive() {
+		d.commandInputIgnoredAnnounced = false
 	}
-	d.commandInputIgnoredAnnounced = false
 	for len(data) > 0 {
 		if data[0] == 0x03 {
 			if !d.handleControlC() {
@@ -249,6 +256,11 @@ func (d *attachInputDispatcher) dispatch(data []byte) bool {
 			continue
 		}
 		switch d.mode {
+		case attachInputModeControlConfirm:
+			d.confirmControlRequest(data[0] == 'y' || data[0] == 'Y')
+			return true // Never forward a confirmation or its pasted tail.
+		case attachInputModeControlWait:
+			return d.dispatchAttach(data)
 		case attachInputModeDirectoryChoice:
 			d.answerDirectoryChoice(data[0])
 			return true // Never replay pasted tails into the terminal.
@@ -261,9 +273,7 @@ func (d *attachInputDispatcher) dispatch(data []byte) bool {
 				return false
 			}
 		case attachInputModeFileTransfer:
-			if !d.ignoreTransferInput() {
-				return false
-			}
+			return d.dispatchAttach(data)
 		case attachInputModeFileTransferCancelConfirm:
 			answer := data[0]
 			if answer >= 0x20 && answer != 0x7f && d.writeLocal != nil {
@@ -292,6 +302,18 @@ func (d *attachInputDispatcher) dispatchAttach(data []byte) bool {
 			write = func(data []byte) error { return writeSession(d.terminal, session.ActorUser, data) }
 		}
 		payload := remote
+		if d.mode == attachInputModeControlWait || d.controlInputPaused {
+			remote = nil
+			return true
+		}
+		if d.mode == attachInputModeFileTransfer {
+			remote = nil
+			return d.ignoreTransferInput()
+		}
+		if d.terminalCommandInputActive() {
+			remote = nil
+			return d.ignoreTerminalCommandInput()
+		}
 		remote = nil // A failed batch must never be appended and retried at the next local escape.
 		if err := write(payload); err != nil {
 			d.discardBefore = time.Now()
@@ -321,6 +343,10 @@ func (d *attachInputDispatcher) dispatchAttach(data []byte) bool {
 					return false
 				}
 			case interactive.ActionQuit:
+				if d.mode == attachInputModeFileTransfer {
+					d.beginTransferCancellationConfirmation()
+					return true
+				}
 				if !flushRemote() {
 					d.cancelAttach()
 				}
@@ -336,7 +362,25 @@ func (d *attachInputDispatcher) dispatchAttach(data []byte) bool {
 					d.cancelAttach()
 					return false
 				}
+			case interactive.ActionTakeControl, interactive.ActionAllowAI, interactive.ActionControlResult:
+				if !flushRemote() {
+					return false
+				}
+				if d.mode == attachInputModeFileTransfer {
+					if action.Kind == interactive.ActionTakeControl {
+						d.beginTransferCancellationConfirmation()
+					}
+					return true
+				}
+				if d.controlDone != nil {
+					return true
+				}
+				d.beginControlRequest(action.Kind)
+				return true
 			case interactive.ActionFileTransfer:
+				if d.mode != attachInputModeAttach || d.controlInputPaused || d.terminalCommandInputActive() {
+					return true
+				}
 				if !flushRemote() || !d.enterFileMenu() {
 					return false
 				}

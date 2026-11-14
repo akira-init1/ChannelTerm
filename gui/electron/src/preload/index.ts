@@ -3,6 +3,7 @@ import { channels, type DesktopAPI } from "../shared/api";
 import { isAction } from "../shared/menus";
 
 const api: DesktopAPI = {
+  control: (request) => ipcRenderer.invoke(channels.control, request),
   selectDroppedFiles: async (id, files) => {
     try {
       if (!Array.isArray(files) || files.length < 1 || files.length > 16)
@@ -59,6 +60,8 @@ const api: DesktopAPI = {
   startSSHTransfer: (request) =>
     ipcRenderer.invoke(channels.startSSHTransfer, request),
   sshTransfers: () => ipcRenderer.invoke(channels.sshTransfers),
+  interruptSSHTransfer: (id) =>
+    ipcRenderer.invoke(channels.interruptSSHTransfer, id),
   managedTransfers: () => ipcRenderer.invoke(channels.managedTransfers),
   cancelSSHTransfer: (id) => ipcRenderer.invoke(channels.cancelSSHTransfer, id),
   transferCheckpoints: (sessionId) =>

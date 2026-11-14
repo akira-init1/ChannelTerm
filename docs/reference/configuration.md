@@ -37,8 +37,10 @@ never put key contents in TOML or pass credentials to an AI.
 
 An omitted section stays omitted when saving configuration. Foreground `channelterm ssh` sharing
 Hosts do not enable these grants; use a standalone MCP Host. HTTP write grants are additionally
-required to start/cancel tasks. Listener defaults, authentication and existing CLI transfers do not
-change. See [the MCP contract](mcp-tools.md#file_transfer) and
+required to start/cancel owned tasks. The separate `file_transfer action=interrupt` path requires
+a live user instance with management permission and cancels exactly one independent Host-managed
+SSH task across clients; it adds no config field or private-status access. Listener defaults,
+authentication and existing CLI transfers do not change. See [the MCP contract](mcp-tools.md#file_transfer) and
 [workflow](../getting-started/file-transfer.md#managed-mcp-transfers).
 
 ## Paths

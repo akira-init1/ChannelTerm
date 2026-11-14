@@ -1,6 +1,6 @@
 import { ClientPresence } from "./presence";
-import type { ControlSnapshot } from "../../shared/control";
-import { controlSnapshot } from "./control";
+import type { ControlSnapshot, ControlReply } from "../../shared/control";
+import { controlSnapshot, controlRequest, controlOutcome } from "./control";
 import { managedTransferSummaries } from "./provenance";
 import type { TransferStatus } from "../../shared/transfers";
 import { debugOverview } from "./debug";
@@ -157,6 +157,32 @@ export class HostClient {
     if (!this.presence?.managedTransfersAvailable) return [];
     const result = await this.call("file_transfer_list", {});
     return this.decorateTransfers(managedTransferSummaries(result.transfers));
+  }
+
+  private interruptingTransfer = false;
+  async interruptSSHTransfer(id: unknown): Promise<void> {
+    if (typeof id !== "string" || !/^FT-[A-Za-z0-9]{16,64}$/.test(id))
+      throw incompatible();
+    if (this.interruptingTransfer)
+      throw new HostError("busy", "A transfer interruption is pending.");
+    this.interruptingTransfer = true;
+    try {
+      const result = await this.call("file_transfer", {
+        action: "interrupt",
+        transfer_id: id,
+      });
+      const row = managedTransferSummaries([result.transfer])[0];
+      if (row?.managedId !== id) throw incompatible();
+    } catch (error) {
+      if (error instanceof ToolFailure)
+        throw new HostError(
+          "tool_error",
+          "Transfer interruption was not confirmed. Refresh the original task; no request was retried.",
+        );
+      throw error;
+    } finally {
+      this.interruptingTransfer = false;
+    }
   }
 
   async decorateTransfers(jobs: TransferStatus[]): Promise<TransferStatus[]> {
@@ -418,6 +444,70 @@ export class HostClient {
       throw new ToolFailure(text(details.code));
     }
     return object(result.structuredContent);
+  }
+
+  private controlPending = false;
+  async control(value: unknown): Promise<ControlReply> {
+    const request = controlRequest(value);
+    if (this.controlPending)
+      throw new HostError("busy", "A control request is pending.");
+    this.controlPending = true;
+    const connection = this.connection;
+    // Disable queued input immediately; only a fresh Host snapshot can enable it.
+    if (request.action === "takeover") {
+      const old = this.controls.get(request.session_id);
+      if (old)
+        this.controls.set(request.session_id, { ...old, writable: false });
+      for (const active of this.attachments.values())
+        if (active.sessionId === request.session_id) active.writeVersion++;
+    }
+    try {
+      const response = await this.call(
+        "terminal_control",
+        { ...request },
+        connection.signal,
+      );
+      if (connection.signal.aborted || connection !== this.connection)
+        throw new HostError(
+          "cancelled",
+          "Control observation ended; query the original result.",
+        );
+      if (request.action === "allow") {
+        const control = controlSnapshot(response.control);
+        if (control.session_id !== request.session_id) throw incompatible();
+        this.controls.set(control.session_id, control);
+        return { control };
+      }
+      const result = controlOutcome(response.result);
+      if (
+        result.session_id !== request.session_id ||
+        result.version !== request.version ||
+        result.operation_id !== request.operation_id
+      )
+        throw incompatible();
+      return { result };
+    } catch (error) {
+      if (error instanceof ToolFailure) {
+        const code = error.code;
+        if (code === "control_stale")
+          throw new HostError(
+            "control_stale",
+            "The captured operation changed. Nothing was retried.",
+          );
+        if (code === "control_busy" || code === "ai_paused")
+          throw new HostError(
+            "busy",
+            "Control is unavailable; input was not retried.",
+          );
+        throw new HostError(
+          "tool_error",
+          "Control result is unavailable. Query the original operation after reconnecting.",
+        );
+      }
+      throw error;
+    } finally {
+      this.controlPending = false;
+    }
   }
 
   private debugPending = false;

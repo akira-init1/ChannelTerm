@@ -608,3 +608,10 @@ Control regressions must cover old-client rejection, stale queued input, per-win
 private metadata filtering and generation changes invalidating paste. Use isolated Host fixtures;
 failed or unknown recovery must never advertise writable input. Protocol behavior is owned by
 [Session control](../reference/mcp-tools.md#session-control).
+
+`control.test.ts` covers strict IPC projections, immutable takeover/result keys, duplicate requests,
+per-window ownership, reconnect queries and stale allowance. `control-checks.mjs` runs through the
+production bridge in the native desktop suite: confirmation races, Host-authoritative input,
+explicit allowance, result retention across disconnect and compact layout. Existing SSH file
+tests cancel a real loopback SFTP child without closing its terminal Session. All use disposable
+profiles and fake/loopback devices, not personal credentials or physical hardware.

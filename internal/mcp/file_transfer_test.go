@@ -52,4 +52,18 @@ func TestFileTransferMCPTaskStatusSchemaAndExactRetry(t *testing.T) {
 	if status["state"] != "failed" || status["error"] == "" {
 		t.Fatalf("missing-source result=%+v", status)
 	}
+	interrupted := callTool(t, client, "file_transfer", map[string]any{"action": "interrupt", "transfer_id": id})
+	if interrupted.IsError {
+		t.Fatal(resultText(t, interrupted))
+	}
+	public := interrupted.StructuredContent.(map[string]any)["transfer"].(map[string]any)
+	if public["transfer_id"] != id || public["state"] != "failed" {
+		t.Fatalf("late interruption changed task: %#v", public)
+	}
+	for _, key := range []string{"error", "resolved_path", "current_file", "ssh_profile"} {
+		if _, ok := public[key]; ok {
+			t.Fatalf("private %s exposed", key)
+		}
+	}
+
 }

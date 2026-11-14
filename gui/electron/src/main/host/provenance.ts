@@ -45,6 +45,8 @@ export function managedTransferSummaries(value: unknown): TransferStatus[] {
         ? ""
         : text(item.session_transfer_id);
     if (
+      (item.stop_reason !== undefined &&
+        item.stop_reason !== "user_interrupted") ||
       !/^FT-[A-Za-z0-9]{16,64}$/.test(id) ||
       sessionId.length > 512 ||
       sessionTransferId.length > 512 ||
@@ -60,12 +62,18 @@ export function managedTransferSummaries(value: unknown): TransferStatus[] {
       sessionId,
       initiator: operationSource(item.client),
       scope: "host",
+      protocol:
+        item.transport === "sftp" || item.transport === "scp"
+          ? item.transport
+          : undefined,
       direction: text(item.direction),
       source: "",
       destination: "",
       state:
         state === "running"
-          ? "transferring"
+          ? item.stop_reason === "user_interrupted"
+            ? "cleaning"
+            : "transferring"
           : (state as "completed" | "cancelled" | "failed"),
       transferred: integer(item.bytes),
       total: integer(item.total_bytes),

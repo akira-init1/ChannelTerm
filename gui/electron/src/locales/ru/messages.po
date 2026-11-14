@@ -255,6 +255,96 @@ msgstr "Имя пользователя"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "control.allow"
+msgstr "Разрешить операции ИИ"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.allowed"
+msgstr "Пауза ИИ снята · задачи не перезапущены"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.allowWarning"
+msgstr "Разрешить новые операции ИИ? Отменённые задачи и отброшенный ввод не будут повторены."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.confirm"
+msgstr "Подтвердить"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.dismiss"
+msgstr "Отмена"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.failed"
+msgstr "Сбой восстановления · исходный сеанс закрыт; удалённые задачи могут продолжить работу"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.interrupt"
+msgstr "Прервать ИИ"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.paused"
+msgstr "ИИ приостановлен"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.processing"
+msgstr "Запрос обрабатывается · ввод требует подтверждения Host"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.query"
+msgstr "Запросить исходный результат"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.sshWarning"
+msgstr "Отменить эту независимую задачу SSH? Её отдельное соединение закроется; сеансы терминала останутся открытыми. Могут остаться неполные файлы."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.stale"
+msgstr "Операция изменилась или завершилась. Обновите и проверьте состояние перед новым запросом."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.stopping"
+msgstr "Остановка · ожидание восстановления; ввод остаётся приостановленным"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.taken_over"
+msgstr "Восстановление подтверждено · ИИ остаётся приостановленным"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.takeover"
+msgstr "Перехватить управление"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.title"
+msgstr "Управление сеансом"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.unknown"
+msgstr "Результат не подтверждён или запрос отклонён. Проверьте исходный запрос; не повторяйте ввод."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.warning"
+msgstr "Остановить зафиксированную операцию и перехватить управление? Восстановление может закрыть этот сеанс. Удалённые фоновые задачи могут продолжить работу."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "debug.client"
 msgstr "Зарегистрированный клиент"
 

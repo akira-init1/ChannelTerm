@@ -255,6 +255,96 @@ msgstr "ユーザー名"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "control.allow"
+msgstr "AI 操作を許可"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.allowed"
+msgstr "AI の一時停止を解除 · 処理の再実行なし"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.allowWarning"
+msgstr "新しい AI 操作を許可しますか？取り消した処理や破棄した入力は再実行されません。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.confirm"
+msgstr "確認"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.dismiss"
+msgstr "取り消し"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.failed"
+msgstr "復旧失敗 · 元のセッションは閉鎖済み。リモート処理は継続する可能性があります"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.interrupt"
+msgstr "AI を中断"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.paused"
+msgstr "AI は一時停止中"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.processing"
+msgstr "要求を処理中 · 入力には Host の確認が必要"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.query"
+msgstr "元の結果を照会"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.sshWarning"
+msgstr "この独立した SSH タスクを取り消しますか？専用接続は閉じられますが、端末セッションは維持されます。不完全なファイルが残る場合があります。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.stale"
+msgstr "操作が変更または完了しました。更新して確認してから新しい要求を送信してください。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.stopping"
+msgstr "停止中 · 復旧待ちのため入力を一時停止"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.taken_over"
+msgstr "復旧を確認 · AI は引き続き一時停止"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.takeover"
+msgstr "制御を引き継ぐ"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.title"
+msgstr "セッション制御"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.unknown"
+msgstr "結果が未確認か、要求が拒否されました。元の要求を照会し、入力を再送しないでください。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.warning"
+msgstr "ここで取得した操作を停止して制御を引き継ぎますか？復旧時にセッションが閉じられる場合があります。リモートのバックグラウンド処理は継続する可能性があります。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "debug.client"
 msgstr "登録クライアント"
 

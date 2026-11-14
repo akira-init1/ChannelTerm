@@ -1385,3 +1385,26 @@ main {
   margin: 0 0 4px;
   user-select: text;
 }
+
+.control-panel {
+  padding: 6px 12px;
+  border-bottom: 1px solid #344052;
+  max-height: 35vh;
+  overflow: auto;
+  flex-shrink: 0;
+}
+.control-panel code {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: 11px;
+  color: #9cabc0;
+}
+.control-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.control-panel button {
+  margin: 3px 6px 3px 0;
+}

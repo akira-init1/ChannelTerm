@@ -10,3 +10,22 @@ export interface ControlSnapshot {
   ai_paused: boolean;
   source?: OperationSource;
 }
+
+/** A captured observation, never an authorization secret or a request to retry. */
+export interface ControlTarget {
+  session_id: string;
+  version: string;
+  operation_id: string;
+}
+export interface ControlOutcome extends ControlTarget {
+  status: "stopping" | "taken_over" | "failed";
+  reason: "user_interrupted" | "control_expired";
+  recovery: "pending" | "restored" | "session_closed";
+  retry_allowed: false;
+  source?: OperationSource;
+}
+export type ControlRequest = ControlTarget & {
+  action: "takeover" | "allow" | "result";
+};
+export type ControlReply =
+  { control: ControlSnapshot } | { result: ControlOutcome };

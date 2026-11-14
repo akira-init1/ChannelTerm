@@ -255,6 +255,96 @@ msgstr "使用者名稱"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "control.allow"
+msgstr "允許 AI 操作"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.allowed"
+msgstr "已解除 AI 暫停 · 未重新啟動任何工作"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.allowWarning"
+msgstr "允許新的 AI 操作？不會重新啟動已取消的工作，也不會重播捨棄的輸入。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.confirm"
+msgstr "確認"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.dismiss"
+msgstr "取消"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.failed"
+msgstr "復原失敗 · 原工作階段已關閉；遠端工作可能繼續執行"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.interrupt"
+msgstr "中斷 AI"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.paused"
+msgstr "AI 已暫停"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.processing"
+msgstr "請求處理中 · 輸入須經 Host 確認"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.query"
+msgstr "查詢原請求結果"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.sshWarning"
+msgstr "取消此獨立 SSH 工作？專用連線將關閉，終端工作階段保持開啟。可能留下未完成的檔案。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.stale"
+msgstr "操作已變更或完成。請重新整理檢查後再提出新請求。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.stopping"
+msgstr "停止中 · 等待復原，保持輸入暫停"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.taken_over"
+msgstr "復原已確認 · AI 仍暫停"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.takeover"
+msgstr "接管控制"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.title"
+msgstr "工作階段控制"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.unknown"
+msgstr "結果未確認或請求遭拒。請查詢原請求，勿重試輸入。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.warning"
+msgstr "停止此處擷取的操作並接管？復原可能關閉此工作階段。遠端背景工作可能繼續執行。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "debug.client"
 msgstr "註冊用戶端"
 

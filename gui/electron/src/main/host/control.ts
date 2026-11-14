@@ -1,4 +1,8 @@
-import type { ControlSnapshot } from "../../shared/control";
+import type {
+  ControlSnapshot,
+  ControlRequest,
+  ControlOutcome,
+} from "../../shared/control";
 import { operationSource } from "./provenance";
 import { object, text, incompatible } from "./validation";
 
@@ -33,5 +37,62 @@ export function controlSnapshot(value: unknown): ControlSnapshot {
     writable: raw.writable,
     ai_paused: raw.ai_paused,
     source: operationSource(raw.client),
+  };
+}
+
+/** Reject unknown IPC fields and preserve the caller's exact captured target. */
+export function controlRequest(value: unknown): ControlRequest {
+  const r = object(value);
+  if (
+    Object.keys(r).some(
+      (k) => !["action", "session_id", "version", "operation_id"].includes(k),
+    )
+  )
+    throw incompatible();
+  if (r.action !== "takeover" && r.action !== "allow" && r.action !== "result")
+    throw incompatible();
+  const checked = controlSnapshot({
+    ...r,
+    state: "idle",
+    writable: false,
+    ai_paused: false,
+  });
+  return {
+    action: r.action,
+    session_id: checked.session_id,
+    version: checked.version,
+    operation_id: checked.operation_id,
+  };
+}
+export function controlOutcome(value: unknown): ControlOutcome {
+  const r = object(value);
+  const target = controlSnapshot({
+    ...r,
+    state: "idle",
+    writable: false,
+    ai_paused: false,
+  });
+  if (
+    !["stopping", "taken_over", "failed"].includes(text(r.status)) ||
+    !["user_interrupted", "control_expired"].includes(text(r.reason)) ||
+    !["pending", "restored", "session_closed"].includes(text(r.recovery)) ||
+    r.retry_allowed !== false
+  )
+    throw incompatible();
+  if (
+    (r.status === "stopping" && r.recovery !== "pending") ||
+    (r.status === "taken_over" && r.recovery !== "restored") ||
+    (r.status === "failed" && r.recovery !== "session_closed")
+  )
+    throw incompatible();
+  return {
+    session_id: target.session_id,
+    version: target.version,
+    operation_id: target.operation_id,
+    status: r.status as ControlOutcome["status"],
+    reason: r.reason as ControlOutcome["reason"],
+    recovery: r.recovery as ControlOutcome["recovery"],
+    retry_allowed: false,
+    source: operationSource(r.requested_by),
   };
 }

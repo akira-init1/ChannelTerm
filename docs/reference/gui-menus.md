@@ -474,3 +474,31 @@ Explicitly closing tabs updates the saved workspace while connected. Disconnect/
 preserves the last saved view snapshot; manually connecting again starts the current empty view
 unless this is the initial restart recovery. Recovery waits for a successful Host connection and
 does not change existing automatic-local-Host startup or explicit remote-Host connection policy.
+
+## Human interruption and control
+
+The current Session's control strip offers **Interrupt AI** (when the public credential kind is
+agent), **Take control**, and **Allow AI operations**. These are local strip actions, not global
+keyboard shortcuts or additional menu groups. Confirmation shows the captured full Session ID,
+operation ID and version. Switching tabs cannot change that confirmation's target; a stale request
+is rejected or returns its original retained outcome, never cancels a successor.
+
+Processing and unconfirmed results keep that target's input paused. **Query original result**
+reads the same key; it does not retry a mutation. The strip retains one result in window memory
+across Host disconnect/reconnect until dismissed or replaced. It is not saved across application
+restart and remains subject to [Host result retention](mcp-tools.md#session-control). Recovery
+confirmation does not itself grant input; the current Host snapshot must also be writable for this
+instance. Another window's successful takeover is not this window's ownership.
+
+**Allow AI operations** has its own confirmation and removes the pause for new operations only.
+Stopped tasks and queued input are never replayed. Unknown external executors or failed recovery
+can close the original Session; remote background work may continue. Debug takeover uses Host
+recovery; this is not a general debugger command console or arbitrary process-kill facility.
+
+The transfer panel keeps its existing exact local SSH cancellation. For public Host-managed
+SFTP/SCP rows it offers a separate confirmation bound to the immutable managed transfer ID. A live
+user instance with management permission can interrupt that task without receiving its private
+paths or writing to a PTY. Wait for final task state: an accepted request can still be cleaning up,
+and completion may win the race. Independent SSH cancellation neither takes Session control nor
+pauses future independent SSH tasks. Serial tasks use Session takeover or the existing safe
+transfer-cancellation flow.

@@ -1308,6 +1308,10 @@ func forwardInputWithPromptTimestampContext(ctx context.Context, input io.Reader
 					cancel()
 					return
 				}
+			case interactive.ActionTakeControl, interactive.ActionAllowAI, interactive.ActionControlResult:
+				if writeLocal != nil {
+					_ = writeLocal([]byte("\r\n[ChannelTerm] Control actions require the shared attach input dispatcher.\r\n"))
+				}
 			case interactive.ActionFileTransfer:
 				if writeLocal == nil || writeLocal(fileTransferUnavailableText) != nil {
 					cancel()
@@ -1326,7 +1330,7 @@ func forwardInputWithPromptTimestampContext(ctx context.Context, input io.Reader
 // escapePendingText confirms locally that Ctrl+] entered escape mode. Its
 // leading and trailing line breaks keep it readable beside unstructured remote
 // terminal output; it is never sent to the remote Session.
-var escapePendingText = []byte("\r\n[ChannelTerm] Escape: q quit | ? help | ] send Ctrl+] | f file transfer | t prompt time | Esc cancel\r\n")
+var escapePendingText = []byte("\r\n[ChannelTerm] Escape: q quit | ? help | ] send Ctrl+] | f file transfer | i take control | a allow AI | r control result | t prompt time | Esc cancel\r\n")
 
 // writeFailureText renders a remote-write failure locally. In particular, a
 // file-transfer lease remains visible to an attached human without detaching
@@ -1340,7 +1344,7 @@ func writeFailureText(err error) []byte {
 var escapeCancelledText = []byte("\r\n[ChannelTerm] Escape cancelled\r\n")
 
 // escapeHelpText is local CLI output and is never sent to the remote Session.
-var escapeHelpText = []byte("\r\nChannelTerm escape commands:\r\n\r\n  q    Quit session\r\n  ?    Show this help\r\n  ]    Send Ctrl+] to remote\r\n  f    Open file transfer (attach)\r\n  t    Toggle prompt timestamps\r\n  Esc  Cancel escape mode\r\n")
+var escapeHelpText = []byte("\r\nChannelTerm escape commands:\r\n\r\n  q    Quit session\r\n  ?    Show this help\r\n  ]    Send Ctrl+] to remote\r\n  f    Open file transfer (attach)\r\n  i    Confirm takeover / cancel local transfer (attach)\r\n  a    Confirm allowing new AI operations (attach)\r\n  r    Query original takeover result (attach)\r\n  t    Toggle prompt timestamps\r\n  Esc  Cancel escape mode\r\n")
 
 var fileTransferUnavailableText = []byte("\r\n[ChannelTerm] File transfer is available from shared attach only.\r\n")
 

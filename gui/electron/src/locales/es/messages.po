@@ -255,6 +255,96 @@ msgstr "Nombre de usuario"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "control.allow"
+msgstr "Permitir operaciones de IA"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.allowed"
+msgstr "Pausa de IA desactivada · ningún trabajo reiniciado"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.allowWarning"
+msgstr "¿Permitir nuevas operaciones de IA? No se reiniciarán los trabajos cancelados ni las entradas descartadas."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.confirm"
+msgstr "Confirmar"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.dismiss"
+msgstr "Descartar"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.failed"
+msgstr "Recuperación fallida · sesión original cerrada; el trabajo remoto puede continuar"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.interrupt"
+msgstr "Interrumpir IA"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.paused"
+msgstr "IA en pausa"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.processing"
+msgstr "Solicitud pendiente · la entrada requiere confirmación del Host"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.query"
+msgstr "Consultar resultado original"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.sshWarning"
+msgstr "¿Cancelar esta tarea SSH independiente? Su conexión dedicada se cerrará; las sesiones de terminal seguirán abiertas. Pueden quedar archivos parciales."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.stale"
+msgstr "La operación cambió o terminó. Actualizar y revisar antes de una nueva solicitud."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.stopping"
+msgstr "Deteniendo · recuperación pendiente; mantener la entrada en pausa"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.taken_over"
+msgstr "Recuperación confirmada · la IA sigue en pausa"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.takeover"
+msgstr "Tomar el control"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.title"
+msgstr "Control de sesión"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.unknown"
+msgstr "Resultado sin confirmar o solicitud denegada. Consultar la solicitud original; no repetir la entrada."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.warning"
+msgstr "¿Detener esta operación capturada y tomar el control? La recuperación puede cerrar esta sesión. El trabajo remoto en segundo plano puede continuar."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "debug.client"
 msgstr "Cliente registrado"
 

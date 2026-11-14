@@ -3,9 +3,11 @@ package app
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/akira-init1/ChannelTerm/internal/core/session"
@@ -130,5 +132,46 @@ func TestCheckpointEventMetadataRejectsMalformedClaims(t *testing.T) {
 				t.Fatal("malformed checkpoint claim accepted")
 			}
 		})
+	}
+}
+
+func TestHumanInterruptSSHTransferIsExactAndPublic(t *testing.T) {
+	a, _, _ := instanceFixture(t)
+	user := controlTestClient(t, a, "CL-human", "user")
+	agent := controlTestClient(t, a, "CL-agent", "agent")
+	id := "FT-abcdefghijklmnopqrst"
+	var cancelled atomic.Int32
+	a.transfers.runs = map[string]*transferRun{id: {status: TransferStatus{ID: id, State: "running", Transport: "sftp", ResolvedPath: "/private/path"}, request: TransferRequest{Transport: "sftp", Direction: "send"}, client: "CL-agent", cancel: func() { cancelled.Add(1) }}}
+	for _, ctx := range []context.Context{agent, WithClientAccess(user, ClientAccess{Write: true}), context.Background()} {
+		if _, err := a.InterruptSSHFileTransfer(ctx, id); !errors.Is(err, ErrClientPermissionDenied) {
+			t.Fatalf("permission: %v", err)
+		}
+	}
+	if cancelled.Load() != 0 {
+		t.Fatal("unauthorized cancellation")
+	}
+	for range 2 {
+		result, err := a.InterruptSSHFileTransfer(user, id)
+		if err != nil || result.State != "running" || result.StopReason != "user_interrupted" {
+			t.Fatalf("%+v %v", result, err)
+		}
+		data, _ := json.Marshal(result)
+		if strings.Contains(string(data), "private") {
+			t.Fatal("private path exposed")
+		}
+	}
+	// A late cancellation stays on the old immutable ID, never the new worker.
+	a.transfers.runs[id].update(func(s *TransferStatus) { s.State = "completed" })
+	a.transfers.runs["FT-successorabcdefghijk"] = &transferRun{cancel: func() { t.Error("successor cancelled") }}
+	result, err := a.InterruptSSHFileTransfer(user, id)
+	if err != nil || result.State != "completed" {
+		t.Fatalf("completion race: %+v %v", result, err)
+	}
+	a.transfers.runs[id].request.Transport = "serial"
+	if _, err = a.InterruptSSHFileTransfer(user, id); err == nil {
+		t.Fatal("serial bypassed Session takeover")
+	}
+	if _, err = a.InterruptSSHFileTransfer(user, "FT-missingabcdefghijkl"); err == nil {
+		t.Fatal("unknown task accepted")
 	}
 }

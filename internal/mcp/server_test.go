@@ -285,6 +285,19 @@ func assertOutputSchema(t *testing.T, registered *protocol.Tool, expectedPropert
 	if _, ok := properties[expectedProperty]; !ok {
 		t.Errorf("%s output schema properties = %#v, want %q", registered.Name, properties, expectedProperty)
 	}
+	if registered.Name == "file_transfer" {
+		branches, ok := schema["anyOf"].([]any)
+		if !ok || len(branches) != 2 {
+			t.Fatalf("missing transfer output alternatives: %#v", schema)
+		}
+		for i, key := range []string{"status", "transfer"} {
+			branch, ok := branches[i].(map[string]any)
+			if !ok || !schemaListContains(branch["required"], key) || properties[key] == nil {
+				t.Fatalf("invalid transfer alternative: %#v", branches[i])
+			}
+		}
+		return
+	}
 	if !schemaListContains(schema["required"], expectedProperty) {
 		t.Errorf("%s output schema required = %#v, want %q", registered.Name, schema["required"], expectedProperty)
 	}

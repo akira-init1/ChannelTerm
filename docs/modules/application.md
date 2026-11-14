@@ -709,3 +709,12 @@ SFTP/SCP does not acquire a PTY scope. Session/Channel/Transport own no control 
 A validated, single-use, target-bound child delegation may execute its parent instance's control
 scope under the same credential. Automatic child leases return paused human ownership to the
 original parent; unrelated instances cannot inherit it.
+
+`InterruptSSHFileTransfer` is the separate human-management use case for independent Host-managed
+SFTP/SCP tasks. It revalidates the live user instance and management grant, captures the immutable
+worker by task ID, and invokes only that worker's idempotent cancellation. It refuses serial tasks,
+which require Session recovery. It returns the same bounded public summary as the inventory, never
+another client's private status/paths. Running tasks retain `stop_reason=user_interrupted`; the
+existing worker publishes the final state only after cleanup. Completion can win the race. This
+operation does not write to a terminal, close its Session, pause unrelated tasks or promise remote
+process termination. Existing owner-only status/cancel grants remain unchanged.

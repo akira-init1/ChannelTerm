@@ -21,6 +21,7 @@ export function TransferPanel({
   error: string;
   t: (id: string) => string;
 }) {
+  const [interruptTarget, setInterruptTarget] = useState<string>();
   const [cancelling, setCancelling] = useState("");
   const [failure, setFailure] = useState("");
   const [confirmation, setConfirmation] = useState<{
@@ -127,10 +128,16 @@ export function TransferPanel({
                   {job.total.toLocaleString()} B ·{" "}
                   {Math.round(job.speed).toLocaleString()} B/s
                 </small>
-                {!job.released && job.scope !== "host" && (
+                {!job.released && (job.scope !== "host" || !!job.protocol) && (
                   <button
-                    disabled={!!cancelling}
+                    disabled={
+                      !!cancelling || (job.scope === "host" && !connected)
+                    }
                     onClick={async () => {
+                      if (job.scope === "host" && job.managedId) {
+                        setInterruptTarget(job.managedId);
+                        return;
+                      }
                       setCancelling(job.id);
                       setFailure("");
                       try {
@@ -174,6 +181,33 @@ export function TransferPanel({
           ))}
         {(error || failure) && <p role="alert">{error || failure}</p>}
       </div>
+      {interruptTarget && (
+        <div role="alert">
+          <p>{t("control.sshWarning")}</p>
+          <code>{interruptTarget}</code>
+          <button
+            disabled={!!cancelling || !connected}
+            onClick={async () => {
+              const id = interruptTarget;
+              setInterruptTarget(undefined);
+              setCancelling(id);
+              setFailure("");
+              try {
+                await unwrap(host.interruptSSHTransfer(id));
+              } catch {
+                if (mounted.current) setFailure(t("control.unknown"));
+              } finally {
+                if (mounted.current) setCancelling("");
+              }
+            }}
+          >
+            {t("control.confirm")}
+          </button>
+          <button onClick={() => setInterruptTarget(undefined)}>
+            {t("control.dismiss")}
+          </button>
+        </div>
+      )}
       {confirmation && (
         <CancelTransferDialog
           name={confirmation.name}

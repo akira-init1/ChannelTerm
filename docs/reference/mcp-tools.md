@@ -178,7 +178,7 @@ do not authorize operations. See the [HTTP upgrade workflow](../getting-started/
 `file_transfer_list` accepts an empty object and returns `transfers`, at most 128 retained public
 Host-managed task summaries across credentials. Each contains `transfer_id`, optional full
 `session_id` and `session_transfer_id`, optional public `client`, `transport`, `direction`,
-`state`, `phase`, `bytes`, and `total_bytes`. Independent SSH tasks have no terminal Session;
+`state`, `phase`, `bytes`, `total_bytes`, and optional `stop_reason`. Independent SSH tasks have no terminal Session;
 no artificial Session ID is created. The list omits paths, SSH profiles, errors, digests and
 capabilities. It is a read-only observation, available to authenticated readers, with no heartbeat,
 device I/O or cancellation side effect. Retention follows the existing managed-task coordinator.
@@ -223,6 +223,16 @@ It does not upload bytes from another MCP client's computer. Enable the
   and client disconnects while the Host remains running.
   Cancel is idempotent; wait for a terminal state before treating cleanup as finished.
 
+- `action=interrupt` accepts only an immutable `transfer_id` (and no nonzero `wait_ms`). It
+  requires a live registered **user** instance and management permission, and cancels only an
+  independent Host-managed SFTP/SCP task. Serial tasks must use Session takeover. The result is
+  `{ "transfer": { ... } }` with the public inventory fields, never private paths or credentials.
+  The output schema accepts either the existing `status` shape or this `transfer` shape. Poll
+  `file_transfer_list` for that exact ID until cleanup finishes. Running interrupted tasks retain
+  optional `stop_reason=user_interrupted` in public summaries and their owner's private status.
+  Duplicate/late requests cannot affect a successor; already completed tasks stay completed.
+  No terminal input, Session closure, automatic retry or global AI pause is implied.
+
 States are `running`, `completed`, `failed`, and `cancelled`. Status includes phase, transport,
 effective mode, current transfer-unit bytes (`current_bytes/current_total`), file counts and final
 byte count, SHA-256, checksum scope and resolved path. Failures after admission return a task state
@@ -232,8 +242,8 @@ reports `session_transfer_id`, correlating the existing Session events; use the 
 this tool's status/cancel. Existing CLI events, waits and cancellation tools remain compatible.
 
 Start/cancel require write access, even for downloads. Status requires read access and the same
-authenticated client. Stdio shares the trusted local-account identity but still requires configured
-grants. At most four tasks run concurrently and 128 retry records are retained; admission evicts
+authenticated client. Unregistered stdio is read-only under default Session control; start requires a registered
+identity/instance and configured grants. At most four tasks run concurrently and 128 retry records are retained; admission evicts
 the oldest completed record. Exact `request_id` retries are deduplicated only while retained in
 this Host process; conflicting reuse fails. No persistent resume/replay survives Host restart.
 
@@ -1366,3 +1376,9 @@ never retry automatically. Private Host recovery can finish only the originally 
 A validated, single-use, target-bound child delegation may execute its parent instance's control
 scope under the same credential. Automatic child leases return paused human ownership to the
 original parent; unrelated instances cannot inherit it.
+
+Control rejection errors (`control_required`, `control_stale`, `control_busy`, `ai_paused`,
+`user_interrupted`) include `error.retry_allowed=false`. This forbids automatic write retry; it
+does not claim a particular recovery result. Executing calls, `OPERATION_STATE` control events
+and exact-key `terminal_control action=result` queries provide complementary feedback. A reader
+can reconnect and query a retained original key; no notification is sent to an AI chat.

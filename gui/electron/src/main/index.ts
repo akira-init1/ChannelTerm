@@ -530,6 +530,8 @@ function createHandlers(context: WindowContext): Record<string, Handler> {
       const jobs = context.sshFiles.snapshots();
       return context.host?.decorateTransfers(jobs) ?? jobs;
     },
+    [channels.interruptSSHTransfer]: (id) =>
+      currentHost(context).interruptSSHTransfer(id),
     [channels.managedTransfers]: () => currentHost(context).managedTransfers(),
     [channels.cancelSSHTransfer]: (id) => context.sshFiles.cancel(id),
     [channels.transferCheckpoints]: (id) => {
@@ -558,6 +560,7 @@ function createHandlers(context: WindowContext): Record<string, Handler> {
     [channels.resolveTransferCancel]: (id, confirm) =>
       context.transferConfirmation.resolve(id, confirm),
     [channels.list]: () => currentHost(context).list(),
+    [channels.control]: (request) => currentHost(context).control(request),
     [channels.debugOverview]: () => currentHost(context).debugOverview(),
     [channels.serialProfiles]: () => currentHost(context).serialProfiles(),
     [channels.changeSerialProfile]: (request) =>
@@ -682,6 +685,7 @@ function registerIPC(): void {
             : channel === channels.chooseTransferPath
               ? 3
               : [
+                    channels.control,
                     channels.focusWindow,
                     channels.detach,
                     channels.closeSession,
@@ -696,6 +700,7 @@ function registerIPC(): void {
                     channels.startTransfer,
                     channels.startSSHTransfer,
                     channels.cancelSSHTransfer,
+                    channels.interruptSSHTransfer,
                     channels.transfers,
                     channels.transferCheckpoints,
                     channels.saveTransferPreference,

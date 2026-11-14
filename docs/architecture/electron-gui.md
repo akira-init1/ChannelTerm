@@ -31,7 +31,7 @@ instance states come from coalesced snapshots (at most one query per two seconds
 Failed, missing or disconnected observations become unknown; retained identity does not imply
 online presence. Actor labels and declared executable names remain separate from credential kind.
 The new fixed `managedTransfers` bridge reads public Host summaries without exposing private paths
-or granting cancellation. Serial Session events, Host task summaries and local SSH jobs retain
+or itself granting cancellation. The separate interrupt action requires live human management authority. Serial Session events, Host task summaries and local SSH jobs retain
 their distinct authority and visibility. The existing 200-row activity/32-per-Session transfer
 bounds and 64-job workbench history remain; the panel renders the latest eight jobs.
 
@@ -593,8 +593,9 @@ or arm64 compatibility. See [GUI development](../development/electron-gui.md) fo
 
 No MCP SSH-open, remote PTY resize, or client-file transfer orchestration API exists. SSH creation
 uses the separate desktop Host API. The serial file UI invokes the existing CLI and observes Host
-events; it adds no upload API. Authorized SSH views forward local fitting through the desktop size-control route. Debug leases
-are observed, not managed; serial transfer cancellation uses existing Host control tools.
+events; it adds no upload API. Authorized SSH views forward local fitting through the desktop size-control route. The debug sidebar
+is observational; the separate Session control strip can request managed recovery. Serial transfer
+cancellation uses existing Host control tools.
 There is no built-in Agent, installer, persistence of terminal output, tab dragging, terminal splitting,
 or complete terminal-state migration. None of these gaps is filled by bypassing Application or changing MCP schemas.
 
@@ -630,8 +631,9 @@ clears live validity; old Hosts report unavailable without breaking terminal acc
 Selection, filtering, full-ID association, port-role details and locating an existing Session are
 local presentation. Debug badges also conservatively indicate existing debug leases without
 claiming a running/stopped inferior. External reports retain source labels and Host freshness;
-manual registrations remain unknown. No controls for launch, breakpoints, stepping, stopping or
-lease takeover are added. All new labels use the nine maintained Lingui catalogs. See the
+manual registrations remain unknown. The sidebar has no launch, breakpoint, stepping or stop
+commands. The separate Session control strip below can request Host-managed takeover/recovery.
+All labels use the nine maintained Lingui catalogs. See the
 [observation contract](../reference/mcp-tools.md#unified-debug-observation).
 
 ## Local connection presets
@@ -673,3 +675,13 @@ input, and sends instance/control metadata to Host. Renderer invalidates queued 
 paste on generation changes and disables input when Host reports it unavailable. No control proof
 is an authorization capability. SSH resize submission uses the same Host write gate. These guards
 never retry rejected bytes or grant an observer control. See [the protocol](../reference/mcp-tools.md#session-control).
+
+Main exposes fixed, validated `control` and `interruptSSHTransfer` IPC methods. Control requests
+carry the captured full Session/version/operation tuple; only the fixed takeover, allow and result
+actions are accepted. Main rejects unknown fields and validates response identity before selecting
+public fields. It invalidates queued input before submitting takeover. Renderer owns confirmation,
+a bounded pending/result view and explicit result queries, including after disconnect; it never
+retargets a pending request to the selected tab or persists it. Current Host state alone determines
+writability. The independent SSH action uses a managed task ID and Application's human-management
+check; it neither obtains a PTY scope nor receives private task paths. See the
+[control strip workflow](../reference/gui-menus.md#human-interruption-and-control).

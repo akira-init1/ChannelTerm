@@ -691,3 +691,21 @@ The bundled CLI/Electron supplies it; generic MCP clients must migrate. Human ta
 raw executor can close the Session because arbitrary shell cleanup cannot be proven. Host-managed
 serial workers use their existing bounded recovery. Dedicated SFTP/SCP remains independent of PTY
 control, and cancellation never injects Ctrl+C into an unrelated terminal.
+
+### Human interruption across clients
+
+For a Host-managed serial task, use the current Session's explicit takeover through CLI/Electron
+and wait for the Host recovery result. An attachment's own transfer continues to support its safe
+Ctrl+C confirmation (also available through `Ctrl+] i` while that local worker is running). A
+remote or unknown executor may require closing the original Session rather than claiming recovery.
+
+For an independent Host-managed SFTP/SCP task, Electron's transfer-panel cancel confirmation
+captures the managed `FT-...` ID. The corresponding MCP action is `file_transfer` with
+`action=interrupt` and `transfer_id`. Only a live user instance with management permission can
+use it across clients. It returns a public summary; read `file_transfer_list` until that exact
+task is completed, failed or cancelled. A running summary with `stop_reason=user_interrupted`
+means cleanup is pending, not completed. Existing private `status`/`cancel` remains owner-only.
+
+Local CLI/GUI independent SSH jobs keep their existing dedicated cancellation path. Neither path
+writes Ctrl+C into a terminal. Partial files can remain, and remote background work is not proven
+stopped. Cancellation never retries a transfer or automatically resumes it.

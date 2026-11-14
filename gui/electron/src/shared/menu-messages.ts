@@ -3,6 +3,61 @@ import type { MessageDescriptor } from "@lingui/core";
 // Lingui 5 extracts these official annotated descriptors without a runtime macro
 // transform. Translations belong in PO catalogs; this file owns IDs and English defaults.
 export const menuMessages = [
+  /* i18n */ {
+    id: "control.sshWarning",
+    message:
+      "Cancel this independent SSH task? Its dedicated connection will close; terminal Sessions stay open. Partial files may remain.",
+  },
+  /* i18n */ { id: "control.title", message: "Session control" },
+  /* i18n */ { id: "control.interrupt", message: "Interrupt AI" },
+  /* i18n */ { id: "control.takeover", message: "Take control" },
+  /* i18n */ { id: "control.allow", message: "Allow AI operations" },
+  /* i18n */ { id: "control.paused", message: "AI paused" },
+  /* i18n */ {
+    id: "control.warning",
+    message:
+      "Stop this captured operation and take control? Recovery may close this Session. Remote background work may continue.",
+  },
+  /* i18n */ {
+    id: "control.allowWarning",
+    message:
+      "Allow new AI operations? Cancelled work and discarded input will not restart.",
+  },
+  /* i18n */ { id: "control.confirm", message: "Confirm" },
+  /* i18n */ { id: "control.dismiss", message: "Dismiss" },
+  /* i18n */ {
+    id: "control.processing",
+    message: "Request pending \u00b7 input requires Host confirmation",
+  },
+  /* i18n */ {
+    id: "control.stopping",
+    message: "Stopping \u00b7 recovery pending; keep input paused",
+  },
+  /* i18n */ {
+    id: "control.taken_over",
+    message: "Recovery confirmed \u00b7 AI remains paused",
+  },
+  /* i18n */ {
+    id: "control.failed",
+    message:
+      "Recovery failed \u00b7 original Session closed; remote work may continue",
+  },
+  /* i18n */ {
+    id: "control.unknown",
+    message:
+      "Result unconfirmed or request denied. Query the original request; do not retry input.",
+  },
+  /* i18n */ {
+    id: "control.stale",
+    message:
+      "Operation changed or completed. Refresh and inspect before a new request.",
+  },
+  /* i18n */ {
+    id: "control.allowed",
+    message: "AI pause removed \u00b7 no work restarted",
+  },
+  /* i18n */ { id: "control.query", message: "Query original result" },
+
   /* i18n */ { id: "source.user", message: "User credential" },
   /* i18n */ { id: "source.agent", message: "AI credential" },
   /* i18n */ { id: "source.unknown", message: "Source unconfirmed" },

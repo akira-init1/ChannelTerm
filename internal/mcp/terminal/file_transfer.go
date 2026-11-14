@@ -37,13 +37,13 @@ func (t *listFileTransfersTool) Call(ctx context.Context, input json.RawMessage)
 
 func (t *fileTransferTool) Name() string { return "file_transfer" }
 func (t *fileTransferTool) Description() string {
-	return "Transfer Host-local files through one managed task: start, status or cancel. Supports one file, multiple paths, directories, TAR and tar.gz over serial or SSH. auto preserves files and may temporarily bundle serial uploads; tar/tar.gz explicitly keeps an archive. Host paths are relative to configured file_transfer.root, not the MCP client's computer. SSH uses a configured profile with strict host-key checking. All copies verify SHA-256 and preflight space. Start returns immediately; poll status until completed/failed/cancelled. Retry start with the same request_id and unchanged arguments. No automatic overwrite or resume."
+	return "Transfer Host-local files through one managed task: start, status, cancel or interrupt. interrupt requires a live user instance with management permission and cancels exactly one independent SFTP/SCP task across clients; it returns only a public transfer summary, may still be running during cleanup, and never writes Ctrl+C to a terminal. Serial tasks use terminal_control takeover. Supports one file, multiple paths, directories, TAR and tar.gz over serial or SSH. auto preserves files and may temporarily bundle serial uploads; tar/tar.gz explicitly keeps an archive. Host paths are relative to configured file_transfer.root, not the MCP client's computer. SSH uses a configured profile with strict host-key checking. All copies verify SHA-256 and preflight space. Start returns immediately; poll status until completed/failed/cancelled. Retry start with the same request_id and unchanged arguments. No automatic overwrite or resume."
 }
 func (t *fileTransferTool) InputSchema() tool.InputSchema {
 	return tool.InputSchema{Type: "object", Required: []string{"action"}, Properties: map[string]tool.InputProperty{
-		"action":          {Type: "string", Enum: []string{"start", "status", "cancel"}},
+		"action":          {Type: "string", Enum: []string{"start", "status", "cancel", "interrupt"}},
 		"request_id":      {Type: "string", Description: "Required for start; unique 1..128-character retry key. Exact retries return the retained task."},
-		"transfer_id":     {Type: "string", Description: "Required for status/cancel; task ID returned by start. Bound to the authenticated client."},
+		"transfer_id":     {Type: "string", Description: "Required for status/cancel/interrupt; immutable task ID. status/cancel stay bound to the authenticated client; interrupt is human management only."},
 		"wait_ms":         {Type: "integer", Description: "status/cancel only: 0..30000 ms; timeout returns a snapshot without cancelling work."},
 		"direction":       {Type: "string", Enum: []string{"send", "receive"}, Description: "Required for start. Host to remote, or remote to Host."},
 		"transport":       {Type: "string", Enum: []string{"serial", "sftp", "scp"}, Description: "Required for start. SCP also requires SFTP for metadata/capacity checks."},
@@ -82,18 +82,25 @@ func (t *fileTransferTool) Call(ctx context.Context, input json.RawMessage) (too
 			return nil, errors.New("start does not accept transfer_id or wait_ms")
 		}
 		status, err = t.application.StartFileTransfer(ctx, q.TransferRequest)
-	case "status", "cancel":
+	case "status", "cancel", "interrupt":
 		if q.TransferID == "" || q.WaitMS < 0 || q.WaitMS > 30000 {
-			return nil, errors.New("status/cancel requires transfer_id and wait_ms in 0..30000")
+			return nil, errors.New("status/cancel/interrupt requires transfer_id and wait_ms in 0..30000")
 		}
 		encoded, _ := json.Marshal(q.TransferRequest)
 		empty, _ := json.Marshal(app.TransferRequest{})
 		if !bytes.Equal(encoded, empty) {
-			return nil, errors.New("status/cancel accepts only action, transfer_id and wait_ms")
+			return nil, errors.New("status/cancel/interrupt accepts only action, transfer_id and wait_ms")
+		}
+		if q.Action == "interrupt" {
+			if q.WaitMS != 0 {
+				return nil, errors.New("interrupt does not accept wait_ms")
+			}
+			summary, err := t.application.InterruptSSHFileTransfer(ctx, q.TransferID)
+			return tool.Result{"transfer": summary}, err
 		}
 		status, err = t.application.FileTransferStatus(ctx, q.TransferID, q.Action == "cancel", time.Duration(q.WaitMS)*time.Millisecond)
 	default:
-		return nil, errors.New("action must be start, status or cancel")
+		return nil, errors.New("action must be start, status, cancel or interrupt")
 	}
 	if err != nil {
 		return nil, err

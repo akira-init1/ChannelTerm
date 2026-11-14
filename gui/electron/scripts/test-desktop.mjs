@@ -1,3 +1,4 @@
+import { checkControl } from "./control-checks.mjs";
 import { checkWorkspace } from "./workspace-checks.mjs";
 import { checkDebugOverview } from "./debug-checks.mjs";
 import { checkFiles } from "./file-checks.mjs";
@@ -246,6 +247,7 @@ try {
   await expect(
     page.getByText("Attached · Input enabled", { exact: true }),
   ).toBeVisible();
+  await checkControl(desktop, page, observer, sessionId);
   await checkLayout(desktop, page, "attached");
   await checkCompactLayout(desktop, page);
   await checkTargetCopy(desktop, page, fixture, sessionId);

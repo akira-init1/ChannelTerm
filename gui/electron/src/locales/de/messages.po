@@ -255,6 +255,96 @@ msgstr "Benutzername"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "control.allow"
+msgstr "KI-Aktionen erlauben"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.allowed"
+msgstr "KI-Pause aufgehoben · keine Vorgänge neu gestartet"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.allowWarning"
+msgstr "Neue KI-Aktionen erlauben? Abgebrochene Vorgänge und verworfene Eingaben werden nicht erneut ausgeführt."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.confirm"
+msgstr "Bestätigen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.dismiss"
+msgstr "Verwerfen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.failed"
+msgstr "Wiederherstellung fehlgeschlagen · ursprüngliche Sitzung geschlossen; entfernte Vorgänge können weiterlaufen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.interrupt"
+msgstr "KI unterbrechen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.paused"
+msgstr "KI pausiert"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.processing"
+msgstr "Anfrage läuft · Eingabe erfordert Host-Bestätigung"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.query"
+msgstr "Ursprüngliches Ergebnis abfragen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.sshWarning"
+msgstr "Diesen unabhängigen SSH-Vorgang abbrechen? Seine eigene Verbindung wird geschlossen; Terminalsitzungen bleiben offen. Unvollständige Dateien können verbleiben."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.stale"
+msgstr "Vorgang geändert oder abgeschlossen. Vor einer neuen Anfrage aktualisieren und prüfen."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.stopping"
+msgstr "Wird gestoppt · Wiederherstellung läuft; Eingabe pausiert lassen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.taken_over"
+msgstr "Wiederherstellung bestätigt · KI bleibt pausiert"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.takeover"
+msgstr "Steuerung übernehmen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.title"
+msgstr "Sitzungssteuerung"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.unknown"
+msgstr "Ergebnis unbestätigt oder Anfrage abgelehnt. Ursprüngliche Anfrage abfragen; Eingabe nicht wiederholen."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.warning"
+msgstr "Den erfassten Vorgang stoppen und die Steuerung übernehmen? Die Wiederherstellung kann diese Sitzung schließen. Entfernte Hintergrundprozesse können weiterlaufen."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "debug.client"
 msgstr "Registrierter Client"
 

@@ -180,6 +180,10 @@ func processAttachInput(ctx context.Context, controller *interactive.Controller,
 					cancel()
 					return false
 				}
+			case interactive.ActionTakeControl, interactive.ActionAllowAI, interactive.ActionControlResult:
+				if writeLocal != nil {
+					_ = writeLocal([]byte("\r\n[ChannelTerm] Control actions require the shared attach input dispatcher.\r\n"))
+				}
 			case interactive.ActionFileTransfer:
 				pump.prepend(data[index+1:])
 				if !flushRemote() || !runAttachFileShortcut(ctx, pump, terminal, writeLocal) {

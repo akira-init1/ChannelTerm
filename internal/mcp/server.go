@@ -482,8 +482,13 @@ func errorResult(name string, err error) *protocol.CallToolResult {
 	case errors.Is(err, io.EOF):
 		code = "session_closed"
 	}
+	detail := map[string]any{"code": code, "tool": name, "message": err.Error()}
+	switch code {
+	case "control_required", "control_stale", "control_busy", "ai_paused", "user_interrupted":
+		detail["retry_allowed"] = false
+	}
 	return &protocol.CallToolResult{
-		StructuredContent: map[string]any{"error": map[string]any{"code": code, "tool": name, "message": err.Error()}},
+		StructuredContent: map[string]any{"error": detail},
 		Content:           []protocol.Content{&protocol.TextContent{Text: fmt.Sprintf("%s failed: %v", name, err)}},
 		IsError:           true,
 	}

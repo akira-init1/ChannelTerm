@@ -137,7 +137,7 @@ See [Identifiers](../reference/identifiers.md) before passing serial targets, Se
 For a desktop view, the [Electron client](../development/electron-gui.md#connect-to-an-existing-host)
 can attach to an existing Session on the same Host. It shows raw output and ordinary input with
 Host-authoritative lease checks. Detaching or closing that GUI leaves the Host and other clients
-running. Its serial file picker and progress panel reuse the [managed file workflow](file-transfer.md#electron-file-picker-and-progress), including safe cancellation. A GUI-owned file operation must finish or be cancelled before disconnect/exit. Debug presentation and controls remain outside this GUI scope.
+running. Its serial file picker and progress panel reuse the [managed file workflow](file-transfer.md#electron-file-picker-and-progress), including safe cancellation. A GUI-owned file operation must finish or be cancelled before disconnect/exit. Debug observation and explicit Session takeover are available; general debugger commands remain outside this GUI scope.
 
 ## Shared SSH shell
 
@@ -174,3 +174,23 @@ Codex can separately publish actual external commands, results, and observed sta
 `debug_bridge_report`. All attach clients see labelled report blocks; a new client can see recent
 retained reports. They are caller reports, not a complete GDB audit or shell output. Reporting
 failure does not stop debugging. See the [reporting workflow](gdb-debugging.md#show-codex-reported-commands-and-results).
+
+## Interrupt an operation and take control
+
+In an attached CLI, press `Ctrl+] i`; in Electron, use **Interrupt AI / Take control**. Check the
+Session and operation shown in the confirmation. The Host first revokes the old control version,
+then requests the supported worker's cancellation/recovery. Keep input paused while stopping or
+unconfirmed. Known commands, managed serial transfers and managed debug reuse their recovery
+paths; unknown external work may require closure of that original Session. Recovery does not
+prove that background remote work stopped.
+
+After confirmed recovery, only the taking-over instance can write and AI stays paused. Explicitly
+choose **Allow AI operations** or `Ctrl+] a` when new AI work is appropriate. No old operation or
+input restarts. Use **Query original result** or `Ctrl+] r` to inspect an uncertain takeover rather
+than repeating it. Disconnecting does not undo the pause. Another authorized user instance can
+explicitly take control or allow new work using the current version. See the
+[CLI details](../reference/cli.md#human-interruption-from-an-attachment) and
+[desktop workflow](../reference/gui-menus.md#human-interruption-and-control).
+
+Independent SSH file tasks use their own transfer cancel action. They do not own a shared PTY;
+cancelling them does not send terminal Ctrl+C, close a Session or prevent later independent tasks.
