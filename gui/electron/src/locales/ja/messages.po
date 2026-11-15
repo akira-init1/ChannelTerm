@@ -126,6 +126,7 @@ msgstr "ボーレート"
 #. js-lingui-explicit-id
 #: src/main/index.ts
 #: src/main/index.ts
+#: src/main/index.ts
 #: src/shared/menu-messages.ts
 msgid "connection.cancel"
 msgstr "キャンセル"
@@ -1702,6 +1703,119 @@ msgstr "現在の端末に保持されたテキストのみ検索します。"
 #: src/shared/menu-messages.ts
 msgid "search.selectAll"
 msgstr "保持されたテキストをすべて選択"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.cancelled"
+msgstr "送信前にキャンセルしました。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.choose"
+msgstr "送信せずにスニペットを読み込む"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "send.confirm"
+msgstr "この Session に送信する正確なバイト列を確認"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.data"
+msgstr "内容"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.ending"
+msgstr "末尾に改行を追加"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.help"
+msgstr "テキストは現在の接続ビューの文字コードを使用します。HEX は完全なバイト対と ASCII 空白のみ対応します。改行を含む送信内容は最大4096バイトです。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.loaded"
+msgstr "読み込みました。送信前に内容を確認してください。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.mode"
+msgstr "入力形式"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.name"
+msgstr "スニペット名"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.none"
+msgstr "なし"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "send.noRetry"
+msgstr "自動再試行しません。送信中の失敗やキャンセル後は、再送前にデバイスを確認してください。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.open"
+msgstr "デバッグ送信とスニペット"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.plaintext"
+msgstr "内容をこのコンピューターに平文で保存し、同名の項目を置き換えることに同意します。パスワードや秘密情報は保存しないでください。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.preview"
+msgstr "確認して送信"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.remove"
+msgstr "この名前のスニペットを削除"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.removed"
+msgstr "スニペットを削除しました。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.save"
+msgstr "スニペットを保存・置換"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.saved"
+msgstr "保存しました。送信はしていません。"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "send.send"
+msgstr "このバイト列を送信"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.sent"
+msgstr "Host が受け付けたバイト数："
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.snippets"
+msgstr "保存済みスニペット"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.text"
+msgstr "テキスト"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

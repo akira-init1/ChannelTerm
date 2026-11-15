@@ -126,6 +126,7 @@ msgstr "鮑率"
 #. js-lingui-explicit-id
 #: src/main/index.ts
 #: src/main/index.ts
+#: src/main/index.ts
 #: src/shared/menu-messages.ts
 msgid "connection.cancel"
 msgstr "取消"
@@ -1702,6 +1703,119 @@ msgstr "僅搜尋目前終端機保留的文字。"
 #: src/shared/menu-messages.ts
 msgid "search.selectAll"
 msgstr "全選保留文字"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.cancelled"
+msgstr "已在傳送前取消。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.choose"
+msgstr "載入片段，不傳送"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "send.confirm"
+msgstr "確認傳送到此 Session 的確切位元組"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.data"
+msgstr "內容"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.ending"
+msgstr "附加行結束符"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.help"
+msgstr "文字使用目前附件的編碼。HEX 僅接受完整位元組對和 ASCII 空白。最終內容含行結束符最多 4096 位元組。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.loaded"
+msgstr "片段已載入，請在傳送前確認。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.mode"
+msgstr "輸入格式"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.name"
+msgstr "片段名稱"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.none"
+msgstr "無"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "send.noRetry"
+msgstr "不會自動重試。傳送期間失敗或取消後，請先檢查裝置再傳送。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.open"
+msgstr "偵錯傳送與命令片段"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.plaintext"
+msgstr "我同意將內容以明文儲存在本機，並取代同名片段。請勿儲存密碼或機密。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.preview"
+msgstr "預覽並傳送"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.remove"
+msgstr "刪除此命名片段"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.removed"
+msgstr "片段已刪除。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.save"
+msgstr "儲存或取代片段"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.saved"
+msgstr "片段已儲存，未傳送。"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "send.send"
+msgstr "傳送這些位元組"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.sent"
+msgstr "Host 已接受位元組："
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.snippets"
+msgstr "已儲存片段"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.text"
+msgstr "文字"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

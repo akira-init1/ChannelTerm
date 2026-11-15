@@ -88,6 +88,7 @@ export type Action =
         | "terminal.focus"
         | "terminal.resume"
         | "terminal.copy"
+        | "send.open"
         | "terminal.find"
         | "terminal.paste";
       attachment: Attachment;
@@ -154,6 +155,7 @@ function attachedAction(
     | "terminal.focus"
     | "terminal.resume"
     | "terminal.copy"
+    | "send.open"
     | "terminal.find"
     | "terminal.paste",
 ): MenuEntry {
@@ -400,6 +402,16 @@ export function terminalMenu(state: MenuState): MenuEntry[] {
       action: { id: "logs.open" },
       enabled: !state.busy,
     },
+    {
+      ...attachedAction(state, "send.open"),
+      enabled:
+        !!state.attachment &&
+        state.connected &&
+        state.currentOpen &&
+        !state.busy &&
+        !state.leased &&
+        !state.inputPaused,
+    },
     attachedAction(state, "terminal.focus"),
     attachedAction(state, "terminal.clear"),
     {
@@ -563,6 +575,7 @@ export function isAction(value: unknown): value is Action {
     case "tab.move":
     case "session.info":
     case "terminal.copy":
+    case "send.open":
     case "terminal.find":
     case "terminal.paste":
     case "terminal.clear":
@@ -699,6 +712,7 @@ export function actionEnabled(action: Action, state: MenuState): boolean {
     case "tab.move":
     case "session.info":
     case "terminal.copy":
+    case "send.open":
     case "terminal.find":
     case "terminal.paste":
     case "terminal.clear":
@@ -714,6 +728,11 @@ export function actionEnabled(action: Action, state: MenuState): boolean {
           (state.connected &&
             state.currentOpen &&
             (state.windowCount ?? 1) < 16)) &&
+        (action.id !== "send.open" ||
+          (state.connected &&
+            state.currentOpen &&
+            !state.leased &&
+            !state.inputPaused)) &&
         (action.id !== "terminal.paste" ||
           (state.connected &&
             state.currentOpen &&

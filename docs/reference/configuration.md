@@ -435,3 +435,14 @@ interval. A new Session receives a full grace period. Crashed instances expire a
 polling do not reset the timer. [Application ownership](../modules/application.md#host-idle-reclamation)
 explains the complete retention and race rules. An idle exit stops the listener: HTTP cannot wake
 that process, and another client must explicitly start a Host before reconnecting.
+
+
+## Desktop debug snippets
+
+Electron stores explicitly saved command snippets in `command-snippets.json` under its user-data
+directory. This is a bounded plaintext array of names, input formats, content and line endings,
+separate from Host configuration and connection profiles. It contains no automatic command history,
+no unsaved draft and no startup execution. Main requests owner-only permissions when writing;
+Windows access is controlled by the containing profile's ACL. Do not store secrets. The
+[debug-send workflow](gui-menus.md#debug-send-and-snippets) owns limits, explicit replacement consent,
+errors and deletion. No new environment variable or Host config field is introduced.

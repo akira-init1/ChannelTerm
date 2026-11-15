@@ -1,3 +1,5 @@
+import { CommandSnippets } from "./snippets";
+import { isDebugPayload } from "../shared/debug-send";
 import { DesktopFiles, TransferConfirmation } from "./files";
 import { DesktopDiagnostics } from "./diagnostics";
 import { DesktopRecordings } from "./logging";
@@ -83,6 +85,7 @@ interface WindowContext {
   recordings: DesktopRecordings;
   mcpSetup: DesktopMCPSetup;
   closingRecordings: boolean;
+  debugSending: boolean;
   sshBrowser: DesktopSSHBrowser;
   menu: MenuState;
   handlers: Record<string, Handler>;
@@ -120,6 +123,9 @@ const fileExecutable = join(
   app.isPackaged ? process.resourcesPath : resolve(__dirname, ".."),
   "files",
   process.platform === "win32" ? "channelterm.exe" : "channelterm",
+);
+const commandSnippets = new CommandSnippets(
+  join(app.getPath("userData"), "command-snippets.json"),
 );
 const hostSettings = new HostSettings(
   join(app.getPath("userData"), "host-settings.json"),
@@ -377,6 +383,50 @@ function createHandlers(context: WindowContext): Record<string, Handler> {
   let copyingTarget = false;
   let deletingLog = false;
   const handlers: Record<string, (...args: unknown[]) => unknown> = {
+    [channels.snippets]: () => commandSnippets.list(),
+    [channels.changeSnippet]: (change) => commandSnippets.change(change),
+    [channels.debugSend]: async (id, payload) => {
+      identifier(id);
+      if (!isDebugPayload(payload))
+        throw new HostError("invalid_input", "Invalid debug input.");
+      if (
+        context.debugSending ||
+        context.savingEndpoint ||
+        context.outgoingMove?.sourceAttachment === id ||
+        desktop.quitting
+      )
+        throw new HostError(
+          "busy",
+          "The target is changing or another send is pending.",
+        );
+      const host = currentHost(context);
+      const prepared = host.prepareDebugWrite(id, payload);
+      context.debugSending = true;
+      try {
+        const i18n = setupI18n({
+          locale: context.menu.locale,
+          messages: menuCatalogs,
+        });
+        const answer = await dialog.showMessageBox(context.window, {
+          type: "warning",
+          message: i18n._("send.confirm"),
+          detail: `${prepared.sessionId} · ${prepared.encoding} · ${prepared.bytes} B\n\n${prepared.hex}\n\n${i18n._("send.noRetry")}`,
+          buttons: [i18n._("connection.cancel"), i18n._("send.send")],
+          defaultId: 0,
+          cancelId: 0,
+        });
+        if (answer.response !== 1) return { sent: false, bytes: 0 };
+        if (
+          context.disposed ||
+          currentHost(context) !== host ||
+          context.outgoingMove?.sourceAttachment === id
+        )
+          throw new HostError("cancelled", "Debug input target changed.");
+        return { sent: true, bytes: await prepared.send() };
+      } finally {
+        context.debugSending = false;
+      }
+    },
     [channels.mcpSetupClients]: () => context.mcpSetup.discover(),
     [channels.mcpSetupRecover]: () => context.mcpSetup.recover(),
     [channels.mcpSetup]: (request) => {
@@ -617,6 +667,7 @@ function createHandlers(context: WindowContext): Record<string, Handler> {
       validateEndpoint(value);
       if (
         context.savingEndpoint ||
+        context.debugSending ||
         context.mcpSetup.busy ||
         context.recordings.choosing ||
         context.connecting ||
@@ -643,6 +694,7 @@ function createHandlers(context: WindowContext): Record<string, Handler> {
     },
     [channels.connect]: async () => {
       if (
+        context.debugSending ||
         context.mcpSetup.busy ||
         context.recordings.choosing ||
         context.files.busy ||
@@ -696,6 +748,7 @@ function createHandlers(context: WindowContext): Record<string, Handler> {
     },
     [channels.disconnect]: () => {
       if (
+        context.debugSending ||
         context.mcpSetup.busy ||
         context.files.busy ||
         context.sshFiles.busy ||
@@ -910,6 +963,7 @@ function registerIPC(): void {
             channels.acceptMovedTab,
             channels.attach,
             channels.write,
+            channels.debugSend,
             channels.writeClipboard,
             channels.copyAITarget,
             channels.browseDirectory,
@@ -926,6 +980,7 @@ function registerIPC(): void {
                     channels.control,
                     channels.startRecording,
                     channels.mcpSetup,
+                    channels.changeSnippet,
                     channels.stopRecording,
                     channels.saveHostEndpoint,
                     channels.focusWindow,
@@ -1017,6 +1072,7 @@ function makeWindow(
     recordings: new DesktopRecordings(),
     mcpSetup: new DesktopMCPSetup(fileExecutable),
     closingRecordings: false,
+    debugSending: false,
     sshBrowser: new DesktopSSHBrowser(fileExecutable),
     menu: { ...initialMenuState },
     handlers: {},
@@ -1051,6 +1107,7 @@ function makeWindow(
   );
   created.on("close", (event) => {
     if (
+      context.debugSending ||
       context.mcpSetup.busy ||
       context.files.busy ||
       context.sshFiles.busy ||
@@ -1158,6 +1215,7 @@ app.on("before-quit", (event) => {
   const contexts = [...desktop.windows.values()];
   const busy = contexts.filter(
     (context) =>
+      context.debugSending ||
       context.mcpSetup.busy ||
       context.files.busy ||
       context.sshFiles.busy ||

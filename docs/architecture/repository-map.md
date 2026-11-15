@@ -142,6 +142,7 @@ gui/electron/
 |   |   |-- index.ts                Window/client ownership, tab handoff, static application scheme, validated IPC
 |   |   |-- security.ts             Trusted caller and content-policy checks
 |   |   |-- diagnostics.ts          Native destination selection lifecycle, verified archive saves and partial-file cleanup
+|   |   |-- snippets.ts             Explicit bounded plaintext command library, no execution
 |   |   |-- logging.ts              Bounded local recording, data/index rotation and joined stop/flush lifecycle
 |   |   |-- mcp-setup.ts            Fixed CLI setup bridge and native configuration preview/confirmation lifecycle
 |   |   |-- files.ts                Native picker/drop selections, local transfer preferences and fixed structured CLI file operations

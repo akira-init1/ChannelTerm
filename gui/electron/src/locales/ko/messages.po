@@ -126,6 +126,7 @@ msgstr "전송 속도"
 #. js-lingui-explicit-id
 #: src/main/index.ts
 #: src/main/index.ts
+#: src/main/index.ts
 #: src/shared/menu-messages.ts
 msgid "connection.cancel"
 msgstr "취소"
@@ -1702,6 +1703,119 @@ msgstr "현재 터미널에 보존된 텍스트만 검색합니다."
 #: src/shared/menu-messages.ts
 msgid "search.selectAll"
 msgstr "보존된 텍스트 모두 선택"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.cancelled"
+msgstr "전송 전에 취소되었습니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.choose"
+msgstr "전송 없이 스니펫 불러오기"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "send.confirm"
+msgstr "이 Session에 보낼 정확한 바이트 확인"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.data"
+msgstr "내용"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.ending"
+msgstr "줄 끝 문자 추가"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.help"
+msgstr "텍스트는 현재 연결 뷰의 인코딩을 사용합니다. HEX는 완전한 바이트 쌍과 ASCII 공백만 허용합니다. 줄 끝 문자를 포함하여 최대 4096바이트입니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.loaded"
+msgstr "스니펫을 불러왔습니다. 전송 전에 확인하세요."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.mode"
+msgstr "입력 형식"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.name"
+msgstr "스니펫 이름"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.none"
+msgstr "없음"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "send.noRetry"
+msgstr "자동 재시도하지 않습니다. 전송 중 실패하거나 취소한 경우 다시 보내기 전에 장치를 확인하세요."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.open"
+msgstr "디버그 전송 및 스니펫"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.plaintext"
+msgstr "내용을 이 컴퓨터에 암호화하지 않고 저장하며 같은 이름을 덮어쓰는 데 동의합니다. 암호나 비밀 정보를 저장하지 마세요."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.preview"
+msgstr "미리 보고 전송"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.remove"
+msgstr "이름이 지정된 스니펫 삭제"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.removed"
+msgstr "스니펫을 삭제했습니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.save"
+msgstr "스니펫 저장 또는 교체"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.saved"
+msgstr "스니펫을 저장했습니다. 전송하지 않았습니다."
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "send.send"
+msgstr "이 바이트 전송"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.sent"
+msgstr "Host가 수락한 바이트:"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.snippets"
+msgstr "저장된 스니펫"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.text"
+msgstr "텍스트"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

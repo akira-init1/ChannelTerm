@@ -1482,3 +1482,26 @@ main {
 .mcp-setup-dialog .recording-content {
   overflow-wrap: anywhere;
 }
+.debug-send-dialog fieldset {
+  min-inline-size: 0;
+  border: 0;
+  padding: 0;
+}
+.debug-send-dialog textarea {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  min-height: 6em;
+}
+.debug-send-dialog .connection-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.debug-send-dialog .connection-check input {
+  width: auto;
+  flex: 0 0 auto;
+}
+.debug-send-dialog p {
+  overflow-wrap: anywhere;
+}

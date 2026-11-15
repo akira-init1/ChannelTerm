@@ -126,6 +126,7 @@ msgstr "Velocidad en baudios"
 #. js-lingui-explicit-id
 #: src/main/index.ts
 #: src/main/index.ts
+#: src/main/index.ts
 #: src/shared/menu-messages.ts
 msgid "connection.cancel"
 msgstr "Cancelar"
@@ -1702,6 +1703,119 @@ msgstr "Solo se busca en el texto conservado del terminal actual."
 #: src/shared/menu-messages.ts
 msgid "search.selectAll"
 msgstr "Seleccionar todo el texto conservado"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.cancelled"
+msgstr "Cancelado antes del envío."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.choose"
+msgstr "Cargar un fragmento sin enviarlo"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "send.confirm"
+msgstr "Confirmar los bytes exactos para esta Session"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.data"
+msgstr "Contenido"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.ending"
+msgstr "Añadir final de línea"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.help"
+msgstr "El texto usa la codificación de esta vista. HEX acepta pares de bytes completos y espacios ASCII. El máximo es 4096 bytes, incluido el final de línea."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.loaded"
+msgstr "Fragmento cargado. Revíselo antes de enviarlo."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.mode"
+msgstr "Formato de entrada"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.name"
+msgstr "Nombre del fragmento"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.none"
+msgstr "Ninguno"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "send.noRetry"
+msgstr "No hay reintentos automáticos. Si falla o se cancela durante la entrega, revise el dispositivo antes de volver a enviar."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.open"
+msgstr "Envío de depuración y fragmentos"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.plaintext"
+msgstr "Acepto guardar este contenido sin cifrar en este equipo y reemplazar el mismo nombre. No guarde contraseñas ni secretos."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.preview"
+msgstr "Revisar y enviar"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.remove"
+msgstr "Eliminar el fragmento indicado"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.removed"
+msgstr "Fragmento eliminado."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.save"
+msgstr "Guardar o reemplazar fragmento"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.saved"
+msgstr "Fragmento guardado. No se envió nada."
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "send.send"
+msgstr "Enviar estos bytes"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.sent"
+msgstr "Bytes aceptados por el Host:"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.snippets"
+msgstr "Fragmentos guardados"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.text"
+msgstr "Texto"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

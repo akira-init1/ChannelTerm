@@ -3,6 +3,47 @@ import type { MessageDescriptor } from "@lingui/core";
 // Lingui 5 extracts these official annotated descriptors without a runtime macro
 // transform. Translations belong in PO catalogs; this file owns IDs and English defaults.
 export const menuMessages = [
+  /* i18n */ { id: "send.open", message: "Debug send and snippets" },
+  /* i18n */ {
+    id: "send.help",
+    message:
+      "Text uses this attachment’s encoding. HEX accepts complete byte pairs and ASCII whitespace. The final payload, including the line ending, is limited to 4096 bytes.",
+  },
+  /* i18n */ { id: "send.mode", message: "Input format" },
+  /* i18n */ { id: "send.text", message: "Text" },
+  /* i18n */ { id: "send.data", message: "Content" },
+  /* i18n */ { id: "send.ending", message: "Append line ending" },
+  /* i18n */ { id: "send.none", message: "None" },
+  /* i18n */ { id: "send.preview", message: "Preview and send" },
+  /* i18n */ {
+    id: "send.confirm",
+    message: "Confirm exact bytes sent to this Session",
+  },
+  /* i18n */ { id: "send.send", message: "Send these bytes" },
+  /* i18n */ {
+    id: "send.noRetry",
+    message:
+      "No automatic retry. After failure or cancellation during delivery, inspect the device before sending again.",
+  },
+  /* i18n */ { id: "send.snippets", message: "Saved snippets" },
+  /* i18n */ { id: "send.choose", message: "Load a snippet without sending" },
+  /* i18n */ { id: "send.name", message: "Snippet name" },
+  /* i18n */ {
+    id: "send.plaintext",
+    message:
+      "I approve saving this content unencrypted on this computer, replacing the same name. Do not save passwords or secrets.",
+  },
+  /* i18n */ { id: "send.save", message: "Save or replace snippet" },
+  /* i18n */ { id: "send.remove", message: "Delete named snippet" },
+  /* i18n */ { id: "send.sent", message: "Host accepted bytes:" },
+  /* i18n */ { id: "send.cancelled", message: "Cancelled before sending." },
+  /* i18n */ { id: "send.saved", message: "Snippet saved. Nothing was sent." },
+  /* i18n */ { id: "send.removed", message: "Snippet deleted." },
+  /* i18n */ {
+    id: "send.loaded",
+    message: "Snippet loaded. Review it before sending.",
+  },
+
   /* i18n */ {
     id: "setup.secret",
     message:

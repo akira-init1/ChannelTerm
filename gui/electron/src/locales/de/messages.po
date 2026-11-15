@@ -126,6 +126,7 @@ msgstr "Baudrate"
 #. js-lingui-explicit-id
 #: src/main/index.ts
 #: src/main/index.ts
+#: src/main/index.ts
 #: src/shared/menu-messages.ts
 msgid "connection.cancel"
 msgstr "Abbrechen"
@@ -1702,6 +1703,119 @@ msgstr "Nur im gespeicherten Text des aktuellen Terminals suchen."
 #: src/shared/menu-messages.ts
 msgid "search.selectAll"
 msgstr "Gesamten gespeicherten Text auswählen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.cancelled"
+msgstr "Vor dem Senden abgebrochen."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.choose"
+msgstr "Vorlage ohne Senden laden"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "send.confirm"
+msgstr "Exakte Bytes für diese Session bestätigen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.data"
+msgstr "Inhalt"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.ending"
+msgstr "Zeilenende anhängen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.help"
+msgstr "Text verwendet die Kodierung dieser Ansicht. HEX erlaubt vollständige Bytepaare und ASCII-Leerraum. Einschließlich Zeilenende sind höchstens 4096 Bytes zulässig."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.loaded"
+msgstr "Vorlage geladen. Vor dem Senden prüfen."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.mode"
+msgstr "Eingabeformat"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.name"
+msgstr "Vorlagenname"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.none"
+msgstr "Keines"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "send.noRetry"
+msgstr "Kein automatischer Wiederholungsversuch. Nach Fehler oder Abbruch während der Übertragung zuerst das Gerät prüfen."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.open"
+msgstr "Debug-Senden und Vorlagen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.plaintext"
+msgstr "Ich stimme der unverschlüsselten Speicherung auf diesem Computer und dem Ersetzen gleichnamiger Vorlagen zu. Keine Passwörter oder Geheimnisse speichern."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.preview"
+msgstr "Prüfen und senden"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.remove"
+msgstr "Benannte Vorlage löschen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.removed"
+msgstr "Vorlage gelöscht."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.save"
+msgstr "Vorlage speichern oder ersetzen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.saved"
+msgstr "Vorlage gespeichert. Nichts gesendet."
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "send.send"
+msgstr "Diese Bytes senden"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.sent"
+msgstr "Vom Host akzeptierte Bytes:"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.snippets"
+msgstr "Gespeicherte Vorlagen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.text"
+msgstr "Text"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

@@ -126,6 +126,7 @@ msgstr "Débit en bauds"
 #. js-lingui-explicit-id
 #: src/main/index.ts
 #: src/main/index.ts
+#: src/main/index.ts
 #: src/shared/menu-messages.ts
 msgid "connection.cancel"
 msgstr "Annuler"
@@ -1702,6 +1703,119 @@ msgstr "Recherche uniquement dans le texte conservé du terminal actuel."
 #: src/shared/menu-messages.ts
 msgid "search.selectAll"
 msgstr "Sélectionner tout le texte conservé"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.cancelled"
+msgstr "Annulé avant l’envoi."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.choose"
+msgstr "Charger un extrait sans l’envoyer"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "send.confirm"
+msgstr "Confirmer les octets exacts pour cette Session"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.data"
+msgstr "Contenu"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.ending"
+msgstr "Ajouter une fin de ligne"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.help"
+msgstr "Le texte utilise l’encodage de cette vue. HEX accepte des paires d’octets complètes et les espaces ASCII. La limite est de 4096 octets, fin de ligne comprise."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.loaded"
+msgstr "Extrait chargé. Vérifiez-le avant l’envoi."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.mode"
+msgstr "Format de saisie"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.name"
+msgstr "Nom de l’extrait"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.none"
+msgstr "Aucune"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "send.noRetry"
+msgstr "Aucun nouvel essai automatique. Après un échec ou une annulation pendant l’envoi, vérifiez l’appareil avant de renvoyer."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.open"
+msgstr "Envoi de débogage et extraits"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.plaintext"
+msgstr "J’accepte de stocker ce contenu en clair sur cet ordinateur et de remplacer le même nom. Ne stockez ni mots de passe ni secrets."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.preview"
+msgstr "Vérifier et envoyer"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.remove"
+msgstr "Supprimer l’extrait nommé"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.removed"
+msgstr "Extrait supprimé."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.save"
+msgstr "Enregistrer ou remplacer l’extrait"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.saved"
+msgstr "Extrait enregistré. Aucun envoi."
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "send.send"
+msgstr "Envoyer ces octets"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.sent"
+msgstr "Octets acceptés par le Host :"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.snippets"
+msgstr "Extraits enregistrés"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "send.text"
+msgstr "Texte"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

@@ -1,3 +1,4 @@
+import type { DebugPayload, CommandSnippet, SnippetChange } from "./debug-send";
 import type { DebugOverview } from "./debug";
 import type { RecordingRequest, RecordingStatus } from "./logging";
 import type {
@@ -132,6 +133,12 @@ export interface WindowInfo {
 
 /** One method per IPC channel; no arbitrary tool, URL, file, or process access. */
 export interface DesktopAPI {
+  debugSend(
+    id: string,
+    payload: DebugPayload,
+  ): Promise<Result<{ sent: boolean; bytes: number }>>;
+  snippets(): Promise<Result<CommandSnippet[]>>;
+  changeSnippet(change: SnippetChange): Promise<Result<CommandSnippet[]>>;
   recordings(): Promise<Result<RecordingStatus[]>>;
   mcpSetupClients(): Promise<Result<MCPSetupClient[]>>;
   mcpSetupRecover(): Promise<Result<MCPSetupResult>>;
@@ -234,6 +241,9 @@ export interface DesktopAPI {
 }
 
 export const channels = {
+  debugSend: "debug-input:send",
+  snippets: "debug-input:snippets",
+  changeSnippet: "debug-input:save",
   recordings: "logs:list",
   mcpSetupClients: "mcp-setup:clients",
   mcpSetupRecover: "mcp-setup:recover",

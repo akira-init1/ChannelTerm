@@ -3,6 +3,10 @@ import { channels, type DesktopAPI } from "../shared/api";
 import { isAction } from "../shared/menus";
 
 const api: DesktopAPI = {
+  debugSend: (id, payload) =>
+    ipcRenderer.invoke(channels.debugSend, id, payload),
+  snippets: () => ipcRenderer.invoke(channels.snippets),
+  changeSnippet: (change) => ipcRenderer.invoke(channels.changeSnippet, change),
   mcpSetupClients: () => ipcRenderer.invoke(channels.mcpSetupClients),
   mcpSetupRecover: () => ipcRenderer.invoke(channels.mcpSetupRecover),
   mcpSetup: (request) => ipcRenderer.invoke(channels.mcpSetup, request),

@@ -379,6 +379,14 @@ for sizing and extension boundaries.
 
 ## Checks and isolated Host
 
+Debug-send checks compare the exact bytes echoed by the isolated real Host, including NUL, non-UTF-8
+bytes and line endings. Native confirmation is substituted to inspect/cancel the precise payload;
+stale/detached views, Lease/control rejection, uncertain delivery and malformed/oversized/encoding
+failures are covered without hardware. Snippet tests use disposable files and check consent, bounds,
+restart without execution and failure preservation. Nine locales and a compact native window are
+checked separately from real-device acceptance.
+
+
 Client-setup checks use a disposable real Host registration domain and separate client home/config
 directories. They verify native confirmation/cancel, existing-entry preservation, read-only registration,
 revoked authentication/repair, secret/path isolation, nine locales and compact layout. Native dialogs

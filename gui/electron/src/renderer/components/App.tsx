@@ -1,3 +1,4 @@
+import { DebugSendDialog } from "../terminal/DebugSendDialog";
 import { ControlPanel } from "../sessions/ControlPanel";
 import { HostSettingsDialog } from "./HostSettings";
 import { MCPSetupDialog } from "./MCPSetup";
@@ -139,6 +140,7 @@ export function App() {
   const [restoringWorkspace, setRestoringWorkspace] = useState(false);
   const [info, setInfo] = useState<HostInfo>();
   const [hostSettingsOpen, setHostSettingsOpen] = useState(false);
+  const [debugSendTarget, setDebugSendTarget] = useState<Attachment>();
   const [mcpSetupOpen, setMCPSetupOpen] = useState(false);
   const [recordingDialog, setRecordingDialog] = useState<{
     attachment?: Attachment;
@@ -570,6 +572,7 @@ export function App() {
       connected,
       sshAvailable: !!info?.sshAvailable,
       busy:
+        !!debugSendTarget ||
         mcpSetupOpen ||
         !!recordingDialog ||
         hostSettingsOpen ||
@@ -599,6 +602,7 @@ export function App() {
       locale,
       hostSettingsOpen,
       mcpSetupOpen,
+      debugSendTarget,
       recordingDialog,
       languagePreference,
       connected,
@@ -1148,6 +1152,7 @@ export function App() {
       attachment: tab?.attachment,
       tabId: tab?.id,
       busy:
+        !!debugSendTarget ||
         mcpSetupOpen ||
         !!recordingDialog ||
         hostSettingsOpen ||
@@ -1375,6 +1380,9 @@ export function App() {
         return;
       case "terminal.copy":
         terminal?.copy();
+        return;
+      case "send.open":
+        setDebugSendTarget({ ...action.attachment });
         return;
       case "terminal.find":
         terminal?.find();
@@ -1630,6 +1638,13 @@ export function App() {
           records={recordings}
           t={t}
           onClose={() => setRecordingDialog(undefined)}
+        />
+      )}
+      {debugSendTarget && (
+        <DebugSendDialog
+          attachment={debugSendTarget}
+          t={t}
+          onClose={() => setDebugSendTarget(undefined)}
         />
       )}
       {mcpSetupOpen && (
@@ -2169,6 +2184,7 @@ export function App() {
                       )?.control?.version
                     }
                     writable={
+                      !debugSendTarget &&
                       !mcpSetupOpen &&
                       !recordingDialog &&
                       !hostSettingsOpen &&

@@ -140,7 +140,7 @@ execution capability or MCP interface is exposed. Base64 is the default for both
 The UTF-8 path still passes raw bytes to xterm. Missing output resets decoder and parser state;
 malformed device text uses replacement characters. Hex view prints received bytes and safe ASCII,
 never interpreting remote escapes; offsets count observed bytes and restart after a gap. Rows may
-end at read boundaries. Main independently rejects terminal writes in hex view and validates all
+end at read boundaries. Main independently rejects ordinary keyboard/paste writes in hex view and validates all
 settings. For text input, Main's `iconv-lite` encoder rejects lossy conversion before queueing and
 sends encoded bytes through the existing authenticated base64 write path. Lease checks and
 no-replay behavior remain unchanged. File transfers and other clients always retain raw bytes.
@@ -528,6 +528,14 @@ success or retries. EOF, missing/closed Session, authentication failures, and tr
 stop the affected work and are surfaced to the UI. Reconnection is explicit.
 
 ## Security and lifecycle
+
+Debug sending is a separate explicit Main capability over the existing Host write path. Main encodes
+one bounded payload before native confirmation, captures the original attachment/control generation,
+and sends those exact bytes once through the common serialized queue. Renderer holds only its local
+draft; it cannot bypass Host authority by choosing HEX or changing the selected view. The Main-owned
+snippet library accepts explicitly confirmed plaintext saves, never executes entries and serializes
+atomic updates across windows. No new Core use case or MCP write schema is introduced.
+
 
 MCP client setup is a local Main capability composed through the fixed bundled CLI's
 `init --mcp-desktop` JSON interface. Renderer supplies only client/scope/operation/replacement intent.

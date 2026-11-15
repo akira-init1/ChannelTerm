@@ -1,3 +1,5 @@
+import { debugBytes } from "./debug-send";
+import type { DebugPayload } from "../../shared/debug-send";
 import { ClientPresence } from "./presence";
 import { idlePolicy } from "./idle";
 import type { ControlSnapshot, ControlReply } from "../../shared/control";
@@ -1360,8 +1362,59 @@ export class HostClient {
     for (const active of this.attachments.values()) active.writeVersion++;
   }
 
+  /** Capture exact input and original attachment/control before native confirmation. */
+  prepareDebugWrite(id: string, payload: DebugPayload) {
+    const active = this.attachment(id);
+    const control = this.controls.get(active.sessionId);
+    const version = active.writeVersion;
+    const encoded = debugBytes(payload, active.codec);
+    let consumed = false;
+    const validate = () => {
+      if (
+        this.attachment(id) !== active ||
+        active.writeVersion !== version ||
+        this.controls.get(active.sessionId)?.version !== control?.version
+      )
+        throw new HostError(
+          "cancelled",
+          "Debug input target or control changed; input discarded.",
+        );
+    };
+    return {
+      sessionId: active.sessionId,
+      encoding: payload.mode === "hex" ? "hex" : active.settings.encoding,
+      hex: encoded.toString("hex").match(/.{2}/g)!.join(" "),
+      bytes: encoded.length,
+      send: async () => {
+        if (consumed)
+          throw new HostError("cancelled", "Debug input already consumed.");
+        consumed = true;
+        validate();
+        await this.writePayload(id, encoded, undefined, validate);
+        return encoded.length;
+      },
+    };
+  }
+
   async write(id: string, data: string): Promise<void> {
     input(data);
+    const active = this.attachment(id);
+    if (active.settings.view === "hex")
+      throw new HostError("invalid_input", "Hex view is read-only.");
+    return this.writePayload(
+      id,
+      active.codec.encode(data),
+      active.settings.encoding === "utf-8" ? data : undefined,
+    );
+  }
+
+  /** All input shares one bounded queue and Host authority, including explicit bytes. */
+  private async writePayload(
+    id: string,
+    encoded: Buffer,
+    utf8?: string,
+    validate?: () => void,
+  ): Promise<void> {
     const active = this.attachment(id);
     const control = this.controls.get(active.sessionId);
     if (control && !control.writable)
@@ -1374,10 +1427,6 @@ export class HostClient {
         "busy",
         "Session closure is pending; input was discarded.",
       );
-    if (active.settings.view === "hex")
-      throw new HostError("invalid_input", "Hex view is read-only.");
-    const legacy = active.settings.encoding !== "utf-8";
-    const encoded = active.codec.encode(data);
     const bytes = encoded.length;
     if (active.queuedBytes + bytes > 65536)
       throw new HostError(
@@ -1389,6 +1438,7 @@ export class HostClient {
     const write = active.writes
       .then(async () => {
         this.attachment(id);
+        validate?.();
         if (version !== active.writeVersion)
           throw new HostError(
             "cancelled",
@@ -1398,8 +1448,8 @@ export class HostClient {
           "terminal_write",
           {
             session_id: active.sessionId,
-            data: legacy ? encoded.toString("base64") : data,
-            encoding: legacy ? "base64" : "utf8",
+            data: utf8 ?? encoded.toString("base64"),
+            encoding: utf8 === undefined ? "base64" : "utf8",
             actor: "user",
           },
           active.controller.signal,

@@ -60,6 +60,11 @@ test("Host fences old desktop input, pins takeover to one instance and requires 
       assert.equal(r.isError, undefined, JSON.stringify(r.structuredContent));
       return object(r.structuredContent);
     };
+    const pendingDebug = first.prepareDebugWrite(attached.id, {
+      mode: "hex",
+      data: "ff",
+      ending: "none",
+    });
     const current = object((await call({ action: "status" })).control);
     const key = { version: text(current.version) };
     let result = object((await call({ action: "takeover", ...key })).result);
@@ -71,6 +76,17 @@ test("Host fences old desktop input, pins takeover to one instance and requires 
     await assert.rejects(first.write(attached.id, "must-not-replay\n"));
     const controlled = (await first.list())[0]!.control!;
     assert.equal(controlled.writable, false);
+    await assert.rejects(pendingDebug.send(), { code: "cancelled" });
+    await assert.rejects(
+      first
+        .prepareDebugWrite(attached.id, {
+          mode: "hex",
+          data: "00",
+          ending: "none",
+        })
+        .send(),
+      { code: "busy" },
+    );
     assert.equal(controlled.ai_paused, true);
     await call({ action: "allow", version: controlled.version });
     await first.list();

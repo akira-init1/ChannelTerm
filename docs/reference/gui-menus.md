@@ -48,6 +48,7 @@ for authentication, verification and cancellation.
 
 | Menu / surface | Action ID | Behavior and availability |
 | --- | --- | --- |
+| Terminal > Debug send and snippets | `send.open` | Open an explicit text/HEX sender for the captured open, unleased attachment. No shortcut, timer or broadcast. |
 | Terminal > Continuous recording; recording status indicator | `logs.open` | Start explicit raw/text output recording for the captured view, inspect this window's records, stop them, or select one local log file for confirmed trash. Available offline for retained results. |
 | Host > Configure or repair MCP clients | `setup.open` | Inspect one local client, verify existing access, or explicitly confirm file-adapter setup/repair. Available offline; no token or configuration path enters Renderer. See the [setup workflow](../getting-started/mcp-server.md#desktop-client-setup-and-repair). |
 | Host > Host information and connection | `host.settings` | Show Main-owned versions, connection capabilities and the local endpoint, including while offline. Saving disconnects this window; no shortcut or Host-stop action. |
@@ -393,6 +394,33 @@ Cancel, disconnect, detach of the snapshot attachment, malformed data, hash mism
 failure removes the incomplete local file; removal failures are explicitly reported. An uncertain
 export is not automatically retried. Unknown, expired and evicted IDs show an unavailable-archive
 error; create another snapshot. A download has a 60-second budget including destination selection.
+
+## Debug send and snippets
+
+**Terminal > Debug send and snippets** captures one attachment. Text uses that view's selected
+encoding and rejects lossy conversion; HEX accepts only hexadecimal digits and ASCII space, tab,
+CR or LF, with an even nonzero digit count. `0x` prefixes, odd nibbles and other whitespace are errors.
+Choose no appended ending (default), LF, CR or CRLF. The final payload is limited to 4096 bytes,
+including the ending; the editor accepts at most 16384 UTF-16 code units and rejects unpaired surrogates.
+An empty body cannot be used to send an accidental Enter.
+
+**Preview and send** opens a native confirmation with the opaque Session ID, encoding, byte count
+and exact final HEX bytes. Cancel is the default. Confirmation sends those captured bytes through
+the existing Host authorization/control/Lease path and bounded attachment write queue. A changed or
+detached target/control invalidates pending input; it never substitutes another selected Session.
+HEX display remains read-only for ordinary keyboard/paste, but this separate explicit operation can
+send confirmed bytes. Closing the window or changing its endpoint waits for an active confirmation/send.
+No timer, broadcast or automatic retry is provided. A successful byte count means the Host accepted
+input, not that a command succeeded. After a failed/cancelled in-flight request, delivery may be
+uncertain: inspect the device before a new explicit send. Closing the panel discards its draft.
+
+Named snippets save only after the plaintext-consent checkbox is selected. Saving the same name
+replaces that entry; loading never sends. Delete removes the named entry without affecting devices.
+The library holds at most 32 entries, each with a 1–64 character name and the bounded payload above,
+in `command-snippets.json` under Electron user data. The file is **unencrypted**: do not store passwords
+or secrets. Drafts are not saved automatically and nothing executes on startup. Main serializes edits,
+reads the current library for each mutation and atomically replaces it; invalid files or write errors
+leave the previous library intact. See [desktop local state](configuration.md#desktop-debug-snippets).
 
 ## Continuous recording
 
