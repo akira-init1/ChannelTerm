@@ -1252,6 +1252,7 @@ func writeFileUsage(output io.Writer) {
 	fmt.Fprintln(output, "Stream a file through an existing shared Session and verify it with SHA-256.")
 	fmt.Fprintln(output, "When exactly one Session is open, --session may be omitted.")
 	fmt.Fprintln(output, "Use --resumable with send/receive to keep an immutable snapshot and confirmed offsets. Resume requires an explicitly selected serial Session; it never reconnects automatically.")
+	fmt.Fprintln(output, "In attach, Ctrl+] f then k enables checkpoint retention for the next transfer; j lists jobs and prompts for an explicit checkpoint ID. Retained directories use TAR.")
 }
 
 func writeFileSendUsage(output io.Writer) {

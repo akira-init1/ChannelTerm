@@ -621,6 +621,7 @@ func (c *fileTransferCancellation) signalStateChangeLocked() {
 // on the current attachment without turning a completed shortcut into a detach.
 type nonClosingAttachSession struct {
 	attachSession
+	keepCheckpoint  bool
 	cancellation    *fileTransferCancellation
 	directoryMode   string
 	chooseDirectory func(context.Context) (string, error)
@@ -731,7 +732,7 @@ func (s nonClosingAttachSession) FileTransferCancellationCheckpoint(ctx context.
 	return nil
 }
 
-var fileTransferMenuText = []byte("\r\nFile transfer:\r\n  f  Send PC -> Board (shared directory preference)\r\n  g  Receive Board -> PC (shared directory preference)\r\n  s  Send PC -> Board (directories: TAR)\r\n  r  Receive Board -> PC (directories: TAR)\r\n  u  Send PC -> Board (directories: per-file verification)\r\n  d  Receive Board -> PC (directories: per-file verification)\r\n  Esc  Cancel\r\nSelect: ")
+var fileTransferMenuText = []byte("\r\nFile transfer:\r\n  f  Send PC -> Board (shared directory preference)\r\n  g  Receive Board -> PC (shared directory preference)\r\n  s  Send PC -> Board (directories: TAR)\r\n  r  Receive Board -> PC (directories: TAR)\r\n  u  Send PC -> Board (directories: per-file verification)\r\n  d  Receive Board -> PC (directories: per-file verification)\r\n  k  Toggle checkpoint retention for next serial transfer (default OFF; directories use TAR)\r\n  j  List retained serial checkpoints and resume explicitly\r\n  Esc  Cancel\r\nSelect: ")
 var fileTransferInputIgnoredText = []byte("\r\n[ChannelTerm] Input ignored during file transfer. Ctrl+C to cancel.\r\n")
 
 var terminalCommandInputIgnoredText = []byte("\r\n[ChannelTerm] Input ignored while an AI command is running. Cancel it from the MCP client.\r\n")

@@ -227,6 +227,20 @@ ordinary Host file-transfer Lease. Neither GUI nor CLI reconnects or retries wri
 The GUI progress bar uses Host events for these operations, including transfers initiated by CLI/MCP
 clients using the CLI workflow.
 
+In a shared serial CLI attachment, press `Ctrl+] f`, then `k` to enable retention for the next
+send/receive. The menu starts with retention off each time. Retained directories always use TAR;
+`f`/`g` use TAR while retention is enabled, and per-file `u`/`d` fail before transferring. After an
+interruption, check that the same endpoint is attached and its shell is ready, then press
+`Ctrl+] f`, `j`. Read the filtered job list and enter the intended checkpoint ID; Enter on an empty
+line or Escape cancels. This menu is unavailable on private connections and SSH. It uses the same
+checkpoint validation and file-transfer lease as `file resume`.
+
+Failed/cancelled retained attempts report the saved phase and confirmed byte count. When applicable,
+they also print a copyable command labelled for PowerShell or a POSIX shell. Check its Session and
+Host before running it; a printed command does not prove the shell is ready. Unknown state and
+uncertain publication never produce a resume command. Paths/targets containing control characters
+suppress copyable commands rather than embedding terminal control input.
+
 Resume requires an absolute device path. Uploads keep a local immutable snapshot; directory
 snapshots are tar archives. Later edits to the original local source do not alter that snapshot.
 Directory downloads retain a remote tar snapshot under `/tmp/.channelterm-transfer-JOB_ID/`;
@@ -653,6 +667,12 @@ This mode accepts only a single regular file. It cannot combine with `--recursiv
 or `--safe-replace`, and SCP rejects it. Keep both files stable during transfer; there is no
 snapshot, persistent job database or automatic retry. Cancellation retains the partial destination
 for another explicit attempt. A final checksum failure also retains the file for inspection.
+
+CLI failures distinguish observed payload bytes from a verified resume offset and leave the final
+destination state unconfirmed. Eligible single-file SFTP failures include a conditional copyable
+`--resume` command after the same source and destination have been inspected. Overwrite, safe
+replacement, recursive transfers, SCP, and already completed files instead require manual
+inspection. Credentials are requested again; recovery guidance never sends input to an SSH PTY.
 
 ### Electron SFTP/SCP progress and resume
 

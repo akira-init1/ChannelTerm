@@ -74,6 +74,8 @@ type attachSessionFactory func(context.Context, string, string) (attachSession, 
 // existing MCP terminal tools. The remote Manager continues to own the actual
 // Session and its single Transport reader.
 type mcpAttachSession struct {
+	endpoint       string
+	fileTargetID   string
 	id             string
 	client         mcpToolClient
 	leaseOwner     string
@@ -116,7 +118,7 @@ func newMCPAttachSession(ctx context.Context, endpoint, id string) (_ attachSess
 		}
 	}()
 
-	attached := &mcpAttachSession{id: id, client: remote, temporaryHost: temporaryHost}
+	attached := &mcpAttachSession{id: id, endpoint: endpoint, client: remote, temporaryHost: temporaryHost}
 	if err := attached.verify(ctx); err != nil {
 		return nil, err
 	}
@@ -569,6 +571,7 @@ func writeAttachTargetUsage(output io.Writer) {
 	fmt.Fprintln(output, "attach SER-1 or a full session_id joins an existing shared Session.")
 	fmt.Fprintln(output, "--private (or --no-mcp) opens a local connection that MCP and other users cannot join.")
 	fmt.Fprintln(output, "Ctrl+C is sent to the remote session. Use Ctrl+] q to leave this CLI window; Ctrl+] f opens file transfer; Ctrl+] t toggles local prompt timestamps.")
+	fmt.Fprintln(output, "In the file menu, k toggles checkpoint retention (off initially); j lists retained jobs for explicit resume on this shared serial Session.")
 }
 
 // hasAttachSerialOption detects settings that cannot apply when target names a
@@ -878,6 +881,7 @@ func (s *mcpAttachSession) verify(ctx context.Context) error {
 	for _, candidate := range listed.Sessions {
 		if candidate.ID == s.id || candidate.Reference == s.id {
 			s.recoveryReference = candidate.Reference
+			s.fileTargetID = candidate.ID
 			return nil
 		}
 	}

@@ -204,6 +204,9 @@ func executeFileCheckpoint(ctx context.Context, root string, c app.TransferCheck
 		return errors.Join(writeFileTransferVerificationSummary(output, result.SHA256, resolved), cleanupErr)
 	})
 	if err != nil && c.ID != "" {
+		if !options.json {
+			err = errors.Join(err, writeCheckpointRecovery(output, root, c.ID, options))
+		}
 		if saved, checkpointErr := app.ReadTransferCheckpoint(root, c.ID); checkpointErr == nil && saved.Phase != "completed" {
 			return fmt.Errorf("checkpoint %s retained; use file jobs and explicitly resume after checking the Session: %w", c.ID, err)
 		}
@@ -291,11 +294,16 @@ func runFileJobs(ctx context.Context, args []string, output io.Writer, dependenc
 		return json.NewEncoder(output).Encode(map[string]any{"jobs": rows})
 	}
 	for _, c := range rows {
-		fmt.Fprintf(output, "%s  %s  %s  %d/%d B  %s  %s\n", c.ID, c.Direction, c.Kind, c.Offset, c.Total, c.Phase, c.Name)
-		fmt.Fprintf(output, "  Original source (checkpoint report): %s\n", formatTransferClient(c.Origin))
+		if _, err := fmt.Fprintf(output, "%s  %s  %s  %d/%d B  %s  %q\n", c.ID, c.Direction, c.Kind, c.Offset, c.Total, c.Phase, c.Name); err != nil {
+			return err
+		}
+		if _, err := fmt.Fprintf(output, "  Original source (checkpoint report): %s\n", formatTransferClient(c.Origin)); err != nil {
+			return err
+		}
 	}
 	if len(rows) == 0 {
-		fmt.Fprintln(output, "No resumable transfers.")
+		_, err := fmt.Fprintln(output, "No resumable transfers.")
+		return err
 	}
 	return nil
 }

@@ -684,6 +684,12 @@ receive defaults to local `./<remote-basename>`. On Windows, the local path prom
 enclosing pair of double quotes added by terminal file drag-and-drop. It removes that pair before
 deriving defaults or accessing files, preserving spaces and backslashes without shell expansion.
 Remote path input and local paths on other platforms remain literal.
+For a shared serial Session, `k` toggles checkpoint retention for the next transfer. It starts off
+each time the menu opens; enabling it uses TAR for directories, including `f`/`g`, and rejects
+per-file `u`/`d`. `j` lists retained jobs for this Host/serial endpoint and then prompts for an
+explicit checkpoint ID. Empty input or Escape cancels locally, including the remaining bytes of
+that input batch. Private connections cannot use this checkpoint menu; SSH uses the independent
+`sftp --resume` command. These choices never reconnect, retry, or select a job automatically.
 Transfers perform storage preflight before payload and again before directory extraction. Unknown
 or insufficient capacity fails with an actionable error; see the
 [file-transfer workflow](../getting-started/file-transfer.md) for required tools and estimates.
@@ -695,7 +701,7 @@ attachment closes its progress redraw gate before printing the prompt, so a conc
 block cannot overwrite the question. Only `y` or `Y` confirms cancellation. Printable answers are
 echoed after the prompt's colon even though the terminal is in raw mode. `n`, `N`, Enter, and every
 other character print `[ChannelTerm] File transfer resumed` and let the worker continue. After
-confirmation, the target restores its TTY, temporary data is removed, the lease is released, and
+confirmation, the target restores its TTY, non-retained temporary data is removed, the lease is released, and
 attach prints one timestamped cancellation result with the last confirmed byte counts and
 `Reason: cancelled by user`. After `LEASE_RELEASED`, the Host publishes `FILE_TRANSFER_CANCELLED`
 with `reason: user_cancelled`, `lease_released: true`, the transfer ID, and last confirmed progress.
@@ -792,12 +798,18 @@ Serial `send` and `receive` accept opt-in `--resumable`. This saves a snapshot/c
 and directories; it requires an absolute device path and additional storage. `file jobs [--json]`
 lists up to 128 incomplete jobs; `--session SESSION` filters by the current Host and serial endpoint.
 The JSON object contains `jobs` with `id`, `name`, `direction`, `kind`, `offset`, `total`, and `phase`.
+Human job listings quote filenames with escaped control characters; JSON fields are unchanged.
 `file resume JOB_ID --session SESSION` requires an explicit open serial Session on the saved Host
 and endpoint, and uses the saved wire mode. It rejects `--wire` and `--resumable`; it does not open a
 device or reconnect. Resumable JSON transfer output additionally emits a `checkpoint` record with
 `checkpoint_id` alongside the existing `started`/`verified` records. There are no new MCP tools.
 See the [resume workflow](../getting-started/file-transfer.md#manual-resume-for-serial-files-and-directories)
 for snapshot semantics, cancellation, peer tool requirements and uncertain publication handling.
+After a retained transfer fails or is cancelled, human output reads the saved checkpoint phase and
+confirmed byte count. It prints a literal-quoted command for the named local shell (PowerShell on
+Windows, POSIX shell elsewhere) when another explicit attempt is possible. A `publishing` receipt
+requires manual inspection; a `completed` receipt reports cleanup concerns without suggesting
+resume. Unreadable state is reported as unknown. JSON transfer records are unchanged.
 
 `send` and `receive` accept optional `--json` for desktop integration. Default human output is
 unchanged. JSON mode suppresses the local ANSI progress bar and emits newline-delimited records:

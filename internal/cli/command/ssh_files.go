@@ -197,10 +197,13 @@ func runSSHFilesWithProgress(ctx context.Context, protocol string, args []string
 	}
 	result, err := run(ctx, r)
 	if progress != nil {
-		return errors.Join(err, progress.Finish(result, err))
+		err = errors.Join(err, progress.Finish(result, err))
 	}
 	if err != nil {
-		return err
+		return errors.Join(err, writeSSHResumeGuidance(output, r, result))
+	}
+	if progress != nil {
+		return nil
 	}
 	if r.Operation == "ls" || r.Operation == "stat" {
 		for _, info := range result.Entries {

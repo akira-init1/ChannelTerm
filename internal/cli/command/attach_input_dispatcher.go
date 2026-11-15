@@ -2,6 +2,7 @@ package command
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -32,6 +33,7 @@ const (
 	attachInputModeDirectoryChoice
 	attachInputModeControlConfirm
 	attachInputModeControlWait
+	attachInputModeResumeJob
 )
 
 const controlCRecoveryWindow = 500 * time.Millisecond
@@ -58,6 +60,8 @@ type terminalCommandActivity interface {
 // attachInputPump is its sole stdin/Console reader; menu, path, and transfer
 // modes consume only the pump's ordered results and never read stdin directly.
 type attachInputDispatcher struct {
+	keepCheckpoint     bool
+	listingCheckpoints bool
 	controlInputPaused bool
 	controlDraft       *attachControlRequest
 	controlLast        *attachControlRequest
@@ -268,6 +272,18 @@ func (d *attachInputDispatcher) dispatch(data []byte) bool {
 			return d.dispatchAttach(data)
 		case attachInputModeFileMenu:
 			d.dispatchFileMenuByte(data[0])
+		case attachInputModeResumeJob:
+			if data[0] == 0x1b {
+				d.cancelFileShortcut()
+				return true
+			}
+			if !d.dispatchPathByte(data[0]) {
+				return false
+			}
+			if d.mode == attachInputModeAttach {
+				// Empty input cancels locally, including the rest of this paste.
+				return true
+			}
 		case attachInputModeSendLocalPath, attachInputModeSendRemotePath, attachInputModeReceiveRemotePath, attachInputModeReceiveLocalPath:
 			if !d.dispatchPathByte(data[0]) {
 				return false
@@ -410,6 +426,7 @@ func (d *attachInputDispatcher) ignoreTerminalCommandInput() bool {
 }
 
 func (d *attachInputDispatcher) enterFileMenu() bool {
+	d.keepCheckpoint = false
 	d.directoryMode = "tar"
 	d.mode = attachInputModeFileMenu
 	return d.writeLocal != nil && d.writeLocal(fileTransferMenuText) == nil
@@ -417,6 +434,17 @@ func (d *attachInputDispatcher) enterFileMenu() bool {
 
 func (d *attachInputDispatcher) dispatchFileMenuByte(value byte) {
 	switch value {
+	case 'k', 'K':
+		d.keepCheckpoint = !d.keepCheckpoint
+		state := "OFF"
+		if d.keepCheckpoint {
+			state = "ON (directories use TAR; per-file mode is unavailable)"
+		}
+		if d.writeLocal == nil || d.writeLocal([]byte("\r\nKeep serial checkpoint: "+state+"\r\nSelect: ")) != nil {
+			d.cancelAttach()
+		}
+	case 'j', 'J':
+		d.startTransfer("jobs", "", "")
 	case 0x1b:
 		d.cancelFileShortcut()
 	case 's', 'S', 'u', 'U', 'f', 'F':
@@ -480,7 +508,9 @@ func (d *attachInputDispatcher) dispatchPathByte(value byte) bool {
 			}
 		}
 	default:
-		d.line = append(d.line, value)
+		if d.mode != attachInputModeResumeJob || len(d.line) < 25 {
+			d.line = append(d.line, value)
+		}
 		if d.writeLocal == nil || d.writeLocal([]byte{value}) != nil {
 			return false
 		}
@@ -492,6 +522,20 @@ func (d *attachInputDispatcher) finishPathLine() {
 	value := string(d.line)
 	d.line = d.line[:0]
 	switch d.mode {
+	case attachInputModeResumeJob:
+		value = strings.ToLower(strings.TrimSpace(value))
+		if value == "" {
+			d.cancelFileShortcut()
+			return
+		}
+		if decoded, err := hex.DecodeString(value); err != nil || len(decoded) != 12 {
+			d.mode = attachInputModeFileMenu
+			if d.writeLocal != nil {
+				_ = d.writeLocal([]byte("Invalid checkpoint ID; no transfer started.\r\nSelect: "))
+			}
+			return
+		}
+		d.startTransfer("resume", value, "")
 	case attachInputModeSendLocalPath:
 		value = normalizeShortcutLocalPath(value)
 		if strings.TrimSpace(value) == "" {
@@ -533,6 +577,7 @@ func (d *attachInputDispatcher) startTransfer(direction, firstPath, secondPath s
 	// The mode changes before the worker starts, so a Ctrl+C read concurrently
 	// with setup is always a transfer cancellation and is never sent remotely.
 	d.mode = attachInputModeFileTransfer
+	d.listingCheckpoints = direction == "jobs"
 	d.ignoreControlCUntil = time.Time{}
 	d.inputIgnoredAnnounced = false
 	d.transferCancellation = newFileTransferCancellation()
@@ -541,7 +586,11 @@ func (d *attachInputDispatcher) startTransfer(direction, firstPath, secondPath s
 		d.cancelAttach()
 		return
 	}
-	if d.writeTransferStatus(fileTransferStartedText(time.Now(), direction, firstPath, secondPath)) != nil {
+	startText := fileTransferStartedText(time.Now(), direction, firstPath, secondPath)
+	if d.listingCheckpoints {
+		startText = []byte("\r\nLoading retained serial checkpoints...\r\n")
+	}
+	if d.writeTransferStatus(startText) != nil {
 		d.cancelAttach()
 		return
 	}
@@ -549,6 +598,7 @@ func (d *attachInputDispatcher) startTransfer(direction, firstPath, secondPath s
 	d.transferDone = done
 	cancellation := d.transferCancellation
 	directoryMode := d.directoryMode
+	keepCheckpoint := d.keepCheckpoint
 	go func() {
 		// Detaching still requests the same safe cancellation through the latch,
 		// but an explicit confirmed cancellation also closes the worker Context.
@@ -570,7 +620,7 @@ func (d *attachInputDispatcher) startTransfer(direction, firstPath, secondPath s
 			}
 			return choosePreferredDirectory(ctx, d.directoryRequests)
 		}
-		err := d.transferRunner(workerCtx, nonClosingAttachSession{attachSession: d.terminal, cancellation: cancellation, directoryMode: directoryMode, chooseDirectory: choose}, localOutputWriter{
+		err := d.transferRunner(workerCtx, nonClosingAttachSession{attachSession: d.terminal, cancellation: cancellation, directoryMode: directoryMode, chooseDirectory: choose, keepCheckpoint: keepCheckpoint}, localOutputWriter{
 			write:                          d.writeLocal,
 			suppressFileTransferResultText: true,
 			deferredSummary:                d.transferSummary,
@@ -825,7 +875,22 @@ func (d *attachInputDispatcher) finishTransfer(err error) {
 	if cancelled || confirmationPending {
 		d.ignoreControlCUntil = time.Now().Add(controlCRecoveryWindow)
 	}
+	listingCheckpoints := d.listingCheckpoints
+	d.listingCheckpoints = false
 	if d.writeLocal == nil {
+		return
+	}
+	if listingCheckpoints {
+		if err != nil || cancelled {
+			if err != nil {
+				_ = d.writeTransferStatus(fileTransferFailedText(time.Now(), err))
+			}
+			return
+		}
+		d.mode = attachInputModeResumeJob
+		d.line = d.line[:0]
+		d.skipLineFeed = false
+		_ = d.writeLocal([]byte("Resume only after checking the saved source and target. Publishing state must be inspected manually.\r\nCheckpoint ID (empty/Esc cancels): "))
 		return
 	}
 	if err == nil {
@@ -874,6 +939,10 @@ func (d *attachInputDispatcher) cancelAttach() {
 // runAttachShortcutFileTransfer adapts the existing file command to the
 // dispatcher's transfer-runner contract without opening a second attachment.
 func runAttachShortcutFileTransfer(ctx context.Context, attached attachSession, output io.Writer, cancelRequested func() bool, direction, firstPath, secondPath string) error {
+	keeper, keep := attached.(interface{ keepFileCheckpoint() bool })
+	if direction == "jobs" || direction == "resume" || (keep && keeper.keepFileCheckpoint()) {
+		return runAttachCheckpoint(ctx, attached, output, cancelRequested, direction, firstPath, secondPath)
+	}
 	dependencies := fileCommandDependencies{
 		newAttach: func(context.Context, string, string) (attachSession, error) {
 			return attached, nil
