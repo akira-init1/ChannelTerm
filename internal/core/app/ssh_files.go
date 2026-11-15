@@ -341,7 +341,7 @@ func uploadSFTP(ctx context.Context, client *sshtransport.Files, r SSHFilesReque
 		}
 		if statErr == nil {
 			if !r.Overwrite && !r.Resume {
-				return fmt.Errorf("destination exists: %s", target)
+				return fmt.Errorf("destination exists: %s: %w", target, fs.ErrExist)
 			}
 			if existing.Mode&fs.ModeSymlink != 0 || existing.Mode.IsDir() != info.IsDir() || !info.IsDir() && !existing.Mode.IsRegular() {
 				return errors.New("refusing to replace a symlink or different file type")
@@ -432,7 +432,7 @@ func downloadSSH(ctx context.Context, client *sshtransport.Files, r SSHFilesRequ
 		}
 		if statErr == nil {
 			if !r.Overwrite && !r.Resume {
-				return fmt.Errorf("local destination exists: %s", local)
+				return fmt.Errorf("local destination exists: %s: %w", local, fs.ErrExist)
 			}
 			if existing.Mode()&fs.ModeSymlink != 0 || existing.IsDir() != entry.Mode.IsDir() || !existing.IsDir() && !existing.Mode().IsRegular() {
 				return errors.New("refusing to replace a local symlink or different file type")

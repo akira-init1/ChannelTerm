@@ -149,7 +149,11 @@ and test cancellation without replay. See the [transfer workflow](../getting-sta
 The Node test suite also builds the real Go file CLI and runs Main's dedicated SSH adapter against
 a disposable password-authenticated loopback SFTP server. It cancels an in-progress upload,
 resumes the partial file, downloads and compares bytes, and confirms the terminal Session remains
-usable. Request/endpoint validation, busy exclusion and secret-free progress are covered. This
+usable. Request/endpoint validation, busy exclusion and secret-free progress are covered. Advanced-option tests cover default compatibility, malformed/conflicting
+intent, exact overwrite approval and stale targets, final receipt order/counts, checksum failures,
+partial statistics, and a stalled-child cleanup deadline. Real loopback SFTP checks existing-target
+refusal, verified upload/download replacement and an operation deadline; Core tests cover checksum
+mismatch preservation and temporary-file cleanup. This
 does not prove external OpenSSH/SCP interoperability, physical network interruption, or native
 file-dialog behavior; those remain separate acceptance checks.
 
@@ -172,6 +176,11 @@ and SFTP execution remain real. Node tests additionally cover finite intent vali
 registration, invalid receipts/exit status, cancellation and no retry; Go tests cover typed safe
 error codes and cancellation after acknowledgement. These fixtures do not prove real server
 permissions or hardware behavior.
+The same native scenario checks advanced options in all nine languages at a compact window size,
+SCP/resume conflicts, invalid deadlines, default-cancel overwrite, exact native paths, and real
+verified SFTP replacement. Screenshots are `ssh-advanced-options.png`, `ssh-advanced-results.png`
+and `ssh-advanced-compact.png` under `test-results/`. Native picker/confirmation responses are test
+seams; the production renderer, trusted IPC, CLI and loopback SFTP execution remain in use.
 During an owned transfer, native tests also repeat window-close and app-quit requests, verify one
 themed notice and no native message box, dismiss with Escape/Continue, and then explicitly cancel
 the transfer. `test-results/file-close-notice.png` captures the notice.

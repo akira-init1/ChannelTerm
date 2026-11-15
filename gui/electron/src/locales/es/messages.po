@@ -128,6 +128,7 @@ msgstr "Velocidad en baudios"
 #: src/main/index.ts
 #: src/main/index.ts
 #: src/main/index.ts
+#: src/main/index.ts
 #: src/shared/menu-messages.ts
 msgid "connection.cancel"
 msgstr "Cancelar"
@@ -790,6 +791,11 @@ msgstr "Estilo del terminal"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "file.advanced"
+msgstr "Opciones avanzadas de transferencia"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "file.cancel"
 msgstr "Cancelar transferencia"
 
@@ -827,6 +833,11 @@ msgstr "Finalice o cancele la operación en el panel antes de cerrar."
 #: src/shared/menu-messages.ts
 msgid "file.completed"
 msgstr "Completado"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.completedFiles"
+msgstr "Archivos completados"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -935,13 +946,54 @@ msgstr "Abrir"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "file.operationTimeout"
+msgstr "Tiempo límite en segundos (0 desactiva, máximo 86400)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "file.other"
 msgstr "No compatible"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "file.outcome.confirmed"
+msgstr "Transferencia y verificación confirmadas."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.outcome.not_started"
+msgstr "La transferencia no se inició."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.outcome.unknown"
+msgstr "El estado final del destino es incierto. Revíselo antes de otra transferencia."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.overwrite"
+msgstr "Permitir reemplazar archivos existentes / combinar directorios"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "file.overwriteConfirm"
+msgstr "Confirmar sobrescritura de transferencia"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.overwriteHint"
+msgstr "La sobrescritura puede truncar archivos existentes. Una cancelación o un fallo puede dejar cambios parciales; revise el destino antes de reintentar."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "file.parent"
 msgstr "Subir"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.payloadBytes"
+msgstr "Datos copiados (incluidos archivos parciales)"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -1005,6 +1057,16 @@ msgstr "Operación en curso"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "file.safeReplace"
+msgstr "Preparar y reemplazar cada archivo (solo SFTP)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.safeReplaceHint"
+msgstr "Requiere permitir sobrescritura. Cada archivo se verifica antes de reemplazarlo; el directorio completo no es atómico. Una limpieza interrumpida puede dejar archivos temporales."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "file.saveFolder"
 msgstr "Elegir carpeta de destino"
 
@@ -1062,6 +1124,16 @@ msgstr "Se muestran las primeras 256 entradas."
 #: src/shared/menu-messages.ts
 msgid "file.unknown"
 msgstr "Estado desconocido"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.verificationFailed"
+msgstr "La verificación SHA-256 falló. El destino no coincide con el origen."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.verifiedFiles"
+msgstr "Archivos verificados con SHA-256"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -2407,6 +2479,7 @@ msgid "sshManage.already_exists"
 msgstr "El servidor informó que el destino ya existe."
 
 #. js-lingui-explicit-id
+#: src/main/index.ts
 #: src/main/index.ts
 #: src/shared/menu-messages.ts
 msgid "sshManage.apply"

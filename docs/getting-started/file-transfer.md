@@ -716,8 +716,37 @@ The transfer panel shows current-file bytes, progress, speed and verification st
 this dedicated connection immediately and can leave a partial file; the terminal Session remains
 independent. To resume, repeat the selection with the same paths and enable **Resume an existing
 partial file (SFTP)**. This is separate from **Session > File Transfer > Resume transfer**, which lists serial checkpoints.
-SCP and directory transfers have progress but no resume option. Existing files otherwise fail
-rather than being overwritten. Only one desktop file operation runs at a time; active operations
+SCP and directory transfers have progress but no resume option. Existing files fail by default.
+
+**Advanced transfer options** exposes the existing CLI capabilities for SSH only:
+
+- **Allow replacing existing files / merging directories** enables overwrite. Before launch,
+  a native dialog shows the original Session/endpoint and selected source/destination paths;
+  Cancel is the default. Directory destinations follow the CLI's existing basename/merge rules.
+  Ordinary overwrite can truncate old data, including when the later copy fails.
+- **Stage and replace each file (SFTP only)** requires overwrite and delegates to the existing
+  [safe replacement](#sftp-and-scp-over-ssh) behavior. Each file is verified before replacement; this
+  is not an atomic directory transaction. Remote POSIX rename support is required for uploads;
+  unsupported servers fail without a delete-first fallback. Cleanup can leave staging files.
+- **Operation timeout in seconds** accepts whole seconds from 0 through 86400; 0 keeps the
+  existing unlimited operation deadline. A positive deadline starts in the dedicated CLI, after
+  native confirmation. If cleanup stalls, Main stops only that child after five extra seconds.
+
+Resume is mutually exclusive with overwrite/safe replacement. Changing to SCP clears and disables
+safe replacement. Choices are transient, and each dropped item receives its own deadline and
+explicit overwrite confirmation. Serial transfers retain their existing snapshot/recovery behavior;
+these SSH options do not claim serial support.
+
+The panel retains completed-file and SHA-256 verified-file counts and copied payload bytes from a
+valid final record, including counts before a later failure. Payload bytes can include partial
+files; missing final statistics are not displayed as zero completed files. Successful exit plus a
+valid completed record confirms transfer and verification. A refused native confirmation reports
+that transfer did not start; cancellation, disconnect, checksum failure and other launched failures
+leave the final destination state uncertain. Inspect the target before explicitly retrying.
+Reported error reasons come from typed errors; servers with no precise reason remain generic.
+There is no automatic retry, rollback, or PTY Ctrl+C.
+
+Only one desktop file operation runs at a time; active operations
 block Host changes and normal app close. SSH display history is bounded and is not persisted.
 
 Shared serial transfers now require current [Session control](../reference/mcp-tools.md#session-control).

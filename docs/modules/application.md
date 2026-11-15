@@ -167,6 +167,9 @@ with a local reread after protocol acknowledgement. No shared Session or termina
 work, then matching `SourceSHA256`/`DestinationSHA256` values on success. A callback error aborts;
 the match event precedes a safe rename and does not confirm replacement. `VerifiedFiles` counts
 successfully completed files whose digests matched, and remains zero when verification is disabled.
+`ErrSSHFileVerificationMismatch` supports `errors.Is` for a completed hash comparison that differs;
+it does not imply rollback or successful publication. Local/remote SFTP no-overwrite guards preserve
+`fs.ErrExist` for adapter classification.
 `Files` excludes a file whose verification failed; earlier verified files remain counted on a later
 failure. `Bytes` remains payload-only and excludes checksum readback traffic. Read/size errors,
 missing tools, malformed remote hashes, and mismatches fail without fallback. Checksums do not

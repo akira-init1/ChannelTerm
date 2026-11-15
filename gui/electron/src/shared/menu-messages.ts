@@ -1453,4 +1453,55 @@ export const menuMessages = [
     id: "sshManage.target_changed",
     message: "The selected Session or endpoint changed.",
   },
+  /* i18n */ { id: "file.advanced", message: "Advanced transfer options" },
+  /* i18n */ {
+    id: "file.overwrite",
+    message: "Allow replacing existing files / merging directories",
+  },
+  /* i18n */ {
+    id: "file.overwriteHint",
+    message:
+      "Overwrite can truncate existing files. Cancellation or failure may leave partial changes; inspect the target before retrying.",
+  },
+  /* i18n */ {
+    id: "file.overwriteConfirm",
+    message: "Confirm transfer overwrite",
+  },
+  /* i18n */ {
+    id: "file.safeReplace",
+    message: "Stage and replace each file (SFTP only)",
+  },
+  /* i18n */ {
+    id: "file.safeReplaceHint",
+    message:
+      "Requires overwrite. Each file is verified before replacement; the whole directory is not atomic. Interrupted cleanup can leave staging files.",
+  },
+  /* i18n */ {
+    id: "file.operationTimeout",
+    message: "Operation timeout in seconds (0 disables, maximum 86400)",
+  },
+  /* i18n */ {
+    id: "file.outcome.confirmed",
+    message: "Transfer and verification confirmed.",
+  },
+  /* i18n */ {
+    id: "file.outcome.unknown",
+    message:
+      "Final destination state is uncertain. Inspect it before another transfer.",
+  },
+  /* i18n */ {
+    id: "file.outcome.not_started",
+    message: "Transfer did not start.",
+  },
+  /* i18n */ { id: "file.completedFiles", message: "Completed files" },
+  /* i18n */ { id: "file.verifiedFiles", message: "SHA-256 verified files" },
+  /* i18n */ {
+    id: "file.payloadBytes",
+    message: "Copied payload (including partial files)",
+  },
+  /* i18n */ {
+    id: "file.verificationFailed",
+    message:
+      "SHA-256 verification failed. The destination did not match the source.",
+  },
 ] satisfies MessageDescriptor[];

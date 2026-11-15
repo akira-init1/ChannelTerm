@@ -8,6 +8,10 @@ import (
 	"io"
 )
 
+// ErrSSHFileVerificationMismatch identifies a completed hash comparison whose
+// destination differs from the source. It does not imply rollback or publication.
+var ErrSSHFileVerificationMismatch = errors.New("SHA-256 mismatch")
+
 // copySSHFileChecked hashes exactly the source bytes consumed by the copy.
 // Destination verification reopens the closed file, not the outgoing stream.
 func copySSHFileChecked(ctx context.Context, dst io.Writer, src io.Reader, name string, size int64, r SSHFilesRequest) (int64, string, error) {
@@ -47,7 +51,7 @@ func startSSHVerification(r SSHFilesRequest, name string) error {
 
 func finishSSHVerification(r SSHFilesRequest, name, source, destination string) error {
 	if source != destination {
-		return fmt.Errorf("SHA-256 mismatch for %q: source=%s destination=%s", name, source, destination)
+		return fmt.Errorf("%w for %q: source=%s destination=%s", ErrSSHFileVerificationMismatch, name, source, destination)
 	}
 	if r.Verification != nil {
 		return r.Verification(SSHFileVerification{Name: name, SourceSHA256: source, DestinationSHA256: destination})

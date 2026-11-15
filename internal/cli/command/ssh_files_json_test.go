@@ -194,3 +194,70 @@ func TestSSHFilesJSONStatRequiresOneEntryAndHonorsCancellation(t *testing.T) {
 		t.Fatalf("err=%v output=%s", err, &output)
 	}
 }
+
+// TestSSHFilesJSONFinalOutcomes retains partial counts without claiming rollback.
+func TestSSHFilesJSONFinalOutcomes(t *testing.T) {
+	for _, tc := range []struct {
+		name, code, kind string
+		err              error
+	}{
+		{"success", "", "completed", nil},
+		{"existing", "already_exists", "failed", fs.ErrExist},
+		{"permission", "permission_denied", "failed", fs.ErrPermission},
+		{"missing", "not_found", "failed", fs.ErrNotExist},
+		{"timeout", "timeout", "failed", context.DeadlineExceeded},
+		{"cancel", "cancelled", "cancelled", context.Canceled},
+		{"checksum", "verification_failed", "failed", errors.Join(errors.New("private detail"), app.ErrSSHFileVerificationMismatch)},
+		{"unknown", "operation_failed", "failed", errors.New("private detail")},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var output bytes.Buffer
+			err := runSSHFilesJSON(context.Background(), &output, app.SSHFilesRequest{Operation: "put"}, func(context.Context, app.SSHFilesRequest) (app.SSHFilesResult, error) {
+				return app.SSHFilesResult{Files: 2, Bytes: 123, VerifiedFiles: 2}, tc.err
+			})
+			if (err == nil) != (tc.err == nil) || strings.Contains(output.String(), "private detail") {
+				t.Fatalf("err=%v output=%s", err, &output)
+			}
+			decoder := json.NewDecoder(&output)
+			var start, final map[string]any
+			if err := decoder.Decode(&start); err != nil {
+				t.Fatal(err)
+			}
+			if err := decoder.Decode(&final); err != nil {
+				t.Fatal(err)
+			}
+			outcome := "unknown"
+			if tc.err == nil {
+				outcome = "confirmed"
+			}
+			if final["type"] != tc.kind || final["error_code"] != tc.code || final["outcome"] != outcome || final["files"] != float64(2) || final["bytes"] != float64(123) || final["verified_files"] != float64(2) {
+				t.Fatal(final)
+			}
+		})
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	var output bytes.Buffer
+	err := runSSHFilesJSON(ctx, &output, app.SSHFilesRequest{Operation: "get"}, func(context.Context, app.SSHFilesRequest) (app.SSHFilesResult, error) {
+		cancel()
+		return app.SSHFilesResult{Files: 1, VerifiedFiles: 1}, nil
+	})
+	if !errors.Is(err, context.Canceled) || strings.Contains(output.String(), `"type":"completed"`) {
+		t.Fatalf("err=%v output=%s", err, &output)
+	}
+}
+
+// TestSSHFilesAdvancedOptionsReachExistingUseCase checks the established deadline and options.
+func TestSSHFilesAdvancedOptionsReachExistingUseCase(t *testing.T) {
+	var output bytes.Buffer
+	err := runSSHFiles(context.Background(), "sftp", []string{"user@host", "put", "source", "/target", "--overwrite", "--safe-replace", "--operation-timeout", "2s", "--verify=sha256", "--json", "--credentials-stdin", "--identity", "fake-key", "--known-hosts", "fake-hosts"}, strings.NewReader(`{"password":"fake"}`), &output, func(ctx context.Context, r app.SSHFilesRequest) (app.SSHFilesResult, error) {
+		deadline, ok := ctx.Deadline()
+		if !ok || time.Until(deadline) > 2*time.Second || !r.Overwrite || !r.SafeReplace || r.Resume || r.Verify != "sha256" {
+			t.Fatalf("request=%+v deadline=%v", r, deadline)
+		}
+		return app.SSHFilesResult{Files: 1, Bytes: 7, VerifiedFiles: 1}, nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}

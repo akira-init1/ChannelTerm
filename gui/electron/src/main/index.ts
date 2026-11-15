@@ -847,8 +847,31 @@ function createHandlers(context: WindowContext): Record<string, Handler> {
         context.sshBrowser.busy
       )
         throw new HostError("busy", "Finish the current file operation first.");
-      return context.sshFiles.transfer(currentHost(context), request, (r) =>
-        context.files.takeSelection(r.sessionId, r.selectionId, r.direction),
+      const selectedHost = currentHost(context);
+      return context.sshFiles.transfer(
+        selectedHost,
+        request,
+        (r) =>
+          context.files.takeSelection(r.sessionId, r.selectionId, r.direction),
+        async (intent) => {
+          const i18n = setupI18n({
+            locale: context.menu.locale,
+            messages: menuCatalogs,
+          });
+          const answer = await dialog.showMessageBox(context.window, {
+            type: "warning",
+            message: i18n._("file.overwriteConfirm"),
+            detail: `${intent.sessionId} · ${intent.endpoint}\n${intent.source}\n→ ${intent.destination}\n\n${i18n._(intent.safeReplace ? "file.safeReplaceHint" : "file.overwriteHint")}`,
+            buttons: [i18n._("connection.cancel"), i18n._("sshManage.apply")],
+            defaultId: 0,
+            cancelId: 0,
+          });
+          return (
+            answer.response === 1 &&
+            !context.disposed &&
+            currentHost(context) === selectedHost
+          );
+        },
       );
     },
     [channels.sshTransfers]: () => {

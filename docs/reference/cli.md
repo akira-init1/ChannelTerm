@@ -494,11 +494,19 @@ store. See [manual SFTP resume](../getting-started/file-transfer.md#resume-a-sin
 
 `--json` on `put`/`get` emits JSON lines instead of human progress: `started`, `progress`
 (`name`, `transferred`, `total`), `verifying`/`verified` (`name`), and a final
-`completed`/`failed`/`cancelled` (`files`, `bytes`, `verified_files`). Progress is limited to five
+`completed`/`failed`/`cancelled` (`files`, `bytes`, `verified_files`, `outcome`, `error_code`). Progress is limited to five
 updates per second per file, except file boundaries/final payload. Completion requires both a
 `completed` record and successful process exit; payload counts alone are insufficient. CLI errors
 remain on stderr. Machine mode never prompts; keys or supplied credentials and existing host trust
 must permit authentication. Argument/authentication-configuration errors can precede `started`.
+Final `outcome` is `confirmed` only on success, otherwise `unknown`: failure does not prove rollback
+or absence of a destination change. `files` and `verified_files` retain completed-file counts;
+`bytes` includes partial payload copies and excludes checksum readback. These counts can precede a
+connection-cleanup failure. `error_code` is empty on success, or a safe typed reason:
+`not_found`, `already_exists`, `permission_denied`, `timeout`, `cancelled`, `verification_failed`,
+or `operation_failed`. Unknown server errors remain generic; clients must not parse stderr for
+these semantics. A cancelled/deadline-expired context prevents a successful final record even if
+the use case returned without an error.
 
 SFTP `ls`/`stat` also accept `--json`: `started`, zero or more `entry` records with
 `name`, `kind` (`file`, `directory`, `symlink`, `other`), `size` in bytes, Go file `mode`

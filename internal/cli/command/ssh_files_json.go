@@ -105,14 +105,16 @@ func runSSHFilesJSON(ctx context.Context, output io.Writer, r app.SSHFilesReques
 	if isSSHManagementOperation(r.Operation) {
 		return writeSSHManagementJSON(ctx, encode, r, err)
 	}
-	kind := "completed"
+	err = errors.Join(err, ctx.Err())
+	kind, outcome := "completed", "confirmed"
 	if err != nil {
+		outcome = "unknown"
 		kind = "failed"
 		if errors.Is(err, context.Canceled) {
 			kind = "cancelled"
 		}
 	}
-	return errors.Join(err, encode(map[string]any{"type": kind, "files": result.Files, "bytes": result.Bytes, "verified_files": result.VerifiedFiles}))
+	return errors.Join(err, encode(map[string]any{"type": kind, "files": result.Files, "bytes": result.Bytes, "verified_files": result.VerifiedFiles, "outcome": outcome, "error_code": sshFileFailureCode(err)}))
 }
 
 // writeSSHEntriesJSON validates the entire read-only result before exposing any

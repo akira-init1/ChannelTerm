@@ -96,6 +96,13 @@ state. It does not send `clear`, `reset`, escape sequences, or any other bytes t
 It does not change the Host buffer or read cursor, dismiss loss notices, or reset lease state.
 Subsequent output continues normally; a new attachment may replay retained Host output.
 
+The SSH transfer dialog's **Advanced transfer options** expose explicit overwrite, SFTP per-file
+safe replacement and a bounded operation deadline. Resume conflicts are enforced in Main;
+overwrite requires native target confirmation with Cancel selected by default. The transfer panel
+shows final verified-file counts and typed failure/uncertain outcomes. See the
+[file transfer workflow](../getting-started/file-transfer.md#electron-sftpscp-progress-and-resume)
+for defaults, destination rules and recovery limits.
+
 ## Window action contracts
 
 The always-visible status bar shows the selected target's shared label (or endpoint), short

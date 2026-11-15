@@ -59,7 +59,7 @@ test("SCP companion requires completion plus exit success and keeps credentials 
           process.stdin.on("end", () => {
             if (JSON.parse(input).password !== "fixture-secret") process.exit(9);
             process.stderr.write("fixture-secret must never reach renderer");
-            process.stdout.write(${JSON.stringify(records)}, () => process.exit(${code}));
+            process.stdout.write(JSON.stringify({type:"started"}) + "\\n" + ${JSON.stringify(records)}, () => process.exit(${code}));
           });`;
         return spawn(process.execPath, ["-e", script], {
           shell: false,
@@ -138,7 +138,7 @@ test("desktop disconnect cancels its SSH child and clears display history", asyn
         "-e",
         `
     process.stdin.resume();
-    process.stdin.on("end", () => process.stdout.write(JSON.stringify({type:"progress", name:"file", transferred:1, total:7}) + "\\n"));
+    process.stdin.on("end", () => process.stdout.write(JSON.stringify({type:"started"}) + "\\n" + JSON.stringify({type:"progress", name:"file", transferred:1, total:7}) + "\\n"));
     setInterval(() => {}, 1000);
   `,
       ],
@@ -180,6 +180,13 @@ test("SSH file intent rejects extra capabilities, SCP resume, directories and ma
     { protocol: "ftp" },
     { protocol: "scp" },
     { recursive: true },
+    { overwrite: true },
+    { safeReplace: true },
+    { operationTimeoutSeconds: -1 },
+    { operationTimeoutSeconds: 1.5 },
+    { operationTimeoutSeconds: 86401 },
+    { operationTimeoutSeconds: "1" },
+    { overwrite: "yes" },
     { remotePath: "bad\npath" },
     { connection: { ...request().connection, host: "host/other" } },
   ])
@@ -333,6 +340,57 @@ test(
       );
       assert.deepEqual(await readFile(join(output, "payload.bin")), payload);
       assert.equal(files.snapshots().at(-1)?.state, "completed");
+      assert.deepEqual(files.snapshots().at(-1)?.sshResult, {
+        reported: true,
+        files: 1,
+        bytes: payload.length,
+        verifiedFiles: 1,
+        outcome: "confirmed",
+        reason: "",
+      });
+      const simple = { ...r, resume: false };
+      await assert.rejects(files.transfer(host, simple, () => local));
+      assert.equal(
+        files.snapshots().at(-1)?.sshResult?.reason,
+        "already_exists",
+      );
+      const replacement = Buffer.from("verified replacement");
+      await writeFile(local, replacement);
+      await files.transfer(
+        host,
+        { ...simple, overwrite: true, safeReplace: true },
+        () => local,
+        async (intent) => {
+          assert.equal(intent.source, local);
+          assert.equal(intent.destination, "/payload.bin");
+          assert.equal(intent.safeReplace, true);
+          return true;
+        },
+      );
+      await files.transfer(
+        host,
+        { ...simple, direction: "receive", overwrite: true, safeReplace: true },
+        () => output,
+        async () => true,
+      );
+      assert.deepEqual(
+        await readFile(join(output, "payload.bin")),
+        replacement,
+      );
+      assert.equal(
+        files.snapshots().at(-1)?.sshResult?.bytes,
+        replacement.length,
+      );
+      await writeFile(local, payload);
+      await assert.rejects(
+        files.transfer(
+          host,
+          { ...simple, remotePath: "/timeout.bin", operationTimeoutSeconds: 1 },
+          () => local,
+        ),
+      );
+      assert.equal(files.snapshots().at(-1)?.sshResult?.reason, "timeout");
+      assert.equal(files.snapshots().at(-1)?.sshResult?.outcome, "unknown");
       await host.write(attachment.id, "terminal still alive\n");
       assert.equal(
         (await host.list()).find((s) => s.session_id === r.sessionId)?.state,
@@ -362,3 +420,195 @@ test(
     }
   },
 );
+
+const fakeSession = {
+  session_id: "fixture-session",
+  session_ref: "SSH-1",
+  label: "fixture",
+  transport: "ssh",
+  endpoint: "fixture-user@127.0.0.1:22",
+  state: "open",
+};
+
+test("overwrite requires fresh exact-target approval and consumes no additional capability", async () => {
+  const root = await mkdtemp(join(tmpdir(), "channelterm-ssh-approval-"));
+  const local = join(root, "source");
+  await writeFile(local, "payload");
+  let launches = 0;
+  const files = new DesktopSSHFiles("unused", () => {
+    launches++;
+    throw new Error("must not launch");
+  });
+  const r = { ...request(), resume: false, overwrite: true, safeReplace: true };
+  try {
+    const host = { validateFileSession: async () => ({ ...fakeSession }) };
+    await assert.rejects(
+      files.transfer(host, r, () => local),
+      /not confirmed/,
+    );
+    assert.equal(files.snapshots().at(-1)?.sshResult?.outcome, "not_started");
+    let changed = false;
+    await assert.rejects(
+      files.transfer(
+        {
+          validateFileSession: async () => ({
+            ...fakeSession,
+            endpoint: changed ? "other" : fakeSession.endpoint,
+          }),
+        },
+        r,
+        () => local,
+        async (intent) => {
+          assert.equal(intent.source, local);
+          assert.equal(intent.destination, "/payload.bin");
+          changed = true;
+          return true;
+        },
+      ),
+      /changed/,
+    );
+    assert.equal(launches, 0);
+    assert.equal(files.busy, false);
+    for (const patch of [
+      { protocol: "scp" },
+      { overwrite: false },
+      { resume: true },
+    ])
+      assert.throws(() => sshTransferRequest({ ...r, ...patch }));
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("SSH terminal receipts reject reordered records and retain partial failure counts", async () => {
+  const root = await mkdtemp(join(tmpdir(), "channelterm-ssh-receipt-"));
+  const local = join(root, "source");
+  await writeFile(local, "payload");
+  const started = { type: "started" };
+  const failed = {
+    type: "failed",
+    files: 2,
+    bytes: 123,
+    verified_files: 2,
+    error_code: "verification_failed",
+    outcome: "unknown",
+  };
+  try {
+    for (const records of [
+      [started, failed],
+      [failed],
+      [started, started, failed],
+      [started, failed, failed],
+      [started, { ...failed, verified_files: 3 }],
+      [started, { ...failed, error_code: "private diagnostic" }],
+    ]) {
+      const files = new DesktopSSHFiles("fixed", () =>
+        spawn(
+          process.execPath,
+          [
+            "-e",
+            `process.stdin.resume(); process.stdin.on("end", () => process.stdout.write(${JSON.stringify(records.map((r) => JSON.stringify(r)).join("\n") + "\n")}, () => process.exit(1)));`,
+          ],
+          { windowsHide: true, stdio: ["pipe", "pipe", "pipe"] },
+        ),
+      );
+      await assert.rejects(
+        files.transfer(
+          { validateFileSession: async () => ({ ...fakeSession }) },
+          { ...request(), resume: false },
+          () => local,
+        ),
+      );
+      const job = files.snapshots().at(-1)!;
+      assert.equal(job.state, "failed");
+      assert.equal(job.sshResult?.outcome, "unknown");
+      assert.equal(files.busy, false);
+      if (records.length === 2 && records[1] === failed) {
+        assert.equal(job.sshResult?.reason, "verification_failed");
+        assert.equal(job.sshResult?.files, 2);
+        assert.equal(job.sshResult?.bytes, 123);
+        job.sshResult!.files = 999;
+        assert.equal(files.snapshots().at(-1)?.sshResult?.files, 2);
+      } else assert.equal(job.sshResult?.reason, "operation_failed");
+      assert.ok(!JSON.stringify(job).includes("private diagnostic"));
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test(
+  "operation deadline stops only a stalled dedicated child after cleanup grace",
+  { timeout: 15000 },
+  async () => {
+    const root = await mkdtemp(join(tmpdir(), "channelterm-ssh-timeout-"));
+    const local = join(root, "source");
+    await writeFile(local, "payload");
+    const files = new DesktopSSHFiles("fixed", (_exe, args) => {
+      assert.equal(args[args.indexOf("--operation-timeout") + 1], "1s");
+      assert.ok(!args.includes("--overwrite"));
+      return spawn(
+        process.execPath,
+        ["-e", "process.stdin.resume(); setInterval(() => {}, 1000);"],
+        { windowsHide: true, stdio: ["pipe", "pipe", "pipe"] },
+      );
+    });
+    try {
+      await assert.rejects(
+        files.transfer(
+          { validateFileSession: async () => ({ ...fakeSession }) },
+          { ...request(), operationTimeoutSeconds: 1 },
+          () => local,
+        ),
+      );
+      assert.equal(files.snapshots().at(-1)?.sshResult?.reason, "timeout");
+      assert.equal(files.snapshots().at(-1)?.sshResult?.reported, false);
+      assert.equal(files.busy, false);
+    } finally {
+      files.disconnect();
+      await rm(root, { recursive: true, force: true });
+    }
+  },
+);
+
+test("cancelled receipts stay distinct from failed launch and never confirm delivery", async () => {
+  const root = await mkdtemp(join(tmpdir(), "channelterm-ssh-cancel-receipt-"));
+  const local = join(root, "source");
+  await writeFile(local, "payload");
+  try {
+    for (const launchable of [true, false]) {
+      const files = new DesktopSSHFiles(
+        join(root, "missing-executable"),
+        launchable
+          ? () =>
+              spawn(
+                process.execPath,
+                [
+                  "-e",
+                  `process.stdin.resume(); process.stdin.on("end", () => process.stdout.write(JSON.stringify({type:"started"}) + "\\n" + JSON.stringify({type:"cancelled", files:1, bytes:7, verified_files:1, outcome:"unknown", error_code:"cancelled"}) + "\\n", () => process.exit(1)));`,
+                ],
+                { windowsHide: true, stdio: ["pipe", "pipe", "pipe"] },
+              )
+          : undefined,
+      );
+      const operation = files.transfer(
+        { validateFileSession: async () => ({ ...fakeSession }) },
+        request(),
+        () => local,
+      );
+      if (launchable) await operation;
+      else await assert.rejects(operation, /could not start/);
+      const job = files.snapshots().at(-1)!;
+      assert.equal(job.state, launchable ? "cancelled" : "failed");
+      assert.equal(
+        job.sshResult?.outcome,
+        launchable ? "unknown" : "not_started",
+      );
+      assert.equal(job.sshResult?.reported, launchable);
+      assert.equal(job.released, true);
+      assert.equal(files.busy, false);
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});

@@ -7,7 +7,11 @@ import { randomUUID } from "node:crypto";
 import { basename, join } from "node:path";
 import { lstat } from "node:fs/promises";
 import { isConnectionRequest } from "../shared/connections";
-import type { SSHTransferRequest, TransferStatus } from "../shared/transfers";
+import type {
+  SSHTransferRequest,
+  SSHTransferResult,
+  TransferStatus,
+} from "../shared/transfers";
 import type { HostClient } from "./host/client";
 import { HostError } from "./host/errors";
 import { identifier, object } from "./host/validation";
@@ -28,6 +32,9 @@ export function sshTransferRequest(value: unknown): SSHTransferRequest {
           "protocol",
           "resume",
           "recursive",
+          "overwrite",
+          "safeReplace",
+          "operationTimeoutSeconds",
           "connection",
         ].includes(key),
     ) ||
@@ -41,7 +48,15 @@ export function sshTransferRequest(value: unknown): SSHTransferRequest {
     /[\x00-\x1f\x7f]/.test(r.remotePath) ||
     typeof r.resume !== "boolean" ||
     typeof r.recursive !== "boolean" ||
-    (r.resume && (r.protocol !== "sftp" || r.recursive))
+    (r.overwrite !== undefined && typeof r.overwrite !== "boolean") ||
+    (r.safeReplace !== undefined && typeof r.safeReplace !== "boolean") ||
+    (r.operationTimeoutSeconds !== undefined &&
+      (!safeCount(r.operationTimeoutSeconds) ||
+        r.operationTimeoutSeconds > 86400)) ||
+    (r.safeReplace === true &&
+      (r.protocol !== "sftp" || r.overwrite !== true)) ||
+    (r.resume &&
+      (r.protocol !== "sftp" || r.recursive || r.overwrite || r.safeReplace))
   )
     throw new HostError("invalid_input", "Invalid SSH file transfer settings.");
   return {
@@ -52,6 +67,11 @@ export function sshTransferRequest(value: unknown): SSHTransferRequest {
     protocol: r.protocol,
     resume: r.resume,
     recursive: r.recursive,
+    ...(r.overwrite !== undefined ? { overwrite: r.overwrite } : {}),
+    ...(r.safeReplace !== undefined ? { safeReplace: r.safeReplace } : {}),
+    ...(r.operationTimeoutSeconds !== undefined
+      ? { operationTimeoutSeconds: r.operationTimeoutSeconds }
+      : {}),
     connection: r.connection,
   };
 }
@@ -83,8 +103,43 @@ export function applySSHProgress(job: TransferStatus, value: unknown): boolean {
     ["completed", "failed", "cancelled"].includes(String(r.type)) &&
     safeCount(r.files) &&
     safeCount(r.bytes) &&
-    safeCount(r.verified_files)
+    safeCount(r.verified_files) &&
+    r.verified_files <= r.files
   ) {
+    const reason =
+      r.error_code ??
+      (r.type === "completed"
+        ? ""
+        : r.type === "cancelled"
+          ? "cancelled"
+          : "operation_failed");
+    if (
+      reason !== "" &&
+      reason !== "not_found" &&
+      reason !== "already_exists" &&
+      reason !== "permission_denied" &&
+      reason !== "timeout" &&
+      reason !== "cancelled" &&
+      reason !== "verification_failed" &&
+      reason !== "operation_failed"
+    )
+      throw new HostError("incompatible", "Invalid SSH transfer result.");
+    if (
+      (r.type === "completed"
+        ? reason !== "" || r.verified_files !== r.files
+        : reason === "") ||
+      (r.outcome !== undefined &&
+        r.outcome !== (r.type === "completed" ? "confirmed" : "unknown"))
+    )
+      throw new HostError("incompatible", "Invalid SSH transfer outcome.");
+    job.sshResult = {
+      reported: true,
+      files: r.files,
+      bytes: r.bytes,
+      verifiedFiles: r.verified_files,
+      outcome: "unknown",
+      reason,
+    };
     if (r.type !== "completed")
       job.state = r.type === "cancelled" ? "cancelled" : "failed";
     return r.type === "completed";
@@ -96,8 +151,8 @@ function safeCount(value: unknown): value is number {
 }
 
 /** Main owns only its dedicated child and bounded display history, never a Session lease.
- * Killing this child closes its dedicated SSH sockets. Partial files are retained;
- * SFTP resume revalidates the entire prefix after cancellation or process loss.
+ * Killing this child closes its dedicated SSH sockets. Partial or staging files may
+ * remain; Core owns safe-replacement cleanup and SFTP resume prefix verification.
  */
 export class DesktopSSHFiles {
   private jobs: TransferStatus[] = [];
@@ -129,6 +184,7 @@ export class DesktopSSHFiles {
   snapshots(): TransferStatus[] {
     return this.jobs.map((job) => ({
       ...job,
+      sshResult: job.sshResult ? { ...job.sshResult } : undefined,
       initiator: job.initiator ? { ...job.initiator } : undefined,
     }));
   }
@@ -144,6 +200,14 @@ export class DesktopSSHFiles {
       Partial<Pick<HostClient, "fileOperation">>,
     value: unknown,
     select: (r: SSHTransferRequest) => string,
+    confirmOverwrite?: (intent: {
+      sessionId: string;
+      endpoint: string;
+      source: string;
+      destination: string;
+      safeReplace: boolean;
+      recursive: boolean;
+    }) => Promise<boolean>,
   ): Promise<void> {
     const r = sshTransferRequest(value);
     if (this.active)
@@ -214,6 +278,31 @@ export class DesktopSSHFiles {
         r.direction === "send" ? selected : join(selected, remoteName);
       const paths =
         r.direction === "send" ? [local, r.remotePath] : [r.remotePath, local];
+      job.source = r.direction === "send" ? basename(local) : r.remotePath;
+      job.destination = r.direction === "send" ? r.remotePath : basename(local);
+      this.jobs = [...this.jobs.slice(-31), job];
+      if (r.overwrite) {
+        if (
+          !confirmOverwrite ||
+          !(await confirmOverwrite({
+            sessionId: r.sessionId,
+            endpoint: entry.endpoint,
+            source: paths[0]!,
+            destination: paths[1]!,
+            safeReplace: r.safeReplace === true,
+            recursive: r.recursive,
+          }))
+        )
+          throw new HostError("cancelled", "Overwrite was not confirmed.");
+      }
+      // Confirmation or local filesystem access can outlive a closed/replaced registration.
+      const fresh = await host.validateFileSession(r.sessionId);
+      if (
+        fresh.transport !== entry.transport ||
+        fresh.endpoint !== entry.endpoint ||
+        fresh.session_id !== entry.session_id
+      )
+        throw new HostError("closed", "SSH transfer target changed.");
       const args = [
         r.protocol,
         `${c.user}@${address}`,
@@ -230,20 +319,34 @@ export class DesktopSSHFiles {
       ];
       for (const path of c.identityFiles) args.push("--identity", path);
       if (c.knownHostsFile) args.push("--known-hosts", c.knownHostsFile);
+      if (r.overwrite) args.push("--overwrite");
+      if (r.safeReplace) args.push("--safe-replace");
+      if (r.operationTimeoutSeconds)
+        args.push("--operation-timeout", `${r.operationTimeoutSeconds}s`);
       if (r.resume) args.push("--resume");
       if (r.recursive) args.push("--recursive");
       args.push("--", ...paths);
       if (active.cancelled)
         throw new HostError("cancelled", "SSH transfer cancelled.");
-      job.source = r.direction === "send" ? basename(local) : r.remotePath;
-      job.destination = r.direction === "send" ? r.remotePath : basename(local);
-      this.jobs = [...this.jobs.slice(-31), job];
       await new Promise<void>((resolve, reject) => {
         const child = this.launch(this.executable, args);
         active.child = child;
         let pending = "",
           completed = false,
+          started = false,
+          terminal = false,
+          timedOut = false,
           invalid = false;
+        // The CLI owns the deadline. Only its own child is stopped if cleanup stalls.
+        const timer = r.operationTimeoutSeconds
+          ? setTimeout(
+              () => {
+                timedOut = true;
+                child.kill();
+              },
+              (r.operationTimeoutSeconds + 5) * 1000,
+            )
+          : undefined;
         let file = "",
           initial = 0,
           began = Date.now();
@@ -270,10 +373,18 @@ export class DesktopSSHFiles {
             const line = pending.slice(0, end);
             pending = pending.slice(end + 1);
             try {
-              if (completed || line.length > 32768)
+              if (terminal || line.length > 32768)
                 throw new Error("invalid record order/size");
               const record: unknown = JSON.parse(line);
+              const kind = object(record).type;
+              if (!started ? kind !== "started" : kind === "started")
+                throw new Error("invalid record order");
+              started = true;
               completed = applySSHProgress(job, record);
+              terminal =
+                kind === "completed" ||
+                kind === "failed" ||
+                kind === "cancelled";
               if (object(record).type === "progress") {
                 if (job.source !== file) {
                   file = job.source;
@@ -291,23 +402,55 @@ export class DesktopSSHFiles {
             }
           }
         });
-        child.once("error", () =>
+        child.once("error", () => {
+          clearTimeout(timer);
           reject(
             new HostError(
               "configuration",
               "SSH file companion could not start. Rebuild the file client.",
             ),
-          ),
-        );
+          );
+        });
         child.once("close", (code) => {
-          if (active.cancelled) {
+          clearTimeout(timer);
+          const summary: SSHTransferResult = job.sshResult ?? {
+            reported: false,
+            files: 0,
+            bytes: 0,
+            verifiedFiles: 0,
+            outcome: child.pid ? "unknown" : "not_started",
+            reason: "operation_failed",
+          };
+          job.sshResult = summary;
+          if (
+            active.cancelled ||
+            (terminal &&
+              !invalid &&
+              !pending.trim() &&
+              code !== null &&
+              code !== 0 &&
+              summary.reason === "cancelled")
+          ) {
             job.state = "cancelled";
+            summary.outcome = child.pid ? "unknown" : "not_started";
+            summary.reason = "cancelled";
             resolve();
-          } else if (code === 0 && completed && !invalid && !pending.trim()) {
+          } else if (
+            code === 0 &&
+            completed &&
+            !timedOut &&
+            !invalid &&
+            !pending.trim()
+          ) {
             job.state = "completed";
+            summary.outcome = "confirmed";
             resolve();
           } else {
             job.state = "failed";
+            summary.outcome = child.pid ? "unknown" : "not_started";
+            if (timedOut) summary.reason = "timeout";
+            else if (invalid || !terminal || summary.reason === "")
+              summary.reason = "operation_failed";
             reject(
               new HostError(
                 "tool_error",
@@ -318,13 +461,28 @@ export class DesktopSSHFiles {
         });
       });
     } catch (error) {
-      job.state = active.cancelled ? "cancelled" : "failed";
+      job.state =
+        active.cancelled ||
+        (error instanceof HostError && error.code === "cancelled")
+          ? "cancelled"
+          : "failed";
+      job.sshResult ??= {
+        reported: false,
+        files: 0,
+        bytes: 0,
+        verifiedFiles: 0,
+        outcome: active.child?.pid ? "unknown" : "not_started",
+        reason: job.state === "cancelled" ? "cancelled" : "operation_failed",
+      };
       throw error;
     } finally {
-      await provenance?.done();
-      job.released = true;
-      job.speed = 0;
-      if (this.active === active) this.active = undefined;
+      try {
+        await provenance?.done();
+      } finally {
+        job.released = true;
+        job.speed = 0;
+        if (this.active === active) this.active = undefined;
+      }
     }
   }
 }

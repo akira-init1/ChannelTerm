@@ -176,6 +176,30 @@ export function TransferPanel({
                   {job.destination}
                 </small>
               )}
+              {job.sshResult && (
+                <div className="ssh-transfer-result">
+                  <small>{t(`file.outcome.${job.sshResult.outcome}`)}</small>
+                  {job.sshResult.reported && (
+                    <small>
+                      {t("file.completedFiles")}:{" "}
+                      {job.sshResult.files.toLocaleString()} ·{" "}
+                      {t("file.verifiedFiles")}:{" "}
+                      {job.sshResult.verifiedFiles.toLocaleString()} ·{" "}
+                      {t("file.payloadBytes")}:{" "}
+                      {job.sshResult.bytes.toLocaleString()} B
+                    </small>
+                  )}
+                  {job.sshResult.reason && (
+                    <small>
+                      {t(
+                        job.sshResult.reason === "verification_failed"
+                          ? "file.verificationFailed"
+                          : `sshManage.${job.sshResult.reason}`,
+                      )}
+                    </small>
+                  )}
+                </div>
+              )}
               {job.sha256 && <small title={job.sha256}>SHA-256 ✓</small>}
             </div>
           ))}

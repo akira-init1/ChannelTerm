@@ -15,7 +15,25 @@ export interface RemoteDirectory {
   entries: { name: string; kind: "file" | "directory" | "other" }[];
   truncated: boolean;
 }
+/** Completed counters are observed before connection cleanup; failures never prove rollback. */
+export interface SSHTransferResult {
+  reported: boolean;
+  files: number;
+  bytes: number;
+  verifiedFiles: number;
+  outcome: "confirmed" | "unknown" | "not_started";
+  reason:
+    | ""
+    | "not_found"
+    | "already_exists"
+    | "permission_denied"
+    | "timeout"
+    | "cancelled"
+    | "verification_failed"
+    | "operation_failed";
+}
 export interface TransferStatus {
+  sshResult?: SSHTransferResult;
   initiator?: OperationSource;
   originalSource?: OperationSource;
   checkpointId?: string;
@@ -49,6 +67,12 @@ export function retainedTransfer(job: TransferStatus): TransferStatus {
   return {
     ...job,
     state: job.released ? job.state : "unknown",
+    sshResult: job.sshResult
+      ? {
+          ...job.sshResult,
+          outcome: job.released ? job.sshResult.outcome : "unknown",
+        }
+      : undefined,
     initiator: job.initiator
       ? { ...job.initiator, presence: "unknown" }
       : undefined,
@@ -67,6 +91,10 @@ export interface SSHTransferRequest {
   protocol: "sftp" | "scp";
   resume: boolean;
   recursive: boolean;
+  /** Older requests omit these and retain no-overwrite/no-deadline behavior. */
+  overwrite?: boolean;
+  safeReplace?: boolean;
+  operationTimeoutSeconds?: number;
   connection: Extract<ConnectionRequest, { kind: "ssh" }>;
 }
 export interface TransferRequest {

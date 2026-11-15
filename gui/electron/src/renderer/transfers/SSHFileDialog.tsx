@@ -40,6 +40,8 @@ export function SSHFileDialog({
     initial?.some((item) => item.kind === "directory") ?? false,
   );
   const [resume, setResume] = useState(false);
+  const [overwrite, setOverwrite] = useState(false);
+  const [safeReplace, setSafeReplace] = useState(false);
   const [browserOpen, setBrowserOpen] = useState(false);
   const [browsing, setBrowsing] = useState(false);
   useEffect(() => {
@@ -114,6 +116,11 @@ export function SSHFileDialog({
       protocol,
       resume,
       recursive,
+      overwrite,
+      safeReplace,
+      operationTimeoutSeconds: Number(
+        new FormData(form).get("operationTimeoutSeconds") ?? 0,
+      ),
       remotePath: String(new FormData(form).get("remotePath") ?? ""),
       connection,
     };
@@ -202,6 +209,7 @@ export function SSHFileDialog({
               onChange={(e) => {
                 setProtocol(e.target.value === "scp" ? "scp" : "sftp");
                 setResume(false);
+                setSafeReplace(false);
               }}
             >
               <option value="sftp">SFTP</option>
@@ -250,12 +258,57 @@ export function SSHFileDialog({
             <input
               type="checkbox"
               checked={resume}
-              disabled={protocol !== "sftp" || recursive || locals.length > 1}
+              disabled={
+                protocol !== "sftp" ||
+                recursive ||
+                locals.length > 1 ||
+                overwrite
+              }
               onChange={(e) => setResume(e.target.checked)}
             />
             {t("file.sftpResume")}
           </label>
           <p className="file-hint">{t("file.sftpResumeHint")}</p>
+          <details className="ssh-advanced">
+            <summary>{t("file.advanced")}</summary>
+            <label className="file-resumable">
+              <input
+                type="checkbox"
+                name="overwrite"
+                checked={overwrite}
+                disabled={resume}
+                onChange={(e) => {
+                  setOverwrite(e.target.checked);
+                  if (!e.target.checked) setSafeReplace(false);
+                }}
+              />
+              {t("file.overwrite")}
+            </label>
+            <p className="file-hint">{t("file.overwriteHint")}</p>
+            <label className="file-resumable">
+              <input
+                type="checkbox"
+                name="safeReplace"
+                checked={safeReplace}
+                disabled={protocol !== "sftp" || !overwrite || resume}
+                onChange={(e) => setSafeReplace(e.target.checked)}
+              />
+              {t("file.safeReplace")}
+            </label>
+            <p className="file-hint">{t("file.safeReplaceHint")}</p>
+            <label>
+              {t("file.operationTimeout")}
+              <input
+                name="operationTimeoutSeconds"
+                type="number"
+                min={0}
+                max={86400}
+                step={1}
+                defaultValue={0}
+                required
+              />
+            </label>
+          </details>
           <label>
             {t("file.localIdentities")}
             <textarea name="identityFiles" rows={2} maxLength={8192} />

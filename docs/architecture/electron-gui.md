@@ -370,7 +370,14 @@ no Host credential retrieval or new Host/MCP endpoint is introduced. GUI copies 
 SHA-256. Single-file SFTP resume delegates prefix validation and final verification to Application;
 SCP and directories do not resume. Main retains at most 32 display records, with the latest eight
 shown in the panel; these records are not persistent checkpoints. Completion requires the CLI's
-completion record and successful exit. Cancellation terminates only the dedicated child, leaving
+completion record and successful exit. The finite advanced intent defaults to no overwrite, no
+safe replacement and no operation deadline. Main enforces resume conflicts and SFTP-only safe
+replacement, requires native default-cancel approval for overwrite, and revalidates the original
+Session after confirmation. A positive CLI deadline has a five-second Main cleanup grace. The
+adapter accepts one started record and one terminal record, rejects trailing/reordered records,
+and retains bounded final counts and typed reasons; a failed child never confirms destination
+state or rollback. No arbitrary CLI flags are exposed.
+Cancellation terminates only the dedicated child, leaving
 partial files for explicit recovery, with no Session Lease or terminal-byte suppression. Serial
 and dedicated SSH operations share that window's busy gate. Renderer reload/crash cleanup cancels
 the owned SSH child and clears its display history, so a disconnected view cannot strand an

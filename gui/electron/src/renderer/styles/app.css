@@ -1505,3 +1505,14 @@ main {
 .debug-send-dialog p {
   overflow-wrap: anywhere;
 }
+
+.transfer-job > .ssh-transfer-result {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-content: normal;
+  gap: 4px;
+  overflow-wrap: anywhere;
+}
+.ssh-advanced {
+  grid-column: 1 / -1;
+}

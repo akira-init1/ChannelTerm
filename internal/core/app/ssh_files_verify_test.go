@@ -149,7 +149,7 @@ func TestSFTPVerificationFailure(t *testing.T) {
 					if err == nil || result.Files != 0 || result.VerifiedFiles != 0 {
 						t.Fatalf("result=%+v error=%v", result, err)
 					}
-					if failure == "mismatch" && !strings.Contains(err.Error(), "SHA-256 mismatch") {
+					if failure == "mismatch" && (!errors.Is(err, ErrSSHFileVerificationMismatch) || !strings.Contains(err.Error(), "SHA-256 mismatch")) {
 						t.Fatal(err)
 					}
 					if failure == "cancel" && !errors.Is(err, context.Canceled) {

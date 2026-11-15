@@ -128,6 +128,7 @@ msgstr "ボーレート"
 #: src/main/index.ts
 #: src/main/index.ts
 #: src/main/index.ts
+#: src/main/index.ts
 #: src/shared/menu-messages.ts
 msgid "connection.cancel"
 msgstr "キャンセル"
@@ -790,6 +791,11 @@ msgstr "端末スタイル"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "file.advanced"
+msgstr "転送の詳細設定"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "file.cancel"
 msgstr "転送をキャンセル"
 
@@ -827,6 +833,11 @@ msgstr "ファイル処理を完了するか転送パネルでキャンセルし
 #: src/shared/menu-messages.ts
 msgid "file.completed"
 msgstr "完了"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.completedFiles"
+msgstr "完了したファイル"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -935,13 +946,54 @@ msgstr "開く"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "file.operationTimeout"
+msgstr "操作タイムアウト秒数（0 は無効、最大 86400）"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "file.other"
 msgstr "未対応"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "file.outcome.confirmed"
+msgstr "転送と検証の完了を確認しました。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.outcome.not_started"
+msgstr "転送は開始されませんでした。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.outcome.unknown"
+msgstr "転送先の最終状態は不明です。次の転送前に確認してください。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.overwrite"
+msgstr "既存ファイルの置換／ディレクトリの統合を許可"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "file.overwriteConfirm"
+msgstr "転送による上書きの確認"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.overwriteHint"
+msgstr "上書きにより既存ファイルが切り詰められる場合があります。取消や失敗で一部の変更が残るため、再試行前に対象を確認してください。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "file.parent"
 msgstr "上へ"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.payloadBytes"
+msgstr "コピーしたデータ（部分ファイルを含む）"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -1005,6 +1057,16 @@ msgstr "処理中"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "file.safeReplace"
+msgstr "一時保存してファイルごとに置換（SFTP のみ）"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.safeReplaceHint"
+msgstr "上書きの許可が必要です。各ファイルを検証してから置換します。ディレクトリ全体は不可分ではありません。後処理が中断すると一時ファイルが残る場合があります。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "file.saveFolder"
 msgstr "保存先を選択"
 
@@ -1062,6 +1124,16 @@ msgstr "先頭の256件を表示しています。"
 #: src/shared/menu-messages.ts
 msgid "file.unknown"
 msgstr "状態不明"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.verificationFailed"
+msgstr "SHA-256 検証に失敗しました。転送先が転送元と一致しません。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "file.verifiedFiles"
+msgstr "SHA-256 検証済みファイル"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -2407,6 +2479,7 @@ msgid "sshManage.already_exists"
 msgstr "サーバーから対象が既に存在すると報告されました。"
 
 #. js-lingui-explicit-id
+#: src/main/index.ts
 #: src/main/index.ts
 #: src/shared/menu-messages.ts
 msgid "sshManage.apply"

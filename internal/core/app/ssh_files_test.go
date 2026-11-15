@@ -241,8 +241,11 @@ func TestSFTPFileOperations(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(destination, "empty")); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := call("put", "/uploaded/zero", filepath.Join(tree, "zero"), "", false, false); err == nil {
-		t.Fatal("overwrote without opt-in")
+	if _, err := call("put", "/uploaded/zero", filepath.Join(tree, "zero"), "", false, false); !errors.Is(err, os.ErrExist) {
+		t.Fatalf("overwrite refusal must preserve ErrExist: %v", err)
+	}
+	if _, err := call("get", "/uploaded/zero", filepath.Join(tree, "zero"), "", false, false); !errors.Is(err, os.ErrExist) {
+		t.Fatalf("local overwrite refusal: %v", err)
 	}
 	if _, err := call("put", "/uploaded/zero", filepath.Join(tree, "zero"), "", false, true); err != nil {
 		t.Fatal(err)
