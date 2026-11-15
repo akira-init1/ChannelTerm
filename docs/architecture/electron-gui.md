@@ -560,7 +560,11 @@ must not depend on one another or require a Core rewrite.
 
 The CLI build uses Go only. The GUI build uses Node/npm and emits Main, Preload, renderer assets,
 and license notices independently. Go is needed by GUI integration tests, not by its production
-build. No CLI release workflow changes. There is no installer, auto-update system, or release job.
+build. A separate local packaging command combines those assets with Electron and platform-matched
+CGO-free Go companions; it does not add a Go dependency to the JS asset build or Node to CLI builds.
+See [local desktop packages](../development/electron-gui.md#local-desktop-packages) for formats,
+version/provenance, installation lifetime and native acceptance boundaries. CLI release workflows
+are unchanged; there is no desktop auto-update system or publishing job.
 
 Main permits startup only for `http://127.0.0.1:37099/mcp`. A TCP refusal permits one launch;
 an occupied listener is authenticated through the existing Host Client. Authentication, protocol
@@ -570,7 +574,7 @@ Main waits for readiness with bounded, cancellable probes. It neither retries de
 opens a device during startup. Manual disconnect does not trigger automatic reconnection.
 
 The executable is `dist/host/channelterm[.exe]` for source builds and
-`resources/host/channelterm[.exe]` for a future packaged distribution. Main never searches PATH,
+`resources/host/channelterm[.exe]` for packaged distribution. Main never searches PATH,
 runs a shell/compiler, accepts an executable from Renderer, or forwards child output. The existing
 Host creates/loads its own credential; Main reads it after readiness. Startup errors are sanitized.
 Source-checkout launch scripts verify companion build provenance and rebuild outdated binaries only

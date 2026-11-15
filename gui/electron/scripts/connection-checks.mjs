@@ -6,12 +6,17 @@ import { HostClient } from "../src/main/host/client.ts";
 import { checkSSHFiles } from "./file-checks.mjs";
 
 /** Real GUI -> trusted IPC -> authenticated Host -> Application connection setup. */
-export async function checkConnections(environment, launchArgs) {
+export async function checkConnections(
+  environment,
+  launchArgs,
+  executablePath,
+) {
   const fixture = await startFixture();
   const observer = new HostClient(fixture.endpoint, fixture.token);
   let desktop;
   try {
     desktop = await electron.launch({
+      executablePath,
       args: launchArgs,
       env: {
         ...environment,

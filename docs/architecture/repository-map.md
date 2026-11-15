@@ -156,7 +156,7 @@ gui/electron/
 |   |   |-- host.ts                Renderer adapter for the typed Preload bridge
 |   |   `-- main.tsx               React entry point
 |   `-- shared/                    GUI bridge types, fixed channels, pure menu model and English message definitions
-|-- scripts/                       Independent build/start/dev/notices and desktop test runners
+|-- scripts/                       Independent build/start/dev/notices, local desktop packaging and acceptance runners
 |-- tests/
 |   |-- host/                      Disposable Go composition using the real Host with fake I/O
 |   `-- *.ts                       Host Client integration, security checks, fixture lifecycle

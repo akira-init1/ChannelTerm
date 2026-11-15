@@ -51,7 +51,7 @@ but blocks launching an unverified companion. This build record is not an authen
 To update an active companion, finish shared Session work, stop that Host, and run
 `npm.cmd run host:build`, then restart `start`/`dev`. No process is killed by preparation, and no
 credential is deleted or changed by the GUI. Custom endpoints skip companion Host preparation.
-Node/npm are development requirements; a future packaged GUI includes
+Node/npm are development requirements; the local desktop package includes
 its own Electron runtime and the platform-matched Host under `resources/host/`. See the
 [release boundaries](../architecture/electron-gui.md#multiple-frontends-and-release-boundaries).
 
@@ -562,8 +562,8 @@ pairs and physical serial transfers remain separate validation.
 
 Targets are Windows/Linux/macOS, x64/arm64. Native Windows x64 desktop testing is separate from
 cross-compilation; each other native OS/architecture still needs runtime validation. Real serial
-settings and hardware are not involved in the fixture. Installer packaging, signing/notarization,
-update delivery, and release automation remain unimplemented.
+settings and hardware are not involved in the fixture. Local unsigned packaging is described below;
+signing/notarization, update delivery, and desktop release automation remain unimplemented.
 
 ### Remote SSH size checks
 
@@ -626,3 +626,81 @@ output-loss notice, checking accessibility/status text and byte-display preserva
 native scenarios cover Lease blocking, disconnects, input composition and compact layout.
 These checks use isolated Host fixtures; they do not establish native input-method or device
 acceptance on other operating systems.
+
+## Local desktop packages
+
+From `gui/electron`, after `npm ci` and the required checks:
+
+```powershell
+npm.cmd run package
+# Only unpacked application files, without an installer/archive:
+npm.cmd run package -- --dir
+# Build the other supported CPU architecture on the same OS:
+npm.cmd run package -- --arch=arm64
+```
+
+Packaging requires the native OS toolchain, Node/npm and Go. End users need neither Node nor Go.
+The command uses pinned electron-builder 26.18.0 and the pinned Electron runtime; runtime/tool
+downloads require network access. It accepts only `--dir` and `--arch=x64|arm64`, builds for the
+current OS, and writes a new `release/<go-os>-<go-arch>/build-*/artifacts/` directory each time.
+Existing developer companions and previous package directories are never overwritten. Do not
+remove a package directory while its Host is still serving shared Sessions.
+
+| Build OS | Configured formats | CPU targets |
+| --- | --- | --- |
+| Windows | ZIP directory archive, per-user NSIS installer | x64, arm64 |
+| Linux | tar.gz directory archive, deb | x64, arm64 |
+| macOS | app ZIP, DMG | x64, arm64 |
+
+Windows x64 package execution and NSIS installation/removal have native automated coverage.
+The other package formats/architectures require builds and acceptance on those native systems;
+configuration and Go cross-builds are not evidence that those desktop packages run. No signed,
+notarized or publicly published desktop release is implied. Do not bypass OS protection prompts.
+
+Every package carries the Electron runtime, bundled JS, matching `resources/host/channelterm`
+and `resources/files/channelterm` executables (`.exe` on Windows), application/runtime licenses,
+and Go dependency notices. macOS resources are inside the app's `Contents/Resources` directory.
+Both Go companions are copies of one `CGO_ENABLED=0` build. The GUI package version is injected
+into the CLI together with the source commit (marked `-dirty` when appropriate) and UTC build time.
+`resources/package-manifest.json` records these values, the runtime version and companion SHA-256
+hashes; `SHA256SUMS` covers the generated distribution artifacts. Hashes identify bytes; they are
+not signatures. JS is bundled into `app.asar`; native helpers remain executable outside it.
+The package allowlist excludes source, node_modules, developer profiles and test fixtures.
+
+Extract a ZIP/tar.gz to a stable writable location, or copy a macOS app out of its mounted DMG,
+then launch `channelterm-desktop` (`.exe` on Windows). Do not run a persistent Host from a temporary
+self-extracting archive. “Portable” refers to the application directory: preferences, credentials,
+and workspace state still use the existing user directories. Packaging preserves the existing
+`@channelterm/electron` profile identity. It does not store credentials in the installation or
+change PATH, the CLI installer, Host authentication, or the default loopback listener.
+
+The Windows installer is per-user, permits a destination choice, creates a Start menu shortcut,
+and does not launch the GUI automatically. Its process check replaces electron-builder's default
+termination behavior. Installation, upgrade and removal stop with exit code 2 when any
+`channelterm-desktop.exe` or `channelterm.exe` is running, or process inspection fails. This is
+deliberately conservative, including CLI processes from other directories. Finish shared work,
+stop the relevant Host explicitly, then retry. Uninstall removes its application/shortcut and
+registration, preserving user configuration. Removing an extracted directory likewise requires
+first finishing work and stopping the Host; closing the GUI alone does not stop it.
+
+Run native package acceptance against an unpacked application directory (the `.app` on macOS):
+
+```powershell
+npm.cmd run test:package -- release/windows-amd64/build-EXAMPLE/artifacts/win-unpacked
+./scripts/test-installer.ps1 -Installer release/windows-amd64/build-EXAMPLE/artifacts/ChannelTerm-Desktop-0.1.0-windows-amd64.exe
+```
+
+`test:package` copies the actual package outside the checkout to a path containing spaces and
+non-ASCII characters, uses disposable profiles and an empty PATH, validates helper hashes/native
+version output, and tests production IPC, shared Session survival, serial setup and loopback SSH
+trust/file transfer/cancellation. Native pickers use disposable test destinations. It contacts no
+physical device. The Windows installer check requires PowerShell 7 and refuses to run if any
+ChannelTerm installation/process already exists. It installs into an owned test directory, starts
+only an isolated no-device Host, checks upgrade/uninstall refusal without termination, then removes
+the installation and checks configuration retention. Failures preserve evidence for diagnosis.
+These checks do not replace a fresh OS image, native IME, physical serial or real SSH acceptance.
+
+Packaging is separate from `npm run build`, CLI builds and tagged CLI releases. There is no
+desktop publish/sign/update step. The builder is a build-only MIT dependency; its tool graph is
+excluded from the runtime. Audit reports include existing and build-tool advisories; review them
+for the fixed local build inputs rather than running an unrelated automatic dependency upgrade.

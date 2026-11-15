@@ -25,7 +25,16 @@ ChannelTerm license into dist/LICENSE. Redistribution of the bundled JavaScript
 must retain those files. The generated notices cover the installed production
 dependency graph, including packages that the client bundle may not use.
 
-A future desktop package must additionally retain Electron's distributed LICENSE
-and LICENSES.chromium.html and any accompanying runtime notices, and include the
-repository THIRD_PARTY_NOTICES when bundling a Go Host. This prototype does not
-produce an installer or redistribute an Electron runtime archive.
+Local desktop packages retain Electron's distributed license (LICENSE.electron.txt
+on Windows) and LICENSES.chromium.html and accompanying runtime notices. The
+repository THIRD_PARTY_NOTICES is included as resources/HOST_THIRD_PARTY_NOTICES
+for both Go companions; resources/LICENSE.channelterm carries the Apache-2.0 text.
+The bundled JS notices and license remain inside app.asar under dist/.
+
+electron-builder 26.18.0 (MIT) is a pinned build dependency for local unsigned
+archives/installers. Its JavaScript dependency graph is not bundled into the app.
+The generated NSIS installer uses the unmodified NSIS runtime and plugins under
+their upstream licenses, including zlib/libpng and the compression-module terms
+with the LZMA linking exception. License terms: https://nsis.sourceforge.io/License
+Corresponding tool/source distribution: https://github.com/electron-userland/electron-builder-binaries/releases/tag/nsis-3.0.4.1
+Building packages does not enable signing, publishing or an update service.

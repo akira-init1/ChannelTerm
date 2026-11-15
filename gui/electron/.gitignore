@@ -1,4 +1,5 @@
 node_modules/
 dist/
 test-results/
+release/
 src/locales/*/messages.ts

@@ -379,6 +379,8 @@ unterstützt außerdem `--connection-policy ask|auto|deny`. `--config` ändert n
 
 - [Dokumentationsindex](docs/README.md)
 - [Electron-GUI-Prototyp und Entwicklung](docs/development/electron-gui.md) — Der lokale Standard-Host wird automatisch verbunden oder gestartet; serielle und SSH-Sitzungen lassen sich direkt in der GUI erstellen. Geräteverzeichnisse durchsuchen und Dateien/Ordner seriell in beide Richtungen mit GUI-Fortschritt übertragen. Öffnen Sie mehrere Fenster und Terminal-Tabs und verschieben Sie einen Tab in ein neues Fenster, ohne seine gemeinsame Sitzung zu schließen.
+
+Lokale unsignierte [Desktop-Pakete](docs/development/electron-gui.md#local-desktop-packages) enthalten Electron und passende Host/CLI-Hilfsprogramme; Nutzer benötigen weder Node noch Go. Prüfungen für Windows-x64-ZIP und benutzerbezogene Installer sind verfügbar. Andere native Ziele und echte Geräte müssen noch abgenommen werden. Signierung und Desktop-Veröffentlichung sind nicht eingerichtet.
 - [Seriellen Terminalablauf verwenden](docs/getting-started/serial-terminal.md)
 - [SSH-Shell verwenden](docs/getting-started/ssh-terminal.md)
 - [Eine Session teilen](docs/getting-started/shared-session.md)
