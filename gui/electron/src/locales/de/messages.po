@@ -127,6 +127,7 @@ msgstr "Baudrate"
 #: src/main/index.ts
 #: src/main/index.ts
 #: src/main/index.ts
+#: src/main/index.ts
 #: src/shared/menu-messages.ts
 msgid "connection.cancel"
 msgstr "Abbrechen"
@@ -2399,6 +2400,104 @@ msgstr "Pfad verwenden"
 #: src/shared/menu-messages.ts
 msgid "sshBrowser.useDirectory"
 msgstr "Verzeichnispfad verwenden"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.already_exists"
+msgstr "Der Server meldet, dass das Ziel bereits existiert."
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "sshManage.apply"
+msgstr "Änderung anwenden"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "sshManage.boundary"
+msgstr "Nur die angegebenen Pfade werden verwendet. Umbenennen überschreibt nichts; Löschen ist nicht rekursiv. Bei Verbindungsabbruch oder Abbruch kann die Änderung bereits erfolgt sein. Kein automatischer Wiederholungsversuch."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.cancelled"
+msgstr "Die Anfrage wurde abgebrochen."
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "sshManage.confirm"
+msgstr "SFTP-Änderung bestätigen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.confirmed"
+msgstr "Der Server hat den Vorgang bestätigt. Liste erneut laden, um den aktuellen Inhalt zu prüfen."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.mkdir"
+msgstr "Verzeichnis erstellen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.not_found"
+msgstr "Der Server meldet einen fehlenden Eintrag."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.not_started"
+msgstr "Es wurde keine SFTP-Änderung gestartet."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.operation_failed"
+msgstr "Vorgang fehlgeschlagen oder nicht bestätigt. Manche Server liefern keinen genauen Grund; Pfade, Zugriffsrechte und leere Verzeichnisse prüfen."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.permission_denied"
+msgstr "Der Server hat den Zugriff verweigert."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.rename"
+msgstr "Eintrag umbenennen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.review"
+msgstr "Änderung prüfen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.rm"
+msgstr "Datei oder symbolischen Link entfernen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.rmdir"
+msgstr "Leeres Verzeichnis entfernen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.target"
+msgstr "Neuer absoluter Pfad"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.target_changed"
+msgstr "Die ausgewählte Session oder der Endpunkt wurde geändert."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.timeout"
+msgstr "Zeitüberschreitung beim Vorgang."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.unknown"
+msgstr "Der Endzustand ist unbekannt. Vor einem weiteren Vorgang das ursprüngliche Ziel prüfen."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

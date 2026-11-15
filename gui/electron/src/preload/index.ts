@@ -113,6 +113,7 @@ const api: DesktopAPI = {
     ipcRenderer.invoke(channels.saveDiagnostics, request),
   cancelDiagnostics: () => ipcRenderer.invoke(channels.cancelDiagnostics),
   browseSSH: (request) => ipcRenderer.invoke(channels.browseSSH, request),
+  manageSSH: (request) => ipcRenderer.invoke(channels.manageSSH, request),
   cancelSSHBrowse: () => ipcRenderer.invoke(channels.cancelSSHBrowse),
   read: (id) => ipcRenderer.invoke(channels.read, id),
   write: (id, data) => ipcRenderer.invoke(channels.write, id, data),

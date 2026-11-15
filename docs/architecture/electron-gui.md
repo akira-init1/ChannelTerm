@@ -376,10 +376,10 @@ and dedicated SSH operations share that window's busy gate. Renderer reload/cras
 the owned SSH child and clears its display history, so a disconnected view cannot strand an
 uncancellable background transfer.
 
-The read-only `ssh-browser.ts` adapter uses the same fixed companion's structured SFTP
+The `ssh-browser.ts` adapter uses the same fixed companion's structured SFTP
 `ls/stat` records. It validates the live SSH endpoint before launch and again before returning
 the snapshot, with one request per window, a 25-second CLI operation timeout and a 30-second
-child-process deadline. It exposes no management operation or arbitrary command. Main rejects
+child-process deadline. Its read-only endpoint accepts only `ls/stat`. Main rejects
 malformed streams, unsafe navigation names, duplicate names, unsafe numeric metadata, more than
 1024 entries, over 1 MiB of names, records above 32 KiB or streams above 8 MiB; it waits for
 completion and successful process exit before publishing rows. Browsing retains no credentials
@@ -387,6 +387,16 @@ or history; secrets go through stdin and stderr is discarded. Dialog disposal or
 cleanup cancels the child without closing the shared terminal. Starting an SSH transfer or
 reconnecting is blocked until browsing has settled. The existing SFTP client enumerates a
 directory before producing this bounded machine result; this is not server-side pagination.
+
+The separate fixed `manageSSH` IPC accepts only `mkdir/rename/rm/rmdir` with bounded absolute
+named paths. `ssh-management.ts` validates this intent and final CLI receipts. Main shows a native
+confirmation (default Cancel), rechecks the original Session registration/endpoint before launch,
+and uses the same one-child limit and credential pipe. It declares an independent file operation
+for presence; remote SFTP account permissions remain authoritative. Rename has no overwrite option,
+deletion has no recursion, and no arbitrary commands or PTY writes are exposed. Cancellation or
+lost/invalid completion yields unknown final state once a child has launched. Renderer clears
+stale listings and never retries; later inspection is explicit. A post-operation target change
+cannot publish a success against a replacement Session.
 
 For serial transfers, Host Client separately reads structured Session events for UI progress and cursor-based terminal
 presentation. It refreshes events after each raw read before exposing bytes, so a published Lease

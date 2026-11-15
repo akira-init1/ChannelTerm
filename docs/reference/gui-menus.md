@@ -43,6 +43,10 @@ trust file, does not grant first-host trust, and supports cancellation or closin
 Lists are bounded; unsupported names/metadata or excessive listings produce an error rather
 than a partial selectable result. The form retains entered credentials only while open and
 clears password fields before transfer dispatch.
+The browser's explicit create/rename/remove actions reuse this dialog, without another menu group.
+They require absolute named paths and native confirmation of the exact target. Rename does not
+overwrite; `rmdir` accepts empty directories only. Cancellation and connection loss can leave an
+unknown result, so the UI discards old listings and requests fresh inspection before any retry.
 See the [SSH file workflow](../getting-started/file-transfer.md#electron-sftpscp-progress-and-resume)
 for authentication, verification and cancellation.
 

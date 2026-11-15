@@ -689,8 +689,22 @@ selects the listed directory. Selection fills the form without transferring anyt
 receiving a directory enables the recursive option. Cancel a pending read or close the dialog
 to stop browsing; retry explicitly after correcting credentials, trust or the path. Results
 are limited to 1024 entries with bounded names; oversized or unsupported metadata produces an
-error. There is no pagination, remote mutation or terminal-directory synchronization. Links
+error. There is no pagination or terminal-directory synchronization. Links
 and special entries are inspectable but cannot be selected for transfer.
+
+The browser also offers **Create directory**, **Rename entry**, **Remove file or symlink**, and
+**Remove empty directory**. Enter an absolute named path, choose **Review change**, then confirm
+the exact Session, SSH endpoint, operation and paths in the native dialog; Cancel is the default.
+Rename never overwrites, creation requires an existing parent, and deletion is never recursive.
+Symlink removal removes the link. These actions use the existing dedicated SFTP connection and
+remote account permissions, without shell execution or PTY input.
+
+The result distinguishes server-confirmed completion, a request that never started, and unknown
+final state. Cancellation, timeout or disconnect may follow a remote change; inspect the original
+target before another explicit operation. The browser discards old listings after an attempted
+change; list again to inspect current contents. Server permission/missing/existing errors are shown
+when available; some servers only return a general failure, including for nonempty directories.
+Cancelling stops only this window's pending SFTP child, without closing the shared SSH Session.
 
 Authentication uses a separate connection from the desktop computer. Enter any required password,
 key/passphrase and known-hosts path again; Host-side credentials are not retrieved. Key and trust

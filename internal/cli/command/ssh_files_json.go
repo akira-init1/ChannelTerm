@@ -102,6 +102,9 @@ func runSSHFilesJSON(ctx context.Context, output io.Writer, r app.SSHFilesReques
 	if r.Operation == "ls" || r.Operation == "stat" {
 		return writeSSHEntriesJSON(ctx, encode, r.Operation, result, err)
 	}
+	if isSSHManagementOperation(r.Operation) {
+		return writeSSHManagementJSON(ctx, encode, r, err)
+	}
 	kind := "completed"
 	if err != nil {
 		kind = "failed"

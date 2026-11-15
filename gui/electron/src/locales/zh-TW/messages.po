@@ -127,6 +127,7 @@ msgstr "鮑率"
 #: src/main/index.ts
 #: src/main/index.ts
 #: src/main/index.ts
+#: src/main/index.ts
 #: src/shared/menu-messages.ts
 msgid "connection.cancel"
 msgstr "取消"
@@ -2399,6 +2400,104 @@ msgstr "使用路徑"
 #: src/shared/menu-messages.ts
 msgid "sshBrowser.useDirectory"
 msgstr "使用目錄路徑"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.already_exists"
+msgstr "伺服器回報目標已存在。"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "sshManage.apply"
+msgstr "套用變更"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "sshManage.boundary"
+msgstr "僅操作明確路徑。重新命名不覆寫，刪除不遞迴。斷線或取消的操作可能已生效，不會自動重試。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.cancelled"
+msgstr "請求已取消。"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "sshManage.confirm"
+msgstr "確認 SFTP 變更"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.confirmed"
+msgstr "伺服器已確認操作。請重新列出以檢查目前內容。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.mkdir"
+msgstr "建立目錄"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.not_found"
+msgstr "伺服器回報項目不存在。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.not_started"
+msgstr "未啟動 SFTP 修改操作。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.operation_failed"
+msgstr "操作失敗或無法確認。部分伺服器不提供具體原因；請檢查路徑、權限及目錄是否為空。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.permission_denied"
+msgstr "伺服器拒絕存取。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.rename"
+msgstr "重新命名項目"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.review"
+msgstr "檢查變更"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.rm"
+msgstr "刪除檔案或符號連結"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.rmdir"
+msgstr "刪除空目錄"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.target"
+msgstr "新的絕對路徑"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.target_changed"
+msgstr "所選 Session 或端點已變更。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.timeout"
+msgstr "操作已逾時。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.unknown"
+msgstr "最終狀態未知。再次操作前請檢查原始目標。"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

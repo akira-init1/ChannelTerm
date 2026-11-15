@@ -127,6 +127,7 @@ msgstr "Débit en bauds"
 #: src/main/index.ts
 #: src/main/index.ts
 #: src/main/index.ts
+#: src/main/index.ts
 #: src/shared/menu-messages.ts
 msgid "connection.cancel"
 msgstr "Annuler"
@@ -2399,6 +2400,104 @@ msgstr "Utiliser le chemin"
 #: src/shared/menu-messages.ts
 msgid "sshBrowser.useDirectory"
 msgstr "Utiliser le chemin du répertoire"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.already_exists"
+msgstr "Le serveur signale que la cible existe déjà."
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "sshManage.apply"
+msgstr "Appliquer la modification"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "sshManage.boundary"
+msgstr "Seuls les chemins indiqués sont utilisés. Le renommage ne remplace rien et la suppression n’est pas récursive. Une opération interrompue ou annulée peut déjà avoir pris effet. Aucune nouvelle tentative automatique."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.cancelled"
+msgstr "La demande a été annulée."
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "sshManage.confirm"
+msgstr "Confirmer la modification SFTP"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.confirmed"
+msgstr "Le serveur a confirmé l’opération. Rechargez la liste pour vérifier le contenu actuel."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.mkdir"
+msgstr "Créer un dossier"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.not_found"
+msgstr "Le serveur signale une entrée introuvable."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.not_started"
+msgstr "Aucune modification SFTP n’a été lancée."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.operation_failed"
+msgstr "Échec de l’opération ou résultat non confirmé. Certains serveurs ne précisent pas la cause ; vérifiez les chemins, les droits et si le dossier est vide."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.permission_denied"
+msgstr "Le serveur a refusé l’accès."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.rename"
+msgstr "Renommer une entrée"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.review"
+msgstr "Examiner la modification"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.rm"
+msgstr "Supprimer un fichier ou lien symbolique"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.rmdir"
+msgstr "Supprimer un dossier vide"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.target"
+msgstr "Nouveau chemin absolu"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.target_changed"
+msgstr "La Session ou le point de terminaison sélectionné a changé."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.timeout"
+msgstr "Le délai de l’opération a expiré."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.unknown"
+msgstr "L’état final est inconnu. Vérifiez la cible initiale avant une autre opération."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

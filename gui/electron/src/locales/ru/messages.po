@@ -127,6 +127,7 @@ msgstr "Скорость в бодах"
 #: src/main/index.ts
 #: src/main/index.ts
 #: src/main/index.ts
+#: src/main/index.ts
 #: src/shared/menu-messages.ts
 msgid "connection.cancel"
 msgstr "Отмена"
@@ -2399,6 +2400,104 @@ msgstr "Использовать путь"
 #: src/shared/menu-messages.ts
 msgid "sshBrowser.useDirectory"
 msgstr "Использовать путь каталога"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.already_exists"
+msgstr "Сервер сообщил, что цель уже существует."
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "sshManage.apply"
+msgstr "Применить изменение"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "sshManage.boundary"
+msgstr "Используются только указанные пути. Переименование не перезаписывает, удаление не рекурсивное. При разрыве связи или отмене операция могла уже выполниться. Автоматического повтора нет."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.cancelled"
+msgstr "Запрос отменён."
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "sshManage.confirm"
+msgstr "Подтвердить изменение SFTP"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.confirmed"
+msgstr "Сервер подтвердил операцию. Загрузите список заново, чтобы проверить текущее содержимое."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.mkdir"
+msgstr "Создать каталог"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.not_found"
+msgstr "Сервер сообщил, что объект не найден."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.not_started"
+msgstr "Изменение SFTP не было запущено."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.operation_failed"
+msgstr "Операция не выполнена или результат не подтверждён. Некоторые серверы не сообщают точную причину; проверьте пути, права и пуст ли каталог."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.permission_denied"
+msgstr "Сервер отказал в доступе."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.rename"
+msgstr "Переименовать объект"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.review"
+msgstr "Проверить изменение"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.rm"
+msgstr "Удалить файл или символическую ссылку"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.rmdir"
+msgstr "Удалить пустой каталог"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.target"
+msgstr "Новый абсолютный путь"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.target_changed"
+msgstr "Выбранная Session или конечная точка изменилась."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.timeout"
+msgstr "Время ожидания операции истекло."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.unknown"
+msgstr "Конечное состояние неизвестно. Проверьте исходную цель перед следующей операцией."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

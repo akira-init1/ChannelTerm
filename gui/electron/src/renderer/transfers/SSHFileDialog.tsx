@@ -294,6 +294,17 @@ export function SSHFileDialog({
         </fieldset>
         {browserOpen && protocol === "sftp" && (
           <SSHBrowser
+            manage={(operation, path, target) =>
+              unwrap(
+                host.manageSSH({
+                  sessionId,
+                  operation,
+                  path,
+                  ...(target ? { target } : {}),
+                  connection: readConnection(formRef.current!),
+                }),
+              )
+            }
             onDrop={(files, path) => {
               void drop(files, path);
             }}

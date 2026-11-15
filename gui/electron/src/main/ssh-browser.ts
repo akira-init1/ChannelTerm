@@ -1,9 +1,12 @@
+import { sshManageRequest, SSHManagementReceipt } from "./ssh-management";
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { isConnectionRequest } from "../shared/connections";
 import type {
   SSHBrowseRequest,
   SSHBrowseResult,
   SSHFileEntry,
+  SSHManageRequest,
+  SSHManageResult,
 } from "../shared/ssh-browser";
 import type { HostClient } from "./host/client";
 import { HostError } from "./host/errors";
@@ -110,7 +113,7 @@ export class SSHListing {
   }
 }
 
-/** One bounded read-only companion process per window; credentials are piped, never persisted. */
+/** One bounded SFTP companion per window; mutations require explicit native confirmation. */
 export class DesktopSSHBrowser {
   private active?: {
     cancelled: boolean;
@@ -159,97 +162,17 @@ export class DesktopSSHBrowser {
         );
       if (active.cancelled)
         throw new HostError("cancelled", "SFTP browse cancelled.");
-      const args = [
-        "sftp",
-        `${c.user}@${address}`,
-        r.operation,
-        "--port",
-        String(c.port),
-        "--json",
-        "--credentials-stdin",
-        "--operation-timeout",
-        "25s",
-      ];
-      for (const path of c.identityFiles) args.push("--identity", path);
-      if (c.knownHostsFile) args.push("--known-hosts", c.knownHostsFile);
-      args.push("--", r.path);
-      const entries = await new Promise<SSHFileEntry[]>((resolve, reject) => {
-        const child = this.launch(this.executable, args);
-        active.child = child;
-        const listing = new SSHListing(r.operation);
-        let pending = "",
-          received = 0,
-          failure: unknown;
-        const timer = setTimeout(() => {
-          active.cancelled = true;
-          child.kill();
-        }, 30000);
-        child.stderr.resume();
-        child.stdout.setEncoding("utf8");
-        child.stdin.on("error", () => {});
-        child.stdin.end(
-          JSON.stringify({
-            password: c.password,
-            key_passphrase: c.keyPassphrase,
-          }),
-        );
-        c.password = undefined;
-        c.keyPassphrase = undefined;
-        child.stdout.on("data", (data: string) => {
-          if (failure) return;
-          try {
-            received += Buffer.byteLength(data);
-            if (received > 8 * 1024 * 1024) throw incompatible();
-            pending += data;
-            let newline: number;
-            while ((newline = pending.indexOf("\n")) >= 0) {
-              const line = pending.slice(0, newline);
-              if (Buffer.byteLength(line) > 32768) throw incompatible();
-              listing.accept(JSON.parse(line));
-              pending = pending.slice(newline + 1);
-            }
-            if (Buffer.byteLength(pending) > 32768) throw incompatible();
-          } catch (error) {
-            failure = error;
-            child.kill();
-          }
-        });
-        child.once("error", () => {
-          clearTimeout(timer);
-          reject(
-            new HostError(
-              "configuration",
-              "SFTP companion could not start. Rebuild the file client.",
-            ),
-          );
-        });
-        child.once("close", (code) => {
-          clearTimeout(timer);
-          if (active.cancelled) {
-            reject(
-              new HostError("cancelled", "SFTP browse cancelled or timed out."),
+      const listing = new SSHListing(r.operation);
+      const entries = await this.execute(r, active, {
+        accept: (value) => listing.accept(value),
+        finish: (code) => {
+          if (code !== 0)
+            throw new HostError(
+              "tool_error",
+              "SFTP browse failed. Check local credentials, host trust and the remote path.",
             );
-            return;
-          }
-          if (failure) {
-            reject(failure instanceof HostError ? failure : incompatible());
-            return;
-          }
-          if (code !== 0 || pending.trim()) {
-            reject(
-              new HostError(
-                "tool_error",
-                "SFTP browse failed. Check local credentials, host trust and the remote path.",
-              ),
-            );
-            return;
-          }
-          try {
-            resolve(listing.finish());
-          } catch (error) {
-            reject(error);
-          }
-        });
+          return listing.finish();
+        },
       });
       const current = await host.validateFileSession(r.sessionId);
       if (
@@ -264,5 +187,200 @@ export class DesktopSSHBrowser {
       c.keyPassphrase = undefined;
       this.active = undefined;
     }
+  }
+
+  /** Native confirmation precedes a fresh target check and one dedicated operation. */
+  async manage(
+    host: Pick<HostClient, "validateFileSession"> &
+      Partial<Pick<HostClient, "fileOperation">>,
+    value: unknown,
+    confirm: (
+      intent: Pick<
+        SSHManageRequest,
+        "sessionId" | "operation" | "path" | "target"
+      > & { endpoint: string },
+    ) => Promise<boolean>,
+  ): Promise<SSHManageResult> {
+    const r = sshManageRequest(value);
+    if (this.active)
+      throw new HostError("busy", "An SFTP operation is already pending.");
+    const active: NonNullable<DesktopSSHBrowser["active"]> = {
+      cancelled: false,
+    };
+    this.active = active;
+    let provenance:
+      Awaited<ReturnType<HostClient["fileOperation"]>> | undefined;
+    const fallback = (reason: SSHManageResult["reason"]): SSHManageResult => ({
+      operation: r.operation,
+      path: r.path,
+      ...(r.target ? { target: r.target } : {}),
+      state: reason === "cancelled" ? "cancelled" : "failed",
+      outcome: active.child?.pid ? "unknown" : "not_started",
+      reason,
+    });
+    try {
+      const session = await host.validateFileSession(r.sessionId);
+      const address = r.connection.host.includes(":")
+        ? `[${r.connection.host}]`
+        : r.connection.host;
+      if (
+        session.transport !== "ssh" ||
+        session.endpoint !==
+          `${r.connection.user}@${address}:${r.connection.port}`
+      )
+        return fallback("target_changed");
+      if (active.cancelled) return fallback("cancelled");
+      if (
+        !(await confirm({
+          sessionId: r.sessionId,
+          endpoint: session.endpoint,
+          operation: r.operation,
+          path: r.path,
+          ...(r.target ? { target: r.target } : {}),
+        }))
+      )
+        return fallback("cancelled");
+      const current = await host.validateFileSession(r.sessionId);
+      if (active.cancelled) return fallback("cancelled");
+      if (
+        current.session_ref !== session.session_ref ||
+        current.endpoint !== session.endpoint
+      )
+        return fallback("target_changed");
+      provenance = await host.fileOperation?.(r.sessionId, false);
+      if (active.cancelled) return fallback("cancelled");
+      const launching = await host.validateFileSession(r.sessionId);
+      if (active.cancelled) return fallback("cancelled");
+      if (
+        launching.session_ref !== session.session_ref ||
+        launching.endpoint !== session.endpoint
+      )
+        return fallback("target_changed");
+      const receipt = new SSHManagementReceipt(r);
+      const result = await this.execute(r, active, receipt);
+      const after = await host.validateFileSession(r.sessionId);
+      if (active.cancelled) return fallback("cancelled");
+      if (
+        after.session_ref !== session.session_ref ||
+        after.endpoint !== session.endpoint
+      )
+        return fallback("target_changed");
+      return result;
+    } catch (error) {
+      return fallback(
+        error instanceof HostError && error.code === "cancelled"
+          ? "cancelled"
+          : "operation_failed",
+      );
+    } finally {
+      r.connection.password = undefined;
+      r.connection.keyPassphrase = undefined;
+      try {
+        await provenance?.done();
+      } finally {
+        this.active = undefined;
+      }
+    }
+  }
+
+  private execute<T>(
+    r: SSHBrowseRequest | SSHManageRequest,
+    active: NonNullable<DesktopSSHBrowser["active"]>,
+    parser: { accept(value: unknown): void; finish(code: number | null): T },
+  ): Promise<T> {
+    const c = r.connection;
+    const address = c.host.includes(":") ? `[${c.host}]` : c.host;
+    const args = [
+      "sftp",
+      `${c.user}@${address}`,
+      r.operation,
+      "--port",
+      String(c.port),
+      "--json",
+      "--credentials-stdin",
+      "--operation-timeout",
+      "25s",
+    ];
+    for (const path of c.identityFiles) args.push("--identity", path);
+    if (c.knownHostsFile) args.push("--known-hosts", c.knownHostsFile);
+    args.push("--", r.path);
+    if ("target" in r && r.target) args.push(r.target);
+    return new Promise<T>((resolve, reject) => {
+      const child = this.launch(this.executable, args);
+      active.child = child;
+      let pending = "",
+        received = 0,
+        failure: unknown;
+      const timer = setTimeout(() => {
+        active.cancelled = true;
+        child.kill();
+      }, 30000);
+      child.stderr.resume();
+      child.stdout.setEncoding("utf8");
+      child.stdin.on("error", () => {});
+      child.stdin.end(
+        JSON.stringify({
+          password: c.password,
+          key_passphrase: c.keyPassphrase,
+        }),
+      );
+      c.password = undefined;
+      c.keyPassphrase = undefined;
+      child.stdout.on("data", (data: string) => {
+        if (failure) return;
+        try {
+          received += Buffer.byteLength(data);
+          if (received > 8 * 1024 * 1024) throw incompatible();
+          pending += data;
+          let newline: number;
+          while ((newline = pending.indexOf("\n")) >= 0) {
+            const line = pending.slice(0, newline);
+            if (Buffer.byteLength(line) > 32768) throw incompatible();
+            parser.accept(JSON.parse(line));
+            pending = pending.slice(newline + 1);
+          }
+          if (Buffer.byteLength(pending) > 32768) throw incompatible();
+        } catch (error) {
+          failure = error;
+          child.kill();
+        }
+      });
+      child.once("error", () => {
+        clearTimeout(timer);
+        reject(
+          new HostError(
+            "configuration",
+            "SFTP companion could not start. Rebuild the file client.",
+          ),
+        );
+      });
+      child.once("close", (code) => {
+        clearTimeout(timer);
+        if (active.cancelled) {
+          reject(
+            new HostError("cancelled", "SFTP browse cancelled or timed out."),
+          );
+          return;
+        }
+        if (failure) {
+          reject(failure instanceof HostError ? failure : incompatible());
+          return;
+        }
+        if (pending.trim()) {
+          reject(
+            new HostError(
+              "tool_error",
+              "SFTP browse failed. Check local credentials, host trust and the remote path.",
+            ),
+          );
+          return;
+        }
+        try {
+          resolve(parser.finish(code));
+        } catch (error) {
+          reject(error);
+        }
+      });
+    });
   }
 }

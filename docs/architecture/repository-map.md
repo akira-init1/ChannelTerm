@@ -147,6 +147,8 @@ gui/electron/
 |   |   |-- mcp-setup.ts            Fixed CLI setup bridge and native configuration preview/confirmation lifecycle
 |   |   |-- files.ts                Native picker/drop selections, local transfer preferences and fixed structured CLI file operations
 |   |   |-- ssh-files.ts            Dedicated SSH CLI lifecycle, bounded progress and private credentials
+|   |   |-- ssh-browser.ts          Dedicated SFTP browsing and confirmed management child lifecycle
+|   |   |-- ssh-management.ts       Finite SFTP mutation intent and acknowledgement validation
 |   |   |-- menu.ts                 Native menu rendering from bounded display hints
 |   |   `-- host/                   Main-only credentials, MCP client, bounded local companion startup, validation, safe errors
 |   |-- preload/                   Narrow contextBridge methods; no business decisions
@@ -154,7 +156,7 @@ gui/electron/
 |   |-- renderer/
 |   |   |-- components/            React application shell and view state
 |   |   |-- sessions/              Session selection, terminal tab strip, debug observation sidebar and display metadata
-|   |   |-- transfers/             Directory picker and structured transfer progress
+|   |   |-- transfers/             Directory picker, explicit SFTP management and structured transfer progress
 |   |   |-- terminal/              Per-view xterm presentation, bounded input, visibility-aware output pacing
 |   |   |-- styles/                Desktop presentation
 |   |   |-- host.ts                Renderer adapter for the typed Preload bridge

@@ -127,6 +127,7 @@ msgstr "Velocidad en baudios"
 #: src/main/index.ts
 #: src/main/index.ts
 #: src/main/index.ts
+#: src/main/index.ts
 #: src/shared/menu-messages.ts
 msgid "connection.cancel"
 msgstr "Cancelar"
@@ -2399,6 +2400,104 @@ msgstr "Usar ruta"
 #: src/shared/menu-messages.ts
 msgid "sshBrowser.useDirectory"
 msgstr "Usar ruta del directorio"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.already_exists"
+msgstr "El servidor informó que el destino ya existe."
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "sshManage.apply"
+msgstr "Aplicar cambio"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "sshManage.boundary"
+msgstr "Solo se usan las rutas indicadas. Renombrar no sobrescribe y la eliminación no es recursiva. Una operación desconectada o cancelada puede haberse aplicado. No se reintenta automáticamente."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.cancelled"
+msgstr "La solicitud se canceló."
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "sshManage.confirm"
+msgstr "Confirmar cambio SFTP"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.confirmed"
+msgstr "El servidor confirmó la operación. Vuelva a listar para revisar el contenido actual."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.mkdir"
+msgstr "Crear directorio"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.not_found"
+msgstr "El servidor informó que la entrada no existe."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.not_started"
+msgstr "No se inició ningún cambio SFTP."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.operation_failed"
+msgstr "La operación falló o no se pudo confirmar. Algunos servidores no indican la causa exacta; revise rutas, permisos y si el directorio está vacío."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.permission_denied"
+msgstr "El servidor denegó el acceso."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.rename"
+msgstr "Renombrar entrada"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.review"
+msgstr "Revisar cambio"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.rm"
+msgstr "Eliminar archivo o enlace simbólico"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.rmdir"
+msgstr "Eliminar directorio vacío"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.target"
+msgstr "Nueva ruta absoluta"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.target_changed"
+msgstr "La Session o el extremo seleccionado cambió."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.timeout"
+msgstr "La operación agotó el tiempo de espera."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "sshManage.unknown"
+msgstr "El estado final es desconocido. Revise el destino original antes de otra operación."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

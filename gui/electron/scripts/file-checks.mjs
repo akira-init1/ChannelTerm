@@ -1,4 +1,5 @@
 import { expect } from "@playwright/test";
+import { checkSSHManagement } from "./ssh-management-checks.mjs";
 import assert from "node:assert/strict";
 import { mkdtemp, mkdir, writeFile, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -174,6 +175,7 @@ export async function checkSSHFiles(desktop, page, fixture) {
     await start(true, false);
     await expect(job).toContainText("Completed", { timeout: 20000 });
     assert.deepEqual(await readFile(join(output, "gui-payload.bin")), payload);
+    await checkSSHManagement(desktop, page, fixture);
   } finally {
     await desktop.evaluate(({ dialog }) => {
       dialog.showOpenDialog = globalThis.originalFileDialog;

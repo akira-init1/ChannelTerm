@@ -1,17 +1,28 @@
 import { clientErrorMessageId } from "../../shared/host-recovery";
 import { useEffect, useRef, useState } from "react";
-import type { SSHBrowseResult, SSHFileEntry } from "../../shared/ssh-browser";
+import type {
+  SSHBrowseResult,
+  SSHFileEntry,
+  SSHManageOperation,
+  SSHManageResult,
+} from "../../shared/ssh-browser";
 import { host } from "../host";
 
-/** A read-only directory view; choosing a path does not start a transfer. */
+/** Browse snapshots and explicit management intent; Main confirms every mutation. */
 export function SSHBrowser({
   query,
+  manage,
   onSelect,
   onBusy,
   t,
   onDrop,
 }: {
   query: (operation: "ls" | "stat", path: string) => Promise<SSHBrowseResult>;
+  manage: (
+    operation: SSHManageOperation,
+    path: string,
+    target?: string,
+  ) => Promise<SSHManageResult>;
   onSelect: (path: string, kind: SSHFileEntry["kind"]) => void;
   onBusy: (busy: boolean) => void;
   t: (id: string) => string;
@@ -24,6 +35,50 @@ export function SSHBrowser({
     [error, setError] = useState("");
   const alive = useRef(true),
     pending = useRef(false);
+  const [mutation, setMutation] = useState<SSHManageOperation>();
+  const [mutationPath, setMutationPath] = useState("");
+  const [renameTarget, setRenameTarget] = useState("");
+  const [receipt, setReceipt] = useState<SSHManageResult>();
+  function prepare(operation: SSHManageOperation, target: string) {
+    setMutation(operation);
+    setMutationPath(target);
+    setRenameTarget("");
+    setReceipt(undefined);
+  }
+  async function apply() {
+    if (pending.current || !mutation) return;
+    pending.current = true;
+    setBusy(true);
+    onBusy(true);
+    setError("");
+    try {
+      const result = await manage(
+        mutation,
+        mutationPath,
+        mutation === "rename" ? renameTarget : undefined,
+      );
+      if (alive.current) {
+        setReceipt(result);
+        setMutation(undefined);
+        if (result.outcome !== "not_started") {
+          setResult(undefined);
+          setStat(undefined);
+        }
+      }
+    } catch (error) {
+      if (alive.current) {
+        setError(clientErrorMessageId(error));
+        setResult(undefined);
+        setStat(undefined);
+      }
+    } finally {
+      pending.current = false;
+      if (alive.current) {
+        setBusy(false);
+        onBusy(false);
+      }
+    }
+  }
   useEffect(() => {
     alive.current = true;
     return () => {
@@ -92,6 +147,15 @@ export function SSHBrowser({
         />
       </label>
       <div className="file-selection">
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() =>
+            prepare("mkdir", `${(result?.path ?? path).replace(/\/$/, "")}/`)
+          }
+        >
+          {t("sshManage.mkdir")}
+        </button>
         {busy && (
           <button type="button" onClick={() => void host.cancelSSHBrowse()}>
             {t("connection.cancel")}
@@ -121,6 +185,62 @@ export function SSHBrowser({
           </button>
         )}
       </div>
+      {mutation && (
+        <fieldset
+          disabled={busy}
+          onKeyDown={(event) => {
+            // This editor is inside the transfer form; Enter must not submit that form.
+            if (
+              event.key === "Enter" &&
+              !event.nativeEvent.isComposing &&
+              event.keyCode !== 229
+            )
+              event.preventDefault();
+          }}
+        >
+          <legend>{t(`sshManage.${mutation}`)}</legend>
+          <label>
+            {t("sshBrowser.path")}
+            <input
+              name="sshManagePath"
+              value={mutationPath}
+              maxLength={4096}
+              onChange={(event) => setMutationPath(event.target.value)}
+            />
+          </label>
+          {mutation === "rename" && (
+            <label>
+              {t("sshManage.target")}
+              <input
+                name="sshManageTarget"
+                value={renameTarget}
+                maxLength={4096}
+                onChange={(event) => setRenameTarget(event.target.value)}
+              />
+            </label>
+          )}
+          <p className="file-hint">{t("sshManage.boundary")}</p>
+          <button
+            type="button"
+            disabled={!mutationPath || (mutation === "rename" && !renameTarget)}
+            onClick={() => void apply()}
+          >
+            {t("sshManage.review")}
+          </button>
+          <button type="button" onClick={() => setMutation(undefined)}>
+            {t("connection.cancel")}
+          </button>
+        </fieldset>
+      )}
+      {receipt && (
+        <p role="status">
+          {t(`sshManage.${receipt.operation}`)} · {receipt.path}
+          {receipt.target ? ` → ${receipt.target}` : ""}
+          <br />
+          {t(`sshManage.${receipt.outcome}`)}
+          {receipt.reason && <> {t(`sshManage.${receipt.reason}`)}</>}
+        </p>
+      )}
       {error && <p role="alert">{t(error)}</p>}
       {stat && (
         <p role="status">
@@ -143,6 +263,29 @@ export function SSHBrowser({
                   {entry.mode}
                 </small>
                 <div>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => prepare("rename", child(entry.name))}
+                  >
+                    {t("sshManage.rename")}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy || entry.kind === "other"}
+                    onClick={() =>
+                      prepare(
+                        entry.kind === "directory" ? "rmdir" : "rm",
+                        child(entry.name),
+                      )
+                    }
+                  >
+                    {t(
+                      entry.kind === "directory"
+                        ? "sshManage.rmdir"
+                        : "sshManage.rm",
+                    )}
+                  </button>
                   {entry.kind === "directory" && (
                     <button
                       type="button"

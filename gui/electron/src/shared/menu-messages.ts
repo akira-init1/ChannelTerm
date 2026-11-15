@@ -1400,4 +1400,57 @@ export const menuMessages = [
     message:
       "Could not save or load local preferences/workspace. Current views remain usable; check local storage access.",
   },
+  /* i18n */ { id: "sshManage.mkdir", message: "Create directory" },
+  /* i18n */ { id: "sshManage.rename", message: "Rename entry" },
+  /* i18n */ { id: "sshManage.rm", message: "Remove file or symlink" },
+  /* i18n */ { id: "sshManage.rmdir", message: "Remove empty directory" },
+  /* i18n */ { id: "sshManage.confirm", message: "Confirm SFTP change" },
+  /* i18n */ { id: "sshManage.apply", message: "Apply change" },
+  /* i18n */ { id: "sshManage.review", message: "Review change" },
+  /* i18n */ {
+    id: "sshManage.boundary",
+    message:
+      "Exact paths only. Rename does not overwrite; deletion is not recursive. A disconnected or cancelled operation may already have taken effect. No automatic retry.",
+  },
+  /* i18n */ { id: "sshManage.target", message: "New absolute path" },
+  /* i18n */ {
+    id: "sshManage.confirmed",
+    message:
+      "Server confirmed the operation. List again to inspect current contents.",
+  },
+  /* i18n */ {
+    id: "sshManage.unknown",
+    message:
+      "Final state is unknown. Inspect the original target before another operation.",
+  },
+  /* i18n */ {
+    id: "sshManage.not_started",
+    message: "No SFTP mutation was started.",
+  },
+  /* i18n */ {
+    id: "sshManage.not_found",
+    message: "The server reported a missing entry.",
+  },
+  /* i18n */ {
+    id: "sshManage.already_exists",
+    message: "The server reported that the target exists.",
+  },
+  /* i18n */ {
+    id: "sshManage.permission_denied",
+    message: "The server denied access.",
+  },
+  /* i18n */ {
+    id: "sshManage.operation_failed",
+    message:
+      "Operation failed or could not be confirmed. Some servers provide no precise reason; check paths, access and whether a directory is empty.",
+  },
+  /* i18n */ {
+    id: "sshManage.cancelled",
+    message: "The request was cancelled.",
+  },
+  /* i18n */ { id: "sshManage.timeout", message: "The operation timed out." },
+  /* i18n */ {
+    id: "sshManage.target_changed",
+    message: "The selected Session or endpoint changed.",
+  },
 ] satisfies MessageDescriptor[];

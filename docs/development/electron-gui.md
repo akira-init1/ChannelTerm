@@ -164,6 +164,14 @@ checks a missing-path error, retries with Enter, selects the path without starti
 and then downloads it. `test-results/ssh-browser.png` captures this view. The Node suite covers
 listing limits, malformed records, failed child exit, credential isolation, cancellation before
 launch/during I/O, stale targets and root-directory properties using disposable fixtures.
+The management scenario uses only this fixture's in-memory paths: cancel the native confirmation,
+create directories, reject nonempty removal, rename, remove empty directories and delete the
+already-verified fixture payload. `test-results/ssh-management.png` records the result. Native
+confirmation is substituted to inspect its exact target and default-cancel policy; Main/IPC/CLI
+and SFTP execution remain real. Node tests additionally cover finite intent validation, stale
+registration, invalid receipts/exit status, cancellation and no retry; Go tests cover typed safe
+error codes and cancellation after acknowledgement. These fixtures do not prove real server
+permissions or hardware behavior.
 During an owned transfer, native tests also repeat window-close and app-quit requests, verify one
 themed notice and no native message box, dismiss with Escape/Continue, and then explicitly cancel
 the transfer. `test-results/file-close-notice.png` captures the notice.

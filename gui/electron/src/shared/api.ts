@@ -8,7 +8,12 @@ import type {
 } from "./mcp-setup";
 import type { ActivitySnapshot } from "./activity";
 import type { DiagnosticRequest, DiagnosticSaved } from "./diagnostics";
-import type { SSHBrowseRequest, SSHBrowseResult } from "./ssh-browser";
+import type {
+  SSHBrowseRequest,
+  SSHBrowseResult,
+  SSHManageRequest,
+  SSHManageResult,
+} from "./ssh-browser";
 import type { SSHTrustPrompt } from "./ssh-trust";
 import type { SerialProfiles, SerialProfileChange } from "./serial-profiles";
 import type {
@@ -223,6 +228,7 @@ export interface DesktopAPI {
   ): Promise<Result<DiagnosticSaved | undefined>>;
   cancelDiagnostics(): Promise<Result<void>>;
   browseSSH(request: SSHBrowseRequest): Promise<Result<SSHBrowseResult>>;
+  manageSSH(request: SSHManageRequest): Promise<Result<SSHManageResult>>;
   cancelSSHBrowse(): Promise<Result<void>>;
   read(attachmentId: string): Promise<Result<Output>>;
   write(attachmentId: string, data: string): Promise<Result<void>>;
@@ -298,6 +304,7 @@ export const channels = {
   saveDiagnostics: "diagnostics:save",
   cancelDiagnostics: "diagnostics:cancel",
   browseSSH: "ssh:browse",
+  manageSSH: "ssh:manage",
   cancelSSHBrowse: "ssh:cancel-browse",
   read: "host:read",
   write: "host:write",

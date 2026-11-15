@@ -509,8 +509,17 @@ sizes. Rejected metadata emits `failed` with `entries: 0` and `error_code: listi
 operation failures use `operation_failed`, with `cancelled` for context cancellation.
 Consumers must discard partial records unless completion and process exit both succeed.
 These bounds apply to output: the existing SFTP client still enumerates the directory before
-returning it. Human listings and transfer records are unchanged; management operations do
-not accept `--json`.
+returning it. Human listings and transfer records are unchanged.
+
+SFTP `mkdir`, `rename`, `rm`, and `rmdir` accept `--json` with the same `started` record,
+then one terminal record containing `type`, `operation`, `outcome`, and `error_code`.
+Only a successful operation and connection cleanup emit `completed`, `outcome: confirmed`,
+and an empty error code. Failures emit `failed` (or `cancelled`) with `outcome: unknown`:
+the request may already have taken effect before cancellation or connection loss. Safe typed
+codes are `not_found`, `already_exists`, `permission_denied`, `timeout`, `cancelled`, or
+`operation_failed`; a generic server error does not identify a more specific cause. Diagnostic
+text remains on stderr. Consumers must require a complete result and matching process exit,
+then explicitly inspect the target before retrying. No automatic retry or rollback is added.
 
 `--credentials-stdin` requires `--json`. It reads one JSON object to EOF, with optional string
 fields `password` and `key_passphrase`, rejects unknown fields/trailing data, and disables prompts

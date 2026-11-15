@@ -604,6 +604,40 @@ function createHandlers(context: WindowContext): Record<string, Handler> {
       return context.sshBrowser.browse(currentHost(context), request);
     },
     [channels.cancelSSHBrowse]: () => context.sshBrowser.cancel(),
+    [channels.manageSSH]: (request) => {
+      if (
+        context.files.busy ||
+        context.sshFiles.busy ||
+        context.savingEndpoint ||
+        desktop.quitting
+      )
+        throw new HostError("busy", "Finish the current file operation first.");
+      const selectedHost = currentHost(context);
+      return context.sshBrowser.manage(
+        selectedHost,
+        request,
+        async (intent) => {
+          const i18n = setupI18n({
+            locale: context.menu.locale,
+            messages: menuCatalogs,
+          });
+          const operationLabel = "sshManage." + intent.operation;
+          const answer = await dialog.showMessageBox(context.window, {
+            type: "warning",
+            message: i18n._("sshManage.confirm"),
+            detail: `${intent.sessionId} · ${intent.endpoint}\n${i18n._(operationLabel)}\n${intent.path}${intent.target ? `\n→ ${intent.target}` : ""}\n\n${i18n._("sshManage.boundary")}`,
+            buttons: [i18n._("connection.cancel"), i18n._("sshManage.apply")],
+            defaultId: 0,
+            cancelId: 0,
+          });
+          return (
+            answer.response === 1 &&
+            !context.disposed &&
+            currentHost(context) === selectedHost
+          );
+        },
+      );
+    },
     [channels.copyAITarget]: async (id, locale) => {
       identifier(id);
       if (copyingTarget)
@@ -990,6 +1024,7 @@ function registerIPC(): void {
                     channels.activity,
                     channels.saveDiagnostics,
                     channels.browseSSH,
+                    channels.manageSSH,
                     channels.readClipboard,
                     channels.menuState,
                     channels.openConnection,
