@@ -17,6 +17,12 @@ import {
 test("local settings reject control characters, excess bytes, unknown fields and malformed Unicode", () => {
   assert.ok(isTerminalSettings(defaultTerminalSettings));
   assert.ok(
+    isTerminalSettings({
+      ...defaultTerminalSettings,
+      highlightProfile: "11111111-1111-4111-8111-111111111111",
+    }),
+  );
+  assert.ok(
     isTerminalSettings({ ...defaultTerminalSettings, description: "板子😀" }),
   );
   for (const patch of [
@@ -26,6 +32,9 @@ test("local settings reject control characters, excess bytes, unknown fields and
     { encoding: "utf7" },
     { view: "binary" },
     { command: "anything" },
+    { highlightProfile: "COM8" },
+    { highlightProfile: "SER-1" },
+    { highlightProfile: "x".repeat(513) },
   ])
     assert.equal(
       isTerminalSettings({ ...defaultTerminalSettings, ...patch }),
@@ -136,7 +145,18 @@ test("real Host keeps raw bytes while Main encodes client input and rejects hex/
         ...defaultTerminalSettings,
         encoding,
         description: "local only",
+        highlightProfile: "11111111-1111-4111-8111-111111111111",
       });
+      assert.equal(
+        client.describeAttachment(attachment.id).settings.highlightProfile,
+        "11111111-1111-4111-8111-111111111111",
+      );
+      assert.ok(
+        !JSON.stringify(await observer.list()).includes(
+          "11111111-1111-4111-8111-111111111111",
+        ),
+        "local presentation identity is not Host Session metadata",
+      );
       await client.read(attachment.id);
       const input = encoding === "gbk" ? "中文" : "😀";
       const expected =

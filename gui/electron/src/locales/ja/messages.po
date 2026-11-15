@@ -1357,6 +1357,111 @@ msgstr "ChannelTerm の使い方"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "highlight.add"
+msgstr "ルールを追加"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.clear"
+msgstr "この一覧を空にする"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.color"
+msgstr "色"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.deleteTemplate"
+msgstr "選択したテンプレートを削除"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.down"
+msgstr "ルールを下へ"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.enabled"
+msgstr "有効"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.hint"
+msgstr "この保存済み接続専用のローカル文字列ルールです。重複時は上のルールが優先されます。最大32件、各128 UTF-16単位。変更は今後の安全なテキストに適用され、ANSI、全画面出力、プロンプト、HEXは変更しません。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.import"
+msgstr "コピーを読み込む"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.invalid"
+msgstr "文字列、色、テンプレート名を確認してください。上限は一覧ごとに32ルール、10テンプレート、名前は64 UTF-16単位です。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.remove"
+msgstr "ルールを削除"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.replaceTemplate"
+msgstr "選択したテンプレートを置換"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.save"
+msgstr "接続ルールを保存"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.saveError"
+msgstr "ルールを保存または読み込めません。ストレージが利用不可、容量不足、または別のウィンドウで変更された可能性があります。保存済み接続は再作成されていません。この画面で再試行するかキャンセルしてください。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.saveTemplate"
+msgstr "新規テンプレートとして保存"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.template"
+msgstr "テンプレート"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.templateHint"
+msgstr "読み込みは独立したコピーを追加します。テンプレートの保存は即座に有効になり、読み込み済みの接続には反映されません。接続ルールは別途保存してください。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.templateName"
+msgstr "テンプレート名"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.templates"
+msgstr "再利用可能なテンプレート"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.text"
+msgstr "文字列"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.title"
+msgstr "キーワード強調表示…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.up"
+msgstr "ルールを上へ"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "history.favorite"
 msgstr "SSH をお気に入りに登録"
 

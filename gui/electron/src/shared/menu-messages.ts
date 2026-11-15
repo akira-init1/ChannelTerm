@@ -3,6 +3,49 @@ import type { MessageDescriptor } from "@lingui/core";
 // Lingui 5 extracts these official annotated descriptors without a runtime macro
 // transform. Translations belong in PO catalogs; this file owns IDs and English defaults.
 export const menuMessages = [
+  /* i18n */ { id: "highlight.remove", message: "Remove rule" },
+  /* i18n */ { id: "highlight.title", message: "Keyword highlights…" },
+  /* i18n */ {
+    id: "highlight.hint",
+    message:
+      "Local literal rules for this saved connection. Earlier rules win overlaps. Up to 32 rules, 128 UTF-16 units each. Changes affect future safe text; ANSI, full-screen output, prompts and HEX remain unchanged.",
+  },
+  /* i18n */ { id: "highlight.enabled", message: "Enabled" },
+  /* i18n */ { id: "highlight.text", message: "Literal text" },
+  /* i18n */ { id: "highlight.color", message: "Color" },
+  /* i18n */ { id: "highlight.up", message: "Move rule up" },
+  /* i18n */ { id: "highlight.down", message: "Move rule down" },
+  /* i18n */ { id: "highlight.add", message: "Add rule" },
+  /* i18n */ { id: "highlight.clear", message: "Clear this list" },
+  /* i18n */ { id: "highlight.templates", message: "Reusable templates" },
+  /* i18n */ { id: "highlight.template", message: "Template" },
+  /* i18n */ { id: "highlight.templateName", message: "Template name" },
+  /* i18n */ {
+    id: "highlight.templateHint",
+    message:
+      "Import appends independent copies. Template saves take effect immediately; they never update imported connections. Save connection rules separately.",
+  },
+  /* i18n */ { id: "highlight.import", message: "Import copies" },
+  /* i18n */ { id: "highlight.saveTemplate", message: "Save as new template" },
+  /* i18n */ {
+    id: "highlight.replaceTemplate",
+    message: "Replace selected template",
+  },
+  /* i18n */ {
+    id: "highlight.deleteTemplate",
+    message: "Delete selected template",
+  },
+  /* i18n */ { id: "highlight.save", message: "Save connection rules" },
+  /* i18n */ {
+    id: "highlight.invalid",
+    message:
+      "Check rule text, colors and template name. Limits: 32 rules per list, 10 templates, 64 UTF-16 units per template name.",
+  },
+  /* i18n */ {
+    id: "highlight.saveError",
+    message:
+      "Cannot save or load these rules. Storage may be unavailable, full, or changed in another window. The saved connection was not recreated. Keep this dialog open to retry or cancel.",
+  },
   /* i18n */ { id: "send.open", message: "Debug send and snippets" },
   /* i18n */ {
     id: "send.help",

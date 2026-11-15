@@ -16,6 +16,7 @@ import type { TerminalSettings } from "../../shared/terminal-settings";
 import type { DisplaySettings } from "../../shared/display-settings";
 import { PastePreview } from "./PastePreview";
 import { SemanticHighlighter } from "./highlight";
+import type { HighlightRule } from "../../shared/highlight-rules";
 import { TerminalSearch } from "./TerminalSearch";
 import { PromptTimestamp } from "./prompt-timestamp";
 
@@ -44,6 +45,7 @@ export function TerminalView({
   controlVersion,
   visible,
   focused,
+  highlightRules,
   onReady,
   onError,
   onDropped,
@@ -60,6 +62,7 @@ export function TerminalView({
   controlVersion?: string;
   visible: boolean;
   focused: boolean;
+  highlightRules: readonly HighlightRule[];
   onReady: () => void;
   onError: (error: ClientError) => void;
   onDropped: () => void;
@@ -70,6 +73,9 @@ export function TerminalView({
   const local = useRef<Terminal | undefined>(undefined);
   const fitting = useRef<FitAddon | undefined>(undefined);
   const releasePresentation = useRef<(() => void) | undefined>(undefined);
+  const changeHighlightRules = useRef<
+    ((rules: readonly HighlightRule[]) => void) | undefined
+  >(undefined);
   const terminalStyle = useRef(display.terminalStyle);
   terminalStyle.current = display.terminalStyle;
   const promptTimestamps = useRef(display.promptTimestamps);
@@ -211,6 +217,7 @@ export function TerminalView({
   useEffect(() => {
     const presentation = new TerminalPresentation(settings);
     const styling = new SemanticHighlighter();
+    styling.setRules(highlightRules);
     const timestamps = new PromptTimestamp();
     let pendingTimer: ReturnType<typeof setTimeout> | undefined;
     const terminal = new Terminal({
@@ -297,6 +304,11 @@ export function TerminalView({
       }
     };
     releasePresentation.current = releasePending;
+    changeHighlightRules.current = (rules) => {
+      releasePending();
+      const pending = styling.setRules(rules);
+      if (pending.length) terminal.write(pending);
+    };
     // Historical device queries are not current requests to this attachment.
     // Intercept queries at the parser (not by filtering user keystrokes or raw output).
     // Live queries still reach xterm's standard handlers, including split sequences.
@@ -447,10 +459,18 @@ export function TerminalView({
       local.current = undefined;
       fitting.current = undefined;
       releasePresentation.current = undefined;
+      changeHighlightRules.current = undefined;
       // Main owns detach/cancellation; React effect cleanup must not detach a
       // newly mounted view (including StrictMode effect replay).
     };
   }, [attachment.id]);
+
+  const highlightSignature = JSON.stringify(highlightRules);
+  useEffect(() => {
+    // Usage counters and another window's unrelated edits can reload equal rule arrays.
+    // Only an actual rule change may flush a partly received line.
+    changeHighlightRules.current?.(highlightRules);
+  }, [highlightSignature]);
 
   useEffect(() => {
     if (!visible) {

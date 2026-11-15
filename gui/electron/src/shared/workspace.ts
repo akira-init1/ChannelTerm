@@ -159,6 +159,9 @@ export function restoreWorkspace(
         encoding: entry.settings.encoding,
         view: entry.settings.view,
         description: entry.settings.description,
+        ...(entry.settings.highlightProfile
+          ? { highlightProfile: entry.settings.highlightProfile }
+          : {}),
       },
       ...(object(target)
         ? {

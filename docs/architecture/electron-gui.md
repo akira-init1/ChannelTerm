@@ -223,6 +223,15 @@ Per-line matching is capped at 2048 candidates and 512 rendered spans; excessive
 through raw. Split UTF-8, remote ANSI state, alternate screens and data-loss resets retain explicit
 handling. HEX bypasses this layer. Disposal cancels the timer and discards unfinished local styling.
 
+Saved connections can add up to 32 validated literal rules, evaluated before default rules with
+earlier custom rules taking overlapping text. They share the same match/span bounds and VT safety
+state. Updating rules flushes a partial line raw without resetting remote ANSI state, repainting
+retained cells or replaying output. Templates are independent value copies, not live references.
+Rules stay in Renderer storage; only an optional validated local profile UUID accompanies client
+terminal settings through Main attachment descriptions, splitting, window handoff and workspace
+recovery. It confers no Host capability and is absent from Session metadata. New-view defaults
+strip this reference. Unknown/deleted profiles use the shared defaults.
+
 Plain mode disables new semantic insertion and overlays black/white colors on the pinned xterm
 DOM renderer, including retained cells, TrueColor, inverse and OSC-selected backgrounds. It does
 not remove terminal control sequences or change parser attributes, so returning to the default
@@ -728,6 +737,13 @@ Renderer projects successful explicit connection requests through a strict allow
 local storage. Recent connections and SSH favorites are presentation/form data, not Session or
 Transport ownership. They exclude credentials, credential paths and wake intent; loading a record
 only fills the connection dialog. Main and Host retain all existing validation and creation authority.
+Successful records receive local UUIDs; legacy records gain one on explicit use or opening their
+rule editor. Complete safe-preset equality preserves identity on reuse; another preset gets another
+identity even at the same physical endpoint. A connection's optional rules are stored in that record.
+Duplicate/malformed IDs discard their presentation binding and rules while retaining valid connection
+parameters. An explicit connection request that changes a current view's profile uses the existing
+guarded attachment replacement; it does not close or recreate the shared Session. Failed persistence
+does not retry connection setup. Views without a valid saved reference retain default styling.
 Malformed or oversized persisted data is discarded. See the [workflow and storage contract](../reference/gui-menus.md#recent-connections-and-ssh-favorites).
 
 ## Preferences and workspace recovery

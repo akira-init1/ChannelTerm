@@ -23,6 +23,7 @@ import { checkConnections } from "./connection-checks.mjs";
 import { checkStartup } from "./startup-checks.mjs";
 import { checkWindows } from "./window-checks.mjs";
 import { checkSplits } from "./split-checks.mjs";
+import { checkConnectionHighlights } from "./connection-highlight-checks.mjs";
 import { checkCompactLayout, checkWorkbenchPanels } from "./layout-checks.mjs";
 import { randomBytes } from "node:crypto";
 import { mkdtemp, writeFile } from "node:fs/promises";
@@ -579,6 +580,7 @@ try {
   await checkConnections(desktopEnvironment, launchArgs);
   await checkWindows(desktopEnvironment);
   await checkSplits(desktopEnvironment);
+  await checkConnectionHighlights(desktopEnvironment);
   await checkWorkspace(desktopEnvironment);
   await checkStartup(desktopEnvironment, preloadArgs);
   await checkIdle(desktopEnvironment, preloadArgs);

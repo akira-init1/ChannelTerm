@@ -7,6 +7,66 @@ const plain = (data: Uint8Array) =>
   new TextDecoder().decode(data).replace(/\x1b\[[\d;]+m/g, "");
 const error = "\x1b[38;2;255;95;95mERROR\x1b[0m";
 
+test("connection literal rules override default overlaps, preserve Unicode across chunks and never interpret patterns", () => {
+  const rules = [
+    { text: "ERROR设备😀", color: "#123456", enabled: true },
+    { text: "设备😀 ready", color: "#abcdef", enabled: true },
+    { text: "[literal].*", color: "#0000ff", enabled: true },
+    { text: "ignored", color: "#ffffff", enabled: false },
+  ];
+  const input = bytes("ERROR设备😀 ready [literal].* ignored\n");
+  const expected =
+    "\x1b[38;2;18;52;86mERROR设备😀\x1b[0m\x1b[38;2;171;205;239m ready\x1b[0m \x1b[38;2;0;0;255m[literal].*\x1b[0m ignored\n";
+  for (let split = 0; split <= input.length; split++) {
+    const renderer = new SemanticHighlighter();
+    assert.equal(renderer.setRules(rules).length, 0);
+    const actual = Buffer.concat([
+      renderer.write(input.slice(0, split)),
+      renderer.write(input.slice(split)),
+    ]);
+    assert.equal(actual.toString(), expected, `split ${split}`);
+    assert.equal(plain(actual), new TextDecoder().decode(input));
+  }
+});
+
+test("rule changes flush incomplete text without resetting ANSI safety or replaying retained output", () => {
+  const renderer = new SemanticHighlighter();
+  const rule = { text: "ERROR", color: "#123456", enabled: true };
+  renderer.write(bytes("partial "));
+  assert.equal(new TextDecoder().decode(renderer.setRules([rule])), "partial ");
+  assert.equal(
+    new TextDecoder().decode(renderer.write(bytes("ERROR\n"))),
+    "ERROR\n",
+  );
+  const remote = "\x1b[31mERROR\n";
+  assert.equal(new TextDecoder().decode(renderer.write(bytes(remote))), remote);
+  renderer.setRules([{ ...rule, color: "#abcdef" }]);
+  assert.equal(
+    new TextDecoder().decode(renderer.write(bytes("ERROR\n"))),
+    "ERROR\n",
+  );
+  assert.equal(
+    new TextDecoder().decode(renderer.write(bytes("\x1b[0m\nERROR\n"))),
+    "\x1b[0m\n\x1b[38;2;171;205;239mERROR\x1b[0m\n",
+  );
+  const alternate = "\x1b[?1049hERROR\n\x1b[2JERROR\n\x1b[?1049l";
+  assert.equal(
+    new TextDecoder().decode(renderer.write(bytes(alternate))),
+    alternate,
+  );
+  assert.throws(
+    () => renderer.setRules([{ ...rule, text: "\x1b" }]),
+    RangeError,
+  );
+  const overloaded = bytes("a".repeat(3000) + "\n");
+  renderer.setRules([{ ...rule, text: "a" }]);
+  assert.deepEqual(
+    renderer.write(overloaded),
+    overloaded,
+    "custom match overflow stays raw and bounded",
+  );
+});
+
 test("semantic colors retain text, priority fragments, Unicode and prompts across byte splits", () => {
   const input = bytes(
     '设备😀 mmcblk0: ERROR "ready 42" 0x10\r\nroot@board:/tmp# ',

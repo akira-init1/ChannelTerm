@@ -1357,6 +1357,111 @@ msgstr "Uso de ChannelTerm"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "highlight.add"
+msgstr "Añadir regla"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.clear"
+msgstr "Vaciar esta lista"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.color"
+msgstr "Color"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.deleteTemplate"
+msgstr "Eliminar plantilla seleccionada"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.down"
+msgstr "Bajar regla"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.enabled"
+msgstr "Activada"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.hint"
+msgstr "Reglas locales de texto literal para esta conexión guardada. Las primeras tienen prioridad en solapamientos. Hasta 32 reglas de 128 unidades UTF-16 cada una. Se aplican al texto seguro futuro; ANSI, salida a pantalla completa, prompts y HEX no cambian."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.import"
+msgstr "Importar copias"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.invalid"
+msgstr "Revise texto, colores y nombre de plantilla. Límites: 32 reglas por lista, 10 plantillas y 64 unidades UTF-16 por nombre."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.remove"
+msgstr "Eliminar regla"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.replaceTemplate"
+msgstr "Reemplazar plantilla seleccionada"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.save"
+msgstr "Guardar reglas de conexión"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.saveError"
+msgstr "No se pueden guardar o cargar las reglas. El almacenamiento puede no estar disponible, estar lleno o haber cambiado en otra ventana. No se recreó la conexión guardada. Reintente desde este diálogo o cancele."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.saveTemplate"
+msgstr "Guardar como nueva plantilla"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.template"
+msgstr "Plantilla"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.templateHint"
+msgstr "La importación añade copias independientes. Guardar plantillas tiene efecto inmediato; no actualiza conexiones ya importadas. Guarde las reglas de conexión por separado."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.templateName"
+msgstr "Nombre de plantilla"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.templates"
+msgstr "Plantillas reutilizables"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.text"
+msgstr "Texto literal"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.title"
+msgstr "Resaltar palabras clave…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.up"
+msgstr "Subir regla"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "history.favorite"
 msgstr "Favorito SSH"
 

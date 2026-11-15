@@ -376,6 +376,35 @@ the semantic default while retaining fonts. Font/style settings gain `promptTime
 without losing existing choices, and malformed values use defaults.
 If saving fails, the dialog stays open. Wheel changes still apply locally with a storage notice.
 
+### Connection keyword rules
+
+Open **New Connection... > Recent connections and SSH favorites > Keyword highlights...** for one
+saved record. Add or edit literal text and color, enable/disable rules, move them up/down, remove
+one, or clear the current draft. **Save connection rules** applies that draft; Cancel keeps saved
+rules. Up to 32 rules are allowed, each with 1–128 UTF-16 code units, no control characters or lone
+surrogates, and a six-digit RGB color. Earlier enabled rules win overlapping characters before the
+shared defaults. Matching is case-sensitive and does not interpret regular expressions.
+
+The current semantic style applies rules to future safe text only; retained cells are not recolored.
+Incomplete lines flush unchanged on rule changes. Prompts, remote ANSI state, full-screen/alternate
+screens and HEX keep their existing behavior. Plain style suppresses local colors. Search
+decorations and normal text copy remain independent; Host/CLI/MCP bytes and default rules do not change.
+
+Templates hold named rule lists. Import appends independent copies within the 32-rule limit;
+changing or deleting a template never changes previously imported connections. Saving a new
+template or replacing/deleting the selected one takes effect immediately, separately from saving
+connection rules. Up to 10 templates are stored in `channelterm.highlight-templates.v1`, with
+1–64 UTF-16 code units per name and at most 65,536 stored UTF-16 code units. Storage errors keep
+the editor open for explicit retry or Cancel; a removed connection is never silently recreated.
+
+Use the saved connection explicitly to associate its rules with a terminal view. Its local UUID
+survives reuse, split views, window moves and validated workspace restore; it is not a Session ID,
+short reference or bare port. Legacy records gain an ID on explicit use or editing; existing
+unbound views keep defaults until the saved connection is explicitly opened. Rebinding an existing
+view uses the normal attachment replacement and its retained-output limit. Missing/deleted/corrupt
+profiles fall back to defaults. General terminal presentation changes retain the binding; new-view
+defaults do not inherit it.
+
 ## File actions
 
 **Session > File Transfer > Send to device / Receive from device** (`file.send` / `file.receive`) are also
@@ -548,8 +577,9 @@ its form, review the settings and explicitly connect. SSH records can be favorit
 any record can be forgotten. Favorites are retained before older recent records when the bound
 is reached. The connection label names the record; editing it creates a distinct preset.
 
-The GUI profile stores only allowlisted serial/SSH parameters in renderer local storage under
-`channelterm.connections.v1`. Passwords, private-key passphrases, identity/trust-file paths,
+The GUI profile stores allowlisted serial/SSH parameters, optional local profile UUIDs and
+[keyword rules](#connection-keyword-rules) in renderer local storage under
+`channelterm.connections.v1` (at most 131,072 UTF-16 code units). Passwords, private-key passphrases, identity/trust-file paths,
 terminal input and output are excluded. Re-enter authentication and custom credential paths.
 Serial wake is always reset to off. Selecting a record never connects, sends input or grants trust;
 existing Host validation and SSH host-key confirmation still apply. Failed connection attempts do

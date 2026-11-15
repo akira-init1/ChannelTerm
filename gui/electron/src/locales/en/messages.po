@@ -1357,6 +1357,111 @@ msgstr "Using ChannelTerm"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "highlight.add"
+msgstr "Add rule"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.clear"
+msgstr "Clear this list"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.color"
+msgstr "Color"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.deleteTemplate"
+msgstr "Delete selected template"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.down"
+msgstr "Move rule down"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.enabled"
+msgstr "Enabled"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.hint"
+msgstr "Local literal rules for this saved connection. Earlier rules win overlaps. Up to 32 rules, 128 UTF-16 units each. Changes affect future safe text; ANSI, full-screen output, prompts and HEX remain unchanged."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.import"
+msgstr "Import copies"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.invalid"
+msgstr "Check rule text, colors and template name. Limits: 32 rules per list, 10 templates, 64 UTF-16 units per template name."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.remove"
+msgstr "Remove rule"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.replaceTemplate"
+msgstr "Replace selected template"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.save"
+msgstr "Save connection rules"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.saveError"
+msgstr "Cannot save or load these rules. Storage may be unavailable, full, or changed in another window. The saved connection was not recreated. Keep this dialog open to retry or cancel."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.saveTemplate"
+msgstr "Save as new template"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.template"
+msgstr "Template"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.templateHint"
+msgstr "Import appends independent copies. Template saves take effect immediately; they never update imported connections. Save connection rules separately."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.templateName"
+msgstr "Template name"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.templates"
+msgstr "Reusable templates"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.text"
+msgstr "Literal text"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.title"
+msgstr "Keyword highlights…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.up"
+msgstr "Move rule up"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "history.favorite"
 msgstr "Favorite SSH"
 

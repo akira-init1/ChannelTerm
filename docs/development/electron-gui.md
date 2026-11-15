@@ -686,6 +686,15 @@ paths use production IPC and the real Host with fake serial I/O and loopback SSH
 `test-results/split-views.png` and `test-results/split-compact.png`. Synthetic composition events
 check key-dispatch guards only; these tests do not establish native IME or physical-device behavior.
 
+`highlight-rules.test.ts` covers safe literal limits, independent template copies and saved-record
+identity migration/reuse without endpoint-based rule inheritance. The streaming tests cover all
+UTF-8 splits, overlap precedence, match overflow and rule changes during remote ANSI state.
+`connection-highlight-checks.mjs` exercises the native editor, ordering, enabling, deletion,
+clear/import, template replacement/deletion isolation, search coexistence, exact Host bytes,
+storage failure/retry, nine locales, restart, saved-preset reuse, splitting and window handoff.
+Its serial I/O is disposable and simulated; `test-results/connection-highlights-compact.png`
+records narrow-window rendering. Failed storage is injected only in the isolated test renderer.
+
 `workspace.test.ts` validates bounded persisted preferences and tab order/settings, rejects malformed
 or foreign-Host snapshots, strips runtime/input/output fields and matches full live Session identity.
 `workspace-checks.mjs`, included in the native desktop suite, restarts Electron with a disposable

@@ -1357,6 +1357,111 @@ msgstr "Работа с ChannelTerm"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "highlight.add"
+msgstr "Добавить правило"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.clear"
+msgstr "Очистить список"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.color"
+msgstr "Цвет"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.deleteTemplate"
+msgstr "Удалить выбранный шаблон"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.down"
+msgstr "Правило ниже"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.enabled"
+msgstr "Включено"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.hint"
+msgstr "Локальные правила буквального текста для этого сохранённого подключения. При перекрытии приоритет у верхних правил. До 32 правил по 128 единиц UTF-16. Изменения действуют на будущий безопасный текст; ANSI, полноэкранный вывод, приглашения и HEX не меняются."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.import"
+msgstr "Импортировать копии"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.invalid"
+msgstr "Проверьте текст правил, цвета и имя шаблона. Ограничения: 32 правила в списке, 10 шаблонов, 64 единицы UTF-16 в имени."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.remove"
+msgstr "Удалить правило"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.replaceTemplate"
+msgstr "Заменить выбранный шаблон"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.save"
+msgstr "Сохранить правила подключения"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.saveError"
+msgstr "Не удалось сохранить или загрузить правила. Хранилище может быть недоступно, заполнено или изменено в другом окне. Сохранённое подключение не создавалось заново. Повторите попытку в этом окне или отмените."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.saveTemplate"
+msgstr "Сохранить новый шаблон"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.template"
+msgstr "Шаблон"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.templateHint"
+msgstr "Импорт добавляет независимые копии. Шаблоны сохраняются сразу и не обновляют ранее импортированные подключения. Правила подключения сохраняются отдельно."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.templateName"
+msgstr "Имя шаблона"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.templates"
+msgstr "Повторно используемые шаблоны"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.text"
+msgstr "Буквальный текст"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.title"
+msgstr "Подсветка ключевых слов…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.up"
+msgstr "Правило выше"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "history.favorite"
 msgstr "В избранное SSH"
 

@@ -342,7 +342,18 @@ export async function checkSplits(environment) {
     await expect(originalPane.locator(".remote-size-controls")).toContainText(
       "Remote size follows this view",
     );
-    assert.equal(await observer.resizeControl(owner.id, "status"), false);
+    // Taking control schedules the pane's initial resize. Host can reject a concurrent
+    // observation as busy; wait only on this read-only status, never replay take/resize.
+    await expect
+      .poll(async () => {
+        try {
+          return await observer.resizeControl(owner.id, "status");
+        } catch (error) {
+          if (error.code === "busy") return "busy";
+          throw error;
+        }
+      })
+      .toBe(false);
     await expect(duplicatePane.locator(".remote-size-controls")).toContainText(
       "Local fitting only",
     );

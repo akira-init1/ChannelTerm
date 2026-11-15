@@ -1357,6 +1357,111 @@ msgstr "Utiliser ChannelTerm"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "highlight.add"
+msgstr "Ajouter une règle"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.clear"
+msgstr "Vider cette liste"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.color"
+msgstr "Couleur"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.deleteTemplate"
+msgstr "Supprimer le modèle sélectionné"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.down"
+msgstr "Descendre la règle"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.enabled"
+msgstr "Activée"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.hint"
+msgstr "Règles locales de texte littéral pour cette connexion enregistrée. Les premières priment en cas de chevauchement. Jusqu’à 32 règles de 128 unités UTF-16 chacune. Les modifications concernent le futur texte sûr ; ANSI, plein écran, invites et HEX restent inchangés."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.import"
+msgstr "Importer des copies"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.invalid"
+msgstr "Vérifiez le texte, les couleurs et le nom du modèle. Limites : 32 règles par liste, 10 modèles, 64 unités UTF-16 par nom."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.remove"
+msgstr "Supprimer la règle"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.replaceTemplate"
+msgstr "Remplacer le modèle sélectionné"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.save"
+msgstr "Enregistrer les règles de connexion"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.saveError"
+msgstr "Impossible d’enregistrer ou de charger les règles. Le stockage peut être indisponible, plein ou modifié dans une autre fenêtre. La connexion enregistrée n’a pas été recréée. Réessayez dans cette boîte de dialogue ou annulez."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.saveTemplate"
+msgstr "Enregistrer un nouveau modèle"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.template"
+msgstr "Modèle"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.templateHint"
+msgstr "L’import ajoute des copies indépendantes. L’enregistrement d’un modèle est immédiat et ne modifie pas les connexions déjà importées. Enregistrez séparément les règles de connexion."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.templateName"
+msgstr "Nom du modèle"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.templates"
+msgstr "Modèles réutilisables"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.text"
+msgstr "Texte littéral"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.title"
+msgstr "Surlignage de mots-clés…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.up"
+msgstr "Monter la règle"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "history.favorite"
 msgstr "Favori SSH"
 

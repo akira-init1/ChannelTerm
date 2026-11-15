@@ -133,6 +133,25 @@ test("optional split layout restores bounded local indices and ignores invalid l
   );
 });
 
+test("workspace retains a validated local highlight profile while new-view defaults never inherit one", () => {
+  const profile = "11111111-1111-4111-8111-111111111111";
+  const saved = {
+    ...snapshot,
+    tabs: snapshot.tabs.map((tab) => ({
+      ...tab,
+      settings: { ...tab.settings, highlightProfile: profile },
+    })),
+  };
+  assert.deepEqual(restoreWorkspace(JSON.stringify(saved), endpoint), saved);
+  const preferences = restoreWorkbenchPreferences(
+    JSON.stringify({
+      ...defaultWorkbenchPreferences,
+      terminal: { ...defaultTerminalSettings, highlightProfile: profile },
+    }),
+  );
+  assert.equal(preferences.terminal.highlightProfile, undefined);
+});
+
 test("corrupt, oversized or invalid workspace records fail closed", () => {
   for (const raw of [
     "{",

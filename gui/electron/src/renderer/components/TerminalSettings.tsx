@@ -91,7 +91,12 @@ export function TerminalSettingsDialog({
     pending.current = true;
     setBusy(true);
     try {
-      await onApply(settings);
+      await onApply({
+        ...settings,
+        ...(value.highlightProfile
+          ? { highlightProfile: value.highlightProfile }
+          : {}),
+      });
       onClose();
     } finally {
       pending.current = false;

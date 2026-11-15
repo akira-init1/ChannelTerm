@@ -61,6 +61,10 @@ import {
 import { SessionList } from "../sessions/SessionList";
 import { CloseSessionDialog } from "../sessions/CloseSessionDialog";
 import { TerminalView, type TerminalControls } from "../terminal/TerminalView";
+import {
+  useConnectionHighlights,
+  emptyHighlightRules,
+} from "../terminal/useConnectionHighlights";
 import { Icon } from "./Icon";
 import { WorkbenchMenu, type MenuPopupRequest } from "./WorkbenchMenu";
 import {
@@ -330,6 +334,7 @@ export function App() {
   }, [connected]);
   const [connectionError, setError] = useState<ClientError>();
   const [historyError, setHistoryError] = useState(false);
+  const highlightProfiles = useConnectionHighlights();
   const error = activeTab?.error ?? connectionError;
   const [windowCount, setWindowCount] = useState(1);
   const copyingTarget = useRef(false);
@@ -1222,7 +1227,20 @@ export function App() {
           message:
             "The created Session is unavailable. Refresh Sessions before trying again.",
         } satisfies ClientError;
-      await select(target, settings);
+      const existing = tabsRef.current.find(
+        (tab) => tab.attachment?.sessionId === target.session_id,
+      );
+      // Explicitly opening a saved connection may change local presentation binding. Use the
+      // existing guarded replacement path so window handoff retains the same validated settings.
+      await select(
+        target,
+        settings,
+        existing &&
+          settings?.highlightProfile !== undefined &&
+          existing.settings.highlightProfile !== settings.highlightProfile
+          ? existing.id
+          : undefined,
+      );
     } finally {
       actionBusy.current = false;
       setOperation(undefined);
@@ -2194,7 +2212,7 @@ export function App() {
                 {t("tab.moving")}
               </div>
             )}
-            {historyError && (
+            {(historyError || highlightProfiles.failed) && (
               <div role="alert" className="notice">
                 {t("history.storageError")}
               </div>
@@ -2365,6 +2383,12 @@ export function App() {
                         onZoom={zoomDisplay}
                         visible={visibleTab(tab.id)}
                         focused={tab.id === selectedTabId}
+                        highlightRules={
+                          highlightProfiles.entries.find(
+                            (entry) =>
+                              entry.id === tab.settings.highlightProfile,
+                          )?.highlights ?? emptyHighlightRules
+                        }
                         controlVersion={
                           sessions.find(
                             (entry) =>

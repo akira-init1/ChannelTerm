@@ -3,6 +3,9 @@ import {
   connectionHistoryKey,
   restoreConnections,
   recordConnection,
+  findConnection,
+  connectionHighlightsChanged,
+  maxConnectionHistoryLength,
   type ConnectionRecord,
 } from "../../shared/connection-history";
 import { DeviceDiscovery } from "../devices/DeviceDiscovery";
@@ -23,6 +26,8 @@ import {
 } from "./TerminalSettings";
 import type { TerminalSettings } from "../../shared/terminal-settings";
 import { commonBaudRates } from "../../shared/serial-settings";
+import { HighlightSettings } from "./HighlightSettings";
+import type { HighlightRule } from "../../shared/highlight-rules";
 
 /** Collect explicit user intent. Credentials live in password inputs, never preferences. */
 export function ConnectionDialog({
@@ -55,15 +60,63 @@ export function ConnectionDialog({
     }
   });
   const [preset, setPreset] = useState<ConnectionRequest>();
+  const [highlightTarget, setHighlightTarget] = useState<ConnectionRecord>();
+  function editHighlights(record: ConnectionRecord) {
+    try {
+      const latest = restoreConnections(
+        localStorage.getItem(connectionHistoryKey),
+      );
+      const current = findConnection(latest, record.request);
+      if (!current) throw new Error("Saved connection was removed.");
+      const identified = { ...current, id: current.id ?? crypto.randomUUID() };
+      if (
+        saveHistory(
+          latest.map((entry) => (entry === current ? identified : entry)),
+        )
+      )
+        setHighlightTarget(identified);
+    } catch {
+      setError("history.storageError");
+      onStorageError();
+    }
+  }
+  function saveHighlights(rules: HighlightRule[]) {
+    try {
+      const latest = restoreConnections(
+        localStorage.getItem(connectionHistoryKey),
+      );
+      if (
+        !highlightTarget?.id ||
+        !latest.some((entry) => entry.id === highlightTarget.id)
+      )
+        return false;
+      return saveHistory(
+        latest.map((entry) =>
+          entry.id === highlightTarget.id
+            ? { ...entry, highlights: rules.map((rule) => ({ ...rule })) }
+            : entry,
+        ),
+      );
+    } catch {
+      onStorageError();
+      return false;
+    }
+  }
   const [revision, setRevision] = useState(0);
   const [favorite, setFavorite] = useState(false);
   function saveHistory(entries: ConnectionRecord[]) {
     try {
-      localStorage.setItem(connectionHistoryKey, JSON.stringify(entries));
+      const raw = JSON.stringify(entries);
+      if (raw.length > maxConnectionHistoryLength)
+        throw new RangeError("Connection storage limit exceeded.");
+      localStorage.setItem(connectionHistoryKey, raw);
       setHistory(entries);
+      window.dispatchEvent(new Event(connectionHighlightsChanged));
+      return true;
     } catch {
       setError("history.storageError");
       onStorageError();
+      return false;
     }
   }
   function applyPreset(request: ConnectionRequest) {
@@ -203,15 +256,36 @@ export function ConnectionDialog({
         input.value = "";
       });
     try {
-      await onOpen(request, settings);
+      let latest = history;
       try {
-        saveHistory(
-          recordConnection(
-            restoreConnections(localStorage.getItem(connectionHistoryKey)),
-            request,
-            favorite,
-          ),
+        latest = restoreConnections(localStorage.getItem(connectionHistoryKey));
+      } catch {
+        onStorageError();
+      }
+      const existing = findConnection(latest, request);
+      const planned = recordConnection(
+        existing ? [existing] : [],
+        request,
+        favorite,
+        Date.now(),
+        crypto.randomUUID(),
+      )[0];
+      if (!planned?.id)
+        throw new Error("Cannot prepare local connection identity.");
+      await onOpen(request, {
+        ...(settings ?? terminalDefaults),
+        highlightProfile: planned.id,
+      });
+      try {
+        const updated = recordConnection(
+          restoreConnections(localStorage.getItem(connectionHistoryKey)),
+          request,
+          favorite,
+          Date.now(),
+          planned.id,
         );
+        saveHistory(updated);
+        if (!updated.some((entry) => entry.id === planned.id)) onStorageError();
       } catch {
         onStorageError();
       }
@@ -285,6 +359,9 @@ export function ConnectionDialog({
                   {" "}
                   {new Date(entry.lastUsed).toLocaleString()} · {entry.uses}
                 </small>
+                <button type="button" onClick={() => editHighlights(entry)}>
+                  {t("highlight.title")}
+                </button>
                 {entry.request.kind === "ssh" && (
                   <button
                     type="button"
@@ -623,6 +700,20 @@ export function ConnectionDialog({
           </button>
         </footer>
       </form>
+      {highlightTarget && (
+        <HighlightSettings
+          label={
+            highlightTarget.request.label ||
+            (highlightTarget.request.kind === "serial"
+              ? highlightTarget.request.port
+              : highlightTarget.request.host)
+          }
+          initial={highlightTarget.highlights ?? []}
+          t={t}
+          onSave={saveHighlights}
+          onClose={() => setHighlightTarget(undefined)}
+        />
+      )}
     </dialog>
   );
 }

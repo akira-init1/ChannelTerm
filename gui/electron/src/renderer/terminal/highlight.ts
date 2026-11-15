@@ -1,5 +1,9 @@
 import { defaultHighlights } from "../../shared/default-highlights";
 import { HighlightVT } from "./highlight-vt";
+import {
+  readHighlightRules,
+  type HighlightRule,
+} from "../../shared/highlight-rules";
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
@@ -17,6 +21,10 @@ const plainPrompt =
 const maxPending = 8192;
 
 function style(kind: string): string {
+  if (/^#[0-9a-f]{6}$/.test(kind)) {
+    const rgb = Number.parseInt(kind.slice(1), 16);
+    return `\x1b[38;2;${rgb >> 16};${(rgb >> 8) & 255};${rgb & 255}m`;
+  }
   if (!(kind in defaultHighlights.palette)) return "";
   const color =
     defaultHighlights.palette[kind as keyof typeof defaultHighlights.palette];
@@ -36,7 +44,7 @@ function renderSpans(text: string, spans: Span[]): string {
   spans.sort(
     (a, b) => b.priority - a.priority || a.start - b.start || b.end - a.end,
   );
-  // At most 8 KiB of input and 2048 static-rule matches. A cell's first owner
+  // At most 8 KiB of input and 2048 combined rule matches. A cell's first owner
   // wins, retaining lower-priority fragments without quadratic span subtraction.
   const owners: (string | undefined)[] = new Array(text.length);
   for (const span of spans)
@@ -71,7 +79,10 @@ function promptText(text: string): string | undefined {
   );
 }
 
-function renderLine(bytes: Uint8Array): Uint8Array {
+function renderLine(
+  bytes: Uint8Array,
+  custom: readonly HighlightRule[],
+): Uint8Array {
   let text: string;
   try {
     text = decoder.decode(bytes);
@@ -86,6 +97,20 @@ function renderLine(bytes: Uint8Array): Uint8Array {
   if (renderedPrompt !== undefined)
     return encoder.encode(renderedPrompt + ending);
   const spans: Span[] = [];
+  for (const [priority, rule] of custom.entries()) {
+    if (!rule.enabled) continue;
+    let offset = 0;
+    while ((offset = content.indexOf(rule.text, offset)) !== -1) {
+      spans.push({
+        start: offset,
+        end: offset + rule.text.length,
+        kind: rule.color,
+        priority: 1000000 - priority,
+      });
+      if (spans.length > 2048) return bytes;
+      offset += rule.text.length;
+    }
+  }
   for (const rule of rules) {
     for (const match of text.matchAll(rule.pattern)) {
       const range = match.indices?.[rule.group];
@@ -108,6 +133,16 @@ export class SemanticHighlighter {
   private rawLine = false;
   private passthrough = false;
   private vt = new HighlightVT();
+  private custom: HighlightRule[] = [];
+
+  /** Flush a partial line unchanged before changing rules; retain remote VT/ANSI safety state. */
+  setRules(value: readonly HighlightRule[]): Uint8Array {
+    const next = readHighlightRules(value);
+    if (!next) throw new RangeError("Invalid local highlight rules.");
+    const pending = this.release();
+    this.custom = next;
+    return pending;
+  }
 
   get hasPending() {
     return this.pending.length > 0;
@@ -159,7 +194,7 @@ export class SemanticHighlighter {
         if (byte === 10) {
           flushRaw();
           const line = new Uint8Array(this.pending);
-          output.push(this.rawLine ? line : renderLine(line));
+          output.push(this.rawLine ? line : renderLine(line, this.custom));
           this.pending = [];
           this.rawLine = false;
         } else if (

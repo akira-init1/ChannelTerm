@@ -1615,3 +1615,47 @@ main {
   font-size: 11px;
   padding: 3px 6px;
 }
+
+.highlight-dialog {
+  width: min(880px, calc(100vw - 32px));
+  max-height: 88vh;
+}
+.highlight-rules {
+  max-height: 38vh;
+  overflow: auto;
+}
+.highlight-rule {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+.highlight-rule > label:nth-of-type(2) {
+  flex: 1;
+  min-width: 120px;
+}
+.highlight-rule input[type="color"] {
+  width: 48px;
+  padding: 2px;
+}
+.highlight-rule label:has(input[type="checkbox"]) {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+.highlight-actions,
+.highlight-order {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.highlight-actions {
+  margin: 8px 0;
+}
+.highlight-templates {
+  padding: 8px 0;
+}

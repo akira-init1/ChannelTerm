@@ -2,12 +2,15 @@ import {
   normalizeTerminalEncoding,
   type TerminalEncoding,
 } from "./terminal-encodings";
+import { isConnectionIdentity } from "./highlight-rules";
 
 /** Client-local presentation only; never serialized into Host Session metadata. */
 export interface TerminalSettings {
   encoding: TerminalEncoding;
   view: "text" | "hex";
   description: string;
+  /** Local saved-connection reference only; confers no Host or input capability. */
+  highlightProfile?: string;
 }
 
 export const defaultTerminalSettings: Readonly<TerminalSettings> = {
@@ -22,11 +25,13 @@ export function isTerminalSettings(value: unknown): value is TerminalSettings {
   const v = value as Record<string, unknown>;
   return (
     Object.keys(v).every((key) =>
-      ["encoding", "view", "description"].includes(key),
+      ["encoding", "view", "description", "highlightProfile"].includes(key),
     ) &&
     typeof v.encoding === "string" &&
     normalizeTerminalEncoding(v.encoding) === v.encoding &&
     (v.view === "text" || v.view === "hex") &&
+    (v.highlightProfile === undefined ||
+      isConnectionIdentity(v.highlightProfile)) &&
     typeof v.description === "string" &&
     v.description.length <= 512 &&
     !/[\uD800-\uDFFF]/u.test(v.description) &&

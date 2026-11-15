@@ -1357,6 +1357,111 @@ msgstr "ChannelTerm verwenden"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "highlight.add"
+msgstr "Regel hinzufügen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.clear"
+msgstr "Liste leeren"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.color"
+msgstr "Farbe"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.deleteTemplate"
+msgstr "Ausgewählte Vorlage löschen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.down"
+msgstr "Regel nach unten"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.enabled"
+msgstr "Aktiv"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.hint"
+msgstr "Lokale Regeln für wörtlichen Text dieser gespeicherten Verbindung. Frühere Regeln haben bei Überlappung Vorrang. Maximal 32 Regeln mit je 128 UTF-16-Einheiten. Änderungen gelten für künftigen sicheren Text; ANSI, Vollbildausgabe, Prompts und HEX bleiben unverändert."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.import"
+msgstr "Kopien importieren"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.invalid"
+msgstr "Regeltext, Farben und Vorlagenname prüfen. Grenzen: 32 Regeln pro Liste, 10 Vorlagen, 64 UTF-16-Einheiten pro Vorlagenname."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.remove"
+msgstr "Regel entfernen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.replaceTemplate"
+msgstr "Ausgewählte Vorlage ersetzen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.save"
+msgstr "Verbindungsregeln speichern"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.saveError"
+msgstr "Regeln können nicht gespeichert oder geladen werden. Der Speicher ist möglicherweise nicht verfügbar, voll oder in einem anderen Fenster geändert. Die gespeicherte Verbindung wurde nicht neu erstellt. Erneut versuchen oder abbrechen."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.saveTemplate"
+msgstr "Als neue Vorlage speichern"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.template"
+msgstr "Vorlage"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.templateHint"
+msgstr "Der Import fügt unabhängige Kopien hinzu. Vorlagen werden sofort gespeichert; bereits importierte Verbindungen bleiben unverändert. Verbindungsregeln separat speichern."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.templateName"
+msgstr "Vorlagenname"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.templates"
+msgstr "Wiederverwendbare Vorlagen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.text"
+msgstr "Wörtlicher Text"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.title"
+msgstr "Schlüsselwörter hervorheben…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "highlight.up"
+msgstr "Regel nach oben"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "history.favorite"
 msgstr "SSH favorisieren"
 
