@@ -1,8 +1,4 @@
-import {
-  Menu,
-  type BrowserWindow,
-  type MenuItemConstructorOptions,
-} from "electron";
+import { Menu, BrowserWindow, type MenuItemConstructorOptions } from "electron";
 import { setupI18n } from "@lingui/core";
 import { channels } from "../shared/api";
 import {
@@ -41,15 +37,35 @@ export function updateApplicationMenu(
       click: () => {
         // Quit belongs to Main and must still work after the last macOS window
         // closes or the renderer crashes. IPC quit uses this same handler.
-        if (entry.action?.id === "app.quit") quit();
-        else if (
+        if (entry.action?.id === "app.quit") {
+          quit();
+          return;
+        }
+        // macOS keeps the application menu after the last window closes. Keep
+        // its existing New Window entry usable without a focused owner.
+        if (
+          entry.action?.id === "window.new" &&
+          BrowserWindow.getAllWindows().length === 0
+        ) {
+          windowAction(entry.action.id);
+          return;
+        }
+        // Focus and renderer menu-state notifications can cross in flight. A
+        // delayed application-menu callback must not affect its former window
+        // or retarget a captured attachment to the newly focused one.
+        if (
+          window.isDestroyed() ||
+          BrowserWindow.getFocusedWindow()?.id !== window.id
+        )
+          return;
+        if (
           entry.action?.id === "window.new" ||
           entry.action?.id === "window.close" ||
           entry.action?.id === "window.next" ||
           entry.action?.id === "window.previous"
         )
           windowAction(entry.action.id);
-        else if (entry.action && !window.isDestroyed())
+        else if (entry.action)
           window.webContents.send(channels.menuAction, entry.action);
       },
     }));

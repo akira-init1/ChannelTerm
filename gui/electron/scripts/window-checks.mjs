@@ -149,7 +149,41 @@ export async function checkWindows(environment) {
     await expect(second.locator('[data-menu="window"]')).toHaveText(
       japanese._("menu.window"),
     );
+    // A native application-menu snapshot belongs to its original focused window.
+    // Save it before a real focus transition, then exercise delayed callbacks.
+    await expect
+      .poll(() =>
+        desktop.evaluate(
+          ({ Menu }) =>
+            Menu.getApplicationMenu().getMenuItemById("language.en").checked,
+        ),
+      )
+      .toBe(true);
+    const staleMenu = await desktop.evaluateHandle(({ Menu }) => {
+      const menu = Menu.getApplicationMenu();
+      return ["tab.close", "window.new", "language.fr"].map((id) =>
+        menu.getMenuItemById(id),
+      );
+    });
+    await second.bringToFront();
+    await expect
+      .poll(() =>
+        desktop.evaluate(
+          ({ Menu }) =>
+            Menu.getApplicationMenu().getMenuItemById("language.ja").checked,
+        ),
+      )
+      .toBe(true);
+    await staleMenu.evaluate((items) => items.forEach((item) => item.click()));
+    await staleMenu.dispose();
     await language(desktop, second, "en");
+    await expect(source.locator(".terminal-tab")).toHaveCount(2);
+    await expect(source.locator('[data-menu="window"]')).toHaveText("Window");
+    assert.equal(
+      desktop.windows().length,
+      2,
+      "stale native New Window is ignored",
+    );
     second.on("pageerror", (error) => errors.push(error.message));
     await expect(second.locator(".host-panel")).toContainText("Host connected");
     await select(second, "Isolated echo");
@@ -427,6 +461,52 @@ export async function checkWindows(environment) {
       .toBe(1);
     await select(spare, "Isolated echo");
     await expect(spare.locator(".xterm-screen")).toBeVisible();
+    assert.ok(
+      (await observer.list()).every((session) => session.state === "open"),
+    );
+    // Keep this disposable app alive without windows to cover the macOS-style
+    // lifecycle on any test OS. This is not native macOS validation.
+    await expect
+      .poll(() =>
+        desktop.evaluate(
+          ({ Menu }) =>
+            Menu.getApplicationMenu().getMenuItemById("window.new").enabled,
+        ),
+      )
+      .toBe(true);
+    const vacantMenu = await desktop.evaluateHandle(({ app, Menu }) => {
+      app.removeAllListeners("window-all-closed");
+      app.on("window-all-closed", () => {});
+      const menu = Menu.getApplicationMenu();
+      return {
+        create: menu.getMenuItemById("window.new"),
+        quit: menu.getMenuItemById("app.quit"),
+      };
+    });
+    await menu(spare, "window.close");
+    await expect.poll(() => desktop.windows().length).toBe(0);
+    await expect
+      .poll(() =>
+        desktop.evaluate(
+          ({ BrowserWindow }) => BrowserWindow.getAllWindows().length,
+        ),
+      )
+      .toBe(0);
+    assert.equal(
+      await vacantMenu.evaluate((items) => items.create.enabled),
+      true,
+    );
+    const reopenedPromise = desktop.waitForEvent("window");
+    await vacantMenu.evaluate((items) => items.create.click());
+    const reopened = await reopenedPromise;
+    await expect(reopened.locator('[data-menu="window"]')).toBeVisible();
+    assert.equal(desktop.windows().length, 1);
+    await menu(reopened, "window.close");
+    await expect.poll(() => desktop.windows().length).toBe(0);
+    const exited = desktop.waitForEvent("close");
+    await vacantMenu.evaluate((items) => items.quit.click());
+    await exited;
+    desktop = undefined;
     assert.ok(
       (await observer.list()).every((session) => session.state === "open"),
     );

@@ -259,6 +259,11 @@ On Windows/Linux, the native application menu model is installed but its
 window menu bar is removed, preserving the renderer strip and avoiding an extra Alt menu.
 macOS retains its system menu and an app menu for Exit GUI; native macOS validation remains
 separate from Windows testing.
+A native application-menu snapshot belongs to the window that supplied it. Delayed callbacks
+are ignored after focus moves to another window; captured attachment actions are never redirected.
+Choose the action again from the focused window's current menu. Exit GUI remains app-wide;
+New Window also remains available after the last macOS window closes. Right-click menus retain
+their explicit row/tab targets.
 
 Tab reaches menu buttons. Left/Right moves between focused top-level buttons; Down or Enter
 opens one. Hover alone does not open a closed menu. After clicking a top-level group, moving

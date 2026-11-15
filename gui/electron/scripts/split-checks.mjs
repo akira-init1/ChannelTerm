@@ -31,6 +31,17 @@ export async function checkSplits(environment) {
   const errors = [];
   const native = async (id) => {
     await page.bringToFront();
+    // CDP page activation alone does not guarantee OS focus after a window move.
+    // Native application-menu callbacks require their owning window to be focused.
+    const window = await desktop.browserWindow(page);
+    try {
+      await window.evaluate((window) => window.focus());
+      await expect
+        .poll(() => window.evaluate((window) => window.isFocused()))
+        .toBe(true);
+    } finally {
+      await window.dispose();
+    }
     await expect
       .poll(() =>
         desktop.evaluate(
