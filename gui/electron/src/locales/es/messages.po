@@ -124,6 +124,7 @@ msgid "connection.baud"
 msgstr "Velocidad en baudios"
 
 #. js-lingui-explicit-id
+#: src/main/index.ts
 #: src/shared/menu-messages.ts
 msgid "connection.cancel"
 msgstr "Cancelar"
@@ -1277,6 +1278,123 @@ msgstr "简体中文"
 #: src/shared/menu-messages.ts
 msgid "language.zh-TW"
 msgstr "繁體中文"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.delete"
+msgstr "Elegir un archivo de registro local para eliminar…"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "logs.deleteConfirm"
+msgstr "¿Mover el archivo de registro seleccionado a la papelera?"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.error.disk"
+msgstr "Error al escribir el registro. Compruebe espacio y permisos. Solo se confirman bytes indexados; los archivos parciales se conservan para revisarlos."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.error.source"
+msgstr "La captura terminó inesperadamente. Revise los rangos conservados en el índice; reconectar no reanudará esta grabación."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.failed"
+msgstr "Error de grabación"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.format"
+msgstr "Formato de grabación"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.gaps"
+msgstr "Huecos"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.lifecycle"
+msgstr "Graba salida nueva desde el cursor inicial, incluso con pestañas ocultas o cerradas. Desconectar esta ventana o salir detiene la grabación. Los segmentos antiguos se eliminan al alcanzar el límite; los huecos se registran, sin inventar historial."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.open"
+msgstr "Grabación continua"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.raw"
+msgstr "Bytes originales (.bin)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.recording"
+msgstr "Grabando"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.recovery"
+msgstr "Cada segmento tiene un índice de cursores JSONL. Los registros completos confirman datos sincronizados. Tras un fallo, un marcador de grabación, índice ausente o última línea parcial indica una cola sin verificar. El texto es UTF-8 con sustitución de bytes inválidos y controles escapados; no es una captura del terminal."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.rotations"
+msgstr "Segmentos eliminados"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.segments"
+msgstr "Segmentos conservados"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.segmentSize"
+msgstr "Límite de datos e índice por segmento"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.start"
+msgstr "Elegir carpeta e iniciar grabación"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.starting"
+msgstr "Iniciando grabación"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.stop"
+msgstr "Detener grabación"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.stopped"
+msgstr "Grabación detenida"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.stopping"
+msgstr "Deteniendo y guardando"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.text"
+msgstr "UTF-8 legible (.txt)"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "logs.trash"
+msgstr "Mover a la papelera"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.warning"
+msgstr "La salida puede contener secretos, entradas repetidas por el dispositivo y bytes de transferencias. No se ocultan datos automáticamente. Las entradas no enviadas no se graban."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

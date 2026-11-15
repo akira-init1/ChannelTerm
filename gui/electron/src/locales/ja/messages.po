@@ -124,6 +124,7 @@ msgid "connection.baud"
 msgstr "ボーレート"
 
 #. js-lingui-explicit-id
+#: src/main/index.ts
 #: src/shared/menu-messages.ts
 msgid "connection.cancel"
 msgstr "キャンセル"
@@ -1277,6 +1278,123 @@ msgstr "简体中文"
 #: src/shared/menu-messages.ts
 msgid "language.zh-TW"
 msgstr "繁體中文"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.delete"
+msgstr "削除するローカルログファイルを選択…"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "logs.deleteConfirm"
+msgstr "選択したログファイルをゴミ箱へ移動しますか？"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.error.disk"
+msgstr "ログの書き込みに失敗しました。空き容量と権限を確認してください。索引のあるバイトのみ確認済みで、部分ファイルは調査用に保持されます。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.error.source"
+msgstr "出力の取得が予期せず終了しました。保持された範囲を索引で確認してください。再接続してもこの記録は再開しません。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.failed"
+msgstr "記録失敗"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.format"
+msgstr "記録形式"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.gaps"
+msgstr "欠落"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.lifecycle"
+msgstr "開始カーソル以降の新しい出力を、非表示または閉じたタブも含めて記録します。このウィンドウの切断または終了で停止します。上限に達すると古いセグメントを削除し、欠落は明示します。存在しない履歴は補いません。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.open"
+msgstr "連続ログ記録"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.raw"
+msgstr "元のバイト列 (.bin)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.recording"
+msgstr "記録中"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.recovery"
+msgstr "各セグメントには JSONL カーソル索引があります。完全な索引行は同期済みデータを示します。異常終了後の記録中マーカー、索引の欠落、不完全な最終行は末尾が未検証であることを示します。テキストは不正バイトを置換し制御文字をエスケープした UTF-8 であり、端末画面のコピーではありません。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.rotations"
+msgstr "削除済みセグメント"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.segments"
+msgstr "保持するセグメント数"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.segmentSize"
+msgstr "セグメントごとのデータと索引の上限"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.start"
+msgstr "フォルダーを選んで記録開始"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.starting"
+msgstr "記録を開始中"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.stop"
+msgstr "記録停止"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.stopped"
+msgstr "記録停止済み"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.stopping"
+msgstr "停止・書き出し中"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.text"
+msgstr "可読 UTF-8 (.txt)"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "logs.trash"
+msgstr "ゴミ箱へ移動"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.warning"
+msgstr "出力には秘密情報、エコーバックされた入力、ファイル転送データが含まれる場合があります。自動マスキングは行いません。未送信の入力は記録しません。"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

@@ -28,6 +28,7 @@ import {
 } from "../../shared/terminal-settings";
 import { randomUUID } from "node:crypto";
 import { displayVersion } from "./information";
+import { capturedOutput, type OutputCapture } from "./capture";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import type {
@@ -73,6 +74,7 @@ class ToolFailure extends Error {
 
 /** An MCP client only: owns cursors/cancellation, never Session or lease authority. */
 export class HostClient {
+  private captures = new Map<string, AbortController>();
   private hostVersion?: string;
   private controls = new Map<string, ControlSnapshot>();
   private client?: Client;
@@ -1186,6 +1188,105 @@ export class HostClient {
     }
   }
 
+  /** Start at the current output tail, registering real background use without PTY size authority. */
+  async captureOutput(id: string, signal: AbortSignal): Promise<OutputCapture> {
+    const sessionId = this.attachment(id).sessionId;
+    if (this.captures.size >= 4)
+      throw new HostError("busy", "Stop a recording before starting another.");
+    const key = randomUUID();
+    const controller = new AbortController();
+    const connection = this.connection;
+    const presence = this.presence;
+    const combined = AbortSignal.any([
+      signal,
+      controller.signal,
+      connection.signal,
+    ]);
+    this.captures.set(key, controller);
+    let attached = false,
+      closed = false,
+      reading = false;
+    const close = async () => {
+      if (closed) return;
+      closed = true;
+      controller.abort();
+      this.captures.delete(key);
+      await presence?.unuse(key);
+      if (
+        attached &&
+        this.connection === connection &&
+        !connection.signal.aborted
+      ) {
+        await this.call(
+          "terminal_session_detach",
+          { session_id: sessionId, actor: "user" },
+          AbortSignal.timeout(500),
+        ).catch(() => {});
+      }
+    };
+    try {
+      await presence?.use(key, sessionId, "monitor");
+      combined.throwIfAborted();
+      const result = await this.call(
+        "terminal_session_attach",
+        { session_id: sessionId, actor: "user" },
+        combined,
+      );
+      if (result.attached !== true) throw incompatible();
+      attached = true;
+      // Capture is explicitly forward-only. This one-byte snapshot establishes the tail;
+      // it is discarded, never described as recording pre-existing history.
+      const tail = capturedOutput(
+        await this.call(
+          "terminal_read",
+          { session_id: sessionId, encoding: "base64", max_bytes: 1 },
+          combined,
+        ),
+      );
+      combined.throwIfAborted();
+      let cursor = tail.next;
+      return {
+        sessionId,
+        start: cursor,
+        close,
+        read: async () => {
+          if (reading)
+            throw new HostError("busy", "A recording read is already pending.");
+          combined.throwIfAborted();
+          if (connection !== this.connection)
+            throw new HostError("cancelled", "Recording connection changed.");
+          reading = true;
+          try {
+            const result = await this.call(
+              "terminal_read",
+              {
+                session_id: sessionId,
+                encoding: "base64",
+                max_bytes: 65536,
+                cursor,
+                timeout_ms: 1000,
+              },
+              combined,
+            );
+            combined.throwIfAborted();
+            const output = capturedOutput(result, cursor);
+            cursor = output.next;
+            return output;
+          } catch (error) {
+            if (error instanceof ToolFailure && error.code === "timeout")
+              return undefined;
+            throw error;
+          } finally {
+            reading = false;
+          }
+        },
+      };
+    } catch (error) {
+      await close();
+      throw error;
+    }
+  }
+
   async read(id: string): Promise<Output> {
     const active = this.attachment(id);
     if (active.reading)
@@ -1368,6 +1469,8 @@ export class HostClient {
   }
 
   async disconnect(): Promise<void> {
+    for (const controller of this.captures.values()) controller.abort();
+    this.captures.clear();
     this.controls.clear();
     // Abort immediately, including an in-progress handshake. Detach is advisory;
     // a disconnected MCP client never owns the underlying Session lifetime.

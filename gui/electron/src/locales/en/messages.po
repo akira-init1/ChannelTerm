@@ -124,6 +124,7 @@ msgid "connection.baud"
 msgstr "Baud rate"
 
 #. js-lingui-explicit-id
+#: src/main/index.ts
 #: src/shared/menu-messages.ts
 msgid "connection.cancel"
 msgstr "Cancel"
@@ -1277,6 +1278,123 @@ msgstr "简体中文"
 #: src/shared/menu-messages.ts
 msgid "language.zh-TW"
 msgstr "繁體中文"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.delete"
+msgstr "Choose a local log file to delete…"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "logs.deleteConfirm"
+msgstr "Move the selected log file to trash?"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.error.disk"
+msgstr "Log write failed. Check free space and permissions. Only indexed bytes are confirmed; partial files remain for inspection."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.error.source"
+msgstr "Output capture ended unexpectedly. Inspect the index for retained ranges; reconnecting will not resume this recording."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.failed"
+msgstr "Recording failed"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.format"
+msgstr "Recording format"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.gaps"
+msgstr "Gaps"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.lifecycle"
+msgstr "Records new output from the start cursor, including hidden or closed tabs. Disconnecting this window or exiting stops recording. Old segments are removed at the selected limit; gaps are recorded, never filled with invented history."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.open"
+msgstr "Continuous recording"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.raw"
+msgstr "Original bytes (.bin)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.recording"
+msgstr "Recording"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.recovery"
+msgstr "Each segment has a JSONL cursor index. Complete index records acknowledge synced data. After a crash, a recording marker, missing index or partial final line means the tail is unverified. Text is UTF-8 with replacement for invalid bytes and escaped controls; it is not a terminal screen snapshot."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.rotations"
+msgstr "Removed segments"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.segments"
+msgstr "Retained segments"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.segmentSize"
+msgstr "Data and index limit per segment"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.start"
+msgstr "Choose folder and start recording"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.starting"
+msgstr "Starting recording"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.stop"
+msgstr "Stop recording"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.stopped"
+msgstr "Recording stopped"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.stopping"
+msgstr "Stopping and flushing"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.text"
+msgstr "Readable UTF-8 (.txt)"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "logs.trash"
+msgstr "Move to trash"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.warning"
+msgstr "Output may contain secrets, echoed input and file-transfer bytes. No automatic redaction. Unsent input is not recorded."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

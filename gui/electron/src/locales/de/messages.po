@@ -124,6 +124,7 @@ msgid "connection.baud"
 msgstr "Baudrate"
 
 #. js-lingui-explicit-id
+#: src/main/index.ts
 #: src/shared/menu-messages.ts
 msgid "connection.cancel"
 msgstr "Abbrechen"
@@ -1277,6 +1278,123 @@ msgstr "简体中文"
 #: src/shared/menu-messages.ts
 msgid "language.zh-TW"
 msgstr "繁體中文"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.delete"
+msgstr "Lokale Protokolldatei zum Löschen wählen…"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "logs.deleteConfirm"
+msgstr "Die ausgewählte Protokolldatei in den Papierkorb verschieben?"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.error.disk"
+msgstr "Schreiben fehlgeschlagen. Prüfen Sie Speicherplatz und Rechte. Nur indizierte Bytes sind bestätigt; Teildateien bleiben zur Prüfung erhalten."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.error.source"
+msgstr "Die Ausgabeerfassung endete unerwartet. Prüfen Sie den Index auf erhaltene Bereiche; erneutes Verbinden setzt diese Aufzeichnung nicht fort."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.failed"
+msgstr "Aufzeichnung fehlgeschlagen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.format"
+msgstr "Aufzeichnungsformat"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.gaps"
+msgstr "Lücken"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.lifecycle"
+msgstr "Zeichnet neue Ausgaben ab dem Startcursor auf, auch bei versteckten oder geschlossenen Tabs. Trennen dieses Fensters oder Beenden stoppt die Aufzeichnung. Alte Segmente werden beim gewählten Limit entfernt; Lücken werden vermerkt, niemals durch erfundene Historie ersetzt."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.open"
+msgstr "Fortlaufende Aufzeichnung"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.raw"
+msgstr "Originalbytes (.bin)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.recording"
+msgstr "Aufzeichnung läuft"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.recovery"
+msgstr "Jedes Segment hat einen JSONL-Cursorindex. Vollständige Indexeinträge bestätigen synchronisierte Daten. Nach einem Absturz bedeuten ein Aufzeichnungsmarker, fehlender Index oder eine unvollständige letzte Zeile einen ungeprüften Rest. Text ist UTF-8 mit Ersatzzeichen und maskierten Steuerzeichen, kein Terminalbild."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.rotations"
+msgstr "Entfernte Segmente"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.segments"
+msgstr "Aufbewahrte Segmente"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.segmentSize"
+msgstr "Daten- und Indexlimit pro Segment"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.start"
+msgstr "Ordner wählen und Aufzeichnung starten"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.starting"
+msgstr "Aufzeichnung wird gestartet"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.stop"
+msgstr "Aufzeichnung stoppen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.stopped"
+msgstr "Aufzeichnung gestoppt"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.stopping"
+msgstr "Stoppen und Daten sichern"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.text"
+msgstr "Lesbares UTF-8 (.txt)"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "logs.trash"
+msgstr "In den Papierkorb"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.warning"
+msgstr "Ausgaben können Geheimnisse, zurückgesendete Eingaben und Dateiübertragungsbytes enthalten. Keine automatische Schwärzung. Nicht gesendete Eingaben werden nicht aufgezeichnet."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

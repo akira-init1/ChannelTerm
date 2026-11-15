@@ -3,6 +3,11 @@ import { channels, type DesktopAPI } from "../shared/api";
 import { isAction } from "../shared/menus";
 
 const api: DesktopAPI = {
+  recordings: () => ipcRenderer.invoke(channels.recordings),
+  startRecording: (request) =>
+    ipcRenderer.invoke(channels.startRecording, request),
+  stopRecording: (id) => ipcRenderer.invoke(channels.stopRecording, id),
+  deleteRecordingFile: () => ipcRenderer.invoke(channels.deleteRecordingFile),
   hostSettings: () => ipcRenderer.invoke(channels.hostSettings),
   saveHostEndpoint: (endpoint) =>
     ipcRenderer.invoke(channels.saveHostEndpoint, endpoint),

@@ -1,4 +1,5 @@
 import type { DebugOverview } from "./debug";
+import type { RecordingRequest, RecordingStatus } from "./logging";
 import type { ActivitySnapshot } from "./activity";
 import type { DiagnosticRequest, DiagnosticSaved } from "./diagnostics";
 import type { SSHBrowseRequest, SSHBrowseResult } from "./ssh-browser";
@@ -126,6 +127,10 @@ export interface WindowInfo {
 
 /** One method per IPC channel; no arbitrary tool, URL, file, or process access. */
 export interface DesktopAPI {
+  recordings(): Promise<Result<RecordingStatus[]>>;
+  startRecording(request: RecordingRequest): Promise<Result<void>>;
+  stopRecording(id: string): Promise<Result<void>>;
+  deleteRecordingFile(): Promise<Result<boolean>>;
   hostSettings(): Promise<Result<HostSettingsInfo>>;
   saveHostEndpoint(endpoint: string): Promise<Result<HostInfo>>;
   control(request: ControlRequest): Promise<Result<ControlReply>>;
@@ -221,6 +226,10 @@ export interface DesktopAPI {
 }
 
 export const channels = {
+  recordings: "logs:list",
+  startRecording: "logs:start",
+  stopRecording: "logs:stop",
+  deleteRecordingFile: "logs:delete-file",
   hostSettings: "host:settings",
   saveHostEndpoint: "host:save-endpoint",
   control: "host:control",

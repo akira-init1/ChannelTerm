@@ -1436,3 +1436,28 @@ main {
 .host-settings-dialog footer {
   flex-shrink: 0;
 }
+.recording-list {
+  padding-left: 18px;
+  max-height: 240px;
+  overflow: auto;
+}
+.recording-list li {
+  margin: 12px 0;
+}
+.recording-path {
+  overflow-wrap: anywhere;
+  color: var(--muted);
+}
+.recording-dialog[open] {
+  display: flex;
+  flex-direction: column;
+  width: 600px;
+  overflow: hidden;
+}
+.recording-content {
+  min-height: 0;
+  overflow: auto;
+}
+.recording-dialog footer {
+  flex-shrink: 0;
+}

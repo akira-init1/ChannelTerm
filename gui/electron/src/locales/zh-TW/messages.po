@@ -124,6 +124,7 @@ msgid "connection.baud"
 msgstr "鮑率"
 
 #. js-lingui-explicit-id
+#: src/main/index.ts
 #: src/shared/menu-messages.ts
 msgid "connection.cancel"
 msgstr "取消"
@@ -1277,6 +1278,123 @@ msgstr "简体中文"
 #: src/shared/menu-messages.ts
 msgid "language.zh-TW"
 msgstr "繁體中文"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.delete"
+msgstr "選擇要刪除的本機日誌檔案…"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "logs.deleteConfirm"
+msgstr "將所選日誌檔案移到資源回收筒？"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.error.disk"
+msgstr "日誌寫入失敗，請檢查磁碟空間和權限。僅索引對應的位元組得到確認；保留部分檔案供檢查。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.error.source"
+msgstr "輸出擷取意外結束。請查看索引中的保留範圍；重新連線不會恢復此記錄。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.failed"
+msgstr "記錄失敗"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.format"
+msgstr "記錄格式"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.gaps"
+msgstr "缺口"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.lifecycle"
+msgstr "從開始游標起記錄新輸出，包括背景或已關閉分頁。中斷目前視窗或結束時停止。達到所選上限後刪除舊分段；缺口會明確記錄，不補造歷史。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.open"
+msgstr "持續日誌記錄"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.raw"
+msgstr "原始位元組 (.bin)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.recording"
+msgstr "正在記錄"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.recovery"
+msgstr "每段都有 JSONL 游標索引，完整索引列確認已同步寫入磁碟的資料。異常結束後，記錄中標記、缺失索引或不完整末列表示尾部未經驗證。文字使用 UTF-8，取代無效位元組並跳脫控制字元，不是終端畫面快照。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.rotations"
+msgstr "已刪除分段"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.segments"
+msgstr "保留分段數"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.segmentSize"
+msgstr "每段資料與索引合計上限"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.start"
+msgstr "選擇資料夾並開始記錄"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.starting"
+msgstr "正在開始記錄"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.stop"
+msgstr "停止記錄"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.stopped"
+msgstr "記錄已停止"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.stopping"
+msgstr "正在停止並寫入磁碟"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.text"
+msgstr "可讀 UTF-8 (.txt)"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "logs.trash"
+msgstr "移到資源回收筒"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.warning"
+msgstr "輸出可能包含敏感資訊、回顯輸入和檔案傳輸位元組，不會自動去識別化。未傳送的輸入不會記錄。"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

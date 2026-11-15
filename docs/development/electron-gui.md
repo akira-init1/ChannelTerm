@@ -379,6 +379,14 @@ for sizing and extension boundaries.
 
 ## Checks and isolated Host
 
+Continuous-recording tests check exact raw bytes, split UTF-8/control escaping, combined data/index
+limits, rotation, buffer gaps, canceled selection, disk-full injection and stop during a slow/failing
+write. The real fake-I/O Host checks independent cursors, transfer-range capture and background idle
+protection. Native desktop checks substitute only destination/trash dialogs, record after tab close,
+verify normal stop/exit, and abruptly exit their own disposable app to inspect unverified-tail markers.
+They preserve an independent observer and use all nine locales plus a compact window. This is not a
+physical disk-full, power-cut, real device or OS trash-interoperability test.
+
 Host settings checks use an isolated GUI profile, a fake-I/O Host and an independent observer.
 They cover local endpoint validation, atomic save failure, environment precedence, restart persistence,
 unreachable/incompatible/authentication failures, stale attachments, other-window survival, nine

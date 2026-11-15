@@ -124,6 +124,7 @@ msgid "connection.baud"
 msgstr "Débit en bauds"
 
 #. js-lingui-explicit-id
+#: src/main/index.ts
 #: src/shared/menu-messages.ts
 msgid "connection.cancel"
 msgstr "Annuler"
@@ -1277,6 +1278,123 @@ msgstr "简体中文"
 #: src/shared/menu-messages.ts
 msgid "language.zh-TW"
 msgstr "繁體中文"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.delete"
+msgstr "Choisir un fichier journal local à supprimer…"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "logs.deleteConfirm"
+msgstr "Mettre le fichier journal sélectionné à la corbeille ?"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.error.disk"
+msgstr "Échec d’écriture du journal. Vérifiez l’espace libre et les permissions. Seuls les octets indexés sont confirmés ; les fichiers partiels restent disponibles pour inspection."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.error.source"
+msgstr "La capture s’est terminée de façon inattendue. Consultez l’index pour les plages conservées ; une reconnexion ne reprendra pas cet enregistrement."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.failed"
+msgstr "Échec de l’enregistrement"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.format"
+msgstr "Format d’enregistrement"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.gaps"
+msgstr "Lacunes"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.lifecycle"
+msgstr "Enregistre les nouvelles sorties depuis le curseur de départ, même dans les onglets masqués ou fermés. Déconnecter cette fenêtre ou quitter arrête l’enregistrement. Les anciens segments sont supprimés à la limite choisie ; les lacunes sont signalées, sans inventer d’historique."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.open"
+msgstr "Enregistrement continu"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.raw"
+msgstr "Octets originaux (.bin)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.recording"
+msgstr "Enregistrement en cours"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.recovery"
+msgstr "Chaque segment possède un index de curseurs JSONL. Les entrées complètes confirment les données synchronisées. Après un plantage, un marqueur d’enregistrement, un index absent ou une dernière ligne partielle indique une fin non vérifiée. Le texte est en UTF-8 avec remplacement des octets invalides et échappement des contrôles, pas une capture du terminal."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.rotations"
+msgstr "Segments supprimés"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.segments"
+msgstr "Segments conservés"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.segmentSize"
+msgstr "Limite des données et de l’index par segment"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.start"
+msgstr "Choisir un dossier et enregistrer"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.starting"
+msgstr "Démarrage de l’enregistrement"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.stop"
+msgstr "Arrêter l’enregistrement"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.stopped"
+msgstr "Enregistrement arrêté"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.stopping"
+msgstr "Arrêt et synchronisation"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.text"
+msgstr "UTF-8 lisible (.txt)"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "logs.trash"
+msgstr "Mettre à la corbeille"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.warning"
+msgstr "La sortie peut contenir des secrets, des entrées renvoyées en écho et des octets de transfert. Aucun masquage automatique. Les entrées non envoyées ne sont pas enregistrées."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

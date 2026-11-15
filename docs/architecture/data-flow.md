@@ -27,6 +27,12 @@ source without reopening a device or replaying input. See [window and handoff ow
 
 ## Serial output
 
+An explicitly enabled Electron recording follows `Session raw output -> authenticated cursor read
+in Main -> bounded data/index segments on the selected local filesystem`. Its independent monitor
+use retains the Session under idle policy; no raw bytes enter Renderer, and disk backpressure can
+only lag this reader, not the Channel reader. See [continuous recording](../reference/gui-menus.md#continuous-recording)
+for gaps, rotation and stop/abnormal-exit semantics.
+
 The single reader stores raw bytes independently of client presentation:
 
 ```text

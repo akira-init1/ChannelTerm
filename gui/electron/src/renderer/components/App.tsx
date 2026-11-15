@@ -1,5 +1,6 @@
 import { ControlPanel } from "../sessions/ControlPanel";
 import { HostSettingsDialog } from "./HostSettings";
+import { RecordingDialog, useRecordings } from "../terminal/RecordingDialog";
 import { retainedTransfer } from "../../shared/transfers";
 import {
   preferencesKey,
@@ -137,6 +138,10 @@ export function App() {
   const [restoringWorkspace, setRestoringWorkspace] = useState(false);
   const [info, setInfo] = useState<HostInfo>();
   const [hostSettingsOpen, setHostSettingsOpen] = useState(false);
+  const [recordingDialog, setRecordingDialog] = useState<{
+    attachment?: Attachment;
+  }>();
+  const recordings = useRecordings();
   const [connected, setConnected] = useState(false);
   // Collapsing navigation changes available space, not the active attachment.
   const [sidebarVisible, setSidebarVisible] = useState(
@@ -563,6 +568,7 @@ export function App() {
       connected,
       sshAvailable: !!info?.sshAvailable,
       busy:
+        !!recordingDialog ||
         hostSettingsOpen ||
         working ||
         !!closeTarget ||
@@ -589,6 +595,7 @@ export function App() {
     [
       locale,
       hostSettingsOpen,
+      recordingDialog,
       languagePreference,
       connected,
       info?.sshAvailable,
@@ -1137,6 +1144,7 @@ export function App() {
       attachment: tab?.attachment,
       tabId: tab?.id,
       busy:
+        !!recordingDialog ||
         hostSettingsOpen ||
         working ||
         !!closeTarget ||
@@ -1392,6 +1400,11 @@ export function App() {
     actionBusy.current = true;
     try {
       switch (action.id) {
+        case "logs.open":
+          setRecordingDialog({
+            attachment: connected ? attachment : undefined,
+          });
+          break;
         case "host.settings":
           setHostSettingsOpen(true);
           break;
@@ -1601,6 +1614,14 @@ export function App() {
             setInfo(next);
             return next;
           }}
+        />
+      )}
+      {recordingDialog && (
+        <RecordingDialog
+          attachment={recordingDialog.attachment}
+          records={recordings}
+          t={t}
+          onClose={() => setRecordingDialog(undefined)}
         />
       )}
       {draggingFiles && (
@@ -2133,6 +2154,7 @@ export function App() {
                       )?.control?.version
                     }
                     writable={
+                      !recordingDialog &&
                       !hostSettingsOpen &&
                       tab.id === selectedTabId &&
                       writable &&
@@ -2327,6 +2349,21 @@ export function App() {
             ? t("workbench.sessionCount", { count: sessions.length })
             : t("workbench.offline")}
         </span>
+        {recordings.some((record) =>
+          ["starting", "recording", "stopping", "failed"].includes(
+            record.state,
+          ),
+        ) && (
+          <button
+            className="recording-indicator"
+            disabled={!enabled({ id: "logs.open" })}
+            onClick={() => dispatch({ id: "logs.open" })}
+          >
+            {t("logs.open")} (
+            {recordings.filter((record) => record.state === "recording").length}
+            )
+          </button>
+        )}
         <span className="input-status" role="status" title={inputStatus}>
           {inputStatus}
         </span>

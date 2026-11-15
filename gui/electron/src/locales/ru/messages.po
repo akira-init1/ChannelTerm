@@ -124,6 +124,7 @@ msgid "connection.baud"
 msgstr "Скорость в бодах"
 
 #. js-lingui-explicit-id
+#: src/main/index.ts
 #: src/shared/menu-messages.ts
 msgid "connection.cancel"
 msgstr "Отмена"
@@ -1277,6 +1278,123 @@ msgstr "简体中文"
 #: src/shared/menu-messages.ts
 msgid "language.zh-TW"
 msgstr "繁體中文"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.delete"
+msgstr "Выбрать локальный файл журнала для удаления…"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "logs.deleteConfirm"
+msgstr "Переместить выбранный файл журнала в корзину?"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.error.disk"
+msgstr "Ошибка записи журнала. Проверьте свободное место и права. Подтверждены только индексированные байты; частичные файлы сохранены для проверки."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.error.source"
+msgstr "Захват вывода неожиданно завершён. Проверьте сохранённые диапазоны в индексе; переподключение не возобновит эту запись."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.failed"
+msgstr "Ошибка записи"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.format"
+msgstr "Формат записи"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.gaps"
+msgstr "Пропуски"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.lifecycle"
+msgstr "Записывается новый вывод с начального курсора, включая скрытые и закрытые вкладки. Отключение этого окна или выход останавливает запись. При достижении лимита старые сегменты удаляются; пропуски отмечаются, а не заполняются вымышленной историей."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.open"
+msgstr "Непрерывная запись"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.raw"
+msgstr "Исходные байты (.bin)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.recording"
+msgstr "Идёт запись"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.recovery"
+msgstr "У каждого сегмента есть индекс курсоров JSONL. Полные записи индекса подтверждают синхронизированные данные. После сбоя маркер записи, отсутствующий индекс или неполная последняя строка означают непроверенный хвост. Текст — UTF-8 с заменой неверных байтов и экранированием управляющих символов, а не снимок экрана терминала."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.rotations"
+msgstr "Удалённые сегменты"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.segments"
+msgstr "Сохраняемые сегменты"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.segmentSize"
+msgstr "Лимит данных и индекса на сегмент"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.start"
+msgstr "Выбрать папку и начать запись"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.starting"
+msgstr "Запуск записи"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.stop"
+msgstr "Остановить запись"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.stopped"
+msgstr "Запись остановлена"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.stopping"
+msgstr "Остановка и сохранение"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.text"
+msgstr "Читаемый UTF-8 (.txt)"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "logs.trash"
+msgstr "В корзину"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.warning"
+msgstr "Вывод может содержать секреты, эхо ввода и байты передачи файлов. Автоматического скрытия нет. Неотправленный ввод не записывается."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

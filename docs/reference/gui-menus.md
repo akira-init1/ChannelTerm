@@ -48,6 +48,7 @@ for authentication, verification and cancellation.
 
 | Menu / surface | Action ID | Behavior and availability |
 | --- | --- | --- |
+| Terminal > Continuous recording; recording status indicator | `logs.open` | Start explicit raw/text output recording for the captured view, inspect this window's records, stop them, or select one local log file for confirmed trash. Available offline for retained results. |
 | Host > Host information and connection | `host.settings` | Show Main-owned versions, connection capabilities and the local endpoint, including while offline. Saving disconnects this window; no shortcut or Host-stop action. |
 | Host > Connect to Host...; Host panel | `host.connect` | Connect to the configured Host while disconnected and idle; the existing default-local companion startup policy is unchanged. |
 | Host > Disconnect from Host; Host panel | `host.disconnect` | Release this window's connection and attachments; enabled while connected and idle. |
@@ -391,6 +392,53 @@ Cancel, disconnect, detach of the snapshot attachment, malformed data, hash mism
 failure removes the incomplete local file; removal failures are explicitly reported. An uncertain
 export is not automatically retried. Unknown, expired and evicted IDs show an unavailable-archive
 error; create another snapshot. A download has a 60-second budget including destination selection.
+
+## Continuous recording
+
+**Terminal > Continuous recording** records new Session output after an explicit start. Choose
+raw bytes (`.bin`) or readable UTF-8 (`.txt`), a segment limit (1/4/8/16/64 MiB) and 1–8 retained
+segments; the defaults are 8 MiB and four segments. A native folder picker creates a new
+`channelterm-log-<id>` subdirectory. The dialog shows its full selected location, actual state,
+cumulative successfully indexed data bytes, gap count and removed-segment count. It is separate from
+the current screen/scrollback and the finite diagnostic ZIP snapshot. There is no automatic start,
+resume, history backfill, input replay or remote reconnect.
+
+Recording starts at the Host tail cursor observed after registering this background attachment.
+It continues independently of hidden/closed terminal tabs, without taking SSH size control. Closing
+the dialog does not stop it. **Stop recording**, window disconnect/endpoint change, window close or
+normal app exit cancels pending reads and finishes the accepted disk batch before reporting stopped.
+The Host and shared Session remain open. Read/connection failure ends that recording; a disk failure
+does not trigger further reads or retries. Slow storage can delay stopping and cause Host history
+overwrite, which is recorded as a gap. A later recording is a new explicit operation.
+
+Raw files retain exact received bytes, including transfer/debug protocol ranges suppressed from the
+terminal view. Text uses streaming UTF-8, replacement characters for invalid/incomplete sequences,
+and `\xNN` escapes for C0/C1 controls except LF and tab. It does not emulate ANSI screen operations,
+interpret CR as cursor movement, redact secrets, or infer a device event time. Output may include
+echoed commands or sensitive transfer data; unsent drafts and the separate write/activity stream are
+not collected. Text decoding resets at a gap; local capture times describe observation, not the time
+the device produced individual bytes.
+
+Each numbered data file has a `.jsonl` index. A `segment` header gives format, Session and start
+cursor. `output` records carry source `from`/`to` cursors, data `offset`/`bytes` and `receivedAt`.
+`gap` records mark a missing source range; text decoder tails can have `decoder-end` records.
+The limit includes both data and index, and rotation removes only this recording's oldest segments.
+`manifest.json` records version 1, current segment names, limits, state, cumulative counters and the
+last cursor when updated. It is not a live per-byte acknowledgment.
+
+The writer syncs data before appending/syncing its index record. A normal stop writes a stopped
+manifest. After a crash, a recording marker, missing manifest/index or incomplete last JSON line must
+be treated as incomplete: only complete index entries whose ranges fit the data file confirm bytes.
+An unindexed tail must not be described as a complete record. Partial files remain after errors for
+inspection; filesystem/power-loss guarantees still depend on the storage system. Rotation deliberately
+discards old ranges even when capture had no gap. At most four recordings are active and 16 statuses
+retained per window; data never passes through Renderer.
+
+**Choose a local log file to delete…** opens a native single-file picker, then confirms the exact path
+before moving only that file to the OS trash. It rejects directories, symlinks, files changed during
+confirmation and files under an active recording in any window of this process. It does not delete
+the whole recording directory or search for files. Inspect paired data/index files before selecting
+one; trash support and recovery depend on the OS. Stopping a recording never deletes its retained files.
 
 ## Planning boundaries (not implemented)
 

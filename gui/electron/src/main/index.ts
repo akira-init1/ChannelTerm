@@ -1,5 +1,9 @@
 import { DesktopFiles, TransferConfirmation } from "./files";
 import { DesktopDiagnostics } from "./diagnostics";
+import { DesktopRecordings } from "./logging";
+import { isRecordingRequest } from "../shared/logging";
+import { setupI18n } from "@lingui/core";
+import { menuCatalogs } from "../locales/catalogs";
 import { DesktopSSHBrowser } from "./ssh-browser";
 import { isDiagnosticRequest } from "../shared/diagnostics";
 import { DesktopSSHFiles } from "./ssh-files";
@@ -13,8 +17,9 @@ import {
   nativeTheme,
   protocol,
   session,
+  shell,
 } from "electron";
-import { readFile } from "node:fs/promises";
+import { readFile, lstat, realpath } from "node:fs/promises";
 import { extname, join, resolve, sep } from "node:path";
 import { channels, type Result, type WindowInfo } from "../shared/api";
 import { randomUUID } from "node:crypto";
@@ -73,6 +78,8 @@ interface WindowContext {
   files: DesktopFiles;
   sshFiles: DesktopSSHFiles;
   diagnostics: DesktopDiagnostics;
+  recordings: DesktopRecordings;
+  closingRecordings: boolean;
   sshBrowser: DesktopSSHBrowser;
   menu: MenuState;
   handlers: Record<string, Handler>;
@@ -149,10 +156,13 @@ function disconnectHost(context: WindowContext): Promise<void> {
   context.connected = false;
   const host = context.host;
   context.host = undefined;
-  return host?.disconnect() ?? Promise.resolve();
+  const stopped = context.recordings.stopAll();
+  return Promise.all([stopped, host?.disconnect()]).then(() => {});
 }
 
 function currentHost(context: WindowContext): HostClient {
+  if (context.closingRecordings)
+    throw new HostError("cancelled", "The window is closing.");
   if (context.savingEndpoint)
     throw new HostError("busy", "Host settings are changing.");
   if (!context.host || context.disposed)
@@ -362,7 +372,111 @@ async function acceptMovedTab(
 
 function createHandlers(context: WindowContext): Record<string, Handler> {
   let copyingTarget = false;
+  let deletingLog = false;
   const handlers: Record<string, (...args: unknown[]) => unknown> = {
+    [channels.recordings]: () => context.recordings.list(),
+    [channels.startRecording]: (request) => {
+      if (!isRecordingRequest(request))
+        throw new HostError("invalid_input", "Invalid recording settings.");
+      return context.recordings.start(
+        currentHost(context),
+        request,
+        async () => {
+          const selected = await dialog.showOpenDialog(context.window, {
+            properties: ["openDirectory", "createDirectory"],
+          });
+          return selected.canceled ? undefined : selected.filePaths[0];
+        },
+      );
+    },
+    [channels.stopRecording]: (id) => {
+      identifier(id);
+      return context.recordings.stop(id);
+    },
+    [channels.deleteRecordingFile]: async () => {
+      if (deletingLog)
+        throw new HostError("busy", "A log file selection is already open.");
+      deletingLog = true;
+      try {
+        const selected = await dialog.showOpenDialog(context.window, {
+          properties: ["openFile"],
+          filters: [
+            { name: "Log", extensions: ["bin", "txt", "jsonl", "json"] },
+          ],
+        });
+        if (selected.canceled || selected.filePaths.length !== 1) return false;
+        const path = resolve(selected.filePaths[0]!);
+        const before = await lstat(path);
+        if (!before.isFile())
+          throw new HostError(
+            "invalid_input",
+            "Choose one ordinary local log file.",
+          );
+        const canonical = async (value: string) => {
+          const resolved = await realpath(value);
+          return process.platform === "win32"
+            ? resolved.toLowerCase()
+            : resolved;
+        };
+        const active = async () => {
+          const selectedPath = await canonical(path);
+          for (const window of desktop.windows.values()) {
+            for (const record of window.recordings.list()) {
+              if (
+                ["starting", "recording", "stopping"].includes(record.state) &&
+                record.directory &&
+                selectedPath.startsWith(
+                  (await canonical(record.directory)) + sep,
+                )
+              )
+                return true;
+            }
+          }
+          return false;
+        };
+        if (await active())
+          throw new HostError(
+            "busy",
+            "Stop the recording before deleting its files.",
+          );
+        const i18n = setupI18n({
+          locale: context.menu.locale,
+          messages: menuCatalogs,
+        });
+        const answer = await dialog.showMessageBox(context.window, {
+          type: "warning",
+          message: i18n._("logs.deleteConfirm"),
+          detail: path,
+          buttons: [i18n._("connection.cancel"), i18n._("logs.trash")],
+          defaultId: 0,
+          cancelId: 0,
+        });
+        if (answer.response !== 1) return false;
+        const after = await lstat(path);
+        if (
+          (await active()) ||
+          !after.isFile() ||
+          before.dev !== after.dev ||
+          before.ino !== after.ino ||
+          before.size !== after.size ||
+          before.mtimeMs !== after.mtimeMs
+        )
+          throw new HostError(
+            "busy",
+            "The selected file changed. Select it again.",
+          );
+        await shell.trashItem(path);
+        return true;
+      } catch (error) {
+        if (error instanceof HostError) throw error;
+        throw new HostError(
+          "tool_error",
+          "Could not move the selected log file to trash.",
+        );
+      } finally {
+        deletingLog = false;
+      }
+    },
     [channels.saveDiagnostics]: (request) => {
       if (!isDiagnosticRequest(request))
         throw new HostError("invalid_input", "Invalid diagnostic request.");
@@ -448,6 +562,7 @@ function createHandlers(context: WindowContext): Record<string, Handler> {
       validateEndpoint(value);
       if (
         context.savingEndpoint ||
+        context.recordings.choosing ||
         context.connecting ||
         context.files.busy ||
         context.sshFiles.busy ||
@@ -472,6 +587,7 @@ function createHandlers(context: WindowContext): Record<string, Handler> {
     },
     [channels.connect]: async () => {
       if (
+        context.recordings.choosing ||
         context.files.busy ||
         context.sshFiles.busy ||
         context.sshBrowser.busy
@@ -522,7 +638,11 @@ function createHandlers(context: WindowContext): Record<string, Handler> {
       }
     },
     [channels.disconnect]: () => {
-      if (context.files.busy || context.sshFiles.busy)
+      if (
+        context.files.busy ||
+        context.sshFiles.busy ||
+        context.recordings.choosing
+      )
         throw new HostError(
           "busy",
           "Finish or cancel the file operation before disconnecting.",
@@ -746,6 +866,8 @@ function registerIPC(): void {
               ? 3
               : [
                     channels.control,
+                    channels.startRecording,
+                    channels.stopRecording,
                     channels.saveHostEndpoint,
                     channels.focusWindow,
                     channels.detach,
@@ -833,6 +955,8 @@ function makeWindow(
     files: new DesktopFiles(fileExecutable),
     sshFiles: new DesktopSSHFiles(fileExecutable),
     diagnostics: new DesktopDiagnostics(),
+    recordings: new DesktopRecordings(),
+    closingRecordings: false,
     sshBrowser: new DesktopSSHBrowser(fileExecutable),
     menu: { ...initialMenuState },
     handlers: {},
@@ -866,9 +990,24 @@ function makeWindow(
     },
   );
   created.on("close", (event) => {
-    if (context.files.busy || context.sshFiles.busy) {
+    if (
+      context.files.busy ||
+      context.sshFiles.busy ||
+      context.recordings.choosing
+    ) {
       event.preventDefault();
       created.webContents.send(channels.fileCloseBlocked);
+      return;
+    }
+    if (context.recordings.active) {
+      event.preventDefault();
+      if (!context.closingRecordings) {
+        context.closingRecordings = true;
+        void context.recordings.stopAll().finally(() => {
+          context.closingRecordings = false;
+          if (!created.isDestroyed()) created.close();
+        });
+      }
     }
   });
   const contentsId = created.webContents.id;
@@ -957,7 +1096,10 @@ app.on("before-quit", (event) => {
   event.preventDefault();
   const contexts = [...desktop.windows.values()];
   const busy = contexts.filter(
-    (context) => context.files.busy || context.sshFiles.busy,
+    (context) =>
+      context.files.busy ||
+      context.sshFiles.busy ||
+      context.recordings.choosing,
   );
   if (busy.length) {
     for (const context of busy)

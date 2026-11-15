@@ -529,6 +529,15 @@ stop the affected work and are surfaced to the UI. Reconnection is explicit.
 
 ## Security and lifecycle
 
+Explicit continuous recording uses Main-owned read attachments and `monitor` use registration on
+the existing client instance, so idle policy sees real background use after a terminal tab is closed.
+It has its own cursor and cancellation, no input queue or remote-size capability, and reads existing
+raw `terminal_read` data without presentation filtering. Main serializes one bounded read (64 KiB)
+and asynchronous disk batch per recording; slow storage never blocks the Session's Channel reader.
+At most four recordings run per window. Shutdown joins their accepted writes before normal window
+exit; Renderer polls only bounded status snapshots. See the
+[format, retention and recovery contract](../reference/gui-menus.md#continuous-recording).
+
 Main owns the bounded saved local endpoint default and per-window endpoint selection. The Host menu
 uses fixed information/save IPC methods; Renderer receives sanitized version/capability snapshots and
 never a credential path. Changing one endpoint fences pending work and releases only that window's
@@ -608,7 +617,7 @@ uses the separate desktop Host API. The serial file UI invokes the existing CLI 
 events; it adds no upload API. Authorized SSH views forward local fitting through the desktop size-control route. The debug sidebar
 is observational; the separate Session control strip can request managed recovery. Serial transfer
 cancellation uses existing Host control tools.
-There is no built-in Agent, installer, persistence of terminal output, tab dragging, terminal splitting,
+There is no built-in Agent, automatic persistence of terminal output, tab dragging, terminal splitting,
 or complete terminal-state migration. None of these gaps is filled by bypassing Application or changing MCP schemas.
 
 ## SSH remote size control

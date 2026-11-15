@@ -3,6 +3,58 @@ import type { MessageDescriptor } from "@lingui/core";
 // Lingui 5 extracts these official annotated descriptors without a runtime macro
 // transform. Translations belong in PO catalogs; this file owns IDs and English defaults.
 export const menuMessages = [
+  /* i18n */ { id: "logs.open", message: "Continuous recording" },
+  /* i18n */ {
+    id: "logs.warning",
+    message:
+      "Output may contain secrets, echoed input and file-transfer bytes. No automatic redaction. Unsent input is not recorded.",
+  },
+  /* i18n */ {
+    id: "logs.lifecycle",
+    message:
+      "Records new output from the start cursor, including hidden or closed tabs. Disconnecting this window or exiting stops recording. Old segments are removed at the selected limit; gaps are recorded, never filled with invented history.",
+  },
+  /* i18n */ {
+    id: "logs.recovery",
+    message:
+      "Each segment has a JSONL cursor index. Complete index records acknowledge synced data. After a crash, a recording marker, missing index or partial final line means the tail is unverified. Text is UTF-8 with replacement for invalid bytes and escaped controls; it is not a terminal screen snapshot.",
+  },
+  /* i18n */ { id: "logs.format", message: "Recording format" },
+  /* i18n */ { id: "logs.raw", message: "Original bytes (.bin)" },
+  /* i18n */ { id: "logs.text", message: "Readable UTF-8 (.txt)" },
+  /* i18n */ {
+    id: "logs.segmentSize",
+    message: "Data and index limit per segment",
+  },
+  /* i18n */ { id: "logs.segments", message: "Retained segments" },
+  /* i18n */ { id: "logs.start", message: "Choose folder and start recording" },
+  /* i18n */ { id: "logs.stop", message: "Stop recording" },
+  /* i18n */ { id: "logs.starting", message: "Starting recording" },
+  /* i18n */ { id: "logs.recording", message: "Recording" },
+  /* i18n */ { id: "logs.stopping", message: "Stopping and flushing" },
+  /* i18n */ { id: "logs.stopped", message: "Recording stopped" },
+  /* i18n */ { id: "logs.failed", message: "Recording failed" },
+  /* i18n */ { id: "logs.gaps", message: "Gaps" },
+  /* i18n */ { id: "logs.rotations", message: "Removed segments" },
+  /* i18n */ {
+    id: "logs.error.source",
+    message:
+      "Output capture ended unexpectedly. Inspect the index for retained ranges; reconnecting will not resume this recording.",
+  },
+  /* i18n */ {
+    id: "logs.error.disk",
+    message:
+      "Log write failed. Check free space and permissions. Only indexed bytes are confirmed; partial files remain for inspection.",
+  },
+  /* i18n */ {
+    id: "logs.delete",
+    message: "Choose a local log file to delete…",
+  },
+  /* i18n */ {
+    id: "logs.deleteConfirm",
+    message: "Move the selected log file to trash?",
+  },
+  /* i18n */ { id: "logs.trash", message: "Move to trash" },
   /* i18n */ {
     id: "host.settings",
     message: "Host information and connection",

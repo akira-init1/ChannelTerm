@@ -124,6 +124,7 @@ msgid "connection.baud"
 msgstr "전송 속도"
 
 #. js-lingui-explicit-id
+#: src/main/index.ts
 #: src/shared/menu-messages.ts
 msgid "connection.cancel"
 msgstr "취소"
@@ -1277,6 +1278,123 @@ msgstr "简体中文"
 #: src/shared/menu-messages.ts
 msgid "language.zh-TW"
 msgstr "繁體中文"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.delete"
+msgstr "삭제할 로컬 로그 파일 선택…"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "logs.deleteConfirm"
+msgstr "선택한 로그 파일을 휴지통으로 이동할까요?"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.error.disk"
+msgstr "로그 쓰기에 실패했습니다. 여유 공간과 권한을 확인하세요. 색인된 바이트만 확인되며 부분 파일은 검사를 위해 남겨 둡니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.error.source"
+msgstr "출력 수집이 예기치 않게 종료되었습니다. 보관된 범위는 색인을 확인하세요. 다시 연결해도 이 기록은 재개되지 않습니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.failed"
+msgstr "기록 실패"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.format"
+msgstr "기록 형식"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.gaps"
+msgstr "누락"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.lifecycle"
+msgstr "시작 커서 이후의 새 출력을 숨겨지거나 닫힌 탭에서도 기록합니다. 이 창을 연결 해제하거나 종료하면 기록이 멈춥니다. 선택한 한도에 도달하면 오래된 구간을 삭제하며, 누락은 표시하고 존재하지 않는 기록을 만들지 않습니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.open"
+msgstr "연속 기록"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.raw"
+msgstr "원본 바이트 (.bin)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.recording"
+msgstr "기록 중"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.recovery"
+msgstr "각 구간에는 JSONL 커서 색인이 있습니다. 완전한 색인 항목은 동기화된 데이터를 확인합니다. 비정상 종료 후 기록 중 표시, 누락된 색인 또는 불완전한 마지막 줄은 끝부분이 미검증임을 뜻합니다. 텍스트는 잘못된 바이트를 대체하고 제어 문자를 이스케이프한 UTF-8이며 터미널 화면 복사가 아닙니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.rotations"
+msgstr "삭제된 구간"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.segments"
+msgstr "보관할 구간 수"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.segmentSize"
+msgstr "구간별 데이터 및 색인 한도"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.start"
+msgstr "폴더를 선택하고 기록 시작"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.starting"
+msgstr "기록 시작 중"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.stop"
+msgstr "기록 중지"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.stopped"
+msgstr "기록 중지됨"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.stopping"
+msgstr "중지 및 저장 중"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.text"
+msgstr "읽기 쉬운 UTF-8 (.txt)"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "logs.trash"
+msgstr "휴지통으로 이동"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "logs.warning"
+msgstr "출력에는 비밀 정보, 에코된 입력, 파일 전송 바이트가 포함될 수 있습니다. 자동으로 가리지 않습니다. 보내지 않은 입력은 기록하지 않습니다."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

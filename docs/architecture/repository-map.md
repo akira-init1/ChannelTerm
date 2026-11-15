@@ -142,6 +142,7 @@ gui/electron/
 |   |   |-- index.ts                Window/client ownership, tab handoff, static application scheme, validated IPC
 |   |   |-- security.ts             Trusted caller and content-policy checks
 |   |   |-- diagnostics.ts          Native destination selection lifecycle, verified archive saves and partial-file cleanup
+|   |   |-- logging.ts              Bounded local recording, data/index rotation and joined stop/flush lifecycle
 |   |   |-- files.ts                Native picker/drop selections, local transfer preferences and fixed structured CLI file operations
 |   |   |-- ssh-files.ts            Dedicated SSH CLI lifecycle, bounded progress and private credentials
 |   |   |-- menu.ts                 Native menu rendering from bounded display hints

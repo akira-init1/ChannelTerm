@@ -49,6 +49,7 @@ export type Action =
       id:
         | "host.connect"
         | "host.settings"
+        | "logs.open"
         | "host.disconnect"
         | "connection.new"
         | "session.choose"
@@ -385,7 +386,13 @@ export function tabMenu(state: MenuState): MenuEntry[] {
 }
 
 export function terminalMenu(state: MenuState): MenuEntry[] {
-  const items = [
+  const items: MenuEntry[] = [
+    {
+      id: "logs.open",
+      label: "logs.open",
+      action: { id: "logs.open" },
+      enabled: !state.busy,
+    },
     attachedAction(state, "terminal.focus"),
     attachedAction(state, "terminal.clear"),
     {
@@ -506,6 +513,7 @@ export function isMenuLocale(value: unknown): value is MenuLocale {
 export function isAction(value: unknown): value is Action {
   if (!record(value)) return false;
   switch (value.id) {
+    case "logs.open":
     case "host.settings":
     case "host.connect":
     case "host.disconnect":
@@ -652,6 +660,8 @@ export function actionEnabled(action: Action, state: MenuState): boolean {
     case "host.connect":
       return !state.connected && !state.busy;
     case "host.settings":
+      return !state.busy;
+    case "logs.open":
       return !state.busy;
     case "connection.ssh":
       return (
