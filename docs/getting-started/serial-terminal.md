@@ -91,6 +91,14 @@ starting another explicit attempt. Only the fresh-prompt success message confirm
 available, **Save diagnostic archive…** downloads the retained evidence through the existing
 verified native-save flow; capture failures and partial operation results remain visible.
 
+**Human takeover** is a different operation from **Stop attempt**. U-Boot currently has no
+verified interactive-shell recovery path in the Host's control coordinator. Taking over an active
+U-Boot operation therefore closes the captured Session and reports `recovery: "session_closed"`,
+not restored control. The interrupted panel may show an unconfirmed outcome because its response
+was lost. Query the original takeover result, inspect the board independently, and reconnect only
+when appropriate; neither a closed connection nor reopening it proves that boot stopped. See the
+[shared control workflow](shared-session.md#interrupt-an-operation-and-take-control).
+
 ## Find a port
 
 List currently detected serial targets without querying MCP:

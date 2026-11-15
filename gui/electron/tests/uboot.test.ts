@@ -539,3 +539,85 @@ test(
     }
   },
 );
+
+test(
+  "U-Boot human takeover reports conservative Session closure instead of claiming restored shell control",
+  { timeout: 10000 },
+  async () => {
+    const fixture = await startFixture();
+    const owner = new HostClient(fixture.endpoint, fixture.token),
+      human = new HostClient(fixture.endpoint, fixture.token);
+    const controller = new AbortController();
+    let pending: Promise<unknown> | undefined;
+    try {
+      await owner.connect();
+      await human.connect();
+      const id = (await owner.list())[0]!.session_id;
+      const attachment = await owner.attach(id);
+      let ready: string | undefined;
+      const attempt = owner
+        .prepareUBoot(attachment.id, { ...request, timeoutMS: 5000 })
+        .run(controller.signal, (id) => {
+          ready = id;
+        });
+      // Closing the captured Session can end its event observer before the tool receipt arrives.
+      const receipt = attempt.then(
+        (outcome) => ({ outcome }),
+        (error: unknown) => ({ error }),
+      );
+      pending = receipt;
+      await until(async () => !!ready);
+      const control = (await human.list())[0]!.control!;
+      const key = {
+        session_id: id,
+        version: control.version,
+        operation_id: control.operation_id,
+      };
+      let takeover = await human.control({ ...key, action: "takeover" });
+      await until(async () => {
+        if ("result" in takeover && takeover.result.status !== "stopping")
+          return true;
+        takeover = await human.control({ ...key, action: "result" });
+        return false;
+      });
+      assert.ok("result" in takeover);
+      assert.equal(takeover.result.status, "failed");
+      assert.equal(takeover.result.recovery, "session_closed");
+      assert.equal(takeover.result.retry_allowed, false);
+      const completed = await receipt;
+      if ("outcome" in completed) {
+        assert.ok(
+          ["failed", "session_closed", "cancelled"].includes(
+            completed.outcome.status,
+          ),
+        );
+        assert.equal(completed.outcome.bytesWritten, 0);
+      } else {
+        assert.ok(
+          completed.error instanceof Error && "code" in completed.error,
+        );
+        assert.ok(
+          typeof completed.error.code === "string" &&
+            ["cancelled", "closed", "tool_error"].includes(
+              completed.error.code,
+            ),
+        );
+      }
+      assert.equal(ready, undefined);
+      assert.notEqual(
+        (await human.list()).find((row) => row.session_id === id)?.state,
+        "open",
+      );
+      const original = await human.control({ ...key, action: "result" });
+      assert.ok("result" in original);
+      assert.equal(original.result.version, key.version);
+      assert.equal(original.result.recovery, "session_closed");
+    } finally {
+      controller.abort();
+      await pending?.catch(() => {});
+      await owner.disconnect();
+      await human.disconnect();
+      await fixture.stop();
+    }
+  },
+);
