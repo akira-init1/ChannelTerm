@@ -353,6 +353,8 @@ SSH inside its Protocol selector; SSH is disabled without the Host's desktop API
   and press Connect. Scanning is read-only. The default form is 115200, 8N1, no flow control;
   wake is off unless explicitly selected. Expand **Serial profiles** to apply/save Host CLI
   settings or select a default; profile application resets wake to off. Successful setup refreshes the shared list and attaches the new/reused Session.
+  **Scan ports** also exposes read-only device discovery and the selected device's Host decision;
+  see the [menu workflow](../reference/gui-menus.md). Discovery never opens a port automatically.
 - SSH: enter host, port and user, then choose password or private-key authentication. Key paths
   and `known_hosts` paths refer to files on the Host. Blank key paths use existing default
   identities; encrypted keys accept a passphrase. Blank trust path uses the Host user's
@@ -567,6 +569,21 @@ expired/replayed/foreign decisions and changed/revoked records, including change
 The delayed-approval regression ensures the five-second HTTP body deadline does not interrupt the
 two-minute prompt. Native tests verify initial Reject focus, refusal without persistence, and approval
 with the same shared Host Session lifecycle. No developer SSH trust file is accessed.
+
+### Device discovery checks
+
+The isolated Host composes the real Registry and identity store with a controllable fake scanner.
+`tests/devices.test.ts` checks scan failure/recovery, disappearance, port moves, conflicting USB
+identities, Host occupancy, typed serial access errors, coalesced reads, stale selection and
+disconnect cancellation. An open counter proves discovery and decision reads do not create Sessions.
+`scripts/device-checks.mjs` exercises the same changes through native Renderer/Preload/Main, checks
+reselection and manual entry, and checks all nine languages in a compact window. It runs as part of
+both desktop suites and leaves the existing shared Session alive.
+
+For hardware acceptance, separately record port/framing/flow settings, actual USB identity evidence,
+appearance/disappearance and access-error behavior. Do not infer permission or external occupancy
+from enumeration, or treat the fake scanner/cross-builds as native hardware evidence. Unplug/reset
+actions require a known safe device and operator authorization.
 
 ### Session activity checks
 

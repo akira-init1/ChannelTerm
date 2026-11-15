@@ -650,6 +650,181 @@ msgstr "传输方式"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "devices.absent"
+msgstr "不在线"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.action"
+msgstr "发现决策"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.action.ask"
+msgstr "连接前询问"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.action.connect"
+msgstr "符合连接条件"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.action.deny"
+msgstr "拒绝连接"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.action.none"
+msgstr "无操作"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.boundary"
+msgstr "发现不会打开端口或发送探测字节。这里只知道当前 Host 的 Session；其他应用占用情况和系统访问权限，要在明确尝试连接时才能判断。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.connected"
+msgstr "已在当前 Host 连接"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.details"
+msgstr "设备详情"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.empty"
+msgstr "最近一次扫描没有发现设备。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.explicit"
+msgstr "选择设备不会连接。“连接”是明确请求；发现策略并非访问授权。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.externalUnknown"
+msgstr "当前 Host 没有对应 Session；外部占用和访问权限未知。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.hide"
+msgstr "隐藏发现面板"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.identity.runtime"
+msgstr "身份依据不足或冲突"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.identity.unknown"
+msgstr "无法获取身份"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.identity.usb_path"
+msgstr "USB 位置身份，不代表物理设备身份"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.identity.usb_serial"
+msgstr "USB 序列号身份"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.lastSeen"
+msgstr "最近观察时间"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.limit"
+msgstr "最多显示 128 条近期设备观察记录。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.persistent"
+msgstr "持久 ID"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.policy"
+msgstr "Host 策略"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.policy.ask"
+msgstr "询问"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.policy.auto"
+msgstr "自动"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.policy.deny"
+msgstr "拒绝"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.present"
+msgstr "在线"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.previous"
+msgstr "先前端点"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.refresh"
+msgstr "刷新设备"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.reselect"
+msgstr "请刷新并重新选择设备，或手动输入端口。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.runtimeOnly"
+msgstr "仅当前 Host 进程有效"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.select"
+msgstr "选择此设备"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.stale"
+msgstr "在线状态未知。保留的观察记录可能已过期。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.title"
+msgstr "设备发现"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.unknown"
+msgstr "未知"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.usbPath"
+msgstr "USB 位置"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.usbSerial"
+msgstr "USB 序列号"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "diagnostics.cancel"
 msgstr "取消保存"
 
@@ -1644,6 +1819,11 @@ msgstr "控制权已更改或实例已过期。刷新并核对当前控制方后
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "recovery.device_changed"
+msgstr "所选设备已消失，或身份、端点已改变。请刷新并重新选择。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "recovery.diagnostic_unavailable"
 msgstr "诊断包不可用或请求失败，可能已过期或被移除；请创建新快照。"
 
@@ -1651,6 +1831,16 @@ msgstr "诊断包不可用或请求失败，可能已过期或被移除；请创
 #: src/shared/menu-messages.ts
 msgid "recovery.disconnected"
 msgstr "检查 Host 并显式重连。输入没有重试，交付结果可能不确定；重新输入前请检查远端状态。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.discovery_stale"
+msgstr "Host 扫描失败或已过期。选择设备前请刷新。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.discovery_unavailable"
+msgstr "设备发现不可用。请检查 Host；仍可手动输入端口。"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -1701,6 +1891,31 @@ msgstr "检查输入的设置、路径和目标，修正后再提交。"
 #: src/shared/menu-messages.ts
 msgid "recovery.profile_exists"
 msgstr "配置已存在。请选择其他名称，或明确启用替换以覆盖原配置。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.serial_busy"
+msgstr "端口正忙。重试前请检查占用方；未停止任何进程。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.serial_busy_or_denied"
+msgstr "端口正忙或访问被拒绝，驱动无法区分。请检查占用方和权限。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.serial_not_found"
+msgstr "未找到端口。请刷新发现列表并检查设备连接。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.serial_open_failed"
+msgstr "无法打开端口，原因未知。重试前请检查设备及 Host 诊断信息。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.serial_permission_denied"
+msgstr "操作系统拒绝访问端口。重试前请检查设备权限。"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

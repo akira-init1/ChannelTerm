@@ -4,6 +4,7 @@ import { _electron as electron, expect } from "@playwright/test";
 import { startFixture } from "../tests/fixture.ts";
 import { HostClient } from "../src/main/host/client.ts";
 import { checkSSHFiles } from "./file-checks.mjs";
+import { checkDevices } from "./device-checks.mjs";
 
 /** Real GUI -> trusted IPC -> authenticated Host -> Application connection setup. */
 export async function checkConnections(
@@ -100,6 +101,7 @@ export async function checkConnections(
       "value",
       "COM-FIXTURE",
     );
+    await checkDevices(page, desktop, dialog, fixture);
     await dialog.locator('[name="port"]').fill("MISSING");
     await dialog.getByRole("button", { name: "Connect", exact: true }).click();
     await expect(dialog.getByRole("alert")).toContainText(

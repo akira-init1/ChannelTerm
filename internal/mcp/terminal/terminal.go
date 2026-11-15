@@ -241,24 +241,24 @@ func (*listDevicesTool) Name() string { return "terminal_list_devices" }
 
 // Description explains that this Tool returns discovery state only.
 func (*listDevicesTool) Description() string {
-	return "List currently present devices detected by ChannelTerm without opening them or creating sessions."
+	return "List devices from the last successful scan with scan freshness, without opening them or creating sessions. Failed or stale scans retain historical presence only."
 }
 
 // InputSchema describes the empty object accepted by this read-only Tool.
 func (*listDevicesTool) InputSchema() tool.InputSchema { return tool.InputSchema{Type: "object"} }
 
-// Call returns current Registry records. Presence is independent from whether
+// Call returns Registry records with scan freshness. Presence is independent from whether
 // any endpoint is currently open through Session Manager.
 func (t *listDevicesTool) Call(ctx context.Context, _ json.RawMessage) (tool.Result, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	devices, err := t.application.ListDevices(ctx)
+	snapshot, err := t.application.DeviceSnapshot(ctx)
 	if err != nil {
 		return nil, err
 	}
-	result := make([]deviceResult, 0, len(devices))
-	for _, discovered := range devices {
+	result := make([]deviceResult, 0, len(snapshot.Devices))
+	for _, discovered := range snapshot.Devices {
 		result = append(result, deviceResult{
 			DeviceID:       discovered.DeviceID,
 			IdentityMethod: string(discovered.IdentityMethod),
@@ -276,7 +276,11 @@ func (t *listDevicesTool) Call(ctx context.Context, _ json.RawMessage) (tool.Res
 			LastSeen:       discovered.LastSeen.Format(time.RFC3339Nano),
 		})
 	}
-	return tool.Result{"devices": result}, nil
+	lastScan := ""
+	if !snapshot.LastSuccessfulScan.IsZero() {
+		lastScan = snapshot.LastSuccessfulScan.Format(time.RFC3339Nano)
+	}
+	return tool.Result{"devices": result, "scan_state": string(snapshot.State), "last_scan_at": lastScan}, nil
 }
 
 type readDeviceEventsTool struct{ *deviceTools }

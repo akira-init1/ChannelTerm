@@ -156,6 +156,7 @@ gui/electron/
 |   |-- renderer/
 |   |   |-- components/            React application shell and view state
 |   |   |-- sessions/              Session selection, terminal tab strip, debug observation sidebar and display metadata
+|   |   |-- devices/               Read-only discovery observations and connection-decision presentation
 |   |   |-- transfers/             Directory picker, explicit SFTP management and structured transfer progress
 |   |   |-- terminal/              Per-view xterm presentation, bounded input, visibility-aware output pacing
 |   |   |-- styles/                Desktop presentation

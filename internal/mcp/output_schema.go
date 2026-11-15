@@ -90,7 +90,11 @@ func terminalOutputSchema(name string) (jsonSchema, bool) {
 	case "terminal_list_serial_ports":
 		schema = objectSchema(map[string]jsonSchema{"ports": arraySchema(serialPortSchema())}, "ports")
 	case "terminal_list_devices":
-		schema = objectSchema(map[string]jsonSchema{"devices": arraySchema(deviceSchema())}, "devices")
+		schema = objectSchema(map[string]jsonSchema{
+			"devices":      arraySchema(deviceSchema()),
+			"scan_state":   stringSchema(string(device.ScanCurrent), string(device.ScanFailed), string(device.ScanStale), string(device.ScanUnknown)),
+			"last_scan_at": stringSchema(),
+		}, "devices", "scan_state", "last_scan_at")
 	case "terminal_read_device_events", "terminal_wait_device_event":
 		schema = cursorChunkSchema(deviceEventSchema())
 	case "terminal_get_connection_decision":

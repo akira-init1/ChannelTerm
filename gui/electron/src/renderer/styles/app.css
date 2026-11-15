@@ -1516,3 +1516,52 @@ main {
 .ssh-advanced {
   grid-column: 1 / -1;
 }
+
+.device-discovery {
+  margin: 12px 0;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow-wrap: anywhere;
+}
+.device-toolbar,
+.device-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.device-toolbar strong {
+  flex: 1;
+}
+.device-observations {
+  list-style: none;
+  padding: 0;
+  max-height: 240px;
+  overflow: auto;
+}
+.device-observations li {
+  padding: 8px 0;
+  border-top: 1px solid var(--border);
+}
+.device-discovery p {
+  margin: 6px 0;
+}
+.device-discovery code {
+  display: block;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.device-discovery dl {
+  font-size: 12px;
+}
+.device-discovery dd {
+  margin: 0 0 6px;
+}
+.device-heading span {
+  margin-left: auto;
+}
+.device-decision {
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}

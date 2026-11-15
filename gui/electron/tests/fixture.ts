@@ -63,6 +63,7 @@ export async function startFixture(options: { idle?: boolean } = {}) {
       process.stdin.write(JSON.stringify({ action, data }) + "\n");
       const reply = await next();
       if (reply.error) throw new Error(reply.error);
+      return reply;
     },
     async stop() {
       if (process.exitCode !== null) return;

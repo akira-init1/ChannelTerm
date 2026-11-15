@@ -650,6 +650,181 @@ msgstr "Транспорт"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "devices.absent"
+msgstr "Отсутствует"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.action"
+msgstr "Решение обнаружения"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.action.ask"
+msgstr "Спросить перед подключением"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.action.connect"
+msgstr "Подходит для подключения"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.action.deny"
+msgstr "Подключение запрещено"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.action.none"
+msgstr "Без действий"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.boundary"
+msgstr "Обнаружение не открывает порты и не отправляет проверочные байты. Известны только Session этого Host; занятость другими приложениями и доступ ОС неизвестны до явной попытки подключения."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.connected"
+msgstr "Уже подключено на этом Host"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.details"
+msgstr "Сведения об устройстве"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.empty"
+msgstr "Последнее сканирование не обнаружило устройств."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.explicit"
+msgstr "Выбор не запускает подключение. Подключение — явный запрос; политика обнаружения не даёт права доступа."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.externalUnknown"
+msgstr "На этом Host нет Session; внешняя занятость и доступ неизвестны."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.hide"
+msgstr "Скрыть обнаружение"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.identity.runtime"
+msgstr "Недостаточные или противоречивые данные идентификации"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.identity.unknown"
+msgstr "Идентификация недоступна"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.identity.usb_path"
+msgstr "Идентификация по расположению USB, не по физическому устройству"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.identity.usb_serial"
+msgstr "Идентификация по серийному номеру USB"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.lastSeen"
+msgstr "Последнее наблюдение"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.limit"
+msgstr "Показано не более 128 последних наблюдений устройств."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.persistent"
+msgstr "Постоянный ID"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.policy"
+msgstr "Политика Host"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.policy.ask"
+msgstr "Спрашивать"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.policy.auto"
+msgstr "Автоматически"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.policy.deny"
+msgstr "Запретить"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.present"
+msgstr "Обнаружено"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.previous"
+msgstr "Предыдущая конечная точка"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.refresh"
+msgstr "Обновить устройства"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.reselect"
+msgstr "Обновите и выберите устройство заново или введите порт вручную."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.runtimeOnly"
+msgstr "Только в этом процессе Host"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.select"
+msgstr "Выбрать это устройство"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.stale"
+msgstr "Наличие неизвестно. Сохранённые наблюдения могут устареть."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.title"
+msgstr "Обнаружение устройств"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.unknown"
+msgstr "Неизвестно"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.usbPath"
+msgstr "Расположение USB"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.usbSerial"
+msgstr "Серийный номер USB"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "diagnostics.cancel"
 msgstr "Отменить сохранение"
 
@@ -1644,6 +1819,11 @@ msgstr "Управление изменилось или срок экземпл
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "recovery.device_changed"
+msgstr "Выбранное устройство исчезло либо изменились его идентификатор или конечная точка. Обновите и выберите заново."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "recovery.diagnostic_unavailable"
 msgstr "Диагностический архив недоступен или запрос завершился ошибкой. Архив мог устареть или быть удалён; создайте новый снимок."
 
@@ -1651,6 +1831,16 @@ msgstr "Диагностический архив недоступен или з
 #: src/shared/menu-messages.ts
 msgid "recovery.disconnected"
 msgstr "Проверьте Host и явно подключитесь заново. Ввод не повторялся; доставка может быть неопределённой. Проверьте удалённое состояние перед новым вводом."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.discovery_stale"
+msgstr "Сканирование Host завершилось ошибкой или устарело. Обновите перед выбором устройства."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.discovery_unavailable"
+msgstr "Обнаружение недоступно. Проверьте Host; порт по-прежнему можно ввести вручную."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -1701,6 +1891,31 @@ msgstr "Проверьте параметры, путь и цель. Испра�
 #: src/shared/menu-messages.ts
 msgid "recovery.profile_exists"
 msgstr "Профиль уже существует. Выберите другое имя или явно разрешите замену для перезаписи."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.serial_busy"
+msgstr "Порт занят. Проверьте, кто его использует, перед повтором; ни один процесс не остановлен."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.serial_busy_or_denied"
+msgstr "Порт занят или доступ запрещён; драйвер не различает эти причины. Проверьте занятость и разрешения."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.serial_not_found"
+msgstr "Порт не найден. Обновите обнаружение и проверьте подключение устройства."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.serial_open_failed"
+msgstr "Не удалось открыть порт. Причина неизвестна; перед повтором проверьте устройство и диагностику Host."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.serial_permission_denied"
+msgstr "Операционная система отказала в доступе к порту. Проверьте разрешения перед повтором."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

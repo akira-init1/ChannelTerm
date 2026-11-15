@@ -69,7 +69,10 @@ owns storage and precedence semantics.
 - `ListSerialProfiles`: read and resolve named profiles; a missing file is an empty list and is not
   created.
 - `ResolveSerialTarget`: verify that a native operating-system serial endpoint is currently present.
-- `ListDevices`, `ReadDeviceEvents`: expose Registry snapshots and cursor streams.
+- `ListDevices`, `ReadDeviceEvents`: expose Registry presence lists and cursor streams.
+- `DeviceSnapshot`: atomically expose the list with Registry scan health and the last successful
+  scan time. Failed/stale lists are historical evidence, not current availability. This read does
+  not scan or open devices. See [scan health](device-registry.md#scanning-and-events).
 - `ConnectionDecision`: combine exact device presence, exact active Session metadata, and policy
   without changing state.
 

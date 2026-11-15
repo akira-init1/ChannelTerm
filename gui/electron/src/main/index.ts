@@ -914,6 +914,9 @@ function createHandlers(context: WindowContext): Record<string, Handler> {
     [channels.changeSerialProfile]: (request) =>
       currentHost(context).changeSerialProfile(request),
     [channels.serialPorts]: () => currentHost(context).serialPorts(),
+    [channels.devices]: () => currentHost(context).devices(),
+    [channels.deviceDecision]: (selection) =>
+      currentHost(context).deviceDecision(selection),
     [channels.sshTrustPrompt]: () => currentHost(context).sshTrust.current(),
     [channels.resolveSSHTrust]: (id, accept) =>
       currentHost(context).sshTrust.decide(id, accept),
@@ -1052,6 +1055,7 @@ function registerIPC(): void {
                     channels.menuState,
                     channels.openConnection,
                     channels.changeSerialProfile,
+                    channels.deviceDecision,
                     channels.startTransfer,
                     channels.startSSHTransfer,
                     channels.cancelSSHTransfer,

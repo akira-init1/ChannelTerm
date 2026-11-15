@@ -650,6 +650,181 @@ msgstr "Transporte"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "devices.absent"
+msgstr "Ausente"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.action"
+msgstr "Decisión de detección"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.action.ask"
+msgstr "Preguntar antes de conectar"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.action.connect"
+msgstr "Apto para conexión"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.action.deny"
+msgstr "Conexión denegada"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.action.none"
+msgstr "Ninguna acción"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.boundary"
+msgstr "La detección no abre puertos ni envía bytes de sondeo. Solo se conocen las Sessions de este Host; la ocupación por otras aplicaciones y el acceso del SO siguen siendo desconocidos hasta un intento explícito de conexión."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.connected"
+msgstr "Ya conectado en este Host"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.details"
+msgstr "Detalles del dispositivo"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.empty"
+msgstr "No hay dispositivos en el último escaneo."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.explicit"
+msgstr "Seleccionar no conecta. Conectar es una solicitud explícita; la política de detección no es un permiso de acceso."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.externalUnknown"
+msgstr "No hay una Session en este Host; se desconocen la ocupación externa y el acceso."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.hide"
+msgstr "Ocultar detección"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.identity.runtime"
+msgstr "Datos de identidad insuficientes o contradictorios"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.identity.unknown"
+msgstr "Identidad no disponible"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.identity.usb_path"
+msgstr "Identidad de ubicación USB, no identidad física"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.identity.usb_serial"
+msgstr "Identidad por número de serie USB"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.lastSeen"
+msgstr "Última observación"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.limit"
+msgstr "Se muestran hasta 128 observaciones recientes de dispositivos."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.persistent"
+msgstr "ID persistente"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.policy"
+msgstr "Política del Host"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.policy.ask"
+msgstr "Preguntar"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.policy.auto"
+msgstr "Automática"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.policy.deny"
+msgstr "Denegar"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.present"
+msgstr "Presente"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.previous"
+msgstr "Punto de conexión anterior"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.refresh"
+msgstr "Actualizar dispositivos"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.reselect"
+msgstr "Actualice y seleccione de nuevo el dispositivo, o introduzca un puerto manualmente."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.runtimeOnly"
+msgstr "Solo en este proceso del Host"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.select"
+msgstr "Seleccionar este dispositivo"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.stale"
+msgstr "La presencia es desconocida. Las observaciones guardadas pueden estar desactualizadas."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.title"
+msgstr "Detección de dispositivos"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.unknown"
+msgstr "Desconocido"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.usbPath"
+msgstr "Ubicación USB"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.usbSerial"
+msgstr "Número de serie USB"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "diagnostics.cancel"
 msgstr "Cancelar guardado"
 
@@ -1644,6 +1819,11 @@ msgstr "El control cambió o la instancia caducó. Actualice y compruebe quién 
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "recovery.device_changed"
+msgstr "El dispositivo seleccionado desapareció o cambió de identidad o punto de conexión. Actualice y vuelva a seleccionarlo."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "recovery.diagnostic_unavailable"
 msgstr "Archivo de diagnóstico no disponible o solicitud fallida. Puede haber caducado o sido eliminado; cree una nueva instantánea."
 
@@ -1651,6 +1831,16 @@ msgstr "Archivo de diagnóstico no disponible o solicitud fallida. Puede haber c
 #: src/shared/menu-messages.ts
 msgid "recovery.disconnected"
 msgstr "Compruebe el Host y reconéctese explícitamente. No se reintentó la entrada; su entrega puede ser incierta. Compruebe el estado remoto antes de introducir más datos."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.discovery_stale"
+msgstr "El escaneo del Host falló o está desactualizado. Actualice antes de seleccionar un dispositivo."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.discovery_unavailable"
+msgstr "La detección no está disponible. Compruebe el Host; aún puede introducir un puerto manualmente."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -1701,6 +1891,31 @@ msgstr "Compruebe los ajustes, la ruta y el destino. Corríjalos antes de volver
 #: src/shared/menu-messages.ts
 msgid "recovery.profile_exists"
 msgstr "El perfil ya existe. Elija otro nombre o habilite explícitamente la sustitución para sobrescribirlo."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.serial_busy"
+msgstr "El puerto está ocupado. Compruebe quién lo usa antes de reintentar; no se detuvo ningún proceso."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.serial_busy_or_denied"
+msgstr "El puerto está ocupado o se denegó el acceso; el controlador no puede distinguirlos. Compruebe la ocupación y los permisos."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.serial_not_found"
+msgstr "No se encontró el puerto. Actualice la detección y compruebe la conexión del dispositivo."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.serial_open_failed"
+msgstr "No se pudo abrir el puerto. La causa es desconocida; compruebe el dispositivo y el diagnóstico del Host antes de reintentar."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.serial_permission_denied"
+msgstr "El sistema operativo denegó el acceso al puerto. Compruebe los permisos antes de reintentar."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

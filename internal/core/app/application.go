@@ -762,6 +762,19 @@ func (a *Application) ListDevices(ctx context.Context) ([]device.Device, error) 
 	return a.devices.List(), nil
 }
 
+// DeviceSnapshot returns discovery and scan freshness without opening endpoints.
+// Failed or stale snapshots retain the last successful enumeration as historical
+// evidence; callers must not present it as current device availability.
+func (a *Application) DeviceSnapshot(ctx context.Context) (device.DiscoverySnapshot, error) {
+	if err := ctx.Err(); err != nil {
+		return device.DiscoverySnapshot{}, err
+	}
+	if a == nil || a.devices == nil {
+		return device.DiscoverySnapshot{}, ErrNilDeviceRegistry
+	}
+	return a.devices.Snapshot(), nil
+}
+
 // ReadDeviceEvents returns retained device transitions or waits after cursor.
 // A nil cursor reads recent retained events without waiting.
 func (a *Application) ReadDeviceEvents(ctx context.Context, cursor *device.Cursor, maxEvents int) (device.EventChunk, error) {

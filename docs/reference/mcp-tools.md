@@ -25,6 +25,13 @@ Recoverable tool failures return an MCP tool result with `isError: true` and tex
 `invalid_input`, `session_busy`, and `session_not_found`. Successful result shapes are unchanged.
 Structured inputs decoded by the terminal adapter reject unknown fields.
 
+Serial open failures can report `serial_not_found`, `serial_permission_denied`, `serial_busy`,
+`serial_busy_or_denied`, or `serial_open_failed`. These use typed OS/driver evidence, not message
+matching. Windows driver access-denied errors can mean either busy or denied; that ambiguity is
+preserved. Unknown causes remain `serial_open_failed`. These are distinct from Host authorization
+`permission_denied`; cancellation/deadline semantics remain unchanged. Discovery never probes access
+by opening a port. Check ownership/permissions before retrying; ChannelTerm does not stop other processes.
+
 ## Client instance presence
 
 `client_instance` is presence bookkeeping, required for protocol writers and for Session readers on Hosts that enable idle reclamation; it remains optional for readers on keep-mode Hosts.
@@ -310,23 +317,26 @@ it does not load profiles, change Device Registry state, create a Session, or se
 
 ## `terminal_list_devices`
 
-Purpose: return the Device Registry's current presence and identity snapshot.
+Purpose: return the Device Registry's last successful presence and identity snapshot with scan health.
 
 - Required input: none; use `{}`.
 - Optional input: none.
 - Result: `devices`, an array with `device_id`, `identity_method`, `persistent`, `transport`,
-  `endpoint`, `state`, USB metadata fields, `first_seen`, and `last_seen`.
+  `endpoint`, `state`, USB metadata fields, `first_seen`, and `last_seen`; `scan_state`
+  (`current`, `failed`, `stale`, `unknown`); `last_scan_at` (RFC3339 timestamp, or empty before any success).
 
 ```json
 {}
 ```
 
 ```json
-{"devices":[{"device_id":"dev_0123456789abcdef0123456789abcdef","identity_method":"usb_serial","persistent":true,"transport":"serial","endpoint":"COM8","state":"present","vid":"0403","pid":"6010","usb_serial":"ABC123","manufacturer":"FTDI","product":"USB UART","usb_path":"1-2","first_seen":"2026-08-28T09:00:00Z","last_seen":"2026-08-28T09:00:03Z"}]}
+{"scan_state":"current","last_scan_at":"2026-08-28T09:00:03Z","devices":[{"device_id":"dev_0123456789abcdef0123456789abcdef","identity_method":"usb_serial","persistent":true,"transport":"serial","endpoint":"COM8","state":"present","vid":"0403","pid":"6010","usb_serial":"ABC123","manufacturer":"FTDI","product":"USB UART","usb_path":"1-2","first_seen":"2026-08-28T09:00:00Z","last_seen":"2026-08-28T09:00:03Z"}]}
 ```
 
-Important errors: cancellation or an unavailable/uninitialized application Device Registry. Safety:
-read-only; presence does not imply an open Session.
+Important errors: cancellation or an unavailable application Device Registry. Safety: read-only;
+presence does not imply an open Session, OS permission, or exclusive availability. Failed/stale scans
+retain the previous devices list; do not treat it as current presence or infer disappearance from a
+scan failure. See [Registry scan health](../modules/device-registry.md#scanning-and-events).
 
 ## `terminal_read_device_events`
 

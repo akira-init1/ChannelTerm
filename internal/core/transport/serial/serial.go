@@ -222,9 +222,9 @@ const (
 	openFailureBusy
 )
 
-// diagnoseOpenError adds an actionable, platform-specific explanation while
+// diagnoseOpenErrorMessage adds an actionable, platform-specific explanation while
 // wrapping err so callers can still inspect the exact driver or OS failure.
-func diagnoseOpenError(platform, port string, err error) error {
+func diagnoseOpenErrorMessage(platform, port string, err error) error {
 	switch classifyOpenFailure(platform, err) {
 	case openFailureMissingDevice:
 		return fmt.Errorf("serial device %q does not exist or may have been disconnected: %w", port, err)

@@ -31,13 +31,26 @@ export function clientErrorMessageId(error: unknown): string {
     Object.hasOwn(recoveryMessages, error.code)
   ) {
     if (
+      (error.code === "invalid_input" || error.code === "closed") &&
+      "reason" in error &&
+      error.reason === "device_changed"
+    )
+      return "recovery.device_changed";
+    if (
       error.code === "tool_error" &&
       "reason" in error &&
       (error.reason === "ssh_host_key" ||
         error.reason === "ssh_authentication" ||
         error.reason === "connection_failed" ||
         error.reason === "connection_uncertain" ||
-        error.reason === "diagnostic_unavailable")
+        error.reason === "diagnostic_unavailable" ||
+        error.reason === "discovery_unavailable" ||
+        error.reason === "discovery_stale" ||
+        error.reason === "serial_not_found" ||
+        error.reason === "serial_permission_denied" ||
+        error.reason === "serial_busy" ||
+        error.reason === "serial_busy_or_denied" ||
+        error.reason === "serial_open_failed")
     ) {
       return `recovery.${error.reason}`;
     }

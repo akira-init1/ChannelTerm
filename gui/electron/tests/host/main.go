@@ -53,6 +53,11 @@ func run() error {
 		return err
 	}
 	defer os.RemoveAll(configDirectory)
+	discovery, err := newFixtureDevices(configDirectory)
+	if err != nil {
+		return err
+	}
+	defer discovery.registry.Close()
 	manager := session.NewManager()
 	defer manager.Close()
 	idle := app.IdlePolicy{}
@@ -60,12 +65,16 @@ func run() error {
 		idle = app.IdlePolicy{SessionTimeout: time.Second, Origin: "desktop"}
 	}
 	application, err := app.New(app.Dependencies{Manager: manager,
+		Devices:         discovery.registry,
 		Idle:            idle,
 		ListSerialPorts: func() ([]serialtransport.Port, error) { return []serialtransport.Port{{Name: "COM-FIXTURE"}}, nil },
 		Serial: app.SerialDependencies{
 			ConfigPath: func() (string, error) { return filepath.Join(configDirectory, "config.toml"), nil },
 			NewSession: func(id string, c serialtransport.Config) (app.ConnectedSession, error) {
-				if c.Port != "COM-FIXTURE" {
+				if err := discovery.opening(); err != nil {
+					return nil, err
+				}
+				if c.Port != "COM-FIXTURE" && c.Port != "COM-MOVED" {
 					return nil, fmt.Errorf("fixture port unavailable")
 				}
 				local, remote := net.Pipe()
@@ -192,7 +201,18 @@ func run() error {
 			return err
 		}
 		var actionErr error
+		data := ""
 		switch command.Action {
+		case "devices":
+			actionErr = discovery.configure(command.Data)
+		case "device-open-reason":
+			discovery.mu.Lock()
+			discovery.openReason = command.Data
+			discovery.mu.Unlock()
+		case "device-open-count":
+			discovery.mu.Lock()
+			data = fmt.Sprint(discovery.opens)
+			discovery.mu.Unlock()
 		case "sweep-idle":
 			_, actionErr = application.SweepIdle(context.Background())
 		case "agent-input":
@@ -256,7 +276,7 @@ func run() error {
 		if actionErr != nil {
 			message = actionErr.Error()
 		}
-		if err := encoder.Encode(map[string]any{"action": command.Action, "error": message}); err != nil {
+		if err := encoder.Encode(map[string]any{"action": command.Action, "error": message, "data": data}); err != nil {
 			return err
 		}
 	}

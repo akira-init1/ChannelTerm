@@ -650,6 +650,181 @@ msgstr "Transport"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "devices.absent"
+msgstr "Not present"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.action"
+msgstr "Discovery decision"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.action.ask"
+msgstr "Ask before connecting"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.action.connect"
+msgstr "Eligible for connection"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.action.deny"
+msgstr "Connection denied"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.action.none"
+msgstr "No action"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.boundary"
+msgstr "Discovery never opens ports or sends probe bytes. Only this Host’s Sessions are known; other applications’ occupancy and OS access remain unknown until an explicit connection attempt."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.connected"
+msgstr "Already connected on this Host"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.details"
+msgstr "Device details"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.empty"
+msgstr "No devices in the latest scan."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.explicit"
+msgstr "Selection does not connect. Connect is an explicit request; discovery policy is not an access permission."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.externalUnknown"
+msgstr "No Session on this Host; external occupancy and access are unknown."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.hide"
+msgstr "Hide discovery"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.identity.runtime"
+msgstr "Insufficient or conflicting identity evidence"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.identity.unknown"
+msgstr "Identity unavailable"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.identity.usb_path"
+msgstr "USB location identity, not physical identity"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.identity.usb_serial"
+msgstr "USB serial identity"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.lastSeen"
+msgstr "Last observed"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.limit"
+msgstr "Showing up to 128 recent device observations."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.persistent"
+msgstr "Persistent ID"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.policy"
+msgstr "Host policy"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.policy.ask"
+msgstr "Ask"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.policy.auto"
+msgstr "Automatic"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.policy.deny"
+msgstr "Deny"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.present"
+msgstr "Present"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.previous"
+msgstr "Previous endpoint"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.refresh"
+msgstr "Refresh devices"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.reselect"
+msgstr "Refresh and select the device again, or enter a port manually."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.runtimeOnly"
+msgstr "This Host process only"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.select"
+msgstr "Select this device"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.stale"
+msgstr "Presence is unknown. Retained observations may be outdated."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.title"
+msgstr "Device discovery"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.unknown"
+msgstr "Unknown"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.usbPath"
+msgstr "USB location"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.usbSerial"
+msgstr "USB serial number"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "diagnostics.cancel"
 msgstr "Cancel save"
 
@@ -1644,6 +1819,11 @@ msgstr "Control changed or the instance expired. Refresh and inspect the current
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "recovery.device_changed"
+msgstr "The selected device disappeared or changed identity or endpoint. Refresh and select it again."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "recovery.diagnostic_unavailable"
 msgstr "Diagnostic archive unavailable or request failed. It may have expired or been evicted; create a new snapshot."
 
@@ -1651,6 +1831,16 @@ msgstr "Diagnostic archive unavailable or request failed. It may have expired or
 #: src/shared/menu-messages.ts
 msgid "recovery.disconnected"
 msgstr "Check the Host and reconnect explicitly. Input was not retried; delivery may be uncertain. Inspect remote state before new input."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.discovery_stale"
+msgstr "The Host scan failed or is outdated. Refresh before selecting a device."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.discovery_unavailable"
+msgstr "Device discovery is unavailable. Check the Host; manual port entry remains available."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -1701,6 +1891,31 @@ msgstr "Check the entered settings, path and target. Correct them before submitt
 #: src/shared/menu-messages.ts
 msgid "recovery.profile_exists"
 msgstr "Profile already exists. Choose another name or explicitly enable replacement to overwrite it."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.serial_busy"
+msgstr "The port is busy. Check its owner before retrying; no process was stopped."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.serial_busy_or_denied"
+msgstr "The port is busy or access was denied; the driver cannot distinguish them. Check ownership and permissions."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.serial_not_found"
+msgstr "The port was not found. Refresh discovery and check the device connection."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.serial_open_failed"
+msgstr "The port could not be opened. The cause is unknown; check the device and Host diagnostics before retrying."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.serial_permission_denied"
+msgstr "The operating system denied port access. Check device permissions before retrying."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

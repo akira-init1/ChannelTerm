@@ -1,4 +1,9 @@
 import type { DebugPayload, CommandSnippet, SnippetChange } from "./debug-send";
+import type {
+  DeviceSelection,
+  DeviceDecision,
+  DiscoverySnapshot,
+} from "./devices";
 import type { DebugOverview } from "./debug";
 import type { RecordingRequest, RecordingStatus } from "./logging";
 import type {
@@ -75,6 +80,14 @@ export interface ClientError {
     | "connection_failed"
     | "connection_uncertain"
     | "diagnostic_unavailable"
+    | "discovery_unavailable"
+    | "discovery_stale"
+    | "device_changed"
+    | "serial_not_found"
+    | "serial_permission_denied"
+    | "serial_busy"
+    | "serial_busy_or_denied"
+    | "serial_open_failed"
     | "profile_exists";
 }
 export type Result<T> =
@@ -212,6 +225,8 @@ export interface DesktopAPI {
   serialProfiles(): Promise<Result<SerialProfiles>>;
   changeSerialProfile(request: SerialProfileChange): Promise<Result<void>>;
   serialPorts(): Promise<Result<string[]>>;
+  devices(): Promise<Result<DiscoverySnapshot>>;
+  deviceDecision(selection: DeviceSelection): Promise<Result<DeviceDecision>>;
   sshTrustPrompt(): Promise<Result<SSHTrustPrompt | undefined>>;
   resolveSSHTrust(id: string, accept: boolean): Promise<Result<void>>;
   openConnection(request: ConnectionRequest): Promise<Result<OpenedConnection>>;
@@ -294,6 +309,8 @@ export const channels = {
   serialProfiles: "host:serial-profiles",
   changeSerialProfile: "host:change-serial-profile",
   serialPorts: "host:serial-ports",
+  devices: "host:devices",
+  deviceDecision: "host:device-decision",
   sshTrustPrompt: "host:ssh-trust-prompt",
   resolveSSHTrust: "host:resolve-ssh-trust",
   openConnection: "host:open-connection",

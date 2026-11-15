@@ -53,8 +53,8 @@ Electron-specific review rules. Do not duplicate the source tree or Go/MCP contr
 
 ## 3. Renderer features and component responsibilities
 
-- Organize implemented features by responsibility, currently `terminal`, `sessions`, and `transfers`. Add
-  `devices`, an MCP-related view, or another feature only when it has actual supported behavior;
+- Organize implemented features by responsibility, currently `terminal`, `sessions`, `transfers`, and
+  `devices`. Add an MCP-related view or another feature only when it has actual supported behavior;
   a renderer MCP view still accesses Host capabilities through the bridge, not the MCP SDK.
 - Keep feature components, hooks, state, and tests together when useful. Split files for distinct
   responsibilities or test seams, not to meet an arbitrary size quota. Do not create empty feature

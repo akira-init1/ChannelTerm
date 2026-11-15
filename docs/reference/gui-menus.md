@@ -15,6 +15,16 @@ The Serial form includes **Serial profiles**: refresh, apply a profile, save cur
 explicit overwrite opt-in, and set an existing profile as default. Profiles share the Host CLI
 configuration, not GUI preferences. Applying a profile resets wake to off; sending the wake carriage
 return requires a fresh checkbox selection. See [profile semantics](gui-host-api.md#serial-profiles).
+
+**Scan ports** also opens **Device discovery**. While visible, it refreshes read-only Host observations
+and shows presence/disappearance, persistent USB-serial or USB-location identity, runtime/unknown
+identity, metadata and previous endpoints. Selecting a row shows the Host's policy, decision and
+existing Session when known; selection never connects. Press **Connect** explicitly. A changed ID,
+endpoint, failed scan or stale scan requires refresh/reselection. Manual typing or applying a profile
+clears the identity binding. **Hide discovery** stops view polling; Main still rechecks any retained
+selection before opening. Older Hosts without scan-health metadata support manual entry only.
+External occupancy and access permissions are not inferred from enumeration. Details and limits are
+owned by the [device module](../modules/device-registry.md) and [GUI architecture](../architecture/electron-gui.md).
 This reference describes implemented menu behavior, not additional Host capabilities. See
 [GUI architecture](../architecture/electron-gui.md) for process boundaries and
 [GUI development](../development/electron-gui.md) for startup and verification.

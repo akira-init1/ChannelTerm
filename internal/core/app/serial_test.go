@@ -180,6 +180,10 @@ func TestApplicationRoutesCoreUseCases(t *testing.T) {
 		t.Fatalf("ListDevices() = %#v, %v", devices, err)
 	}
 	decision, err := application.ConnectionDecision(context.Background(), "serial", "COM8")
+	snapshot, snapshotErr := application.DeviceSnapshot(context.Background())
+	if snapshotErr != nil || snapshot.State != device.ScanCurrent || len(snapshot.Devices) != 1 || snapshot.Devices[0].Endpoint != "COM8" {
+		t.Fatalf("DeviceSnapshot() = %#v, %v", snapshot, snapshotErr)
+	}
 	if err != nil {
 		t.Fatalf("ConnectionDecision() error = %v", err)
 	}

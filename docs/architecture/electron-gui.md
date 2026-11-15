@@ -502,6 +502,22 @@ Core configuration owns resolved values, the default name and locked persistence
 Renderer holds only the editable form and returned snapshot; Main accepts no configuration path.
 Profile reads/saves do not create Sessions. See [the desktop contract](../reference/gui-host-api.md#serial-profiles).
 
+Device discovery uses fixed `devices` and `deviceDecision` IPC methods. Main validates a bounded
+Registry snapshot (at most 1024 devices) and finite connection-policy results from existing MCP tools.
+The open discovery view polls after each read completes, with a two-second delay, and keeps at most
+128 current/recent observations. Main coalesces discovery reads and admits one decision read; Host
+disconnect cancels them, while unmount clears the view timer and ignores late responses. Requests
+retain the existing ten-second Host timeout. No enumeration opens a port or sends probe bytes.
+
+Registry owns identity and scan health; Renderer only displays them. Failed/stale/legacy-unknown
+health keeps prior observations visibly unknown and disables device selection. Main rechecks the
+selected ID and endpoint against a new current snapshot before explicit serial setup, including
+waiting for an older in-flight query before starting that check. It never silently follows a port
+move. Manual entry/profile/history removes this transient selection; it is not persisted. Discovery
+policy is advice, not authorization, and no `auto` decision triggers a connection. Session occupancy
+is limited to the connected Host; external usage and OS access are unknown until explicit opening.
+The check is not an atomic hardware identity guarantee; see [identity limits](../reference/identifiers.md#device_id).
+
 ## Existing Host contracts
 
 | GUI operation | Existing MCP tool / behavior |

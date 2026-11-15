@@ -129,7 +129,22 @@ func (s *StateStore) Resolve(endpoints []Endpoint, observedAt time.Time) (map[st
 	}
 
 	resolved := make(map[string]Identity, len(endpoints))
-	used := make(map[string]struct{})
+	claims := make(map[[5]string]string)
+	ambiguous := make(map[[5]string]bool)
+	// Inspect the whole scan before assigning a durable ID: enumeration order
+	// must not select a winner when multiple live endpoints claim one identity.
+	for _, endpoint := range endpoints {
+		method, evidence := persistentEvidence(endpoint)
+		if method == IdentityRuntime {
+			continue
+		}
+		claim := identityClaim(endpoint.Transport, method, evidence)
+		key := deviceKey(endpoint)
+		if previous, exists := claims[claim]; exists && previous != key {
+			ambiguous[claim] = true
+		}
+		claims[claim] = key
+	}
 	before := cloneStateFile(s.state)
 	committed := false
 	defer func() {
@@ -141,7 +156,8 @@ func (s *StateStore) Resolve(endpoints []Endpoint, observedAt time.Time) (map[st
 	for _, endpoint := range endpoints {
 		key := deviceKey(endpoint)
 		method, evidence := persistentEvidence(endpoint)
-		if method == IdentityRuntime {
+		matches := s.matches(endpoint.Transport, method, evidence)
+		if method == IdentityRuntime || ambiguous[identityClaim(endpoint.Transport, method, evidence)] || len(matches) > 1 {
 			identity, ok := s.runtime[key]
 			if !ok {
 				id, err := s.allocateID()
@@ -155,26 +171,8 @@ func (s *StateStore) Resolve(endpoints []Endpoint, observedAt time.Time) (map[st
 			continue
 		}
 
-		matches := s.matches(endpoint.Transport, method, evidence)
-		alreadyUsed := false
-		if len(matches) == 1 {
-			_, alreadyUsed = used[s.state.Devices[matches[0]].DeviceID]
-		}
-		if len(matches) > 1 || alreadyUsed {
-			// Multiple records with equal durable evidence, or two live endpoints
-			// claiming one record, is ambiguous. Do not merge them by choosing one.
-			id, err := s.allocateID()
-			if err != nil {
-				return nil, err
-			}
-			resolved[key] = Identity{DeviceID: id, Method: IdentityRuntime, Persistent: false}
-			s.runtime[key] = resolved[key]
-			continue
-		}
-
 		if len(matches) == 1 {
 			record := &s.state.Devices[matches[0]]
-			used[record.DeviceID] = struct{}{}
 			if updateStateRecord(record, endpoint, evidence, observedAt) {
 				changed = true
 			}
@@ -194,7 +192,6 @@ func (s *StateStore) Resolve(endpoints []Endpoint, observedAt time.Time) (map[st
 			CreatedAt:    observedAt,
 			UpdatedAt:    observedAt,
 		})
-		used[id] = struct{}{}
 		changed = true
 		resolved[key] = Identity{DeviceID: id, Method: method, Persistent: true}
 	}
@@ -205,6 +202,15 @@ func (s *StateStore) Resolve(endpoints []Endpoint, observedAt time.Time) (map[st
 	}
 	committed = true
 	return resolved, nil
+}
+
+// identityClaim contains only matching evidence, never diagnostic metadata or an endpoint.
+func identityClaim(transport string, method IdentityMethod, evidence StateIdentity) [5]string {
+	value := evidence.USBSerial
+	if method == IdentityUSBPath {
+		value = evidence.USBPath
+	}
+	return [5]string{transport, string(method), evidence.VID, evidence.PID, value}
 }
 
 // cloneStateFile preserves an in-memory snapshot until its atomic replacement

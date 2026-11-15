@@ -1,3 +1,5 @@
+import { isDeviceSelection, type DeviceSelection } from "./devices";
+
 /** Optional initial SSH transport settings, never shared resize ownership. */
 export interface SSHAdvanced {
   timeoutSeconds: number;
@@ -22,6 +24,7 @@ export const defaultSSHAdvanced: Readonly<SSHAdvanced> = {
 export type ConnectionRequest =
   | {
       kind: "serial";
+      discovery?: DeviceSelection;
       wake?: boolean;
       port: string;
       baud: number;
@@ -96,6 +99,7 @@ export function isConnectionRequest(
     return (
       exact([
         "kind",
+        "discovery",
         "wake",
         "port",
         "baud",
@@ -106,6 +110,8 @@ export function isConnectionRequest(
         "label",
       ]) &&
       (v.wake === undefined || typeof v.wake === "boolean") &&
+      (v.discovery === undefined ||
+        (isDeviceSelection(v.discovery) && v.discovery.endpoint === v.port)) &&
       bounded(v.port, 512) &&
       numberIn(v.baud, 1, 4000000) &&
       numberIn(v.dataBits, 5, 8) &&

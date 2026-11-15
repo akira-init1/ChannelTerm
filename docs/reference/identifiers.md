@@ -86,6 +86,13 @@ for the current process.
 device serial number and must not be described as proof of the same physical board after moving
 ports.
 
+Simultaneous endpoints with the same durable evidence all receive distinct runtime identities;
+enumeration order cannot award one the persistent ID. Electron discovery selection carries a
+temporary `device_id` plus endpoint, never a saved profile or Session ID. Main rechecks a current Host
+snapshot before an explicit open and rejects disappearance, identity changes, and endpoint moves.
+This narrows stale-selection mistakes; hardware can still change after the check, and runtime or
+USB-location identities do not prove physical continuity. Manual port entry keeps endpoint semantics.
+
 ## `transfer_id`
 
 The Session Host allocates a `transfer_id` when it acquires a `file-transfer` lease. The lease

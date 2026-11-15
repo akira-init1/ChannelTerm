@@ -650,6 +650,181 @@ msgstr "전송 방식"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "devices.absent"
+msgstr "감지되지 않음"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.action"
+msgstr "검색 결정"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.action.ask"
+msgstr "연결 전 확인"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.action.connect"
+msgstr "연결 조건 충족"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.action.deny"
+msgstr "연결 거부"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.action.none"
+msgstr "작업 없음"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.boundary"
+msgstr "검색은 포트를 열거나 탐색 바이트를 보내지 않습니다. 이 Host의 Session만 알 수 있으며, 다른 앱의 점유 상태와 OS 접근 권한은 명시적으로 연결을 시도하기 전까지 알 수 없습니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.connected"
+msgstr "이 Host에서 이미 연결됨"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.details"
+msgstr "장치 상세 정보"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.empty"
+msgstr "최근 검색에서 장치를 찾지 못했습니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.explicit"
+msgstr "선택만으로는 연결되지 않습니다. 연결은 명시적인 요청이며, 검색 정책은 접근 권한이 아닙니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.externalUnknown"
+msgstr "이 Host에 Session이 없습니다. 외부 점유 상태와 접근 권한은 알 수 없습니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.hide"
+msgstr "검색 패널 숨기기"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.identity.runtime"
+msgstr "식별 근거 부족 또는 충돌"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.identity.unknown"
+msgstr "식별 정보 없음"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.identity.usb_path"
+msgstr "USB 위치 식별 (물리적 장치 식별 아님)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.identity.usb_serial"
+msgstr "USB 일련번호 식별"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.lastSeen"
+msgstr "마지막 관찰 시각"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.limit"
+msgstr "최근 장치 관찰 정보를 최대 128개 표시합니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.persistent"
+msgstr "영구 ID"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.policy"
+msgstr "Host 정책"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.policy.ask"
+msgstr "확인"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.policy.auto"
+msgstr "자동"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.policy.deny"
+msgstr "거부"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.present"
+msgstr "감지됨"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.previous"
+msgstr "이전 엔드포인트"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.refresh"
+msgstr "장치 새로 고침"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.reselect"
+msgstr "새로 고친 후 장치를 다시 선택하거나 포트를 직접 입력하세요."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.runtimeOnly"
+msgstr "현재 Host 프로세스에서만 유효"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.select"
+msgstr "이 장치 선택"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.stale"
+msgstr "현재 상태를 알 수 없습니다. 보관된 관찰 정보가 오래되었을 수 있습니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.title"
+msgstr "장치 검색"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.unknown"
+msgstr "알 수 없음"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.usbPath"
+msgstr "USB 위치"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "devices.usbSerial"
+msgstr "USB 일련번호"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "diagnostics.cancel"
 msgstr "저장 취소"
 
@@ -1644,6 +1819,11 @@ msgstr "제어권이 변경되었거나 인스턴스가 만료되었습니다. �
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "recovery.device_changed"
+msgstr "선택한 장치가 사라졌거나 식별 정보 또는 엔드포인트가 변경되었습니다. 새로 고친 후 다시 선택하세요."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "recovery.diagnostic_unavailable"
 msgstr "진단 압축 파일을 사용할 수 없거나 요청이 실패했습니다. 만료되거나 제거되었을 수 있습니다. 새 스냅샷을 만드세요."
 
@@ -1651,6 +1831,16 @@ msgstr "진단 압축 파일을 사용할 수 없거나 요청이 실패했습�
 #: src/shared/menu-messages.ts
 msgid "recovery.disconnected"
 msgstr "Host를 확인하고 명시적으로 다시 연결하세요. 입력을 재시도하지 않았으며 전달 여부가 불확실할 수 있습니다. 새 입력 전에 원격 상태를 확인하세요."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.discovery_stale"
+msgstr "Host 검색이 실패했거나 오래되었습니다. 장치를 선택하기 전에 새로 고치세요."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.discovery_unavailable"
+msgstr "장치 검색을 사용할 수 없습니다. Host를 확인하세요. 포트는 직접 입력할 수 있습니다."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -1701,6 +1891,31 @@ msgstr "입력한 설정, 경로 및 대상을 확인하고 수정한 후 다시
 #: src/shared/menu-messages.ts
 msgid "recovery.profile_exists"
 msgstr "프로필이 이미 있습니다. 다른 이름을 선택하거나 명시적으로 교체를 활성화하여 덮어쓰세요."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.serial_busy"
+msgstr "포트가 사용 중입니다. 다시 시도하기 전에 사용자를 확인하세요. 어떤 프로세스도 중지하지 않았습니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.serial_busy_or_denied"
+msgstr "포트가 사용 중이거나 접근이 거부되었습니다. 드라이버가 둘을 구분할 수 없습니다. 점유 상태와 권한을 확인하세요."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.serial_not_found"
+msgstr "포트를 찾을 수 없습니다. 검색을 새로 고치고 장치 연결을 확인하세요."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.serial_open_failed"
+msgstr "포트를 열 수 없습니다. 원인을 알 수 없으므로 다시 시도하기 전에 장치와 Host 진단 정보를 확인하세요."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.serial_permission_denied"
+msgstr "운영체제가 포트 접근을 거부했습니다. 다시 시도하기 전에 장치 권한을 확인하세요."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

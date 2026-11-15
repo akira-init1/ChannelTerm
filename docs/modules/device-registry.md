@@ -22,6 +22,13 @@ with cursor/drop semantics.
 `List` returns only present devices, sorted by transport and endpoint. Disappeared records remain
 internal so a reappearance can be recognized.
 
+`Snapshot` atomically pairs that caller-owned list with scan health and the last successful scan
+time. `current` means a success within three scan intervals; `failed` means the latest scan failed;
+`stale` means the Registry is closed or its last success is older than three intervals; `unknown`
+means no scan has succeeded or failed yet. The time is zero before any success. Freshness uses the
+Registry's clock. Slow or stopped scanners can therefore become stale without inventing device
+disappearances. A failed snapshot preserves historical presence, never proof of current availability.
+
 ## Identity state
 
 The optional `StateStore` assigns `device_id` values independently from endpoint presence.
@@ -35,6 +42,11 @@ Manufacturer and product are diagnostic snapshots, not identity evidence. Endpoi
 `last_endpoint` never participate in matching. Duplicate durable matches, or two simultaneous
 endpoints claiming one stored record, fall back to distinct runtime identities instead of choosing
 arbitrarily.
+
+All simultaneous claimants fall back to runtime IDs, including the first endpoint in enumeration
+order. Reordering an unchanged ambiguous scan preserves those process-local IDs. The ambiguous
+scan does not create or update durable records; unique evidence can recover a durable ID on a later
+successful scan. Runtime IDs remain observations, not proof that a physical device is unchanged.
 
 Persistent IDs are randomly allocated and state updates atomically replace version-1 JSON. If
 persistence fails, the in-memory change is rolled back and the scan fails rather than exposing an ID

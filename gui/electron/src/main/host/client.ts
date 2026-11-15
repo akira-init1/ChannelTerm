@@ -1,4 +1,11 @@
 import { debugBytes } from "./debug-send";
+import {
+  isDeviceSelection,
+  type DeviceSelection,
+  type DeviceDecision,
+  type DiscoverySnapshot,
+} from "../../shared/devices";
+import { discoverySnapshot, deviceDecision } from "./devices";
 import type { DebugPayload } from "../../shared/debug-send";
 import { ClientPresence } from "./presence";
 import { idlePolicy } from "./idle";
@@ -87,6 +94,8 @@ export class HostClient {
   private attachments = new Map<string, ActiveAttachment>();
   private changing = false;
   private profilesBusy = false;
+  private devicesReading?: Promise<DiscoverySnapshot>;
+  private deviceDecisionReading = false;
   private activityReading = false;
   private closing = new Set<string>();
   readonly sshTrust = new SSHTrustExchange();
@@ -676,6 +685,105 @@ export class HostClient {
     });
   }
 
+  /** Share one bounded read per window; the Registry owns scanning and identity. */
+  devices(): Promise<DiscoverySnapshot> {
+    if (this.devicesReading) return this.devicesReading;
+    const connection = this.connection;
+    const pending = this.call("terminal_list_devices", {}, connection.signal)
+      .then((result) => {
+        if (connection !== this.connection || connection.signal.aborted)
+          throw new HostError(
+            "cancelled",
+            "Device discovery belongs to an expired Host connection.",
+          );
+        return discoverySnapshot(result);
+      })
+      .catch((error: unknown) => {
+        if (error instanceof HostError) throw error;
+        throw new HostError(
+          "tool_error",
+          "Device discovery is unavailable. Manual port entry remains available.",
+          "discovery_unavailable",
+        );
+      })
+      .finally(() => {
+        if (this.devicesReading === pending) this.devicesReading = undefined;
+      });
+    this.devicesReading = pending;
+    return pending;
+  }
+
+  /** Selection is a snapshot fence, not proof that hardware cannot change after the check. */
+  private async verifyDeviceSelection(
+    selected: DeviceSelection,
+  ): Promise<void> {
+    const connection = this.connection;
+    // A snapshot already in flight may predate this explicit selection/open.
+    if (this.devicesReading) await this.devicesReading;
+    if (connection !== this.connection || connection.signal.aborted)
+      throw new HostError(
+        "cancelled",
+        "Device selection belongs to an expired Host connection.",
+      );
+    const snapshot = await this.devices();
+    if (snapshot.state !== "current")
+      throw new HostError(
+        "tool_error",
+        "Device discovery is not current. Refresh before selecting a device.",
+        "discovery_stale",
+      );
+    const devices = snapshot.devices;
+    if (
+      !devices.some(
+        (device) =>
+          device.id === selected.deviceId &&
+          device.endpoint === selected.endpoint &&
+          device.transport === "serial",
+      )
+    )
+      throw new HostError(
+        "invalid_input",
+        "The selected device disappeared or changed endpoints. Select it again.",
+        "device_changed",
+      );
+  }
+
+  /** Return policy and Host occupancy without opening, probing or automatically connecting. */
+  async deviceDecision(value: unknown): Promise<DeviceDecision> {
+    if (!isDeviceSelection(value))
+      throw new HostError("invalid_input", "Invalid device selection.");
+    if (this.deviceDecisionReading)
+      throw new HostError("busy", "A device decision is already pending.");
+    this.deviceDecisionReading = true;
+    const connection = this.connection;
+    try {
+      await this.verifyDeviceSelection(value);
+      const result = await this.call(
+        "terminal_get_connection_decision",
+        {
+          transport: "serial",
+          endpoint: value.endpoint,
+        },
+        connection.signal,
+      );
+      if (connection !== this.connection || connection.signal.aborted)
+        throw new HostError(
+          "cancelled",
+          "Device decision belongs to an expired Host connection.",
+        );
+      return deviceDecision(result, value);
+    } catch (error) {
+      if (error instanceof HostError) throw error;
+      throw new HostError(
+        "tool_error",
+        "The device decision is unavailable; no connection was attempted.",
+        "discovery_unavailable",
+      );
+    } finally {
+      this.deviceDecisionReading = false;
+    }
+  }
+
   /** Create through the authoritative Host once. An uncertain result is never replayed. */
   async openConnection(request: unknown): Promise<OpenedConnection> {
     if (!isConnectionRequest(request))
@@ -708,6 +816,8 @@ export class HostClient {
     try {
       let result: Record<string, unknown>;
       if (request.kind === "serial") {
+        if (request.discovery)
+          await this.verifyDeviceSelection(request.discovery);
         result = await this.call(
           "terminal_open_serial",
           {
@@ -832,6 +942,20 @@ export class HostClient {
       return { sessionId: result.session_id, reused: result.reused };
     } catch (error) {
       if (error instanceof HostError) throw error;
+      if (
+        request.kind === "serial" &&
+        error instanceof ToolFailure &&
+        (error.code === "serial_not_found" ||
+          error.code === "serial_permission_denied" ||
+          error.code === "serial_busy" ||
+          error.code === "serial_busy_or_denied" ||
+          error.code === "serial_open_failed")
+      )
+        throw new HostError(
+          "tool_error",
+          "The explicit serial open failed. Refresh discovery before retrying.",
+          error.code,
+        );
       throw new HostError(
         "tool_error",
         error instanceof ToolFailure

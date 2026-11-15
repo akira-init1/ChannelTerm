@@ -1504,4 +1504,118 @@ export const menuMessages = [
     message:
       "SHA-256 verification failed. The destination did not match the source.",
   },
+  /* i18n */ { id: "devices.title", message: "Device discovery" },
+  /* i18n */ { id: "devices.refresh", message: "Refresh devices" },
+  /* i18n */ { id: "devices.hide", message: "Hide discovery" },
+  /* i18n */ {
+    id: "devices.boundary",
+    message:
+      "Discovery never opens ports or sends probe bytes. Only this Host’s Sessions are known; other applications’ occupancy and OS access remain unknown until an explicit connection attempt.",
+  },
+  /* i18n */ {
+    id: "devices.stale",
+    message: "Presence is unknown. Retained observations may be outdated.",
+  },
+  /* i18n */ { id: "devices.empty", message: "No devices in the latest scan." },
+  /* i18n */ {
+    id: "devices.limit",
+    message: "Showing up to 128 recent device observations.",
+  },
+  /* i18n */ { id: "devices.unknown", message: "Unknown" },
+  /* i18n */ { id: "devices.present", message: "Present" },
+  /* i18n */ { id: "devices.absent", message: "Not present" },
+  /* i18n */ { id: "devices.persistent", message: "Persistent ID" },
+  /* i18n */ { id: "devices.runtimeOnly", message: "This Host process only" },
+  /* i18n */ {
+    id: "devices.identity.usb_serial",
+    message: "USB serial identity",
+  },
+  /* i18n */ {
+    id: "devices.identity.usb_path",
+    message: "USB location identity, not physical identity",
+  },
+  /* i18n */ {
+    id: "devices.identity.runtime",
+    message: "Insufficient or conflicting identity evidence",
+  },
+  /* i18n */ {
+    id: "devices.identity.unknown",
+    message: "Identity unavailable",
+  },
+  /* i18n */ { id: "devices.previous", message: "Previous endpoint" },
+  /* i18n */ { id: "devices.details", message: "Device details" },
+  /* i18n */ { id: "devices.usbSerial", message: "USB serial number" },
+  /* i18n */ { id: "devices.usbPath", message: "USB location" },
+  /* i18n */ { id: "devices.lastSeen", message: "Last observed" },
+  /* i18n */ { id: "devices.select", message: "Select this device" },
+  /* i18n */ { id: "devices.policy", message: "Host policy" },
+  /* i18n */ { id: "devices.action", message: "Discovery decision" },
+  /* i18n */ { id: "devices.policy.ask", message: "Ask" },
+  /* i18n */ { id: "devices.policy.auto", message: "Automatic" },
+  /* i18n */ { id: "devices.policy.deny", message: "Deny" },
+  /* i18n */ { id: "devices.action.none", message: "No action" },
+  /* i18n */ { id: "devices.action.ask", message: "Ask before connecting" },
+  /* i18n */ {
+    id: "devices.action.connect",
+    message: "Eligible for connection",
+  },
+  /* i18n */ { id: "devices.action.deny", message: "Connection denied" },
+  /* i18n */ {
+    id: "devices.connected",
+    message: "Already connected on this Host",
+  },
+  /* i18n */ {
+    id: "devices.externalUnknown",
+    message:
+      "No Session on this Host; external occupancy and access are unknown.",
+  },
+  /* i18n */ {
+    id: "devices.reselect",
+    message: "Refresh and select the device again, or enter a port manually.",
+  },
+  /* i18n */ {
+    id: "devices.explicit",
+    message:
+      "Selection does not connect. Connect is an explicit request; discovery policy is not an access permission.",
+  },
+  /* i18n */ {
+    id: "recovery.discovery_unavailable",
+    message:
+      "Device discovery is unavailable. Check the Host; manual port entry remains available.",
+  },
+  /* i18n */ {
+    id: "recovery.discovery_stale",
+    message:
+      "The Host scan failed or is outdated. Refresh before selecting a device.",
+  },
+  /* i18n */ {
+    id: "recovery.device_changed",
+    message:
+      "The selected device disappeared or changed identity or endpoint. Refresh and select it again.",
+  },
+  /* i18n */ {
+    id: "recovery.serial_not_found",
+    message:
+      "The port was not found. Refresh discovery and check the device connection.",
+  },
+  /* i18n */ {
+    id: "recovery.serial_permission_denied",
+    message:
+      "The operating system denied port access. Check device permissions before retrying.",
+  },
+  /* i18n */ {
+    id: "recovery.serial_busy",
+    message:
+      "The port is busy. Check its owner before retrying; no process was stopped.",
+  },
+  /* i18n */ {
+    id: "recovery.serial_busy_or_denied",
+    message:
+      "The port is busy or access was denied; the driver cannot distinguish them. Check ownership and permissions.",
+  },
+  /* i18n */ {
+    id: "recovery.serial_open_failed",
+    message:
+      "The port could not be opened. The cause is unknown; check the device and Host diagnostics before retrying.",
+  },
 ] satisfies MessageDescriptor[];

@@ -5,6 +5,8 @@ import {
   recordConnection,
   type ConnectionRecord,
 } from "../../shared/connection-history";
+import { DeviceDiscovery } from "../devices/DeviceDiscovery";
+import type { DeviceSelection } from "../../shared/devices";
 import { SSHTrustConfirmation } from "./SSHTrustConfirmation";
 import { SerialProfilesFields } from "./SerialProfiles";
 import type { SerialProfile } from "../../shared/serial-profiles";
@@ -82,6 +84,9 @@ export function ConnectionDialog({
   const [busy, setBusy] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [ports, setPorts] = useState<string[]>([]);
+  const [discoveryOpen, setDiscoveryOpen] = useState(false);
+  const [discovery, setDiscovery] = useState<DeviceSelection>();
+  const [discoveryCurrent, setDiscoveryCurrent] = useState(true);
   const [error, setError] = useState("");
   const [auth, setAuth] = useState("key");
   const [baudChoice, setBaudChoice] = useState("115200");
@@ -102,6 +107,8 @@ export function ConnectionDialog({
     };
   }
   function applySerial(profile: SerialProfile) {
+    setDiscovery(undefined);
+    setDiscoveryCurrent(true);
     setSerialDefaults(profile);
     setSerialRevision((version) => version + 1);
     setBaudChoice(
@@ -115,6 +122,7 @@ export function ConnectionDialog({
     setError("");
     try {
       setPorts(await unwrap(host.serialPorts()));
+      setDiscoveryOpen(true);
     } catch (error) {
       setError(clientErrorMessageId(error));
     } finally {
@@ -123,7 +131,11 @@ export function ConnectionDialog({
   }
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (submitting.current) return;
+    if (
+      submitting.current ||
+      (kind === "serial" && discovery && !discoveryCurrent)
+    )
+      return;
     if (kind === "ssh" && !sshAvailable) return;
     const form = event.currentTarget;
     const data = new FormData(form);
@@ -133,6 +145,7 @@ export function ConnectionDialog({
         ? {
             ...readSerial(),
             kind,
+            ...(discovery ? { discovery } : {}),
             port: value("port").trim(),
             baud: Number(value("baud")),
             dataBits: Number(value("dataBits")),
@@ -312,6 +325,9 @@ export function ConnectionDialog({
                 if (next !== "serial" && (next !== "ssh" || !sshAvailable))
                   return;
                 setKind(next);
+                setDiscovery(undefined);
+                setDiscoveryCurrent(true);
+                setDiscoveryOpen(false);
                 setPreset(undefined);
                 setFavorite(false);
                 setError("");
@@ -346,6 +362,10 @@ export function ConnectionDialog({
                   <div className="connection-port">
                     <input
                       name="port"
+                      onChange={() => {
+                        setDiscovery(undefined);
+                        setDiscoveryCurrent(true);
+                      }}
                       defaultValue={serialDefaults?.port ?? ""}
                       list="serial-ports"
                       required
@@ -361,6 +381,24 @@ export function ConnectionDialog({
                     <option key={port} value={port} />
                   ))}
                 </datalist>
+                {discoveryOpen && (
+                  <DeviceDiscovery
+                    selection={discovery}
+                    onSelect={(selected) => {
+                      const input = formRef.current?.elements.namedItem("port");
+                      if (!(input instanceof HTMLInputElement)) return;
+                      input.value = selected.endpoint;
+                      setDiscoveryCurrent(false);
+                      setDiscovery(selected);
+                    }}
+                    onValidity={setDiscoveryCurrent}
+                    onClose={() => setDiscoveryOpen(false)}
+                    t={t}
+                  />
+                )}
+                {discovery && !discoveryCurrent && (
+                  <p>{t("devices.reselect")}</p>
+                )}
                 <div className="connection-grid">
                   <label>
                     {t("connection.baud")}
@@ -572,7 +610,15 @@ export function ConnectionDialog({
           <button type="button" disabled={busy} onClick={onClose}>
             {t("connection.cancel")}
           </button>
-          <button className="primary" disabled={busy || scanning} type="submit">
+          <button
+            className="primary"
+            disabled={
+              busy ||
+              scanning ||
+              (kind === "serial" && !!discovery && !discoveryCurrent)
+            }
+            type="submit"
+          >
             {t(busy ? "connection.opening" : "connection.open")}
           </button>
         </footer>

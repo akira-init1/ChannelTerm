@@ -1623,6 +1623,9 @@ func TestTerminalListDevicesReturnsBestEffortSerialMetadata(t *testing.T) {
 		t.Fatalf("terminal_list_devices error = %v", err)
 	}
 	devices, ok := result["devices"].([]deviceResult)
+	if result["scan_state"] != "current" || result["last_scan_at"] == "" {
+		t.Fatalf("device scan health = %#v", result)
+	}
 	if !ok || len(devices) != 1 {
 		t.Fatalf("devices = %#v, want one deviceResult", result["devices"])
 	}

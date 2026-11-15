@@ -142,12 +142,14 @@ type Registry struct {
 	now      func() time.Time
 	state    *StateStore
 
-	mu          sync.Mutex
-	devices     map[string]Device
-	initialized bool
-	started     bool
-	closed      bool
-	cancel      context.CancelFunc
+	mu                 sync.Mutex
+	devices            map[string]Device
+	initialized        bool
+	lastSuccessfulScan time.Time
+	scanFailed         bool
+	started            bool
+	closed             bool
+	cancel             context.CancelFunc
 
 	events eventBuffer
 }
@@ -256,13 +258,18 @@ func (r *Registry) Close() {
 // List returns currently present devices in stable transport and endpoint order.
 func (r *Registry) List() []Device {
 	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.listLocked()
+}
+
+// listLocked copies presence records while the caller holds mu.
+func (r *Registry) listLocked() []Device {
 	deferred := make([]Device, 0, len(r.devices))
 	for _, device := range r.devices {
 		if device.State == StatePresent {
 			deferred = append(deferred, device)
 		}
 	}
-	r.mu.Unlock()
 	sort.Slice(deferred, func(i, j int) bool {
 		if deferred[i].Transport == deferred[j].Transport {
 			return deferred[i].Endpoint < deferred[j].Endpoint
@@ -304,7 +311,14 @@ func (r *Registry) watch(ctx context.Context) {
 }
 
 // scan compares one successful enumeration with the previous successful scan.
-func (r *Registry) scan(ctx context.Context) error {
+func (r *Registry) scan(ctx context.Context) (scanErr error) {
+	defer func() {
+		if scanErr != nil {
+			r.mu.Lock()
+			r.scanFailed = true
+			r.mu.Unlock()
+		}
+	}()
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -336,6 +350,8 @@ func (r *Registry) scan(ctx context.Context) error {
 	}
 	events := make([]Event, 0)
 	r.mu.Lock()
+	r.lastSuccessfulScan = now
+	r.scanFailed = false
 	if !r.initialized {
 		for key, endpoint := range seen {
 			r.devices[key] = newDevice(endpoint, identities[key], now)
