@@ -816,6 +816,31 @@ for the fixed local build inputs rather than running an unrelated automatic depe
 
 `idle-checks.mjs` uses real Application policy with a one-second fixture grace and private sweep triggers: another client retains the Session after GUI exit, final detach permits removal, and MCP remains reachable. Core fake-clock/concurrency tests additionally cover presence expiry with active work, leases/recovery/pause, reused IDs, close outside admission locks, and explicit Host-exit fencing. No physical device or native non-Windows claim is implied.
 
+### Upgrade, mixed builds and rollback
+
+Keep the GUI and both companions from one complete native package. Record its manifest version,
+commit, OS/architecture and hashes together with the running Host version: different local builds
+can share a version label, and replacing GUI files does not replace an already-running Host.
+The following matrix defines the checks and their limits; it does not certify arbitrary pairs of
+historical releases.
+
+| Combination or operation | Current behavior and acceptance boundary |
+| --- | --- |
+| Matching GUI, Host and CLI package | Native package acceptance checks helper versions/hashes and the runtime. Windows x64 coverage does not establish the other five native targets. |
+| Newer GUI with an older Host | Connection depends on the Host's actual protocol and capabilities. Optional features remain gated: for example, U-Boot requires the advertised HTTP cancellation contract. Verify each required workflow for the specific pair; successful connection alone is insufficient. |
+| Older GUI/CLI with the current Host | The current authentication, presence and control requirements still apply. See the [request compatibility matrix](../getting-started/http-authentication-migration.md#default-controlled-sessions); there is no fallback that restores old write permissions. |
+| Missing or mismatched file companion metadata | Host Information reports the bundled CLI version as unknown. This is not proof that a manually substituted executable is compatible or authentic; restore and verify the complete matching package. |
+| Windows upgrade/removal while a GUI or Host is running | The installer guard refuses the operation without terminating processes. The native installer check verifies refusal and retention of its isolated Host configuration after later uninstall. |
+| Interrupted installation or replacement after the process guard | Not covered by the refusal check. Verify interruption/recovery on each candidate OS and artifact pair before claiming transactional installation or automatic rollback. Do not run a partial set of application files. |
+| Preferences, favorites and workspace across versions | Current restart tests cover supported stored state and live-Session revalidation. They do not certify migration or downgrade of every historical profile schema; verify each selected pair with disposable copies. No test should replay unsent input or recreate closed Sessions. |
+| Downgrade across Host authentication migration | An older binary can re-enable old authorization and cannot read new-domain changes. Follow the [migration and rollback boundary](../getting-started/http-authentication-migration.md#upgrade-and-verify); never run old and new versions against the same live authentication state. |
+
+For each selected pair, record supported, rejected or not verified, the exact artifacts, exercised
+workflows and reason for any gap. Test invalid credentials and absent capabilities as well as the
+success path. Preserve a separate client's live Session when the GUI exits. Record profile retention,
+installer interruption and rollback independently; a connection test, checksum or same-build restart
+cannot stand in for those checks. Signing and notarization are separate from these compatibility checks.
+
 ## Native device acceptance
 
 Package acceptance above uses fake serial I/O and a loopback SSH server. A release candidate also
