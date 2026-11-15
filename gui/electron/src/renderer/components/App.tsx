@@ -102,10 +102,12 @@ import {
   restoreDisplaySettings,
   zoomFontSize,
   type DisplaySettings,
+  type LineDisplay,
 } from "../../shared/display-settings";
 import { DisplaySettingsDialog } from "./DisplaySettings";
 
 interface TerminalTab {
+  lineDisplay?: LineDisplay;
   id: string;
   attachment?: Attachment;
   settings: TerminalSettings;
@@ -637,6 +639,7 @@ export function App() {
       currentSSH: current?.transport === "ssh",
       inputPaused,
       hexView: terminalSettings.view === "hex",
+      lineDisplay: activeTab?.lineDisplay,
       leased: !!current?.lease,
     }),
     [
@@ -669,6 +672,7 @@ export function App() {
       current?.lease,
       inputPaused,
       terminalSettings.view,
+      activeTab?.lineDisplay,
     ],
   );
   const dispatchRef = useRef<(action: Action) => void>(() => {});
@@ -789,6 +793,7 @@ export function App() {
               const restored = saved.tabs.map((tab) => ({
                 id: crypto.randomUUID(),
                 settings: tab.settings,
+                lineDisplay: tab.lineDisplay,
                 savedTarget: tab.target,
                 dropped: false,
                 inputPaused: false,
@@ -971,6 +976,7 @@ export function App() {
         : {}),
       tabs: tabs.map((tab) => ({
         settings: tab.settings,
+        lineDisplay: tab.lineDisplay,
         target:
           tab.savedTarget ??
           (() => {
@@ -1088,6 +1094,7 @@ export function App() {
           endpoint: session.endpoint,
         },
         workspaceRestored: target?.workspaceRestored,
+        lineDisplay: target?.lineDisplay,
         settings,
         inputPaused: false,
         dropped: false,
@@ -1287,6 +1294,7 @@ export function App() {
       leased: !!session?.lease,
       inputPaused: !!tab?.inputPaused,
       hexView: tab?.settings.view === "hex",
+      lineDisplay: tab?.lineDisplay,
     };
   }
 
@@ -1518,6 +1526,20 @@ export function App() {
       case "terminal.paste":
         terminal?.paste();
         return;
+      case "terminal.timestamps":
+      case "terminal.sequence": {
+        if (!targetTab) return;
+        const key =
+          action.id === "terminal.timestamps" ? "timestamps" : "sequence";
+        const value = targetTab.lineDisplay ?? {
+          timestamps: false,
+          sequence: false,
+        };
+        updateTab(targetTab.id, {
+          lineDisplay: { ...value, [key]: !value[key] },
+        });
+        return;
+      }
       case "terminal.clear":
         terminal?.clear();
         return;
@@ -2380,6 +2402,7 @@ export function App() {
                         t={t}
                         settings={tab.settings}
                         display={display}
+                        lineDisplay={tab.lineDisplay}
                         onZoom={zoomDisplay}
                         visible={visibleTab(tab.id)}
                         focused={tab.id === selectedTabId}

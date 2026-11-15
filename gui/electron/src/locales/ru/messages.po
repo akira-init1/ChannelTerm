@@ -1637,6 +1637,26 @@ msgstr "繁體中文"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "line.hint"
+msgstr "Локальное время первого наблюдения пакета вывода и номер логической строки. Это не время события устройства и не полная история. Перенесённые строки используют общие метаданные; копируется только текст терминала."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "line.received"
+msgstr "Время получения системой:"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "line.unavailable"
+msgstr "Метаданные строк приостановлены в режиме HEX и на альтернативном экране. Настройки отображения сохраняются."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "line.unknown"
+msgstr "Время прошлых данных неизвестно"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "logs.delete"
 msgstr "Выбрать локальный файл журнала для удаления…"
 
@@ -3015,6 +3035,11 @@ msgstr "Применить"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "terminal.auxiliary"
+msgstr "Вспомогательное отображение"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.clear"
 msgstr "Очистить локальный экран"
 
@@ -3065,6 +3090,11 @@ msgstr "Возобновить ввод"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "terminal.sequence"
+msgstr "Показывать порядковые номера"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.settings"
 msgstr "Настройки терминала"
 
@@ -3097,6 +3127,11 @@ msgstr "Управлять удалённым размером из этого �
 #: src/shared/menu-messages.ts
 msgid "terminal.text"
 msgstr "Текст"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.timestamps"
+msgstr "Показывать системные метки времени"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

@@ -1637,6 +1637,26 @@ msgstr "繁體中文"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "line.hint"
+msgstr "本机首次观察到输出批次的时间及逻辑行序号，不代表设备事件时间或完整历史。软换行共享元数据；复制仅包含终端正文。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "line.received"
+msgstr "系统接收时间："
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "line.unavailable"
+msgstr "HEX 和备用屏视图暂停显示行元数据；保留您的显示选择。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "line.unknown"
+msgstr "历史时间未知"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "logs.delete"
 msgstr "选择要删除的本地日志文件…"
 
@@ -3015,6 +3035,11 @@ msgstr "应用"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "terminal.auxiliary"
+msgstr "辅助显示"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.clear"
 msgstr "清理本地显示"
 
@@ -3065,6 +3090,11 @@ msgstr "恢复输入"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "terminal.sequence"
+msgstr "显示序号"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.settings"
 msgstr "终端设置"
 
@@ -3097,6 +3127,11 @@ msgstr "由此视图控制远端尺寸"
 #: src/shared/menu-messages.ts
 msgid "terminal.text"
 msgstr "文本"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.timestamps"
+msgstr "显示系统时间戳"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

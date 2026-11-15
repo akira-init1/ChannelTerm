@@ -3,6 +3,22 @@ import type { MessageDescriptor } from "@lingui/core";
 // Lingui 5 extracts these official annotated descriptors without a runtime macro
 // transform. Translations belong in PO catalogs; this file owns IDs and English defaults.
 export const menuMessages = [
+  /* i18n */ { id: "terminal.auxiliary", message: "Auxiliary display" },
+  /* i18n */ { id: "terminal.timestamps", message: "Show system timestamps" },
+  /* i18n */ { id: "terminal.sequence", message: "Show sequence numbers" },
+  /* i18n */ {
+    id: "line.hint",
+    message:
+      "Local first-observation batch time and logical-line sequence. Not device event time or complete history. Wrapped rows share metadata; copy includes terminal text only.",
+  },
+  /* i18n */ { id: "line.received", message: "System receipt time:" },
+  /* i18n */ { id: "line.unknown", message: "Unknown historical time" },
+  /* i18n */ {
+    id: "line.unavailable",
+    message:
+      "Line metadata is paused in HEX and alternate-screen views. Your display choices are retained.",
+  },
+
   /* i18n */ { id: "highlight.remove", message: "Remove rule" },
   /* i18n */ { id: "highlight.title", message: "Keyword highlights…" },
   /* i18n */ {

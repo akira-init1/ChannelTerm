@@ -1,3 +1,4 @@
+import { checkLineSidebar } from "./line-sidebar-checks.mjs";
 import { checkDebugSend } from "./debug-send-checks.mjs";
 import { checkWorkbenchLocales } from "./workbench-i18n-checks.mjs";
 import { checkIdle } from "./idle-checks.mjs";
@@ -581,6 +582,7 @@ try {
   await checkWindows(desktopEnvironment);
   await checkSplits(desktopEnvironment);
   await checkConnectionHighlights(desktopEnvironment);
+  await checkLineSidebar(desktopEnvironment);
   await checkWorkspace(desktopEnvironment);
   await checkStartup(desktopEnvironment, preloadArgs);
   await checkIdle(desktopEnvironment, preloadArgs);

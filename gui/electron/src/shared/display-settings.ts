@@ -53,3 +53,19 @@ export function restoreDisplaySettings(value: unknown): DisplaySettings {
 export function zoomFontSize(size: number, delta: number): number {
   return Math.max(8, Math.min(40, size - Math.sign(delta)));
 }
+
+/** Per-view display choices, separate from global defaults and terminal bytes. */
+export interface LineDisplay {
+  timestamps: boolean;
+  sequence: boolean;
+}
+export function isLineDisplay(value: unknown): value is LineDisplay {
+  return (
+    !!value &&
+    typeof value === "object" &&
+    !Array.isArray(value) &&
+    Object.keys(value).length === 2 &&
+    typeof (value as Record<string, unknown>).timestamps === "boolean" &&
+    typeof (value as Record<string, unknown>).sequence === "boolean"
+  );
+}

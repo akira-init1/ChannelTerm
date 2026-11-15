@@ -1637,6 +1637,26 @@ msgstr "繁體中文"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "line.hint"
+msgstr "Local first-observation batch time and logical-line sequence. Not device event time or complete history. Wrapped rows share metadata; copy includes terminal text only."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "line.received"
+msgstr "System receipt time:"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "line.unavailable"
+msgstr "Line metadata is paused in HEX and alternate-screen views. Your display choices are retained."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "line.unknown"
+msgstr "Unknown historical time"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "logs.delete"
 msgstr "Choose a local log file to delete…"
 
@@ -3015,6 +3035,11 @@ msgstr "Apply"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "terminal.auxiliary"
+msgstr "Auxiliary display"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.clear"
 msgstr "Clear local display"
 
@@ -3065,6 +3090,11 @@ msgstr "Resume input"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "terminal.sequence"
+msgstr "Show sequence numbers"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.settings"
 msgstr "Terminal settings"
 
@@ -3097,6 +3127,11 @@ msgstr "Use this view for remote size"
 #: src/shared/menu-messages.ts
 msgid "terminal.text"
 msgstr "Text"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.timestamps"
+msgstr "Show system timestamps"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

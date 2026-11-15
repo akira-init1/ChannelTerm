@@ -1637,6 +1637,26 @@ msgstr "繁體中文"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "line.hint"
+msgstr "Heure locale de première observation du lot de sortie et numéro de ligne logique. Ce ne sont ni les heures des événements du périphérique ni un historique complet. Les lignes repliées partagent leurs métadonnées ; la copie contient uniquement le texte du terminal."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "line.received"
+msgstr "Heure de réception système :"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "line.unavailable"
+msgstr "Les métadonnées de ligne sont suspendues en mode HEX et sur écran alternatif. Vos choix d’affichage sont conservés."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "line.unknown"
+msgstr "Heure historique inconnue"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "logs.delete"
 msgstr "Choisir un fichier journal local à supprimer…"
 
@@ -3015,6 +3035,11 @@ msgstr "Appliquer"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "terminal.auxiliary"
+msgstr "Affichage auxiliaire"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.clear"
 msgstr "Effacer l’affichage local"
 
@@ -3065,6 +3090,11 @@ msgstr "Reprendre la saisie"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "terminal.sequence"
+msgstr "Afficher les numéros de séquence"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.settings"
 msgstr "Paramètres du terminal"
 
@@ -3097,6 +3127,11 @@ msgstr "Utiliser cette vue pour la taille distante"
 #: src/shared/menu-messages.ts
 msgid "terminal.text"
 msgstr "Texte"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.timestamps"
+msgstr "Afficher les horodatages système"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

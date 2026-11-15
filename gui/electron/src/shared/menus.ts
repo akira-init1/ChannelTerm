@@ -1,3 +1,4 @@
+import { isLineDisplay, type LineDisplay } from "./display-settings";
 import type { Attachment } from "./api";
 import {
   defaultShortcuts,
@@ -87,6 +88,8 @@ export type Action =
         | "tab.splitRight"
         | "tab.splitDown"
         | "session.info"
+        | "terminal.timestamps"
+        | "terminal.sequence"
         | "terminal.clear"
         | "terminal.focus"
         | "terminal.resume"
@@ -120,6 +123,7 @@ export interface MenuState {
   currentSSH?: boolean;
   inputPaused: boolean;
   hexView?: boolean;
+  lineDisplay?: LineDisplay;
   leased: boolean;
 }
 
@@ -157,6 +161,8 @@ function attachedAction(
     | "tab.splitRight"
     | "tab.splitDown"
     | "session.info"
+    | "terminal.timestamps"
+    | "terminal.sequence"
     | "terminal.clear"
     | "terminal.focus"
     | "terminal.resume"
@@ -435,6 +441,14 @@ export function terminalMenu(state: MenuState): MenuEntry[] {
     attachedAction(state, "terminal.focus"),
     attachedAction(state, "terminal.clear"),
     {
+      id: "terminal.auxiliary",
+      label: "terminal.auxiliary",
+      children: (["timestamps", "sequence"] as const).map((key) => ({
+        ...attachedAction(state, `terminal.${key}`),
+        checked: !!state.lineDisplay?.[key],
+      })),
+    },
+    {
       ...attachedAction(state, "terminal.find"),
       shortcut: shortcutLabel(state.shortcuts["terminal.find"]),
     },
@@ -601,6 +615,8 @@ export function isAction(value: unknown): value is Action {
     case "send.open":
     case "terminal.find":
     case "terminal.paste":
+    case "terminal.timestamps":
+    case "terminal.sequence":
     case "terminal.clear":
     case "terminal.focus":
     case "terminal.resume":
@@ -642,11 +658,13 @@ export function isMenuState(value: unknown): value is MenuState {
       "currentSSH",
       "inputPaused",
       "hexView",
+      "lineDisplay",
       "leased",
     ])
   )
     return false;
   return (
+    (value.lineDisplay === undefined || isLineDisplay(value.lineDisplay)) &&
     isMenuLocale(value.locale) &&
     (value.split === undefined || typeof value.split === "boolean") &&
     (value.tabId === undefined || identifier(value.tabId)) &&
@@ -744,6 +762,8 @@ export function actionEnabled(action: Action, state: MenuState): boolean {
     case "send.open":
     case "terminal.find":
     case "terminal.paste":
+    case "terminal.timestamps":
+    case "terminal.sequence":
     case "terminal.clear":
     case "terminal.focus":
     case "terminal.resume":

@@ -1637,6 +1637,26 @@ msgstr "繁體中文"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "line.hint"
+msgstr "本機首次觀察到輸出批次的時間及邏輯行序號，不代表裝置事件時間或完整歷史。自動換行共用中繼資料；複製僅包含終端機本文。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "line.received"
+msgstr "系統接收時間："
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "line.unavailable"
+msgstr "HEX 和替代畫面檢視暫停顯示行中繼資料；保留您的顯示選擇。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "line.unknown"
+msgstr "歷史時間未知"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "logs.delete"
 msgstr "選擇要刪除的本機日誌檔案…"
 
@@ -3015,6 +3035,11 @@ msgstr "套用"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "terminal.auxiliary"
+msgstr "輔助顯示"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.clear"
 msgstr "清除本機顯示"
 
@@ -3065,6 +3090,11 @@ msgstr "恢復輸入"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "terminal.sequence"
+msgstr "顯示序號"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.settings"
 msgstr "終端設定"
 
@@ -3097,6 +3127,11 @@ msgstr "由此檢視控制遠端尺寸"
 #: src/shared/menu-messages.ts
 msgid "terminal.text"
 msgstr "文字"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.timestamps"
+msgstr "顯示系統時間戳"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

@@ -1,3 +1,4 @@
+import { LineSidebar } from "./line-sidebar";
 import { ResizeQueue } from "./resize";
 import {
   useEffect,
@@ -13,7 +14,10 @@ import type { Attachment, ClientError } from "../../shared/api";
 import { host, unwrap } from "../host";
 import { TerminalPresentation } from "./presentation";
 import type { TerminalSettings } from "../../shared/terminal-settings";
-import type { DisplaySettings } from "../../shared/display-settings";
+import type {
+  DisplaySettings,
+  LineDisplay,
+} from "../../shared/display-settings";
 import { PastePreview } from "./PastePreview";
 import { SemanticHighlighter } from "./highlight";
 import type { HighlightRule } from "../../shared/highlight-rules";
@@ -40,6 +44,7 @@ export function TerminalView({
   t,
   settings,
   display,
+  lineDisplay,
   onZoom,
   writable,
   controlVersion,
@@ -57,6 +62,7 @@ export function TerminalView({
   t: (id: string) => string;
   settings: TerminalSettings;
   display: DisplaySettings;
+  lineDisplay?: LineDisplay;
   onZoom: (delta: number) => void;
   writable: boolean;
   controlVersion?: string;
@@ -76,6 +82,20 @@ export function TerminalView({
   const changeHighlightRules = useRef<
     ((rules: readonly HighlightRule[]) => void) | undefined
   >(undefined);
+  const gutter = useRef<HTMLDivElement>(null);
+  const sidebar = useRef<LineSidebar | undefined>(undefined);
+  const lineState = useRef({
+    display: lineDisplay,
+    visible,
+    text: settings.view === "text",
+    t,
+  });
+  lineState.current = {
+    display: lineDisplay,
+    visible,
+    text: settings.view === "text",
+    t,
+  };
   const terminalStyle = useRef(display.terminalStyle);
   terminalStyle.current = display.terminalStyle;
   const promptTimestamps = useRef(display.promptTimestamps);
@@ -187,7 +207,10 @@ export function TerminalView({
     ref,
     () => ({
       // xterm.clear preserves the current line/parser and sends no remote reset.
-      clear: () => local.current?.clear(),
+      clear: () => {
+        sidebar.current?.clear();
+        local.current?.clear();
+      },
       focus: () => local.current?.focus(),
       copy: () => void copy(),
       paste: () => void paste(),
@@ -205,7 +228,6 @@ export function TerminalView({
   const visibility = useRef(visible);
   const focusState = useRef(focused);
   focusState.current = focused;
-  const resumeRead = useRef<(() => void) | undefined>(undefined);
   if (visibility.current && !visible) inputEpoch.current++;
   visibility.current = visible;
   // Use the latest guards/callbacks without recreating xterm on status updates.
@@ -263,7 +285,47 @@ export function TerminalView({
       fit.fit();
       if (focusState.current) terminal.focus();
     }
+    const lines = new LineSidebar(
+      terminal,
+      gutter.current!,
+      () => lineState.current,
+    );
+    sidebar.current = lines;
     let stopped = false;
+    // Earliest receipt in the bounded presentation tail. Mixed historical/live tails stay unknown.
+    let tailReceipt: number | undefined;
+    let tailPending = false;
+    let resetVersion = 0;
+    const writeObserved = (
+      bytes: string | Uint8Array,
+      receipt?: number,
+      done?: () => void,
+    ) => {
+      const batch =
+        settings.view === "text" && bytes.length
+          ? lines.metadata.begin(receipt)
+          : undefined;
+      const version = resetVersion;
+      terminal.write(bytes, () => {
+        if (batch) {
+          lines.metadata.finish(batch);
+          // RIS can occur inside a write. Old anchors were invalidated before reset;
+          // observe the new retained buffer only after the parser has finished.
+          if (!stopped && version !== resetVersion)
+            lines.metadata.finish(lines.metadata.begin(receipt, true));
+        }
+        if (!stopped) lines.schedule();
+        done?.();
+      });
+    };
+    const resetHandler = terminal.parser.registerEscHandler(
+      { final: "c" },
+      () => {
+        resetVersion++;
+        lines.clear();
+        return false;
+      },
+    );
     const geometry = new ResizeQueue(
       async (size) => {
         // A bounded status observation must not make the final geometry busy.
@@ -300,14 +362,16 @@ export function TerminalView({
         const pending = new Uint8Array(upstream.length + tail.length);
         pending.set(upstream);
         pending.set(tail, upstream.length);
-        terminal.write(pending);
+        writeObserved(pending, tailReceipt);
+        tailPending = false;
+        tailReceipt = undefined;
       }
     };
     releasePresentation.current = releasePending;
     changeHighlightRules.current = (rules) => {
       releasePending();
       const pending = styling.setRules(rules);
-      if (pending.length) terminal.write(pending);
+      if (pending.length) writeObserved(pending);
     };
     // Historical device queries are not current requests to this attachment.
     // Intercept queries at the parser (not by filtering user keystrokes or raw output).
@@ -384,19 +448,18 @@ export function TerminalView({
       let ready = false;
       try {
         while (!stopped) {
-          // Hidden tabs retain their bounded xterm buffer and Host cursor without redrawing.
-          // A read already in flight can finish; further reads wait until selection.
-          if (!visibility.current)
-            await new Promise<void>((resolve) => {
-              resumeRead.current = resolve;
-            });
-          if (stopped) break;
+          // One bounded read/write callback per view, also when hidden. xterm pauses hidden DOM
+          // painting; local receipt metadata must not wait until the user selects a tab.
           const output = await unwrap(host.read(attachment.id));
           if (stopped) break;
+          const receivedAt = output.replay ? undefined : Date.now();
           replay = !!output.replay;
           if (output.dropped) {
             // Do not join a partial escape/UTF-8 sequence across missing bytes.
+            lines.clear();
             terminal.reset();
+            tailPending = false;
+            tailReceipt = undefined;
             presentation.reset();
             styling.reset();
             timestamps.reset();
@@ -405,6 +468,11 @@ export function TerminalView({
             callbacks.current.onDropped();
           }
           if (output.data.length) {
+            const receipt = tailPending
+              ? tailReceipt === undefined || receivedAt === undefined
+                ? undefined
+                : Math.min(tailReceipt, receivedAt)
+              : receivedAt;
             let rendered = presentation.output(
               new Uint8Array(output.data),
               output.text,
@@ -418,6 +486,8 @@ export function TerminalView({
                 timestamps.write(bytes, promptTimestamps.current && !replay),
                 terminalStyle.current === "semantic",
               );
+              tailPending = styling.hasPending || timestamps.hasPending;
+              tailReceipt = tailPending ? receipt : undefined;
               if (
                 (styling.hasPending || timestamps.hasPending) &&
                 pendingTimer === undefined
@@ -429,7 +499,7 @@ export function TerminalView({
             }
             await new Promise<void>((done) => {
               finishRender = done;
-              terminal.write(rendered, done);
+              writeObserved(rendered, receipt, done);
             });
           }
           if (!ready && !stopped) {
@@ -444,8 +514,6 @@ export function TerminalView({
     return () => {
       stopped = true;
       clearTimeout(pendingTimer);
-      resumeRead.current?.();
-      resumeRead.current = undefined;
       finishRender?.();
       resize.disconnect();
       geometry.dispose();
@@ -455,6 +523,9 @@ export function TerminalView({
       element.removeEventListener("paste", nativePaste, true);
       queryHandlers.forEach((handler) => handler.dispose());
       listener.dispose();
+      resetHandler.dispose();
+      lines.dispose();
+      sidebar.current = undefined;
       terminal.dispose();
       local.current = undefined;
       fitting.current = undefined;
@@ -464,6 +535,10 @@ export function TerminalView({
       // newly mounted view (including StrictMode effect replay).
     };
   }, [attachment.id]);
+
+  useEffect(() => {
+    sidebar.current?.schedule();
+  }, [lineDisplay, visible, t, display.fontSize, display.fontFamily]);
 
   const highlightSignature = JSON.stringify(highlightRules);
   useEffect(() => {
@@ -480,8 +555,6 @@ export function TerminalView({
     fitting.current?.fit();
     if (local.current)
       sizeQueue.current?.schedule(local.current.cols, local.current.rows);
-    resumeRead.current?.();
-    resumeRead.current = undefined;
   }, [visible]);
 
   useEffect(() => {
@@ -556,12 +629,19 @@ export function TerminalView({
           }}
         />
       )}
-      <div
-        ref={container}
-        className={`terminal-view ${display.terminalStyle}`}
-        aria-label={t("workbench.io")}
-        onContextMenu={onContextMenu}
-      />
+      <div className="terminal-surface">
+        <div
+          ref={gutter}
+          className="line-sidebar"
+          hidden={!(lineDisplay?.timestamps || lineDisplay?.sequence)}
+        />
+        <div
+          ref={container}
+          className={`terminal-view ${display.terminalStyle}`}
+          aria-label={t("workbench.io")}
+          onContextMenu={onContextMenu}
+        />
+      </div>
       {pasteDraft && (
         <PastePreview
           text={pasteDraft.text}

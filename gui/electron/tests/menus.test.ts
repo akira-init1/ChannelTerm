@@ -518,3 +518,53 @@ test("size display hints preserve menu actions but never admit private capabilit
     false,
   );
 });
+
+test("line display actions are independent, default hidden, local and attachment-fenced without shortcuts", () => {
+  const attachment = { id: "view", sessionId: "shared" };
+  const state = {
+    ...initialMenuState,
+    attachment,
+    lineDisplay: { timestamps: true, sequence: false },
+  };
+  const auxiliary = terminalMenu(state).find(
+    (entry) => entry.id === "terminal.auxiliary",
+  )!;
+  assert.equal(auxiliary.children?.length, 2);
+  for (const [index, id] of (
+    ["terminal.timestamps", "terminal.sequence"] as const
+  ).entries()) {
+    const entry: MenuEntry = auxiliary.children![index]!;
+    assert.equal(entry.checked, index === 0);
+    assert.equal(entry.shortcut, undefined);
+    assert.deepEqual(entry.action, { id, attachment });
+    assert.equal(
+      actionEnabled(entry.action!, state),
+      true,
+      "retained closed/offline output remains locally configurable",
+    );
+    assert.equal(
+      actionEnabled(entry.action!, { ...state, attachment: undefined }),
+      false,
+    );
+    assert.equal(
+      actionEnabled(entry.action!, {
+        ...state,
+        attachment: { ...attachment, id: "new" },
+      }),
+      false,
+    );
+    assert.equal(isAction({ id, attachment, command: "unexpected" }), false);
+  }
+  for (const lineDisplay of [
+    null,
+    { timestamps: true },
+    { timestamps: true, sequence: 1 },
+    { timestamps: false, sequence: false, extra: true },
+  ])
+    assert.equal(isMenuState({ ...state, lineDisplay }), false);
+  assert.ok(
+    terminalMenu(initialMenuState)
+      .find((entry) => entry.id === "terminal.auxiliary")!
+      .children!.every((entry) => !entry.enabled && !entry.checked),
+  );
+});

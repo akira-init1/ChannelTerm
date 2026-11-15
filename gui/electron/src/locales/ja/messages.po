@@ -1637,6 +1637,26 @@ msgstr "繁體中文"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "line.hint"
+msgstr "この端末が出力バッチを初めて観測した時刻と論理行の連番です。機器のイベント時刻や完全な履歴ではありません。折り返し行は情報を共有し、コピーには端末本文だけが含まれます。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "line.received"
+msgstr "システム受信時刻："
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "line.unavailable"
+msgstr "HEX 表示と代替画面では行情報の表示を停止します。表示設定は保持されます。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "line.unknown"
+msgstr "過去の時刻は不明"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "logs.delete"
 msgstr "削除するローカルログファイルを選択…"
 
@@ -3015,6 +3035,11 @@ msgstr "適用"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "terminal.auxiliary"
+msgstr "補助表示"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.clear"
 msgstr "ローカル表示をクリア"
 
@@ -3065,6 +3090,11 @@ msgstr "入力を再開"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "terminal.sequence"
+msgstr "連番を表示"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.settings"
 msgstr "端末設定"
 
@@ -3097,6 +3127,11 @@ msgstr "このビューでリモートサイズを制御"
 #: src/shared/menu-messages.ts
 msgid "terminal.text"
 msgstr "テキスト"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.timestamps"
+msgstr "システム時刻を表示"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

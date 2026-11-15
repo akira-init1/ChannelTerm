@@ -1637,6 +1637,26 @@ msgstr "繁體中文"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "line.hint"
+msgstr "Lokale Erstbeobachtungszeit des Ausgabeblocks und Nummer der logischen Zeile. Keine Geräteereigniszeit oder vollständige Historie. Umgebrochene Zeilen teilen Metadaten; Kopieren enthält nur Terminaltext."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "line.received"
+msgstr "Systemempfangszeit:"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "line.unavailable"
+msgstr "Zeilenmetadaten sind in HEX- und alternativen Bildschirmansichten pausiert. Ihre Anzeigeauswahl bleibt erhalten."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "line.unknown"
+msgstr "Historischer Zeitpunkt unbekannt"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "logs.delete"
 msgstr "Lokale Protokolldatei zum Löschen wählen…"
 
@@ -3015,6 +3035,11 @@ msgstr "Anwenden"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "terminal.auxiliary"
+msgstr "Zusatzanzeige"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.clear"
 msgstr "Lokale Anzeige leeren"
 
@@ -3065,6 +3090,11 @@ msgstr "Eingabe fortsetzen"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "terminal.sequence"
+msgstr "Laufende Nummern anzeigen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.settings"
 msgstr "Terminaleinstellungen"
 
@@ -3097,6 +3127,11 @@ msgstr "Diese Ansicht für die entfernte Größe verwenden"
 #: src/shared/menu-messages.ts
 msgid "terminal.text"
 msgstr "Text"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.timestamps"
+msgstr "Systemzeitstempel anzeigen"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

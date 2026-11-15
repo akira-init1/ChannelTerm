@@ -1637,6 +1637,26 @@ msgstr "繁體中文"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "line.hint"
+msgstr "Hora local de primera observación del lote de salida y secuencia de líneas lógicas. No es la hora del dispositivo ni un historial completo. Las líneas ajustadas comparten metadatos; copiar incluye solo el texto del terminal."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "line.received"
+msgstr "Hora de recepción del sistema:"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "line.unavailable"
+msgstr "Los metadatos de línea se pausan en vistas HEX y de pantalla alternativa. Se conservan las opciones de visualización."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "line.unknown"
+msgstr "Hora histórica desconocida"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "logs.delete"
 msgstr "Elegir un archivo de registro local para eliminar…"
 
@@ -3015,6 +3035,11 @@ msgstr "Aplicar"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "terminal.auxiliary"
+msgstr "Visualización auxiliar"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.clear"
 msgstr "Limpiar la vista local"
 
@@ -3065,6 +3090,11 @@ msgstr "Reanudar entrada"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "terminal.sequence"
+msgstr "Mostrar números de secuencia"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.settings"
 msgstr "Configuración del terminal"
 
@@ -3097,6 +3127,11 @@ msgstr "Usar esta vista para el tamaño remoto"
 #: src/shared/menu-messages.ts
 msgid "terminal.text"
 msgstr "Texto"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.timestamps"
+msgstr "Mostrar marcas de tiempo del sistema"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

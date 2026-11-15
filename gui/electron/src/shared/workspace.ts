@@ -1,3 +1,4 @@
+import { isLineDisplay, type LineDisplay } from "./display-settings";
 import { locales, type LanguagePreference } from "./menus";
 import {
   defaultTerminalSettings,
@@ -113,6 +114,7 @@ export interface WorkspaceTarget {
   endpoint: string;
 }
 export interface WorkspaceTab {
+  lineDisplay?: LineDisplay;
   target?: WorkspaceTarget;
   settings: TerminalSettings;
 }
@@ -155,6 +157,9 @@ export function restoreWorkspace(
     )
       return undefined;
     tabs.push({
+      ...(isLineDisplay(entry.lineDisplay)
+        ? { lineDisplay: { ...entry.lineDisplay } }
+        : {}),
       settings: {
         encoding: entry.settings.encoding,
         view: entry.settings.view,

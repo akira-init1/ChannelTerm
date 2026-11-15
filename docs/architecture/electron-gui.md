@@ -329,8 +329,10 @@ create connections or run file operations. IPC validates both caller ownership a
 
 Moving rebuilds xterm from up to 64 KiB of recent Host output. A translated notice explicitly says
 that full screen/parser state and older history may be unavailable. It does not serialize an xterm
-snapshot, copy old queued input, or promise lossless history. Hidden tabs pause reads after any pending
-read/render completes; selecting them resumes the same cursor and reports Host overwrite normally.
+snapshot, copy old queued input, or promise lossless history. Hidden tabs continue one bounded
+read followed by its parse callback, preserving local observation times without waiting for selection.
+xterm suppresses hidden DOM painting; auxiliary gutters draw only for visible views. Host overwrite
+still resets presentation and reports loss.
 Their xterm scrollback remains bounded to 5,000 lines. Closing or disconnecting one window cancels
 only its client resources; other windows and shared Sessions continue. App exit closes all GUI
 clients. Active owned file operations block that window's close/disconnect and app exit, while other
@@ -792,3 +794,26 @@ check; it neither obtains a PTY scope nor receives private task paths. See the
 [control strip workflow](../reference/gui-menus.md#human-interruption-and-control).
 
 New companions use the desktop Host idle default: release truly unused Sessions after 30 seconds while retaining MCP. Existing listeners keep their own policy. Main displays Host-reported mode, source and grace periods; Renderer owns no resource timer or management authority. An explicit configuration may instead keep resources or enable full idle exit. See [Host idle policy](../reference/configuration.md#host-idle-policy).
+
+
+### Local line metadata
+
+Each terminal view maintains up to 6,000 logical-line anchors through xterm's public markers,
+including when its time/sequence columns are hidden. Markers follow normal-buffer reflow and trimming;
+wrapped rows share an anchor. No terminal text is duplicated in the metadata model. A viewport draw
+is coalesced into one animation frame and contains at most 1,024 rows. At most four transient write
+anchors are retained; stale callbacks cannot revive cleared or disposed metadata. Reset, output loss,
+local clear and disposal explicitly release anchors because xterm reset alone does not dispose them.
+
+Times are local first-observation **batch** times, never device event times. A pending presentation
+tail uses its earliest receipt, with the existing 50 ms flush deadline; mixed historical/live tails
+conservatively remain unknown. Initial replay and gap recovery have no historical timestamp evidence.
+Hidden tabs continue bounded reads; delayed delivery is still observation time, not reconstructed
+arrival time. This adds no disk recording, Host monitor registration or post-exit collection.
+
+Independent per-view column choices are an optional workspace-v1 field, distinct from global display
+defaults. Invalid choices are ignored without discarding valid tabs. Only choices persist: restart
+rebuilds fresh metadata from the Host's finite retained output. Newly created/split/moved views start
+with columns hidden. HEX and alternate screens suspend columns with an explanatory tooltip and
+retain choices. Metadata never enters xterm text, clipboard selection, search, Session storage, CLI
+or MCP output. Output folding is not implemented; a future projection must preserve these anchors.

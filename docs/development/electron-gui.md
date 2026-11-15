@@ -842,3 +842,20 @@ serial open/idle-release cycle do not establish all hardware scenarios, SSH auth
 IME behavior, installers in fresh OS images or other native targets. The CLI has a
 [limited line-mode footer](../reference/cli.md#local-status-bar); clear-screen/full-screen/resize
 checks must verify its downgrade and cleanup, not claim that a fixed footer survives those modes.
+
+
+### Line metadata verification
+
+`line-metadata.test.ts` covers bounded anchors/pending callbacks, unknown history, first-observation
+semantics, wrap mapping, alternate screens, explicit reset/disposal and late completions. Menu and
+workspace tests cover independent default-off options, absent/stale attachment targets, strict
+validation and backward-compatible per-tab choices without persisting output or authority.
+
+`line-sidebar-checks.mjs`, included in production and development desktop runs, uses public xterm
+behavior and a disposable fake-I/O Host. It checks collection before enabling columns and while a
+tab is hidden; original Host bytes and body-only clipboard; Unicode soft wraps; native window/font
+changes and row-coordinate alignment; scrolling across more than 5,000 retained lines; explicit
+Host overwrite, clear and restart; alternate-screen suspension; and nine-locale native menu state.
+The fixture retains only 1 KiB: retention tests feed sub-capacity batches and wait for parsing;
+intentional flood tests separately exercise loss. These checks do not prove native behavior on
+unavailable desktop targets or device event timing.

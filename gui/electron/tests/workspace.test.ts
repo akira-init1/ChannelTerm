@@ -213,3 +213,46 @@ test("preferences preserve language, layout and terminal defaults; invalid data 
       defaultWorkbenchPreferences,
     );
 });
+
+test("line column choices restore per tab without persisting metadata or changing defaults", () => {
+  const saved = {
+    ...snapshot,
+    tabs: snapshot.tabs.map((tab, index) => ({
+      ...tab,
+      lineDisplay: { timestamps: index === 0, sequence: index === 1 },
+      metadata: [{ time: 123, text: "private" }],
+    })),
+  };
+  const restored = restoreWorkspace(JSON.stringify(saved), endpoint)!;
+  assert.deepEqual(
+    restored.tabs.map((tab) => tab.lineDisplay),
+    [
+      { timestamps: true, sequence: false },
+      { timestamps: false, sequence: true },
+    ],
+  );
+  assert.ok(!JSON.stringify(restored).includes("private"));
+  for (const invalid of [
+    null,
+    { timestamps: true },
+    { timestamps: true, sequence: "yes" },
+    { timestamps: true, sequence: false, extra: 1 },
+  ]) {
+    const input = {
+      ...saved,
+      tabs: [{ ...saved.tabs[0], lineDisplay: invalid }, saved.tabs[1]],
+    };
+    const parsed = restoreWorkspace(JSON.stringify(input), endpoint)!;
+    assert.equal(parsed.tabs[0]!.lineDisplay, undefined);
+    assert.deepEqual(parsed.tabs[0]!.settings, snapshot.tabs[0]!.settings);
+    assert.deepEqual(parsed.tabs[1]!.lineDisplay, {
+      timestamps: false,
+      sequence: true,
+    });
+  }
+  assert.equal(
+    restoreWorkspace(JSON.stringify(snapshot), endpoint)!.tabs[0]!.lineDisplay,
+    undefined,
+  );
+  assert.ok(!("lineDisplay" in defaultWorkbenchPreferences));
+});
