@@ -15,10 +15,12 @@ import (
 // terminalPreferences belong to one client invocation, never Transport or Host metadata.
 type terminalPreferences struct {
 	encoding, view, description string
+	statusBar                   bool
 }
 
 func defineTerminalFlags(flags *flag.FlagSet) *terminalPreferences {
 	p := &terminalPreferences{}
+	flags.BoolVar(&p.statusBar, "status-bar", true, "local interactive status bar; disables on complex VT/Unicode, long lines or resize")
 	flags.StringVar(&p.encoding, "encoding", "utf-8", "client-local terminal encoding: "+terminalEncodingNames())
 	flags.StringVar(&p.view, "view", "text", "terminal display: text or read-only hex (client-local)")
 	flags.StringVar(&p.description, "description", "", "local connection description; not sent to the device or saved in Host metadata")
@@ -49,7 +51,7 @@ func (p *terminalPreferences) codec() (*terminalCodec, error) {
 }
 
 func (p *terminalPreferences) args() []string {
-	return []string{"--encoding", p.encoding, "--view", p.view, "--description", p.description}
+	return []string{"--encoding", p.encoding, "--view", p.view, "--description", p.description, fmt.Sprintf("--status-bar=%t", p.statusBar)}
 }
 
 // terminalCodec has independent input/output state. Each direction has one owner;

@@ -334,6 +334,48 @@ they are not native Windows validation. Follow the
 [external workflow's evidence checklist](../getting-started/gdb-debugging.md#evidence-boundaries-and-diagnostics)
 for Windows/WSL2/Linux-board acceptance and record each tested board and architecture separately.
 
+## CLI status bar checks
+
+Ordinary Go tests cover split UTF-8/ANSI, bounded buffering, unsupported-control downgrade,
+concurrent output/status updates, cleanup failures, canceled/failed polling, registration identity,
+pipe opt-out and unchanged independent MCP output/input. They need no physical ports or credentials.
+The footer is local presentation; no Go build or ordinary test depends on Electron.
+
+Opt in to the native synthetic keyboard probes on Windows or Linux, respectively:
+
+```powershell
+$env:CHANNELTERM_TEST_STATUS_CONSOLE = '1'
+go test ./internal/cli/command -run '^TestStatusBarWindowsConsole$' -count=1
+Remove-Item Env:CHANNELTERM_TEST_STATUS_CONSOLE
+```
+
+```bash
+CHANNELTERM_TEST_STATUS_CONSOLE=1 go test -race ./internal/cli/command -run '^TestStatusBarLinuxConsole$' -count=1
+```
+
+These create a disposable ConPTY/Linux PTY and run a child test that compares ASCII, cursor-key,
+UTF-8 Chinese and Enter bytes during status refresh. They neither open a device nor prove OS IME
+composition, native desktop appearance, macOS rendering or arbitrary terminal-emulator compatibility.
+Report WSL Linux execution as WSL, not a native Linux desktop. Windows requires ConPTY support.
+
+For actual screen-state assertions, install the pinned Electron development dependencies first
+(see [GUI setup](electron-gui.md)), then from the root on Windows run:
+
+```powershell
+New-Item -ItemType Directory -Force bin/tests | Out-Null
+$env:CHANNELTERM_TEST_STATUS_TRACE = Join-Path (Get-Location) 'bin/tests/status-traces.json'
+go test ./internal/cli/command -run '^TestStatusBarVTTrace$' -count=1
+Remove-Item Env:CHANNELTERM_TEST_STATUS_TRACE
+node -e "const e={...process.env};delete e.ELECTRON_RUN_AS_NODE;require('child_process').execFileSync(require('./gui/electron/node_modules/electron'),['scripts/test-cli-status.cjs','bin/tests/status-traces.json'],{env:e,stdio:'inherit',windowsHide:true});"
+```
+
+This feeds the production coordinator's bytes into pinned xterm and checks cursor preservation,
+scrolling, Chinese text, long-line wrap, clear/absolute/alternate-screen downgrade, resize and restored
+scroll margins. It verifies the [limited contract](../reference/cli.md#local-status-bar), not a footer
+surviving full-screen programs. Separately test real terminals with interactive editing, IME, Ctrl+C,
+`Ctrl+] q`, EOF and connection failure. Record emulator/OS/version, expected versus actual output,
+and use `--status-bar=false` as the ordinary-presentation recovery path.
+
 ## Native packaged-device release gate
 
 Use the [desktop native-device checklist](electron-gui.md#native-device-acceptance) in addition to

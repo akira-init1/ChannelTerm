@@ -224,6 +224,7 @@ channelterm serial [--profile NAME] [--port PORT] [options]
 | `--flow-control` | `none` | `none`, `software` (XON/XOFF), or `hardware` (RTS/CTS); peer settings and wiring must match. |
 | `--wake` | false | Sends one carriage return after a newly opened Session connects. |
 | `--highlight` | true | Style plain text; use `--highlight=false` to disable it. |
+| `--status-bar` | true | Local interactive line-mode footer; see [status bar limits](#local-status-bar). |
 | `--encoding`, `--view`, `--description` | UTF-8 text, no description | Client-local terminal presentation; see [encoding and hex view](../getting-started/serial-terminal.md#character-encoding-description-and-hexadecimal-view). |
 | `--profile` | none | Named profile from the selected TOML file. |
 | `--config` | default path | Alternate TOML configuration path. Missing files are created for an opening workflow. |
@@ -567,7 +568,8 @@ The normal target-first forms are:
 | --- | --- | --- |
 | `--endpoint` | `http://127.0.0.1:37099/mcp` | Complete Streamable HTTP MCP endpoint. |
 | `--private`, `--no-mcp` | false | Open a serial target locally; valid only for a native serial target. |
-| `--highlight` | true | Same local highlighting as `serial`; set false for raw presentation. |
+| `--highlight` | true | Same local highlighting as `serial`; set false to disable generated colors. |
+| `--status-bar` | true | Same local interactive footer as `serial`; use false to disable it. |
 | `--encoding`, `--view`, `--description` | as for `serial` | Client-local settings, also valid for an existing Session reference. |
 | `--profile`, `--config`, `--save` | as for `serial` | Used only with a serial target. |
 | `--baud`, `--data-bits`, `--parity` | as for `serial` | Used only with a serial target. |
@@ -693,6 +695,38 @@ remote endpoint. Host startup ignores that variable; `CHANNELTERM_HOST_CONFIG_DI
 authentication directory. The value must not contain
 whitespace. External clients must send `Authorization: Bearer <token>` themselves. Built-in clients
 refuse cross-origin redirects rather than forwarding the credential to another origin.
+
+## Local status bar
+
+`serial`, `attach`/`connect`, and foreground `ssh` default to `--status-bar=true`.
+The footer requires real interactive stdin/stdout, ANSI support, a known size of at least
+40 columns by 4 rows (at most 1000 each), and a terminal other than `TERM=dumb`.
+Use `--status-bar=false` to retain ordinary presentation. Pipes, redirected output and JSON
+commands receive no footer or extra status polling. This preference is not persisted.
+
+In an ordinary primary screen, the CLI reserves one local bottom row. Shared attachments show a
+bounded target name/reference, controller kind/name, control state, caller-relative input permission,
+AI pause and current operation when present, followed by the `Ctrl+] i` takeover hint (`^] i`).
+Long status text is truncated to available cells. Direct private serial instead identifies its local
+target and lack of shared control; hex view remains read-only. Status observations poll the existing
+public Session list once per second with a 750 ms request deadline. Failures replace stale state
+with unknown; this display never grants input permission, acquires control or renews an operation.
+
+This is a **limited line-mode footer**, not a complete terminal screen emulator. Ordinary text,
+Chinese characters, colors, horizontal editing and line erasure are supported. Before clear-screen,
+absolute positioning, alternate screens, other unsupported controls, complex combining/format
+Unicode or a line filling the rightmost cell, the CLI removes the footer and restores full-screen
+scrolling, then forwards the original bytes. A size change or unavailable geometry also disables it;
+after terminal reflow an old footer may remain in scrollback, since erasing guessed coordinates could
+erase device text. It stays disabled until reattachment. The reason is printed on exit to avoid
+inserting notices during interaction. Exit restores scrolling and flushes any
+incomplete display sequence. Launch from an ordinary primary screen; use the opt-out for other modes.
+
+The coordinator only serializes this CLI's local display. It adds nothing to device writes, Session
+history, MCP reads or stored raw logs, and it does not consume keyboard bytes or replay input.
+It preserves existing SSH PTY dimensions and resize ownership; observers do not gain resize rights.
+Full-screen programs continue without a fixed footer after downgrade. Native IME and terminal-specific
+rendering require the [separate terminal checks](../development/building-and-testing.md#cli-status-bar-checks).
 
 ## `events`
 

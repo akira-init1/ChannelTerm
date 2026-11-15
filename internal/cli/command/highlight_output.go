@@ -12,8 +12,9 @@ import (
 // resolveHighlightRenderer enables local ANSI processing and chooses whether
 // one CLI terminal consumer receives presentation-only semantic styling. It
 // never changes Session or MCP output. Remote ANSI remains usable when local
-// semantic highlighting is disabled.
-func resolveHighlightRenderer(enabled bool, output io.Writer) *highlight.Renderer {
+// semantic highlighting is disabled. An optional destination coordinates local
+// drawing while capability detection still uses the original terminal writer.
+func resolveHighlightRenderer(enabled bool, output io.Writer, destination ...io.Writer) *highlight.Renderer {
 	if file, ok := output.(*os.File); ok && term.IsTerminal(int(file.Fd())) {
 		if !enableANSIOutput(file) {
 			return nil
@@ -26,5 +27,9 @@ func resolveHighlightRenderer(enabled bool, output io.Writer) *highlight.Rendere
 	if profile == termenv.Ascii {
 		return nil
 	}
-	return highlight.New(output, highlight.WithColorProfile(profile))
+	sink := output
+	if len(destination) != 0 {
+		sink = destination[0]
+	}
+	return highlight.New(sink, highlight.WithColorProfile(profile))
 }

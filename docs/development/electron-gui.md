@@ -742,5 +742,6 @@ not independent fingerprint verification. A changed or revoked key must still fa
 
 Record each cell separately for all six native targets. Windows package automation and an actual
 serial open/idle-release cycle do not establish all hardware scenarios, SSH authentication modes,
-IME behavior, installers in fresh OS images or other native targets. CLI fixed-bottom-bar behavior
-is not implemented; do not mark its clear-screen/full-screen/resize acceptance as passed.
+IME behavior, installers in fresh OS images or other native targets. The CLI has a
+[limited line-mode footer](../reference/cli.md#local-status-bar); clear-screen/full-screen/resize
+checks must verify its downgrade and cleanup, not claim that a fixed footer survives those modes.

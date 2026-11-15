@@ -43,6 +43,7 @@ func runSSH(ctx context.Context, args []string, input io.Reader, output io.Write
 	listen := flags.String("listen", defaultMCPListen, "local sharing address; must use a loopback IP")
 	label := flags.String("label", "", "display-only Session label")
 	highlight := flags.Bool("highlight", true, "apply semantic colors to plain terminal text")
+	statusBar := flags.Bool("status-bar", true, "local interactive status bar; disables on complex VT/Unicode, long lines or resize")
 	flags.Usage = func() {
 		fmt.Fprintln(output, "Usage: channelterm ssh USER@HOST [options]")
 		fmt.Fprintln(output, "Open a key- or password-authenticated PTY shell and share it as SSH-1.")
@@ -237,7 +238,7 @@ func runSSH(ctx context.Context, args []string, input io.Reader, output io.Write
 	}
 	ownerCtx := context.WithValue(hostCtx, localHTTPTokenKey{}, ownerToken)
 	return runAttachSessionWithInputEnd(ownerCtx, []string{
-		"--endpoint", endpoint, "--highlight=" + strconv.FormatBool(*highlight), opened.Info.ID,
+		"--endpoint", endpoint, "--highlight=" + strconv.FormatBool(*highlight), "--status-bar=" + strconv.FormatBool(*statusBar), opened.Info.ID,
 	}, input, output, newSSHOwnerAttachment, attachInterrupts, func() { stopHost(); _ = manager.Close() })
 }
 

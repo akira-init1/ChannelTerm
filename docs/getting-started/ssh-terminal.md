@@ -10,6 +10,11 @@ native SSH/TCP connection to gdbserver. See the [GDB workflow](gdb-debugging.md#
 for prerequisites, examples, and cleanup. ChannelTerm's external RSP bridge accepts serial Sessions
 only; it does not provide SSH forwarding.
 
+Foreground `ssh` supports the same [limited local status bar](../reference/cli.md#local-status-bar)
+as `attach`, enabled for eligible interactive terminals. Disable it with `--status-bar=false`.
+It does not reduce the remote PTY's negotiated dimensions or change resize ownership. Full-screen
+controls or resizing disable the footer and restore ordinary terminal presentation for this attachment.
+
 ## Prerequisites
 
 Use a running SSH server on Linux, WSL2, or another SSH-capable host, its actual reachable address

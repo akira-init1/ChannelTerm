@@ -195,7 +195,6 @@ func runAttachSessionWithInputEnd(ctx context.Context, args []string, input io.R
 	if err != nil {
 		return err
 	}
-	renderer := resolveHighlightRenderer(*highlightEnabled && !codec.hex, output)
 	if newAttach == nil {
 		return errors.New("attach session factory must not be nil")
 	}
@@ -212,6 +211,7 @@ func runAttachSessionWithInputEnd(ctx context.Context, args []string, input io.R
 	if err := writeTemporaryHostNotice(output, attached); err != nil {
 		return err
 	}
+	bar := newConsoleStatusBar(input, output, presentationOptions.statusBar)
 	rawInput, stopInputEcho, err := terminalinput.MakeRaw(input)
 	if err != nil {
 		return fmt.Errorf("configure console input: %w", err)
@@ -227,13 +227,36 @@ func runAttachSessionWithInputEnd(ctx context.Context, args []string, input io.R
 	var activityWait sync.WaitGroup
 	var eventWait sync.WaitGroup
 	var ownerInputDone chan struct{}
+	originalOutput := output
+	if bar != nil {
+		output = bar
+	}
+	renderer := resolveHighlightRenderer(*highlightEnabled && !codec.hex, originalOutput, output)
+	readStatus := func(context.Context) (string, error) { return "Control unknown | Ctrl+] i: take control", nil }
+	if source, ok := attached.(interface {
+		statusBarText(context.Context) (string, error)
+	}); ok {
+		readStatus = source.statusBarText
+	}
+	if codec.hex {
+		source := readStatus
+		readStatus = func(ctx context.Context) (string, error) {
+			text, err := source(ctx)
+			return "HEX read-only | " + text, err
+		}
+	}
+	stopStatus := runStatusBar(attachCtx, bar, readStatus, cancel)
 	defer func() {
 		cancel()
+		stopStatus()
 		if ownerInputDone != nil {
 			<-ownerInputDone
 		}
 		activityWait.Wait()
 		eventWait.Wait()
+		if closeErr := bar.Close(); err == nil {
+			err = closeErr
+		}
 	}()
 	var outputMu sync.Mutex
 	lineState := newPresentationLineState()

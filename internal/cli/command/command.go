@@ -805,7 +805,17 @@ func runSerialWithTarget(ctx context.Context, args []string, input io.Reader, ou
 	if err != nil {
 		return err
 	}
-	renderer := resolveHighlightRenderer(*highlightEnabled && !codec.hex, output)
+	bar := newConsoleStatusBar(input, output, presentationOptions.statusBar)
+	originalOutput := output
+	if bar != nil {
+		output = bar
+	}
+	defer func() {
+		if closeErr := bar.Close(); err == nil {
+			err = closeErr
+		}
+	}()
+	renderer := resolveHighlightRenderer(*highlightEnabled && !codec.hex, originalOutput, output)
 	var outputMu sync.Mutex
 	promptTimestamps := newPromptTimestampRenderer(terminalOutputWriter(output, renderer), terminalOutputFlusher(renderer), time.Now)
 	writeLocalOutput := func(data []byte) error {
@@ -905,6 +915,14 @@ func runSerialWithTarget(ctx context.Context, args []string, input io.Reader, ou
 			return err
 		}
 	}
+	stopStatus := runStatusBar(sessionCtx, bar, func(context.Context) (string, error) {
+		mode := "private serial; shared control unavailable"
+		if codec.hex {
+			mode = "HEX read-only; " + mode
+		}
+		return opened.Profile.Port + " | " + mode + " | Ctrl+] q: exit", nil
+	}, cancel)
+	defer stopStatus()
 	// Input has an independent goroutine because a blocked serial Write must not
 	// delay output forwarding. Session's dedicated reader and bounded buffer keep
 	// an independently slow stdout consumer from blocking serial Read. Raw mode

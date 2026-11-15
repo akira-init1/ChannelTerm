@@ -34,6 +34,12 @@ only that attachment to use byte-transparent output while its control or persist
 active; highlighting resumes after a safe reset boundary. Session history and every other client
 continue to receive the same raw bytes.
 
+Interactive attachments also show a [local status bar](../reference/cli.md#local-status-bar) with
+observed controller, operation and input permission. `Ctrl+] i` still performs explicit takeover;
+the display itself does not request control. Use `--status-bar=false` to disable it. Complex terminal
+controls, long lines, complex Unicode or resizing remove the footer for the rest of the attachment;
+Session output and other clients' MCP reads remain unchanged.
+
 ## Join an existing Session
 
 List host Sessions and copy either the short reference or opaque ID:
