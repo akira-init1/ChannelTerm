@@ -333,3 +333,11 @@ Cross-builds cover all six desktop targets with CGO disabled;
 they are not native Windows validation. Follow the
 [external workflow's evidence checklist](../getting-started/gdb-debugging.md#evidence-boundaries-and-diagnostics)
 for Windows/WSL2/Linux-board acceptance and record each tested board and architecture separately.
+
+## Native packaged-device release gate
+
+Use the [desktop native-device checklist](electron-gui.md#native-device-acceptance) in addition to
+unit, race, cross-build and isolated package tests. Track all six supported OS/architecture pairs
+separately. A physical serial open with no received data is only an open/ownership result; a failed
+SSH login establishes neither shell nor file-transfer acceptance. Keep missing hardware,
+credentials, IME and clean-machine environments explicitly unverified until exercised.

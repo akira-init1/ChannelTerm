@@ -708,3 +708,39 @@ excluded from the runtime. Audit reports include existing and build-tool advisor
 for the fixed local build inputs rather than running an unrelated automatic dependency upgrade.
 
 `idle-checks.mjs` uses real Application policy with a one-second fixture grace and private sweep triggers: another client retains the Session after GUI exit, final detach permits removal, and MCP remains reachable. Core fake-clock/concurrency tests additionally cover presence expiry with active work, leases/recovery/pause, reused IDs, close outside admission locks, and explicit Host-exit fencing. No physical device or native non-Windows claim is implied.
+
+## Native device acceptance
+
+Package acceptance above uses fake serial I/O and a loopback SSH server. A release candidate also
+needs the following checks on native Windows, Linux and macOS, each on amd64 and arm64. Cross-builds,
+WSL and synthetic composition events do not establish native desktop, driver or IME support.
+
+Keep a local evidence sheet for each run: commit from `package-manifest.json`, package/companion
+SHA-256, OS/architecture, driver and device model, exact actions, expected/actual result, and
+PASS/FAIL/not-run status. Record serial port, baud, data bits, parity, stop bits and flow control;
+mark assumed parameters explicitly. Do not publish device addresses, credentials or raw console
+captures in repository documentation. No-output observation proves neither RX nor TX correctness.
+
+Use a fresh test account/profile and an isolated `CHANNELTERM_HOST_CONFIG_DIR`. Start only the
+packaged companion, bind its HTTP Host to `127.0.0.1:0`, and use the printed endpoint in
+`CHANNELTERM_GUI_ENDPOINT`. Its readiness line means the listener is ready; authentication and
+Session setup still need to succeed. Never stop an existing Host to free a test port. Use a new
+trust database for an authorized SSH target; first-contact acceptance is trust on first use,
+not independent fingerprint verification. A changed or revoked key must still fail closed.
+
+| Check | Expected evidence and recovery |
+| --- | --- |
+| Package startup | Match packaged app/helper versions and hashes; start outside the checkout with empty PATH, spaces/non-ASCII paths and a clean profile. Repeat in a clean OS/account. Record OS security prompts and unsigned-package limitations. |
+| Serial receive/transmit | Open with the recorded parameters; observe first. Only send explicitly permitted bytes to an identified idle prompt. Verify actual bytes/encoding against independent device output, not local echo alone. Empty reads are inconclusive. |
+| Serial ownership/release | Keep a registered independent monitor; exit GUI and verify the same Session survives. End the last use, wait beyond the configured grace plus sweep interval, then reopen the endpoint with a new Session ID or another serial application. Explicitly close only test-owned Sessions. |
+| Physical faults | With device-owner permission, test unplug/replug, port contention, sustained output and flow control. Record loss notifications, closed/stale targets and explicit recovery. Never substitute a simulated port for this result. |
+| SSH interoperability | Record server/version and authentication method. Test first trust, changed-key refusal, password/key/encrypted-key access, PTY resize and authorized disconnect/slow-write cases. An empty-password rejection is an authentication failure, not proof that SSH transport is broken; do not guess passwords. |
+| Shared control | Two clients must share the same Session while one exits. Check read-only grants, instance migration, takeover during owned work, recovery failure and explicit AI resumption. Verify rejected/uncertain input is never replayed. |
+| Files | Use only disposable authorized paths. Check serial and dedicated SSH transfers, hashes, cancellation and partial files; independent SSH cancellation must not send Ctrl+C into a PTY. Delete only test-created files after verification. |
+| Native interaction | Exercise a real OS IME, clipboard, multiline confirmation, nine locales, narrow windows, native menus and window/tab restoration. Synthesized composition events cover dispatch logic only. Closed Sessions and unsent input must not return. |
+| Shutdown | Close test Sessions through their clients, disconnect test clients and stop only the test-owned Host. For explicit idle exit, verify listener shutdown and an explicit restart path; HTTP traffic cannot wake an exited process. |
+
+Record each cell separately for all six native targets. Windows package automation and an actual
+serial open/idle-release cycle do not establish all hardware scenarios, SSH authentication modes,
+IME behavior, installers in fresh OS images or other native targets. CLI fixed-bottom-bar behavior
+is not implemented; do not mark its clear-screen/full-screen/resize acceptance as passed.
