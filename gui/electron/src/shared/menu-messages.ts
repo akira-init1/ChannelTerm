@@ -3,6 +3,192 @@ import type { MessageDescriptor } from "@lingui/core";
 // Lingui 5 extracts these official annotated descriptors without a runtime macro
 // transform. Translations belong in PO catalogs; this file owns IDs and English defaults.
 export const menuMessages = [
+  /* i18n */ { id: "workbench.new", message: "New" },
+  /* i18n */ { id: "workbench.closing", message: "Closing" },
+  /* i18n */ {
+    id: "recovery.connection_failed",
+    message:
+      "Host could not open this connection. Check settings and refresh Sessions before trying again.",
+  },
+  /* i18n */ {
+    id: "recovery.connection_uncertain",
+    message:
+      "Connection result is uncertain. Refresh Sessions to inspect the result before a new request; the request was not replayed.",
+  },
+  /* i18n */ {
+    id: "recovery.diagnostic_unavailable",
+    message:
+      "Diagnostic archive unavailable or request failed. It may have expired or been evicted; create a new snapshot.",
+  },
+  /* i18n */ {
+    id: "recovery.profile_exists",
+    message:
+      "Profile already exists. Choose another name or explicitly enable replacement to overwrite it.",
+  },
+
+  /* i18n */ {
+    id: "recovery.ssh_host_key",
+    message:
+      "SSH host key rejected. Verify the server key through a trusted channel and update the Host known_hosts file before connecting.",
+  },
+  /* i18n */ {
+    id: "recovery.ssh_authentication",
+    message:
+      "SSH authentication failed. Check the selected identity, password or key passphrase.",
+  },
+
+  /* i18n */ { id: "workbench.connecting", message: "Connecting to Host…" },
+  /* i18n */ { id: "workbench.disconnecting", message: "Disconnecting Host…" },
+  /* i18n */ { id: "workbench.connected", message: "Host connected" },
+  /* i18n */ { id: "workbench.failed", message: "Host connection failed" },
+  /* i18n */ { id: "workbench.disconnected", message: "Host disconnected" },
+  /* i18n */ { id: "workbench.attaching", message: "Attaching Session…" },
+  /* i18n */ { id: "workbench.detaching", message: "Detaching Session…" },
+  /* i18n */ { id: "workbench.opening", message: "Opening connection…" },
+  /* i18n */ { id: "workbench.unavailable", message: "Host unavailable" },
+  /* i18n */ { id: "workbench.noHost", message: "No Host connected" },
+  /* i18n */ {
+    id: "workbench.sessionUnavailable",
+    message: "Session unavailable",
+  },
+  /* i18n */ { id: "workbench.noSessions", message: "No Sessions available" },
+  /* i18n */ { id: "workbench.select", message: "Select a Session" },
+  /* i18n */ { id: "workbench.wait", message: "Please wait." },
+  /* i18n */ {
+    id: "workbench.retryHint",
+    message:
+      "Check that your configured Host is running, then retry the connection.",
+  },
+  /* i18n */ {
+    id: "workbench.connectHint",
+    message: "Connect to your running Host using the Host panel.",
+  },
+  /* i18n */ {
+    id: "workbench.selectHint",
+    message:
+      "Choose an open Session from the sidebar to view output and send input.",
+  },
+  /* i18n */ { id: "workbench.navigation", message: "Workspace navigation" },
+  /* i18n */ {
+    id: "workbench.toggleSessions",
+    message: "Toggle Session sidebar",
+  },
+  /* i18n */ { id: "workbench.sessions", message: "Sessions" },
+  /* i18n */ { id: "workbench.noResults", message: "No Sessions found." },
+  /* i18n */ {
+    id: "workbench.listHint",
+    message: "Connect a Host to list Sessions.",
+  },
+  /* i18n */ { id: "workbench.host", message: "Host connection" },
+  /* i18n */ { id: "workbench.loading", message: "Loading configuration…" },
+  /* i18n */ { id: "workbench.retry", message: "Retry connection" },
+  /* i18n */ {
+    id: "workbench.detachHint",
+    message: "Detaching leaves Sessions running.",
+  },
+  /* i18n */ { id: "workbench.terminal", message: "Terminal workspace" },
+  /* i18n */ { id: "workbench.notices", message: "Terminal notices" },
+  /* i18n */ {
+    id: "workbench.attachmentHost",
+    message:
+      "This Host belongs to another attachment. It may stop when its owner exits.",
+  },
+  /* i18n */ {
+    id: "workbench.dropped",
+    message:
+      "Output overwritten in the Host buffer. The terminal was reset; older bytes are unavailable.",
+  },
+  /* i18n */ {
+    id: "workbench.lease",
+    message: "Lease active. Reading continues; input is disabled.",
+  },
+  /* i18n */ {
+    id: "workbench.closedHint",
+    message:
+      "Session closed or unavailable. Detach and select an open Session.",
+  },
+  /* i18n */ { id: "workbench.status", message: "Workbench status" },
+  /* i18n */ { id: "workbench.offline", message: "Offline" },
+  /* i18n */ {
+    id: "workbench.readOnly",
+    message: "Session unavailable · Read-only",
+  },
+  /* i18n */ {
+    id: "workbench.leaseReadOnly",
+    message: "Read-only · Lease active",
+  },
+  /* i18n */ { id: "workbench.paused", message: "Input paused" },
+  /* i18n */ { id: "workbench.enabled", message: "Attached · Input enabled" },
+  /* i18n */ { id: "workbench.unattached", message: "No attachment" },
+  /* i18n */ { id: "workbench.hostOwned", message: "Host-owned Sessions" },
+  /* i18n */ { id: "workbench.search", message: "Search Sessions" },
+  /* i18n */ { id: "workbench.noMatch", message: "No matching Sessions." },
+  /* i18n */ { id: "workbench.open", message: "Open" },
+  /* i18n */ { id: "workbench.closed", message: "Closed" },
+  /* i18n */ { id: "workbench.unknown", message: "Unknown" },
+  /* i18n */ { id: "workbench.io", message: "Terminal output and input" },
+  /* i18n */ { id: "workbench.menu", message: "Application menu" },
+  /* i18n */ { id: "workbench.workbenchMenu", message: "Workbench menu" },
+  /* i18n */ {
+    id: "recovery.control_stale",
+    message:
+      "Control changed or the instance expired. Refresh and inspect the current owner before new input. Discarded input is not replayed.",
+  },
+  /* i18n */ {
+    id: "recovery.configuration",
+    message:
+      "Check the Host endpoint and local configuration, then connect explicitly.",
+  },
+  /* i18n */ {
+    id: "recovery.disconnected",
+    message:
+      "Check the Host and reconnect explicitly. Input was not retried; delivery may be uncertain. Inspect remote state before new input.",
+  },
+  /* i18n */ {
+    id: "recovery.unauthorized",
+    message:
+      "Access denied. Check the credential permissions and current control owner. Do not disable authentication.",
+  },
+  /* i18n */ {
+    id: "recovery.incompatible",
+    message:
+      "The Host response or capability is incompatible. Use matching desktop and Host versions.",
+  },
+  /* i18n */ {
+    id: "recovery.busy",
+    message:
+      "An operation or Lease is active. Wait for it to finish and refresh. Discarded input is not queued for replay.",
+  },
+  /* i18n */ {
+    id: "recovery.closed",
+    message:
+      "The target is closed or no longer available. Refresh and select an open target; it will not be recreated automatically.",
+  },
+  /* i18n */ {
+    id: "recovery.cancelled",
+    message:
+      "The request ended or was cancelled. Refresh to check its result before any new action; do not retry input automatically.",
+  },
+  /* i18n */ {
+    id: "recovery.invalid_input",
+    message:
+      "Check the entered settings, path and target. Correct them before submitting again.",
+  },
+  /* i18n */ {
+    id: "recovery.tool_error",
+    message:
+      "The operation failed. Check the target and Host diagnostics, then refresh its state. Do not replay input with an unknown result.",
+  },
+  /* i18n */ {
+    id: "recovery.input_queue",
+    message:
+      "Input queue is full. Remaining input was discarded. Inspect the target before entering new input.",
+  },
+  /* i18n */ {
+    id: "workbench.sessionCount",
+    message: "{count, plural, one {# Session} other {# Sessions}}",
+  },
+
   /* i18n */ {
     id: "control.sshWarning",
     message:

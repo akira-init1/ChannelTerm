@@ -1,8 +1,8 @@
+import { clientErrorMessageId } from "../../shared/host-recovery";
 import { useEffect, useRef, useState } from "react";
 import { CancelTransferDialog } from "./CancelTransferDialog";
 import type { TransferStatus } from "../../shared/transfers";
 import { host, unwrap } from "../host";
-import type { ClientError } from "../../shared/api";
 import { OperationSource } from "../components/OperationSource";
 
 /** Structured progress from all observed clients, never CLI output rendered into xterm. */
@@ -50,7 +50,7 @@ export function TransferPanel({
     try {
       await unwrap(host.resolveTransferCancel(id, confirm));
     } catch (error) {
-      if (mounted.current) setFailure((error as ClientError).message);
+      if (mounted.current) setFailure(clientErrorMessageId(error));
     } finally {
       if (mounted.current) setCancelling("");
     }
@@ -161,7 +161,7 @@ export function TransferPanel({
                         });
                       } catch (e) {
                         if (mounted.current) {
-                          setFailure((e as ClientError).message);
+                          setFailure(clientErrorMessageId(e));
                           setCancelling("");
                         }
                       }
@@ -179,7 +179,7 @@ export function TransferPanel({
               {job.sha256 && <small title={job.sha256}>SHA-256 ✓</small>}
             </div>
           ))}
-        {(error || failure) && <p role="alert">{error || failure}</p>}
+        {(error || failure) && <p role="alert">{t(error || failure)}</p>}
       </div>
       {interruptTarget && (
         <div role="alert">
@@ -195,7 +195,7 @@ export function TransferPanel({
               try {
                 await unwrap(host.interruptSSHTransfer(id));
               } catch {
-                if (mounted.current) setFailure(t("control.unknown"));
+                if (mounted.current) setFailure("control.unknown");
               } finally {
                 if (mounted.current) setCancelling("");
               }

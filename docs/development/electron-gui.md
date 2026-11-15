@@ -615,3 +615,14 @@ production bridge in the native desktop suite: confirmation races, Host-authorit
 explicit allowance, result retention across disconnect and compact layout. Existing SSH file
 tests cancel a real loopback SFTP child without closing its terminal Session. All use disposable
 profiles and fake/loopback devices, not personal credentials or physical hardware.
+
+### Workbench localization checks
+
+`workbench-i18n.test.ts` checks every public recovery code, malformed/unknown failures, safe SSH
+reasons, plural session counts and renderer message references. Errors stored before a locale
+change are translated again without inspecting their diagnostic text. The native
+`workbench-i18n-checks.mjs` scenario switches all nine catalogs with offline views and a retained
+output-loss notice, checking accessibility/status text and byte-display preservation. Existing
+native scenarios cover Lease blocking, disconnects, input composition and compact layout.
+These checks use isolated Host fixtures; they do not establish native input-method or device
+acceptance on other operating systems.

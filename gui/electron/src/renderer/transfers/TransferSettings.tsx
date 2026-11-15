@@ -1,3 +1,4 @@
+import { clientErrorMessageId } from "../../shared/host-recovery";
 import { useEffect, useRef, useState } from "react";
 import type { DirectoryPreference } from "../../shared/transfers";
 import type { ClientError } from "../../shared/api";
@@ -24,7 +25,7 @@ export function TransferSettings({
         if (live) setMode(value);
       })
       .catch((e: ClientError) => {
-        if (live) setError(e.message);
+        if (live) setError(clientErrorMessageId(e));
       });
     return () => {
       live = false;
@@ -61,7 +62,7 @@ export function TransferSettings({
         </select>
       </label>
       <p>{t("file.directoryHint")}</p>
-      {error && <p role="alert">{error}</p>}
+      {error && <p role="alert">{t(error)}</p>}
       <footer>
         <button disabled={busy} onClick={onClose}>
           {t("connection.cancel")}
@@ -77,7 +78,7 @@ export function TransferSettings({
               await unwrap(host.saveTransferPreference(mode));
               onClose();
             } catch (e) {
-              setError((e as ClientError).message);
+              setError(clientErrorMessageId(e));
             } finally {
               saving.current = false;
               setBusy(false);

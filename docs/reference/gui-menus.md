@@ -182,9 +182,15 @@ help content also use that locale. The preference defaults to **Follow System** 
 future windows/restarts. A new or moved window inherits the source preference; later changes in live
 windows remain independent. System tags resolve to supported catalogs (for example `ja-JP` to `ja`,
 `zh-Hant-HK` to `zh-TW`), with English as fallback. Browser `languagechange` notifications update
-menus while following the system; explicit selections remain unchanged. This is menu/help
-localization, not a claim that Host diagnostics or the entire
-workbench have been translated. The language picker follows the README language order and
+menus and workbench text while following the system; explicit selections remain unchanged.
+Session lists, status/empty states, disconnect and output-loss notices, accessibility labels,
+and form recovery messages use the same nine catalogs. Errors retain stable codes or message IDs
+and are translated at render time, including an already-open dialog after a language change.
+Recovery guidance uses safe structured reasons (including SSH authentication and host-key rejection),
+never diagnostic-string matching. Unknown failures use generic guidance rather than exposing raw
+error text. Inspect the Host diagnostics for technical detail. Terminal bytes, user labels and paths,
+protocol identifiers, operation metadata and logs remain unchanged; they are not translated.
+The language picker follows the README language order and
 uses native names so it remains recognizable after switching:
 
 | Locale | Picker label |

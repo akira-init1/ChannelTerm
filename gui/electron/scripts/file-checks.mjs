@@ -503,7 +503,22 @@ async function checkFileDrops(desktop, page) {
     await expect
       .poll(() => desktop.evaluate(() => globalThis.dropRequests.length))
       .toBe(5);
-    await expect(page.getByText("Fixture cancelled first item")).toBeVisible();
+    await expect(
+      page.locator(".transfer-panel").getByRole("alert"),
+    ).toContainText("The request ended or was cancelled");
+    await expect(page.getByText("Fixture cancelled first item")).toHaveCount(0);
+    await desktop.evaluate(({ Menu }) =>
+      Menu.getApplicationMenu().getMenuItemById("language.zh-CN").click(),
+    );
+    await expect(
+      page.locator(".transfer-panel").getByRole("alert"),
+    ).toContainText("请求已结束或取消");
+    await desktop.evaluate(({ Menu }) =>
+      Menu.getApplicationMenu().getMenuItemById("language.en").click(),
+    );
+    await expect(
+      page.locator(".transfer-panel").getByRole("alert"),
+    ).toContainText("The request ended or was cancelled");
     assert.equal(
       await desktop.evaluate(() => globalThis.dropRequests.length),
       5,

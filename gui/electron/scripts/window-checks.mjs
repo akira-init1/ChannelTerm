@@ -42,7 +42,7 @@ async function menu(page, id) {
 }
 async function connect(page) {
   const button = page.getByRole("button", {
-    name: "Connect to Host",
+    name: "Connect to Host...",
     exact: true,
   });
   await button.click();
@@ -280,10 +280,16 @@ export async function checkWindows(environment) {
     }
     await language(desktop, moved, "en");
     await fixture.command("lease");
-    await expect(moved.locator(".notices")).toContainText("Lease busy");
-    await expect(second.locator(".notices")).toContainText("Lease busy");
+    await expect(moved.locator(".notices")).toContainText(
+      "Lease active. Reading continues",
+    );
+    await expect(second.locator(".notices")).toContainText(
+      "Lease active. Reading continues",
+    );
     await fixture.command("release");
-    await expect(moved.locator(".notices")).not.toContainText("Lease busy");
+    await expect(moved.locator(".notices")).not.toContainText(
+      "Lease active. Reading continues",
+    );
 
     // A hidden cursor may be overwritten; it reports loss when selected instead of inventing history.
     await menu(second, "tab.new");

@@ -1330,6 +1330,51 @@ msgstr "即使設定檔啟用了喚醒，也須在此手動勾選才會傳送。
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "recovery.busy"
+msgstr "操作或租約使用中。等待結束後重新整理；捨棄的輸入不會排入佇列重播。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.cancelled"
+msgstr "要求已結束或取消。執行新操作前重新整理並確認結果；請勿自動重試輸入。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.closed"
+msgstr "目標已關閉或無法使用。重新整理並選取已開啟的目標；不會自動重建。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.configuration"
+msgstr "檢查 Host 端點與本機設定，然後明確連線。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.connection_failed"
+msgstr "Host 無法開啟此連線。檢查設定並重新整理工作階段後再嘗試。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.connection_uncertain"
+msgstr "連線結果不確定。提出新要求前請重新整理工作階段並核對結果；要求並未重播。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.control_stale"
+msgstr "控制權已變更或執行個體已過期。重新整理並確認目前控制方後再輸入；捨棄的輸入不會重播。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.diagnostic_unavailable"
+msgstr "診斷封存無法使用或要求失敗，可能已過期或遭移除；請建立新快照。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.disconnected"
+msgstr "檢查 Host 並明確重新連線。輸入未重試，傳送結果可能不確定；再次輸入前請檢查遠端狀態。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "recovery.host_companion_outdated"
 msgstr "隨附 Host 已過期或建置失敗，已阻止自動啟動。請先完成共享工作階段中的工作並停止其 Host，在 gui/electron 中執行 npm run host:build，再重新啟動介面。"
 
@@ -1357,6 +1402,46 @@ msgstr "缺少 Host 身分檔案。請確認介面與 Host 使用相同帳戶及
 #: src/shared/menu-messages.ts
 msgid "recovery.host_legacy_credentials"
 msgstr "偵測到舊版 Host 設定，缺少新憑證。請先完成共享工作階段中的工作，再停止並更新 Host，然後重新啟動介面。保留舊檔案供移轉；僅重試無法升級 Host。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.incompatible"
+msgstr "Host 回應或功能不相容。請使用版本相符的桌面端與 Host。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.input_queue"
+msgstr "輸入佇列已滿，其餘輸入已捨棄。再次輸入前請檢查目標。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.invalid_input"
+msgstr "檢查輸入的設定、路徑與目標，修正後再送出。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.profile_exists"
+msgstr "設定檔已存在。請選擇其他名稱，或明確啟用取代以覆寫原設定檔。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.ssh_authentication"
+msgstr "SSH 身分驗證失敗。檢查選取的金鑰、密碼或私密金鑰通行片語。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.ssh_host_key"
+msgstr "SSH 主機金鑰遭拒。透過可信管道核對伺服器金鑰，並更新 Host 的 known_hosts 檔案後再連線。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.tool_error"
+msgstr "操作失敗。檢查目標與 Host 診斷，再重新整理狀態；請勿重播結果不確定的輸入。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.unauthorized"
+msgstr "存取遭拒。檢查認證權限與目前控制方；請勿停用身分驗證。"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -2018,6 +2103,261 @@ msgstr "上一個視窗"
 #: src/shared/menu-messages.ts
 msgid "window.tab.close"
 msgstr "關閉分頁"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.attaching"
+msgstr "正在附加工作階段…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.attachmentHost"
+msgstr "此 Host 屬於另一個附加用戶端；該用戶端結束時，Host 可能停止。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.closed"
+msgstr "已關閉"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.closedHint"
+msgstr "工作階段已關閉或無法使用。請分離並選取已開啟的工作階段。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.closing"
+msgstr "正在關閉"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.connected"
+msgstr "Host 已連線"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.connectHint"
+msgstr "透過 Host 面板連線至正在執行的 Host。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.connecting"
+msgstr "正在連線至 Host…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.detachHint"
+msgstr "分離後工作階段仍會繼續執行。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.detaching"
+msgstr "正在分離工作階段…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.disconnected"
+msgstr "Host 已中斷連線"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.disconnecting"
+msgstr "正在中斷 Host 連線…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.dropped"
+msgstr "Host 緩衝區中的輸出已遭覆寫。終端已重設，較早的位元組已無法取得。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.enabled"
+msgstr "已附加 · 輸入已啟用"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.failed"
+msgstr "Host 連線失敗"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.host"
+msgstr "Host 連線"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.hostOwned"
+msgstr "Host 管理的工作階段"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.io"
+msgstr "終端輸出與輸入"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.lease"
+msgstr "租約使用中。仍可讀取，但輸入已停用。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.leaseReadOnly"
+msgstr "唯讀 · 租約使用中"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.listHint"
+msgstr "連線至 Host 以列出工作階段。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.loading"
+msgstr "正在載入設定…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.menu"
+msgstr "應用程式選單"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.navigation"
+msgstr "工作區導覽"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.new"
+msgstr "新建"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.noHost"
+msgstr "尚未連線至 Host"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.noMatch"
+msgstr "沒有符合的工作階段。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.noResults"
+msgstr "找不到工作階段。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.noSessions"
+msgstr "沒有可用的工作階段"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.notices"
+msgstr "終端提示"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.offline"
+msgstr "離線"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.open"
+msgstr "已開啟"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.opening"
+msgstr "正在建立連線…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.paused"
+msgstr "輸入已暫停"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.readOnly"
+msgstr "工作階段無法使用 · 唯讀"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.retry"
+msgstr "重試連線"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.retryHint"
+msgstr "確認設定的 Host 正在執行，然後重試連線。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.search"
+msgstr "搜尋工作階段"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.select"
+msgstr "選取工作階段"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.selectHint"
+msgstr "從側欄選取已開啟的工作階段，以查看輸出並傳送輸入。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.sessionCount"
+msgstr "{count, plural, other {# 個工作階段}}"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.sessions"
+msgstr "工作階段"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.sessionUnavailable"
+msgstr "工作階段無法使用"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.status"
+msgstr "工作台狀態"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.terminal"
+msgstr "終端工作區"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.toggleSessions"
+msgstr "切換工作階段側欄"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.unattached"
+msgstr "尚未附加"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.unavailable"
+msgstr "Host 無法使用"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.unknown"
+msgstr "未知"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.wait"
+msgstr "請稍候。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.workbenchMenu"
+msgstr "工作台選單"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

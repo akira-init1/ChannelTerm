@@ -37,7 +37,9 @@ export async function checkControl(desktop, page, observer, sessionId) {
     label: "Control secondary",
     wake: false,
   });
-  await page.getByRole("button", { name: "Refresh", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Refresh Sessions", exact: true })
+    .click();
   await page.getByTestId("control-takeover").click();
   await page
     .locator("button.session")
@@ -75,14 +77,14 @@ export async function checkControl(desktop, page, observer, sessionId) {
   await page.screenshot({ path: "test-results/control-takeover.png" });
   // The one original result stays available when the Host connection goes away.
   await page
-    .getByRole("button", { name: "Disconnect Host", exact: true })
+    .getByRole("button", { name: "Disconnect from Host", exact: true })
     .click();
   await expect(result).toContainText(sessionId);
   await expect(
     result.getByRole("button", { name: "Query original result" }),
   ).toBeDisabled();
   await page
-    .getByRole("button", { name: "Connect to Host", exact: true })
+    .getByRole("button", { name: "Connect to Host...", exact: true })
     .click();
   await result.getByRole("button", { name: "Query original result" }).click();
   await expect(result).toContainText("Recovery confirmed");

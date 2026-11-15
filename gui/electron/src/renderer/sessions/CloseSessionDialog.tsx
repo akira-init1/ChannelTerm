@@ -32,13 +32,11 @@ export function CloseSessionDialog({
     } catch (error) {
       const code = (error as ClientError).code;
       setError(
-        t(
-          code === "busy"
-            ? "session.closeBusy"
-            : code === "closed" || code === "cancelled"
-              ? "session.closeStale"
-              : "session.closeFailed",
-        ),
+        code === "busy"
+          ? "session.closeBusy"
+          : code === "closed" || code === "cancelled"
+            ? "session.closeStale"
+            : "session.closeFailed",
       );
     } finally {
       pending.current = false;
@@ -64,7 +62,7 @@ export function CloseSessionDialog({
           <code>{target.session_id}</code>
         </p>
         <p>{t("session.closeWarning")}</p>
-        {error && <p role="alert">{error}</p>}
+        {error && <p role="alert">{t(error)}</p>}
         <footer>
           <button type="button" autoFocus disabled={busy} onClick={onClose}>
             {t("connection.cancel")}

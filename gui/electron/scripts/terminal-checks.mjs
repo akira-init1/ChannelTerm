@@ -146,7 +146,7 @@ export async function checkTerminalControls(
       preview.getByRole("button", { name: "Paste into this target" }),
     ).toBeDisabled();
     await fixture.command("release");
-    await expect(page.getByText(/Lease busy/)).toBeHidden();
+    await expect(page.locator(".notice-lease")).toBeHidden();
     await expect(
       preview.getByRole("button", { name: "Paste into this target" }),
     ).toBeDisabled();
@@ -208,7 +208,7 @@ export async function checkTerminalControls(
     assert.equal(oversized.ok, false);
     assert.equal(oversized.error.code, "invalid_input");
     await fixture.command("lease");
-    await expect(page.getByText(/Lease busy/)).toBeVisible();
+    await expect(page.locator(".notice-lease")).toBeVisible();
     await terminal.focus();
     await page.keyboard.press("Control+Shift+v");
     assert.equal(
@@ -217,7 +217,7 @@ export async function checkTerminalControls(
       "paste under a lease must not write or queue input",
     );
     await fixture.command("release");
-    await expect(page.getByText(/Lease busy/)).toBeHidden();
+    await expect(page.locator(".notice-lease")).toBeHidden();
     assert.equal(await read(), "", "release must not replay rejected paste");
   } finally {
     await desktop.evaluate(

@@ -844,6 +844,10 @@ main {
   border-color: #fff !important;
 }
 .input-status {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   border-left: 1px solid #394353;
   padding-left: 16px;
 }

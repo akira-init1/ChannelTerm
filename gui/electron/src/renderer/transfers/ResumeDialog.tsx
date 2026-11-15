@@ -1,3 +1,4 @@
+import { clientErrorMessageId } from "../../shared/host-recovery";
 import { useEffect, useRef, useState } from "react";
 import type { TransferCheckpoint } from "../../shared/transfers";
 import type { ClientError } from "../../shared/api";
@@ -31,7 +32,7 @@ export function ResumeDialog({
         if (!stopped) setJobs(result);
       })
       .catch((failure: ClientError) => {
-        if (!stopped) setError(failure.message);
+        if (!stopped) setError(clientErrorMessageId(failure));
       })
       .finally(() => {
         if (!stopped) setBusy(false);
@@ -55,7 +56,7 @@ export function ResumeDialog({
       </h2>
       <p className="file-hint">{t("file.resumeHint")}</p>
       {busy && <p>{t("file.loading")}</p>}
-      {error && <p role="alert">{error}</p>}
+      {error && <p role="alert">{t(error)}</p>}
       {!busy && !error && jobs.length === 0 && <p>{t("file.noCheckpoints")}</p>}
       <div className="resume-jobs">
         {jobs.map((job) => (

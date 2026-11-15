@@ -1,3 +1,4 @@
+import { clientErrorMessageId } from "../../shared/host-recovery";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { isDiagnosticID, type DiagnosticSaved } from "../../shared/diagnostics";
 import type { ClientError } from "../../shared/api";
@@ -35,7 +36,7 @@ export function DiagnosticsDialog({
     const form = new FormData(event.currentTarget),
       id = String(form.get("diagnosticId") ?? "").trim();
     if (kind === "existing" && !isDiagnosticID(id)) {
-      setError(t("diagnostics.invalid"));
+      setError("diagnostics.invalid");
       return;
     }
     if (kind === "snapshot" && !attachmentId) return;
@@ -63,7 +64,7 @@ export function DiagnosticsDialog({
     } catch (error) {
       if (alive.current) {
         if ((error as ClientError).code === "cancelled") setCancelled(true);
-        else setError((error as ClientError).message);
+        else setError(clientErrorMessageId(error));
       }
     } finally {
       submitting.current = false;
@@ -124,7 +125,7 @@ export function DiagnosticsDialog({
           </p>
         </fieldset>
         <p className="connection-hint">{t("diagnostics.destination")}</p>
-        {error && <p role="alert">{error}</p>}
+        {error && <p role="alert">{t(error)}</p>}
         {cancelled && <p role="status">{t("diagnostics.cancelled")}</p>}
         {saved && (
           <div role="status" className="diagnostic-result">

@@ -1330,6 +1330,51 @@ msgstr "Le réveil reste désactivé tant que vous ne le sélectionnez pas ici, 
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "recovery.busy"
+msgstr "Opération ou bail actif. Attendez la fin et actualisez. Les entrées rejetées ne sont pas mises en attente de renvoi."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.cancelled"
+msgstr "La requête est terminée ou annulée. Actualisez pour vérifier son résultat avant toute nouvelle action ; ne renvoyez pas automatiquement les entrées."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.closed"
+msgstr "La cible est fermée ou indisponible. Actualisez et choisissez une cible ouverte ; elle ne sera pas recréée automatiquement."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.configuration"
+msgstr "Vérifiez le point d’accès du Host et la configuration locale, puis connectez-vous explicitement."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.connection_failed"
+msgstr "Le Host n’a pas pu ouvrir cette connexion. Vérifiez les paramètres et actualisez les sessions avant de réessayer."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.connection_uncertain"
+msgstr "Résultat de connexion incertain. Actualisez les sessions pour vérifier le résultat avant une nouvelle requête ; la requête n’a pas été répétée."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.control_stale"
+msgstr "Le contrôle a changé ou l’instance a expiré. Actualisez et vérifiez le détenteur avant toute nouvelle saisie. Les entrées rejetées ne sont pas renvoyées."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.diagnostic_unavailable"
+msgstr "Archive de diagnostic indisponible ou requête en échec. Elle a pu expirer ou être supprimée ; créez un nouvel instantané."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.disconnected"
+msgstr "Vérifiez le Host et reconnectez-vous explicitement. Les entrées n’ont pas été renvoyées ; leur remise peut être incertaine. Vérifiez l’état distant avant toute nouvelle saisie."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "recovery.host_companion_outdated"
 msgstr "Le Host fourni est obsolète ou sa compilation a échoué ; le démarrage automatique est bloqué. Terminez le travail des Sessions partagées et arrêtez le Host, exécutez npm run host:build dans gui/electron, puis redémarrez l’interface."
 
@@ -1357,6 +1402,46 @@ msgstr "L’identité du Host manque. Vérifiez que l’interface et le Host uti
 #: src/shared/menu-messages.ts
 msgid "recovery.host_legacy_credentials"
 msgstr "Ancienne configuration Host détectée ; les nouveaux identifiants manquent. Terminez le travail des Sessions partagées, arrêtez et mettez à jour le Host, puis redémarrez l’interface. Conservez les anciens fichiers pour la migration. Réessayer ne met pas le Host à jour."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.incompatible"
+msgstr "Réponse ou capacité du Host incompatible. Utilisez des versions compatibles du bureau et du Host."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.input_queue"
+msgstr "La file de saisie est pleine. Les entrées restantes ont été rejetées. Vérifiez la cible avant toute nouvelle saisie."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.invalid_input"
+msgstr "Vérifiez les paramètres, le chemin et la cible. Corrigez-les avant de soumettre à nouveau."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.profile_exists"
+msgstr "Le profil existe déjà. Choisissez un autre nom ou activez explicitement le remplacement."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.ssh_authentication"
+msgstr "Échec de l’authentification SSH. Vérifiez l’identité choisie, le mot de passe ou la phrase secrète de la clé."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.ssh_host_key"
+msgstr "Clé d’hôte SSH refusée. Vérifiez la clé du serveur par un canal fiable et mettez à jour le fichier known_hosts du Host avant de vous connecter."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.tool_error"
+msgstr "L’opération a échoué. Vérifiez la cible et les diagnostics du Host, puis actualisez son état. Ne renvoyez pas une entrée au résultat inconnu."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.unauthorized"
+msgstr "Accès refusé. Vérifiez les permissions des identifiants et le détenteur du contrôle. Ne désactivez pas l’authentification."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -2018,6 +2103,261 @@ msgstr "Fenêtre précédente"
 #: src/shared/menu-messages.ts
 msgid "window.tab.close"
 msgstr "Fermer l’onglet"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.attaching"
+msgstr "Rattachement à la session…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.attachmentHost"
+msgstr "Ce Host appartient à un autre client rattaché. Il peut s’arrêter lorsque ce client quitte."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.closed"
+msgstr "Fermée"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.closedHint"
+msgstr "Session fermée ou indisponible. Détachez-vous et choisissez une session ouverte."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.closing"
+msgstr "Fermeture"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.connected"
+msgstr "Host connecté"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.connectHint"
+msgstr "Connectez-vous au Host actif via le panneau Host."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.connecting"
+msgstr "Connexion au Host…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.detachHint"
+msgstr "Le détachement laisse les sessions actives."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.detaching"
+msgstr "Détachement de la session…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.disconnected"
+msgstr "Host déconnecté"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.disconnecting"
+msgstr "Déconnexion du Host…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.dropped"
+msgstr "La sortie du tampon du Host a été écrasée. Le terminal a été réinitialisé ; les anciens octets sont indisponibles."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.enabled"
+msgstr "Rattaché · Saisie activée"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.failed"
+msgstr "Échec de connexion au Host"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.host"
+msgstr "Connexion au Host"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.hostOwned"
+msgstr "Sessions gérées par le Host"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.io"
+msgstr "Sortie et saisie du terminal"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.lease"
+msgstr "Bail actif. La lecture continue ; la saisie est désactivée."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.leaseReadOnly"
+msgstr "Lecture seule · Bail actif"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.listHint"
+msgstr "Connectez un Host pour afficher les sessions."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.loading"
+msgstr "Chargement de la configuration…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.menu"
+msgstr "Menu de l’application"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.navigation"
+msgstr "Navigation de l’espace de travail"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.new"
+msgstr "Nouveau"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.noHost"
+msgstr "Aucun Host connecté"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.noMatch"
+msgstr "Aucune session correspondante."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.noResults"
+msgstr "Aucune session trouvée."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.noSessions"
+msgstr "Aucune session disponible"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.notices"
+msgstr "Notifications du terminal"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.offline"
+msgstr "Hors ligne"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.open"
+msgstr "Ouverte"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.opening"
+msgstr "Ouverture de la connexion…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.paused"
+msgstr "Saisie en pause"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.readOnly"
+msgstr "Session indisponible · Lecture seule"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.retry"
+msgstr "Réessayer la connexion"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.retryHint"
+msgstr "Vérifiez que le Host configuré est en cours d’exécution, puis réessayez la connexion."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.search"
+msgstr "Rechercher des sessions"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.select"
+msgstr "Choisir une session"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.selectHint"
+msgstr "Choisissez une session ouverte dans la barre latérale pour lire la sortie et envoyer des entrées."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.sessionCount"
+msgstr "{count, plural, one {# session} other {# sessions}}"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.sessions"
+msgstr "Sessions"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.sessionUnavailable"
+msgstr "Session indisponible"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.status"
+msgstr "État de l’espace de travail"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.terminal"
+msgstr "Espace de travail du terminal"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.toggleSessions"
+msgstr "Afficher ou masquer la barre des sessions"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.unattached"
+msgstr "Aucun rattachement"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.unavailable"
+msgstr "Host indisponible"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.unknown"
+msgstr "Inconnu"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.wait"
+msgstr "Veuillez patienter."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.workbenchMenu"
+msgstr "Menu de l’espace de travail"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

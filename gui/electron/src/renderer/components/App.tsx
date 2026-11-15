@@ -11,7 +11,11 @@ import {
   type WorkbenchPreferences,
 } from "../../shared/workspace";
 import { DebugSidebar, useDebugOverview } from "../sessions/DebugSidebar";
-import { hostRecoveryMessage } from "../../shared/host-recovery";
+import {
+  clientErrorMessageId,
+  hostRecoveryMessage,
+  sessionStateMessage,
+} from "../../shared/host-recovery";
 import { ActivityPanel } from "../sessions/ActivityPanel";
 import { DiagnosticsDialog } from "../sessions/DiagnosticsDialog";
 import { FileDialog } from "../transfers/FileDialog";
@@ -92,6 +96,7 @@ interface TerminalTab {
   attachment?: Attachment;
   settings: TerminalSettings;
   error?: ClientError;
+  errorMessageId?: string;
   dropped: boolean;
   inputPaused: boolean;
   moving?: boolean;
@@ -290,6 +295,7 @@ export function App() {
     if (!connected) setCloseTarget(undefined);
   }, [connected]);
   const [connectionError, setError] = useState<ClientError>();
+  const [historyError, setHistoryError] = useState(false);
   const error = activeTab?.error ?? connectionError;
   const [windowCount, setWindowCount] = useState(1);
   const copyingTarget = useRef(false);
@@ -350,7 +356,7 @@ export function App() {
     () => setupI18n({ locale, messages: menuCatalogs }),
     [locale],
   );
-  const t = (id: string) => i18n._(id);
+  const t = (id: string, values?: Record<string, number>) => i18n._(id, values);
   const [helpOpen, setHelpOpen] = useState(false);
   const [diagnostics, setDiagnostics] = useState<{ attachmentId?: string }>();
   useEffect(() => {
@@ -496,12 +502,11 @@ export function App() {
     const epoch = generation.current;
     void (async () => {
       for (const request of requests) {
-        if (epoch !== generation.current)
-          throw { message: t("file.dropUnavailable") };
+        if (epoch !== generation.current) throw { code: "closed" };
         await unwrap(host.startTransfer(request));
       }
     })()
-      .catch((error: ClientError) => setFileError(error.message))
+      .catch((error: ClientError) => setFileError(clientErrorMessageId(error)))
       .finally(() => {
         batchPending.current = false;
         setFilePending(false);
@@ -517,14 +522,13 @@ export function App() {
     const epoch = generation.current;
     void (async () => {
       for (const request of requests) {
-        if (epoch !== generation.current)
-          throw { message: t("file.dropUnavailable") };
+        if (epoch !== generation.current) throw { code: "closed" };
         await unwrap(host.startSSHTransfer(request));
         const jobs = await unwrap(host.sshTransfers());
         if (jobs.at(-1)?.state !== "completed") break;
       }
     })()
-      .catch((error: ClientError) => setFileError(error.message))
+      .catch((error: ClientError) => setFileError(clientErrorMessageId(error)))
       .finally(() => {
         batchPending.current = false;
         setFilePending(false);
@@ -537,7 +541,7 @@ export function App() {
     setFilePending(true);
     setFileError("");
     void unwrap(host.resumeTransfer(sessionId, id))
-      .catch((error: ClientError) => setFileError(error.message))
+      .catch((error: ClientError) => setFileError(clientErrorMessageId(error)))
       .finally(() => setFilePending(false));
   }
   // Synchronous exclusion covers two menu/toolbar clicks before React rerenders.
@@ -676,7 +680,11 @@ export function App() {
         setSessions([]);
         void host.disconnect();
       } else if (tabId && tabsRef.current.some((tab) => tab.id === tabId)) {
-        updateTab(tabId, { error: failure, inputPaused: true });
+        updateTab(tabId, {
+          error: failure,
+          errorMessageId: undefined,
+          inputPaused: true,
+        });
       } else setError(failure);
     },
     [],
@@ -824,7 +832,7 @@ export function App() {
           if (session) await select(session, tab.settings, tab.id);
           else
             updateTab(tab.id, {
-              error: { code: "closed", message: t("workspace.missing") },
+              error: { code: "closed", message: "Workspace target missing" },
               workspaceMissing: true,
             });
         }
@@ -1042,7 +1050,8 @@ export function App() {
       removeTab(tab.id);
     } catch (error) {
       updateTab(tab.id, {
-        error: { ...(error as ClientError), message: t("tab.moveFailed") },
+        error: error as ClientError,
+        errorMessageId: "tab.moveFailed",
       });
     } finally {
       updateTab(tab.id, { moving: false });
@@ -1363,7 +1372,11 @@ export function App() {
         return;
       case "terminal.resume":
         if (targetTab)
-          updateTab(targetTab.id, { inputPaused: false, error: undefined });
+          updateTab(targetTab.id, {
+            inputPaused: false,
+            error: undefined,
+            errorMessageId: undefined,
+          });
         setError(undefined);
         terminal?.focus();
         return;
@@ -1421,14 +1434,14 @@ export function App() {
 
   const hostStatus =
     operation === "connecting"
-      ? "Connecting to Host…"
+      ? t("workbench.connecting")
       : operation === "disconnecting"
-        ? "Disconnecting Host…"
+        ? t("workbench.disconnecting")
         : connected
-          ? "Host connected"
+          ? t("workbench.connected")
           : error
-            ? "Host connection failed"
-            : "Host disconnected";
+            ? t("workbench.failed")
+            : t("workbench.disconnected");
   // Cached state is only an input guard; the Host still checks every write.
   const writable =
     connected &&
@@ -1442,30 +1455,44 @@ export function App() {
   // instead of using the same empty-state heading for every unattached view.
   const emptyTitle = operation
     ? {
-        connecting: "Connecting to Host…",
-        disconnecting: "Disconnecting Host…",
-        attaching: "Attaching Session…",
-        detaching: "Detaching Session…",
-        opening: "Opening connection…",
+        connecting: t("workbench.connecting"),
+        disconnecting: t("workbench.disconnecting"),
+        attaching: t("workbench.attaching"),
+        detaching: t("workbench.detaching"),
+        opening: t("workbench.opening"),
       }[operation]
     : !connected
       ? error
-        ? "Host unavailable"
-        : "No Host connected"
+        ? t("workbench.unavailable")
+        : t("workbench.noHost")
       : error
-        ? "Session unavailable"
+        ? t("workbench.sessionUnavailable")
         : sessions.length === 0
-          ? "No Sessions available"
-          : "Select a Session";
+          ? t("workbench.noSessions")
+          : t("workbench.select");
   const emptyHint = working
-    ? "Please wait."
+    ? t("workbench.wait")
     : !connected
       ? error
-        ? "Check that your configured Host is running, then retry the connection."
-        : "Connect to your running Host using the Host panel."
+        ? t("workbench.retryHint")
+        : t("workbench.connectHint")
       : sessions.length === 0
         ? t("session.emptyHint")
-        : "Choose an open Session from the sidebar to view output and send input.";
+        : t("workbench.selectHint");
+
+  const inputStatus = attachment
+    ? current?.state !== "open"
+      ? t("workbench.readOnly")
+      : current.lease
+        ? t("workbench.leaseReadOnly")
+        : inputPaused ||
+            current.control?.writable === false ||
+            controlBlocked.has(current.session_id)
+          ? t("workbench.paused")
+          : terminalSettings.view === "hex"
+            ? t("terminal.hex")
+            : t("workbench.enabled")
+    : t("workbench.unattached");
 
   const canDropFiles =
     connected &&
@@ -1490,7 +1517,7 @@ export function App() {
       dropPending.current ||
       batchPending.current
     ) {
-      setFileError(t("file.dropUnavailable"));
+      setFileError("file.dropUnavailable");
       setPanelVisible(true);
       return;
     }
@@ -1514,7 +1541,7 @@ export function App() {
         setSSHFileDialog({ ...common, endpoint: target.endpoint });
       else setFileDialog(common);
     } catch (e) {
-      setFileError((e as ClientError).message);
+      setFileError(clientErrorMessageId(e));
       setPanelVisible(true);
     } finally {
       dropPending.current = false;
@@ -1633,12 +1660,7 @@ export function App() {
           sshAdvanced={!!info?.sshAdvanced}
           t={t}
           onOpen={openConnection}
-          onStorageError={() =>
-            setError({
-              code: "configuration",
-              message: t("history.storageError"),
-            })
-          }
+          onStorageError={() => setHistoryError(true)}
           onClose={() => setConnectionKind(undefined)}
         />
       )}
@@ -1693,11 +1715,11 @@ export function App() {
           } as CSSProperties
         }
       >
-        <div className="activity-rail" aria-label="Workspace navigation">
+        <div className="activity-rail" aria-label={t("workbench.navigation")}>
           <button
             className="rail-button"
-            aria-label="Toggle Session sidebar"
-            title="Toggle Session sidebar"
+            aria-label={t("workbench.toggleSessions")}
+            title={t("workbench.toggleSessions")}
             aria-expanded={sidebarVisible && sidebarView === "sessions"}
             aria-pressed={sidebarVisible && sidebarView === "sessions"}
             aria-controls="session-sidebar"
@@ -1727,7 +1749,7 @@ export function App() {
           id="session-sidebar"
           className="sidebar"
           aria-label={
-            sidebarView === "debug" ? t("debug.title") : "Session sidebar"
+            sidebarView === "debug" ? t("debug.title") : t("view.sidebar")
           }
           hidden={!sidebarVisible}
         >
@@ -1737,13 +1759,13 @@ export function App() {
           >
             <div className="section-heading">
               <h2>
-                Sessions{" "}
+                {t("workbench.sessions")}{" "}
                 <span className="session-count">{sessions.length}</span>
               </h2>
               <button
                 className="quiet icon-button"
-                aria-label="Refresh"
-                title="Refresh Sessions"
+                aria-label={t("session.refresh")}
+                title={t("session.refresh")}
                 disabled={!connected || working}
                 onClick={() => dispatch({ id: "session.refresh" })}
               >
@@ -1751,6 +1773,7 @@ export function App() {
               </button>
             </div>
             <SessionList
+              t={t}
               locateTarget={locateTarget}
               debugIds={
                 new Set(
@@ -1768,9 +1791,7 @@ export function App() {
               selected={attachment?.sessionId}
               disabled={!connected || working}
               emptyMessage={
-                connected
-                  ? "No Sessions found."
-                  : "Connect a Host to list Sessions."
+                connected ? t("workbench.noResults") : t("workbench.listHint")
               }
               onSelect={(item) =>
                 dispatch({ id: "session.attach", sessionId: item.session_id })
@@ -1814,8 +1835,8 @@ export function App() {
               }}
             />
           </div>
-          <section className="host-panel" aria-label="Host connection">
-            <h2>Host connection</h2>
+          <section className="host-panel" aria-label={t("workbench.host")}>
+            <h2>{t("workbench.host")}</h2>
             <div className="host-connection">
               <div
                 role="status"
@@ -1825,7 +1846,7 @@ export function App() {
                 {hostStatus}
               </div>
               <code className="host-endpoint" title={info?.endpoint}>
-                {info?.endpoint ?? "Loading configuration…"}
+                {info?.endpoint ?? t("workbench.loading")}
               </code>
             </div>
             <button
@@ -1837,16 +1858,16 @@ export function App() {
             >
               <Icon name="plug" />
               {operation === "connecting"
-                ? "Connecting…"
+                ? t("connection.opening")
                 : operation === "disconnecting"
-                  ? "Disconnecting…"
+                  ? t("workbench.disconnecting")
                   : connected
-                    ? "Disconnect Host"
+                    ? t("host.disconnect")
                     : error
-                      ? "Retry connection"
-                      : "Connect to Host"}
+                      ? t("workbench.retry")
+                      : t("host.connect")}
             </button>
-            <p className="host-hint">Detaching leaves Sessions running.</p>
+            <p className="host-hint">{t("workbench.detachHint")} </p>
           </section>
           {sidebarVisible && (
             <SidebarResizer
@@ -1859,7 +1880,7 @@ export function App() {
             />
           )}
         </aside>
-        <main aria-label="Terminal workspace">
+        <main aria-label={t("workbench.terminal")}>
           <div className="terminal-toolbar">
             <TerminalTabs
               tabs={tabs.map((tab) => {
@@ -1947,7 +1968,7 @@ export function App() {
               }}
             />
           )}
-          <div className="notices" aria-label="Terminal notices">
+          <div className="notices" aria-label={t("workbench.notices")}>
             {activeTab?.workspaceRestored && (
               <div role="status" className="notice">
                 {t("workspace.hint")}
@@ -1968,6 +1989,11 @@ export function App() {
                 {t("tab.moving")}
               </div>
             )}
+            {historyError && (
+              <div role="alert" className="notice">
+                {t("history.storageError")}
+              </div>
+            )}
             {displayError && (
               <div role="alert" className="notice">
                 {t("display.storageError")}
@@ -1983,16 +2009,15 @@ export function App() {
                 </div>
               )}
             {info?.lifetime === "attachment" && connected && (
-              <div className="notice">
-                This Host belongs to another attachment. It may stop when its
-                owner exits.
-              </div>
+              <div className="notice">{t("workbench.attachmentHost")} </div>
             )}
             {error && (
               <div role="alert" className="notice error">
                 {activeTab?.workspaceMissing
                   ? t("workspace.missing")
-                  : hostRecoveryMessage(error, t)}
+                  : activeTab?.errorMessageId
+                    ? t(activeTab.errorMessageId)
+                    : hostRecoveryMessage(error, t)}
                 {inputPaused &&
                   connected &&
                   attachment &&
@@ -2003,28 +2028,23 @@ export function App() {
                         dispatch({ id: "terminal.resume", attachment })
                       }
                     >
-                      Resume input
+                      {t("terminal.resume")}
                     </button>
                   )}
               </div>
             )}
             {attachment && dropped && (
               <div role="status" className="notice">
-                Output overwritten in the Host buffer. The terminal was reset;
-                older bytes are unavailable.
+                {t("workbench.dropped")}
               </div>
             )}
             {current?.lease && (
               <div role="status" className="notice notice-lease">
-                Lease busy · {current.lease.type}. Reading continues; input is
-                disabled.
+                {t("workbench.lease")} · {current.lease.type}
               </div>
             )}
             {attachment && current?.state !== "open" && (
-              <div className="notice">
-                Session closed or unavailable. Detach and select an open
-                Session.
-              </div>
+              <div className="notice">{t("workbench.closedHint")}</div>
             )}
           </div>
           <ControlPanel
@@ -2124,14 +2144,16 @@ export function App() {
                 <p>{hostStatus}</p>
                 <p>
                   {current
-                    ? `${current.label || current.session_ref} · ${current.state}`
+                    ? `${current.label || current.session_ref} · ${sessionStateMessage(current.state, t)}`
                     : emptyTitle}
                 </p>
                 {error && (
                   <p role="alert">
                     {activeTab?.workspaceMissing
                       ? t("workspace.missing")
-                      : hostRecoveryMessage(error, t)}
+                      : activeTab?.errorMessageId
+                        ? t(activeTab.errorMessageId)
+                        : hostRecoveryMessage(error, t)}
                   </p>
                 )}
                 {current?.lease && (
@@ -2183,7 +2205,7 @@ export function App() {
                 <dt>{t("details.transport")}</dt>
                 <dd>{current.transport}</dd>
                 <dt>{t("details.state")}</dt>
-                <dd>{current.state}</dd>
+                <dd>{sessionStateMessage(current.state, t)}</dd>
                 <dt>{t("details.id")}</dt>
                 <dd>{current.session_id}</dd>
                 {current.lease && (
@@ -2211,7 +2233,7 @@ export function App() {
           )}
         </aside>
       </div>
-      <footer className="statusbar" aria-label="Workbench status">
+      <footer className="statusbar" aria-label={t("workbench.status")}>
         <span
           className="status-session"
           title={
@@ -2260,23 +2282,11 @@ export function App() {
         </span>
         <span className="session-total">
           {connected
-            ? `${sessions.length} Session${sessions.length === 1 ? "" : "s"}`
-            : "Offline"}
+            ? t("workbench.sessionCount", { count: sessions.length })
+            : t("workbench.offline")}
         </span>
-        <span className="input-status" role="status">
-          {attachment
-            ? current?.state !== "open"
-              ? "Session unavailable · Read-only"
-              : current.lease
-                ? "Read-only · Lease active"
-                : inputPaused ||
-                    current.control?.writable === false ||
-                    controlBlocked.has(current.session_id)
-                  ? "Input paused"
-                  : terminalSettings.view === "hex"
-                    ? t("terminal.hex")
-                    : "Attached · Input enabled"
-            : "No attachment"}
+        <span className="input-status" role="status" title={inputStatus}>
+          {inputStatus}
         </span>
         {attachment &&
           (debug.snapshot?.operations.some(
@@ -2296,7 +2306,7 @@ export function App() {
         <span className="status-detail">
           {attachment
             ? `${terminalSettings.encoding.toUpperCase()} · ${terminalSettings.view === "hex" ? "HEX" : "xterm"}${attachment.remoteSize ? "" : ` · ${t("terminal.sizeLocal")}`}`
-            : "Host-owned Sessions"}
+            : t("workbench.hostOwned")}
         </span>
       </footer>
     </div>

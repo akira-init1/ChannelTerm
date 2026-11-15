@@ -1330,6 +1330,51 @@ msgstr "プロファイルで有効でも、ここで選択するまで起動用
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "recovery.busy"
+msgstr "操作またはリースが使用中です。終了を待って更新してください。破棄した入力は再送待ちにしません。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.cancelled"
+msgstr "要求は終了またはキャンセルされました。次の操作前に更新して結果を確認してください。入力を自動再試行しないでください。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.closed"
+msgstr "対象は閉じられたか利用できません。更新して開いている対象を選択してください。自動では再作成しません。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.configuration"
+msgstr "Host のエンドポイントとローカル設定を確認し、明示的に接続してください。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.connection_failed"
+msgstr "Host は接続を開けませんでした。設定を確認し、セッションを更新してから再試行してください。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.connection_uncertain"
+msgstr "接続結果が不明です。新しい要求の前にセッションを更新して結果を確認してください。要求は再送していません。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.control_stale"
+msgstr "制御権が変更されたかインスタンスの有効期限が切れました。更新して現在の制御者を確認してから入力してください。破棄した入力は再送しません。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.diagnostic_unavailable"
+msgstr "診断アーカイブが利用できないか要求に失敗しました。有効期限切れまたは削除の可能性があります。新しいスナップショットを作成してください。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.disconnected"
+msgstr "Host を確認し、明示的に再接続してください。入力は再試行しておらず、到達したか不明な場合があります。次の入力前にリモートの状態を確認してください。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "recovery.host_companion_outdated"
 msgstr "同梱 Host が古いかビルドに失敗したため、自動起動を停止しました。共有 Session の作業を終えて Host を停止し、gui/electron で npm run host:build を実行して GUI を再起動してください。"
 
@@ -1357,6 +1402,46 @@ msgstr "Host の識別ファイルがありません。GUI と Host が同じア
 #: src/shared/menu-messages.ts
 msgid "recovery.host_legacy_credentials"
 msgstr "旧 Host の設定が検出されました。新しい認証情報がありません。共有 Session の作業を終えてから Host を停止・更新し、GUI を再起動してください。移行用に旧ファイルを残してください。再試行だけでは更新されません。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.incompatible"
+msgstr "Host の応答または機能に互換性がありません。対応するバージョンのデスクトップと Host を使用してください。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.input_queue"
+msgstr "入力キューが満杯です。残りの入力は破棄しました。次の入力前に対象を確認してください。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.invalid_input"
+msgstr "設定、パス、対象を確認し、修正してから再送信してください。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.profile_exists"
+msgstr "プロファイルは既に存在します。別の名前を選ぶか、上書きする場合は置換を明示的に有効にしてください。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.ssh_authentication"
+msgstr "SSH 認証に失敗しました。選択した鍵、パスワード、または鍵のパスフレーズを確認してください。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.ssh_host_key"
+msgstr "SSH ホスト鍵が拒否されました。信頼できる経路でサーバー鍵を確認し、Host の known_hosts ファイルを更新してから接続してください。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.tool_error"
+msgstr "操作に失敗しました。対象と Host の診断を確認し、状態を更新してください。結果不明の入力を再送しないでください。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.unauthorized"
+msgstr "アクセスが拒否されました。認証情報の権限と現在の制御者を確認してください。認証を無効にしないでください。"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -2018,6 +2103,261 @@ msgstr "前のウィンドウ"
 #: src/shared/menu-messages.ts
 msgid "window.tab.close"
 msgstr "タブを閉じる"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.attaching"
+msgstr "セッションに接続中…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.attachmentHost"
+msgstr "この Host は別の接続クライアントに属しています。そのクライアントの終了時に停止する場合があります。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.closed"
+msgstr "閉じています"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.closedHint"
+msgstr "セッションが閉じられたか利用できません。切り離して、開いているセッションを選択してください。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.closing"
+msgstr "終了中"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.connected"
+msgstr "Host に接続済み"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.connectHint"
+msgstr "Host パネルから起動中の Host に接続してください。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.connecting"
+msgstr "Host に接続中…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.detachHint"
+msgstr "切り離してもセッションは動作を続けます。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.detaching"
+msgstr "セッションから切り離し中…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.disconnected"
+msgstr "Host は未接続"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.disconnecting"
+msgstr "Host を切断中…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.dropped"
+msgstr "Host バッファーの出力が上書きされました。ターミナルをリセットしました。古いバイトは取得できません。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.enabled"
+msgstr "接続済み · 入力有効"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.failed"
+msgstr "Host への接続に失敗"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.host"
+msgstr "Host 接続"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.hostOwned"
+msgstr "Host が管理するセッション"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.io"
+msgstr "ターミナルの出力と入力"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.lease"
+msgstr "リース使用中。読み取りは継続しますが、入力は無効です。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.leaseReadOnly"
+msgstr "読み取り専用 · リース使用中"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.listHint"
+msgstr "Host に接続するとセッションを表示できます。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.loading"
+msgstr "設定を読み込み中…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.menu"
+msgstr "アプリケーションメニュー"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.navigation"
+msgstr "ワークスペースのナビゲーション"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.new"
+msgstr "新規"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.noHost"
+msgstr "Host に接続していません"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.noMatch"
+msgstr "一致するセッションはありません。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.noResults"
+msgstr "セッションが見つかりません。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.noSessions"
+msgstr "利用可能なセッションはありません"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.notices"
+msgstr "ターミナルの通知"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.offline"
+msgstr "オフライン"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.open"
+msgstr "開いています"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.opening"
+msgstr "接続を開始中…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.paused"
+msgstr "入力を一時停止中"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.readOnly"
+msgstr "セッション利用不可 · 読み取り専用"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.retry"
+msgstr "接続を再試行"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.retryHint"
+msgstr "設定した Host が起動していることを確認し、接続を再試行してください。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.search"
+msgstr "セッションを検索"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.select"
+msgstr "セッションを選択"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.selectHint"
+msgstr "サイドバーで開いているセッションを選択し、出力の確認や入力を行います。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.sessionCount"
+msgstr "{count, plural, other {# セッション}}"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.sessions"
+msgstr "セッション"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.sessionUnavailable"
+msgstr "セッションを利用できません"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.status"
+msgstr "ワークベンチの状態"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.terminal"
+msgstr "ターミナルワークスペース"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.toggleSessions"
+msgstr "セッションサイドバーの表示切替"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.unattached"
+msgstr "未接続"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.unavailable"
+msgstr "Host を利用できません"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.unknown"
+msgstr "不明"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.wait"
+msgstr "お待ちください。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.workbenchMenu"
+msgstr "ワークベンチメニュー"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

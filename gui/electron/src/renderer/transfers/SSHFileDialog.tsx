@@ -1,9 +1,9 @@
+import { clientErrorMessageId } from "../../shared/host-recovery";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import type {
   LocalSelection,
   SSHTransferRequest,
 } from "../../shared/transfers";
-import type { ClientError } from "../../shared/api";
 import { host, unwrap } from "../host";
 import { SSHBrowser } from "./SSHBrowser";
 
@@ -63,7 +63,7 @@ export function SSHFileDialog({
         }
       }
     } catch (e) {
-      setError((e as ClientError).message);
+      setError(clientErrorMessageId(e));
     } finally {
       choosing.current = false;
       setBusy(false);
@@ -77,7 +77,7 @@ export function SSHFileDialog({
     const at = endpoint.lastIndexOf("@");
     const colon = endpoint.lastIndexOf(":");
     if (at < 1 || colon < at) {
-      throw new Error(t("connection.invalid"));
+      throw { code: "invalid_input" };
     }
     return {
       kind: "ssh",
@@ -104,7 +104,7 @@ export function SSHFileDialog({
     try {
       connection = readConnection(form);
     } catch (error) {
-      setError((error as Error).message);
+      setError(clientErrorMessageId(error));
       return;
     }
     const request: SSHTransferRequest = {
@@ -158,7 +158,7 @@ export function SSHFileDialog({
       if (remoteDirectory && input instanceof HTMLInputElement)
         input.value = remoteDirectory;
     } catch (e) {
-      setError((e as ClientError).message);
+      setError(clientErrorMessageId(e));
     } finally {
       choosing.current = false;
       setBusy(false);
@@ -319,7 +319,7 @@ export function SSHFileDialog({
             }}
           />
         )}
-        {error && <p role="alert">{error}</p>}
+        {error && <p role="alert">{t(error)}</p>}
         <footer>
           <button type="button" disabled={busy} onClick={onClose}>
             {t("connection.cancel")}

@@ -1330,6 +1330,51 @@ msgstr "Пробуждение отключено, пока вы не выбер
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "recovery.busy"
+msgstr "Операция или аренда активна. Дождитесь завершения и обновите состояние. Отброшенный ввод не ставится в очередь повторной отправки."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.cancelled"
+msgstr "Запрос завершён или отменён. Перед новым действием обновите состояние и проверьте результат; не повторяйте ввод автоматически."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.closed"
+msgstr "Цель закрыта или недоступна. Обновите список и выберите открытую цель; автоматически она не создаётся заново."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.configuration"
+msgstr "Проверьте адрес Host и локальную конфигурацию, затем подключитесь явно."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.connection_failed"
+msgstr "Host не смог открыть подключение. Проверьте параметры и обновите сеансы перед повторной попыткой."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.connection_uncertain"
+msgstr "Результат подключения неопределён. Обновите сеансы и проверьте результат перед новым запросом; запрос не повторялся."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.control_stale"
+msgstr "Управление изменилось или срок экземпляра истёк. Обновите состояние и проверьте текущего владельца перед вводом. Отброшенный ввод не повторяется."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.diagnostic_unavailable"
+msgstr "Диагностический архив недоступен или запрос завершился ошибкой. Архив мог устареть или быть удалён; создайте новый снимок."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.disconnected"
+msgstr "Проверьте Host и явно подключитесь заново. Ввод не повторялся; доставка может быть неопределённой. Проверьте удалённое состояние перед новым вводом."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "recovery.host_companion_outdated"
 msgstr "Комплектный Host устарел или его сборка завершилась ошибкой; автоматический запуск заблокирован. Завершите работу в общих Session и остановите Host, выполните npm run host:build в gui/electron, затем перезапустите интерфейс."
 
@@ -1357,6 +1402,46 @@ msgstr "Отсутствует файл идентификации Host. Убе�
 #: src/shared/menu-messages.ts
 msgid "recovery.host_legacy_credentials"
 msgstr "Обнаружена старая конфигурация Host; новые учётные данные отсутствуют. Завершите работу в общих Session, остановите и обновите Host, затем перезапустите интерфейс. Сохраните старые файлы для миграции. Повтор подключения не обновляет Host."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.incompatible"
+msgstr "Ответ или возможности Host несовместимы. Используйте совместимые версии настольного клиента и Host."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.input_queue"
+msgstr "Очередь ввода заполнена. Оставшийся ввод отброшен. Проверьте цель перед новым вводом."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.invalid_input"
+msgstr "Проверьте параметры, путь и цель. Исправьте их перед повторной отправкой."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.profile_exists"
+msgstr "Профиль уже существует. Выберите другое имя или явно разрешите замену для перезаписи."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.ssh_authentication"
+msgstr "Ошибка аутентификации SSH. Проверьте выбранный ключ, пароль или парольную фразу ключа."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.ssh_host_key"
+msgstr "Ключ хоста SSH отклонён. Проверьте ключ сервера по доверенному каналу и обновите файл known_hosts на Host перед подключением."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.tool_error"
+msgstr "Операция завершилась ошибкой. Проверьте цель и диагностику Host, затем обновите состояние. Не повторяйте ввод с неизвестным результатом."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.unauthorized"
+msgstr "Доступ запрещён. Проверьте права учётных данных и текущего владельца управления. Не отключайте аутентификацию."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -2018,6 +2103,261 @@ msgstr "Предыдущее окно"
 #: src/shared/menu-messages.ts
 msgid "window.tab.close"
 msgstr "Закрыть вкладку"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.attaching"
+msgstr "Присоединение к сеансу…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.attachmentHost"
+msgstr "Этот Host принадлежит другому подключённому клиенту. Он может остановиться при выходе владельца."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.closed"
+msgstr "Закрыт"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.closedHint"
+msgstr "Сеанс закрыт или недоступен. Отсоединитесь и выберите открытый сеанс."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.closing"
+msgstr "Закрывается"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.connected"
+msgstr "Host подключён"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.connectHint"
+msgstr "Подключитесь к запущенному Host через панель Host."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.connecting"
+msgstr "Подключение к Host…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.detachHint"
+msgstr "Отсоединение не останавливает сеансы."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.detaching"
+msgstr "Отсоединение от сеанса…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.disconnected"
+msgstr "Host отключён"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.disconnecting"
+msgstr "Отключение Host…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.dropped"
+msgstr "Вывод в буфере Host перезаписан. Терминал сброшен; более ранние байты недоступны."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.enabled"
+msgstr "Присоединено · Ввод разрешён"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.failed"
+msgstr "Ошибка подключения к Host"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.host"
+msgstr "Подключение к Host"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.hostOwned"
+msgstr "Сеансы под управлением Host"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.io"
+msgstr "Вывод и ввод терминала"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.lease"
+msgstr "Аренда активна. Чтение продолжается; ввод отключён."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.leaseReadOnly"
+msgstr "Только чтение · Аренда активна"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.listHint"
+msgstr "Подключите Host для просмотра сеансов."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.loading"
+msgstr "Загрузка конфигурации…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.menu"
+msgstr "Меню приложения"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.navigation"
+msgstr "Навигация рабочей области"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.new"
+msgstr "Новый"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.noHost"
+msgstr "Нет подключения к Host"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.noMatch"
+msgstr "Нет подходящих сеансов."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.noResults"
+msgstr "Сеансы не найдены."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.noSessions"
+msgstr "Нет доступных сеансов"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.notices"
+msgstr "Уведомления терминала"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.offline"
+msgstr "Не в сети"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.open"
+msgstr "Открыт"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.opening"
+msgstr "Открытие подключения…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.paused"
+msgstr "Ввод приостановлен"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.readOnly"
+msgstr "Сеанс недоступен · Только чтение"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.retry"
+msgstr "Повторить подключение"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.retryHint"
+msgstr "Убедитесь, что настроенный Host запущен, затем повторите подключение."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.search"
+msgstr "Поиск сеансов"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.select"
+msgstr "Выберите сеанс"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.selectHint"
+msgstr "Выберите открытый сеанс на боковой панели для просмотра вывода и отправки ввода."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.sessionCount"
+msgstr "{count, plural, one {# сеанс} few {# сеанса} many {# сеансов} other {# сеанса}}"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.sessions"
+msgstr "Сеансы"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.sessionUnavailable"
+msgstr "Сеанс недоступен"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.status"
+msgstr "Состояние рабочей области"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.terminal"
+msgstr "Рабочая область терминала"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.toggleSessions"
+msgstr "Переключить боковую панель сеансов"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.unattached"
+msgstr "Нет присоединения"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.unavailable"
+msgstr "Host недоступен"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.unknown"
+msgstr "Неизвестно"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.wait"
+msgstr "Подождите."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.workbenchMenu"
+msgstr "Меню рабочей области"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

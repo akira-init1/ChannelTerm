@@ -25,7 +25,7 @@ export async function checkWorkbenchPanels(
     /./,
     /./,
     /./,
-    "open",
+    "Open",
     attachment.sessionId,
   ]);
   await page.keyboard.press(`${modifier}+j`);

@@ -5,6 +5,7 @@ export class HostError extends Error {
   constructor(
     public readonly code: ErrorCode,
     message: string,
+    public readonly reason?: ClientError["reason"],
   ) {
     super(message);
   }
@@ -12,7 +13,11 @@ export class HostError extends Error {
 
 export function publicError(error: unknown): ClientError {
   return error instanceof HostError
-    ? { code: error.code, message: error.message }
+    ? {
+        code: error.code,
+        message: error.message,
+        ...(error.reason ? { reason: error.reason } : {}),
+      }
     : {
         code: "disconnected",
         message:

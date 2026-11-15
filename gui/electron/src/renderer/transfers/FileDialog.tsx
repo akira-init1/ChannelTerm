@@ -1,3 +1,4 @@
+import { clientErrorMessageId } from "../../shared/host-recovery";
 import { useEffect, useRef, useState } from "react";
 import type {
   LocalSelection,
@@ -52,7 +53,7 @@ export function FileDialog({
         if (alive.current) setPreference(value);
       })
       .catch((e: ClientError) => {
-        if (alive.current) setError(e.message);
+        if (alive.current) setError(clientErrorMessageId(e));
       });
     return () => {
       alive.current = false;
@@ -70,7 +71,7 @@ export function FileDialog({
       setSelected("");
     } catch (failure) {
       setAutomatic(false);
-      setError((failure as ClientError).message);
+      setError(clientErrorMessageId(failure));
     } finally {
       inFlight.current = false;
       setBusy(false);
@@ -87,7 +88,7 @@ export function FileDialog({
       );
       if (result) setLocals([result]);
     } catch (failure) {
-      setError((failure as ClientError).message);
+      setError(clientErrorMessageId(failure));
     } finally {
       inFlight.current = false;
       setBusy(false);
@@ -104,7 +105,7 @@ export function FileDialog({
   function start(mode: "tar" | "files") {
     if (!local || !directory || submitted.current) return;
     if (hasDirectory && mode === "files" && resumable) {
-      setError(t("file.modeResumeConflict"));
+      setError("file.modeResumeConflict");
       setQuestion(false);
       return;
     }
@@ -168,7 +169,7 @@ export function FileDialog({
             }
           })
           .catch((e: ClientError) => {
-            if (alive.current) setError(e.message);
+            if (alive.current) setError(clientErrorMessageId(e));
           })
           .finally(() => {
             inFlight.current = false;
@@ -254,7 +255,7 @@ export function FileDialog({
         )}
         <span>{locals.map((item) => item.name).join(", ")}</span>
       </div>
-      {error && <p role="alert">{error}</p>}
+      {error && <p role="alert">{t(error)}</p>}
       <label>
         {t("file.wire")}
         <select

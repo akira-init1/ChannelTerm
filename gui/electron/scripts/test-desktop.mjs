@@ -1,3 +1,4 @@
+import { checkWorkbenchLocales } from "./workbench-i18n-checks.mjs";
 import { checkControl } from "./control-checks.mjs";
 import { checkWorkspace } from "./workspace-checks.mjs";
 import { checkDebugOverview } from "./debug-checks.mjs";
@@ -112,7 +113,7 @@ async function checkLayout(desktop, page, state) {
       });
     await expect(
       page.getByRole("button", {
-        name: /Connect to Host|Disconnect Host|Retry connection/,
+        name: /Connect to Host|Disconnect from Host|Retry connection/,
       }),
     ).toBeInViewport();
     await expect(
@@ -191,6 +192,7 @@ try {
     page.getByText("Terminal workspace", { exact: true }),
   ).toHaveCount(0);
   await checkOfflineMenus(desktop, page);
+  await checkWorkbenchLocales(desktop, page);
   await expect
     .poll(() =>
       desktop.evaluate(({ BrowserWindow }) =>
@@ -228,7 +230,7 @@ try {
   ).toHaveCount(0);
   await checkLayout(desktop, page, "disconnected");
   await page.screenshot({ path: "test-results/workbench-disconnected.png" });
-  await page.getByRole("button", { name: "Connect to Host" }).click();
+  await page.getByRole("button", { name: "Connect to Host..." }).click();
   await expect(
     page.locator(".host-panel").getByText("Host connected", { exact: true }),
   ).toBeVisible();
@@ -269,7 +271,9 @@ try {
   await page.getByRole("searchbox", { name: "Search Sessions" }).fill("");
   await page.locator(".session-group summary").click();
   await expect(page.locator(".session")).not.toBeVisible();
-  await page.getByRole("button", { name: "Refresh", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Refresh Sessions", exact: true })
+    .click();
   await expect(page.locator(".session")).not.toBeVisible();
   await page.locator(".session-group summary").click();
   const beforeCollapse = await page.locator(".terminal-view").boundingBox();
@@ -305,7 +309,7 @@ try {
   await checkTerminalSearch(desktop, page, fixture, observer, attachment);
   await checkAttachedMenus(desktop, page, fixture, observer, attachment);
   await fixture.command("lease");
-  await expect(page.getByText(/Lease busy/)).toBeVisible();
+  await expect(page.locator(".notice-lease")).toBeVisible();
   await expect(
     page.getByText("Read-only · Lease active", { exact: true }),
   ).toBeVisible();
@@ -315,7 +319,7 @@ try {
   await page.keyboard.type("blocked-by-busy");
   await page.screenshot({ path: "test-results/desktop.png" });
   await fixture.command("release");
-  await expect(page.getByText(/Lease busy/)).toHaveCount(0);
+  await expect(page.locator(".notice-lease")).toHaveCount(0);
   assert.ok(
     !Buffer.from((await observer.read(attachment.id)).data)
       .toString()
@@ -328,6 +332,7 @@ try {
   await expect(page.locator(".xterm-rows")).toContainText(
     "retained-after-overwrite",
   );
+  await checkWorkbenchLocales(desktop, page, true);
   await desktop.evaluate(({ Menu }) => {
     globalThis.staleClose =
       Menu.getApplicationMenu().getMenuItemById("tab.close");
@@ -352,11 +357,11 @@ try {
   await expect(page.locator(".xterm-screen")).toBeVisible();
   await page.getByRole("button", { name: "Toggle Session sidebar" }).click();
   await checkContextTargets(desktop, page, observer);
-  await page.getByRole("button", { name: "Disconnect Host" }).click();
+  await page.getByRole("button", { name: "Disconnect from Host" }).click();
   await expect(
     page.getByText("Host disconnected", { exact: true }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Connect to Host" }).click();
+  await page.getByRole("button", { name: "Connect to Host..." }).click();
   await page.locator("button.session").filter({ hasText: /SER-1/ }).click();
   await expect(page.locator(".xterm-screen")).toBeVisible();
   // Exit GUI shares native close cleanup and leaves the Host/observer alive.
@@ -402,7 +407,7 @@ try {
     ipcMain.removeHandler("host:list");
     ipcMain.handle("host:list", () => ({ ok: true, value: [] }));
   });
-  await listPage.getByRole("button", { name: "Connect to Host" }).click();
+  await listPage.getByRole("button", { name: "Connect to Host..." }).click();
   await expect(
     listPage.getByText("Host connected", { exact: true }),
   ).toBeVisible();
@@ -475,7 +480,9 @@ try {
       ? "Bottom panel (⌘J)"
       : "Bottom panel (Ctrl+J)",
   );
-  await recoveryPage.getByRole("button", { name: "Connect to Host" }).click();
+  await recoveryPage
+    .getByRole("button", { name: "Connect to Host..." })
+    .click();
   await recoveryPage.getByRole("button", { name: /SER-1/ }).click();
   await expect(recoveryPage.locator(".xterm-screen")).toBeVisible();
   // Preserve closed-row coverage before the explicit shared-close test unregisters the Session.

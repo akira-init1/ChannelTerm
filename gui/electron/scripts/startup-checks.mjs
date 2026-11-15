@@ -93,7 +93,7 @@ export async function checkStartup(environment, preloadArgs) {
   try {
     let page = await open(env);
     await expect(
-      page.getByRole("button", { name: "Disconnect Host", exact: true }),
+      page.getByRole("button", { name: "Disconnect from Host", exact: true }),
     ).toBeVisible({ timeout: 20000 });
     assert.equal(await readFile(control + ".ready", "utf8"), "ready");
     ownsFixture = true;
@@ -111,14 +111,14 @@ export async function checkStartup(environment, preloadArgs) {
     ).toBeEnabled();
     await page.keyboard.press("Escape");
     await page
-      .getByRole("button", { name: "Disconnect Host", exact: true })
+      .getByRole("button", { name: "Disconnect from Host", exact: true })
       .click();
     await expect(
-      page.getByRole("button", { name: "Connect to Host", exact: true }),
+      page.getByRole("button", { name: "Connect to Host...", exact: true }),
     ).toBeVisible();
     await page.waitForTimeout(1700);
     await expect(
-      page.getByRole("button", { name: "Connect to Host", exact: true }),
+      page.getByRole("button", { name: "Connect to Host...", exact: true }),
     ).toBeVisible();
     await quit();
     assert.equal(
@@ -134,7 +134,7 @@ export async function checkStartup(environment, preloadArgs) {
     );
     page = await open(env);
     await expect(
-      page.getByRole("button", { name: "Disconnect Host", exact: true }),
+      page.getByRole("button", { name: "Disconnect from Host", exact: true }),
     ).toBeVisible();
     await quit();
     page = await open({
@@ -144,7 +144,7 @@ export async function checkStartup(environment, preloadArgs) {
     await expect(
       page.getByRole("button", { name: "Retry connection", exact: true }),
     ).toBeVisible();
-    await expect(page.getByText(/Host rejected authentication/)).toBeVisible();
+    await expect(page.getByText(/Access denied/)).toBeVisible();
     assert.equal((await observer.list()).length, 1);
     console.log(
       "PASS automatic local Host startup, reuse, authentication failure, manual disconnect and shared lifetime",
@@ -198,7 +198,7 @@ async function checkCredentialRecovery(environment, preloadArgs) {
     });
     const page = await desktop.firstWindow();
     await page
-      .getByRole("button", { name: "Connect to Host", exact: true })
+      .getByRole("button", { name: "Connect to Host...", exact: true })
       .click();
     await expect(page.getByRole("alert")).toContainText(
       "Old Host configuration detected",
@@ -231,11 +231,9 @@ async function checkCredentialRecovery(environment, preloadArgs) {
       resolve(config, "http-host.json"),
       JSON.stringify({ version: 1, host_id: hostID }),
     );
-    await page
-      .getByRole("button", { name: "Retry connection", exact: true })
-      .click();
+    await page.getByRole("button", { name: "重试连接", exact: true }).click();
     await expect(
-      page.getByRole("button", { name: "Disconnect Host", exact: true }),
+      page.getByRole("button", { name: "断开与 Host 的连接", exact: true }),
     ).toBeVisible();
     assert.deepEqual(await observer.list(), sessions);
     console.log(

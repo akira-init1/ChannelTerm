@@ -272,7 +272,7 @@ export function WorkbenchMenu({
       <nav
         ref={menubar}
         className="app-menu"
-        aria-label="Application menu"
+        aria-label={t("workbench.menu")}
         onKeyDown={(event) => {
           if (event.nativeEvent.isComposing || event.keyCode === 229) return;
           const buttons = Array.from(
@@ -369,7 +369,7 @@ export function WorkbenchMenu({
         className="menu-popup"
         role="menu"
         tabIndex={-1}
-        aria-label="Workbench menu"
+        aria-label={t("workbench.workbenchMenu")}
         onKeyDown={(event) => {
           if (event.nativeEvent.isComposing || event.keyCode === 229) return;
           if (event.key === "Escape") {

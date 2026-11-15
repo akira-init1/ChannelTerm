@@ -35,6 +35,7 @@ export interface SessionSummary {
 }
 
 export type ErrorCode =
+  | "input_queue"
   | "control_stale"
   | "host_legacy_credentials"
   | "host_identity_missing"
@@ -55,6 +56,14 @@ export type ErrorCode =
 export interface ClientError {
   code: ErrorCode;
   message: string;
+  /** Fixed safe reason supplied by Main; never inferred from diagnostic text. */
+  reason?:
+    | "ssh_host_key"
+    | "ssh_authentication"
+    | "connection_failed"
+    | "connection_uncertain"
+    | "diagnostic_unavailable"
+    | "profile_exists";
 }
 export type Result<T> =
   { ok: true; value: T } | { ok: false; error: ClientError };

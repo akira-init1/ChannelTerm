@@ -20,8 +20,7 @@ async function nativeClick(desktop, id) {
     item.click();
   }, id);
 }
-const popup = (page) =>
-  page.getByRole("menu", { name: "Workbench menu", exact: true });
+const popup = (page) => page.locator(".menu-popup:not(.menu-submenu)");
 async function open(page, id) {
   const button = page.locator(`[data-menu="${id}"]`);
   await button.hover();
@@ -504,7 +503,9 @@ export async function checkContextTargets(desktop, page, observer) {
       value: globalThis.menuTestRows,
     }));
   }, realRows);
-  await page.getByRole("button", { name: "Refresh", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Refresh Sessions", exact: true })
+    .click();
   await page.getByRole("button", { name: /SER-2/ }).click({ button: "right" });
   await expect(
     popup(page).getByRole("menuitem", {
@@ -516,7 +517,7 @@ export async function checkContextTargets(desktop, page, observer) {
     .getByRole("menuitem", { name: "Attach Session", exact: true })
     .click();
   await expect(page.getByRole("alert")).toContainText(
-    "Session is no longer open",
+    "The target is closed or no longer available",
   );
   await expect(
     page.locator("button.session").filter({ hasText: /SER-1/ }),

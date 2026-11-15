@@ -1,5 +1,5 @@
+import { clientErrorMessageId } from "../../shared/host-recovery";
 import { useRef, useState } from "react";
-import type { ClientError } from "../../shared/api";
 import {
   isProfileName,
   isSerialProfile,
@@ -36,9 +36,9 @@ export function SerialProfilesFields({
       if (change) await unwrap(host.changeSerialProfile(change));
       setSnapshot(await unwrap(host.serialProfiles()));
       setReplace(false);
-      if (change) setNotice(t("profiles.saved"));
+      if (change) setNotice("profiles.saved");
     } catch (error) {
-      setNotice((error as ClientError).message);
+      setNotice(clientErrorMessageId(error));
     } finally {
       pending.current = false;
       lock(false);
@@ -114,7 +114,7 @@ export function SerialProfilesFields({
         onClick={() => {
           const profile = read();
           if (!isProfileName(name) || !isSerialProfile(profile)) {
-            setNotice(t("connection.invalid"));
+            setNotice("connection.invalid");
             return;
           }
           void run({ action: "save", name, profile, replace });
@@ -122,7 +122,7 @@ export function SerialProfilesFields({
       >
         {t("profiles.save")}
       </button>
-      {notice && <p role="status">{notice}</p>}
+      {notice && <p role="status">{t(notice)}</p>}
     </details>
   );
 }

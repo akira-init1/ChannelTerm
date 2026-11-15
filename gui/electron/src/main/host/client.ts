@@ -598,6 +598,7 @@ export class HostClient {
         throw new HostError(
           "busy",
           "Profile already exists. Enable replacement explicitly to overwrite it.",
+          "profile_exists",
         );
       if (!response.ok)
         throw new HostError(
@@ -774,7 +775,15 @@ export class HostClient {
               : code === "authentication_failed"
                 ? "SSH authentication failed. Check the selected identity, password or passphrase."
                 : "SSH creation failed. Check Host settings and refresh Sessions before trying again.";
-          throw new HostError("tool_error", message);
+          throw new HostError(
+            "tool_error",
+            message,
+            code === "host_key_rejected"
+              ? "ssh_host_key"
+              : code === "authentication_failed"
+                ? "ssh_authentication"
+                : undefined,
+          );
         }
         result = payload;
       }
@@ -811,6 +820,9 @@ export class HostClient {
         error instanceof ToolFailure
           ? "Host could not open this connection. Check settings and refresh Sessions before trying again."
           : "Connection result is uncertain. Refresh Sessions before trying again; the request was not replayed.",
+        error instanceof ToolFailure
+          ? "connection_failed"
+          : "connection_uncertain",
       );
     } finally {
       setup.abort();
@@ -1156,6 +1168,7 @@ export class HostClient {
       throw new HostError(
         "tool_error",
         "Diagnostic archive is unavailable or the Host request failed. It may have expired or been evicted; create a new snapshot.",
+        "diagnostic_unavailable",
       );
     }
   }

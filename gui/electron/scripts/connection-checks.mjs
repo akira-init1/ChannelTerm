@@ -44,7 +44,7 @@ export async function checkConnections(environment, launchArgs) {
     ).toBeDisabled();
     await page.keyboard.press("Escape");
     await page
-      .getByRole("button", { name: "Connect to Host", exact: true })
+      .getByRole("button", { name: "Connect to Host...", exact: true })
       .click();
     await expect(
       page.getByText("Host connected", { exact: true }),
@@ -278,7 +278,9 @@ export async function checkConnections(environment, launchArgs) {
     await trustPrompt
       .getByRole("button", { name: "Reject connection", exact: true })
       .click();
-    await expect(dialog.getByRole("alert")).toContainText("Host key rejected");
+    await expect(dialog.getByRole("alert")).toContainText(
+      "SSH host key rejected",
+    );
     assert.equal(await readFile(fixture.knownHosts, "utf8"), "");
     assert.equal(
       (await observer.list()).filter((s) => s.transport === "ssh").length,

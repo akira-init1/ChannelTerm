@@ -333,7 +333,7 @@ export function TerminalView({
       const bytes = new TextEncoder().encode(data).length;
       if (pendingBytes + bytes > 65536) {
         callbacks.current.onError({
-          code: "invalid_input",
+          code: "input_queue",
           message: "Input queue is full. Remaining input was discarded.",
         });
         return;
@@ -535,7 +535,7 @@ export function TerminalView({
       <div
         ref={container}
         className={`terminal-view ${display.terminalStyle}`}
-        aria-label="Terminal output and input"
+        aria-label={t("workbench.io")}
         onContextMenu={onContextMenu}
       />
       {pasteDraft && (

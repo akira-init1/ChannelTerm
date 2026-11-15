@@ -85,7 +85,7 @@ export function TerminalSettingsDialog({
     if (pending.current) return;
     const settings = readTerminalSettings(new FormData(event.currentTarget));
     if (!settings) {
-      setError(t("connection.invalid"));
+      setError("connection.invalid");
       return;
     }
     pending.current = true;
@@ -113,7 +113,7 @@ export function TerminalSettingsDialog({
         <fieldset disabled={busy}>
           <TerminalSettingsFields t={t} value={value} />
         </fieldset>
-        {error && <p role="alert">{error}</p>}
+        {error && <p role="alert">{t(error)}</p>}
         <footer>
           <button type="button" disabled={busy} onClick={onClose}>
             {t("connection.cancel")}

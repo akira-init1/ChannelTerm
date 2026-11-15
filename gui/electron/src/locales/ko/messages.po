@@ -1330,6 +1330,51 @@ msgstr "프로필에서 활성화되어 있어도 여기서 선택하기 전에�
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "recovery.busy"
+msgstr "작업 또는 임대가 사용 중입니다. 끝날 때까지 기다린 후 새로 고침하세요. 버린 입력은 재전송 대기열에 넣지 않습니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.cancelled"
+msgstr "요청이 끝났거나 취소되었습니다. 새 작업 전에 새로 고침하여 결과를 확인하세요. 입력을 자동으로 재시도하지 마세요."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.closed"
+msgstr "대상이 닫혔거나 사용할 수 없습니다. 새로 고침하여 열린 대상을 선택하세요. 자동으로 다시 생성하지 않습니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.configuration"
+msgstr "Host 엔드포인트와 로컬 설정을 확인한 후 명시적으로 연결하세요."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.connection_failed"
+msgstr "Host가 이 연결을 열 수 없습니다. 설정을 확인하고 세션을 새로 고친 후 다시 시도하세요."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.connection_uncertain"
+msgstr "연결 결과가 불확실합니다. 새 요청 전에 세션을 새로 고쳐 결과를 확인하세요. 요청은 재전송하지 않았습니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.control_stale"
+msgstr "제어권이 변경되었거나 인스턴스가 만료되었습니다. 새로 고침하여 현재 제어자를 확인한 후 입력하세요. 버린 입력은 재전송하지 않습니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.diagnostic_unavailable"
+msgstr "진단 압축 파일을 사용할 수 없거나 요청이 실패했습니다. 만료되거나 제거되었을 수 있습니다. 새 스냅샷을 만드세요."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.disconnected"
+msgstr "Host를 확인하고 명시적으로 다시 연결하세요. 입력을 재시도하지 않았으며 전달 여부가 불확실할 수 있습니다. 새 입력 전에 원격 상태를 확인하세요."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "recovery.host_companion_outdated"
 msgstr "동봉된 Host가 오래되었거나 빌드에 실패하여 자동 시작이 차단되었습니다. 공유 Session 작업을 마치고 Host를 중지한 뒤 gui/electron에서 npm run host:build를 실행하고 GUI를 다시 시작하세요."
 
@@ -1357,6 +1402,46 @@ msgstr "Host 식별 파일이 없습니다. GUI와 Host가 같은 계정 및 CHA
 #: src/shared/menu-messages.ts
 msgid "recovery.host_legacy_credentials"
 msgstr "이전 Host 설정이 감지되었으며 새 자격 증명이 없습니다. 공유 Session 작업을 마친 뒤 Host를 중지하고 업데이트한 다음 GUI를 다시 시작하세요. 마이그레이션을 위해 이전 파일을 보관하세요. 재시도만으로는 Host가 업데이트되지 않습니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.incompatible"
+msgstr "Host 응답 또는 기능이 호환되지 않습니다. 호환되는 데스크톱 및 Host 버전을 사용하세요."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.input_queue"
+msgstr "입력 대기열이 가득 찼습니다. 나머지 입력을 버렸습니다. 새 입력 전에 대상을 확인하세요."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.invalid_input"
+msgstr "입력한 설정, 경로 및 대상을 확인하고 수정한 후 다시 제출하세요."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.profile_exists"
+msgstr "프로필이 이미 있습니다. 다른 이름을 선택하거나 명시적으로 교체를 활성화하여 덮어쓰세요."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.ssh_authentication"
+msgstr "SSH 인증이 실패했습니다. 선택한 키, 암호 또는 키 암호문을 확인하세요."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.ssh_host_key"
+msgstr "SSH 호스트 키가 거부되었습니다. 신뢰할 수 있는 경로로 서버 키를 확인하고 Host의 known_hosts 파일을 갱신한 후 연결하세요."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.tool_error"
+msgstr "작업이 실패했습니다. 대상과 Host 진단을 확인하고 상태를 새로 고침하세요. 결과를 알 수 없는 입력을 재전송하지 마세요."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "recovery.unauthorized"
+msgstr "접근이 거부되었습니다. 자격 증명 권한과 현재 제어자를 확인하세요. 인증을 비활성화하지 마세요."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -2018,6 +2103,261 @@ msgstr "이전 창"
 #: src/shared/menu-messages.ts
 msgid "window.tab.close"
 msgstr "탭 닫기"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.attaching"
+msgstr "세션에 연결 중…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.attachmentHost"
+msgstr "이 Host는 다른 연결 클라이언트에 속합니다. 해당 클라이언트가 종료되면 중지될 수 있습니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.closed"
+msgstr "닫힘"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.closedHint"
+msgstr "세션이 닫혔거나 사용할 수 없습니다. 분리한 뒤 열린 세션을 선택하세요."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.closing"
+msgstr "닫는 중"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.connected"
+msgstr "Host 연결됨"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.connectHint"
+msgstr "Host 패널에서 실행 중인 Host에 연결하세요."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.connecting"
+msgstr "Host에 연결 중…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.detachHint"
+msgstr "분리해도 세션은 계속 실행됩니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.detaching"
+msgstr "세션에서 분리 중…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.disconnected"
+msgstr "Host 연결 끊김"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.disconnecting"
+msgstr "Host 연결 해제 중…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.dropped"
+msgstr "Host 버퍼의 출력이 덮어써졌습니다. 터미널이 초기화되었으며 이전 바이트는 사용할 수 없습니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.enabled"
+msgstr "연결됨 · 입력 활성화"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.failed"
+msgstr "Host 연결 실패"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.host"
+msgstr "Host 연결"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.hostOwned"
+msgstr "Host 관리 세션"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.io"
+msgstr "터미널 출력 및 입력"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.lease"
+msgstr "임대 사용 중. 읽기는 계속되지만 입력은 비활성화됩니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.leaseReadOnly"
+msgstr "읽기 전용 · 임대 사용 중"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.listHint"
+msgstr "세션 목록을 보려면 Host에 연결하세요."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.loading"
+msgstr "설정 불러오는 중…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.menu"
+msgstr "애플리케이션 메뉴"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.navigation"
+msgstr "작업 공간 탐색"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.new"
+msgstr "새로 생성됨"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.noHost"
+msgstr "연결된 Host 없음"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.noMatch"
+msgstr "일치하는 세션이 없습니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.noResults"
+msgstr "세션을 찾을 수 없습니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.noSessions"
+msgstr "사용 가능한 세션 없음"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.notices"
+msgstr "터미널 알림"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.offline"
+msgstr "오프라인"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.open"
+msgstr "열림"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.opening"
+msgstr "연결 여는 중…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.paused"
+msgstr "입력 일시 중지"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.readOnly"
+msgstr "세션 사용 불가 · 읽기 전용"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.retry"
+msgstr "연결 다시 시도"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.retryHint"
+msgstr "설정한 Host가 실행 중인지 확인한 후 연결을 다시 시도하세요."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.search"
+msgstr "세션 검색"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.select"
+msgstr "세션 선택"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.selectHint"
+msgstr "사이드바에서 열린 세션을 선택하여 출력을 보고 입력을 보내세요."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.sessionCount"
+msgstr "{count, plural, other {세션 #개}}"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.sessions"
+msgstr "세션"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.sessionUnavailable"
+msgstr "세션을 사용할 수 없음"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.status"
+msgstr "작업대 상태"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.terminal"
+msgstr "터미널 작업 공간"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.toggleSessions"
+msgstr "세션 사이드바 전환"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.unattached"
+msgstr "연결 없음"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.unavailable"
+msgstr "Host를 사용할 수 없음"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.unknown"
+msgstr "알 수 없음"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.wait"
+msgstr "잠시 기다려 주세요."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "workbench.workbenchMenu"
+msgstr "작업대 메뉴"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

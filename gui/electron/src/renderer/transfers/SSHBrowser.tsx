@@ -1,6 +1,6 @@
+import { clientErrorMessageId } from "../../shared/host-recovery";
 import { useEffect, useRef, useState } from "react";
 import type { SSHBrowseResult, SSHFileEntry } from "../../shared/ssh-browser";
-import type { ClientError } from "../../shared/api";
 import { host } from "../host";
 
 /** A read-only directory view; choosing a path does not start a transfer. */
@@ -49,7 +49,7 @@ export function SSHBrowser({
         } else setStat(next.entries[0]);
       }
     } catch (error) {
-      if (alive.current) setError((error as ClientError).message);
+      if (alive.current) setError(clientErrorMessageId(error));
     } finally {
       pending.current = false;
       if (alive.current) {
@@ -121,7 +121,7 @@ export function SSHBrowser({
           </button>
         )}
       </div>
-      {error && <p role="alert">{error}</p>}
+      {error && <p role="alert">{t(error)}</p>}
       {stat && (
         <p role="status">
           {stat.name} · {t(`sshBrowser.${stat.kind}`)} · {stat.size} B ·{" "}

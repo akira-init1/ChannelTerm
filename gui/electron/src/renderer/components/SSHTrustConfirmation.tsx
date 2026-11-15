@@ -1,6 +1,6 @@
+import { clientErrorMessageId } from "../../shared/host-recovery";
 import { useEffect, useRef, useState } from "react";
 import { isSSHTrustPrompt, type SSHTrustPrompt } from "../../shared/ssh-trust";
-import type { ClientError } from "../../shared/api";
 import { host, unwrap } from "../host";
 
 /** Display a Main-owned pending identity; approval never supplies replacement key material. */
@@ -39,7 +39,7 @@ export function SSHTrustConfirmation({ t }: { t: (id: string) => string }) {
       await unwrap(host.resolveSSHTrust(prompt.id, accept));
       setPrompt(undefined);
     } catch (error) {
-      setError((error as ClientError).message);
+      setError(clientErrorMessageId(error));
     } finally {
       setBusy(false);
     }
@@ -63,7 +63,7 @@ export function SSHTrustConfirmation({ t }: { t: (id: string) => string }) {
           <code>{prompt.fingerprint}</code>
         </dd>
       </dl>
-      {error && <p role="alert">{error}</p>}
+      {error && <p role="alert">{t(error)}</p>}
       <button
         ref={rejectButton}
         type="button"

@@ -1,3 +1,4 @@
+import { clientErrorMessageId } from "../../shared/host-recovery";
 import {
   connectionHistoryKey,
   restoreConnections,
@@ -13,7 +14,6 @@ import {
   defaultSSHAdvanced,
   type ConnectionRequest,
 } from "../../shared/connections";
-import type { ClientError } from "../../shared/api";
 import { host, unwrap } from "../host";
 import {
   TerminalSettingsFields,
@@ -60,7 +60,7 @@ export function ConnectionDialog({
       localStorage.setItem(connectionHistoryKey, JSON.stringify(entries));
       setHistory(entries);
     } catch {
-      setError(t("history.storageError"));
+      setError("history.storageError");
       onStorageError();
     }
   }
@@ -116,7 +116,7 @@ export function ConnectionDialog({
     try {
       setPorts(await unwrap(host.serialPorts()));
     } catch (error) {
-      setError((error as ClientError).message);
+      setError(clientErrorMessageId(error));
     } finally {
       setScanning(false);
     }
@@ -177,7 +177,7 @@ export function ConnectionDialog({
           };
     const settings = kind === "serial" ? readTerminalSettings(data) : undefined;
     if (!isConnectionRequest(request) || (kind === "serial" && !settings)) {
-      setError(t("connection.invalid"));
+      setError("connection.invalid");
       return;
     }
     submitting.current = true;
@@ -204,7 +204,7 @@ export function ConnectionDialog({
       }
       onClose();
     } catch (error) {
-      setError((error as ClientError).message);
+      setError(clientErrorMessageId(error));
     } finally {
       if (request.kind === "ssh") {
         request.password = undefined;
@@ -320,7 +320,7 @@ export function ConnectionDialog({
                 setSerialDefaults(undefined);
               }}
             >
-              <option value="serial">Serial</option>
+              <option value="serial">{t("debug.serial")}</option>
               <option value="ssh" disabled={!sshAvailable}>
                 SSH
               </option>
@@ -566,7 +566,7 @@ export function ConnectionDialog({
             <TerminalSettingsFields t={t} value={terminalDefaults} />
           )}
         </fieldset>
-        {error && <p role="alert">{error}</p>}
+        {error && <p role="alert">{t(error)}</p>}
         {kind === "ssh" && busy && <SSHTrustConfirmation t={t} />}
         <footer>
           <button type="button" disabled={busy} onClick={onClose}>

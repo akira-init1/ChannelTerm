@@ -1,3 +1,4 @@
+import { sessionStateMessage } from "../../shared/host-recovery";
 import type { SessionSummary } from "../../shared/api";
 import { useEffect, useState, type MouseEvent } from "react";
 import { Icon } from "../components/Icon";
@@ -8,6 +9,7 @@ import { Icon } from "../components/Icon";
  * Disabled rows are a usability guard, not authority over Session lifecycle.
  */
 export function SessionList({
+  t,
   locateTarget,
   debugIds,
   onDebug,
@@ -19,6 +21,7 @@ export function SessionList({
   onSelect,
   onContextMenu,
 }: {
+  t: (id: string) => string;
   locateTarget?: { id: string; revision: number };
   debugIds?: Set<string>;
   onDebug?: () => void;
@@ -77,17 +80,17 @@ export function SessionList({
         <Icon name="search" />
         <input
           type="search"
-          aria-label="Search Sessions"
-          placeholder="Search Sessions…"
+          aria-label={t("workbench.search")}
+          placeholder={t("workbench.search")}
           value={query}
           onChange={(event) => setQuery(event.target.value)}
         />
       </label>
-      <nav aria-label="Sessions" className="session-list">
+      <nav aria-label={t("workbench.sessions")} className="session-list">
         {sessions.length === 0 && <p className="empty-list">{emptyMessage}</p>}
         {sessions.length > 0 && groups.size === 0 && (
           <p className="empty-list" role="status">
-            No matching Sessions.
+            {t("workbench.noMatch")}
           </p>
         )}
         {["Serial", "SSH", "Other"].map((group) => {
@@ -97,7 +100,12 @@ export function SessionList({
             <details className="session-group" key={group} open>
               <summary>
                 <Icon name="chevron" />
-                {group} <span>({entries.length})</span>
+                {group === "Serial"
+                  ? t("debug.serial")
+                  : group === "Other"
+                    ? t("sshBrowser.other")
+                    : group}{" "}
+                <span>({entries.length})</span>
               </summary>
               {entries.map((session) => (
                 <div
@@ -109,7 +117,7 @@ export function SessionList({
                     data-session-id={session.session_id}
                     className={`session ${selected === session.session_id ? "selected" : ""}`}
                     aria-pressed={selected === session.session_id}
-                    title={`${session.session_ref} · ${session.label || session.endpoint} · ${session.state}`}
+                    title={`${session.session_ref} · ${session.label || session.endpoint} · ${sessionStateMessage(session.state, t)}`}
                     disabled={disabled || session.state !== "open"}
                     onClick={() => onSelect(session)}
                   >
@@ -123,7 +131,9 @@ export function SessionList({
                     <span className="session-content">
                       <span className="session-title">
                         <strong>
-                          {session.label || session.session_ref || "Terminal"}
+                          {session.label ||
+                            session.session_ref ||
+                            t("menu.terminal")}
                         </strong>
                         <span
                           className={`dot ${session.state}`}
@@ -135,8 +145,10 @@ export function SessionList({
                         {session.label && session.label !== session.session_ref
                           ? ` · ${session.session_ref}`
                           : ""}
-                        {` · ${session.state}`}
-                        {session.lease ? ` · busy: ${session.lease.type}` : ""}
+                        {` · ${sessionStateMessage(session.state, t)}`}
+                        {session.lease
+                          ? ` · ${t("workbench.leaseReadOnly")}: ${session.lease.type}`
+                          : ""}
                       </span>
                     </span>
                   </button>

@@ -1,3 +1,4 @@
+import { clientErrorMessageId } from "../../shared/host-recovery";
 import { useEffect, useState } from "react";
 import type { ActivitySnapshot } from "../../shared/activity";
 import type { ClientError } from "../../shared/api";
@@ -30,7 +31,7 @@ export function ActivityPanel({
         }
       } catch (error) {
         if (alive && (error as ClientError).code !== "busy")
-          setError((error as ClientError).message);
+          setError(clientErrorMessageId(error));
       }
       if (alive) timer = setTimeout(() => void poll(), 1000);
     }
@@ -45,7 +46,7 @@ export function ActivityPanel({
   return (
     <div className="session-activity">
       <p>{t("activity.hint")}</p>
-      {error && <p role="alert">{error}</p>}
+      {error && <p role="alert">{t(error)}</p>}
       {snapshot?.dropped && <p role="status">{t("activity.dropped")}</p>}
       {snapshot?.truncated && <p role="status">{t("activity.truncated")}</p>}
       {snapshot?.rows.length === 0 && <p>{t("activity.empty")}</p>}

@@ -1,6 +1,6 @@
+import { clientErrorMessageId } from "../../shared/host-recovery";
 import { useEffect, useRef, useState } from "react";
 import { host, unwrap } from "../host";
-import type { ClientError } from "../../shared/api";
 
 /** One decision applies to the captured batch; remembering only changes local preferences. */
 export function DirectoryQuestion({
@@ -73,7 +73,7 @@ export function DirectoryQuestion({
       {resumable && mode === "files" && (
         <p role="alert">{t("file.modeResumeConflict")}</p>
       )}
-      {error && <p role="alert">{error}</p>}
+      {error && <p role="alert">{t(error)}</p>}
       <footer>
         <button disabled={busy} onClick={onCancel}>
           {t("connection.cancel")}
@@ -90,7 +90,7 @@ export function DirectoryQuestion({
               if (remember) await unwrap(host.saveTransferPreference(mode));
               if (alive.current) onChoose(mode);
             } catch (e) {
-              setError((e as ClientError).message);
+              setError(clientErrorMessageId(e));
             } finally {
               submitting.current = false;
               setBusy(false);
