@@ -125,6 +125,7 @@ msgstr "鮑率"
 
 #. js-lingui-explicit-id
 #: src/main/index.ts
+#: src/main/index.ts
 #: src/shared/menu-messages.ts
 msgid "connection.cancel"
 msgstr "取消"
@@ -655,6 +656,7 @@ msgid "diagnostics.cancelled"
 msgstr "已取消儲存。"
 
 #. js-lingui-explicit-id
+#: src/main/index.ts
 #: src/shared/menu-messages.ts
 msgid "diagnostics.close"
 msgstr "關閉"
@@ -1780,6 +1782,234 @@ msgstr "鍵盤快速鍵"
 #: src/shared/menu-messages.ts
 msgid "settings.transfers"
 msgstr "檔案傳輸"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "setup.after"
+msgstr "變更後（敏感內容已遮蔽）"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "setup.apply"
+msgstr "確認檔案介面變更"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "setup.before"
+msgstr "變更前（敏感內容已遮蔽）"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.client"
+msgstr "MCP 用戶端"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.configure"
+msgstr "預覽設定或修復"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.confirm"
+msgstr "使用檔案介面套用此設定？"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.detected"
+msgstr "已偵測到"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.error.apply"
+msgstr "設定作業未完成。再次變更前，請檢查復原狀態與原設定。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.error.authentication"
+msgstr "缺少憑證或驗證遭拒。請檢查 Host 驗證範圍，再明確修復此用戶端。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.error.changed"
+msgstr "預覽後設定已變更，請重新查看預覽。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.error.companion"
+msgstr "用戶端設定附屬程式無法使用，請更新或重新建置相符的 CLI。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.error.configuration"
+msgstr "設定損壞、遭覆寫、無法使用，或範圍／版本不受支援。請檢查用戶端設定；未執行不安全的取代。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.error.network"
+msgstr "無法連線或驗證 Host。請檢查端點與就緒狀態。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.error.permission"
+msgstr "Host 拒絕權限。請檢查授權；取代憑證不會授予寫入權限。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.error.recovery"
+msgstr "外部變更或清理失敗導致無法安全復原。請保留檔案與註冊資訊以供人工檢查。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.error.unavailable"
+msgstr "Host 驗證服務無法使用，請先檢查設定，再建立新憑證。"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "setup.fallback"
+msgstr "優先檢查官方命令。命令無法確保持久驗證與安全取代預覽時，檔案介面備援需要明確確認。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.inspect"
+msgstr "查看遮蔽敏感內容的設定"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.intro"
+msgstr "選擇一個用戶端及明確的範圍。寫入前，請在原生對話框核對確切目標檔案與遮蔽敏感內容的變更。"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "setup.newCredential"
+msgstr "新憑證獨立且預設唯讀。可安全復原時會移除本次新憑證；不會自動撤銷舊憑證。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.noneDetected"
+msgstr "未偵測到支援的用戶端。可明確選擇已知用戶端查看設定。"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "setup.normalization"
+msgstr "將完整取代所選項目，其他設定依值保留。序列化會正規化格式並移除 TOML 註解。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.notDetected"
+msgstr "未偵測到"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.open"
+msgstr "設定或修復 MCP 用戶端"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.permissions.read_only"
+msgstr "新憑證：唯讀"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.permissions.unknown"
+msgstr "實際權限：未驗證"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "setup.preserveNotice"
+msgstr "項目已存在。因未選擇明確取代，將維持不變。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.project"
+msgstr "選取的專案資料夾"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.recover"
+msgstr "檢查中斷的設定作業"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.reload"
+msgstr "儲存後請重新啟動或載入所選用戶端，並檢查其 MCP 狀態。獨立唯讀探測不表示用戶端已載入設定；專案覆寫可能優先。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.replace"
+msgstr "明確取代現有的 ChannelTerm 項目"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.result.applied"
+msgstr "設定已儲存，獨立唯讀存取驗證通過。仍須重新載入用戶端。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.result.cancelled"
+msgstr "已取消，未套用設定。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.result.none"
+msgstr "沒有需要復原的中斷作業。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.result.preserved"
+msgstr "已保留現有項目。可驗證存取，或明確選擇取代來修復。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.result.recovered_applied"
+msgstr "中斷的作業已儲存設定，憑證已保留；請重新載入並驗證用戶端。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.result.rolled_back"
+msgstr "未發佈的設定作業已復原：已移除新憑證，保留原設定。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.result.verified_existing"
+msgstr "現有憑證通過唯讀探測；不據此推斷用戶端已重新載入或實際權限。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.result.viewed"
+msgstr "已關閉遮蔽敏感內容的預覽。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.scope"
+msgstr "設定範圍"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "setup.secret"
+msgstr "儲存的檔案包含私密用戶端憑證，請勿分享或提交至版本庫。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.user"
+msgstr "使用者設定"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.verify"
+msgstr "驗證現有存取"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.working"
+msgstr "正在檢查本機用戶端設定…"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

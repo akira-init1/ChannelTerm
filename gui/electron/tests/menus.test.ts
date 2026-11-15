@@ -151,7 +151,7 @@ test("Session owns setup and file actions; window actions follow window and tab 
     menus
       .find((entry) => entry.id === "host")
       ?.children?.map((entry) => entry.id),
-    ["host.settings", "host.connect", "host.disconnect"],
+    ["setup.open", "host.settings", "host.connect", "host.disconnect"],
   );
   for (const state of [initialMenuState, live, { ...live, busy: true }]) {
     const window = applicationMenu(state).find(

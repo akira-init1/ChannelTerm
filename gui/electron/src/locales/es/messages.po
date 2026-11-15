@@ -125,6 +125,7 @@ msgstr "Velocidad en baudios"
 
 #. js-lingui-explicit-id
 #: src/main/index.ts
+#: src/main/index.ts
 #: src/shared/menu-messages.ts
 msgid "connection.cancel"
 msgstr "Cancelar"
@@ -655,6 +656,7 @@ msgid "diagnostics.cancelled"
 msgstr "Guardado cancelado."
 
 #. js-lingui-explicit-id
+#: src/main/index.ts
 #: src/shared/menu-messages.ts
 msgid "diagnostics.close"
 msgstr "Cerrar"
@@ -1780,6 +1782,234 @@ msgstr "Atajos de teclado"
 #: src/shared/menu-messages.ts
 msgid "settings.transfers"
 msgstr "Transferencia de archivos"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "setup.after"
+msgstr "Después (sin datos sensibles)"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "setup.apply"
+msgstr "Confirmar cambio mediante archivo"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "setup.before"
+msgstr "Antes (sin datos sensibles)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.client"
+msgstr "Cliente MCP"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.configure"
+msgstr "Previsualizar configuración o reparación"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.confirm"
+msgstr "¿Aplicar esta configuración mediante el adaptador de archivos?"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.detected"
+msgstr "Detectado"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.error.apply"
+msgstr "La configuración no se completó. Revise la recuperación y la configuración original antes de otro cambio."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.error.authentication"
+msgstr "Falta la credencial o se rechazó la autenticación. Compruebe el dominio del Host y repare este cliente explícitamente."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.error.changed"
+msgstr "La configuración cambió después de la vista previa. Revise una vista previa nueva."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.error.companion"
+msgstr "El programa de configuración de clientes no está disponible. Actualice o recompile el CLI correspondiente."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.error.configuration"
+msgstr "Configuración dañada, oculta por otra, inaccesible o ámbito/versión no compatible. Revise la configuración; no se realizó un reemplazo inseguro."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.error.network"
+msgstr "No se pudo contactar o verificar el Host. Revise su dirección y disponibilidad."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.error.permission"
+msgstr "El Host denegó el permiso. Revise la autorización; reemplazar credenciales no concede escritura."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.error.recovery"
+msgstr "Cambios externos o un fallo de limpieza impiden una recuperación segura. Conserve archivos y registros para revisión manual."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.error.unavailable"
+msgstr "La autenticación del Host no está disponible. Revise su configuración antes de crear otra credencial."
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "setup.fallback"
+msgstr "Primero se comprueban los comandos oficiales. Si no permiten autenticación persistente y una vista previa segura del reemplazo, se requiere confirmar el uso del adaptador de archivos."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.inspect"
+msgstr "Ver configuración sin datos sensibles"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.intro"
+msgstr "Elija un cliente y un ámbito explícito. Antes de escribir, revise el archivo de destino exacto y los cambios sin datos sensibles en el diálogo nativo."
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "setup.newCredential"
+msgstr "Las credenciales nuevas son independientes y de solo lectura. Una reversión segura las elimina. Las credenciales anteriores nunca se revocan automáticamente."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.noneDetected"
+msgstr "No se detectó ningún cliente compatible. Seleccione explícitamente un cliente conocido para revisar su configuración."
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "setup.normalization"
+msgstr "Se reemplaza toda la entrada seleccionada. Se conservan los valores de los demás ajustes. La serialización normaliza el formato y elimina los comentarios TOML."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.notDetected"
+msgstr "No detectado"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.open"
+msgstr "Configurar o reparar clientes MCP"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.permissions.read_only"
+msgstr "Credencial nueva: solo lectura"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.permissions.unknown"
+msgstr "Permisos efectivos: no verificados"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "setup.preserveNotice"
+msgstr "Ya existe una entrada. No cambiará porque no se seleccionó el reemplazo explícito."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.project"
+msgstr "Carpeta de proyecto seleccionada"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.recover"
+msgstr "Revisar configuración interrumpida"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.reload"
+msgstr "Tras guardar, reinicie o recargue el cliente elegido y compruebe su estado MCP. Esta prueba independiente de solo lectura no demuestra que el cliente haya cargado la configuración. Los ajustes del proyecto pueden tener prioridad."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.replace"
+msgstr "Reemplazar explícitamente una entrada existente de ChannelTerm"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.result.applied"
+msgstr "Configuración guardada y acceso independiente de solo lectura verificado. Aún debe recargar el cliente."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.result.cancelled"
+msgstr "Cancelado. No se aplicó ninguna configuración."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.result.none"
+msgstr "No hay configuraciones interrumpidas que recuperar."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.result.preserved"
+msgstr "Entrada existente conservada. Verifíquela o seleccione explícitamente su reemplazo para repararla."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.result.recovered_applied"
+msgstr "La operación interrumpida ya había guardado la configuración. Su credencial se conservó; recargue y verifique el cliente."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.result.rolled_back"
+msgstr "Configuración no publicada recuperada. Credencial nueva eliminada; configuración original conservada."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.result.verified_existing"
+msgstr "La credencial existente superó una prueba de solo lectura. No se infieren la recarga del cliente ni sus permisos efectivos."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.result.viewed"
+msgstr "Vista previa cerrada."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.scope"
+msgstr "Ámbito de configuración"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "setup.secret"
+msgstr "El archivo guardado contiene una credencial privada del cliente. No lo comparta ni lo incluya en un repositorio."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.user"
+msgstr "Configuración del usuario"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.verify"
+msgstr "Verificar acceso existente"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.working"
+msgstr "Comprobando configuración local…"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

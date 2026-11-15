@@ -276,14 +276,22 @@ func writeTOML(path string, root map[string]any) error {
 // atomicWrite keeps a parseable original configuration in place until a
 // complete, synchronized replacement is ready in the same directory. The
 // deferred cleanup removes only a failed temporary file, never the original.
-func atomicWrite(path string, data []byte) (err error) {
+func atomicWrite(path string, data []byte) error {
+	return writeConfigAtomic(path, data, false)
+}
+
+// writeConfigAtomic optionally restricts the newly credential-bearing replacement
+// to owner read/write. Legacy installation retains its existing permission policy.
+func writeConfigAtomic(path string, data []byte, private bool) (err error) {
 	directory := filepath.Dir(path)
 	if err := os.MkdirAll(directory, 0o700); err != nil {
 		return fmt.Errorf("create configuration directory: %w", err)
 	}
 	mode := os.FileMode(0o600)
 	if info, statErr := os.Stat(path); statErr == nil {
-		mode = info.Mode().Perm()
+		if !private {
+			mode = info.Mode().Perm()
+		}
 	} else if !errors.Is(statErr, os.ErrNotExist) {
 		return statErr
 	}

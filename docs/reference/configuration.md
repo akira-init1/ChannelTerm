@@ -1,5 +1,22 @@
 # Configuration Reference
 
+## Desktop client repair state
+
+Desktop MCP setup stores `mcp-repair.json` beside the selected Host's `http-host.json`, using the
+existing `CHANNELTERM_HOST_CONFIG_DIR` authority. Its `.lock` serializes local repairs. The marker
+contains a version, client-config path, before/after fingerprints, unique public registration name
+and optional client ID; it contains no bearer. It is private recovery state, not user-editable
+configuration or a Host API. Opening unused setup creates neither this state nor a registration.
+
+The marker is synchronized before creating a read-only agent, and updated before publishing the
+client file. Recovery removes only its uncommitted registration or preserves an already published
+one. Changed files/registrations require manual inspection; do not delete recovery state just to
+suppress an error. Success removes the marker, but never revokes earlier credentials. The
+[workflow](../getting-started/mcp-server.md#desktop-client-setup-and-repair) covers explicit scope,
+client location overrides and the private credential stored in the resulting client file.
+
+## Host configuration files
+
 ChannelTerm keeps connection configuration, connection policy, user preferences and explicit
 managed file-transfer grants in one `config.toml`. It separately stores
 automatically managed device identity state.

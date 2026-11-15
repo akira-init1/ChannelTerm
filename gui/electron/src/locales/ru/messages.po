@@ -125,6 +125,7 @@ msgstr "Скорость в бодах"
 
 #. js-lingui-explicit-id
 #: src/main/index.ts
+#: src/main/index.ts
 #: src/shared/menu-messages.ts
 msgid "connection.cancel"
 msgstr "Отмена"
@@ -655,6 +656,7 @@ msgid "diagnostics.cancelled"
 msgstr "Сохранение отменено."
 
 #. js-lingui-explicit-id
+#: src/main/index.ts
 #: src/shared/menu-messages.ts
 msgid "diagnostics.close"
 msgstr "Закрыть"
@@ -1780,6 +1782,234 @@ msgstr "Сочетания клавиш"
 #: src/shared/menu-messages.ts
 msgid "settings.transfers"
 msgstr "Передача файлов"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "setup.after"
+msgstr "После (секреты скрыты)"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "setup.apply"
+msgstr "Подтвердить изменение через файл"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "setup.before"
+msgstr "До (секреты скрыты)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.client"
+msgstr "Клиент MCP"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.configure"
+msgstr "Предпросмотр настройки или восстановления"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.confirm"
+msgstr "Применить конфигурацию через файловый адаптер?"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.detected"
+msgstr "Обнаружен"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.error.apply"
+msgstr "Настройка не завершена. Перед новым изменением проверьте восстановление и исходную конфигурацию."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.error.authentication"
+msgstr "Учётные данные отсутствуют или аутентификация отклонена. Проверьте домен аутентификации Host, затем явно восстановите этот клиент."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.error.changed"
+msgstr "После предпросмотра конфигурация изменилась. Проверьте новый предпросмотр."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.error.companion"
+msgstr "Вспомогательная программа настройки недоступна. Обновите или пересоберите соответствующий CLI."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.error.configuration"
+msgstr "Конфигурация повреждена, перекрыта другой, недоступна или область/версия не поддерживается. Проверьте конфигурацию клиента; небезопасная замена не выполнялась."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.error.network"
+msgstr "Не удалось связаться с Host или проверить его. Проверьте адрес и готовность."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.error.permission"
+msgstr "Host отказал в разрешении. Проверьте авторизацию; замена учётных данных не даёт права записи."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.error.recovery"
+msgstr "Внешние изменения или сбой очистки мешают безопасному восстановлению. Сохраните файлы и регистрации для ручной проверки."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.error.unavailable"
+msgstr "Аутентификация Host недоступна. Проверьте конфигурацию перед созданием новых учётных данных."
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "setup.fallback"
+msgstr "Сначала проверяются официальные команды. Если они не обеспечивают постоянную аутентификацию и безопасный просмотр замены, файловый адаптер требует явного подтверждения."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.inspect"
+msgstr "Просмотреть конфигурацию без секретов"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.intro"
+msgstr "Выберите один клиент и явную область настройки. Перед записью проверьте точный целевой файл и изменения со скрытыми секретами в системном диалоге."
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "setup.newCredential"
+msgstr "Новые учётные данные независимы и доступны только для чтения. Безопасный откат удаляет новые данные. Старые данные никогда не отзываются автоматически."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.noneDetected"
+msgstr "Поддерживаемые клиенты не обнаружены. Явно выберите известный клиент для просмотра конфигурации."
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "setup.normalization"
+msgstr "Выбранная запись заменяется целиком. Значения остальных параметров сохраняются. Сериализация нормализует формат и удаляет комментарии TOML."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.notDetected"
+msgstr "Не обнаружен"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.open"
+msgstr "Настройка или восстановление клиентов MCP"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.permissions.read_only"
+msgstr "Новые учётные данные: только чтение"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.permissions.unknown"
+msgstr "Действующие разрешения: не проверены"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "setup.preserveNotice"
+msgstr "Запись уже существует. Она останется без изменений, поскольку явная замена не выбрана."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.project"
+msgstr "Выбранная папка проекта"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.recover"
+msgstr "Проверить прерванную настройку"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.reload"
+msgstr "После сохранения перезапустите или перезагрузите выбранный клиент и проверьте его состояние MCP. Эта независимая проверка чтения не доказывает, что клиент загрузил конфигурацию. Настройки проекта могут иметь приоритет."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.replace"
+msgstr "Явно заменить существующую запись ChannelTerm"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.result.applied"
+msgstr "Конфигурация сохранена, независимый доступ только для чтения проверен. Клиент ещё нужно перезагрузить."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.result.cancelled"
+msgstr "Отменено. Конфигурация не применялась."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.result.none"
+msgstr "Прерванных настроек для восстановления нет."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.result.preserved"
+msgstr "Существующая запись сохранена. Проверьте её или явно выберите замену для восстановления."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.result.recovered_applied"
+msgstr "Прерванная операция уже сохранила конфигурацию. Учётные данные сохранены; перезагрузите и проверьте клиент."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.result.rolled_back"
+msgstr "Неопубликованная настройка восстановлена. Новые учётные данные удалены, исходная конфигурация сохранена."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.result.verified_existing"
+msgstr "Существующие учётные данные прошли проверку чтения. Перезагрузка клиента и действующие разрешения из этого не следуют."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.result.viewed"
+msgstr "Предпросмотр без секретов закрыт."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.scope"
+msgstr "Область настройки"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "setup.secret"
+msgstr "Сохранённый файл содержит секретные учётные данные клиента. Не передавайте его другим и не добавляйте в репозиторий."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.user"
+msgstr "Конфигурация пользователя"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.verify"
+msgstr "Проверить существующий доступ"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.working"
+msgstr "Проверка локальной конфигурации клиента…"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

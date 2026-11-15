@@ -206,6 +206,42 @@ Important errors include combining `--mcp` and `--mcp-show`, omitting both, unkn
 invalid transport selection, malformed client configuration, HTTP credential load or creation
 failure, and a filesystem write failure.
 
+### Desktop client configuration interface
+
+`channelterm init --mcp-desktop` accepts one JSON request on stdin (maximum 16 KiB) and no other
+arguments. It emits one `{ "ok": true, "value": ... }` or `{ "ok": false, "code": ..., "value": ... }`
+reply. Operation failures are JSON results; invalid command-line arguments remain CLI errors. This
+local companion interface adds no remote registration API. Secrets are never returned; preview paths
+are for a trusted local caller/native confirmation, not Renderer or ordinary diagnostic logs.
+
+Requests choose `discover`, `preview`, `verify`, `apply` or `recover`. The `target` selects a supported
+`client` and `scope` (`user` or `project`); project scope requires an explicit absolute `project`
+directory. Codex supports user scope only. For example, a read-only preview is:
+
+```json
+{"action":"preview","target":{"client":"codex","scope":"user"},"endpoint":"http://127.0.0.1:37099/mcp"}
+```
+
+`preview` returns the exact path, current file fingerprint, existence and redacted selected entry
+before/after, plus detected command metadata. `verify` requires that fingerprint and uses only the
+existing credential and matching URL. `apply` requires the same fingerprint, endpoint, target and
+`file_fallback: true`; existing entries stay unchanged unless `replace: true` is also supplied.
+The trusted caller must confirm the concrete preview before apply. Credentials are not accepted in
+arguments or JSON; local Host configuration authority creates a new read-only agent.
+
+Files are limited to 1 MiB, valid UTF-8, ordinary files and supported JSON/TOML structures. Duplicate
+JSON keys and nesting beyond 64 levels are rejected. Numeric JSON values retain precision. Replacement
+files request owner read/write permissions; Windows ACLs remain controlled by the containing profile.
+A cooperative per-Host lock serializes setup, and byte fingerprints detect edits before atomic
+replacement. This is not a filesystem compare-and-swap against unrelated editors at publication.
+
+Results distinguish `preserved`, `applied`, `verified_existing`, `recovered_applied`, `rolled_back` and
+`none`. Known new credentials report `read_only`; existing effective permissions remain unknown.
+Errors distinguish configuration/preview conflicts, authentication rejection, permission denial,
+unavailable authentication, unreachable Host, application failure and manual recovery requirements.
+The [desktop workflow](../getting-started/mcp-server.md#desktop-client-setup-and-repair) owns scope,
+fallback, reload and interruption guidance. Legacy interactive init defaults remain unchanged.
+
 ## `serial`
 
 Purpose: open a private, process-owned serial Session and bridge local terminal input and output.

@@ -529,6 +529,15 @@ stop the affected work and are surfaced to the UI. Reconnection is explicit.
 
 ## Security and lifecycle
 
+MCP client setup is a local Main capability composed through the fixed bundled CLI's
+`init --mcp-desktop` JSON interface. Renderer supplies only client/scope/operation/replacement intent.
+Main owns project selection and the native exact-file/redacted-entry confirmation. The CLI reuses
+`internal/init/mcp` encoders and `core/config` registration persistence; CLI composition owns the
+recoverable multi-file operation. No credential or configuration path crosses the Renderer bridge,
+and official help/version subprocesses receive no ChannelTerm management token. Window/endpoint
+changes wait for in-flight setup. A read-only probe does not claim an external client loaded the file;
+no Agent prompt or device input is sent.
+
 Explicit continuous recording uses Main-owned read attachments and `monitor` use registration on
 the existing client instance, so idle policy sees real background use after a terminal tab is closed.
 It has its own cursor and cancellation, no input queue or remote-size capability, and reads existing

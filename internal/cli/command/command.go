@@ -171,6 +171,9 @@ func runWithDependenciesWithInterrupts(ctx context.Context, args []string, input
 		return runClients(args[1:], output)
 	}
 	if len(args) > 0 && args[0] == "init" {
+		if len(args) > 1 && args[1] == "--mcp-desktop" {
+			return runDesktopInit(ctx, args[2:], input, output)
+		}
 		return runInit(args[1:], input, output)
 	}
 	if len(args) > 0 && args[0] == "install" {
@@ -266,6 +269,7 @@ func runInitWithAdapters(args []string, input io.Reader, output io.Writer, adapt
 		fmt.Fprintln(output, "Usage: channelterm init --mcp | --mcp-show [codex|claude|opencode|zoo] | --mcp-help")
 		fmt.Fprintln(output)
 		fmt.Fprintln(output, "Install or display ChannelTerm MCP client configurations.")
+		fmt.Fprintln(output, "  --mcp-desktop    Local desktop JSON bridge for explicit preview/apply/recovery; reads one request on stdin.")
 		fmt.Fprintln(output)
 		flags.PrintDefaults()
 		fmt.Fprintln(output)

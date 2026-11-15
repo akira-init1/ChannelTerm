@@ -125,6 +125,7 @@ msgstr "전송 속도"
 
 #. js-lingui-explicit-id
 #: src/main/index.ts
+#: src/main/index.ts
 #: src/shared/menu-messages.ts
 msgid "connection.cancel"
 msgstr "취소"
@@ -655,6 +656,7 @@ msgid "diagnostics.cancelled"
 msgstr "저장이 취소되었습니다."
 
 #. js-lingui-explicit-id
+#: src/main/index.ts
 #: src/shared/menu-messages.ts
 msgid "diagnostics.close"
 msgstr "닫기"
@@ -1780,6 +1782,234 @@ msgstr "키보드 단축키"
 #: src/shared/menu-messages.ts
 msgid "settings.transfers"
 msgstr "파일 전송"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "setup.after"
+msgstr "변경 후 (민감 정보 가림)"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "setup.apply"
+msgstr "파일 어댑터 변경 확인"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "setup.before"
+msgstr "변경 전 (민감 정보 가림)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.client"
+msgstr "MCP 클라이언트"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.configure"
+msgstr "구성 또는 복구 미리 보기"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.confirm"
+msgstr "파일 어댑터로 이 구성을 적용할까요?"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.detected"
+msgstr "감지됨"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.error.apply"
+msgstr "구성을 완료하지 못했습니다. 다시 변경하기 전에 복구 상태와 원래 구성을 확인하세요."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.error.authentication"
+msgstr "자격 증명이 없거나 인증이 거부되었습니다. Host 인증 영역을 확인한 후 이 클라이언트를 명시적으로 복구하세요."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.error.changed"
+msgstr "미리 보기 이후 구성이 변경되었습니다. 새 미리 보기를 확인하세요."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.error.companion"
+msgstr "클라이언트 구성 보조 프로그램을 사용할 수 없습니다. 일치하는 CLI를 업데이트하거나 다시 빌드하세요."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.error.configuration"
+msgstr "구성이 손상되었거나 가려졌거나 사용할 수 없거나 범위/버전이 지원되지 않습니다. 클라이언트 구성을 확인하세요. 안전하지 않은 교체는 수행하지 않았습니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.error.network"
+msgstr "Host에 연결하거나 확인할 수 없습니다. 엔드포인트와 준비 상태를 확인하세요."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.error.permission"
+msgstr "Host가 권한을 거부했습니다. 권한을 확인하세요. 자격 증명 교체는 쓰기 권한을 부여하지 않습니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.error.recovery"
+msgstr "외부 변경 또는 정리 실패로 안전하게 복구할 수 없습니다. 수동 확인을 위해 파일과 등록을 유지하세요."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.error.unavailable"
+msgstr "Host 인증을 사용할 수 없습니다. 새 자격 증명을 만들기 전에 구성을 확인하세요."
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "setup.fallback"
+msgstr "공식 명령을 먼저 확인합니다. 지속적인 인증과 안전한 교체 미리 보기를 제공하지 못하면 파일 어댑터 사용을 명시적으로 확인해야 합니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.inspect"
+msgstr "민감 정보를 가린 구성 보기"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.intro"
+msgstr "클라이언트 하나와 명시적인 범위를 선택하세요. 쓰기 전에 기본 대화 상자에서 정확한 대상 파일과 민감 정보를 가린 변경 내용을 확인하세요."
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "setup.newCredential"
+msgstr "새 자격 증명은 독립적이며 읽기 전용입니다. 안전하게 롤백할 수 있으면 새 자격 증명을 제거합니다. 기존 자격 증명은 자동으로 취소하지 않습니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.noneDetected"
+msgstr "지원 클라이언트를 찾지 못했습니다. 알려진 클라이언트를 직접 선택하여 구성을 확인할 수 있습니다."
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "setup.normalization"
+msgstr "선택한 항목 전체를 교체합니다. 다른 설정 값은 유지합니다. 직렬화 과정에서 형식을 정규화하고 TOML 주석을 제거합니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.notDetected"
+msgstr "감지되지 않음"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.open"
+msgstr "MCP 클라이언트 구성 또는 복구"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.permissions.read_only"
+msgstr "새 자격 증명: 읽기 전용"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.permissions.unknown"
+msgstr "실제 권한: 확인되지 않음"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "setup.preserveNotice"
+msgstr "항목이 이미 있습니다. 명시적 교체를 선택하지 않아 그대로 유지합니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.project"
+msgstr "선택한 프로젝트 폴더"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.recover"
+msgstr "중단된 구성 확인"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.reload"
+msgstr "저장 후 선택한 클라이언트를 다시 시작하거나 다시 불러오고 MCP 상태를 확인하세요. 이 독립적인 읽기 전용 검사는 클라이언트가 구성을 불러왔음을 증명하지 않습니다. 프로젝트 재정의가 우선할 수 있습니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.replace"
+msgstr "기존 ChannelTerm 항목을 명시적으로 교체"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.result.applied"
+msgstr "구성을 저장하고 독립적인 읽기 전용 접근을 확인했습니다. 클라이언트를 다시 불러와야 합니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.result.cancelled"
+msgstr "취소했습니다. 구성을 적용하지 않았습니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.result.none"
+msgstr "복구가 필요한 중단 작업이 없습니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.result.preserved"
+msgstr "기존 항목을 유지했습니다. 접근을 확인하거나 명시적으로 교체를 선택하여 복구하세요."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.result.recovered_applied"
+msgstr "중단된 작업이 이미 구성을 저장했습니다. 자격 증명을 유지했으니 클라이언트를 다시 불러와 확인하세요."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.result.rolled_back"
+msgstr "게시되지 않은 구성을 복구했습니다. 새 자격 증명을 제거하고 원래 구성을 유지했습니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.result.verified_existing"
+msgstr "기존 자격 증명이 읽기 전용 검사를 통과했습니다. 클라이언트 재로드 또는 실제 권한은 추정하지 않습니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.result.viewed"
+msgstr "구성 미리 보기를 닫았습니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.scope"
+msgstr "구성 범위"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "setup.secret"
+msgstr "저장 파일에는 비공개 클라이언트 자격 증명이 포함됩니다. 공유하거나 커밋하지 마세요."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.user"
+msgstr "사용자 구성"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.verify"
+msgstr "기존 접근 확인"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.working"
+msgstr "로컬 클라이언트 구성을 확인하는 중…"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

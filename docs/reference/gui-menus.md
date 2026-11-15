@@ -49,6 +49,7 @@ for authentication, verification and cancellation.
 | Menu / surface | Action ID | Behavior and availability |
 | --- | --- | --- |
 | Terminal > Continuous recording; recording status indicator | `logs.open` | Start explicit raw/text output recording for the captured view, inspect this window's records, stop them, or select one local log file for confirmed trash. Available offline for retained results. |
+| Host > Configure or repair MCP clients | `setup.open` | Inspect one local client, verify existing access, or explicitly confirm file-adapter setup/repair. Available offline; no token or configuration path enters Renderer. See the [setup workflow](../getting-started/mcp-server.md#desktop-client-setup-and-repair). |
 | Host > Host information and connection | `host.settings` | Show Main-owned versions, connection capabilities and the local endpoint, including while offline. Saving disconnects this window; no shortcut or Host-stop action. |
 | Host > Connect to Host...; Host panel | `host.connect` | Connect to the configured Host while disconnected and idle; the existing default-local companion startup policy is unchanged. |
 | Host > Disconnect from Host; Host panel | `host.disconnect` | Release this window's connection and attachments; enabled while connected and idle. |

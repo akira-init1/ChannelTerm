@@ -2,6 +2,7 @@ import { checkWorkbenchLocales } from "./workbench-i18n-checks.mjs";
 import { checkIdle } from "./idle-checks.mjs";
 import { checkHostSettings } from "./host-settings-checks.mjs";
 import { checkRecordings } from "./recording-checks.mjs";
+import { checkMCPSetup } from "./mcp-setup-checks.mjs";
 import { checkControl } from "./control-checks.mjs";
 import { checkWorkspace } from "./workspace-checks.mjs";
 import { checkDebugOverview } from "./debug-checks.mjs";
@@ -580,6 +581,7 @@ try {
   await checkIdle(desktopEnvironment, preloadArgs);
   await checkHostSettings(desktopEnvironment);
   await checkRecordings(desktopEnvironment);
+  await checkMCPSetup(desktopEnvironment);
   console.log(
     "PASS: native workbench at 760/1180/1500px, hover/keyboard flyouts, serial and SSH creation, authentication failure, shared I/O and lifetime, disconnected/empty/selection/attached/failure states, long lists, sandbox, lease blocking, overwrite, reconnect, detach/reattach, native close, surviving Host/observer, Session close and Host loss/retry. Empty/large lists use test-only IPC snapshots; connections use the real isolated Host with fake serial I/O and loopback SSH.",
   );

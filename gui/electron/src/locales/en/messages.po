@@ -125,6 +125,7 @@ msgstr "Baud rate"
 
 #. js-lingui-explicit-id
 #: src/main/index.ts
+#: src/main/index.ts
 #: src/shared/menu-messages.ts
 msgid "connection.cancel"
 msgstr "Cancel"
@@ -655,6 +656,7 @@ msgid "diagnostics.cancelled"
 msgstr "Save cancelled."
 
 #. js-lingui-explicit-id
+#: src/main/index.ts
 #: src/shared/menu-messages.ts
 msgid "diagnostics.close"
 msgstr "Close"
@@ -1780,6 +1782,234 @@ msgstr "Keyboard shortcuts"
 #: src/shared/menu-messages.ts
 msgid "settings.transfers"
 msgstr "File transfer"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "setup.after"
+msgstr "After (redacted)"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "setup.apply"
+msgstr "Confirm file-adapter change"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "setup.before"
+msgstr "Before (redacted)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.client"
+msgstr "MCP client"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.configure"
+msgstr "Preview configuration or repair"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.confirm"
+msgstr "Apply this configuration using the file adapter?"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.detected"
+msgstr "Detected"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.error.apply"
+msgstr "Setup did not complete. Inspect recovery and the original configuration before another change."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.error.authentication"
+msgstr "Credential missing or authentication rejected. Check the Host domain, then explicitly repair this client."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.error.changed"
+msgstr "Configuration changed after preview. Review a fresh preview."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.error.companion"
+msgstr "Client-setup companion unavailable. Update or rebuild the matching CLI."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.error.configuration"
+msgstr "Configuration is damaged, shadowed, unavailable, or uses an unsupported scope/version. Inspect the client configuration; no unsafe replacement was performed."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.error.network"
+msgstr "Host could not be reached or verified. Check endpoint and readiness."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.error.permission"
+msgstr "Host denied permission. Check authorization; credential replacement does not grant writes."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.error.recovery"
+msgstr "External changes or cleanup failure prevent safe recovery. Preserve files and registrations for manual inspection."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.error.unavailable"
+msgstr "Host authentication unavailable. Check its configuration before creating another credential."
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "setup.fallback"
+msgstr "Official commands are checked first. File-adapter fallback requires confirmation when commands cannot provide durable authentication and safe replacement preview."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.inspect"
+msgstr "View redacted configuration"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.intro"
+msgstr "Choose one client and an explicit scope. Review the exact target file and redacted changes in the native dialog before writing."
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "setup.newCredential"
+msgstr "New credentials are independent and read-only. Safe rollback removes the new credential. Old credentials are never revoked automatically."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.noneDetected"
+msgstr "No supported client detected. Select a known client explicitly to inspect its configuration."
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "setup.normalization"
+msgstr "The selected entry is replaced in full. Other settings are preserved by value. Serialization normalizes formatting and removes TOML comments."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.notDetected"
+msgstr "Not detected"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.open"
+msgstr "Configure or repair MCP clients"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.permissions.read_only"
+msgstr "New credential: read-only"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.permissions.unknown"
+msgstr "Effective permissions: not verified"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "setup.preserveNotice"
+msgstr "An entry exists. It will remain unchanged because explicit replacement is not selected."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.project"
+msgstr "Selected project folder"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.recover"
+msgstr "Inspect interrupted setup"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.reload"
+msgstr "Restart or reload the chosen client and check its MCP status after saving. This independent read-only probe does not prove the client loaded the configuration. Project overrides may take precedence."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.replace"
+msgstr "Explicitly replace an existing ChannelTerm entry"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.result.applied"
+msgstr "Configuration saved and independent read-only access verified. Client reload is still required."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.result.cancelled"
+msgstr "Cancelled. No configuration was applied."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.result.none"
+msgstr "No interrupted setup needs recovery."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.result.preserved"
+msgstr "Existing entry preserved. Verify it, or explicitly select replacement to repair it."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.result.recovered_applied"
+msgstr "Interrupted setup had already saved its configuration. Its credential was preserved; reload and verify the client."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.result.rolled_back"
+msgstr "Unpublished setup recovered. New credential removed; original configuration preserved."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.result.verified_existing"
+msgstr "Existing credential passed a read-only probe. Client reload and effective permissions are not inferred."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.result.viewed"
+msgstr "Redacted preview closed."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.scope"
+msgstr "Configuration scope"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "setup.secret"
+msgstr "The saved file contains a private client credential. Do not share or commit it."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.user"
+msgstr "User configuration"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.verify"
+msgstr "Verify existing access"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.working"
+msgstr "Checking local client configuration…"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

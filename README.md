@@ -377,6 +377,8 @@ validation, and persistence behavior.
 - [Documentation index](docs/README.md)
 - [Electron GUI prototype and development](docs/development/electron-gui.md) — The default local Host connects or starts automatically; create serial and SSH Sessions directly in the GUI. Browse device directories and transfer serial files/folders in either direction with GUI progress. Open multiple windows and terminal tabs, and move a tab to a new window without closing its shared Session.
 
+The GUI also provides [MCP client setup and repair](docs/getting-started/mcp-server.md#desktop-client-setup-and-repair): preview one client configuration, explicitly confirm changes, and verify independent read-only access before reloading the client.
+
 Local unsigned [desktop packages](docs/development/electron-gui.md#local-desktop-packages) bundle Electron and matching Host/CLI helpers, so users need no Node or Go. Windows x64 ZIP and per-user installer checks are available; other native targets and real devices still require acceptance. Signing and desktop publishing are not configured.
 
 New desktop-started Hosts release unused Sessions after 30 seconds and keep MCP running; manual Hosts keep their existing default. Registered monitoring, active operations and human pause retain a Session. See [idle policy and migration](docs/reference/configuration.md#host-idle-policy).

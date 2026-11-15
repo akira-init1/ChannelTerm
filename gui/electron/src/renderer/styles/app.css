@@ -1461,3 +1461,24 @@ main {
 .recording-dialog footer {
   flex-shrink: 0;
 }
+.setup-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+.mcp-setup-dialog fieldset {
+  min-inline-size: 0;
+}
+.mcp-setup-dialog .connection-check {
+  display: flex;
+  align-items: flex-start;
+}
+.mcp-setup-dialog .connection-check input {
+  width: auto;
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+.mcp-setup-dialog .recording-content {
+  overflow-wrap: anywhere;
+}

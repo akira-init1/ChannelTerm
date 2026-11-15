@@ -1,5 +1,53 @@
 # MCP Server
 
+## Desktop client setup and repair
+
+In Electron, open **Host > Configure or repair MCP clients**. This local workflow configures one
+selected client for the window's numeric loopback HTTP endpoint. It remains available when the GUI
+cannot authenticate. Start the matching Host under the same account/configuration domain first;
+repair never restarts it or changes shared Sessions.
+
+1. Choose Codex, Claude Code, OpenCode or Zoo Code. User scope is the default; project scope requires
+   a native folder selection and is unavailable for Codex. It never follows the GUI working directory.
+2. **View redacted configuration** shows the precise file and selected entry in a Main-owned native
+   dialog. **Verify existing access** probes the existing bearer with an independent read-only request.
+   It neither replaces credentials nor infers the external client's effective permissions.
+3. **Preview configuration or repair** checks installed official command capabilities. Current supported
+   commands cannot combine a durable bearer source, a safe exact replacement preview and rollback;
+   explicitly confirm file-adapter fallback to proceed. A temporary environment-variable reference
+   does not guarantee that a later client process can authenticate.
+4. Existing entries remain unchanged unless **Explicitly replace an existing ChannelTerm entry** is
+   selected. Confirm the exact target, redacted before/after entry and serialization notice: the selected
+   entry is replaced in full; other settings retain their values, while formatting is normalized and
+   TOML comments are removed. Configuration changes since preview require another preview.
+5. A new independent agent credential is read-only. Setup verifies a read-only Host request before
+   publishing it to the client file. It does not export the GUI management credential, grant writes,
+   revoke old credentials or replay a rejected operation. The resulting file contains a private bearer:
+   **do not share it or commit it**, especially with project-scoped configuration.
+6. Restart/reload the chosen client and inspect its own MCP status. **Saved**, **independent probe
+   verified**, and **client loaded/connected** are separate facts. Project overrides may shadow user
+   configuration. Codex `mcp get channelterm` checks parsing; it is not proof of an MCP connection.
+
+The repair adapter respects `CODEX_HOME` and OpenCode's `XDG_CONFIG_HOME` (otherwise `~/.config`)
+location. Installed OpenCode 1.x uses `mcp.channelterm`; supported 2.x uses `mcp.servers.channelterm`.
+An unknown OpenCode version, an adjacent `opencode.jsonc`, or custom Claude/OpenCode configuration
+overrides requires manual review rather than writing a possibly shadowed file. Claude user scope is
+`~/.claude.json` and project scope is the selected folder's `.mcp.json`; Zoo Code uses its existing
+global-storage adapter or the selected folder's `.roo/mcp.json`. Legacy `init --mcp` remains unchanged.
+
+401 means missing/rejected authentication; 403 means denied permissions; 503 means the authentication
+service is unavailable. These are distinct from an unreachable Host. Do not repeatedly replace
+credentials to cure a permission or Host-availability problem.
+
+Failures before publication remove only the transaction's new registration when safe. The original
+client file and old registrations remain. **Inspect interrupted setup** checks a private recovery
+marker: an unchanged original rolls back the new registration; an already published replacement keeps
+it. Unexpected external changes or a changed registration stop recovery for manual inspection. No
+old file is copied over a user's intervening edit. Filesystem/power-loss guarantees depend on storage;
+ordinary crash recovery is not a multi-file filesystem transaction. See the
+[local JSON interface](../reference/cli.md#desktop-client-configuration-interface) and
+[configuration state](../reference/configuration.md#desktop-client-repair-state).
+
 For files already on the Host, enable a dedicated
 [transfer root](../reference/configuration.md#managed-file-transfer-grants) and use `file_transfer`
 for serial/SFTP/SCP, multiple paths and optional TAR/gzip output. It is disabled by default. See the

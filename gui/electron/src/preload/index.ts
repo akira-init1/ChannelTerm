@@ -3,6 +3,9 @@ import { channels, type DesktopAPI } from "../shared/api";
 import { isAction } from "../shared/menus";
 
 const api: DesktopAPI = {
+  mcpSetupClients: () => ipcRenderer.invoke(channels.mcpSetupClients),
+  mcpSetupRecover: () => ipcRenderer.invoke(channels.mcpSetupRecover),
+  mcpSetup: (request) => ipcRenderer.invoke(channels.mcpSetup, request),
   recordings: () => ipcRenderer.invoke(channels.recordings),
   startRecording: (request) =>
     ipcRenderer.invoke(channels.startRecording, request),

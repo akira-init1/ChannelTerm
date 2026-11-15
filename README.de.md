@@ -380,6 +380,8 @@ unterstützt außerdem `--connection-policy ask|auto|deny`. `--config` ändert n
 - [Dokumentationsindex](docs/README.md)
 - [Electron-GUI-Prototyp und Entwicklung](docs/development/electron-gui.md) — Der lokale Standard-Host wird automatisch verbunden oder gestartet; serielle und SSH-Sitzungen lassen sich direkt in der GUI erstellen. Geräteverzeichnisse durchsuchen und Dateien/Ordner seriell in beide Richtungen mit GUI-Fortschritt übertragen. Öffnen Sie mehrere Fenster und Terminal-Tabs und verschieben Sie einen Tab in ein neues Fenster, ohne seine gemeinsame Sitzung zu schließen.
 
+Die GUI bietet auch [MCP-Client-Einrichtung und Reparatur](docs/getting-started/mcp-server.md#desktop-client-setup-and-repair): einzelne Konfiguration vorschauen, Änderungen ausdrücklich bestätigen und unabhängigen Lesezugriff vor dem Neuladen des Clients prüfen.
+
 Lokale unsignierte [Desktop-Pakete](docs/development/electron-gui.md#local-desktop-packages) enthalten Electron und passende Host/CLI-Hilfsprogramme; Nutzer benötigen weder Node noch Go. Prüfungen für Windows-x64-ZIP und benutzerbezogene Installer sind verfügbar. Andere native Ziele und echte Geräte müssen noch abgenommen werden. Signierung und Desktop-Veröffentlichung sind nicht eingerichtet.
 
 Neu vom Desktop gestartete Hosts geben ungenutzte Sessions nach 30 Sekunden frei; MCP läuft weiter. Manuell gestartete Hosts behalten ihr bisheriges Standardverhalten. Registrierte Überwachung, laufende Vorgänge und eine menschlich gesetzte KI-Pause erhalten die Session. Siehe [Leerlaufrichtlinie und Migration](docs/reference/configuration.md#host-idle-policy).

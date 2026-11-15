@@ -49,6 +49,7 @@ export type Action =
       id:
         | "host.connect"
         | "host.settings"
+        | "setup.open"
         | "logs.open"
         | "host.disconnect"
         | "connection.new"
@@ -226,6 +227,12 @@ export function applicationMenu(state: MenuState): MenuEntry[] {
       id: "host",
       label: "menu.host",
       children: [
+        {
+          id: "setup.open",
+          label: "setup.open",
+          enabled: !state.busy,
+          action: { id: "setup.open" },
+        },
         {
           id: "host.settings",
           label: "host.settings",
@@ -513,6 +520,7 @@ export function isMenuLocale(value: unknown): value is MenuLocale {
 export function isAction(value: unknown): value is Action {
   if (!record(value)) return false;
   switch (value.id) {
+    case "setup.open":
     case "logs.open":
     case "host.settings":
     case "host.connect":
@@ -660,6 +668,8 @@ export function actionEnabled(action: Action, state: MenuState): boolean {
     case "host.connect":
       return !state.connected && !state.busy;
     case "host.settings":
+      return !state.busy;
+    case "setup.open":
       return !state.busy;
     case "logs.open":
       return !state.busy;

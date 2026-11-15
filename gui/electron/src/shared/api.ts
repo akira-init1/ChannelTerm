@@ -1,5 +1,10 @@
 import type { DebugOverview } from "./debug";
 import type { RecordingRequest, RecordingStatus } from "./logging";
+import type {
+  MCPSetupClient,
+  MCPSetupRequest,
+  MCPSetupResult,
+} from "./mcp-setup";
 import type { ActivitySnapshot } from "./activity";
 import type { DiagnosticRequest, DiagnosticSaved } from "./diagnostics";
 import type { SSHBrowseRequest, SSHBrowseResult } from "./ssh-browser";
@@ -128,6 +133,9 @@ export interface WindowInfo {
 /** One method per IPC channel; no arbitrary tool, URL, file, or process access. */
 export interface DesktopAPI {
   recordings(): Promise<Result<RecordingStatus[]>>;
+  mcpSetupClients(): Promise<Result<MCPSetupClient[]>>;
+  mcpSetupRecover(): Promise<Result<MCPSetupResult>>;
+  mcpSetup(request: MCPSetupRequest): Promise<Result<MCPSetupResult>>;
   startRecording(request: RecordingRequest): Promise<Result<void>>;
   stopRecording(id: string): Promise<Result<void>>;
   deleteRecordingFile(): Promise<Result<boolean>>;
@@ -227,6 +235,9 @@ export interface DesktopAPI {
 
 export const channels = {
   recordings: "logs:list",
+  mcpSetupClients: "mcp-setup:clients",
+  mcpSetupRecover: "mcp-setup:recover",
+  mcpSetup: "mcp-setup:perform",
   startRecording: "logs:start",
   stopRecording: "logs:stop",
   deleteRecordingFile: "logs:delete-file",

@@ -363,6 +363,8 @@ channelterm serial --config ./channelterm.toml --profile board
 - [文件索引](docs/README.md)
 - [Electron GUI 原型與開發](docs/development/electron-gui.md) — 自動連線或啟動預設本機 Host，直接在 GUI 中建立序列埠和 SSH 工作階段。 支援瀏覽裝置目錄、序列埠雙向傳輸檔案及資料夾，並顯示 GUI 進度。 支援多個視窗及終端分頁，並可將分頁移至新視窗而不關閉共用工作階段。
 
+GUI 也提供 [MCP 用戶端設定與修復](docs/getting-started/mcp-server.md#desktop-client-setup-and-repair)：預覽單一用戶端設定、明確確認變更，並在重新載入用戶端前驗證獨立唯讀存取。
+
 本機未簽署的[桌面套件](docs/development/electron-gui.md#local-desktop-packages)包含 Electron 和相符的 Host/CLI 輔助程式，使用者無需安裝 Node 或 Go。已有 Windows x64 ZIP 與每使用者安裝程式檢查；其他原生目標及真實裝置仍需驗收。尚未設定簽署與桌面發佈。
 
 桌面新啟動的 Host 預設在 Session 無人使用 30 秒後釋放它，並保留 MCP；手動啟動的 Host 維持原有預設行為。已登記監控、活動操作和人工暫停會保留 Session。參見[閒置策略與遷移](docs/reference/configuration.md#host-idle-policy)。

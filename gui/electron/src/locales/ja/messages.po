@@ -125,6 +125,7 @@ msgstr "ボーレート"
 
 #. js-lingui-explicit-id
 #: src/main/index.ts
+#: src/main/index.ts
 #: src/shared/menu-messages.ts
 msgid "connection.cancel"
 msgstr "キャンセル"
@@ -655,6 +656,7 @@ msgid "diagnostics.cancelled"
 msgstr "保存をキャンセルしました。"
 
 #. js-lingui-explicit-id
+#: src/main/index.ts
 #: src/shared/menu-messages.ts
 msgid "diagnostics.close"
 msgstr "閉じる"
@@ -1780,6 +1782,234 @@ msgstr "キーボードショートカット"
 #: src/shared/menu-messages.ts
 msgid "settings.transfers"
 msgstr "ファイル転送"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "setup.after"
+msgstr "変更後（機密情報を非表示）"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "setup.apply"
+msgstr "ファイルアダプターによる変更を確認"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "setup.before"
+msgstr "変更前（機密情報を非表示）"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.client"
+msgstr "MCP クライアント"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.configure"
+msgstr "設定・修復内容をプレビュー"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.confirm"
+msgstr "ファイルアダプターでこの設定を適用しますか？"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.detected"
+msgstr "検出済み"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.error.apply"
+msgstr "設定が完了しませんでした。再変更前に復旧状態と元の設定を確認してください。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.error.authentication"
+msgstr "認証情報がないか、認証が拒否されました。Host の認証領域を確認してから、このクライアントを明示的に修復してください。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.error.changed"
+msgstr "プレビュー後に設定が変わりました。新しいプレビューを確認してください。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.error.companion"
+msgstr "クライアント設定用の付属プログラムがありません。対応する CLI を更新または再ビルドしてください。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.error.configuration"
+msgstr "設定が破損、上書き、使用不可、または範囲・バージョンが未対応です。クライアント設定を確認してください。安全でない置換は行っていません。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.error.network"
+msgstr "Host に接続できないか検証できません。エンドポイントと起動状態を確認してください。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.error.permission"
+msgstr "Host が権限を拒否しました。認可を確認してください。認証情報の置換で書き込み権限は付与されません。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.error.recovery"
+msgstr "外部変更またはクリーンアップ失敗のため、安全に復旧できません。手動確認のためファイルと登録を保持してください。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.error.unavailable"
+msgstr "Host の認証が使用できません。新しい認証情報を作る前に設定を確認してください。"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "setup.fallback"
+msgstr "まず公式コマンドを確認します。永続的な認証と安全な置換プレビューを提供できない場合、ファイルアダプターへの切り替えには明示的な確認が必要です。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.inspect"
+msgstr "機密情報を伏せた設定を表示"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.intro"
+msgstr "クライアントと適用範囲を選択してください。書き込み前に、ネイティブダイアログで対象ファイルと機密情報を伏せた変更を確認します。"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "setup.newCredential"
+msgstr "新しい認証情報は独立した読み取り専用です。安全に戻せる場合は新しい認証情報を削除します。古い認証情報は自動失効しません。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.noneDetected"
+msgstr "対応クライアントが検出されませんでした。既知のクライアントを明示的に選択して設定を確認できます。"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "setup.normalization"
+msgstr "選択した項目全体を置換します。他の設定値は保持します。シリアル化により書式を正規化し、TOML コメントを削除します。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.notDetected"
+msgstr "未検出"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.open"
+msgstr "MCP クライアントの設定・修復"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.permissions.read_only"
+msgstr "新しい認証情報：読み取り専用"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.permissions.unknown"
+msgstr "実効権限：未検証"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "setup.preserveNotice"
+msgstr "項目が存在します。明示的な置換が選択されていないため、変更しません。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.project"
+msgstr "選択したプロジェクトフォルダー"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.recover"
+msgstr "中断した設定を確認"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.reload"
+msgstr "保存後、選択したクライアントを再起動または再読み込みし、MCP の状態を確認してください。この独立した読み取り専用プローブは、クライアントによる設定の読み込みを証明しません。プロジェクト設定が優先される場合があります。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.replace"
+msgstr "既存の ChannelTerm 項目を明示的に置換する"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.result.applied"
+msgstr "設定を保存し、独立した読み取り専用アクセスを検証しました。クライアントの再読み込みが必要です。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.result.cancelled"
+msgstr "キャンセルしました。設定は適用していません。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.result.none"
+msgstr "復旧が必要な中断設定はありません。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.result.preserved"
+msgstr "既存項目を保持しました。アクセスを検証するか、置換を明示的に選択して修復してください。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.result.recovered_applied"
+msgstr "中断した設定は既に保存されていました。認証情報を保持しました。クライアントを再読み込みして確認してください。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.result.rolled_back"
+msgstr "未反映の設定を復旧しました。新しい認証情報を削除し、元の設定を保持しました。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.result.verified_existing"
+msgstr "既存の認証情報が読み取り専用プローブに成功しました。クライアントの再読み込みや実効権限は推測しません。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.result.viewed"
+msgstr "設定プレビューを閉じました。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.scope"
+msgstr "設定の適用範囲"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "setup.secret"
+msgstr "保存されるファイルには秘密のクライアント認証情報が含まれます。共有やコミットをしないでください。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.user"
+msgstr "ユーザー設定"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.verify"
+msgstr "既存のアクセスを検証"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "setup.working"
+msgstr "ローカルのクライアント設定を確認中…"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

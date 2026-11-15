@@ -3,6 +3,161 @@ import type { MessageDescriptor } from "@lingui/core";
 // Lingui 5 extracts these official annotated descriptors without a runtime macro
 // transform. Translations belong in PO catalogs; this file owns IDs and English defaults.
 export const menuMessages = [
+  /* i18n */ {
+    id: "setup.secret",
+    message:
+      "The saved file contains a private client credential. Do not share or commit it.",
+  },
+  /* i18n */ { id: "setup.open", message: "Configure or repair MCP clients" },
+  /* i18n */ {
+    id: "setup.intro",
+    message:
+      "Choose one client and an explicit scope. Review the exact target file and redacted changes in the native dialog before writing.",
+  },
+  /* i18n */ {
+    id: "setup.noneDetected",
+    message:
+      "No supported client detected. Select a known client explicitly to inspect its configuration.",
+  },
+  /* i18n */ { id: "setup.client", message: "MCP client" },
+  /* i18n */ { id: "setup.scope", message: "Configuration scope" },
+  /* i18n */ { id: "setup.user", message: "User configuration" },
+  /* i18n */ { id: "setup.project", message: "Selected project folder" },
+  /* i18n */ {
+    id: "setup.replace",
+    message: "Explicitly replace an existing ChannelTerm entry",
+  },
+  /* i18n */ {
+    id: "setup.fallback",
+    message:
+      "Official commands are checked first. File-adapter fallback requires confirmation when commands cannot provide durable authentication and safe replacement preview.",
+  },
+  /* i18n */ {
+    id: "setup.newCredential",
+    message:
+      "New credentials are independent and read-only. Safe rollback removes the new credential. Old credentials are never revoked automatically.",
+  },
+  /* i18n */ { id: "setup.inspect", message: "View redacted configuration" },
+  /* i18n */ { id: "setup.verify", message: "Verify existing access" },
+  /* i18n */ {
+    id: "setup.configure",
+    message: "Preview configuration or repair",
+  },
+  /* i18n */ {
+    id: "setup.working",
+    message: "Checking local client configuration…",
+  },
+  /* i18n */ {
+    id: "setup.reload",
+    message:
+      "Restart or reload the chosen client and check its MCP status after saving. This independent read-only probe does not prove the client loaded the configuration. Project overrides may take precedence.",
+  },
+  /* i18n */ { id: "setup.recover", message: "Inspect interrupted setup" },
+  /* i18n */ {
+    id: "setup.confirm",
+    message: "Apply this configuration using the file adapter?",
+  },
+  /* i18n */ { id: "setup.apply", message: "Confirm file-adapter change" },
+  /* i18n */ {
+    id: "setup.normalization",
+    message:
+      "The selected entry is replaced in full. Other settings are preserved by value. Serialization normalizes formatting and removes TOML comments.",
+  },
+  /* i18n */ {
+    id: "setup.preserveNotice",
+    message:
+      "An entry exists. It will remain unchanged because explicit replacement is not selected.",
+  },
+  /* i18n */ { id: "setup.before", message: "Before (redacted)" },
+  /* i18n */ { id: "setup.after", message: "After (redacted)" },
+  /* i18n */ { id: "setup.detected", message: "Detected" },
+  /* i18n */ { id: "setup.notDetected", message: "Not detected" },
+  /* i18n */ {
+    id: "setup.result.cancelled",
+    message: "Cancelled. No configuration was applied.",
+  },
+  /* i18n */ { id: "setup.result.viewed", message: "Redacted preview closed." },
+  /* i18n */ {
+    id: "setup.result.preserved",
+    message:
+      "Existing entry preserved. Verify it, or explicitly select replacement to repair it.",
+  },
+  /* i18n */ {
+    id: "setup.result.applied",
+    message:
+      "Configuration saved and independent read-only access verified. Client reload is still required.",
+  },
+  /* i18n */ {
+    id: "setup.result.verified_existing",
+    message:
+      "Existing credential passed a read-only probe. Client reload and effective permissions are not inferred.",
+  },
+  /* i18n */ {
+    id: "setup.result.recovered_applied",
+    message:
+      "Interrupted setup had already saved its configuration. Its credential was preserved; reload and verify the client.",
+  },
+  /* i18n */ {
+    id: "setup.result.rolled_back",
+    message:
+      "Unpublished setup recovered. New credential removed; original configuration preserved.",
+  },
+  /* i18n */ {
+    id: "setup.result.none",
+    message: "No interrupted setup needs recovery.",
+  },
+  /* i18n */ {
+    id: "setup.permissions.read_only",
+    message: "New credential: read-only",
+  },
+  /* i18n */ {
+    id: "setup.permissions.unknown",
+    message: "Effective permissions: not verified",
+  },
+  /* i18n */ {
+    id: "setup.error.configuration",
+    message:
+      "Configuration is damaged, shadowed, unavailable, or uses an unsupported scope/version. Inspect the client configuration; no unsafe replacement was performed.",
+  },
+  /* i18n */ {
+    id: "setup.error.changed",
+    message: "Configuration changed after preview. Review a fresh preview.",
+  },
+  /* i18n */ {
+    id: "setup.error.authentication",
+    message:
+      "Credential missing or authentication rejected. Check the Host domain, then explicitly repair this client.",
+  },
+  /* i18n */ {
+    id: "setup.error.permission",
+    message:
+      "Host denied permission. Check authorization; credential replacement does not grant writes.",
+  },
+  /* i18n */ {
+    id: "setup.error.unavailable",
+    message:
+      "Host authentication unavailable. Check its configuration before creating another credential.",
+  },
+  /* i18n */ {
+    id: "setup.error.network",
+    message:
+      "Host could not be reached or verified. Check endpoint and readiness.",
+  },
+  /* i18n */ {
+    id: "setup.error.apply",
+    message:
+      "Setup did not complete. Inspect recovery and the original configuration before another change.",
+  },
+  /* i18n */ {
+    id: "setup.error.recovery",
+    message:
+      "External changes or cleanup failure prevent safe recovery. Preserve files and registrations for manual inspection.",
+  },
+  /* i18n */ {
+    id: "setup.error.companion",
+    message:
+      "Client-setup companion unavailable. Update or rebuild the matching CLI.",
+  },
   /* i18n */ { id: "logs.open", message: "Continuous recording" },
   /* i18n */ {
     id: "logs.warning",

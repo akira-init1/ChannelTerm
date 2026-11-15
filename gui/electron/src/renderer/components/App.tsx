@@ -1,5 +1,6 @@
 import { ControlPanel } from "../sessions/ControlPanel";
 import { HostSettingsDialog } from "./HostSettings";
+import { MCPSetupDialog } from "./MCPSetup";
 import { RecordingDialog, useRecordings } from "../terminal/RecordingDialog";
 import { retainedTransfer } from "../../shared/transfers";
 import {
@@ -138,6 +139,7 @@ export function App() {
   const [restoringWorkspace, setRestoringWorkspace] = useState(false);
   const [info, setInfo] = useState<HostInfo>();
   const [hostSettingsOpen, setHostSettingsOpen] = useState(false);
+  const [mcpSetupOpen, setMCPSetupOpen] = useState(false);
   const [recordingDialog, setRecordingDialog] = useState<{
     attachment?: Attachment;
   }>();
@@ -568,6 +570,7 @@ export function App() {
       connected,
       sshAvailable: !!info?.sshAvailable,
       busy:
+        mcpSetupOpen ||
         !!recordingDialog ||
         hostSettingsOpen ||
         working ||
@@ -595,6 +598,7 @@ export function App() {
     [
       locale,
       hostSettingsOpen,
+      mcpSetupOpen,
       recordingDialog,
       languagePreference,
       connected,
@@ -1144,6 +1148,7 @@ export function App() {
       attachment: tab?.attachment,
       tabId: tab?.id,
       busy:
+        mcpSetupOpen ||
         !!recordingDialog ||
         hostSettingsOpen ||
         working ||
@@ -1400,6 +1405,9 @@ export function App() {
     actionBusy.current = true;
     try {
       switch (action.id) {
+        case "setup.open":
+          setMCPSetupOpen(true);
+          break;
         case "logs.open":
           setRecordingDialog({
             attachment: connected ? attachment : undefined,
@@ -1622,6 +1630,13 @@ export function App() {
           records={recordings}
           t={t}
           onClose={() => setRecordingDialog(undefined)}
+        />
+      )}
+      {mcpSetupOpen && (
+        <MCPSetupDialog
+          endpoint={info?.endpoint ?? ""}
+          t={t}
+          onClose={() => setMCPSetupOpen(false)}
         />
       )}
       {draggingFiles && (
@@ -2154,6 +2169,7 @@ export function App() {
                       )?.control?.version
                     }
                     writable={
+                      !mcpSetupOpen &&
                       !recordingDialog &&
                       !hostSettingsOpen &&
                       tab.id === selectedTabId &&

@@ -379,6 +379,15 @@ for sizing and extension boundaries.
 
 ## Checks and isolated Host
 
+Client-setup checks use a disposable real Host registration domain and separate client home/config
+directories. They verify native confirmation/cancel, existing-entry preservation, read-only registration,
+revoked authentication/repair, secret/path isolation, nine locales and compact layout. Native dialogs
+are substituted to inspect their exact sanitized preview. When installed, a fresh Codex process checks
+configuration parsing and OpenCode checks an actual MCP connection; the former alone is not connection
+evidence. Missing executables are reported separately. No Agent prompt is sent and no user configuration
+or registration is modified. Go tests cover malformed/changed files, injected write failure,
+cancellation and recovery at publication boundaries.
+
 Continuous-recording tests check exact raw bytes, split UTF-8/control escaping, combined data/index
 limits, rotation, buffer gaps, canceled selection, disk-full injection and stop during a slow/failing
 write. The real fake-I/O Host checks independent cursors, transfer-range capture and background idle

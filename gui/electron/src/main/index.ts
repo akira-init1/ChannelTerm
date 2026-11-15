@@ -1,6 +1,8 @@
 import { DesktopFiles, TransferConfirmation } from "./files";
 import { DesktopDiagnostics } from "./diagnostics";
 import { DesktopRecordings } from "./logging";
+import { DesktopMCPSetup } from "./mcp-setup";
+import { isMCPSetupRequest } from "../shared/mcp-setup";
 import { isRecordingRequest } from "../shared/logging";
 import { setupI18n } from "@lingui/core";
 import { menuCatalogs } from "../locales/catalogs";
@@ -79,6 +81,7 @@ interface WindowContext {
   sshFiles: DesktopSSHFiles;
   diagnostics: DesktopDiagnostics;
   recordings: DesktopRecordings;
+  mcpSetup: DesktopMCPSetup;
   closingRecordings: boolean;
   sshBrowser: DesktopSSHBrowser;
   menu: MenuState;
@@ -374,6 +377,58 @@ function createHandlers(context: WindowContext): Record<string, Handler> {
   let copyingTarget = false;
   let deletingLog = false;
   const handlers: Record<string, (...args: unknown[]) => unknown> = {
+    [channels.mcpSetupClients]: () => context.mcpSetup.discover(),
+    [channels.mcpSetupRecover]: () => context.mcpSetup.recover(),
+    [channels.mcpSetup]: (request) => {
+      if (!isMCPSetupRequest(request))
+        throw new HostError("invalid_input", "Invalid client setup request.");
+      if (
+        context.disposed ||
+        context.savingEndpoint ||
+        context.closingRecordings ||
+        desktop.quitting
+      )
+        throw new HostError("busy", "The window is changing or closing.");
+      return context.mcpSetup.perform(
+        request,
+        context.endpoint,
+        async () => {
+          const picked = await dialog.showOpenDialog(context.window, {
+            properties: ["openDirectory"],
+          });
+          return picked.canceled ? undefined : picked.filePaths[0];
+        },
+        async (preview, inspect) => {
+          const i18n = setupI18n({
+            locale: context.menu.locale,
+            messages: menuCatalogs,
+          });
+          const answer = await dialog.showMessageBox(context.window, {
+            type: inspect ? "info" : "warning",
+            message: i18n._(inspect ? "setup.inspect" : "setup.confirm"),
+            detail: [
+              preview.path,
+              i18n._("setup.fallback"),
+              i18n._("setup.normalization"),
+              i18n._("setup.secret"),
+              preview.existing && !request.replace
+                ? i18n._("setup.preserveNotice")
+                : i18n._("setup.newCredential"),
+              i18n._("setup.before"),
+              preview.before,
+              i18n._("setup.after"),
+              preview.after,
+            ].join("\n\n"),
+            buttons: inspect
+              ? [i18n._("diagnostics.close")]
+              : [i18n._("connection.cancel"), i18n._("setup.apply")],
+            defaultId: 0,
+            cancelId: 0,
+          });
+          return !inspect && answer.response === 1;
+        },
+      );
+    },
     [channels.recordings]: () => context.recordings.list(),
     [channels.startRecording]: (request) => {
       if (!isRecordingRequest(request))
@@ -562,6 +617,7 @@ function createHandlers(context: WindowContext): Record<string, Handler> {
       validateEndpoint(value);
       if (
         context.savingEndpoint ||
+        context.mcpSetup.busy ||
         context.recordings.choosing ||
         context.connecting ||
         context.files.busy ||
@@ -587,6 +643,7 @@ function createHandlers(context: WindowContext): Record<string, Handler> {
     },
     [channels.connect]: async () => {
       if (
+        context.mcpSetup.busy ||
         context.recordings.choosing ||
         context.files.busy ||
         context.sshFiles.busy ||
@@ -639,6 +696,7 @@ function createHandlers(context: WindowContext): Record<string, Handler> {
     },
     [channels.disconnect]: () => {
       if (
+        context.mcpSetup.busy ||
         context.files.busy ||
         context.sshFiles.busy ||
         context.recordings.choosing
@@ -867,6 +925,7 @@ function registerIPC(): void {
               : [
                     channels.control,
                     channels.startRecording,
+                    channels.mcpSetup,
                     channels.stopRecording,
                     channels.saveHostEndpoint,
                     channels.focusWindow,
@@ -956,6 +1015,7 @@ function makeWindow(
     sshFiles: new DesktopSSHFiles(fileExecutable),
     diagnostics: new DesktopDiagnostics(),
     recordings: new DesktopRecordings(),
+    mcpSetup: new DesktopMCPSetup(fileExecutable),
     closingRecordings: false,
     sshBrowser: new DesktopSSHBrowser(fileExecutable),
     menu: { ...initialMenuState },
@@ -991,6 +1051,7 @@ function makeWindow(
   );
   created.on("close", (event) => {
     if (
+      context.mcpSetup.busy ||
       context.files.busy ||
       context.sshFiles.busy ||
       context.recordings.choosing
@@ -1097,6 +1158,7 @@ app.on("before-quit", (event) => {
   const contexts = [...desktop.windows.values()];
   const busy = contexts.filter(
     (context) =>
+      context.mcpSetup.busy ||
       context.files.busy ||
       context.sshFiles.busy ||
       context.recordings.choosing,

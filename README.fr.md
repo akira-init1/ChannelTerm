@@ -381,6 +381,8 @@ sélectionné, pas les fichiers `state.json` ou `http-host.json` par défaut. Co
 - [Index de la documentation](docs/README.md)
 - [Prototype GUI Electron et développement](docs/development/electron-gui.md) — Le Host local par défaut est connecté ou démarré automatiquement ; créez des sessions série et SSH directement dans la GUI. Parcourez les dossiers de l’appareil et transférez fichiers et dossiers par liaison série dans les deux sens avec progression dans la GUI. Ouvrez plusieurs fenêtres et onglets de terminal, et déplacez un onglet vers une nouvelle fenêtre sans fermer sa session partagée.
 
+La GUI propose aussi la [configuration et la réparation des clients MCP](docs/getting-started/mcp-server.md#desktop-client-setup-and-repair) : prévisualisez une configuration, confirmez explicitement les changements et vérifiez un accès indépendant en lecture seule avant de recharger le client.
+
 Les [paquets de bureau](docs/development/electron-gui.md#local-desktop-packages) locaux non signés incluent Electron et les auxiliaires Host/CLI correspondants ; les utilisateurs ne nécessitent ni Node ni Go. Des vérifications ZIP et installateur par utilisateur sont disponibles pour Windows x64. Les autres cibles natives et les appareils réels restent à valider. La signature et la publication du bureau ne sont pas configurées.
 
 Les nouveaux Hosts lancés par le bureau libèrent les Sessions inutilisées après 30 secondes et maintiennent MCP actif. Les Hosts lancés manuellement conservent leur comportement par défaut. La surveillance enregistrée, les opérations en cours et la pause de l’IA par un humain maintiennent la Session. Voir la [politique d’inactivité et la migration](docs/reference/configuration.md#host-idle-policy).
