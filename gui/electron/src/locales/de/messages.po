@@ -1170,6 +1170,66 @@ msgstr "Manuell gestarteter Host."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "host.settings"
+msgstr "Host-Informationen und Verbindung"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.apply"
+msgstr "Speichern und dieses Fenster trennen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.available"
+msgstr "Verfügbar"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.cli"
+msgstr "Version der enthaltenen CLI"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.desktop"
+msgstr "Desktop-Version"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.endpoint"
+msgstr "Lokaler Host-Endpunkt"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.hint"
+msgstr "Speichern trennt dieses Fenster und verwirft ausstehende Eingaben. Andere Fenster und gemeinsame Sessions bleiben geöffnet. Verbinden Sie sich danach ausdrücklich erneut. Neue Fenster übernehmen den Endpunkt ihres Ursprungsfensters; nach einem Neustart gilt der gespeicherte Standard. Nur numerisches Loopback-HTTP wird unterstützt."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.override"
+msgstr "CHANNELTERM_GUI_ENDPOINT überschreibt gespeicherte Einstellungen. Ändern Sie die Umgebung und starten Sie neu, um den Endpunkt zu bearbeiten."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.resize"
+msgstr "Größe des entfernten Terminals"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.transfers"
+msgstr "Verwaltete Dateiübertragungen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.unavailable"
+msgstr "Nicht verfügbar"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.versions"
+msgstr "Unbekannt bedeutet, dass keine verifizierte Version verfügbar ist. Die enthaltene CLI benötigt passende Paketmetadaten; ihre Version identifiziert nicht den laufenden Host. Fähigkeiten beschreiben diese Verbindung, keine Berechtigung zur Gerätebedienung."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "language.de"
 msgstr "Deutsch"
 

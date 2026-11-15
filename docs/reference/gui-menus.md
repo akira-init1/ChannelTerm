@@ -48,6 +48,7 @@ for authentication, verification and cancellation.
 
 | Menu / surface | Action ID | Behavior and availability |
 | --- | --- | --- |
+| Host > Host information and connection | `host.settings` | Show Main-owned versions, connection capabilities and the local endpoint, including while offline. Saving disconnects this window; no shortcut or Host-stop action. |
 | Host > Connect to Host...; Host panel | `host.connect` | Connect to the configured Host while disconnected and idle; the existing default-local companion startup policy is unchanged. |
 | Host > Disconnect from Host; Host panel | `host.disconnect` | Release this window's connection and attachments; enabled while connected and idle. |
 | Window > Exit GUI | `app.quit` | Exit the Electron app through its normal cleanup path, subject to the active file-operation close guard. |
@@ -401,7 +402,7 @@ actions follow the contracts above; connection history and workspace recovery ar
 | Host / Session | Automatic device reconnection and recreation of closed Sessions are not provided. Recent connections and SSH favorites prefill explicit forms; see [recent connections and SSH favorites](#recent-connections-and-ssh-favorites). Shared close and multiple tabs follow the contracts above. |
 | Terminal | Split panes and output folding are not exposed. SSH remote size control uses the terminal toolbar described below. Find and its select-all control operate only on the current retained view. Existing clipboard, local clear, focus and conditional resume actions remain. |
 | View | A complete MCP request audit, status-bar visibility and a combined Reset Layout action are unimplemented. Session activity shows retained Host observations, not a complete audit; Session status is not a status-bar toggle. |
-| Settings | Application theme selection, endpoint editing and Host process management are absent. Local preferences and workspace recovery are described below. |
+| Settings | Application theme selection and Host process management are absent. Local endpoint settings are available under Host; local preferences and workspace recovery are described below. |
 | Help | Online documentation navigation and updates remain unimplemented. Diagnostic ZIP export follows the explicit local-save contract below. |
 
 No built-in AI Agent, new SSH/file-transfer implementation, Core use case, or MCP protocol change

@@ -69,6 +69,9 @@ export type Result<T> =
   { ok: true; value: T } | { ok: false; error: ClientError };
 export interface HostInfo {
   endpoint: string;
+  hostVersion?: string;
+  remoteSize?: boolean;
+  managedTransfers?: boolean;
   lifetime: "persistent" | "attachment" | "unknown";
   sshAvailable?: boolean;
   sshAdvanced?: boolean;
@@ -79,6 +82,15 @@ export interface HostInfo {
     sessionTimeoutMs: number;
     exitTimeoutMs: number;
   };
+}
+/** Sanitized Main-owned connection diagnostics; no credential or filesystem paths. */
+export interface HostSettingsInfo {
+  host: HostInfo;
+  connected: boolean;
+  environmentOverride: boolean;
+  desktopVersion?: string;
+  electronVersion?: string;
+  cliVersion?: string;
 }
 export interface Attachment {
   id: string;
@@ -114,6 +126,8 @@ export interface WindowInfo {
 
 /** One method per IPC channel; no arbitrary tool, URL, file, or process access. */
 export interface DesktopAPI {
+  hostSettings(): Promise<Result<HostSettingsInfo>>;
+  saveHostEndpoint(endpoint: string): Promise<Result<HostInfo>>;
   control(request: ControlRequest): Promise<Result<ControlReply>>;
   /** File objects are consumed in Preload; only opaque selections return to Renderer. */
   selectDroppedFiles(
@@ -207,6 +221,8 @@ export interface DesktopAPI {
 }
 
 export const channels = {
+  hostSettings: "host:settings",
+  saveHostEndpoint: "host:save-endpoint",
   control: "host:control",
   selectDroppedFiles: "files:drop",
   transferPreference: "files:preference",

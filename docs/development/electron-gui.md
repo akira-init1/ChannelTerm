@@ -309,8 +309,19 @@ npm.cmd start
 ```
 
 Linux/macOS equivalent: `CHANNELTERM_GUI_ENDPOINT=http://127.0.0.1:37100/mcp npm start`.
-The endpoint is configured in Main, not editable by the renderer. No Host config file or listener
-policy is changed.
+The Host information dialog can submit a bounded numeric loopback endpoint to Main when no environment
+override is set. Main validates and saves it, then releases only this window's client resources.
+Use **Connect to Host...** afterward; no input or connection setup is replayed. No Host configuration
+file, listener, credential or idle policy is changed. See the
+[settings contract](../reference/configuration.md#electron-client-settings) for persistence and windows.
+
+The dialog shows the Desktop application version, Electron runtime version, connected MCP server
+version, and bundled CLI package version. Missing or invalid metadata is **Unknown**. The bundled CLI
+version requires a matching `package-manifest.json` SHA-256 for the fixed file companion; source builds
+without that manifest remain unknown. This is local metadata consistency, not signature verification
+or proof of the running Host's binary. SSH, remote size control and managed-transfer capabilities come
+from Main's existing authenticated probes; they do not confer device permission. Disconnect clears
+live version/capability validity. Connection failures retain the existing localized recovery diagnostics.
 
 Main reads the independent local management credential selected by `http-host.json`. Match the
 Host's `CHANNELTERM_HOST_CONFIG_DIR` when it uses a non-default authentication directory. Supply
@@ -367,6 +378,13 @@ See [workbench layout and display states](../architecture/electron-gui.md#workbe
 for sizing and extension boundaries.
 
 ## Checks and isolated Host
+
+Host settings checks use an isolated GUI profile, a fake-I/O Host and an independent observer.
+They cover local endpoint validation, atomic save failure, environment precedence, restart persistence,
+unreachable/incompatible/authentication failures, stale attachments, other-window survival, nine
+languages and a compact native window. No personal client configuration, credential, device or Host
+process is changed. Package version/hash tests use disposable files; real package/platform acceptance
+remains separate.
 
 Run from `gui/electron`:
 

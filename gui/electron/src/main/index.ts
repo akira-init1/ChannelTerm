@@ -20,6 +20,8 @@ import { channels, type Result, type WindowInfo } from "../shared/api";
 import { randomUUID } from "node:crypto";
 import { HostClient } from "./host/client";
 import { hostEndpoint, loadToken } from "./host/config";
+import { HostSettings, validateEndpoint } from "./host/settings";
+import { companionVersion, displayVersion } from "./host/information";
 import {
   companionPath,
   defaultHostEndpoint,
@@ -62,6 +64,8 @@ interface WindowContext {
   host?: HostClient;
   connected: boolean;
   connecting: boolean;
+  endpoint: string;
+  savingEndpoint: boolean;
   disposed: boolean;
   connectionVersion: number;
   startupController: AbortController;
@@ -107,6 +111,24 @@ const fileExecutable = join(
   "files",
   process.platform === "win32" ? "channelterm.exe" : "channelterm",
 );
+const hostSettings = new HostSettings(
+  join(app.getPath("userData"), "host-settings.json"),
+  process.env.CHANNELTERM_GUI_ENDPOINT,
+);
+const cliVersion = companionVersion(
+  app.isPackaged ? process.resourcesPath : resolve(__dirname, ".."),
+);
+
+function hostInfo(context: WindowContext) {
+  return {
+    ...(context.host?.info() ?? {
+      endpoint: context.endpoint,
+      lifetime: "unknown" as const,
+    }),
+    autoConnect:
+      context.autoConnect || context.endpoint === defaultHostEndpoint,
+  };
+}
 
 function requestQuit(): void {
   // Return an IPC reply before normal before-quit cleanup closes the renderer.
@@ -131,6 +153,8 @@ function disconnectHost(context: WindowContext): Promise<void> {
 }
 
 function currentHost(context: WindowContext): HostClient {
+  if (context.savingEndpoint)
+    throw new HostError("busy", "Host settings are changing.");
   if (!context.host || context.disposed)
     throw new HostError("disconnected", "Connect to a Host first.");
   return context.host;
@@ -171,6 +195,7 @@ async function newWindow(source?: WindowContext): Promise<void> {
   const context = makeWindow(
     source?.connected ?? false,
     source?.menu.languagePreference ?? source?.menu.locale,
+    source?.endpoint,
   );
   try {
     await loadWindow(context);
@@ -232,6 +257,7 @@ async function moveTab(
   const target = makeWindow(
     false,
     source.menu.languagePreference ?? source.menu.locale,
+    source.endpoint,
   );
   const completed = new Promise<void>((resolve, reject) => {
     const move: TabMove = {
@@ -406,16 +432,44 @@ function createHandlers(context: WindowContext): Record<string, Handler> {
     [channels.moveTab]: (id, inputPaused) => moveTab(context, id, inputPaused),
     [channels.acceptMovedTab]: (moveId, id) =>
       acceptMovedTab(context, moveId, id),
-    [channels.info]: () => ({
-      ...(context.host?.info() ?? {
-        endpoint: hostEndpoint(process.env.CHANNELTERM_GUI_ENDPOINT).href,
-        lifetime: "unknown",
-      }),
-      autoConnect:
-        context.autoConnect ||
-        hostEndpoint(process.env.CHANNELTERM_GUI_ENDPOINT).href ===
-          defaultHostEndpoint,
-    }),
+    [channels.info]: () => hostInfo(context),
+    [channels.hostSettings]: async () => {
+      const version = await cliVersion;
+      return {
+        host: hostInfo(context),
+        connected: context.connected,
+        environmentOverride: hostSettings.locked,
+        desktopVersion: displayVersion(app.getVersion()),
+        electronVersion: displayVersion(process.versions.electron),
+        cliVersion: version,
+      };
+    },
+    [channels.saveHostEndpoint]: async (value) => {
+      validateEndpoint(value);
+      if (
+        context.savingEndpoint ||
+        context.connecting ||
+        context.files.busy ||
+        context.sshFiles.busy ||
+        context.sshBrowser.busy ||
+        context.outgoingMove
+      )
+        throw new HostError(
+          "busy",
+          "Finish or cancel the current operation before changing Host settings.",
+        );
+      context.savingEndpoint = true;
+      context.host?.discardQueuedInput();
+      try {
+        const endpoint = await hostSettings.save(value);
+        await disconnectHost(context);
+        context.endpoint = endpoint;
+        context.autoConnect = false;
+        return hostInfo(context);
+      } finally {
+        context.savingEndpoint = false;
+      }
+    },
     [channels.connect]: async () => {
       if (
         context.files.busy ||
@@ -426,7 +480,7 @@ function createHandlers(context: WindowContext): Record<string, Handler> {
           "busy",
           "Finish or cancel the file operation before reconnecting.",
         );
-      if (context.connecting)
+      if (context.connecting || context.savingEndpoint)
         throw new HostError("invalid_input", "Connection already in progress.");
       context.connecting = true;
       try {
@@ -435,9 +489,7 @@ function createHandlers(context: WindowContext): Record<string, Handler> {
         await cleanup;
         const controller = new AbortController();
         context.startupController = controller;
-        const endpoint = hostEndpoint(
-          process.env.CHANNELTERM_GUI_ENDPOINT,
-        ).href;
+        const endpoint = hostEndpoint(context.endpoint).href;
         if (
           version !== context.connectionVersion ||
           context.disposed ||
@@ -455,6 +507,14 @@ function createHandlers(context: WindowContext): Record<string, Handler> {
         const next = new HostClient(endpoint, token);
         context.host = next;
         const info = await next.connect();
+        if (
+          version !== context.connectionVersion ||
+          context.disposed ||
+          desktop.quitting
+        ) {
+          await next.disconnect();
+          throw new HostError("cancelled", "Connection cancelled.");
+        }
         context.connected = true;
         return info;
       } finally {
@@ -686,6 +746,7 @@ function registerIPC(): void {
               ? 3
               : [
                     channels.control,
+                    channels.saveHostEndpoint,
                     channels.focusWindow,
                     channels.detach,
                     channels.closeSession,
@@ -722,7 +783,17 @@ function registerIPC(): void {
 function makeWindow(
   autoConnect = false,
   languagePreference?: LanguagePreference,
+  endpoint?: string,
 ): WindowContext {
+  if (endpoint === undefined) {
+    try {
+      endpoint = hostSettings.endpoint();
+    } catch {
+      // Keep the settings/recovery UI reachable without echoing invalid environment input.
+      endpoint = "";
+      autoConnect = false;
+    }
+  }
   if (desktop.quitting || desktop.windows.size >= 16)
     throw new HostError("busy", "Close a window before opening another.");
   const created = new BrowserWindow({
@@ -753,6 +824,8 @@ function makeWindow(
     )!,
     connected: false,
     connecting: false,
+    endpoint,
+    savingEndpoint: false,
     disposed: false,
     connectionVersion: 0,
     startupController: new AbortController(),
@@ -820,6 +893,7 @@ function loadWindow(context: WindowContext): Promise<void> {
 void app
   .whenReady()
   .then(async () => {
+    await hostSettings.load();
     const desktopSession = session.defaultSession;
     desktopSession.setPermissionRequestHandler(
       (_contents, _permission, callback) => callback(false),

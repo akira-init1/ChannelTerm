@@ -1412,3 +1412,27 @@ main {
 .control-panel button {
   margin: 3px 6px 3px 0;
 }
+.host-versions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.35rem 1rem;
+}
+.host-versions dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.host-settings-dialog {
+  overflow: hidden;
+}
+.host-settings-dialog form {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 74px);
+}
+.host-settings-content {
+  min-height: 0;
+  overflow: auto;
+}
+.host-settings-dialog footer {
+  flex-shrink: 0;
+}

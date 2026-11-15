@@ -1170,6 +1170,66 @@ msgstr "Host iniciado manualmente."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "host.settings"
+msgstr "Información del Host y conexión"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.apply"
+msgstr "Guardar y desconectar esta ventana"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.available"
+msgstr "Disponible"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.cli"
+msgstr "Versión de la CLI incluida"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.desktop"
+msgstr "Versión de escritorio"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.endpoint"
+msgstr "Endpoint del Host local"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.hint"
+msgstr "Guardar desconecta esta ventana y descarta las entradas pendientes. Las demás ventanas y Sessions compartidas siguen abiertas. Conecte explícitamente después. Las ventanas nuevas heredan el endpoint de su ventana de origen; al reiniciar se usa el valor guardado. Solo se admite HTTP con IP numérica de loopback."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.override"
+msgstr "CHANNELTERM_GUI_ENDPOINT prevalece sobre los ajustes guardados. Cambie el entorno y reinicie para editar el endpoint."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.resize"
+msgstr "Tamaño del terminal remoto"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.transfers"
+msgstr "Transferencias de archivos gestionadas"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.unavailable"
+msgstr "No disponible"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.versions"
+msgstr "Desconocido indica que no hay una versión verificada. La versión de la CLI incluida requiere metadatos coincidentes del paquete; no identifica al Host en ejecución. Las capacidades describen esta conexión, no permisos para operar un dispositivo."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "language.de"
 msgstr "Deutsch"
 

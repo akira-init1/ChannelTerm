@@ -3,6 +3,9 @@ import { channels, type DesktopAPI } from "../shared/api";
 import { isAction } from "../shared/menus";
 
 const api: DesktopAPI = {
+  hostSettings: () => ipcRenderer.invoke(channels.hostSettings),
+  saveHostEndpoint: (endpoint) =>
+    ipcRenderer.invoke(channels.saveHostEndpoint, endpoint),
   control: (request) => ipcRenderer.invoke(channels.control, request),
   selectDroppedFiles: async (id, files) => {
     try {

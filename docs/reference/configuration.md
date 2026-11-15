@@ -262,8 +262,20 @@ a given state file.
 ## Electron client settings
 
 The independent Electron frontend does not add TOML fields or alter Host configuration.
-`CHANNELTERM_GUI_ENDPOINT` is a GUI Main-process override for the existing MCP endpoint, defaulting
-to `http://127.0.0.1:37099/mcp`. The prototype accepts numeric loopback HTTP addresses only
+`CHANNELTERM_GUI_ENDPOINT` is a GUI Main-process override for the existing MCP endpoint. Precedence is
+the environment override, the saved GUI default, then `http://127.0.0.1:37099/mcp`.
+**Host > Host information and connection** edits the saved default unless the override is set.
+Main stores only `{ "version": 1, "endpoint": "..." }` in `host-settings.json` under Electron's
+application user-data directory, using a sibling temporary file and atomic replacement. Invalid,
+oversized (over 4 KiB), or unreadable saved data is ignored; a failed save leaves the current connection
+and prior default intact. Concurrent saves are rejected within one process; independent GUI processes
+sharing the profile use last-successful-save behavior. No credentials are stored there.
+Saving disconnects only the requesting window and discards its pending input. Other open windows keep
+their endpoints; a new window or moved tab inherits its source window's endpoint. Restart uses the saved
+default. Changing the endpoint does not select a different credential domain: Main still uses the same
+explicit token or Host identity/configuration directory. A different Host domain needs the matching
+environment/configuration and explicit restart. It never falls back to a shared token.
+The client accepts numeric loopback HTTP addresses only
 (`127.0.0.1` or `::1`), without URL credentials, query, fragment, or redirects. Main reuses
 `CHANNELTERM_HTTP_AUTH_TOKEN` or reads the separate local management credential created by the
 matching Host. It reads `http-host.json` to locate that credential, never the retired token,

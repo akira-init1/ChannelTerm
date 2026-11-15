@@ -3,6 +3,39 @@ import type { MessageDescriptor } from "@lingui/core";
 // Lingui 5 extracts these official annotated descriptors without a runtime macro
 // transform. Translations belong in PO catalogs; this file owns IDs and English defaults.
 export const menuMessages = [
+  /* i18n */ {
+    id: "host.settings",
+    message: "Host information and connection",
+  },
+  /* i18n */ { id: "host.settings.available", message: "Available" },
+  /* i18n */ { id: "host.settings.unavailable", message: "Unavailable" },
+  /* i18n */ { id: "host.settings.desktop", message: "Desktop version" },
+  /* i18n */ { id: "host.settings.cli", message: "Bundled CLI version" },
+  /* i18n */ { id: "host.settings.resize", message: "Remote terminal sizing" },
+  /* i18n */ {
+    id: "host.settings.transfers",
+    message: "Managed file transfers",
+  },
+  /* i18n */ { id: "host.settings.endpoint", message: "Local Host endpoint" },
+  /* i18n */ {
+    id: "host.settings.override",
+    message:
+      "CHANNELTERM_GUI_ENDPOINT overrides saved settings. Change the environment and restart to edit the endpoint.",
+  },
+  /* i18n */ {
+    id: "host.settings.hint",
+    message:
+      "Save disconnects this window and discards pending input. Other windows and shared Sessions remain open. Connect explicitly afterward. New windows inherit their source window; restarting uses the saved default. Only numeric loopback HTTP is supported.",
+  },
+  /* i18n */ {
+    id: "host.settings.versions",
+    message:
+      "Unknown means no verified version is available. The bundled CLI version requires matching package metadata; it does not identify the running Host. Capabilities describe this connection, not permission to operate a device.",
+  },
+  /* i18n */ {
+    id: "host.settings.apply",
+    message: "Save and disconnect this window",
+  },
   /* i18n */ { id: "host.origin.desktop", message: "Desktop launch." },
   /* i18n */ { id: "host.origin.manual", message: "Manual Host launch." },
   /* i18n */ {

@@ -1170,6 +1170,66 @@ msgstr "手动启动的 Host。"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "host.settings"
+msgstr "Host 信息与连接设置"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.apply"
+msgstr "保存并断开当前窗口"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.available"
+msgstr "可用"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.cli"
+msgstr "随附 CLI 版本"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.desktop"
+msgstr "桌面客户端版本"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.endpoint"
+msgstr "本地 Host 端点"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.hint"
+msgstr "保存将断开当前窗口并丢弃待发送输入，其他窗口和共享 Session 保持打开。之后请显式连接。新窗口继承来源窗口的端点；重启使用保存的默认值。仅支持数字 loopback IP 的 HTTP。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.override"
+msgstr "CHANNELTERM_GUI_ENDPOINT 优先于保存设置。请修改环境变量并重启后再编辑端点。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.resize"
+msgstr "远程终端尺寸控制"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.transfers"
+msgstr "托管文件传输"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.unavailable"
+msgstr "不可用"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.versions"
+msgstr "未知表示没有可核实的版本。随附 CLI 版本需要与文件匹配的包元数据，不代表正在运行的 Host。能力描述当前连接的支持情况，不授予设备操作权限。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "language.de"
 msgstr "Deutsch"
 

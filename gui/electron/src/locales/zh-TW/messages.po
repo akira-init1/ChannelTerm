@@ -1170,6 +1170,66 @@ msgstr "手動啟動的 Host。"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "host.settings"
+msgstr "Host 資訊與連線設定"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.apply"
+msgstr "儲存並中斷目前視窗"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.available"
+msgstr "可用"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.cli"
+msgstr "隨附 CLI 版本"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.desktop"
+msgstr "桌面用戶端版本"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.endpoint"
+msgstr "本機 Host 端點"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.hint"
+msgstr "儲存將中斷目前視窗並捨棄待傳送輸入，其他視窗和共用 Session 保持開啟。之後請明確連線。新視窗繼承來源視窗的端點；重新啟動使用儲存的預設值。僅支援數字 loopback IP 的 HTTP。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.override"
+msgstr "CHANNELTERM_GUI_ENDPOINT 優先於儲存設定。請修改環境變數並重新啟動後再編輯端點。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.resize"
+msgstr "遠端終端尺寸控制"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.transfers"
+msgstr "託管檔案傳輸"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.unavailable"
+msgstr "不可用"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.versions"
+msgstr "未知表示沒有可核實的版本。隨附 CLI 版本需要與檔案相符的套件中繼資料，不代表正在執行的 Host。能力描述目前連線的支援情況，不授予裝置操作權限。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "language.de"
 msgstr "Deutsch"
 

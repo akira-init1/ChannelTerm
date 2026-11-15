@@ -529,6 +529,14 @@ stop the affected work and are surfaced to the UI. Reconnection is explicit.
 
 ## Security and lifecycle
 
+Main owns the bounded saved local endpoint default and per-window endpoint selection. The Host menu
+uses fixed information/save IPC methods; Renderer receives sanitized version/capability snapshots and
+never a credential path. Changing one endpoint fences pending work and releases only that window's
+attachments. Environment precedence, persistence and credential-domain constraints are defined in
+[Electron client settings](../reference/configuration.md#electron-client-settings). Version information
+comes from authenticated MCP metadata, Electron runtime/application metadata and matching packaged CLI
+metadata; missing evidence stays unknown. This adds no Host listener, permission or Core use case.
+
 Main reads the Host-created independent local management credential or an explicit process
 environment credential. It never upgrades an explicit read-only/invalid credential or falls back
 to the retired shared token. Main locates the management credential using the public

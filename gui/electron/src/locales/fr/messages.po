@@ -1170,6 +1170,66 @@ msgstr "Host lancé manuellement."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "host.settings"
+msgstr "Informations du Host et connexion"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.apply"
+msgstr "Enregistrer et déconnecter cette fenêtre"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.available"
+msgstr "Disponible"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.cli"
+msgstr "Version de la CLI fournie"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.desktop"
+msgstr "Version de bureau"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.endpoint"
+msgstr "Point de connexion du Host local"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.hint"
+msgstr "Enregistrer déconnecte cette fenêtre et supprime les entrées en attente. Les autres fenêtres et Sessions partagées restent ouvertes. Reconnectez-vous explicitement ensuite. Les nouvelles fenêtres héritent du point de connexion de leur fenêtre source ; un redémarrage utilise la valeur enregistrée. Seul HTTP avec une IP de bouclage numérique est accepté."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.override"
+msgstr "CHANNELTERM_GUI_ENDPOINT remplace les paramètres enregistrés. Modifiez l’environnement puis redémarrez pour changer le point de connexion."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.resize"
+msgstr "Dimensions du terminal distant"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.transfers"
+msgstr "Transferts de fichiers gérés"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.unavailable"
+msgstr "Indisponible"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.versions"
+msgstr "Inconnu signifie qu’aucune version vérifiée n’est disponible. La version de la CLI fournie nécessite des métadonnées de paquet correspondantes ; elle n’identifie pas le Host actif. Les capacités décrivent cette connexion, pas une autorisation de contrôler un appareil."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "language.de"
 msgstr "Deutsch"
 

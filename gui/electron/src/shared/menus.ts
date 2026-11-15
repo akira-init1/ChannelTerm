@@ -48,6 +48,7 @@ export type Action =
   | {
       id:
         | "host.connect"
+        | "host.settings"
         | "host.disconnect"
         | "connection.new"
         | "session.choose"
@@ -224,6 +225,12 @@ export function applicationMenu(state: MenuState): MenuEntry[] {
       id: "host",
       label: "menu.host",
       children: [
+        {
+          id: "host.settings",
+          label: "host.settings",
+          enabled: !state.busy,
+          action: { id: "host.settings" },
+        },
         {
           id: "host.connect",
           label: "host.connect",
@@ -499,6 +506,7 @@ export function isMenuLocale(value: unknown): value is MenuLocale {
 export function isAction(value: unknown): value is Action {
   if (!record(value)) return false;
   switch (value.id) {
+    case "host.settings":
     case "host.connect":
     case "host.disconnect":
     case "connection.new":
@@ -643,6 +651,8 @@ export function actionEnabled(action: Action, state: MenuState): boolean {
       return !state.busy && state.tabId === action.tabId && !state.attachment;
     case "host.connect":
       return !state.connected && !state.busy;
+    case "host.settings":
+      return !state.busy;
     case "connection.ssh":
       return (
         state.sshAvailable && actionEnabled({ id: "connection.new" }, state)

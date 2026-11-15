@@ -1170,6 +1170,66 @@ msgstr "Host запущен вручную."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "host.settings"
+msgstr "Сведения о Host и подключение"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.apply"
+msgstr "Сохранить и отключить это окно"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.available"
+msgstr "Доступно"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.cli"
+msgstr "Версия встроенной CLI"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.desktop"
+msgstr "Версия приложения"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.endpoint"
+msgstr "Локальный адрес Host"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.hint"
+msgstr "Сохранение отключает это окно и удаляет ожидающий ввод. Другие окна и общие Session остаются открытыми. Затем подключитесь явно. Новые окна наследуют адрес исходного окна; после перезапуска используется сохранённое значение. Поддерживается только HTTP с числовым loopback-адресом."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.override"
+msgstr "CHANNELTERM_GUI_ENDPOINT имеет приоритет над сохранёнными настройками. Измените окружение и перезапустите приложение для изменения адреса."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.resize"
+msgstr "Размер удалённого терминала"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.transfers"
+msgstr "Управляемые передачи файлов"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.unavailable"
+msgstr "Недоступно"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.versions"
+msgstr "Неизвестно означает отсутствие проверенной версии. Версия встроенной CLI требует совпадающих метаданных пакета и не определяет работающий Host. Возможности описывают это подключение, а не разрешение управлять устройством."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "language.de"
 msgstr "Deutsch"
 

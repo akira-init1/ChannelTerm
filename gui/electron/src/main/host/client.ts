@@ -27,6 +27,7 @@ import {
   type TerminalSettings,
 } from "../../shared/terminal-settings";
 import { randomUUID } from "node:crypto";
+import { displayVersion } from "./information";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import type {
@@ -72,6 +73,7 @@ class ToolFailure extends Error {
 
 /** An MCP client only: owns cursors/cancellation, never Session or lease authority. */
 export class HostClient {
+  private hostVersion?: string;
   private controls = new Map<string, ControlSnapshot>();
   private client?: Client;
   private presence?: ClientPresence;
@@ -287,6 +289,9 @@ export class HostClient {
   info(): HostInfo {
     return {
       endpoint: this.endpoint.href,
+      hostVersion: this.hostVersion,
+      remoteSize: this.resizeAvailable,
+      managedTransfers: this.presence?.managedTransfersAvailable,
       lifetime: this.lifetime,
       sshAvailable: this.sshAvailable,
       sshAdvanced: this.sshAdvanced,
@@ -350,6 +355,7 @@ export class HostClient {
         throw new HostError("cancelled", "Connection cancelled.");
       if (client.getServerVersion()?.name !== "channelterm")
         throw incompatible();
+      this.hostVersion = displayVersion(client.getServerVersion()?.version);
       this.presence = new ClientPresence(client, signal);
       await this.presence.start();
       if (this.presence.idlePolicyAvailable) {
@@ -1248,6 +1254,11 @@ export class HostClient {
     }
   }
 
+  /** Fence queued input before local endpoint persistence; accepted writes are never replayed. */
+  discardQueuedInput(): void {
+    for (const active of this.attachments.values()) active.writeVersion++;
+  }
+
   async write(id: string, data: string): Promise<void> {
     input(data);
     const active = this.attachment(id);
@@ -1402,6 +1413,7 @@ export class HostClient {
     await Promise.all(sizes.map((size) => size.dispose()));
     await client?.close().catch(() => {});
     this.lifetime = "unknown";
+    this.hostVersion = undefined;
     this.idle = undefined;
     this.sshAvailable = false;
     this.sshAdvanced = false;

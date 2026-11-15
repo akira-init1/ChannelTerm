@@ -1,4 +1,5 @@
 import { ControlPanel } from "../sessions/ControlPanel";
+import { HostSettingsDialog } from "./HostSettings";
 import { retainedTransfer } from "../../shared/transfers";
 import {
   preferencesKey,
@@ -135,6 +136,7 @@ export function App() {
   const [sessionsKnown, setSessionsKnown] = useState(false);
   const [restoringWorkspace, setRestoringWorkspace] = useState(false);
   const [info, setInfo] = useState<HostInfo>();
+  const [hostSettingsOpen, setHostSettingsOpen] = useState(false);
   const [connected, setConnected] = useState(false);
   // Collapsing navigation changes available space, not the active attachment.
   const [sidebarVisible, setSidebarVisible] = useState(
@@ -561,6 +563,7 @@ export function App() {
       connected,
       sshAvailable: !!info?.sshAvailable,
       busy:
+        hostSettingsOpen ||
         working ||
         !!closeTarget ||
         !!activeTab?.moving ||
@@ -585,6 +588,7 @@ export function App() {
     }),
     [
       locale,
+      hostSettingsOpen,
       languagePreference,
       connected,
       info?.sshAvailable,
@@ -1133,6 +1137,7 @@ export function App() {
       attachment: tab?.attachment,
       tabId: tab?.id,
       busy:
+        hostSettingsOpen ||
         working ||
         !!closeTarget ||
         actionBusy.current ||
@@ -1387,6 +1392,9 @@ export function App() {
     actionBusy.current = true;
     try {
       switch (action.id) {
+        case "host.settings":
+          setHostSettingsOpen(true);
+          break;
         case "host.connect":
           await connect();
           break;
@@ -1571,6 +1579,30 @@ export function App() {
         void dropFiles(Array.from(event.dataTransfer.files));
       }}
     >
+      {hostSettingsOpen && (
+        <HostSettingsDialog
+          t={t}
+          onClose={() => setHostSettingsOpen(false)}
+          onApply={async (endpoint) => {
+            // Fence pending list/attach work before changing the Main-owned endpoint.
+            generation.current++;
+            const next = await unwrap(host.saveHostEndpoint(endpoint));
+            preferences.current.clear();
+            pendingWorkspace.current = false;
+            setSettingsTarget(undefined);
+            setConnectionKind(undefined);
+            setDiagnostics(undefined);
+            setTabs([]);
+            setSelectedTabId(undefined);
+            setSessions([]);
+            setSessionsKnown(false);
+            setConnected(false);
+            setError(undefined);
+            setInfo(next);
+            return next;
+          }}
+        />
+      )}
       {draggingFiles && (
         <div className="file-drop-hint" role="status">
           {canDropFiles
@@ -2101,6 +2133,7 @@ export function App() {
                       )?.control?.version
                     }
                     writable={
+                      !hostSettingsOpen &&
                       tab.id === selectedTabId &&
                       writable &&
                       !tab.moving &&

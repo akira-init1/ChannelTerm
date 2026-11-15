@@ -1170,6 +1170,66 @@ msgstr "手動で起動した Host。"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "host.settings"
+msgstr "Host 情報と接続"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.apply"
+msgstr "保存してこのウィンドウを切断"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.available"
+msgstr "利用可能"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.cli"
+msgstr "同梱 CLI のバージョン"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.desktop"
+msgstr "デスクトップ版"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.endpoint"
+msgstr "ローカル Host エンドポイント"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.hint"
+msgstr "保存すると、このウィンドウが切断され、保留中の入力が破棄されます。他のウィンドウと共有 Session は維持されます。その後、明示的に接続してください。新規ウィンドウは元のウィンドウの接続先を引き継ぎ、再起動時は保存済みの既定値を使用します。数値ループバック IP の HTTP のみ対応します。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.override"
+msgstr "CHANNELTERM_GUI_ENDPOINT が保存済み設定より優先されます。変更するには環境変数を変更して再起動してください。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.resize"
+msgstr "リモート端末のサイズ変更"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.transfers"
+msgstr "管理対象ファイル転送"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.unavailable"
+msgstr "利用不可"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.versions"
+msgstr "不明は検証済みバージョンがないことを示します。同梱 CLI のバージョンには一致するパッケージ情報が必要で、実行中の Host を示すものではありません。機能表示はこの接続の対応状況であり、デバイス操作の権限ではありません。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "language.de"
 msgstr "Deutsch"
 
