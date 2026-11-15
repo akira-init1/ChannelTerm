@@ -36,6 +36,11 @@ const serverInstructions = `cterm means ChannelTerm. terminal_list_sessions find
 // through it. In particular, disconnecting an MCP client only closes the MCP
 // connection; the embedding application decides when shared Sessions close.
 func NewServer(registry *tool.Registry, version string) (*protocol.Server, error) {
+	return newServer(registry, version, false)
+}
+
+// newServer advertises HTTP-only behavior only when composed with its lifetime adapter.
+func newServer(registry *tool.Registry, version string, httpCancellation bool) (*protocol.Server, error) {
 	adapter, err := newAdapter(registry)
 	if err != nil {
 		return nil, err
@@ -55,7 +60,12 @@ func NewServer(registry *tool.Registry, version string) (*protocol.Server, error
 	})
 	for _, exposed := range adapter.exposed {
 		exposed := exposed
+		var metadata protocol.Meta
+		if httpCancellation && exposed.name == "terminal_enter_uboot" {
+			metadata = protocol.Meta{"io.channelterm/uboot-http-cancellation": 1}
+		}
 		server.AddTool(&protocol.Tool{
+			Meta:         metadata,
 			Name:         exposed.name,
 			Title:        exposed.title,
 			Description:  exposed.description,
@@ -75,7 +85,7 @@ func NewServer(registry *tool.Registry, version string) (*protocol.Server, error
 // MCP HTTP clients and makes an interrupted request release only its temporary
 // protocol session; it never closes Registry-owned terminal Sessions.
 func NewStreamableHTTPHandler(registry *tool.Registry, version string) (http.Handler, error) {
-	server, err := NewServer(registry, version)
+	server, err := newServer(registry, version, true)
 	if err != nil {
 		return nil, err
 	}
@@ -85,8 +95,17 @@ func NewStreamableHTTPHandler(registry *tool.Registry, version string) (http.Han
 		Stateless:                    true,
 		PropagateRequestCancellation: true,
 	})
-	return repairCancellationNotificationMetadata(handler), nil
+	compatible := repairCancellationNotificationMetadata(handler)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// The SDK preserves context values for legacy stateless calls, but only
+		// propagates HTTP cancellation with protocol versions >= 2026-07-28.
+		// Retain this request's lifetime for the bounded U-Boot call below.
+		ctx := context.WithValue(r.Context(), httpRequestContextKey{}, r.Context())
+		compatible.ServeHTTP(w, r.WithContext(ctx))
+	}), nil
 }
+
+type httpRequestContextKey struct{}
 
 const maxCancellationNotificationBytes = 64 * 1024
 
@@ -385,6 +404,21 @@ func waitSchema(schema tool.InputSchema) tool.InputSchema {
 // to an Agent instead of hiding them behind a protocol-level JSON-RPC failure.
 func (a *adapter) handler(exposed exposedTool) protocol.ToolHandler {
 	return func(ctx context.Context, request *protocol.CallToolRequest) (*protocol.CallToolResult, error) {
+		if exposed.name == "terminal_enter_uboot" {
+			if original, ok := ctx.Value(httpRequestContextKey{}).(context.Context); ok {
+				// Cancellation notifications cannot find a different ephemeral
+				// stateless session. Tie only this operation to its original HTTP
+				// request; do not stop the shared Session or another client's work.
+				var cancel context.CancelFunc
+				ctx, cancel = context.WithCancel(ctx)
+				stop := context.AfterFunc(original, cancel)
+				defer stop()
+				defer cancel()
+				if original.Err() != nil {
+					cancel()
+				}
+			}
+		}
 		ctx = app.ExternalControl(ctx)
 		var input json.RawMessage
 		if request != nil && request.Params != nil {

@@ -1,3 +1,4 @@
+import { checkUBoot } from "./uboot-checks.mjs";
 import { checkLineSidebar } from "./line-sidebar-checks.mjs";
 import { checkDebugSend } from "./debug-send-checks.mjs";
 import { checkWorkbenchLocales } from "./workbench-i18n-checks.mjs";
@@ -590,6 +591,7 @@ try {
   await checkRecordings(desktopEnvironment);
   await checkMCPSetup(desktopEnvironment);
   await checkDebugSend(desktopEnvironment);
+  await checkUBoot(desktopEnvironment);
   console.log(
     "PASS: native workbench at 760/1180/1500px, hover/keyboard flyouts, serial and SSH creation, authentication failure, shared I/O and lifetime, disconnected/empty/selection/attached/failure states, long lists, sandbox, lease blocking, overwrite, reconnect, detach/reattach, native close, surviving Host/observer, Session close and Host loss/retry. Empty/large lists use test-only IPC snapshots; connections use the real isolated Host with fake serial I/O and loopback SSH.",
   );

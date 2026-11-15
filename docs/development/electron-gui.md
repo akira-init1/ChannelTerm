@@ -528,6 +528,16 @@ IPC, lease-blocked paste with no replay, shortcut search, font settings and Ctrl
 application zoom or device writes. `test-results/terminal-display-settings.png` captures the
 display dialog. These use fake serial I/O and the native clipboard, restoring its previous text.
 They do not establish physical serial-device or other native-platform behavior.
+
+`uboot.test.ts` covers bounded board settings, partial results, fresh authenticated readiness,
+event gaps, old-Host capability rejection, owned cancellation and waits beyond the ordinary HTTP
+timeout. `uboot-checks.mjs` exercises the native panel through production IPC with the real isolated
+Host and fake serial I/O: default-Cancel previews, exact interrupt bytes, diagnostic ZIP saving,
+explicit stop, window exit, retained shared Sessions and nine-locale compact layouts. Native
+confirmations and destination pickers are substituted in that test; it does not reset hardware or
+establish a physical board's countdown timing. A real-board run still requires verified serial
+settings, board markers, interrupt bytes and explicit reset/reboot authorization.
+
 Menu checks cover native/renderer language and checkmark synchronization, sidebar actions,
 keyboard opening, Escape/focus restoration, outside-click dismissal, and disabled offline/empty/
 closed actions. They reject stale attachment callbacks and missing non-current context targets,

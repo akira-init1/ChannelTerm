@@ -129,6 +129,7 @@ msgstr "Baud rate"
 #: src/main/index.ts
 #: src/main/index.ts
 #: src/main/index.ts
+#: src/main/index.ts
 #: src/shared/menu-messages.ts
 msgid "connection.cancel"
 msgstr "Cancel"
@@ -3137,6 +3138,202 @@ msgstr "Show system timestamps"
 #: src/shared/menu-messages.ts
 msgid "terminal.view"
 msgstr "View mode"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.archiveFailed"
+msgstr "The diagnostic archive could not be created."
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.bootStarted"
+msgstr "Boot-start markers (one per line)"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.capture"
+msgstr "Retain raw terminal evidence in a diagnostic archive for up to 15 minutes. It may contain sensitive data."
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.command"
+msgstr "Verified reboot command"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.confirm"
+msgstr "Confirm this board-specific U-Boot attempt"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.countdown"
+msgstr "Literal countdown marker"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.evidence"
+msgstr "Host evidence: bytes written · elapsed time · output cursors"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.help"
+msgstr "Use settings verified for this board and firmware. No interrupt key or reboot command is guessed. Do not use this at an already-idle U-Boot prompt."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.idle"
+msgstr "I verified an idle interactive Bash prompt and authorize this reboot command."
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.interrupt"
+msgstr "Exact interrupt bytes (HEX pairs, no spaces)"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.mode"
+msgstr "Reset mode"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.noRetry"
+msgstr "One attempt only. Cancellation sends no recovery keys and cannot undo a submitted reboot. Never repeat a reset automatically."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.open"
+msgstr "Enter U-Boot…"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.prompt"
+msgstr "Exact prompt line, including spaces"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.ready"
+msgstr "Host observer ready for this attempt. You may perform the authorized manual reset."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.reboot"
+msgstr "Send one explicit reboot command"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.rebootReady"
+msgstr "Host observer armed; waiting for the explicitly requested reboot. Do not reset again."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.boot_started"
+msgstr "Boot proceeded; U-Boot entry was not confirmed."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.cancelled"
+msgstr "Host confirmed cancellation."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.cleanup_failed"
+msgstr "Entry evidence was observed, but ownership cleanup failed."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.entered"
+msgstr "Fresh U-Boot prompt confirmed."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.failed"
+msgstr "The Host could not confirm entry."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.input_pending"
+msgstr "The Host refused reboot because terminal input is pending."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.output_lost"
+msgstr "Output evidence was lost; automatic interruption stopped."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.session_closed"
+msgstr "The Session closed during the attempt."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.timeout"
+msgstr "Timed out without confirming entry."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.unsupported_shell"
+msgstr "The reboot command requires an idle Bash shell."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.write_failed"
+msgstr "Input delivery failed or is uncertain."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.saveEvidence"
+msgstr "Save diagnostic archive…"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.start"
+msgstr "Review and start"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.stop"
+msgstr "Stop attempt"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.stopping"
+msgstr "Stopping this request. A submitted reboot cannot be undone."
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.timeout"
+msgstr "Timeout (milliseconds)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.unknown"
+msgstr "Outcome unconfirmed. Inspect the original Session and activity before another action."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.validation"
+msgstr "Markers: 1–256 UTF-8 bytes; 1–8 boot-start markers. Interrupt: 1–32 bytes. Timeout: 1–180000 ms. All patterns are literal; spaces are preserved."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.waiting"
+msgstr "Arming the Host observer. Do not reset yet."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.waitReset"
+msgstr "Wait for manual reset"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

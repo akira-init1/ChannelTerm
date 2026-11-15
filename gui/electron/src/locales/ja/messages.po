@@ -129,6 +129,7 @@ msgstr "ボーレート"
 #: src/main/index.ts
 #: src/main/index.ts
 #: src/main/index.ts
+#: src/main/index.ts
 #: src/shared/menu-messages.ts
 msgid "connection.cancel"
 msgstr "キャンセル"
@@ -3137,6 +3138,202 @@ msgstr "システム時刻を表示"
 #: src/shared/menu-messages.ts
 msgid "terminal.view"
 msgstr "表示モード"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.archiveFailed"
+msgstr "診断アーカイブを作成できませんでした。"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.bootStarted"
+msgstr "起動開始の文字列（1 行に 1 つ）"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.capture"
+msgstr "生の端末データを診断アーカイブに最大 15 分間保持します。機密情報が含まれる場合があります。"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.command"
+msgstr "確認済みの再起動コマンド"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.confirm"
+msgstr "このボードの U-Boot 操作を確認"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.countdown"
+msgstr "カウントダウンのリテラル文字列"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.evidence"
+msgstr "Host の証拠：書き込みバイト数 · 経過時間 · 出力カーソル"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.help"
+msgstr "このボードとファームウェアで確認済みの設定を使用してください。中断キーや再起動コマンドは推測しません。既に待機中の U-Boot プロンプトでは使用しないでください。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.idle"
+msgstr "待機中の対話型 Bash プロンプトであることを確認し、この再起動コマンドを許可します。"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.interrupt"
+msgstr "正確な中断バイト（空白なしの HEX ペア）"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.mode"
+msgstr "リセット方法"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.noRetry"
+msgstr "試行は一度だけです。キャンセルで復旧キーは送信されず、送信済みの再起動も取り消せません。自動でリセットを繰り返しません。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.open"
+msgstr "U-Boot に入る…"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.prompt"
+msgstr "空白を含む正確なプロンプト行"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.ready"
+msgstr "この試行の Host 監視準備ができました。許可された手動リセットを実施できます。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.reboot"
+msgstr "明示した再起動コマンドを一度送信"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.rebootReady"
+msgstr "Host の監視準備ができ、明示された再起動を待っています。再度リセットしないでください。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.boot_started"
+msgstr "起動が進み、U-Boot への移行は確認できませんでした。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.cancelled"
+msgstr "Host がキャンセルを確認しました。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.cleanup_failed"
+msgstr "移行の証拠は確認しましたが、操作権限の解放に失敗しました。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.entered"
+msgstr "新しい U-Boot プロンプトを確認しました。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.failed"
+msgstr "Host は移行を確認できませんでした。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.input_pending"
+msgstr "未完了の端末入力があるため、Host が再起動を拒否しました。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.output_lost"
+msgstr "出力の証拠が失われたため、自動中断を停止しました。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.session_closed"
+msgstr "試行中に Session が閉じられました。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.timeout"
+msgstr "移行を確認できずタイムアウトしました。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.unsupported_shell"
+msgstr "再起動コマンドには待機中の Bash シェルが必要です。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.write_failed"
+msgstr "入力の送信に失敗したか、到達結果が不明です。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.saveEvidence"
+msgstr "診断アーカイブを保存…"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.start"
+msgstr "確認して開始"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.stop"
+msgstr "試行を停止"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.stopping"
+msgstr "この要求を停止中です。送信済みの再起動は取り消せません。"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.timeout"
+msgstr "タイムアウト（ミリ秒）"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.unknown"
+msgstr "結果は未確認です。次の操作前に元の Session とアクティビティを確認してください。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.validation"
+msgstr "文字列：UTF-8 で 1–256 バイト。起動開始の文字列：1–8 個。中断：1–32 バイト。タイムアウト：1–180000 ms。文字列をそのまま照合し、空白も保持します。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.waiting"
+msgstr "Host の監視を準備中です。まだリセットしないでください。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.waitReset"
+msgstr "手動リセットを待つ"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

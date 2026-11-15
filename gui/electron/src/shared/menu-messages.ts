@@ -3,6 +3,136 @@ import type { MessageDescriptor } from "@lingui/core";
 // Lingui 5 extracts these official annotated descriptors without a runtime macro
 // transform. Translations belong in PO catalogs; this file owns IDs and English defaults.
 export const menuMessages = [
+  /* i18n */ { id: "uboot.open", message: "Enter U-Boot…" },
+  /* i18n */ { id: "uboot.mode", message: "Reset mode" },
+  /* i18n */ {
+    id: "uboot.reboot",
+    message: "Send one explicit reboot command",
+  },
+  /* i18n */ { id: "uboot.waitReset", message: "Wait for manual reset" },
+  /* i18n */ { id: "uboot.command", message: "Verified reboot command" },
+  /* i18n */ { id: "uboot.countdown", message: "Literal countdown marker" },
+  /* i18n */ {
+    id: "uboot.prompt",
+    message: "Exact prompt line, including spaces",
+  },
+  /* i18n */ {
+    id: "uboot.bootStarted",
+    message: "Boot-start markers (one per line)",
+  },
+  /* i18n */ {
+    id: "uboot.interrupt",
+    message: "Exact interrupt bytes (HEX pairs, no spaces)",
+  },
+  /* i18n */ { id: "uboot.timeout", message: "Timeout (milliseconds)" },
+  /* i18n */ {
+    id: "uboot.capture",
+    message:
+      "Retain raw terminal evidence in a diagnostic archive for up to 15 minutes. It may contain sensitive data.",
+  },
+  /* i18n */ {
+    id: "uboot.noRetry",
+    message:
+      "One attempt only. Cancellation sends no recovery keys and cannot undo a submitted reboot. Never repeat a reset automatically.",
+  },
+  /* i18n */ {
+    id: "uboot.confirm",
+    message: "Confirm this board-specific U-Boot attempt",
+  },
+  /* i18n */ { id: "uboot.start", message: "Review and start" },
+  /* i18n */ {
+    id: "uboot.idle",
+    message:
+      "I verified an idle interactive Bash prompt and authorize this reboot command.",
+  },
+  /* i18n */ {
+    id: "uboot.help",
+    message:
+      "Use settings verified for this board and firmware. No interrupt key or reboot command is guessed. Do not use this at an already-idle U-Boot prompt.",
+  },
+  /* i18n */ {
+    id: "uboot.validation",
+    message:
+      "Markers: 1–256 UTF-8 bytes; 1–8 boot-start markers. Interrupt: 1–32 bytes. Timeout: 1–180000 ms. All patterns are literal; spaces are preserved.",
+  },
+  /* i18n */ {
+    id: "uboot.unknown",
+    message:
+      "Outcome unconfirmed. Inspect the original Session and activity before another action.",
+  },
+  /* i18n */ {
+    id: "uboot.waiting",
+    message: "Arming the Host observer. Do not reset yet.",
+  },
+  /* i18n */ {
+    id: "uboot.ready",
+    message:
+      "Host observer ready for this attempt. You may perform the authorized manual reset.",
+  },
+  /* i18n */ {
+    id: "uboot.rebootReady",
+    message:
+      "Host observer armed; waiting for the explicitly requested reboot. Do not reset again.",
+  },
+  /* i18n */ {
+    id: "uboot.stopping",
+    message: "Stopping this request. A submitted reboot cannot be undone.",
+  },
+  /* i18n */ {
+    id: "uboot.evidence",
+    message: "Host evidence: bytes written · elapsed time · output cursors",
+  },
+  /* i18n */ {
+    id: "uboot.archiveFailed",
+    message: "The diagnostic archive could not be created.",
+  },
+  /* i18n */ { id: "uboot.saveEvidence", message: "Save diagnostic archive…" },
+  /* i18n */ { id: "uboot.stop", message: "Stop attempt" },
+  /* i18n */ {
+    id: "uboot.result.entered",
+    message: "Fresh U-Boot prompt confirmed.",
+  },
+  /* i18n */ {
+    id: "uboot.result.boot_started",
+    message: "Boot proceeded; U-Boot entry was not confirmed.",
+  },
+  /* i18n */ {
+    id: "uboot.result.timeout",
+    message: "Timed out without confirming entry.",
+  },
+  /* i18n */ {
+    id: "uboot.result.cancelled",
+    message: "Host confirmed cancellation.",
+  },
+  /* i18n */ {
+    id: "uboot.result.session_closed",
+    message: "The Session closed during the attempt.",
+  },
+  /* i18n */ {
+    id: "uboot.result.output_lost",
+    message: "Output evidence was lost; automatic interruption stopped.",
+  },
+  /* i18n */ {
+    id: "uboot.result.write_failed",
+    message: "Input delivery failed or is uncertain.",
+  },
+  /* i18n */ {
+    id: "uboot.result.input_pending",
+    message: "The Host refused reboot because terminal input is pending.",
+  },
+  /* i18n */ {
+    id: "uboot.result.unsupported_shell",
+    message: "The reboot command requires an idle Bash shell.",
+  },
+  /* i18n */ {
+    id: "uboot.result.cleanup_failed",
+    message: "Entry evidence was observed, but ownership cleanup failed.",
+  },
+  /* i18n */ {
+    id: "uboot.result.failed",
+    message: "The Host could not confirm entry.",
+  },
+
   /* i18n */ { id: "terminal.auxiliary", message: "Auxiliary display" },
   /* i18n */ { id: "terminal.timestamps", message: "Show system timestamps" },
   /* i18n */ { id: "terminal.sequence", message: "Show sequence numbers" },

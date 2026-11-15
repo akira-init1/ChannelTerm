@@ -1552,6 +1552,19 @@ main {
   overflow-wrap: anywhere;
 }
 
+.uboot-dialog fieldset {
+  min-inline-size: 0;
+}
+.uboot-dialog .recording-content {
+  overflow-wrap: anywhere;
+}
+.uboot-dialog .display-checkbox {
+  align-items: flex-start;
+}
+.uboot-dialog footer {
+  flex-wrap: wrap;
+}
+
 .transfer-job > .ssh-transfer-result {
   display: grid;
   grid-template-columns: minmax(0, 1fr);

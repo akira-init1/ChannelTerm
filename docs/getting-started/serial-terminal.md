@@ -70,6 +70,27 @@ operation capture times describe Host observation, not exact UART arrival. Revie
 contents before sharing. An error response must be checked through `isError` before parsing text;
 use hex/base64 for ordinary reads during boot and preserve cursors across timeouts.
 
+### Electron operation panel
+
+Attach the intended open serial Session, then choose **Terminal > Enter U-Boot…**.
+An updated HTTP Host must advertise cancellable U-Boot requests; older Hosts leave this action
+unavailable. The panel starts with manual-reset mode and empty board-specific settings. Enter the
+verified literal countdown, exact prompt, one boot-start marker per line, and interrupt HEX pairs.
+Settings are transient and are not saved as connection defaults. Raw diagnostic capture is opt-in.
+
+**Review and start** opens a native confirmation showing the full Session ID and exact settings;
+Cancel is the default. For manual reset, wait until this attempt reports that its observer is ready
+before performing the authorized reset. Readiness from another client or an earlier attempt is not
+accepted. Reboot mode additionally requires an explicit command and confirmation of idle Bash;
+its ready message does not invite a second manual reset.
+
+**Stop attempt** cancels only this request and sends no recovery keys. Closing its window also
+cancels the request without closing the shared Session. Cancellation cannot undo a submitted
+reboot, and loss of the response can leave the outcome unknown. Inspect current board state before
+starting another explicit attempt. Only the fresh-prompt success message confirms entry. When
+available, **Save diagnostic archive…** downloads the retained evidence through the existing
+verified native-save flow; capture failures and partial operation results remain visible.
+
 ## Find a port
 
 List currently detected serial targets without querying MCP:

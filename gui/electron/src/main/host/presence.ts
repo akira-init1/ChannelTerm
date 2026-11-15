@@ -24,6 +24,7 @@ export class ClientPresence {
   private checking?: Promise<void>;
   managedTransfersAvailable = false;
   idlePolicyAvailable = false;
+  ubootAvailable = false;
 
   constructor(
     private readonly client: Client,
@@ -63,6 +64,11 @@ export class ClientPresence {
     );
     this.idlePolicyAvailable = listed.tools.some(
       (tool) => tool.name === "host_idle_status",
+    );
+    this.ubootAvailable = listed.tools.some(
+      (tool) =>
+        tool.name === "terminal_enter_uboot" &&
+        tool._meta?.["io.channelterm/uboot-http-cancellation"] === 1,
     );
     if (!listed.tools.some((tool) => tool.name === "client_instance")) return;
     const result = await this.request({
@@ -107,14 +113,24 @@ export class ClientPresence {
     this.timer.unref();
   }
 
-  metadata() {
+  metadata(useId?: string) {
     if (this.failed)
       throw new HostError(
         "disconnected",
         "Client presence expired. Reconnect explicitly; input was not retried.",
       );
+    if (useId && ![...this.uses.values()].includes(useId))
+      throw new HostError(
+        "cancelled",
+        "The client operation is no longer registered.",
+      );
     return this.credential
-      ? { "io.channelterm/instance": this.credential }
+      ? {
+          "io.channelterm/instance": {
+            ...this.credential,
+            ...(useId ? { use_id: useId } : {}),
+          },
+        }
       : undefined;
   }
 
@@ -199,7 +215,7 @@ export class ClientPresence {
       ).catch(() => {});
   }
 
-  /** Declare a local file operation; delegation links a serial CLI child to this exact target. */
+  /** Declare local operation use; optional delegation links a serial CLI child to this exact target. */
   async operation(sessionId: string, delegate: boolean) {
     const key = `file:${randomUUID()}`;
     await this.use(key, sessionId, "operation");

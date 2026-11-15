@@ -63,6 +63,7 @@ for authentication, verification and cancellation.
 | Menu / surface | Action ID | Behavior and availability |
 | --- | --- | --- |
 | Terminal > Debug send and snippets | `send.open` | Open an explicit text/HEX sender for the captured open, unleased attachment. No shortcut, timer or broadcast. |
+| Terminal > Enter U-Boot… | `uboot.open` | Open the [board-specific operation panel](../getting-started/serial-terminal.md#electron-operation-panel) for the captured writable, open, unleased serial attachment. Requires Host HTTP cancellation capability; no shortcut or automatic reset. |
 | Terminal > Continuous recording; recording status indicator | `logs.open` | Start explicit raw/text output recording for the captured view, inspect this window's records, stop them, or select one local log file for confirmed trash. Available offline for retained results. |
 | Host > Configure or repair MCP clients | `setup.open` | Inspect one local client, verify existing access, or explicitly confirm file-adapter setup/repair. Available offline; no token or configuration path enters Renderer. See the [setup workflow](../getting-started/mcp-server.md#desktop-client-setup-and-repair). |
 | Host > Host information and connection | `host.settings` | Show Main-owned versions, connection capabilities and the local endpoint, including while offline. Saving disconnects this window; no shortcut or Host-stop action. |

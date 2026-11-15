@@ -129,6 +129,7 @@ msgstr "전송 속도"
 #: src/main/index.ts
 #: src/main/index.ts
 #: src/main/index.ts
+#: src/main/index.ts
 #: src/shared/menu-messages.ts
 msgid "connection.cancel"
 msgstr "취소"
@@ -3137,6 +3138,202 @@ msgstr "시스템 타임스탬프 표시"
 #: src/shared/menu-messages.ts
 msgid "terminal.view"
 msgstr "보기 모드"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.archiveFailed"
+msgstr "진단 아카이브를 만들 수 없습니다."
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.bootStarted"
+msgstr "부팅 시작 표식(줄마다 하나)"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.capture"
+msgstr "원본 터미널 증거를 진단 아카이브에 최대 15분 동안 보관합니다. 민감한 데이터가 포함될 수 있습니다."
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.command"
+msgstr "검증된 재부팅 명령"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.confirm"
+msgstr "이 보드에 대한 U-Boot 시도 확인"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.countdown"
+msgstr "카운트다운 리터럴 표식"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.evidence"
+msgstr "Host 증거: 기록한 바이트 · 경과 시간 · 출력 커서"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.help"
+msgstr "이 보드와 펌웨어에서 검증된 설정을 사용하세요. 중단 키나 재부팅 명령을 추측하지 않습니다. 이미 유휴 상태인 U-Boot 프롬프트에서는 사용하지 마세요."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.idle"
+msgstr "유휴 상태의 대화형 Bash 프롬프트를 확인했으며 이 재부팅 명령을 허용합니다."
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.interrupt"
+msgstr "정확한 중단 바이트(공백 없는 HEX 쌍)"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.mode"
+msgstr "리셋 방식"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.noRetry"
+msgstr "한 번만 시도합니다. 취소해도 복구 키를 보내지 않으며 이미 전송한 재부팅은 되돌릴 수 없습니다. 리셋을 자동으로 반복하지 않습니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.open"
+msgstr "U-Boot 진입…"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.prompt"
+msgstr "공백을 포함한 정확한 프롬프트 줄"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.ready"
+msgstr "이 시도의 Host 관찰자가 준비되었습니다. 허가된 수동 리셋을 수행할 수 있습니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.reboot"
+msgstr "명시한 재부팅 명령을 한 번 전송"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.rebootReady"
+msgstr "Host 관찰자가 준비되어 명시적으로 요청한 재부팅을 기다립니다. 다시 리셋하지 마세요."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.boot_started"
+msgstr "부팅이 진행되었으며 U-Boot 진입은 확인되지 않았습니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.cancelled"
+msgstr "Host에서 취소를 확인했습니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.cleanup_failed"
+msgstr "진입 증거를 관찰했지만 제어권 해제에 실패했습니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.entered"
+msgstr "새 U-Boot 프롬프트를 확인했습니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.failed"
+msgstr "Host에서 진입을 확인하지 못했습니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.input_pending"
+msgstr "터미널에 미완료 입력이 있어 Host에서 재부팅을 거부했습니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.output_lost"
+msgstr "출력 증거가 손실되어 자동 중단을 멈췄습니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.session_closed"
+msgstr "시도 중 Session이 닫혔습니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.timeout"
+msgstr "진입을 확인하지 못한 채 시간이 초과되었습니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.unsupported_shell"
+msgstr "재부팅 명령에는 유휴 Bash 셸이 필요합니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.write_failed"
+msgstr "입력 전송에 실패했거나 전달 여부가 불확실합니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.saveEvidence"
+msgstr "진단 아카이브 저장…"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.start"
+msgstr "검토 후 시작"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.stop"
+msgstr "시도 중지"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.stopping"
+msgstr "이 요청을 중지하고 있습니다. 이미 전송한 재부팅은 되돌릴 수 없습니다."
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.timeout"
+msgstr "제한 시간(밀리초)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.unknown"
+msgstr "결과를 확인하지 못했습니다. 다음 작업 전에 원래 Session과 활동을 확인하세요."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.validation"
+msgstr "표식: UTF-8 1–256바이트, 부팅 시작 표식 1–8개. 중단: 1–32바이트. 제한 시간: 1–180000ms. 패턴은 문자 그대로 일치시키며 공백을 유지합니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.waiting"
+msgstr "Host 관찰자를 준비하고 있습니다. 아직 리셋하지 마세요."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.waitReset"
+msgstr "수동 리셋 대기"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

@@ -73,10 +73,15 @@ export async function checkHostSettings(environment) {
     let page = await desktop.firstWindow();
     await connect(page);
     await page.locator(".session").filter({ hasText: "Isolated echo" }).click();
-    const stale = await page.evaluate(
-      async (id) => (await window.channelterm.attach(id)).value.id,
+    // The UI attachment must finish before creating this separate stale-handle probe.
+    // Main deliberately rejects overlapping attachment changes; do not race or retry them.
+    await expect(page.locator(".xterm-screen")).toBeVisible();
+    const extraAttachment = await page.evaluate(
+      (id) => window.channelterm.attach(id),
       id,
     );
+    assert.equal(extraAttachment.ok, true, JSON.stringify(extraAttachment));
+    const stale = extraAttachment.value.id;
     const nextWindow = desktop.waitForEvent("window");
     await action(page, "window", "window.new");
     const second = await nextWindow;

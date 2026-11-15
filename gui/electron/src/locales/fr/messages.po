@@ -129,6 +129,7 @@ msgstr "Débit en bauds"
 #: src/main/index.ts
 #: src/main/index.ts
 #: src/main/index.ts
+#: src/main/index.ts
 #: src/shared/menu-messages.ts
 msgid "connection.cancel"
 msgstr "Annuler"
@@ -3137,6 +3138,202 @@ msgstr "Afficher les horodatages système"
 #: src/shared/menu-messages.ts
 msgid "terminal.view"
 msgstr "Mode d’affichage"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.archiveFailed"
+msgstr "Impossible de créer l’archive de diagnostic."
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.bootStarted"
+msgstr "Marqueurs de démarrage (un par ligne)"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.capture"
+msgstr "Conserver les données brutes du terminal dans une archive de diagnostic pendant 15 minutes au maximum. Elles peuvent contenir des données sensibles."
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.command"
+msgstr "Commande de redémarrage vérifiée"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.confirm"
+msgstr "Confirmer cette tentative U-Boot propre à la carte"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.countdown"
+msgstr "Marqueur littéral du compte à rebours"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.evidence"
+msgstr "Preuves du Host : octets écrits · durée · curseurs de sortie"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.help"
+msgstr "Utilisez des paramètres vérifiés pour cette carte et son micrologiciel. Aucune touche d’interruption ni commande de redémarrage n’est devinée. Ne pas utiliser sur une invite U-Boot déjà inactive."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.idle"
+msgstr "J’ai vérifié que l’invite Bash interactive est inactive et j’autorise cette commande de redémarrage."
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.interrupt"
+msgstr "Octets d’interruption exacts (paires HEX sans espaces)"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.mode"
+msgstr "Mode de réinitialisation"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.noRetry"
+msgstr "Une seule tentative. L’annulation n’envoie aucune touche de récupération et ne peut pas annuler un redémarrage déjà envoyé. Aucune nouvelle réinitialisation automatique."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.open"
+msgstr "Entrer dans U-Boot…"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.prompt"
+msgstr "Ligne d’invite exacte, espaces compris"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.ready"
+msgstr "L’observateur du Host est prêt pour cette tentative. Vous pouvez effectuer la réinitialisation manuelle autorisée."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.reboot"
+msgstr "Envoyer une seule commande de redémarrage explicite"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.rebootReady"
+msgstr "Observateur du Host prêt ; attente du redémarrage explicitement demandé. Ne réinitialisez pas à nouveau."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.boot_started"
+msgstr "Le démarrage s’est poursuivi ; l’entrée dans U-Boot n’a pas été confirmée."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.cancelled"
+msgstr "Le Host a confirmé l’annulation."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.cleanup_failed"
+msgstr "Des preuves d’entrée ont été observées, mais la libération du contrôle a échoué."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.entered"
+msgstr "Une nouvelle invite U-Boot a été confirmée."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.failed"
+msgstr "Le Host n’a pas pu confirmer l’entrée."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.input_pending"
+msgstr "Le Host a refusé le redémarrage car une saisie est en attente dans le terminal."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.output_lost"
+msgstr "Preuves de sortie perdues ; interruption automatique arrêtée."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.session_closed"
+msgstr "La Session a été fermée pendant la tentative."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.timeout"
+msgstr "Délai dépassé sans confirmation de l’entrée."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.unsupported_shell"
+msgstr "La commande de redémarrage nécessite un shell Bash inactif."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.write_failed"
+msgstr "L’envoi de l’entrée a échoué ou sa réception est incertaine."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.saveEvidence"
+msgstr "Enregistrer l’archive de diagnostic…"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.start"
+msgstr "Vérifier et démarrer"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.stop"
+msgstr "Arrêter la tentative"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.stopping"
+msgstr "Arrêt de cette requête. Un redémarrage déjà envoyé ne peut pas être annulé."
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.timeout"
+msgstr "Délai maximal (millisecondes)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.unknown"
+msgstr "Résultat non confirmé. Vérifiez la Session d’origine et son activité avant toute autre action."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.validation"
+msgstr "Marqueurs : 1–256 octets UTF-8 ; 1–8 marqueurs de démarrage. Interruption : 1–32 octets. Délai : 1–180000 ms. Les motifs sont littéraux ; les espaces sont conservés."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.waiting"
+msgstr "Préparation de l’observateur du Host. Ne réinitialisez pas encore."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.waitReset"
+msgstr "Attendre une réinitialisation manuelle"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

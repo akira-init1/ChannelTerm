@@ -1,4 +1,5 @@
 import type { DebugPayload, CommandSnippet, SnippetChange } from "./debug-send";
+import type { UBootRequest, UBootJob } from "./uboot";
 import type {
   DeviceSelection,
   DeviceDecision,
@@ -97,6 +98,7 @@ export interface HostInfo {
   hostVersion?: string;
   remoteSize?: boolean;
   managedTransfers?: boolean;
+  ubootAvailable?: boolean;
   lifetime: "persistent" | "attachment" | "unknown";
   sshAvailable?: boolean;
   sshAdvanced?: boolean;
@@ -151,6 +153,12 @@ export interface WindowInfo {
 
 /** One method per IPC channel; no arbitrary tool, URL, file, or process access. */
 export interface DesktopAPI {
+  startUBoot(
+    id: string,
+    request: UBootRequest,
+  ): Promise<Result<UBootJob | undefined>>;
+  ubootStatus(): Promise<Result<UBootJob | undefined>>;
+  cancelUBoot(id: string): Promise<Result<void>>;
   debugSend(
     id: string,
     payload: DebugPayload,
@@ -262,6 +270,9 @@ export interface DesktopAPI {
 }
 
 export const channels = {
+  startUBoot: "uboot:start",
+  ubootStatus: "uboot:status",
+  cancelUBoot: "uboot:cancel",
   debugSend: "debug-input:send",
   snippets: "debug-input:snippets",
   changeSnippet: "debug-input:save",

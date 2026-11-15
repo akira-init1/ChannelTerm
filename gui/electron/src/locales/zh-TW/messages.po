@@ -129,6 +129,7 @@ msgstr "鮑率"
 #: src/main/index.ts
 #: src/main/index.ts
 #: src/main/index.ts
+#: src/main/index.ts
 #: src/shared/menu-messages.ts
 msgid "connection.cancel"
 msgstr "取消"
@@ -3137,6 +3138,202 @@ msgstr "顯示系統時間戳"
 #: src/shared/menu-messages.ts
 msgid "terminal.view"
 msgstr "檢視模式"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.archiveFailed"
+msgstr "無法建立診斷封存。"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.bootStarted"
+msgstr "啟動標記（每行一個）"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.capture"
+msgstr "將原始終端證據保留在診斷封存中，最長 15 分鐘。其中可能包含敏感資料。"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.command"
+msgstr "已核實的重新啟動命令"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.confirm"
+msgstr "確認本次針對該開發板的 U-Boot 操作"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.countdown"
+msgstr "倒數計時字面標記"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.evidence"
+msgstr "Host 證據：寫入位元組 · 耗時 · 輸出游標"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.help"
+msgstr "請使用針對該開發板及韌體核實的設定。不猜測中斷按鍵或重新啟動命令。已處於閒置 U-Boot 提示字元時請勿使用此操作。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.idle"
+msgstr "我已核實目前是閒置的互動式 Bash 提示字元，並授權執行此重新啟動命令。"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.interrupt"
+msgstr "確切中斷位元組（成對 HEX，不含空格）"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.mode"
+msgstr "重設方式"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.noRetry"
+msgstr "僅嘗試一次。取消不會傳送復原按鍵，也無法撤銷已提交的重新啟動。絕不自動重複重設。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.open"
+msgstr "進入 U-Boot…"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.prompt"
+msgstr "完整提示字元行（包含空格）"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.ready"
+msgstr "本次操作的 Host 觀察器已就緒。現在可以進行已授權的手動重設。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.reboot"
+msgstr "傳送一次明確指定的重新啟動命令"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.rebootReady"
+msgstr "Host 觀察器已就緒，正在等待明確要求的重新啟動。請勿再次重設。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.boot_started"
+msgstr "裝置已繼續啟動，未確認進入 U-Boot。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.cancelled"
+msgstr "Host 已確認取消。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.cleanup_failed"
+msgstr "已觀察到進入證據，但操作控制權清理失敗。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.entered"
+msgstr "已確認新的 U-Boot 提示字元。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.failed"
+msgstr "Host 無法確認進入。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.input_pending"
+msgstr "終端存在未完成輸入，Host 拒絕重新啟動。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.output_lost"
+msgstr "輸出證據遺失，已停止自動中斷。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.session_closed"
+msgstr "操作期間 Session 已關閉。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.timeout"
+msgstr "逾時，未確認進入。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.unsupported_shell"
+msgstr "重新啟動命令要求閒置的 Bash shell。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.write_failed"
+msgstr "輸入傳送失敗或交付結果不確定。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.saveEvidence"
+msgstr "儲存診斷封存…"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.start"
+msgstr "核對並開始"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.stop"
+msgstr "停止本次嘗試"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.stopping"
+msgstr "正在停止本次請求。已提交的重新啟動無法撤銷。"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.timeout"
+msgstr "逾時（毫秒）"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.unknown"
+msgstr "結果未確認。再次操作前，請檢查原 Session 及其活動記錄。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.validation"
+msgstr "標記：1–256 個 UTF-8 位元組；啟動標記：1–8 個。中斷：1–32 位元組。逾時：1–180000 毫秒。均按字面比對，保留空格。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.waiting"
+msgstr "正在準備 Host 觀察器。暫勿重設。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.waitReset"
+msgstr "等待手動重設"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

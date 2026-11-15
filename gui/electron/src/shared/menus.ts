@@ -94,6 +94,7 @@ export type Action =
         | "terminal.focus"
         | "terminal.resume"
         | "terminal.copy"
+        | "uboot.open"
         | "send.open"
         | "terminal.find"
         | "terminal.paste";
@@ -108,6 +109,7 @@ export interface MenuState {
   languagePreference?: LanguagePreference;
   connected: boolean;
   sshAvailable: boolean;
+  ubootAvailable?: boolean;
   busy: boolean;
   sidebarVisible: boolean;
   auxiliaryVisible: boolean;
@@ -167,6 +169,7 @@ function attachedAction(
     | "terminal.focus"
     | "terminal.resume"
     | "terminal.copy"
+    | "uboot.open"
     | "send.open"
     | "terminal.find"
     | "terminal.paste",
@@ -438,6 +441,18 @@ export function terminalMenu(state: MenuState): MenuEntry[] {
         !state.leased &&
         !state.inputPaused,
     },
+    {
+      ...attachedAction(state, "uboot.open"),
+      enabled:
+        !!state.attachment &&
+        !!state.ubootAvailable &&
+        state.currentSerial &&
+        state.currentOpen &&
+        state.connected &&
+        !state.busy &&
+        !state.leased &&
+        !state.inputPaused,
+    },
     attachedAction(state, "terminal.focus"),
     attachedAction(state, "terminal.clear"),
     {
@@ -612,6 +627,7 @@ export function isAction(value: unknown): value is Action {
     case "tab.splitDown":
     case "session.info":
     case "terminal.copy":
+    case "uboot.open":
     case "send.open":
     case "terminal.find":
     case "terminal.paste":
@@ -643,6 +659,7 @@ export function isMenuState(value: unknown): value is MenuState {
       "languagePreference",
       "connected",
       "sshAvailable",
+      "ubootAvailable",
       "busy",
       "sidebarVisible",
       "auxiliaryVisible",
@@ -665,6 +682,8 @@ export function isMenuState(value: unknown): value is MenuState {
     return false;
   return (
     (value.lineDisplay === undefined || isLineDisplay(value.lineDisplay)) &&
+    (value.ubootAvailable === undefined ||
+      typeof value.ubootAvailable === "boolean") &&
     isMenuLocale(value.locale) &&
     (value.split === undefined || typeof value.split === "boolean") &&
     (value.tabId === undefined || identifier(value.tabId)) &&
@@ -759,6 +778,7 @@ export function actionEnabled(action: Action, state: MenuState): boolean {
     case "tab.splitDown":
     case "session.info":
     case "terminal.copy":
+    case "uboot.open":
     case "send.open":
     case "terminal.find":
     case "terminal.paste":
@@ -781,6 +801,13 @@ export function actionEnabled(action: Action, state: MenuState): boolean {
           (state.connected &&
             state.currentOpen &&
             (state.windowCount ?? 1) < 16)) &&
+        (action.id !== "uboot.open" ||
+          (!!state.ubootAvailable &&
+            state.currentSerial &&
+            state.connected &&
+            state.currentOpen &&
+            !state.leased &&
+            !state.inputPaused)) &&
         (action.id !== "send.open" ||
           (state.connected &&
             state.currentOpen &&

@@ -721,6 +721,12 @@ This example is board-dependent. Before manual reset, observe the matching `OPER
 event with `operation: "uboot"`, `status: "ready"`, `operation_id`, and `output_cursor` through
 `terminal_session_events`. Readiness means the observer cursor is armed, not that the device reset.
 Clients must allow the requested call duration and can observe events in a separate request.
+HTTP tool discovery advertises `_meta["io.channelterm/uboot-http-cancellation"]: 1` when aborting
+the original HTTP request cancels this operation, including legacy negotiated protocol versions.
+This capability is absent from stdio discovery. Clients must abort that original request;
+a separate cancellation notification alone is insufficient for legacy stateless HTTP calls.
+Cancellation is scoped to the request and preserves other requests and shared Sessions. This
+metadata adds no input/result fields and grants no additional write permission.
 Save the event cursor before starting the operation and ignore older readiness events. Completion
 events include the diagnostic ID when capture succeeded, allowing another client to retrieve it
 after request cancellation. The archive's independently sampled event snapshot can precede this

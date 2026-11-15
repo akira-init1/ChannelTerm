@@ -588,6 +588,21 @@ stop the affected work and are surfaced to the UI. Reconnection is explicit.
 
 ## Security and lifecycle
 
+The U-Boot panel uses three fixed IPC methods for start, status and cancellation. Main validates
+the bounded board settings, captures the attachment/control generation before native confirmation,
+and retains at most one pending job and its last result per window. Host Client registers an
+operation use and observes a separate bounded event cursor. Readiness must be newer than the
+starting cursor and match the full Session, authenticated client instance and operation use;
+missing events invalidate readiness. Renderer receives only sanitized job/evidence snapshots.
+
+Execution reuses `terminal_enter_uboot`; the Host owns its lease, matching and exact-once interrupt.
+The Host advertises the HTTP request-cancellation capability described in the
+[MCP contract](../reference/mcp-tools.md#terminal_enter_uboot). Main binds the actual operation HTTP
+request to its own abort signal and requested duration plus a five-second delivery margin;
+ordinary requests retain their existing timeout. Disconnect, detach and window exit cancel owned
+work without closing the shared Session, sending recovery keys or retrying a reboot. Form drafts
+are not persisted, and raw diagnostic capture requires explicit selection.
+
 Debug sending is a separate explicit Main capability over the existing Host write path. Main encodes
 one bounded payload before native confirmation, captures the original attachment/control generation,
 and sends those exact bytes once through the common serialized queue. Renderer holds only its local

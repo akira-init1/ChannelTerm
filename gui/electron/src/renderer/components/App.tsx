@@ -1,3 +1,4 @@
+import { UBootDialog } from "../terminal/UBootDialog";
 import { DebugSendDialog } from "../terminal/DebugSendDialog";
 import { ControlPanel } from "../sessions/ControlPanel";
 import { HostSettingsDialog } from "./HostSettings";
@@ -152,6 +153,7 @@ export function App() {
   const [restoringWorkspace, setRestoringWorkspace] = useState(false);
   const [info, setInfo] = useState<HostInfo>();
   const [hostSettingsOpen, setHostSettingsOpen] = useState(false);
+  const [ubootTarget, setUBootTarget] = useState<Attachment>();
   const [debugSendTarget, setDebugSendTarget] = useState<Attachment>();
   const [mcpSetupOpen, setMCPSetupOpen] = useState(false);
   const [recordingDialog, setRecordingDialog] = useState<{
@@ -613,7 +615,9 @@ export function App() {
       languagePreference,
       connected,
       sshAvailable: !!info?.sshAvailable,
+      ubootAvailable: !!info?.ubootAvailable,
       busy:
+        !!ubootTarget ||
         !!debugSendTarget ||
         mcpSetupOpen ||
         !!recordingDialog ||
@@ -647,6 +651,8 @@ export function App() {
       hostSettingsOpen,
       mcpSetupOpen,
       debugSendTarget,
+      ubootTarget,
+      info?.ubootAvailable,
       recordingDialog,
       languagePreference,
       connected,
@@ -1276,6 +1282,7 @@ export function App() {
       tabId: tab?.id,
       split: !!split && (split.first === tab?.id || split.second === tab?.id),
       busy:
+        !!ubootTarget ||
         !!debugSendTarget ||
         mcpSetupOpen ||
         !!recordingDialog ||
@@ -1516,6 +1523,9 @@ export function App() {
         return;
       case "terminal.copy":
         terminal?.copy();
+        return;
+      case "uboot.open":
+        setUBootTarget({ ...action.attachment });
         return;
       case "send.open":
         setDebugSendTarget({ ...action.attachment });
@@ -1788,6 +1798,13 @@ export function App() {
           records={recordings}
           t={t}
           onClose={() => setRecordingDialog(undefined)}
+        />
+      )}
+      {ubootTarget && (
+        <UBootDialog
+          attachment={ubootTarget}
+          t={t}
+          onClose={() => setUBootTarget(undefined)}
         />
       )}
       {debugSendTarget && (
@@ -2419,6 +2436,7 @@ export function App() {
                           )?.control?.version
                         }
                         writable={
+                          !ubootTarget &&
                           !debugSendTarget &&
                           !mcpSetupOpen &&
                           !recordingDialog &&

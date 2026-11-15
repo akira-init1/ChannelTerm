@@ -22,6 +22,49 @@ function flatten(items: MenuEntry[]): MenuEntry[] {
   return items.flatMap((item) => [item, ...flatten(item.children ?? [])]);
 }
 
+test("U-Boot is a finite serial-only action requiring advertised cancellation and the original attachment", () => {
+  const state = {
+    ...initialMenuState,
+    connected: true,
+    currentOpen: true,
+    currentSerial: true,
+    ubootAvailable: true,
+    attachment: { id: "view", sessionId: "opaque-session" },
+  };
+  const entry = flatten(terminalMenu(state)).find(
+    (row) => row.id === "uboot.open",
+  )!;
+  assert.equal(entry.enabled, true);
+  assert.equal(isAction(entry.action), true);
+  assert.equal(actionEnabled(entry.action!, state), true);
+  for (const change of [
+    { ubootAvailable: false },
+    { currentSerial: false },
+    { currentOpen: false },
+    { connected: false },
+    { busy: true },
+    { leased: true },
+    { inputPaused: true },
+  ]) {
+    assert.equal(
+      flatten(terminalMenu({ ...state, ...change })).find(
+        (row) => row.id === "uboot.open",
+      )!.enabled,
+      false,
+    );
+    assert.equal(actionEnabled(entry.action!, { ...state, ...change }), false);
+  }
+  assert.equal(
+    actionEnabled(entry.action!, {
+      ...state,
+      attachment: { id: "replacement", sessionId: "opaque-session" },
+    }),
+    false,
+  );
+  assert.equal(isAction({ ...entry.action, command: "reboot" }), false);
+  assert.equal(isMenuState({ ...state, ubootAvailable: "yes" }), false);
+});
+
 test("split actions bind an exact live attachment, respect view capacity and never imply write authority", () => {
   const state = {
     ...initialMenuState,

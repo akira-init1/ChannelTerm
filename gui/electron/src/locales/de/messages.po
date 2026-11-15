@@ -129,6 +129,7 @@ msgstr "Baudrate"
 #: src/main/index.ts
 #: src/main/index.ts
 #: src/main/index.ts
+#: src/main/index.ts
 #: src/shared/menu-messages.ts
 msgid "connection.cancel"
 msgstr "Abbrechen"
@@ -3137,6 +3138,202 @@ msgstr "Systemzeitstempel anzeigen"
 #: src/shared/menu-messages.ts
 msgid "terminal.view"
 msgstr "Ansichtsmodus"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.archiveFailed"
+msgstr "Das Diagnosearchiv konnte nicht erstellt werden."
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.bootStarted"
+msgstr "Startmarkierungen (eine pro Zeile)"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.capture"
+msgstr "Rohe Terminaldaten bis zu 15 Minuten in einem Diagnosearchiv aufbewahren. Sie können vertrauliche Daten enthalten."
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.command"
+msgstr "Geprüfter Neustartbefehl"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.confirm"
+msgstr "Diesen boardspezifischen U-Boot-Versuch bestätigen"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.countdown"
+msgstr "Wörtliche Countdown-Markierung"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.evidence"
+msgstr "Host-Nachweise: geschriebene Bytes · Dauer · Ausgabecursor"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.help"
+msgstr "Verwenden Sie für dieses Board und diese Firmware geprüfte Einstellungen. Unterbrechungstaste und Neustartbefehl werden nicht erraten. Nicht an einem bereits untätigen U-Boot-Prompt verwenden."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.idle"
+msgstr "Ich habe einen untätigen interaktiven Bash-Prompt geprüft und erlaube diesen Neustartbefehl."
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.interrupt"
+msgstr "Exakte Unterbrechungsbytes (HEX-Paare ohne Leerzeichen)"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.mode"
+msgstr "Reset-Modus"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.noRetry"
+msgstr "Nur ein Versuch. Beim Abbrechen werden keine Wiederherstellungstasten gesendet; ein bereits gesendeter Neustart kann nicht rückgängig gemacht werden. Kein automatischer erneuter Reset."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.open"
+msgstr "U-Boot aufrufen…"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.prompt"
+msgstr "Exakte Prompt-Zeile einschließlich Leerzeichen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.ready"
+msgstr "Host-Beobachter für diesen Versuch bereit. Sie können den genehmigten manuellen Reset ausführen."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.reboot"
+msgstr "Einen ausdrücklich angegebenen Neustartbefehl senden"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.rebootReady"
+msgstr "Host-Beobachter bereit; der ausdrücklich angeforderte Neustart wird erwartet. Keinen weiteren Reset auslösen."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.boot_started"
+msgstr "Der Start wurde fortgesetzt; U-Boot wurde nicht bestätigt."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.cancelled"
+msgstr "Host hat den Abbruch bestätigt."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.cleanup_failed"
+msgstr "Der U-Boot-Aufruf wurde beobachtet, aber die Freigabe der Kontrolle ist fehlgeschlagen."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.entered"
+msgstr "Frischer U-Boot-Prompt bestätigt."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.failed"
+msgstr "Host konnte den U-Boot-Aufruf nicht bestätigen."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.input_pending"
+msgstr "Host hat den Neustart wegen ausstehender Terminaleingabe abgelehnt."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.output_lost"
+msgstr "Ausgabenachweise verloren; automatische Unterbrechung gestoppt."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.session_closed"
+msgstr "Die Session wurde während des Versuchs geschlossen."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.timeout"
+msgstr "Zeitlimit ohne bestätigten U-Boot-Aufruf erreicht."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.unsupported_shell"
+msgstr "Der Neustartbefehl erfordert eine untätige Bash-Shell."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.write_failed"
+msgstr "Eingabeübertragung fehlgeschlagen oder Zustellung ungewiss."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.saveEvidence"
+msgstr "Diagnosearchiv speichern…"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.start"
+msgstr "Prüfen und starten"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.stop"
+msgstr "Versuch stoppen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.stopping"
+msgstr "Diese Anfrage wird gestoppt. Ein bereits gesendeter Neustart kann nicht rückgängig gemacht werden."
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.timeout"
+msgstr "Zeitlimit (Millisekunden)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.unknown"
+msgstr "Ergebnis unbestätigt. Prüfen Sie vor einer weiteren Aktion die ursprüngliche Session und ihre Aktivitäten."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.validation"
+msgstr "Markierungen: 1–256 UTF-8-Bytes; 1–8 Startmarkierungen. Unterbrechung: 1–32 Bytes. Zeitlimit: 1–180000 ms. Alle Muster sind wörtlich; Leerzeichen bleiben erhalten."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.waiting"
+msgstr "Host-Beobachter wird vorbereitet. Noch keinen Reset auslösen."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.waitReset"
+msgstr "Auf manuellen Reset warten"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

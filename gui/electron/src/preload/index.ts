@@ -3,6 +3,10 @@ import { channels, type DesktopAPI } from "../shared/api";
 import { isAction } from "../shared/menus";
 
 const api: DesktopAPI = {
+  startUBoot: (id, request) =>
+    ipcRenderer.invoke(channels.startUBoot, id, request),
+  ubootStatus: () => ipcRenderer.invoke(channels.ubootStatus),
+  cancelUBoot: (id) => ipcRenderer.invoke(channels.cancelUBoot, id),
   debugSend: (id, payload) =>
     ipcRenderer.invoke(channels.debugSend, id, payload),
   snippets: () => ipcRenderer.invoke(channels.snippets),

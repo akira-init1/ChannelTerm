@@ -129,6 +129,7 @@ msgstr "Скорость в бодах"
 #: src/main/index.ts
 #: src/main/index.ts
 #: src/main/index.ts
+#: src/main/index.ts
 #: src/shared/menu-messages.ts
 msgid "connection.cancel"
 msgstr "Отмена"
@@ -3137,6 +3138,202 @@ msgstr "Показывать системные метки времени"
 #: src/shared/menu-messages.ts
 msgid "terminal.view"
 msgstr "Режим просмотра"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.archiveFailed"
+msgstr "Не удалось создать диагностический архив."
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.bootStarted"
+msgstr "Маркеры начала загрузки (по одному в строке)"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.capture"
+msgstr "Хранить исходные данные терминала в диагностическом архиве до 15 минут. Они могут содержать конфиденциальные данные."
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.command"
+msgstr "Проверенная команда перезагрузки"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.confirm"
+msgstr "Подтвердить эту попытку входа в U-Boot для данной платы"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.countdown"
+msgstr "Буквальный маркер обратного отсчёта"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.evidence"
+msgstr "Данные Host: записанные байты · время · курсоры вывода"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.help"
+msgstr "Используйте настройки, проверенные для этой платы и прошивки. Клавиша прерывания и команда перезагрузки не подбираются. Не используйте эту операцию, если U-Boot уже ожидает ввода."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.idle"
+msgstr "Я проверил, что интерактивное приглашение Bash ожидает ввода, и разрешаю эту команду перезагрузки."
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.interrupt"
+msgstr "Точные байты прерывания (пары HEX без пробелов)"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.mode"
+msgstr "Способ сброса"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.noRetry"
+msgstr "Только одна попытка. Отмена не отправляет клавиши восстановления и не отменяет уже отправленную перезагрузку. Автоматического повторного сброса нет."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.open"
+msgstr "Войти в U-Boot…"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.prompt"
+msgstr "Точная строка приглашения, включая пробелы"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.ready"
+msgstr "Наблюдатель Host готов к этой попытке. Можно выполнить разрешённый ручной сброс."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.reboot"
+msgstr "Однократно отправить явно заданную команду перезагрузки"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.rebootReady"
+msgstr "Наблюдатель Host готов; ожидается явно запрошенная перезагрузка. Не выполняйте повторный сброс."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.boot_started"
+msgstr "Загрузка продолжилась; вход в U-Boot не подтверждён."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.cancelled"
+msgstr "Host подтвердил отмену."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.cleanup_failed"
+msgstr "Признаки входа обнаружены, но освобождение управления завершилось ошибкой."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.entered"
+msgstr "Подтверждено новое приглашение U-Boot."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.failed"
+msgstr "Host не смог подтвердить вход."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.input_pending"
+msgstr "Host отклонил перезагрузку из-за незавершённого ввода в терминале."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.output_lost"
+msgstr "Данные вывода потеряны; автоматическое прерывание остановлено."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.session_closed"
+msgstr "Session закрылась во время попытки."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.timeout"
+msgstr "Время ожидания истекло без подтверждения входа."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.unsupported_shell"
+msgstr "Для команды перезагрузки требуется Bash, ожидающий ввода."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.result.write_failed"
+msgstr "Ввод не отправлен или его доставка не подтверждена."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.saveEvidence"
+msgstr "Сохранить диагностический архив…"
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.start"
+msgstr "Проверить и начать"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.stop"
+msgstr "Остановить попытку"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.stopping"
+msgstr "Остановка этого запроса. Уже отправленную перезагрузку отменить нельзя."
+
+#. js-lingui-explicit-id
+#: src/main/index.ts
+#: src/shared/menu-messages.ts
+msgid "uboot.timeout"
+msgstr "Тайм-аут (миллисекунды)"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.unknown"
+msgstr "Результат не подтверждён. Перед следующим действием проверьте исходную Session и её активность."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.validation"
+msgstr "Маркеры: 1–256 байт UTF-8; 1–8 маркеров начала загрузки. Прерывание: 1–32 байта. Тайм-аут: 1–180000 мс. Сопоставление буквальное, пробелы сохраняются."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.waiting"
+msgstr "Подготовка наблюдателя Host. Пока не выполняйте сброс."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "uboot.waitReset"
+msgstr "Ожидать ручного сброса"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

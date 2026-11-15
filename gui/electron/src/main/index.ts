@@ -2,6 +2,8 @@ import { CommandSnippets } from "./snippets";
 import { isDebugPayload } from "../shared/debug-send";
 import { DesktopFiles, TransferConfirmation } from "./files";
 import { DesktopDiagnostics } from "./diagnostics";
+import { DesktopUBoot } from "./uboot";
+import { isUBootRequest } from "../shared/uboot";
 import { DesktopRecordings } from "./logging";
 import { DesktopMCPSetup } from "./mcp-setup";
 import { isMCPSetupRequest } from "../shared/mcp-setup";
@@ -82,6 +84,8 @@ interface WindowContext {
   files: DesktopFiles;
   sshFiles: DesktopSSHFiles;
   diagnostics: DesktopDiagnostics;
+  uboot: DesktopUBoot;
+  ubootConfirming: boolean;
   recordings: DesktopRecordings;
   mcpSetup: DesktopMCPSetup;
   closingRecordings: boolean;
@@ -159,6 +163,7 @@ function disconnectHost(context: WindowContext): Promise<void> {
   context.files.clearSelections();
   context.sshFiles.disconnect();
   context.diagnostics.cancel();
+  context.uboot.stop();
   context.sshBrowser.cancel();
   context.connectionVersion++;
   context.startupController.abort();
@@ -383,6 +388,69 @@ function createHandlers(context: WindowContext): Record<string, Handler> {
   let copyingTarget = false;
   let deletingLog = false;
   const handlers: Record<string, (...args: unknown[]) => unknown> = {
+    [channels.ubootStatus]: () => context.uboot.snapshot(),
+    [channels.cancelUBoot]: (id) => context.uboot.cancel(id),
+    [channels.startUBoot]: async (id, request) => {
+      identifier(id);
+      if (!isUBootRequest(request))
+        throw new HostError(
+          "invalid_input",
+          "Provide verified board settings.",
+        );
+      if (
+        context.ubootConfirming ||
+        context.uboot.busy ||
+        context.debugSending ||
+        context.savingEndpoint ||
+        context.outgoingMove?.sourceAttachment === id ||
+        desktop.quitting
+      )
+        throw new HostError(
+          "busy",
+          "The target is changing or an operation is pending.",
+        );
+      const host = currentHost(context),
+        prepared = host.prepareUBoot(id, request);
+      context.ubootConfirming = true;
+      try {
+        const i18n = setupI18n({
+          locale: context.menu.locale,
+          messages: menuCatalogs,
+        });
+        const details = [
+          prepared.sessionId,
+          `${i18n._("uboot.mode")}: ${i18n._(request.mode === "reboot" ? "uboot.reboot" : "uboot.waitReset")}`,
+          ...(request.mode === "reboot"
+            ? [`${i18n._("uboot.command")}: ${request.rebootCommand}`]
+            : []),
+          `${i18n._("uboot.countdown")}: ${JSON.stringify(request.countdown)}`,
+          `${i18n._("uboot.prompt")}: ${JSON.stringify(request.prompt)}`,
+          `${i18n._("uboot.bootStarted")}: ${JSON.stringify(request.bootStarted)}`,
+          `${i18n._("uboot.interrupt")}: ${request.interruptHex}`,
+          `${i18n._("uboot.timeout")}: ${request.timeoutMS}`,
+          ...(request.capture ? [i18n._("uboot.capture")] : []),
+          i18n._("uboot.noRetry"),
+        ].join("\n");
+        const answer = await dialog.showMessageBox(context.window, {
+          type: "warning",
+          message: i18n._("uboot.confirm"),
+          detail: details,
+          buttons: [i18n._("connection.cancel"), i18n._("uboot.start")],
+          defaultId: 0,
+          cancelId: 0,
+        });
+        if (answer.response !== 1) return;
+        if (
+          context.disposed ||
+          currentHost(context) !== host ||
+          context.outgoingMove?.sourceAttachment === id
+        )
+          throw new HostError("cancelled", "U-Boot target changed.");
+        return context.uboot.start(id, prepared);
+      } finally {
+        context.ubootConfirming = false;
+      }
+    },
     [channels.snippets]: () => commandSnippets.list(),
     [channels.changeSnippet]: (change) => commandSnippets.change(change),
     [channels.debugSend]: async (id, payload) => {
@@ -390,6 +458,7 @@ function createHandlers(context: WindowContext): Record<string, Handler> {
       if (!isDebugPayload(payload))
         throw new HostError("invalid_input", "Invalid debug input.");
       if (
+        context.ubootConfirming ||
         context.debugSending ||
         context.savingEndpoint ||
         context.outgoingMove?.sourceAttachment === id ||
@@ -701,6 +770,7 @@ function createHandlers(context: WindowContext): Record<string, Handler> {
       validateEndpoint(value);
       if (
         context.savingEndpoint ||
+        context.ubootConfirming ||
         context.debugSending ||
         context.mcpSetup.busy ||
         context.recordings.choosing ||
@@ -728,6 +798,7 @@ function createHandlers(context: WindowContext): Record<string, Handler> {
     },
     [channels.connect]: async () => {
       if (
+        context.ubootConfirming ||
         context.debugSending ||
         context.mcpSetup.busy ||
         context.recordings.choosing ||
@@ -782,6 +853,7 @@ function createHandlers(context: WindowContext): Record<string, Handler> {
     },
     [channels.disconnect]: () => {
       if (
+        context.ubootConfirming ||
         context.debugSending ||
         context.mcpSetup.busy ||
         context.files.busy ||
@@ -1024,6 +1096,7 @@ function registerIPC(): void {
             channels.attach,
             channels.write,
             channels.debugSend,
+            channels.startUBoot,
             channels.writeClipboard,
             channels.copyAITarget,
             channels.browseDirectory,
@@ -1038,6 +1111,7 @@ function registerIPC(): void {
               ? 3
               : [
                     channels.control,
+                    channels.cancelUBoot,
                     channels.startRecording,
                     channels.mcpSetup,
                     channels.changeSnippet,
@@ -1131,6 +1205,8 @@ function makeWindow(
     files: new DesktopFiles(fileExecutable),
     sshFiles: new DesktopSSHFiles(fileExecutable),
     diagnostics: new DesktopDiagnostics(),
+    uboot: new DesktopUBoot(),
+    ubootConfirming: false,
     recordings: new DesktopRecordings(),
     mcpSetup: new DesktopMCPSetup(fileExecutable),
     closingRecordings: false,
@@ -1169,6 +1245,7 @@ function makeWindow(
   );
   created.on("close", (event) => {
     if (
+      context.ubootConfirming ||
       context.debugSending ||
       context.mcpSetup.busy ||
       context.files.busy ||
@@ -1277,6 +1354,7 @@ app.on("before-quit", (event) => {
   const contexts = [...desktop.windows.values()];
   const busy = contexts.filter(
     (context) =>
+      context.ubootConfirming ||
       context.debugSending ||
       context.mcpSetup.busy ||
       context.files.busy ||

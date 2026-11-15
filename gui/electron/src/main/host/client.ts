@@ -1,5 +1,17 @@
 import { debugBytes } from "./debug-send";
 import {
+  isUBootRequest,
+  type UBootRequest,
+  type UBootOutcome,
+} from "../../shared/uboot";
+import {
+  ubootArguments,
+  ubootOutcome,
+  UBootEventFeed,
+  ubootHTTPCall,
+  type UBootHTTPCall,
+} from "./uboot";
+import {
   isDeviceSelection,
   type DeviceSelection,
   type DeviceDecision,
@@ -97,6 +109,8 @@ export class HostClient {
   private devicesReading?: Promise<DiscoverySnapshot>;
   private deviceDecisionReading = false;
   private activityReading = false;
+  private ubootRunning = false;
+  private ubootHTTP?: UBootHTTPCall;
   private closing = new Set<string>();
   readonly sshTrust = new SSHTrustExchange();
   private sshTrustAvailable = false;
@@ -305,6 +319,7 @@ export class HostClient {
       hostVersion: this.hostVersion,
       remoteSize: this.resizeAvailable,
       managedTransfers: this.presence?.managedTransfersAvailable,
+      ubootAvailable: this.presence?.ubootAvailable,
       lifetime: this.lifetime,
       sshAvailable: this.sshAvailable,
       sshAdvanced: this.sshAdvanced,
@@ -335,6 +350,7 @@ export class HostClient {
             "unauthorized",
             "Host attempted to redirect the client.",
           );
+        const bootCall = ubootHTTPCall(init?.body, this.ubootHTTP);
         const response = await fetch(url, {
           ...init,
           redirect: "error",
@@ -344,7 +360,8 @@ export class HostClient {
           },
           signal: AbortSignal.any([
             signal,
-            AbortSignal.timeout(10000),
+            AbortSignal.timeout(bootCall?.timeoutMS ?? 10000),
+            ...(bootCall ? [bootCall.signal] : []),
             ...(init?.signal ? [init.signal] : []),
           ]),
         });
@@ -1484,6 +1501,213 @@ export class HostClient {
   /** Fence queued input before local endpoint persistence; accepted writes are never replayed. */
   discardQueuedInput(): void {
     for (const active of this.attachments.values()) active.writeVersion++;
+  }
+
+  /** Capture exact input and original attachment/control before native confirmation. */
+  prepareUBoot(id: string, request: UBootRequest) {
+    if (!isUBootRequest(request))
+      throw new HostError(
+        "invalid_input",
+        "Provide verified board settings for one U-Boot attempt.",
+      );
+    if (!this.presence?.ubootAvailable)
+      throw new HostError(
+        "incompatible",
+        "Update the Host for cancellable U-Boot operations.",
+      );
+    const active = this.attachment(id),
+      control = this.controls.get(active.sessionId);
+    const version = active.writeVersion;
+    const captured = { ...request, bootStarted: [...request.bootStarted] };
+    let consumed = false;
+    return {
+      sessionId: active.sessionId,
+      request: captured,
+      run: async (
+        signal: AbortSignal,
+        ready: (operationId: string | undefined) => void,
+      ): Promise<UBootOutcome> => {
+        if (consumed)
+          throw new HostError("cancelled", "U-Boot attempt already submitted.");
+        consumed = true;
+        if (this.ubootRunning)
+          throw new HostError("busy", "A U-Boot attempt is already pending.");
+        const validate = () => {
+          if (
+            this.attachment(id) !== active ||
+            active.writeVersion !== version ||
+            this.controls.get(active.sessionId)?.version !== control?.version
+          )
+            throw new HostError(
+              "cancelled",
+              "U-Boot target or control changed; attempt discarded.",
+            );
+          signal.throwIfAborted();
+        };
+        validate();
+        const client = this.client,
+          presence = this.presence;
+        if (!client || !presence)
+          throw new HostError("disconnected", "Connect to a Host first.");
+        this.ubootRunning = true;
+        // One bounded observer and one managed call; no competing raw-output consumer.
+        const observeController = new AbortController();
+        const callController = new AbortController();
+        const combined = AbortSignal.any([
+          signal,
+          this.connection.signal,
+          active.controller.signal,
+          callController.signal,
+        ]);
+        const observeSignal = AbortSignal.any([
+          combined,
+          observeController.signal,
+        ]);
+        let observing: Promise<void> | undefined;
+        let observationError: unknown;
+        let operation:
+          Awaited<ReturnType<ClientPresence["operation"]>> | undefined;
+        let observedId: string | undefined;
+        try {
+          const sessions = await this.list();
+          validate();
+          const session = sessions.find(
+            (row) => row.session_id === active.sessionId,
+          );
+          if (
+            !session ||
+            session.transport !== "serial" ||
+            session.state !== "open"
+          )
+            throw new HostError(
+              "invalid_input",
+              "U-Boot requires an open serial Session.",
+            );
+          if (
+            session.lease ||
+            session.control?.writable === false ||
+            active.queuedBytes
+          )
+            throw new HostError(
+              "busy",
+              "Finish current input or managed work before U-Boot.",
+            );
+          operation = await presence.operation(active.sessionId, false);
+          validate();
+          const source = operation.source;
+          if (!source?.instanceId || !source.operationId)
+            throw new HostError(
+              "incompatible",
+              "U-Boot readiness requires registered operation provenance.",
+            );
+          const meta = {
+            ...presence.metadata(source.operationId),
+            ...(control
+              ? {
+                  "io.channelterm/control": {
+                    version: control.version,
+                    operation_id: control.operation_id,
+                  },
+                }
+              : {}),
+          };
+          const tail = await this.call(
+            "terminal_session_events",
+            { session_id: active.sessionId, max_events: 1 },
+            combined,
+          );
+          if (
+            !Array.isArray(tail.events) ||
+            tail.events.length > 1 ||
+            typeof tail.dropped !== "boolean"
+          )
+            throw incompatible();
+          const feed = new UBootEventFeed(
+            active.sessionId,
+            source.instanceId,
+            source.operationId,
+            integer(tail.next),
+          );
+          validate();
+          observing = (async () => {
+            while (!observeSignal.aborted) {
+              try {
+                const page = await this.call(
+                  "terminal_session_events",
+                  feed.parameters(),
+                  observeSignal,
+                );
+                if (observeSignal.aborted) return;
+                const state = feed.apply(page);
+                observedId = state.operationId;
+                ready(state.ready ? state.operationId : undefined);
+                if (state.finished) return;
+              } catch (error) {
+                if (observeSignal.aborted) return;
+                if (error instanceof ToolFailure && error.code === "timeout")
+                  continue;
+                throw error;
+              }
+            }
+          })().catch((error) => {
+            observationError = error;
+            callController.abort();
+          });
+          this.ubootHTTP = {
+            useId: source.operationId,
+            signal: combined,
+            timeoutMS: captured.timeoutMS + 5000,
+          };
+          const response = await client.callTool(
+            {
+              name: "terminal_enter_uboot",
+              arguments: ubootArguments(active.sessionId, captured),
+              _meta: meta,
+            },
+            undefined,
+            { signal: combined, timeout: captured.timeoutMS + 5000 },
+          );
+          if (observationError) throw observationError;
+          const data = object(response.structuredContent),
+            failed = response.isError === true;
+          const raw = failed
+            ? data.result === undefined
+              ? {}
+              : object(data.result)
+            : data;
+          // Admission failures have no operation evidence; never manufacture an outcome.
+          if (failed && !raw.operation_id) {
+            const code = text(object(data.error).code);
+            throw new HostError(
+              code === "permission_denied"
+                ? "unauthorized"
+                : code === "session_busy" || code === "control_busy"
+                  ? "busy"
+                  : "tool_error",
+              "Host rejected the U-Boot attempt; no automatic retry.",
+            );
+          }
+          const result = ubootOutcome(raw, active.sessionId, failed);
+          if (observedId && result.operationId !== observedId)
+            throw incompatible();
+          return result;
+        } catch (error) {
+          if (observationError instanceof HostError) throw observationError;
+          if (error instanceof HostError) throw error;
+          throw new HostError(
+            combined.aborted ? "cancelled" : "tool_error",
+            "U-Boot outcome was not confirmed. Do not repeat a reset automatically.",
+          );
+        } finally {
+          this.ubootHTTP = undefined;
+          observeController.abort();
+          await observing;
+          ready(undefined);
+          await operation?.done();
+          this.ubootRunning = false;
+        }
+      },
+    };
   }
 
   /** Capture exact input and original attachment/control before native confirmation. */
