@@ -127,6 +127,11 @@ func sameController(a, b session.ClientIdentity) bool {
 
 // controlLocked runs under leases.mu. Registration references fence reused IDs.
 func (a *Application) controlLocked(t session.Session, reference string) (*sessionControl, error) {
+	// Idle and explicit removal fence callers that resolved the old registration
+	// before obtaining admission. Never attach authority to a successor ID.
+	if current, ok := a.manager.Get(reference); !ok || current != t {
+		return nil, ErrSessionNotFound
+	}
 	c := &a.leases.controls
 	if c.entries == nil {
 		c.entries = make(map[string]*sessionControl)

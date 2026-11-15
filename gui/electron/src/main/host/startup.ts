@@ -76,6 +76,8 @@ export function launchCompanion(
         "127.0.0.1:37099",
         "--path",
         "/mcp",
+        "--host-origin",
+        "desktop",
       ],
       {
         shell: false,

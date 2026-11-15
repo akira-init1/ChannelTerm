@@ -116,6 +116,11 @@ func (c *bridgeCoordinator) get(id, owner string) (*bridgeRun, error) {
 // begins at the current cursor, never by replaying terminal history. Setup errors
 // release the lease without mutating target bytes. Retention is bounded to 128.
 func (a *Application) StartRSPBridge(ctx context.Context, q BridgeStartRequest) (BridgeStartResult, error) {
+	finish, idleErr := a.beginIdleWork()
+	if idleErr != nil {
+		return BridgeStartResult{}, idleErr
+	}
+	defer finish()
 	if err := ctx.Err(); err != nil {
 		return BridgeStartResult{}, err
 	}

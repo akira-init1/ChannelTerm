@@ -718,3 +718,40 @@ another client's private status/paths. Running tasks retain `stop_reason=user_in
 existing worker publishes the final state only after cleanup. Completion can win the race. This
 operation does not write to a terminal, close its Session, pause unrelated tasks or promise remote
 process termination. Existing owner-only status/cancel grants remain unchanged.
+
+## Host idle reclamation
+
+`IdlePolicy` is immutable per Application. A zero timeout preserves existing ownership. The
+composition root selects configured defaults and calls `SweepIdle`; Core never exits a process.
+`HostIdlePolicy` returns effective policy and at most 256 public retention decisions, with an
+explicit truncation flag. Reading that snapshot neither renews usage nor starts a countdown.
+
+The decision uses complete private presence records, not their truncated display projection.
+Live explicit observe/monitor/operation uses, accepted calls even after instance expiry, active
+writes, leases, recovery, control scopes and human AI pause retain their Session. Connection setup
+retains resources while setup is unresolved. Active external debug observations are conservative:
+unknown/stale/manual observations do not prove completion, so the associated Session remains until
+explicit closure or a disconnected/completed report. Independent work without a Session retains
+Host lifetime, not unrelated terminal Sessions. Byte output, keepalives and list polling are not use.
+
+Lock order is lease coordinator, then instance registry, then Manager. Use registration resolves
+its target under the presence lock. New work and completion advance an admission epoch, invalidating
+debug snapshots taken before owner locks; sweeps never acquire debug/transfer owner locks while
+holding lease/presence locks. Countdown keys are never-reused Manager references. The final idle
+check and registration removal occur under admission locks; blocking Close and event publication
+run afterward. Pending closes prevent concurrent exit. Write/lease control admission also rechecks
+exact registration identity, rejecting a caller that resolved a target before its removal.
+
+An `OPERATION_STATE` event records `operation=idle_release`, `state=closing`, and
+`reason=no_registered_use` before Close, using existing bounded retention. Removed IDs become
+unavailable; explicit reopen creates a new Session. No input, operation, full screen or closed
+Session is restored. Transport Close can affect a serial control line or an SSH shell; physical
+acceptance is separate from fake-I/O concurrency coverage.
+
+A fully idle exit additionally requires no Sessions, registered live instances, accepted independent
+work, debug operations, leases, active writes, recovery or pending closes. After its separate grace,
+Application irreversibly fences new registration/setup/call admission and asks the composition root
+to cancel its server context. HTTP performs its existing bounded graceful shutdown. A new operation
+that wins admission prevents exit; a late one receives `host_draining`. Session reads on a reclaiming
+Host require a registered instance (`instance_required` for old clients); retained monitoring should
+also declare a Session use across polling/thinking gaps. Existing write authorization is unchanged.

@@ -424,6 +424,9 @@ func runMCP(ctx context.Context, args []string, output io.Writer) (err error) {
 	listen := flags.String("listen", defaultMCPListen, "HTTP listen address when --transport=http")
 	path := flags.String("path", defaultMCPPath, "HTTP endpoint path when --transport=http")
 	connectionPolicy := flags.String("connection-policy", "", "Discovery policy: ask, auto, or deny")
+	idleSession := flags.Duration("idle-session-timeout", 0, "Release unused Sessions after this grace period (0 disables; 1s..24h)")
+	idleExit := flags.Duration("idle-exit-timeout", 0, "Exit a fully idle HTTP Host after this grace period (0 disables; requires Session reclamation)")
+	hostOrigin := flags.String("host-origin", "manual", "Launch source: manual or desktop (desktop defaults to 30s Session reclamation)")
 	flags.Usage = func() {
 		fmt.Fprintln(output, "Usage: channelterm mcp [--transport stdio|http] [--listen ADDRESS] [--path PATH] [--connection-policy ask|auto|deny]")
 		fmt.Fprintln(output)
@@ -472,6 +475,10 @@ func runMCP(ctx context.Context, args []string, output io.Writer) (err error) {
 	if err != nil {
 		return err
 	}
+	idlePolicy, err := resolveHostIdlePolicy(flags, file.Host, *idleSession, *idleExit, *hostOrigin, selectedTransport, os.Getenv(internalTemporaryHostEnvVar) == "1")
+	if err != nil {
+		return err
+	}
 
 	manager := session.NewManager()
 	defer func() {
@@ -495,10 +502,12 @@ func runMCP(ctx context.Context, args []string, output io.Writer) (err error) {
 	if err := devices.Start(ctx); err != nil {
 		return fmt.Errorf("initialize device registry: %w", err)
 	}
-	application, err := app.New(app.Dependencies{Manager: manager, Devices: devices, Policy: resolvedPolicy, FileTransfer: file.FileTransfer, Build: app.BuildProvenance{Version: version, Commit: buildCommit, Time: buildTime}})
+	application, err := app.New(app.Dependencies{Manager: manager, Devices: devices, Policy: resolvedPolicy, FileTransfer: file.FileTransfer, Idle: idlePolicy, Build: app.BuildProvenance{Version: version, Commit: buildCommit, Time: buildTime}})
 	if err != nil {
 		return fmt.Errorf("create Host application: %w", err)
 	}
+	ctx, stopIdle := runHostIdlePolicy(ctx, application, idlePolicy, os.Stderr)
+	defer stopIdle()
 	defer func() {
 		shutdown, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()

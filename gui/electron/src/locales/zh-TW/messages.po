@@ -1145,6 +1145,31 @@ msgstr "中斷與 Host 的連線"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "host.idle.exit"
+msgstr "未使用的 Session 將在 {seconds} 秒後釋放；Host 完全閒置 {exitSeconds} 秒後結束。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.idle.keep"
+msgstr "Host 保留未使用的 Session。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.idle.release"
+msgstr "未使用的 Session 將在 {seconds} 秒後釋放；MCP 繼續可用。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.origin.desktop"
+msgstr "由桌面啟動。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.origin.manual"
+msgstr "手動啟動的 Host。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "language.de"
 msgstr "Deutsch"
 

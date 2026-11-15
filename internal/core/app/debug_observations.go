@@ -153,6 +153,11 @@ func normalizeDebugPorts(mode string, ports []DebugPort, report bool) ([]DebugPo
 // At most 128 registrations are retained per Host lifetime, including completed
 // operations. Reports require both this capability and the registering client.
 func (a *Application) RegisterDebugObservation(ctx context.Context, q DebugRegistration) (DebugObservation, error) {
+	finish, idleErr := a.beginIdleWork()
+	if idleErr != nil {
+		return DebugObservation{}, idleErr
+	}
+	defer finish()
 	if err := CheckClientAccess(ctx, ClientWrite); err != nil {
 		return DebugObservation{}, err
 	}
@@ -241,6 +246,11 @@ func debugConnection(s string) bool {
 // MI text or inspecting terminal output. Disconnect/staleness invalidates current
 // state; reports neither renew a debug lease nor control the debugger/target.
 func (a *Application) ReportDebugObservation(ctx context.Context, q DebugObservationReport) (DebugObservation, error) {
+	finish, idleErr := a.beginIdleWork()
+	if idleErr != nil {
+		return DebugObservation{}, idleErr
+	}
+	defer finish()
 	if err := CheckClientAccess(ctx, ClientWrite); err != nil {
 		return DebugObservation{}, err
 	}

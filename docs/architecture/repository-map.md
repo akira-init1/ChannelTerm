@@ -98,7 +98,8 @@ The main ownership distinctions are deliberate:
   Go/JavaScript matching corpus, not runtime terminal content.
 - **Application:** `internal/core/app` orchestrates adapter-neutral use cases and managed debug
   operations, bounded managed file transfers, unified debug observation records, and volatile
-  credential-bound client instances/Session uses; it does not own the Host process lifetime or presentation.
+  credential-bound client instances/Session uses and idle reclamation decisions. CLI composition
+  schedules those decisions and owns Host process shutdown; Application owns neither the process nor presentation.
   It also owns bounded serial directory snapshots in the existing transfer child shell,
   serial U-Boot entry orchestration and bounded diagnostic archive retention/download
   use cases. These reuse Session cursors and application leases without adding Transport ownership.

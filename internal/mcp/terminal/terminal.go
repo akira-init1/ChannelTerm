@@ -176,7 +176,7 @@ func newSerialTools(manager *session.Manager, serviceDependencies app.SerialDepe
 
 func terminalToolsForApplication(application *app.Application) []tool.Tool {
 	tools := serialToolsForApplication(application)
-	tools = append(tools, &controlTool{application: application}, &fileTransferTool{application: application}, &clientInstanceTool{application: application}, &listFileTransfersTool{application: application})
+	tools = append(tools, &controlTool{application: application}, &fileTransferTool{application: application}, &clientInstanceTool{application: application}, &listFileTransfersTool{application: application}, &hostIdleTool{application: application})
 	tools = append(tools, debugToolsForApplication(application)...)
 	tools = append(tools, bridgeToolsForApplication(application)...)
 	tools = append(tools, debugObservationTools(application)...)

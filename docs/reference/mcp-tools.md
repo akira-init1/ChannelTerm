@@ -27,7 +27,7 @@ Structured inputs decoded by the terminal adapter reject unknown fields.
 
 ## Client instance presence
 
-`client_instance` is presence bookkeeping, optional for readers and required for protocol writers.
+`client_instance` is presence bookkeeping, required for protocol writers and for Session readers on Hosts that enable idle reclamation; it remains optional for readers on keep-mode Hosts.
 It grants no device writes, management authority, lease or cross-call control scope. The existing
 per-request credential/grant checks continue to apply. All successful results include `action`.
 
@@ -117,6 +117,7 @@ and logs. The `terminal_*` name remains the stable machine-readable compatibilit
 | Tool name | Display title |
 | --- | --- |
 | `client_instance` | Client Instance Presence |
+| `host_idle_status` | Read Host Idle Policy |
 | `file_transfer_list` | List Public Transfer Sources |
 | `file_transfer` | Transfer Files and Directories |
 | `terminal_enter_uboot` | Enter U-Boot |
@@ -1330,7 +1331,7 @@ automatic re-execution. Manual shell GDB that has no registered structured obser
 
 All Sessions are controlled by default. This is a breaking change for old writers: missing registered
 identity, live instance proof or control version returns `control_required`. Unregistered stdio is
-read-only; use a registered HTTP credential for writes. `client_instance` is optional for readers,
+read-only; use a registered HTTP credential for writes. `client_instance` is optional for readers on keep-mode Hosts,
 but required for writers. See [migration](../getting-started/http-authentication-migration.md#default-controlled-sessions).
 
 Each mutating Session request carries both `_meta["io.channelterm/instance"] = {id, secret}` and
@@ -1382,3 +1383,20 @@ Control rejection errors (`control_required`, `control_stale`, `control_busy`, `
 does not claim a particular recovery result. Executing calls, `OPERATION_STATE` control events
 and exact-key `terminal_control action=result` queries provide complementary feedback. A reader
 can reconnect and query a retained original key; no notification is sent to an AI chat.
+
+## Host idle status
+
+`host_idle_status` takes an empty object and returns `policy`: `mode` (`keep`, `release`, `exit`),
+`origin` (`manual`, `desktop`), `session_timeout_ms`, `exit_timeout_ms`, `draining`, `sessions`, and
+`truncated`. Each entry contains `session_id`, `reference`, `reason`, and an optional `idle_since`.
+Reasons are `keep`, `idle`, `setup`, `debug`, `operation`, `lease`, `recovery`, `human_pause`,
+`control`, `observe`, or `monitor`. At most 256 entries are shown; truncation never affects the
+underlying complete decision. A source label describes composition, not authenticated client identity.
+
+The tool is read-only and does not renew instances, acquire control, alter policy or open devices.
+See [configuration](configuration.md#host-idle-policy) and
+[reclamation semantics](../modules/application.md#host-idle-reclamation). On reclaiming Hosts,
+old Session readers receive `instance_required` and must register/use/renew explicitly. Once an
+opt-in Host exit commits, new work receives `host_draining`. Neither error permits automatic input
+replay. `OPERATION_STATE` with `operation=idle_release`, `state=closing` and
+`reason=no_registered_use` records removal before ordinary Session Close.

@@ -689,3 +689,5 @@ retargets a pending request to the selected tab or persists it. Current Host sta
 writability. The independent SSH action uses a managed task ID and Application's human-management
 check; it neither obtains a PTY scope nor receives private task paths. See the
 [control strip workflow](../reference/gui-menus.md#human-interruption-and-control).
+
+New companions use the desktop Host idle default: release truly unused Sessions after 30 seconds while retaining MCP. Existing listeners keep their own policy. Main displays Host-reported mode, source and grace periods; Renderer owns no resource timer or management authority. An explicit configuration may instead keep resources or enable full idle exit. See [Host idle policy](../reference/configuration.md#host-idle-policy).

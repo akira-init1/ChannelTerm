@@ -289,6 +289,8 @@ test("menu catalogs cover every implemented item in all nine languages and depth
             reference: "{reference}",
             transport: "{transport}",
             endpoint: "{endpoint}",
+            seconds: "{seconds}",
+            exitSeconds: "{exitSeconds}",
           }),
           message.message,
         );

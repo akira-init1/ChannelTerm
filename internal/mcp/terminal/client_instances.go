@@ -12,7 +12,7 @@ type clientInstanceTool struct{ application *app.Application }
 
 func (*clientInstanceTool) Name() string { return "client_instance" }
 func (*clientInstanceTool) Description() string {
-	return "Manage bounded online-instance presence: register, renew, end, list, use, unuse or delegate. Not a lease or write grant. Registration returns a private credential bound to the authenticated client. Renew every 20 seconds; expires after 60 seconds. Explicit observe/monitor/operation uses name exact Sessions; list polling uses none. Optional one-use delegation links a child to a parent operation. Public IDs cannot authorize calls. Entry/name are unverified display claims. Old callers remain instance-unknown."
+	return "Manage bounded online-instance presence: register, renew, end, list, use, unuse or delegate. Not a lease or write grant. Registration returns a private credential bound to the authenticated client. Renew every 20 seconds; expires after 60 seconds. Explicit observe/monitor/operation uses name exact Sessions; list polling uses none. Optional one-use delegation links a child to a parent operation. Public IDs cannot authorize calls. Entry/name are unverified display claims. Old callers remain instance-unknown on keep-policy Hosts; reclaiming Hosts require registration for Session reads and operations."
 }
 func (*clientInstanceTool) InputSchema() tool.InputSchema {
 	return tool.InputSchema{Type: "object", Required: []string{"action"}, Properties: map[string]tool.InputProperty{

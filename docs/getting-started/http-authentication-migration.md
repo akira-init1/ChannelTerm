@@ -174,3 +174,14 @@ Upgrade third-party writers before using device operations. If `control_stale`, 
 refresh the version and retry the same command. Scope expiry or unverified recovery can close the
 Session; reconnect only as a new explicit action. Host restart discards scopes and instances.
 Protocol details and limits are in [Session control](../reference/mcp-tools.md#session-control).
+
+## Readers on reclaiming Hosts
+
+Host idle reclamation is independently opt-in for manual Hosts and defaults to 30 seconds only for
+new Electron-launched Hosts. It requires old Session readers to migrate to `client_instance` proofs;
+`instance_required` does not grant writing. Declare an observe/monitor/operation use for each Session
+that must survive polling or thinking gaps, renew the instance, and explicitly unuse/end on exit.
+List/discovery calls create no Session use. Instance expiry does not cancel already accepted work.
+Use `host_idle_status` to inspect actual policy; a GUI connection never changes an existing Host's
+policy. Explicit idle exit returns `host_draining` to late work and requires a separate launch path.
+See [Host idle policy](../reference/configuration.md#host-idle-policy).

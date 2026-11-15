@@ -73,6 +73,12 @@ export interface HostInfo {
   sshAvailable?: boolean;
   sshAdvanced?: boolean;
   autoConnect?: boolean;
+  idlePolicy?: {
+    mode: "keep" | "release" | "exit";
+    origin: "manual" | "desktop";
+    sessionTimeoutMs: number;
+    exitTimeoutMs: number;
+  };
 }
 export interface Attachment {
   id: string;

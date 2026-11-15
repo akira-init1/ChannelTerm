@@ -14,16 +14,25 @@ import (
 // File is the complete ChannelTerm configuration file.
 //
 // Serial stores connection profiles, Connection stores discovery policy, and
-// Preferences stores adapter-local user preferences. FileTransfer grants
+// Preferences stores adapter-local user preferences. Host selects idle policy.
+// FileTransfer grants
 // managed transfers access to an explicit Host root and SSH profiles. They share one
 // config.toml lifecycle, while their responsibilities remain independent.
 //
 // Empty preferences are omitted from TOML; client choices do not grant Host access.
 type File struct {
+	Host         Host         `toml:"host,omitempty"`
 	Serial       Serial       `toml:"serial"`
 	Connection   Connection   `toml:"connection"`
 	Preferences  Preferences  `toml:"preferences,omitempty"`
 	FileTransfer FileTransfer `toml:"file_transfer,omitempty"`
+}
+
+// Host configures only persistent Host idleness. Empty values select the launch
+// default; explicit "0s" retains resources. Clients cannot change this policy.
+type Host struct {
+	IdleSessionTimeout string `toml:"idle_session_timeout,omitempty"`
+	IdleExitTimeout    string `toml:"idle_exit_timeout,omitempty"`
 }
 
 // FileTransfer grants managed transfers access to one Host directory and named

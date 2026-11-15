@@ -171,3 +171,10 @@ semantics apply; a missing initial event or source field never proves human init
 Control completion uses the existing `OPERATION_STATE` event with public, bounded result metadata.
 It does not alter raw output or the byte-serialization contract. Application owns generation fencing,
 AI pause and restoration decisions; Session only retains the event in its existing finite buffer.
+
+Application may remove an unused Session under an explicitly enabled Host idle policy. Session
+owns no idle timer or client-presence authority. The Application publishes `OPERATION_STATE` with
+`operation=idle_release`, `state=closing`, `reason=no_registered_use` before invoking ordinary Close
+outside admission locks. Existing Channel/Transport cleanup, finite buffers and close semantics
+apply. Reopen requires a new explicit connection; old IDs and unsent input are not restored. See
+[Host idle reclamation](application.md#host-idle-reclamation) for protected work and atomic admission.

@@ -1145,6 +1145,31 @@ msgstr "ホストから切断"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "host.idle.exit"
+msgstr "未使用の Session は {seconds} 秒後に解放されます。Host は完全な待機状態が {exitSeconds} 秒続くと終了します。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.idle.keep"
+msgstr "Host は未使用の Session を保持します。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.idle.release"
+msgstr "未使用の Session は {seconds} 秒後に解放されます。MCP は利用可能なままです。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.origin.desktop"
+msgstr "デスクトップから起動。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.origin.manual"
+msgstr "手動で起動した Host。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "language.de"
 msgstr "Deutsch"
 

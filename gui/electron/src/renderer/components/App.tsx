@@ -2011,6 +2011,15 @@ export function App() {
             {info?.lifetime === "attachment" && connected && (
               <div className="notice">{t("workbench.attachmentHost")} </div>
             )}
+            {info?.idlePolicy && connected && (
+              <div className="notice host-idle-policy" role="status">
+                {t(`host.origin.${info.idlePolicy.origin}`)}{" "}
+                {t(`host.idle.${info.idlePolicy.mode}`, {
+                  seconds: info.idlePolicy.sessionTimeoutMs / 1000,
+                  exitSeconds: info.idlePolicy.exitTimeoutMs / 1000,
+                })}
+              </div>
+            )}
             {error && (
               <div role="alert" className="notice error">
                 {activeTab?.workspaceMissing

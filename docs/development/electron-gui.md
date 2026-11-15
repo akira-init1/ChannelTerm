@@ -290,8 +290,10 @@ readiness, and authenticates. No terminal command or existing Session is needed.
 listener is reused; wrong credentials, incompatible services, probe timeouts and occupied ports
 never start a replacement or select another port. Failures expose **Retry connection**.
 
-The Host intentionally survives GUI exit and manual disconnect so other clients can continue
-using shared Sessions. Manual disconnect stays disconnected until explicitly reconnected.
+By default the Host survives GUI exit and manual disconnect so other clients can continue
+using shared Sessions. New desktop companions independently release unused Sessions after a
+30-second grace; explicit configuration can retain them or enable full idle exit. Existing Host
+policy is unchanged by GUI connections. See [Host idle policy](../reference/configuration.md#host-idle-policy). Manual disconnect stays disconnected until explicitly reconnected.
 To stop an automatically started Host, finish shared work and stop its `channelterm` process
 using the OS process manager; stopping it closes all of its Sessions. There is no GUI Host-stop
 action. See the [Host workflow](../getting-started/mcp-server.md) for manual ownership.
@@ -704,3 +706,5 @@ Packaging is separate from `npm run build`, CLI builds and tagged CLI releases. 
 desktop publish/sign/update step. The builder is a build-only MIT dependency; its tool graph is
 excluded from the runtime. Audit reports include existing and build-tool advisories; review them
 for the fixed local build inputs rather than running an unrelated automatic dependency upgrade.
+
+`idle-checks.mjs` uses real Application policy with a one-second fixture grace and private sweep triggers: another client retains the Session after GUI exit, final detach permits removal, and MCP remains reachable. Core fake-clock/concurrency tests additionally cover presence expiry with active work, leases/recovery/pause, reused IDs, close outside admission locks, and explicit Host-exit fencing. No physical device or native non-Windows claim is implied.

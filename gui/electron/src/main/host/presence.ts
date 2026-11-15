@@ -23,6 +23,7 @@ export class ClientPresence {
   private checkedAt = 0;
   private checking?: Promise<void>;
   managedTransfersAvailable = false;
+  idlePolicyAvailable = false;
 
   constructor(
     private readonly client: Client,
@@ -59,6 +60,9 @@ export class ClientPresence {
     );
     this.managedTransfersAvailable = listed.tools.some(
       (tool) => tool.name === "file_transfer_list",
+    );
+    this.idlePolicyAvailable = listed.tools.some(
+      (tool) => tool.name === "host_idle_status",
     );
     if (!listed.tools.some((tool) => tool.name === "client_instance")) return;
     const result = await this.request({

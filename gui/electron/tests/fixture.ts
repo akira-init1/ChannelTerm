@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import { randomBytes } from "node:crypto";
 
 /** Run the real Go protocol stack with a disposable token and in-memory terminal. */
-export async function startFixture() {
+export async function startFixture(options: { idle?: boolean } = {}) {
   const token = randomBytes(32).toString("base64url");
   const process = spawn(
     resolve(
@@ -15,7 +15,11 @@ export async function startFixture() {
     {
       stdio: ["pipe", "pipe", "pipe"],
       windowsHide: true,
-      env: { ...globalThis.process.env, CHANNELTERM_HTTP_AUTH_TOKEN: token },
+      env: {
+        ...globalThis.process.env,
+        CHANNELTERM_HTTP_AUTH_TOKEN: token,
+        CHANNELTERM_FIXTURE_IDLE_TEST: options.idle ? "1" : "0",
+      },
     },
   );
   let diagnostics = "";

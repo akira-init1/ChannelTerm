@@ -1,4 +1,5 @@
 import { ClientPresence } from "./presence";
+import { idlePolicy } from "./idle";
 import type { ControlSnapshot, ControlReply } from "../../shared/control";
 import { controlSnapshot, controlRequest, controlOutcome } from "./control";
 import { managedTransferSummaries } from "./provenance";
@@ -75,6 +76,7 @@ export class HostClient {
   private client?: Client;
   private presence?: ClientPresence;
   private lifetime: HostInfo["lifetime"] = "unknown";
+  private idle?: HostInfo["idlePolicy"];
   private connection = new AbortController();
   private attachments = new Map<string, ActiveAttachment>();
   private changing = false;
@@ -288,6 +290,7 @@ export class HostClient {
       lifetime: this.lifetime,
       sshAvailable: this.sshAvailable,
       sshAdvanced: this.sshAdvanced,
+      ...(this.idle ? { idlePolicy: this.idle } : {}),
     };
   }
 
@@ -349,6 +352,10 @@ export class HostClient {
         throw incompatible();
       this.presence = new ClientPresence(client, signal);
       await this.presence.start();
+      if (this.presence.idlePolicyAvailable) {
+        const result = await this.call("host_idle_status", {});
+        this.idle = idlePolicy(result.policy);
+      }
       await this.list();
       // Older/foreground Hosts may expose MCP only. Probe a fixed same-origin
       // route; never derive a URL or credential from Renderer input.
@@ -1395,6 +1402,7 @@ export class HostClient {
     await Promise.all(sizes.map((size) => size.dispose()));
     await client?.close().catch(() => {});
     this.lifetime = "unknown";
+    this.idle = undefined;
     this.sshAvailable = false;
     this.sshAdvanced = false;
     this.resizeAvailable = false;

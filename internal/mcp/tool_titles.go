@@ -4,6 +4,8 @@ package mcp
 // MCP tool. Machine-readable terminal_* names remain the compatibility key.
 func terminalToolTitle(name string) (string, bool) {
 	switch name {
+	case "host_idle_status":
+		return "Read Host Idle Policy", true
 	case "terminal_control":
 		return "Session Control and Human Takeover", true
 	case "file_transfer_list":

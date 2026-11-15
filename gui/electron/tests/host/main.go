@@ -55,7 +55,12 @@ func run() error {
 	defer os.RemoveAll(configDirectory)
 	manager := session.NewManager()
 	defer manager.Close()
+	idle := app.IdlePolicy{}
+	if os.Getenv("CHANNELTERM_FIXTURE_IDLE_TEST") == "1" {
+		idle = app.IdlePolicy{SessionTimeout: time.Second, Origin: "desktop"}
+	}
 	application, err := app.New(app.Dependencies{Manager: manager,
+		Idle:            idle,
 		ListSerialPorts: func() ([]serialtransport.Port, error) { return []serialtransport.Port{{Name: "COM-FIXTURE"}}, nil },
 		Serial: app.SerialDependencies{
 			ConfigPath: func() (string, error) { return filepath.Join(configDirectory, "config.toml"), nil },
@@ -188,6 +193,8 @@ func run() error {
 		}
 		var actionErr error
 		switch command.Action {
+		case "sweep-idle":
+			_, actionErr = application.SweepIdle(context.Background())
 		case "agent-input":
 			_, actionErr = application.WriteSession(context.Background(), core.ID(), session.WriteRequest{Actor: session.ActorAgent, Data: []byte(command.Data)})
 		case "debug-overview":

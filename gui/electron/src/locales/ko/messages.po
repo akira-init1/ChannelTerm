@@ -1145,6 +1145,31 @@ msgstr "호스트 연결 끊기"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "host.idle.exit"
+msgstr "사용하지 않는 Session은 {seconds}초 후 해제됩니다. Host는 완전히 유휴 상태가 된 후 {exitSeconds}초가 지나면 종료됩니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.idle.keep"
+msgstr "Host가 사용하지 않는 Session을 유지합니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.idle.release"
+msgstr "사용하지 않는 Session은 {seconds}초 후 해제되며 MCP는 계속 사용할 수 있습니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.origin.desktop"
+msgstr "데스크톱에서 시작됨."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.origin.manual"
+msgstr "수동으로 시작한 Host."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "language.de"
 msgstr "Deutsch"
 

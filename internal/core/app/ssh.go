@@ -42,6 +42,11 @@ func (a *Application) openSSH(ctx context.Context, request OpenSSHRequest, creat
 	if a == nil || a.manager == nil {
 		return OpenSSHResult{}, ErrNilApplicationManager
 	}
+	finish, err := a.beginIdleWork()
+	if err != nil {
+		return OpenSSHResult{}, err
+	}
+	defer finish()
 	if err := ctx.Err(); err != nil {
 		return OpenSSHResult{}, err
 	}

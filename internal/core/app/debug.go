@@ -143,6 +143,11 @@ func (c *debugCoordinator) get(id, owner string) (*debugRun, error) {
 // be proven; a duplicate request returns the original operation, never launches
 // another inferior. At most 128 operations are retained per Application.
 func (a *Application) StartDebug(ctx context.Context, request DebugStartRequest) (DebugStatus, error) {
+	finish, idleErr := a.beginIdleWork()
+	if idleErr != nil {
+		return DebugStatus{}, idleErr
+	}
+	defer finish()
 	ctx = context.WithValue(ctx, controlKindKey{}, "debug")
 	if len(request.Owner) < 32 || len(request.Owner) > 128 || len(request.RequestID) < 1 || len(request.RequestID) > 128 {
 		return DebugStatus{}, errors.New("owner must have 32..128 characters and request_id 1..128")

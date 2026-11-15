@@ -1145,6 +1145,31 @@ msgstr "Disconnect from Host"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "host.idle.exit"
+msgstr "Unused Sessions are released after {seconds} s; the Host exits after {exitSeconds} s of complete inactivity."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.idle.keep"
+msgstr "The Host keeps unused Sessions."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.idle.release"
+msgstr "Unused Sessions are released after {seconds} s; MCP stays available."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.origin.desktop"
+msgstr "Desktop launch."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.origin.manual"
+msgstr "Manual Host launch."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "language.de"
 msgstr "Deutsch"
 

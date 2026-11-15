@@ -1145,6 +1145,31 @@ msgstr "Desconectar del host"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "host.idle.exit"
+msgstr "Las Sessions sin uso se liberan tras {seconds} s; el Host sale tras {exitSeconds} s de inactividad total."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.idle.keep"
+msgstr "El Host conserva las Sessions sin uso."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.idle.release"
+msgstr "Las Sessions sin uso se liberan tras {seconds} s; MCP sigue disponible."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.origin.desktop"
+msgstr "Inicio desde el escritorio."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.origin.manual"
+msgstr "Host iniciado manualmente."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "language.de"
 msgstr "Deutsch"
 

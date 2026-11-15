@@ -376,3 +376,33 @@ excluded sensitive/runtime state.
 Session control is default-on and volatile; no opt-in configuration field is available. Registered
 write grants remain necessary but do not replace instance/scope/version validation. Unregistered
 stdio cannot use file-transfer grants to write. See [control migration](../getting-started/http-authentication-migration.md#default-controlled-sessions).
+
+## Host idle policy
+
+Persistent HTTP Hosts read optional settings from the existing `config.toml`:
+
+```toml
+[host]
+idle_session_timeout = "30s"
+idle_exit_timeout = "0s"
+```
+
+Empty/omitted values select launch defaults: manual Hosts keep Sessions indefinitely;
+Hosts newly launched by Electron use a 30-second Session grace period and keep MCP running.
+An existing listener retains its own policy when a GUI connects. Explicit `"0s"` disables that
+behavior, including the desktop default. Nonzero durations must be between 1 second and 24 hours.
+Exit requires a nonzero Session timeout and remains disabled unless explicitly configured.
+
+`mcp --idle-session-timeout` and `--idle-exit-timeout` override these settings for that invocation.
+`--host-origin manual|desktop` selects the launch default and public source label; it is not an
+authenticated identity or management grant. Electron passes the fixed `desktop` value. Policy is
+immutable for that Host lifetime; restart explicitly after changing configuration. Attachment-owned
+CLI Hosts preserve their original lifetime, ignore these persistent-Host settings, and reject
+explicit idle overrides. Reclamation/exit options are restricted to HTTP Hosts.
+
+The grace period starts when the Host first observes no registered use, with a one-second sweep
+interval. A new Session receives a full grace period. Crashed instances expire after the existing
+60-second presence TTL; accepted work remains protected until it ends. Device output and list
+polling do not reset the timer. [Application ownership](../modules/application.md#host-idle-reclamation)
+explains the complete retention and race rules. An idle exit stops the listener: HTTP cannot wake
+that process, and another client must explicitly start a Host before reconnecting.

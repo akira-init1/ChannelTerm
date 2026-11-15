@@ -194,3 +194,18 @@ explicitly take control or allow new work using the current version. See the
 
 Independent SSH file tasks use their own transfer cancel action. They do not own a shared PTY;
 cancelling them does not send terminal Ctrl+C, close a Session or prevent later independent tasks.
+
+## Unused Sessions and Host lifetime
+
+New Electron-launched Hosts release a Session after 30 seconds with no registered use or protected
+work; the MCP listener stays available. Existing manual Hosts keep their own policy. Closing a tab
+or window still only detaches that view. Another client's live monitor, a background tab, active
+operation, lease, debugger, recovery or human AI pause retains the relevant Session. A standalone
+list poll does not. Unknown external debugger state is retained conservatively.
+
+Check `host_idle_status` for effective policy and retention reasons; GUI displays its effective
+source/defaults and grace periods. Use [Host configuration](../reference/configuration.md#host-idle-policy)
+to keep resources (`0s`) or explicitly enable fully idle exit. Policy changes require an explicit
+Host restart after finishing shared work. A released serial endpoint may be opened by another
+program; closing an SSH Session may end its shell. Reconnect explicitly to create a new Session.
+Reconnection never resends input. A stopped Host needs an external launch; HTTP requests cannot wake it.

@@ -364,6 +364,9 @@ channelterm serial --config ./channelterm.toml --profile board
 - [Electron GUI 原型与开发](docs/development/electron-gui.md) — 自动连接或启动默认本机 Host，直接在 GUI 中创建串口和 SSH 会话。 支持浏览设备目录、串口双向传输文件及文件夹，并显示 GUI 进度。 支持多个窗口及终端标签，并可将标签移动到新窗口而不关闭共享会话。
 
 本地未签名的[桌面包](docs/development/electron-gui.md#local-desktop-packages)包含 Electron 和匹配的 Host/CLI 助手，用户无需安装 Node 或 Go。已有 Windows x64 ZIP 与每用户安装器检查；其他原生目标及真实设备仍需验收。尚未配置签名与桌面发布。
+
+桌面新启动的 Host 默认在 Session 无人使用 30 秒后释放它，并保留 MCP；手动启动的 Host 保持原有默认行为。已登记监控、活动操作和人工暂停会保留 Session。参见[空闲策略与迁移](docs/reference/configuration.md#host-idle-policy)。
+
 - [串口终端流程](docs/getting-started/serial-terminal.md)
 - [SSH shell 使用流程](docs/getting-started/ssh-terminal.md)
 - [共享 Session](docs/getting-started/shared-session.md)

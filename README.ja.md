@@ -376,6 +376,9 @@ channelterm serial --config ./channelterm.toml --profile board
 - [Electron GUI プロトタイプと開発](docs/development/electron-gui.md) — 既定のローカル Host に自動接続し、未起動なら起動します。GUI から直接シリアル・SSH セッションを作成できます。 デバイスのディレクトリ閲覧、シリアル経由のファイル・フォルダーの双方向転送と GUI 進捗表示に対応しています。 複数のウィンドウとターミナルタブを開き、共有セッションを閉じずにタブを新しいウィンドウへ移動できます。
 
 ローカルの未署名[デスクトップパッケージ](docs/development/electron-gui.md#local-desktop-packages)には Electron と対応する Host/CLI が含まれ、利用者は Node や Go をインストールする必要がありません。Windows x64 の ZIP とユーザー単位のインストーラー検証を用意しています。他のネイティブ環境と実機は引き続き検証が必要です。署名とデスクトップ版の公開は未設定です。
+
+デスクトップが新規起動した Host は、未使用の Session を 30 秒後に解放し、MCP は稼働を続けます。手動起動の Host の既定動作は変わりません。登録済みの監視、実行中の操作、人による AI の一時停止は Session を保持します。[アイドルポリシーと移行](docs/reference/configuration.md#host-idle-policy)を参照してください。
+
 - [シリアル端末ワークフロー](docs/getting-started/serial-terminal.md)
 - [SSH シェルワークフロー](docs/getting-started/ssh-terminal.md)
 - [共有 Session](docs/getting-started/shared-session.md)

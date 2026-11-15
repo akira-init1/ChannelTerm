@@ -952,6 +952,21 @@ policy, invalid configuration or state, initial discovery failure, listen failur
 serving failure. Normal client EOF and process cancellation are normal shutdowns.
 
 
+### Persistent Host idle policy
+
+`mcp` keeps resources by default. A Host launched by Electron passes `--host-origin desktop`, selecting
+30-second unused-Session reclamation while keeping MCP available. Existing/manual Hosts keep their
+policy. Persistent HTTP Hosts may explicitly select `--idle-session-timeout 30s` and, if desired,
+`--idle-exit-timeout 1m`; zero disables the corresponding timeout. Settings/precedence and restrictions
+are in [Host idle policy](configuration.md#host-idle-policy). Attachment-owned Hosts retain their
+original owner-driven lifetime. The source label does not authenticate a user or client.
+
+CLI attach already registers a monitor use; active commands and leases remain protected. Legacy
+readers on a reclaiming Host must register an instance and retain an explicit use between reads.
+Plain `list` does not keep devices open. A reclaimed Session cannot be reattached: explicitly open
+its endpoint again. A Host that exits does not wake on HTTP traffic. No input or interrupted command
+is replayed by cleanup, reconnection or a later launch.
+
 ## `gdb-list`
 
 `channelterm gdb-list` queries all unfinished external GDB/RSP bridges in one existing MCP HTTP

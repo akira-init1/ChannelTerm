@@ -47,6 +47,8 @@ var (
 // Serial and ListSerialPorts are test seams; nil values select production
 // configuration, Serial Transport construction, and port enumeration.
 type Dependencies struct {
+	// Idle is immutable Host policy; zero durations retain existing lifetimes.
+	Idle IdlePolicy
 	// Build identifies the running executable in diagnostic manifests. Unknown
 	// fields remain explicit when a caller does not supply release provenance.
 	Build           BuildProvenance
@@ -81,6 +83,7 @@ type Application struct {
 	observations    debugObservations
 	transfers       transferCoordinator
 	instances       clientInstances
+	idle            idleState // protected by instances.mu; admission shares this lock
 }
 
 // New creates an Application from Core runtime dependencies.
@@ -89,6 +92,9 @@ type Application struct {
 // Manager. The caller that assembled those long-lived resources retains their
 // lifecycle ownership, allowing one Application to serve multiple adapters.
 func New(dependencies Dependencies) (*Application, error) {
+	if err := dependencies.Idle.Validate(); err != nil {
+		return nil, err
+	}
 	if dependencies.Manager == nil {
 		return nil, ErrNilApplicationManager
 	}
@@ -117,6 +123,7 @@ func New(dependencies Dependencies) (*Application, error) {
 		listSerialPorts: listPorts,
 	}
 	application.leases.onExpired = application.publishExpiredLease
+	application.idle.policy = dependencies.Idle
 	application.transfers.settings = dependencies.FileTransfer
 	application.transfers.settings.SSH = make(map[string]config.FileTransferSSH, len(dependencies.FileTransfer.SSH))
 	for name, profile := range dependencies.FileTransfer.SSH {
@@ -135,6 +142,11 @@ func (a *Application) OpenSerial(ctx context.Context, request OpenSerialRequest)
 	if a == nil || a.serial == nil {
 		return OpenSerialResult{}, ErrNilApplicationManager
 	}
+	finish, err := a.beginIdleWork()
+	if err != nil {
+		return OpenSerialResult{}, err
+	}
+	defer finish()
 	return a.serial.OpenSerial(ctx, request)
 }
 

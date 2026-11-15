@@ -3,6 +3,23 @@ import type { MessageDescriptor } from "@lingui/core";
 // Lingui 5 extracts these official annotated descriptors without a runtime macro
 // transform. Translations belong in PO catalogs; this file owns IDs and English defaults.
 export const menuMessages = [
+  /* i18n */ { id: "host.origin.desktop", message: "Desktop launch." },
+  /* i18n */ { id: "host.origin.manual", message: "Manual Host launch." },
+  /* i18n */ {
+    id: "host.idle.keep",
+    message: "The Host keeps unused Sessions.",
+  },
+  /* i18n */ {
+    id: "host.idle.release",
+    message:
+      "Unused Sessions are released after {seconds} s; MCP stays available.",
+  },
+  /* i18n */ {
+    id: "host.idle.exit",
+    message:
+      "Unused Sessions are released after {seconds} s; the Host exits after {exitSeconds} s of complete inactivity.",
+  },
+
   /* i18n */ { id: "workbench.new", message: "New" },
   /* i18n */ { id: "workbench.closing", message: "Closing" },
   /* i18n */ {

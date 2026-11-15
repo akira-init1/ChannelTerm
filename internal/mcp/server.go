@@ -342,7 +342,7 @@ func newAdapter(registry *tool.Registry) (*adapter, error) {
 		{name: "terminal_get_connection_decision", target: connectionDecision.Name(), description: connectionDecision.Description(), schema: connectionDecision.InputSchema()},
 		{name: "terminal_close", target: closeTool.Name(), description: closeTool.Description(), schema: closeTool.InputSchema()},
 	}
-	for _, name := range []string{"terminal_control", "client_instance", "file_transfer_list", "file_transfer", "terminal_enter_uboot", "terminal_export_diagnostics", "terminal_read_diagnostic", "debug_start", "debug_command", "debug_events", "debug_stop", "debug_overview", "debug_observation_register", "debug_observation_report", "debug_bridge_list", "debug_bridge_start", "debug_bridge_status", "debug_bridge_renew", "debug_bridge_close", "debug_bridge_restore", "debug_bridge_report"} {
+	for _, name := range []string{"host_idle_status", "terminal_control", "client_instance", "file_transfer_list", "file_transfer", "terminal_enter_uboot", "terminal_export_diagnostics", "terminal_read_diagnostic", "debug_start", "debug_command", "debug_events", "debug_stop", "debug_overview", "debug_observation_register", "debug_observation_report", "debug_bridge_list", "debug_bridge_start", "debug_bridge_status", "debug_bridge_renew", "debug_bridge_close", "debug_bridge_restore", "debug_bridge_report"} {
 		if registered, ok := registry.Get(name); ok {
 			exposed = append(exposed, exposedTool{name: name, target: name, description: registered.Description(), schema: registered.InputSchema()})
 		}
@@ -455,6 +455,10 @@ func errorResult(name string, err error) *protocol.CallToolResult {
 	code := "tool_error"
 	var classified interface{ ErrorCode() string }
 	switch {
+	case errors.Is(err, app.ErrHostDraining):
+		code = "host_draining"
+	case errors.Is(err, app.ErrIdleRegistration):
+		code = "instance_required"
 	case errors.Is(err, app.ErrControlRequired):
 		code = "control_required"
 	case errors.Is(err, app.ErrControlStale):

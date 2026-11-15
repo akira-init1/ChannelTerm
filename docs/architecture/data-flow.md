@@ -398,7 +398,8 @@ instance registry. Application captures instance/operation provenance before Ses
 retains it through asynchronous execution; it never infers online clients from stateless HTTP
 connections. CLI invocation and Electron window adapters own their own renewal/end calls.
 Explicit Session-use records and snapshots of existing leases are observations, not a new writer
-authority or an idle-close policy. See [instance ownership](../modules/application.md#volatile-client-instances).
+authority. Application separately evaluates full records under its configured idle policy; a public
+truncated snapshot never determines resource lifetime. See [instance ownership](../modules/application.md#volatile-client-instances).
 
 Source presentation follows `Session activity/events or Application transfer summary -> Main public
 field projection -> fixed IPC -> activity/transfer panel`. CLI transfer progress consumes the same
@@ -428,3 +429,5 @@ lease/write gate -> Session -> Channel. The control store belongs to the existin
 coordinator, not a frontend or Session. Takeover advances the generation before cancelling a captured
 worker; only private, lease-bound recovery can then write. Completion is observed through existing
 events and bounded result lookup. See [Application control](../modules/application.md#default-session-control-and-recovery).
+
+Idle cleanup flows from composition scheduling to Application admission/usage checks, atomic Manager removal, then ordinary Session/Channel/Transport Close outside locks. Fully idle exit is an Application admission decision followed by composition-owned HTTP shutdown; Core never terminates a process. See [Host idle reclamation](../modules/application.md#host-idle-reclamation).

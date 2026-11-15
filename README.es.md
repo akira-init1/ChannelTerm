@@ -380,6 +380,9 @@ seleccionado, no los archivos predeterminados `state.json` ni `http-host.json`. 
 - [Prototipo GUI Electron y desarrollo](docs/development/electron-gui.md) — El Host local predeterminado se conecta o inicia automáticamente; cree sesiones serie y SSH directamente en la GUI. Explore directorios del dispositivo y transfiera archivos/carpetas por serie en ambas direcciones con progreso en la GUI. Abra varias ventanas y pestañas de terminal, y mueva una pestaña a una nueva ventana sin cerrar su sesión compartida.
 
 Los [paquetes de escritorio](docs/development/electron-gui.md#local-desktop-packages) locales sin firmar incluyen Electron y auxiliares Host/CLI compatibles; el usuario no necesita Node ni Go. Hay comprobaciones para ZIP e instaladores por usuario de Windows x64. Los demás destinos nativos y los dispositivos reales aún requieren validación. La firma y la publicación del escritorio no están configuradas.
+
+Los nuevos Hosts iniciados desde el escritorio liberan las Sessions sin uso tras 30 segundos y mantienen MCP activo. Los Hosts iniciados manualmente conservan su comportamiento predeterminado. La supervisión registrada, las operaciones activas y la pausa de la IA por una persona mantienen la Session. Consulta la [política de inactividad y migración](docs/reference/configuration.md#host-idle-policy).
+
 - [Uso del terminal serie](docs/getting-started/serial-terminal.md)
 - [Flujo de shell SSH](docs/getting-started/ssh-terminal.md)
 - [Compartir una Session](docs/getting-started/shared-session.md)

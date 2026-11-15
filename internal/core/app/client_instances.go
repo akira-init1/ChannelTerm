@@ -17,7 +17,8 @@ import (
 )
 
 const (
-	// ClientInstanceTTL bounds presence without changing Session or lease lifetime.
+	// ClientInstanceTTL bounds presence; expiration removes idle-policy retention
+	// by explicit uses but never directly closes a Session or revokes a lease.
 	ClientInstanceTTL  = 60 * time.Second
 	maxClientInstances = 128
 	maxInstanceUses    = 64
@@ -144,6 +145,11 @@ func (a *Application) RegisterClientInstance(ctx context.Context, q InstanceRegi
 	r := &a.instances
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	if a.idle.draining {
+		return ClientInstance{}, InstanceProof{}, ErrHostDraining
+	}
+	a.idle.epoch++
+	a.idle.exitSince = time.Time{}
 	now := r.clock()
 	r.sweep(now, leases)
 	if len(r.entries) >= maxClientInstances {
@@ -283,6 +289,12 @@ func (a *Application) SetClientUse(ctx context.Context, proof InstanceProof, key
 	if !presenceText(key, 128) || (kind != "observe" && kind != "monitor" && kind != "operation") {
 		return InstanceUse{}, ErrClientInstanceInput
 	}
+	r := &a.instances
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if a.idle.draining {
+		return InstanceUse{}, ErrHostDraining
+	}
 	terminal, err := a.session(target)
 	if err != nil {
 		return InstanceUse{}, err
@@ -290,9 +302,6 @@ func (a *Application) SetClientUse(ctx context.Context, proof InstanceProof, key
 	if terminal.State() != session.StateOpen {
 		return InstanceUse{}, ErrSessionNotFound
 	}
-	r := &a.instances
-	r.mu.Lock()
-	defer r.mu.Unlock()
 	e, err := r.authenticate(ctx, proof, false)
 	if err != nil {
 		return InstanceUse{}, err
@@ -300,6 +309,7 @@ func (a *Application) SetClientUse(ctx context.Context, proof InstanceProof, key
 	if e.target != "" && e.target != terminal.ID() {
 		return InstanceUse{}, ErrClientInstance
 	}
+	a.touchIdleLocked(terminal.ID())
 	if id := e.keys[key]; id != "" {
 		use := e.uses[id]
 		if use.SessionID != terminal.ID() || use.Kind != kind {
@@ -330,6 +340,7 @@ func (a *Application) EndClientUse(ctx context.Context, proof InstanceProof, id 
 		}
 		delete(e.keys, use.Label)
 		delete(e.uses, id)
+		a.touchIdleLocked(use.SessionID)
 	}
 	return nil
 }
@@ -394,18 +405,30 @@ func (a *Application) BindClientInstance(ctx context.Context, entry string) (con
 func (a *Application) BeginClientCall(ctx context.Context, target, label string, operation bool) (context.Context, func(), error) {
 	client := ClientIdentityFromContext(ctx)
 	if client.InstanceID == "" || target == "" && !operation {
+		if a.idle.policy.SessionTimeout != 0 && (target != "" || operation) {
+			if controlExternal(ctx) {
+				return ctx, nil, ErrIdleRegistration
+			}
+			finish, err := a.beginIdleWork()
+			return ctx, finish, err
+		}
 		return ctx, func() {}, nil
+	}
+	r := &a.instances
+	r.mu.Lock()
+	if a.idle.draining {
+		r.mu.Unlock()
+		return ctx, nil, ErrHostDraining
 	}
 	resolved := ""
 	if target != "" {
 		terminal, err := a.session(target)
 		if err != nil {
+			r.mu.Unlock()
 			return ctx, func() {}, nil
 		}
 		resolved = terminal.ID()
 	}
-	r := &a.instances
-	r.mu.Lock()
 	e := r.entries[client.InstanceID]
 	if e == nil || e.target != "" && e.target != resolved {
 		r.mu.Unlock()
@@ -428,12 +451,15 @@ func (a *Application) BeginClientCall(ctx context.Context, target, label string,
 	}
 	use := InstanceUse{ID: "CU-" + rand.Text(), SessionID: resolved, Kind: kind, Label: label, Active: true}
 	e.uses[use.ID] = use
+	a.touchIdleLocked(resolved)
 	if operation && client.OperationID == "" {
 		client.OperationID = use.ID
 	}
 	r.mu.Unlock()
 	var once sync.Once
-	return WithClientIdentity(ctx, client), func() { once.Do(func() { r.mu.Lock(); delete(e.uses, use.ID); r.mu.Unlock() }) }, nil
+	return WithClientIdentity(ctx, client), func() {
+		once.Do(func() { r.mu.Lock(); delete(e.uses, use.ID); a.touchIdleLocked(resolved); r.mu.Unlock() })
+	}, nil
 }
 
 // instanceLeaseUses snapshots existing authority without renewing or cancelling it.
