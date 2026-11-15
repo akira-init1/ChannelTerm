@@ -375,7 +375,7 @@ validation, and persistence behavior.
 ## Documentation
 
 - [Documentation index](docs/README.md)
-- [Electron GUI prototype and development](docs/development/electron-gui.md) — The default local Host connects or starts automatically; create serial and SSH Sessions directly in the GUI. Browse device directories and transfer serial files/folders in either direction with GUI progress. Open multiple windows and terminal tabs, and move a tab to a new window without closing its shared Session.
+- [Electron GUI prototype and development](docs/development/electron-gui.md) — The default local Host connects or starts automatically; create serial and SSH Sessions directly in the GUI. Browse device directories and transfer serial files/folders in either direction with GUI progress. Open multiple windows and terminal tabs, and move a tab to a new window without closing its shared Session. Reorder tabs and use two side-by-side or stacked terminal views with independent output cursors.
 
 The GUI also provides [MCP client setup and repair](docs/getting-started/mcp-server.md#desktop-client-setup-and-repair): preview one client configuration, explicitly confirm changes, and verify independent read-only access before reloading the client.
 

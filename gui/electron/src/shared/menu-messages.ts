@@ -1618,4 +1618,14 @@ export const menuMessages = [
     message:
       "The port could not be opened. The cause is unknown; check the device and Host diagnostics before retrying.",
   },
+  /* i18n */ {
+    id: "tab.reorderHint",
+    message:
+      "Drag to reorder, or press Shift+Left/Right while this tab button has focus.",
+  },
+  /* i18n */ { id: "tab.splitRight", message: "Split right" },
+  /* i18n */ { id: "tab.splitDown", message: "Split down" },
+  /* i18n */ { id: "view.single", message: "Single view" },
+  /* i18n */ { id: "split.focused", message: "Focused view" },
+  /* i18n */ { id: "split.focus", message: "Focus this view" },
 ] satisfies MessageDescriptor[];

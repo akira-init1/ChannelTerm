@@ -22,6 +22,48 @@ function flatten(items: MenuEntry[]): MenuEntry[] {
   return items.flatMap((item) => [item, ...flatten(item.children ?? [])]);
 }
 
+test("split actions bind an exact live attachment, respect view capacity and never imply write authority", () => {
+  const state = {
+    ...initialMenuState,
+    connected: true,
+    currentOpen: true,
+    tabCount: 2,
+    attachment: { id: "observer", sessionId: "shared" },
+    leased: true,
+    inputPaused: true,
+  };
+  for (const id of ["tab.splitRight", "tab.splitDown"] as const) {
+    const action = { id, attachment: { ...state.attachment } };
+    assert.equal(isAction(action), true);
+    assert.equal(
+      actionEnabled(action, state),
+      true,
+      "read-only observers can open independent read views",
+    );
+    for (const changed of [
+      { connected: false },
+      { currentOpen: false },
+      { busy: true },
+      { tabCount: 32 },
+      { attachment: { id: "replacement", sessionId: "shared" } },
+    ])
+      assert.equal(actionEnabled(action, { ...state, ...changed }), false);
+    assert.equal(
+      actionEnabled(action, { ...state, tabCount: 32, split: true }),
+      true,
+      "orientation changes need no extra attachment",
+    );
+    assert.equal(isAction({ ...action, command: "unexpected" }), false);
+    assert.equal(isAction({ id, sessionId: "shared" }), false);
+  }
+  assert.equal(actionEnabled({ id: "view.single" }, state), false);
+  assert.equal(
+    actionEnabled({ id: "view.single" }, { ...state, split: true }),
+    true,
+  );
+  assert.equal(isMenuState({ ...state, split: "true" }), false);
+});
+
 test("shared close is explicit, bound to the captured attachment, and unavailable offline or closed", () => {
   const state = {
     ...initialMenuState,

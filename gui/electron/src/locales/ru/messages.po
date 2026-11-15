@@ -2530,6 +2530,16 @@ msgstr "Учётные данные пользователя"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "split.focus"
+msgstr "Перевести фокус сюда"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "split.focused"
+msgstr "Вид в фокусе"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "ssh.advanced"
 msgstr "Дополнительные настройки SSH"
 
@@ -2834,8 +2844,23 @@ msgstr "Предыдущая вкладка"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "tab.reorderHint"
+msgstr "Перетащите для смены порядка или нажмите Shift+Влево/Вправо, когда эта кнопка вкладки в фокусе."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "tab.restoreHint"
 msgstr "Перемещённая вкладка восстановлена из недавнего вывода хоста (до 64 KiB). Полное состояние экрана и более ранняя история могут быть недоступны."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.splitDown"
+msgstr "Разделить снизу"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.splitRight"
+msgstr "Разделить справа"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -3007,6 +3032,11 @@ msgstr "Перетащите или используйте клавиши со �
 #: src/shared/menu-messages.ts
 msgid "view.sidebar"
 msgstr "Боковая панель сеансов"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "view.single"
+msgstr "Один вид"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

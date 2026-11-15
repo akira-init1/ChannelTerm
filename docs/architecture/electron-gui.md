@@ -325,8 +325,23 @@ read/render completes; selecting them resumes the same cursor and reports Host o
 Their xterm scrollback remains bounded to 5,000 lines. Closing or disconnecting one window cancels
 only its client resources; other windows and shared Sessions continue. App exit closes all GUI
 clients. Active owned file operations block that window's close/disconnect and app exit, while other
-windows remain independent. No drag-and-drop tabs, terminal splits or saved window/tab restoration
-are implemented. See the [menu contracts](../reference/gui-menus.md#window-action-contracts).
+windows remain independent. See the [menu contracts](../reference/gui-menus.md#window-action-contracts).
+
+Local tab dragging and focused-tab Shift+Left/Right reorder the existing records without replacing
+attachments or changing their cursors. A renderer-local drag identity rejects external and
+cross-window drops; moving to another window remains the explicit guarded handoff above.
+Each window can display two equal panes, side by side or stacked, within the same 32-tab bound.
+Splitting an attached view creates an independent attachment to its exact Session; changing the
+orientation of an existing split reuses both views. Both visible views read independently, while
+only the selected pane can accept input under the existing Host control guards. Focus changes
+invalidate pending local input through the existing input epoch. Focus alone never takes SSH
+remote-size ownership; only its current Host-authorized owner forwards fit sizes.
+
+The two pane positions remain stable when focus changes. Selecting a third tab replaces the
+focused slot; Single view hides the companion without detaching it. Closing or moving either pane
+collapses the layout and retains the surviving view. Failed attachment creates no tab; late results
+after source replacement or connection generation change are detached. Split state contains local
+tab identities only and adds no Session lifecycle or writer arbitration.
 
 ## File operations
 
@@ -667,7 +682,7 @@ uses the separate desktop Host API. The serial file UI invokes the existing CLI 
 events; it adds no upload API. Authorized SSH views forward local fitting through the desktop size-control route. The debug sidebar
 is observational; the separate Session control strip can request managed recovery. Serial transfer
 cancellation uses existing Host control tools.
-There is no built-in Agent, automatic persistence of terminal output, tab dragging, terminal splitting,
+There is no built-in Agent, automatic persistence of terminal output, nested terminal splitting,
 or complete terminal-state migration. None of these gaps is filled by bypassing Application or changing MCP schemas.
 
 ## SSH remote size control
@@ -720,7 +735,10 @@ Malformed or oversized persisted data is discarded. See the [workflow and storag
 Renderer owns validated local language/layout/terminal defaults and bounded workspace snapshots.
 Main assigns each live window a distinct slot from 0 to 15 through the existing trusted window-info
 bridge; slots confer no Host authority. Snapshots hold up to 32 ordered tab targets and local view
-settings, scoped to the configured Host endpoint. A window takes the lowest free slot, so manually
+settings, scoped to the configured Host endpoint. An optional split stores its two tab indices and
+orientation, with the selected tab required to be one of the pair. Invalid split data is discarded
+without losing otherwise valid tab targets; older snapshots restore as a single view.
+A window takes the lowest free slot, so manually
 opening another window can restore that slot's saved views. Windows are not automatically reopened.
 An incoming tab handoff takes precedence over a saved workspace. Concurrent application processes
 sharing one GUI profile can overwrite the same slots; this is not synchronized workspace storage.

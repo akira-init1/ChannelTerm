@@ -2530,6 +2530,16 @@ msgstr "사용자 자격 증명"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "split.focus"
+msgstr "이 보기에 초점 맞추기"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "split.focused"
+msgstr "초점이 있는 보기"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "ssh.advanced"
 msgstr "SSH 고급 설정"
 
@@ -2834,8 +2844,23 @@ msgstr "이전 탭"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "tab.reorderHint"
+msgstr "드래그하여 순서를 바꾸거나, 이 탭 버튼에 초점이 있을 때 Shift+왼쪽/오른쪽 키를 누르세요."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "tab.restoreHint"
 msgstr "이동한 탭은 호스트의 최근 출력(최대 64 KiB)에서 복원되었습니다. 전체 화면 상태와 이전 기록은 복원되지 않을 수 있습니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.splitDown"
+msgstr "아래로 분할"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.splitRight"
+msgstr "오른쪽으로 분할"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -3007,6 +3032,11 @@ msgstr "드래그하거나 방향키로 너비를 조절하세요. 두 번 클�
 #: src/shared/menu-messages.ts
 msgid "view.sidebar"
 msgstr "세션 사이드바"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "view.single"
+msgstr "단일 보기"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

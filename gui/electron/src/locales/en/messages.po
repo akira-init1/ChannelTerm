@@ -2530,6 +2530,16 @@ msgstr "User credential"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "split.focus"
+msgstr "Focus this view"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "split.focused"
+msgstr "Focused view"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "ssh.advanced"
 msgstr "Advanced SSH settings"
 
@@ -2834,8 +2844,23 @@ msgstr "Previous Tab"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "tab.reorderHint"
+msgstr "Drag to reorder, or press Shift+Left/Right while this tab button has focus."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "tab.restoreHint"
 msgstr "Moved tab restored from recent Host output (up to 64 KiB). Full screen state and earlier history may be unavailable."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.splitDown"
+msgstr "Split down"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.splitRight"
+msgstr "Split right"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -3007,6 +3032,11 @@ msgstr "Drag or use arrow keys to resize. Double-click to reset."
 #: src/shared/menu-messages.ts
 msgid "view.sidebar"
 msgstr "Session sidebar"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "view.single"
+msgstr "Single view"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

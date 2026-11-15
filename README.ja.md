@@ -373,7 +373,7 @@ channelterm serial --config ./channelterm.toml --profile board
 ## ドキュメント
 
 - [ドキュメント索引](docs/README.md)
-- [Electron GUI プロトタイプと開発](docs/development/electron-gui.md) — 既定のローカル Host に自動接続し、未起動なら起動します。GUI から直接シリアル・SSH セッションを作成できます。 デバイスのディレクトリ閲覧、シリアル経由のファイル・フォルダーの双方向転送と GUI 進捗表示に対応しています。 複数のウィンドウとターミナルタブを開き、共有セッションを閉じずにタブを新しいウィンドウへ移動できます。
+- [Electron GUI プロトタイプと開発](docs/development/electron-gui.md) — 既定のローカル Host に自動接続し、未起動なら起動します。GUI から直接シリアル・SSH セッションを作成できます。 デバイスのディレクトリ閲覧、シリアル経由のファイル・フォルダーの双方向転送と GUI 進捗表示に対応しています。 複数のウィンドウとターミナルタブを開き、共有セッションを閉じずにタブを新しいウィンドウへ移動できます。 タブを並べ替え、独立した出力カーソルを持つ2つのターミナルビューを左右または上下に表示できます。
 
 GUI では [MCP クライアントの設定・修復](docs/getting-started/mcp-server.md#desktop-client-setup-and-repair)も行えます。個別の設定をプレビューして変更を明示的に確認し、再読み込み前に独立した読み取り専用アクセスを検証します。
 

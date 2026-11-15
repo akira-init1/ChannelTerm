@@ -2530,6 +2530,16 @@ msgstr "Identifiant utilisateur"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "split.focus"
+msgstr "Activer cette vue"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "split.focused"
+msgstr "Vue active"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "ssh.advanced"
 msgstr "Paramètres SSH avancés"
 
@@ -2834,8 +2844,23 @@ msgstr "Onglet précédent"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "tab.reorderHint"
+msgstr "Glissez pour réordonner, ou appuyez sur Maj+Gauche/Droite quand ce bouton d’onglet a le focus."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "tab.restoreHint"
 msgstr "L’onglet déplacé a été restauré à partir de la sortie récente de l’hôte (jusqu’à 64 KiB). L’état complet de l’écran et l’historique antérieur peuvent être indisponibles."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.splitDown"
+msgstr "Diviser en dessous"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.splitRight"
+msgstr "Diviser à droite"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -3007,6 +3032,11 @@ msgstr "Faites glisser ou utilisez les flèches pour redimensionner. Double-cliq
 #: src/shared/menu-messages.ts
 msgid "view.sidebar"
 msgstr "Barre latérale des sessions"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "view.single"
+msgstr "Vue unique"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

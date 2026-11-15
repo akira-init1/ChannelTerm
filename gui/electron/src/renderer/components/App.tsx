@@ -52,6 +52,12 @@ import type {
 } from "../../shared/api";
 import { host, unwrap } from "../host";
 import { TerminalTabs } from "../sessions/TerminalTabs";
+import {
+  reorderTabs,
+  focusSplit,
+  retainSplit,
+  type SplitLayout,
+} from "../../shared/tab-layout";
 import { SessionList } from "../sessions/SessionList";
 import { CloseSessionDialog } from "../sessions/CloseSessionDialog";
 import { TerminalView, type TerminalControls } from "../terminal/TerminalView";
@@ -262,6 +268,8 @@ export function App() {
     const next =
       typeof update === "function" ? update(tabsRef.current) : update;
     tabsRef.current = next;
+    const retained = retainSplit(splitRef.current, next);
+    if (retained !== splitRef.current) setSplitLayout(retained);
     setTabState(next);
   }
   const [controlBlocked, setControlBlocked] = useState<
@@ -288,9 +296,24 @@ export function App() {
       return next.size === previous.size ? previous : next;
     });
   }, [tabs, sessions]);
-  const [selectedTabId, setSelectedTabId] = useState<string>();
+  const [split, setSplitState] = useState<SplitLayout>();
+  const splitRef = useRef(split);
+  function setSplitLayout(next: SplitLayout | undefined) {
+    splitRef.current = next;
+    setSplitState(next);
+  }
+  const [selectedTabId, setSelectedTabState] = useState<string>();
   const selectedTabRef = useRef(selectedTabId);
-  selectedTabRef.current = selectedTabId;
+  function setSelectedTabId(id: string | undefined) {
+    setSplitLayout(focusSplit(splitRef.current, selectedTabRef.current, id));
+    selectedTabRef.current = id;
+    setSelectedTabState(id);
+  }
+  function visibleTab(id: string) {
+    return split
+      ? id === split.first || id === split.second
+      : id === selectedTabId;
+  }
   const activeTab = tabs.find((tab) => tab.id === selectedTabId);
   const attachment = activeTab?.attachment;
   const terminalSettings = activeTab?.settings ?? terminalDefaults;
@@ -332,10 +355,22 @@ export function App() {
   }
   function removeTab(id: string) {
     const index = tabsRef.current.findIndex((tab) => tab.id === id);
+    const layout = splitRef.current;
+    const sibling =
+      layout &&
+      (layout.first === id
+        ? layout.second
+        : layout.second === id
+          ? layout.first
+          : undefined);
     const next = tabsRef.current.filter((tab) => tab.id !== id);
     setTabs(next);
     if (selectedTabRef.current === id)
-      setSelectedTabId(next[Math.min(index, next.length - 1)]?.id);
+      setSelectedTabId(
+        sibling && next.some((tab) => tab.id === sibling)
+          ? sibling
+          : next[Math.min(index, next.length - 1)]?.id,
+      );
   }
   function newTab() {
     if (tabsRef.current.length >= 32) return;
@@ -590,6 +625,7 @@ export function App() {
       attachment,
       tabId: selectedTabId,
       tabCount: tabs.length,
+      split: !!split,
       windowCount,
       currentOpen: current?.state === "open",
       currentSerial: current?.transport === "serial",
@@ -622,6 +658,7 @@ export function App() {
       activeTab?.moving,
       selectedTabId,
       tabs.length,
+      split,
       windowCount,
       current?.state,
       current?.lease,
@@ -754,6 +791,12 @@ export function App() {
               }));
               setTabs(restored);
               setSelectedTabId(restored[saved.selected]?.id);
+              if (saved.split)
+                setSplitLayout({
+                  axis: saved.split.axis,
+                  first: restored[saved.split.first]!.id,
+                  second: restored[saved.split.second]!.id,
+                });
               pendingWorkspace.current = restored.some(
                 (tab) => !!tab.savedTarget,
               );
@@ -912,6 +955,15 @@ export function App() {
     const snapshot: WorkspaceSnapshot = {
       endpoint: info.endpoint,
       selected: tabs.findIndex((tab) => tab.id === selectedTabId),
+      ...(split
+        ? {
+            split: {
+              axis: split.axis,
+              first: tabs.findIndex((tab) => tab.id === split.first),
+              second: tabs.findIndex((tab) => tab.id === split.second),
+            },
+          }
+        : {}),
       tabs: tabs.map((tab) => ({
         settings: tab.settings,
         target:
@@ -946,6 +998,7 @@ export function App() {
     info,
     tabs,
     selectedTabId,
+    split,
     sessions,
   ]);
 
@@ -1042,6 +1095,51 @@ export function App() {
       setSelectedTabId(tabId);
     } catch (error) {
       report(error as ClientError, target?.id);
+    } finally {
+      setOperation(undefined);
+    }
+  }
+
+  async function splitTab(source: TerminalTab, axis: SplitLayout["axis"]) {
+    if (!source.attachment || source.moving) return;
+    const previous = splitRef.current;
+    if (
+      previous &&
+      (previous.first === source.id || previous.second === source.id)
+    ) {
+      setSplitLayout({ ...previous, axis });
+      return;
+    }
+    if (tabsRef.current.length >= 32) return;
+    const version = generation.current;
+    const original = source.attachment;
+    setOperation("attaching");
+    try {
+      const next = await unwrap(
+        host.attach(original.sessionId, source.settings),
+      );
+      const current = tabsRef.current.find((tab) => tab.id === source.id);
+      if (
+        version !== generation.current ||
+        current?.attachment?.id !== original.id ||
+        current.moving
+      ) {
+        await host.detach(next.id);
+        return;
+      }
+      const duplicate: TerminalTab = {
+        id: crypto.randomUUID(),
+        attachment: next,
+        settings: { ...source.settings },
+        savedTarget: source.savedTarget,
+        inputPaused: source.inputPaused,
+        dropped: false,
+      };
+      setTabs([...tabsRef.current, duplicate]);
+      setSplitLayout({ axis, first: source.id, second: duplicate.id });
+      setSelectedTabId(duplicate.id);
+    } catch (error) {
+      report(error as ClientError, source.id);
     } finally {
       setOperation(undefined);
     }
@@ -1151,6 +1249,7 @@ export function App() {
       ...menuState,
       attachment: tab?.attachment,
       tabId: tab?.id,
+      split: !!split && (split.first === tab?.id || split.second === tab?.id),
       busy:
         !!debugSendTarget ||
         mcpSetupOpen ||
@@ -1274,6 +1373,17 @@ export function App() {
         setSelectedTabId(tabsRef.current[next]?.id);
         return;
       }
+      case "tab.splitRight":
+      case "tab.splitDown":
+        if (targetTab)
+          await splitTab(
+            targetTab,
+            action.id === "tab.splitRight" ? "columns" : "rows",
+          );
+        return;
+      case "view.single":
+        setSplitLayout(undefined);
+        return;
       case "tab.move":
         if (targetTab) await move(targetTab);
         return;
@@ -1986,6 +2096,18 @@ export function App() {
               disabled={working}
               t={t}
               onNew={() => dispatch({ id: "tab.new" })}
+              onReorder={(source, target, position) => {
+                if (
+                  menuState.busy ||
+                  actionBusy.current ||
+                  tabsRef.current.some(
+                    (tab) =>
+                      (tab.id === source || tab.id === target) && tab.moving,
+                  )
+                )
+                  return;
+                setTabs(reorderTabs(tabsRef.current, source, target, position));
+              }}
               onSelect={(tabId) => dispatch({ id: "tab.select", tabId })}
               onClose={(tabId) => {
                 const tab = tabs.find((tab) => tab.id === tabId);
@@ -2152,74 +2274,155 @@ export function App() {
               })
             }
           />
-          {tabs.map(
-            (tab) =>
-              tab.attachment && (
-                <div
-                  key={tab.attachment.id}
-                  className="terminal-pane"
-                  hidden={tab.id !== selectedTabId}
-                >
-                  <TerminalView
-                    ref={(controls) => {
-                      if (controls) terminals.current.set(tab.id, controls);
-                      else terminals.current.delete(tab.id);
+          <div
+            className={`terminal-layout ${split ? `split-${split.axis}` : ""}`}
+          >
+            {tabs.map(
+              (tab) =>
+                (tab.attachment || visibleTab(tab.id)) && (
+                  <div
+                    key={tab.attachment?.id ?? tab.id}
+                    className={`terminal-pane ${tab.id === selectedTabId ? "focused-pane" : ""}`}
+                    hidden={!visibleTab(tab.id)}
+                    data-pane-tab={tab.id}
+                    style={{ order: split?.second === tab.id ? 1 : 0 }}
+                    onPointerDownCapture={() => {
+                      if (
+                        visibleTab(tab.id) &&
+                        !menuState.busy &&
+                        !actionBusy.current
+                      )
+                        setSelectedTabId(tab.id);
                     }}
-                    attachment={tab.attachment}
-                    targetName={
-                      sessions.find(
-                        (entry) =>
-                          entry.session_id === tab.attachment?.sessionId,
-                      )?.label || tab.attachment.sessionId
-                    }
-                    t={t}
-                    settings={tab.settings}
-                    display={display}
-                    onZoom={zoomDisplay}
-                    visible={tab.id === selectedTabId}
-                    controlVersion={
-                      sessions.find(
-                        (entry) =>
-                          entry.session_id === tab.attachment?.sessionId,
-                      )?.control?.version
-                    }
-                    writable={
-                      !debugSendTarget &&
-                      !mcpSetupOpen &&
-                      !recordingDialog &&
-                      !hostSettingsOpen &&
-                      tab.id === selectedTabId &&
-                      writable &&
-                      !tab.moving &&
-                      !tab.moveId &&
-                      !fileDialog &&
-                      !sshFileDialog &&
-                      !filePending &&
-                      !settingsTarget
-                    }
-                    onReady={() => void acceptMove(tab)}
-                    onError={(failure) => report(failure, tab.id)}
-                    onDropped={() => updateTab(tab.id, { dropped: true })}
-                    onContextMenu={(event) =>
-                      openContext(event, terminalMenu(stateForTab(tab)))
-                    }
-                  />
-                </div>
-              ),
-          )}
-          {!attachment && (
-            <div className="terminal-empty" aria-busy={working}>
-              <div className="empty-message">
-                <span className="terminal-glyph" aria-hidden="true">
-                  ›_
-                </span>
-                <div>
-                  <h3>{emptyTitle}</h3>
-                  <p>{emptyHint}</p>
+                    onFocusCapture={() => {
+                      if (
+                        visibleTab(tab.id) &&
+                        !menuState.busy &&
+                        !actionBusy.current
+                      )
+                        setSelectedTabId(tab.id);
+                    }}
+                  >
+                    {split && (
+                      <div className="split-pane-heading">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedTabId(tab.id);
+                            terminals.current.get(tab.id)?.focus();
+                          }}
+                          disabled={menuState.busy}
+                        >
+                          {sessions.find(
+                            (session) =>
+                              session.session_id === tab.attachment?.sessionId,
+                          )?.label ||
+                            tab.savedTarget?.label ||
+                            t("tab.empty")}{" "}
+                          ·{" "}
+                          {t(
+                            tab.id === selectedTabId
+                              ? "split.focused"
+                              : "split.focus",
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          className="quiet"
+                          aria-label={t("tab.close")}
+                          disabled={menuState.busy || tab.moving}
+                          onClick={() =>
+                            dispatch(
+                              tab.attachment
+                                ? {
+                                    id: "tab.close",
+                                    attachment: tab.attachment,
+                                  }
+                                : { id: "tab.closeEmpty", tabId: tab.id },
+                            )
+                          }
+                        >
+                          ×
+                        </button>
+                      </div>
+                    )}
+                    {tab.attachment ? (
+                      <TerminalView
+                        ref={(controls) => {
+                          if (controls) terminals.current.set(tab.id, controls);
+                          else terminals.current.delete(tab.id);
+                        }}
+                        attachment={tab.attachment}
+                        targetName={
+                          sessions.find(
+                            (entry) =>
+                              entry.session_id === tab.attachment?.sessionId,
+                          )?.label || tab.attachment.sessionId
+                        }
+                        t={t}
+                        settings={tab.settings}
+                        display={display}
+                        onZoom={zoomDisplay}
+                        visible={visibleTab(tab.id)}
+                        focused={tab.id === selectedTabId}
+                        controlVersion={
+                          sessions.find(
+                            (entry) =>
+                              entry.session_id === tab.attachment?.sessionId,
+                          )?.control?.version
+                        }
+                        writable={
+                          !debugSendTarget &&
+                          !mcpSetupOpen &&
+                          !recordingDialog &&
+                          !hostSettingsOpen &&
+                          tab.id === selectedTabId &&
+                          writable &&
+                          !tab.moving &&
+                          !tab.moveId &&
+                          !fileDialog &&
+                          !sshFileDialog &&
+                          !filePending &&
+                          !settingsTarget
+                        }
+                        onReady={() => void acceptMove(tab)}
+                        onError={(failure) => report(failure, tab.id)}
+                        onDropped={() => updateTab(tab.id, { dropped: true })}
+                        onContextMenu={(event) =>
+                          openContext(event, terminalMenu(stateForTab(tab)))
+                        }
+                      />
+                    ) : (
+                      <div className="terminal-empty" aria-busy={working}>
+                        <div className="empty-message">
+                          <div>
+                            <h3>
+                              {tab.id === selectedTabId
+                                ? emptyTitle
+                                : t("tab.empty")}
+                            </h3>
+                            <p>{emptyHint}</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ),
+            )}
+            {!activeTab && (
+              <div className="terminal-empty" aria-busy={working}>
+                <div className="empty-message">
+                  <span className="terminal-glyph" aria-hidden="true">
+                    ›_
+                  </span>
+                  <div>
+                    <h3>{emptyTitle}</h3>
+                    <p>{emptyHint}</p>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
           <BottomPanel
             height={panelHeight}
             onHeight={setPanelHeight}

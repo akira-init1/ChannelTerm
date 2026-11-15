@@ -371,7 +371,7 @@ channelterm serial --config ./channelterm.toml --profile board
 ## 문서
 
 - [문서 색인](docs/README.md)
-- [Electron GUI 프로토타입 및 개발](docs/development/electron-gui.md) — 기본 로컬 Host에 자동으로 연결하거나 시작하며, GUI에서 직렬 및 SSH 세션을 직접 생성할 수 있습니다. 장치 폴더를 탐색하고 직렬 연결로 파일과 폴더를 양방향 전송하며 GUI에서 진행 상황을 확인할 수 있습니다. 여러 창과 터미널 탭을 열고 공유 세션을 종료하지 않고 탭을 새 창으로 이동할 수 있습니다.
+- [Electron GUI 프로토타입 및 개발](docs/development/electron-gui.md) — 기본 로컬 Host에 자동으로 연결하거나 시작하며, GUI에서 직렬 및 SSH 세션을 직접 생성할 수 있습니다. 장치 폴더를 탐색하고 직렬 연결로 파일과 폴더를 양방향 전송하며 GUI에서 진행 상황을 확인할 수 있습니다. 여러 창과 터미널 탭을 열고 공유 세션을 종료하지 않고 탭을 새 창으로 이동할 수 있습니다. 탭 순서를 바꾸고 독립적인 출력 커서를 가진 두 터미널 뷰를 좌우 또는 위아래로 표시할 수 있습니다.
 
 GUI는 [MCP 클라이언트 구성 및 복구](docs/getting-started/mcp-server.md#desktop-client-setup-and-repair)도 제공합니다. 클라이언트 하나의 구성을 미리 보고 변경을 명시적으로 확인한 뒤, 다시 불러오기 전에 독립적인 읽기 전용 접근을 검증합니다.
 

@@ -2530,6 +2530,16 @@ msgstr "Credencial de usuario"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "split.focus"
+msgstr "Enfocar esta vista"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "split.focused"
+msgstr "Vista enfocada"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "ssh.advanced"
 msgstr "Ajustes avanzados de SSH"
 
@@ -2834,8 +2844,23 @@ msgstr "Pestaña anterior"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "tab.reorderHint"
+msgstr "Arrastre para reordenar, o pulse Mayús+Izquierda/Derecha con este botón de pestaña enfocado."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "tab.restoreHint"
 msgstr "La pestaña movida se restauró desde la salida reciente del host (hasta 64 KiB). El estado completo de la pantalla y el historial anterior podrían no estar disponibles."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.splitDown"
+msgstr "Dividir hacia abajo"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.splitRight"
+msgstr "Dividir a la derecha"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -3007,6 +3032,11 @@ msgstr "Arrastre o use las flechas para cambiar el ancho. Haga doble clic para r
 #: src/shared/menu-messages.ts
 msgid "view.sidebar"
 msgstr "Barra lateral de sesiones"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "view.single"
+msgstr "Vista única"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

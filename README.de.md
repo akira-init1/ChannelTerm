@@ -378,7 +378,7 @@ unterstützt außerdem `--connection-policy ask|auto|deny`. `--config` ändert n
 ## Dokumentation
 
 - [Dokumentationsindex](docs/README.md)
-- [Electron-GUI-Prototyp und Entwicklung](docs/development/electron-gui.md) — Der lokale Standard-Host wird automatisch verbunden oder gestartet; serielle und SSH-Sitzungen lassen sich direkt in der GUI erstellen. Geräteverzeichnisse durchsuchen und Dateien/Ordner seriell in beide Richtungen mit GUI-Fortschritt übertragen. Öffnen Sie mehrere Fenster und Terminal-Tabs und verschieben Sie einen Tab in ein neues Fenster, ohne seine gemeinsame Sitzung zu schließen.
+- [Electron-GUI-Prototyp und Entwicklung](docs/development/electron-gui.md) — Der lokale Standard-Host wird automatisch verbunden oder gestartet; serielle und SSH-Sitzungen lassen sich direkt in der GUI erstellen. Geräteverzeichnisse durchsuchen und Dateien/Ordner seriell in beide Richtungen mit GUI-Fortschritt übertragen. Öffnen Sie mehrere Fenster und Terminal-Tabs und verschieben Sie einen Tab in ein neues Fenster, ohne seine gemeinsame Sitzung zu schließen. Ordnen Sie Tabs neu an und zeigen Sie zwei Terminalansichten mit unabhängigen Ausgabecursorn neben- oder übereinander an.
 
 Die GUI bietet auch [MCP-Client-Einrichtung und Reparatur](docs/getting-started/mcp-server.md#desktop-client-setup-and-repair): einzelne Konfiguration vorschauen, Änderungen ausdrücklich bestätigen und unabhängigen Lesezugriff vor dem Neuladen des Clients prüfen.
 

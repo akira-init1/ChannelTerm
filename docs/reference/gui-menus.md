@@ -150,10 +150,14 @@ Main owns BrowserWindow creation, focus and close. Tab state belongs to its rend
 | Next Tab / Previous Tab | `tab.next` / `tab.previous` | Cycle in strip order, wrapping; enabled for more than one tab while idle. |
 | Next Window / Previous Window | `window.next` / `window.previous` | Focus/restore the adjacent committed window in creation order, wrapping; requires more than one window. Pending handoff windows are excluded. |
 | Move Tab to New Window; tab context menu | `tab.move` | Move the captured open attachment, including a background tab, when connected and idle with window capacity. Preserve source until destination acknowledgement; owned file work blocks the move. |
+| Split right / Split down; tab context menu | `tab.splitRight` / `tab.splitDown` | Show two equal panes using an independent attachment to the captured open Session. Requires connection, idle state and a free tab slot; an existing visible pair can change orientation at the limit without another attachment. |
+| Single view | `view.single` | Show only the focused tab, retaining the companion tab and attachment. Available while idle with an active split. |
 | Exit GUI | `app.quit` | Existing application exit and file-operation guard, independent of Host connection. |
 
 The tab strip uses `tab.select` and the same close/move dispatcher as menus. Arrow keys and
-Home/End navigate only while that strip has focus, excluding IME and modifier chords. No new
+Home/End navigate only while that strip has focus. Shift+Left/Right reorder the focused tab;
+IME composition and other modifier chords are ignored. Drag a tab before or after another tab
+in the same window to reorder it. Neither operation replaces attachments or changes selection. No new
 terminal shortcut is registered. Session selection fills an empty tab, activates an existing view,
 or opens another tab. Create an empty tab first to attach the same Session twice. Each view has
 independent cursor, input state and subscriptions. Closing a background tab targets that tab only.
@@ -162,9 +166,16 @@ Moving reconstructs xterm from recent retained Host bytes (up to 64 KiB); a tran
 states that full screen state and earlier history may be unavailable. The destination must finish
 its first read/render and acknowledge within 20 seconds before the source is removed. Failure
 retains the original tab and shows a translated notice; it never reopens a device or retries input.
-No dragging, split terminals, saved tab restoration, or complete terminal-state migration is provided.
-Host Information has no dedicated handler and is omitted; the Host panel retains endpoint/status.
-Session Information reuses the existing details sidebar.
+Complete terminal-state migration is not provided; limited workspace recovery is described below.
+
+Split panes keep independent output cursors, including when they show the same Session. Click a
+pane or focus its heading/terminal to select it; the selected heading is marked and underlined.
+Only that pane accepts input, subject to the same read-only, Lease and operation-control checks.
+Selecting another tab replaces the focused pane without swapping its position. Closing or moving
+either pane returns to one visible view without closing the shared Session. Single view retains
+the hidden companion; splitting again creates a new observer tab. The total remains bounded to
+32 tabs, with at most two visible panes and no nested splits or input broadcast. SSH observers fit
+locally until explicit size-control takeover; pane focus and layout changes grant no authority.
 
 ## Targeting, state, and security
 
@@ -557,8 +568,8 @@ settings. Applying defaults leaves current tabs unchanged; restored tabs keep th
 Font and shortcut settings retain their
 existing storage and behavior. Display Reset resets only the display fields, not terminal defaults.
 
-On restart, the window restores saved tab targets, order and selection. After connecting to the
-same configured Host, it rechecks full Session IDs, transport and endpoint against the live Session
+On restart, the window restores saved tab targets, order, selection and the optional two-pane layout.
+After connecting to the same configured Host, it rechecks full Session IDs, transport and endpoint against the live Session
 list. Surviving Sessions receive fresh client attachments without remote-size control; unavailable
 targets show a notice and can be closed or replaced by explicitly selecting a live Session.
 Restore never recreates a closed Session,
@@ -569,7 +580,9 @@ not recoverable. No terminal output or unsent input is stored on disk by this fe
 The GUI profile's renderer local storage uses `channelterm.preferences.v1` (language/layout/terminal
 defaults, maximum accepted JSON length 8,192 UTF-16 code units) and `channelterm.workspace.v1.0`
 through `.15` (per-window snapshots, maximum accepted JSON length 131,072 UTF-16 code units and
-32 tabs each). Slots are assigned
+32 tabs each). The optional `split` object stores `axis` (`columns` or `rows`) and distinct `first`
+and `second` tab indices; `selected` must identify one of those tabs. Malformed split data falls
+back to single view while retaining valid tabs. Older snapshots need no migration. Slots are assigned
 in window-opening order using the lowest free slot. Additional windows are opened manually; an
 incoming moved tab replaces the saved slot's view. Current windows remain independent; preference
 edits and concurrent application processes sharing a profile use last-writer wins. Invalid data

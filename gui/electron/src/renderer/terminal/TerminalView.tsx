@@ -43,6 +43,7 @@ export function TerminalView({
   writable,
   controlVersion,
   visible,
+  focused,
   onReady,
   onError,
   onDropped,
@@ -58,6 +59,7 @@ export function TerminalView({
   writable: boolean;
   controlVersion?: string;
   visible: boolean;
+  focused: boolean;
   onReady: () => void;
   onError: (error: ClientError) => void;
   onDropped: () => void;
@@ -195,6 +197,8 @@ export function TerminalView({
   const callbacks = useRef({ onError, onDropped, onZoom, onReady });
   const previousReadLoop = useRef<Promise<void>>(Promise.resolve());
   const visibility = useRef(visible);
+  const focusState = useRef(focused);
+  focusState.current = focused;
   const resumeRead = useRef<(() => void) | undefined>(undefined);
   if (visibility.current && !visible) inputEpoch.current++;
   visibility.current = visible;
@@ -250,7 +254,7 @@ export function TerminalView({
     terminal.open(container.current!);
     if (visibility.current) {
       fit.fit();
-      terminal.focus();
+      if (focusState.current) terminal.focus();
     }
     let stopped = false;
     const geometry = new ResizeQueue(

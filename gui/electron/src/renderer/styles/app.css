@@ -593,6 +593,12 @@ main {
   padding: 0 8px;
   border-radius: 0;
 }
+.terminal-tab.drop-before {
+  box-shadow: inset 3px 0 var(--accent);
+}
+.terminal-tab.drop-after {
+  box-shadow: inset -3px 0 var(--accent);
+}
 .terminal-pane {
   display: flex;
   flex-direction: column;
@@ -1564,4 +1570,48 @@ main {
 .device-decision {
   border-top: 1px solid var(--border);
   padding-top: 8px;
+}
+
+.terminal-layout {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+.terminal-layout.split-columns,
+.terminal-layout.split-rows {
+  display: grid;
+  gap: 3px;
+  background: var(--border);
+}
+.terminal-layout.split-columns {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: minmax(0, 1fr);
+}
+.terminal-layout.split-rows {
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
+}
+.split-pane-heading {
+  display: flex;
+  min-width: 0;
+  background: var(--toolbar-background);
+  border-bottom: 2px solid var(--border);
+}
+.focused-pane > .split-pane-heading {
+  border-bottom-color: var(--accent);
+}
+.split-pane-heading button:first-child {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+  min-width: 0;
+}
+.split-pane-heading button {
+  border-radius: 0;
+  font-size: 11px;
+  padding: 3px 6px;
 }

@@ -120,6 +120,8 @@ export interface WorkspaceSnapshot {
   endpoint: string;
   tabs: WorkspaceTab[];
   selected: number;
+  /** Optional v1 addition: indices refer only to this validated ordered tab list. */
+  split?: { axis: "columns" | "rows"; first: number; second: number };
 }
 
 /** One bounded window slot; reject another Host and never resolve short references as IDs. */
@@ -170,7 +172,24 @@ export function restoreWorkspace(
         : {}),
     });
   }
-  return { endpoint, tabs, selected: v.selected };
+  let split: WorkspaceSnapshot["split"];
+  if (v.split !== undefined) {
+    const layout = v.split;
+    // Invalid layout must not invalidate otherwise recoverable tab targets.
+    if (
+      object(layout) &&
+      (layout.axis === "columns" || layout.axis === "rows") &&
+      Number.isInteger(layout.first) &&
+      Number.isInteger(layout.second) &&
+      size(layout.first, 0, tabs.length - 1) &&
+      size(layout.second, 0, tabs.length - 1) &&
+      layout.first !== layout.second &&
+      (v.selected === layout.first || v.selected === layout.second)
+    ) {
+      split = { axis: layout.axis, first: layout.first, second: layout.second };
+    }
+  }
+  return { endpoint, tabs, selected: v.selected, ...(split ? { split } : {}) };
 }
 
 /** A saved target is only a display hint; match current authoritative metadata before attach. */

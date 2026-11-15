@@ -361,7 +361,7 @@ channelterm serial --config ./channelterm.toml --profile board
 ## 文档
 
 - [文档索引](docs/README.md)
-- [Electron GUI 原型与开发](docs/development/electron-gui.md) — 自动连接或启动默认本机 Host，直接在 GUI 中创建串口和 SSH 会话。 支持浏览设备目录、串口双向传输文件及文件夹，并显示 GUI 进度。 支持多个窗口及终端标签，并可将标签移动到新窗口而不关闭共享会话。
+- [Electron GUI 原型与开发](docs/development/electron-gui.md) — 自动连接或启动默认本机 Host，直接在 GUI 中创建串口和 SSH 会话。 支持浏览设备目录、串口双向传输文件及文件夹，并显示 GUI 进度。 支持多个窗口及终端标签，并可将标签移动到新窗口而不关闭共享会话。 可调整标签顺序，并使用左右或上下两个终端视图，各自保有独立输出游标。
 
 GUI 还提供 [MCP 客户端配置与修复](docs/getting-started/mcp-server.md#desktop-client-setup-and-repair)：预览单个客户端配置、明确确认变更，并在重新加载客户端前验证独立只读接入。
 

@@ -2530,6 +2530,16 @@ msgstr "使用者憑證"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "split.focus"
+msgstr "聚焦此檢視"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "split.focused"
+msgstr "目前焦點檢視"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "ssh.advanced"
 msgstr "SSH 進階設定"
 
@@ -2834,8 +2844,23 @@ msgstr "上一個分頁"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "tab.reorderHint"
+msgstr "拖曳可調整順序；此分頁按鈕取得焦點時，也可按 Shift+左／右方向鍵。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "tab.restoreHint"
 msgstr "移動後的分頁已從 Host 最近的輸出還原（最多 64 KiB）。完整畫面狀態和更早的歷史可能無法還原。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.splitDown"
+msgstr "向下分割"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.splitRight"
+msgstr "向右分割"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -3007,6 +3032,11 @@ msgstr "拖曳或使用方向鍵調整寬度，按兩下恢復預設。"
 #: src/shared/menu-messages.ts
 msgid "view.sidebar"
 msgstr "工作階段側邊欄"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "view.single"
+msgstr "單一檢視"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

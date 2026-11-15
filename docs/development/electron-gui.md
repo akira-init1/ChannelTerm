@@ -105,9 +105,9 @@ the owning window's close/disconnect and app exit until finished or explicitly c
 
 Limits are 16 windows (including pending moves), 32 tabs per window and one pending move per source
 window. At 32 attached tabs, close one before changing presentation settings, which safely attaches
-a replacement first. No tab dragging, terminal splitting, persistent tab layout or lossless xterm
-migration is implemented. See [menu contracts](../reference/gui-menus.md#window-action-contracts)
-and [window ownership](../architecture/electron-gui.md#windows-and-tab-handoff).
+a replacement first. Local tab reordering, two-pane splitting and bounded workspace recovery follow
+the [window contracts](../reference/gui-menus.md#window-action-contracts). Lossless xterm
+migration is not implemented. See [window ownership](../architecture/electron-gui.md#windows-and-tab-handoff).
 
 To release a shared connection explicitly, use **Session > Close shared Session...** and check
 the displayed full target ID before confirming. This affects every client and can interrupt active
@@ -674,6 +674,17 @@ malformed storage, bounded eviction, favorites and successful-use accounting. Na
 checks reopen a saved serial record and verify prefilled parameters without connection or wake.
 
 ### Workspace recovery checks
+
+`tab-layout.test.ts` verifies stable local reordering, focus position and split collapse without
+attachment replacement. `split-checks.mjs`, included in the native desktop suite, exercises real
+tab dragging and scoped keyboard reordering, both split directions, independent same-Session
+cursors, input routing and Lease rejection, nine locales at narrow width, window resizing,
+workspace restart, pane close/move and failed-attach recovery. Loopback SSH checks prove observers
+cannot seize remote size on layout changes and explicit takeover affects only the requested view.
+The failure case replaces only the disposable test process's attach IPC handler; successful
+paths use production IPC and the real Host with fake serial I/O and loopback SSH. Screenshots are
+`test-results/split-views.png` and `test-results/split-compact.png`. Synthetic composition events
+check key-dispatch guards only; these tests do not establish native IME or physical-device behavior.
 
 `workspace.test.ts` validates bounded persisted preferences and tab order/settings, rejects malformed
 or foreign-Host snapshots, strips runtime/input/output fields and matches full live Session identity.

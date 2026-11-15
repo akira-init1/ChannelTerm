@@ -65,6 +65,7 @@ export type Action =
         | "view.status"
         | "view.activity"
         | "view.debug"
+        | "view.single"
         | "view.sessions"
         | "settings.shortcuts"
         | "settings.display"
@@ -83,6 +84,8 @@ export type Action =
         | "session.close"
         | "session.copyAI"
         | "tab.move"
+        | "tab.splitRight"
+        | "tab.splitDown"
         | "session.info"
         | "terminal.clear"
         | "terminal.focus"
@@ -110,6 +113,7 @@ export interface MenuState {
   attachment?: Attachment;
   tabId?: string;
   tabCount?: number;
+  split?: boolean;
   windowCount?: number;
   currentOpen: boolean;
   currentSerial: boolean;
@@ -150,6 +154,8 @@ function attachedAction(
     | "tab.close"
     | "session.close"
     | "tab.move"
+    | "tab.splitRight"
+    | "tab.splitDown"
     | "session.info"
     | "terminal.clear"
     | "terminal.focus"
@@ -173,6 +179,10 @@ function attachedAction(
       !!state.attachment &&
       !state.busy &&
       (id !== "session.close" || (state.connected && state.currentOpen)) &&
+      (!["tab.splitRight", "tab.splitDown"].includes(id) ||
+        (state.connected &&
+          state.currentOpen &&
+          (!!state.split || (state.tabCount ?? 0) < 32))) &&
       (id !== "tab.move" ||
         (state.connected &&
           state.currentOpen &&
@@ -315,6 +325,14 @@ export function applicationMenu(state: MenuState): MenuEntry[] {
         },
         ...windowActions.slice(2).map((id) => windowEntry(state, id)),
         attachedAction(state, "tab.move"),
+        attachedAction(state, "tab.splitRight"),
+        attachedAction(state, "tab.splitDown"),
+        {
+          id: "view.single",
+          label: "view.single",
+          action: { id: "view.single" },
+          enabled: !state.busy && !!state.split,
+        },
         { id: "app.quit", label: "app.quit", action: { id: "app.quit" } },
       ],
     },
@@ -390,6 +408,8 @@ export function tabMenu(state: MenuState): MenuEntry[] {
           state.currentSSH,
         ),
         attachedAction(state, "tab.move"),
+        attachedAction(state, "tab.splitRight"),
+        attachedAction(state, "tab.splitDown"),
       ]
     : [attachedAction(state, "tab.close")];
 }
@@ -556,6 +576,7 @@ export function isAction(value: unknown): value is Action {
     case "view.status":
     case "view.sessions":
     case "view.debug":
+    case "view.single":
     case "view.activity":
     case "settings.shortcuts":
     case "settings.display":
@@ -573,6 +594,8 @@ export function isAction(value: unknown): value is Action {
     case "session.close":
     case "session.copyAI":
     case "tab.move":
+    case "tab.splitRight":
+    case "tab.splitDown":
     case "session.info":
     case "terminal.copy":
     case "send.open":
@@ -612,6 +635,7 @@ export function isMenuState(value: unknown): value is MenuState {
       "attachment",
       "tabId",
       "tabCount",
+      "split",
       "windowCount",
       "currentOpen",
       "currentSerial",
@@ -624,6 +648,7 @@ export function isMenuState(value: unknown): value is MenuState {
     return false;
   return (
     isMenuLocale(value.locale) &&
+    (value.split === undefined || typeof value.split === "boolean") &&
     (value.tabId === undefined || identifier(value.tabId)) &&
     (value.tabCount === undefined ||
       (typeof value.tabCount === "number" &&
@@ -660,6 +685,8 @@ export function isMenuState(value: unknown): value is MenuState {
 /** Recheck live view state before dispatch, including attachment identity after async changes. */
 export function actionEnabled(action: Action, state: MenuState): boolean {
   switch (action.id) {
+    case "view.single":
+      return !state.busy && !!state.split;
     case "settings.transfers":
       return !state.busy;
     case "window.new":
@@ -710,6 +737,8 @@ export function actionEnabled(action: Action, state: MenuState): boolean {
     case "session.close":
     case "session.copyAI":
     case "tab.move":
+    case "tab.splitRight":
+    case "tab.splitDown":
     case "session.info":
     case "terminal.copy":
     case "send.open":
@@ -724,6 +753,10 @@ export function actionEnabled(action: Action, state: MenuState): boolean {
         state.attachment.sessionId === action.attachment.sessionId &&
         (!["session.close", "session.copyAI"].includes(action.id) ||
           (state.connected && state.currentOpen)) &&
+        (!["tab.splitRight", "tab.splitDown"].includes(action.id) ||
+          (state.connected &&
+            state.currentOpen &&
+            (!!state.split || (state.tabCount ?? 0) < 32))) &&
         (action.id !== "tab.move" ||
           (state.connected &&
             state.currentOpen &&

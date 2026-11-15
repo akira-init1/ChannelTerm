@@ -379,7 +379,7 @@ sélectionné, pas les fichiers `state.json` ou `http-host.json` par défaut. Co
 ## Documentation
 
 - [Index de la documentation](docs/README.md)
-- [Prototype GUI Electron et développement](docs/development/electron-gui.md) — Le Host local par défaut est connecté ou démarré automatiquement ; créez des sessions série et SSH directement dans la GUI. Parcourez les dossiers de l’appareil et transférez fichiers et dossiers par liaison série dans les deux sens avec progression dans la GUI. Ouvrez plusieurs fenêtres et onglets de terminal, et déplacez un onglet vers une nouvelle fenêtre sans fermer sa session partagée.
+- [Prototype GUI Electron et développement](docs/development/electron-gui.md) — Le Host local par défaut est connecté ou démarré automatiquement ; créez des sessions série et SSH directement dans la GUI. Parcourez les dossiers de l’appareil et transférez fichiers et dossiers par liaison série dans les deux sens avec progression dans la GUI. Ouvrez plusieurs fenêtres et onglets de terminal, et déplacez un onglet vers une nouvelle fenêtre sans fermer sa session partagée. Réorganisez les onglets et affichez deux vues de terminal côte à côte ou superposées, avec des curseurs de sortie indépendants.
 
 La GUI propose aussi la [configuration et la réparation des clients MCP](docs/getting-started/mcp-server.md#desktop-client-setup-and-repair) : prévisualisez une configuration, confirmez explicitement les changements et vérifiez un accès indépendant en lecture seule avant de recharger le client.
 

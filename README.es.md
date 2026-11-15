@@ -377,7 +377,7 @@ seleccionado, no los archivos predeterminados `state.json` ni `http-host.json`. 
 ## Documentación
 
 - [Índice de documentación](docs/README.md)
-- [Prototipo GUI Electron y desarrollo](docs/development/electron-gui.md) — El Host local predeterminado se conecta o inicia automáticamente; cree sesiones serie y SSH directamente en la GUI. Explore directorios del dispositivo y transfiera archivos/carpetas por serie en ambas direcciones con progreso en la GUI. Abra varias ventanas y pestañas de terminal, y mueva una pestaña a una nueva ventana sin cerrar su sesión compartida.
+- [Prototipo GUI Electron y desarrollo](docs/development/electron-gui.md) — El Host local predeterminado se conecta o inicia automáticamente; cree sesiones serie y SSH directamente en la GUI. Explore directorios del dispositivo y transfiera archivos/carpetas por serie en ambas direcciones con progreso en la GUI. Abra varias ventanas y pestañas de terminal, y mueva una pestaña a una nueva ventana sin cerrar su sesión compartida. Reordene las pestañas y muestre dos vistas de terminal en paralelo o apiladas, con cursores de salida independientes.
 
 La GUI también ofrece [configuración y reparación de clientes MCP](docs/getting-started/mcp-server.md#desktop-client-setup-and-repair): previsualice una configuración, confirme explícitamente los cambios y verifique el acceso independiente de solo lectura antes de recargar el cliente.
 

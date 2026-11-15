@@ -87,6 +87,52 @@ test("workspace rechecks full identifiers, endpoint, transport and live state; r
   assert.equal(workspaceSession(target, []), undefined);
 });
 
+test("optional split layout restores bounded local indices and ignores invalid layout without losing tabs", () => {
+  for (const axis of ["columns", "rows"] as const) {
+    const split = { axis, first: 0, second: 1 };
+    assert.deepEqual(
+      restoreWorkspace(
+        JSON.stringify({
+          ...snapshot,
+          split: { ...split, input: "never replay", owner: "not a capability" },
+        }),
+        endpoint,
+      ),
+      { ...snapshot, split },
+    );
+  }
+  for (const split of [
+    null,
+    {},
+    { axis: "diagonal", first: 0, second: 1 },
+    { axis: "rows", first: 0, second: 0 },
+    { axis: "rows", first: 0, second: 32 },
+    { axis: "rows", first: -1, second: 1 },
+    { axis: "rows", first: 0.5, second: 1 },
+    { axis: "rows", first: "0", second: 1 },
+  ]) {
+    assert.deepEqual(
+      restoreWorkspace(JSON.stringify({ ...snapshot, split }), endpoint),
+      snapshot,
+    );
+  }
+  const three = {
+    ...snapshot,
+    tabs: [...snapshot.tabs, snapshot.tabs[0]!],
+    selected: 2,
+  };
+  assert.deepEqual(
+    restoreWorkspace(
+      JSON.stringify({
+        ...three,
+        split: { axis: "rows", first: 0, second: 1 },
+      }),
+      endpoint,
+    ),
+    three,
+  );
+});
+
 test("corrupt, oversized or invalid workspace records fail closed", () => {
   for (const raw of [
     "{",

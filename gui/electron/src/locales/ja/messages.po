@@ -2530,6 +2530,16 @@ msgstr "ユーザーの認証情報"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "split.focus"
+msgstr "このビューにフォーカス"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "split.focused"
+msgstr "フォーカス中のビュー"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "ssh.advanced"
 msgstr "SSH 詳細設定"
 
@@ -2834,8 +2844,23 @@ msgstr "前のタブ"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "tab.reorderHint"
+msgstr "ドラッグで並べ替えます。このタブボタンにフォーカスがあるときは Shift+左/右キーでも移動できます。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "tab.restoreHint"
 msgstr "移動したタブはホストの直近の出力（最大 64 KiB）から復元されました。画面全体の状態や以前の履歴は復元できない場合があります。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.splitDown"
+msgstr "下に分割"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.splitRight"
+msgstr "右に分割"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -3007,6 +3032,11 @@ msgstr "ドラッグまたは矢印キーで幅を変更します。ダブルク
 #: src/shared/menu-messages.ts
 msgid "view.sidebar"
 msgstr "セッションサイドバー"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "view.single"
+msgstr "単一ビュー"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
