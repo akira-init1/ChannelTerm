@@ -126,15 +126,16 @@ export class LineMetadata {
           ? Math.max(0, batch.marker.line)
           : 0;
       const time = batch.normal ? batch.receivedAt : undefined;
-      const occupied = new Set(
-        Array.from(this.lines.values(), (entry) => entry.marker.line),
-      );
+      const first = Math.max(start, end - this.maximum + 1);
+      // A small write usually touches only a few rows. Avoid copying the entire
+      // retained history into temporary arrays/sets for every parsed batch.
+      const occupied = new Set<number>();
+      this.lines.forEach((entry) => {
+        const line = entry.marker.line;
+        if (line >= first && line <= end) occupied.add(line);
+      });
       // A single large write can trim more than a buffer. Only retained rows can acquire anchors.
-      for (
-        let index = Math.max(start, end - this.maximum + 1);
-        index <= end && index < buffer.length;
-        index++
-      ) {
+      for (let index = first; index <= end && index < buffer.length; index++) {
         const line = buffer.getLine(index);
         if (
           !line ||
@@ -171,14 +172,19 @@ export class LineMetadata {
       return [];
     this.prune();
     const buffer = this.terminal.buffer.normal;
-    const byLine = new Map(
-      Array.from(this.lines.values(), (entry) => [entry.marker.line, entry]),
-    );
     const result: LineObservation[] = [];
     const first = Math.max(0, Math.floor(start));
     const length = Math.max(0, Math.min(1024, Math.floor(count)));
     let logical = first;
     while (logical > 0 && buffer.getLine(logical)?.isWrapped) logical--;
+    // Include the logical anchor preceding a wrapped first row, but no unrelated
+    // history. Public markers still supply current positions after reflow/trim.
+    const end = Math.min(first + length, buffer.length);
+    const byLine = new Map<number, RetainedLine>();
+    this.lines.forEach((entry) => {
+      const line = entry.marker.line;
+      if (line >= logical && line < end) byLine.set(line, entry);
+    });
     for (
       let index = first;
       index < first + length && index < buffer.length;
@@ -217,8 +223,11 @@ export class LineMetadata {
   }
 
   private prune(): void {
-    for (const [id, entry] of this.lines)
+    // Map entries iteration materializes a pair for every retained line. This
+    // hot path also runs for hidden tabs; forEach avoids that allocation churn.
+    this.lines.forEach((entry, id) => {
       if (entry.marker.isDisposed || entry.marker.line < 0)
         this.lines.delete(id);
+    });
   }
 }

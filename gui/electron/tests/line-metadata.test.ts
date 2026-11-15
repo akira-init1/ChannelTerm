@@ -160,3 +160,41 @@ test("metadata limits pending callbacks and reset rescans without retaining old 
   for (const maximum of [0, 6001, 1.5, NaN])
     assert.throws(() => new LineMetadata(terminal, maximum), RangeError);
 });
+
+test("large retained history keeps an off-viewport wrapped anchor and preserves first receipt on rewrites", () => {
+  const terminal = new FakeTerminal();
+  const metadata = new LineMetadata(terminal);
+  const batch = metadata.begin(100);
+  const rows = Array.from({ length: 5001 }, (_, index) => ({
+    text: index === 5000 ? "" : `row ${index}`,
+    wrapped: index >= 4990 && index <= 4993,
+  }));
+  terminal.output(rows);
+  metadata.finish(batch);
+  assert.equal(metadata.size, 4996);
+  const visible = metadata.viewport(4992, 5);
+  assert.deepEqual(
+    visible.map((row) => row.sequence),
+    [4990, 4990, 4991, 4992, 4993],
+  );
+  assert.deepEqual(
+    visible.map((row) => row.continuation),
+    [true, true, false, false, false],
+  );
+  assert.ok(visible.every((row) => row.receivedAt === 100));
+  terminal.normal.cursorY = 1;
+  terminal.normal.cursorX = 3;
+  metadata.finish(metadata.begin(200));
+  assert.equal(metadata.viewport(1, 1)[0]?.receivedAt, 100);
+  assert.equal(metadata.size, 4996);
+  for (const marker of terminal.markers)
+    if (!marker.isDisposed && marker.line < 10) marker.dispose();
+  assert.equal(metadata.size, 4986);
+  assert.deepEqual(
+    metadata.viewport(4992, 5).map((row) => row.sequence),
+    visible.map((row) => row.sequence),
+  );
+  assert.equal(metadata.viewport(0, 9000).length, 1024);
+  metadata.dispose();
+  assert.equal(metadata.size, 0);
+});
