@@ -296,9 +296,8 @@ need no additional array element or per-message language structure change.
 
 ## Connect to an existing Host
 
-Use an updated standalone HTTP Host for GUI SSH creation; older Hosts and a foreground
-CLI `ssh` owner's sharing endpoint support attachment but do not offer the new creation API.
-After rebuilding the Go executable, restart the intended standalone Host before reconnecting
+An updated standalone HTTP Host or foreground CLI `ssh` Host supports GUI SSH creation.
+Older Hosts may support only attachment. After rebuilding the Go executable, restart the intended Host before reconnecting
 the GUI. Host shutdown closes its Sessions, so finish work in those Sessions first.
 
 Opening the GUI automatically connects to `http://127.0.0.1:37099/mcp`. If that TCP listener

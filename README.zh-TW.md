@@ -178,6 +178,9 @@ channelterm ssh user@192.168.1.50
 
 # 終端機 2：查看並使用同一個 shell。
 channelterm attach SSH-1
+
+# 在第三個終端機中，使用同一個 Host 連線到另一台 SSH 主機。
+channelterm ssh user@192.168.1.51 --shared
 ```
 
 保持第一個命令執行；結束它會關閉該 Host 及其 Session。預設本機共用連接埠必須閒置；若已占用，可用 `--listen` 指定另一個 Host，並使用輸出中的 attach endpoint。私鑰路徑、主機驗證、連接埠與目前限制見 [SSH 使用流程](docs/getting-started/ssh-terminal.md)。

@@ -27,7 +27,8 @@ type sshOpener interface {
 	OpenSSH(context.Context, app.OpenSSHRequest) (app.OpenSSHResult, error)
 }
 
-type sshRequest struct {
+// SSHRequest describes a management client's request to open a Host-owned SSH shell.
+type SSHRequest struct {
 	ConfirmHostKey bool         `json:"confirm_host_key"`
 	Host           string       `json:"host"`
 	User           string       `json:"user"`
@@ -37,11 +38,11 @@ type sshRequest struct {
 	KnownHostsFile string       `json:"known_hosts_file"`
 	Password       *string      `json:"password"`
 	KeyPassphrase  *string      `json:"key_passphrase"`
-	Advanced       *sshAdvanced `json:"advanced"`
+	Advanced       *SSHAdvanced `json:"advanced"`
 }
 
-// sshAdvanced bounds optional setup/liveness settings without granting resize ownership.
-type sshAdvanced struct {
+// SSHAdvanced bounds optional setup/liveness settings without granting resize ownership.
+type SSHAdvanced struct {
 	TimeoutSeconds      int    `json:"timeout_seconds"`
 	KeepAliveSeconds    int    `json:"keepalive_seconds"`
 	KeepAliveCount      int    `json:"keepalive_count"`
@@ -51,7 +52,7 @@ type sshAdvanced struct {
 	Rows                int    `json:"rows"`
 }
 
-func (a sshAdvanced) valid() bool {
+func (a SSHAdvanced) valid() bool {
 	return a.TimeoutSeconds >= 1 && a.TimeoutSeconds <= 120 &&
 		a.KeepAliveSeconds >= 0 && a.KeepAliveSeconds <= 3600 &&
 		a.KeepAliveCount >= 1 && a.KeepAliveCount <= 10 &&
@@ -120,7 +121,7 @@ func newSSHHandler(application sshOpener) http.Handler {
 		// or the server's disconnect watcher once the complete body is consumed.
 		_ = controller.SetReadDeadline(time.Time{})
 		defer clear(body)
-		var input sshRequest
+		var input SSHRequest
 		decoder := json.NewDecoder(bytes.NewReader(body))
 		decoder.DisallowUnknownFields()
 		if err != nil || decoder.Decode(&input) != nil || decoder.Decode(new(any)) != io.EOF || !validRequest(input) {
@@ -188,7 +189,7 @@ func cleanText(value string, max int) bool {
 	return len(value) <= max && !strings.ContainsFunc(value, func(r rune) bool { return r < 32 || r == 127 })
 }
 
-func validRequest(r sshRequest) bool {
+func validRequest(r SSHRequest) bool {
 	if r.Advanced != nil && !r.Advanced.valid() {
 		return false
 	}
@@ -207,7 +208,7 @@ func validRequest(r sshRequest) bool {
 // never a parallel SSH stack or verification bypass. The handler may attach its
 // bounded handshake confirmation callback afterward. Paths refer to the Host;
 // this helper does not persist connection settings or trust records.
-func configuration(r *sshRequest) (sshtransport.Config, func(), error) {
+func configuration(r *SSHRequest) (sshtransport.Config, func(), error) {
 	c := sshtransport.Config{Host: r.Host, User: r.User, Port: r.Port, PrivateKeyPaths: r.IdentityFiles, KnownHostsPath: r.KnownHostsFile, Timeout: 10 * time.Second}
 	if a := r.Advanced; a != nil {
 		c.Timeout = time.Duration(a.TimeoutSeconds) * time.Second

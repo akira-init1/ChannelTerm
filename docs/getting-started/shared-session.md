@@ -153,10 +153,10 @@ an independent cursor. `channelterm list --transport ssh` lists the active Sessi
 The foreground `ssh` command owns this Host: keep it open while other attachments use the shell.
 Exiting a secondary attachment does not close the shell; exiting the owner stops its entire Host.
 
-SSH uses private-key or interactive password authentication and verified host keys. It cannot open a new SSH connection
-inside a separately started Host; choose a distinct loopback `--listen` address if one is already
-running. Follow the [SSH terminal workflow](ssh-terminal.md) for prerequisites, alternate ports,
-and safe shutdown. The Session read/write model is unchanged.
+Use `channelterm ssh user@another-host.example --shared` to open a shell on the running
+Host alongside its serial and SSH Sessions. Use `channelterm list` to see their references.
+Follow the [SSH terminal workflow](ssh-terminal.md) for authentication, alternate endpoints,
+and safe shutdown.
 
 ## Exclusive user-space debugging
 

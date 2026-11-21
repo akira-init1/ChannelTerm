@@ -50,11 +50,22 @@ func (p serialProfile) valid() bool {
 // NewHandler composes desktop routes behind the embedding Host's bearer-token
 // middleware. Unknown routes do not fall through to a configuration operation.
 func NewHandler(application *app.Application) http.Handler {
+	mux := newSSHRoutes(application)
+	mux.Handle(SerialProfilesPath, newSerialProfilesHandler(application))
+	return mux
+}
+
+// NewSSHHostHandler exposes SSH creation, trust confirmation and resize on a
+// foreground SSH Host behind the embedding server's management middleware.
+func NewSSHHostHandler(application *app.Application) http.Handler {
+	return newSSHRoutes(application)
+}
+
+func newSSHRoutes(application *app.Application) *http.ServeMux {
 	mux := http.NewServeMux()
 	ssh := NewSSHHandler(application)
 	mux.Handle(SSHPath, ssh)
 	mux.Handle(SSHConfirmPath, ssh)
-	mux.Handle(SerialProfilesPath, newSerialProfilesHandler(application))
 	mux.Handle(ResizePath, NewResizeHandler(application))
 	return mux
 }

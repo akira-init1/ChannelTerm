@@ -354,7 +354,7 @@ physical open, so a saved profile may remain after an open failure.
 
 ## `ssh`
 
-Purpose: open an SSH PTY interactive shell in a foreground, loopback-only Session Host.
+Open an SSH PTY interactive shell on a new foreground Host or an existing local HTTP Host.
 
 ```bash
 channelterm ssh USER@HOST [options]
@@ -362,7 +362,7 @@ channelterm ssh user@host.example --identity /path/to/private-key --port 2222
 channelterm attach SSH-1
 ```
 
-Authentication tries existing default keys `~/.ssh/id_ed25519` then `~/.ssh/id_rsa`, then prompts
+Foreground authentication tries existing default keys `~/.ssh/id_ed25519` then `~/.ssh/id_rsa`, then prompts
 for a password if the server offers password authentication. Repeating `--identity`/`-i` replaces
 default discovery with that ordered list; repeated identical paths are tried once. If neither
 default exists, interactive password login is still available. A selected missing, unreadable,
@@ -412,11 +412,19 @@ A server offering only keyboard-interactive requires a different client.
 
 The Host uses the existing Bearer-token authentication and defaults to `127.0.0.1:37099/mcp`.
 `--listen` accepts only a loopback IP and port. An occupied port fails before SSH connection;
-this command cannot add SSH Sessions to a separately running Host. Choose another loopback port
-and pass the printed `--endpoint` to `attach` and `list` in that case. SSH does not add MCP tools.
+use `--shared` to open a Session on an already running Host, or choose another loopback
+port to own a separate Host. `--endpoint URL` implies shared mode and selects the MCP
+path on a trusted numeric loopback HTTP origin. Shared mode and `--listen` are mutually
+exclusive. Creation uses the Host's authenticated SSH management route and requires a
+management credential. A rejected explicit credential never falls back to implicit management.
+Shared mode uses the Host API's bounded advanced settings (whole-second timeouts) and
+initial PTY dimensions. Subsequent resizes follow ordinary CLI attachment semantics.
+Unknown keys require interactive approval. `--ask-password` and `--ask-passphrase`
+read hidden credentials for shared creation. No creation request is automatically retried.
+After an interrupted response check `list` before retrying. SSH does not add MCP tools.
 Existing generic Session tools provide access to the already-open shell.
 
-The foreground command owns the Host and Manager. `Ctrl+] q`, input EOF, or process cancellation
+In the default mode the foreground command owns the Host and Manager. `Ctrl+] q`, input EOF, or process cancellation
 closes its Sessions and listener. In a secondary `attach`, `Ctrl+] q` detaches only that client.
 Ctrl+C cancels initial setup; after attachment it is ordinary input to the remote PTY, using
 existing attach controls. Remote shell closure/disconnection follows the existing Session read

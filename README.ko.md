@@ -186,6 +186,9 @@ channelterm ssh user@192.168.1.50
 
 # 터미널 2: 같은 셸의 출력을 보고 사용합니다.
 channelterm attach SSH-1
+
+# 세 번째 터미널에서 같은 Host를 통해 다른 SSH 대상에 연결합니다.
+channelterm ssh user@192.168.1.51 --shared
 ```
 
 첫 번째 명령을 계속 실행해 두세요. 종료하면 이 Host와 Session도 닫힙니다. 기본 로컬 공유 포트가 사용 중이면 `--listen`과 출력된 attach 엔드포인트로 별도 Host를 사용하세요. 키 경로, 호스트 검증, 포트 및 현재 제한은 [SSH 워크플로](docs/getting-started/ssh-terminal.md)를 참조하세요.

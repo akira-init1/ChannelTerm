@@ -21,9 +21,9 @@ import (
 	"golang.org/x/term"
 )
 
-// runSSH owns one foreground SSH Session Host and uses the existing attachment
-// UI. Other clients join through the unchanged authenticated MCP tools. The
-// foreground command's exit closes its Manager and all owned SSH resources.
+// runSSH opens a shell on the explicitly selected shared Host or owns a new
+// foreground Host. Both use the existing attachment UI; only the owner closes
+// the Manager and its Sessions on exit.
 func runSSH(ctx context.Context, args []string, input io.Reader, output io.Writer, interrupts <-chan os.Signal) (err error) {
 	flags := flag.NewFlagSet("ssh", flag.ContinueOnError)
 	flags.SetOutput(output)
@@ -41,14 +41,19 @@ func runSSH(ctx context.Context, args []string, input io.Reader, output io.Write
 	keepAliveCount := flags.Int("keepalive-count", 3, "maximum response wait in keepalive intervals")
 	writeTimeout := flags.Duration("write-timeout", 0, "maximum shell write/resize duration before closing SSH (0 disables)")
 	listen := flags.String("listen", defaultMCPListen, "local sharing address; must use a loopback IP")
+	shared := flags.Bool("shared", false, "open the SSH Session on an existing local HTTP Host; exit detaches")
+	endpointFlag := flags.String("endpoint", httpEndpoint(defaultMCPListen, defaultMCPPath), "existing local MCP endpoint (implies --shared)")
+	askPassword := flags.Bool("ask-password", false, "prompt for a password when opening on a shared Host")
+	askPassphrase := flags.Bool("ask-passphrase", false, "prompt for an identity passphrase when opening on a shared Host")
 	label := flags.String("label", "", "display-only Session label")
 	highlight := flags.Bool("highlight", true, "apply semantic colors to plain terminal text")
 	statusBar := flags.Bool("status-bar", true, "local interactive status bar; disables on complex VT/Unicode, long lines or resize")
 	flags.Usage = func() {
 		fmt.Fprintln(output, "Usage: channelterm ssh USER@HOST [options]")
-		fmt.Fprintln(output, "Open a key- or password-authenticated PTY shell and share it as SSH-1.")
-		fmt.Fprintln(output, "In another terminal: channelterm attach SSH-1")
-		fmt.Fprintln(output, "The foreground SSH command owns the Host; Ctrl+] q closes it and its Sessions.")
+		fmt.Fprintln(output, "Open a key- or password-authenticated PTY shell. Use channelterm list to see its reference.")
+		fmt.Fprintln(output, "To join the first SSH Session from another terminal: channelterm attach SSH-1")
+		fmt.Fprintln(output, "By default this command owns the Host; Ctrl+] q closes it and its Sessions.")
+		fmt.Fprintln(output, "Use ssh USER@HOST --shared to open another Session on the running local Host; Ctrl+] q detaches.")
 		fmt.Fprintln(output, "Unknown host keys require confirmation before saving to known_hosts; changed keys are rejected.")
 		fmt.Fprintln(output, "Interactive terminals can enter passwords and private-key passphrases (not saved). ssh-agent,")
 		fmt.Fprintln(output, "ssh_config, keyboard-interactive authentication, and arbitrary SSH exec are not supported.")
@@ -109,8 +114,18 @@ func runSSH(ctx context.Context, args []string, input io.Reader, output io.Write
 		KeepAliveInterval: *keepAlive, KeepAliveCountMax: *keepAliveCount, WriteTimeout: *writeTimeout,
 	}
 	identities.configure(&configuration)
+	useHost := *shared || flagWasProvided(flags, "endpoint")
+	if useHost && flagWasProvided(flags, "listen") {
+		return errors.New("--listen creates a Host and cannot be combined with --shared or --endpoint")
+	}
+	if !useHost && (*askPassword || *askPassphrase) {
+		return errors.New("--ask-password and --ask-passphrase require --shared or --endpoint")
+	}
 	if err := configureSSHAuthentication(&configuration, input, output); err != nil {
 		return err
+	}
+	if useHost {
+		return runSharedSSH(ctx, *endpointFlag, configuration, *label, *askPassword, *askPassphrase, *highlight, *statusBar, input, output, interrupts)
 	}
 	if _, err := sshtransport.New(configuration); err != nil {
 		return err
@@ -123,7 +138,7 @@ func runSSH(ctx context.Context, args []string, input io.Reader, output io.Write
 	// Host or create an unshareable remote shell when the local port is occupied.
 	listener, err := net.Listen("tcp", *listen)
 	if err != nil {
-		return fmt.Errorf("reserve SSH sharing address %s (use --listen 127.0.0.1:37100 for another Host): %w", *listen, err)
+		return fmt.Errorf("reserve SSH sharing address %s (use --endpoint %s to join a running Host, or --listen with a free address): %w", *listen, httpEndpoint(*listen, defaultMCPPath), err)
 	}
 	defer listener.Close()
 	manager := session.NewManager()
@@ -221,7 +236,7 @@ func runSSH(ctx context.Context, args []string, input io.Reader, output io.Write
 	defer stopServer()
 	serverDone := make(chan error, 1)
 	go func() {
-		serverDone <- serveMCPHTTP(serverCtx, registry, listener, defaultMCPPath, store, false, io.Discard, true, guiapi.NewResizeHandler(application))
+		serverDone <- serveMCPHTTP(serverCtx, registry, listener, defaultMCPPath, store, false, io.Discard, true, guiapi.NewSSHHostHandler(application))
 		stopHost()
 	}()
 	defer func() {

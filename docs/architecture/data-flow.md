@@ -169,14 +169,16 @@ Session retains the existing reader, buffers, cursors, and serialized writes.
 Key parsing, host-key verification, and all SSH-library objects stay inside SSH Transport;
 Application and CLI exchange ordinary settings, paths, and context-aware interaction callbacks.
 Transport verifies host identity and persists explicitly approved unknown keys; CLI handles fingerprint
-confirmation and hidden password entry through cancellable local-console adapters. The desktop
-HTTP adapter supplies ephemeral password/passphrase callbacks but rejects unknown keys instead
-of providing trust confirmation. Channel and Session remain library-neutral.
+confirmation and hidden password entry through cancellable local-console adapters. The HTTP
+adapter supplies ephemeral password/passphrase callbacks. Clients that opt into interactive
+trust receive a challenge tied to the pending handshake. Channel and Session remain library-neutral.
 
 The foreground SSH command owns the Manager and Host. Exiting that command closes its Sessions;
 closing a secondary attachment only detaches that client. The default sharing listener is
 `127.0.0.1:37099`; an occupied listener fails before connecting to SSH. `--listen` can select a
-separate loopback Host. SSH does not add discovery, saved profiles, or MCP opening tools.
+separate loopback Host. With `--shared` the CLI acts as a management client of the existing
+Host's SSH HTTP route. The Host opens and owns the shell; the CLI attaches by ID through
+MCP and detaches on exit. SSH does not add discovery, saved profiles, or MCP opening tools.
 
 Dedicated file operations follow a separate path:
 

@@ -187,6 +187,9 @@ channelterm ssh user@192.168.1.50
 
 # 端末 2：同じシェルの出力を確認し、操作します。
 channelterm attach SSH-1
+
+# 3 つ目の端末で、同じ Host を使って別の SSH 接続先を開きます。
+channelterm ssh user@192.168.1.51 --shared
 ```
 
 最初のコマンドを実行したままにしてください。終了すると、この Host と Session も閉じます。既定のローカル共有ポートが使用中の場合は、`--listen` と表示された attach エンドポイントで別の Host を使います。鍵のパス、ホスト検証、ポート、現在の制限は [SSH ワークフロー](docs/getting-started/ssh-terminal.md)を参照してください。

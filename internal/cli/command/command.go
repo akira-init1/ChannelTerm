@@ -581,7 +581,7 @@ func serveMCPHTTP(ctx context.Context, registry *tool.Registry, listener net.Lis
 	mux := http.NewServeMux()
 	mux.Handle(path, authenticate(advertiseHostLifetime(temporaryHost, handler)))
 	// Preserve every existing custom MCP path, including a collision with this
-	// optional desktop endpoint. Foreground SSH owners expose no creation API.
+	// optional management endpoint. Each Host supplies its supported routes.
 	if gui != nil {
 		for _, route := range []string{guiapi.SSHPath, guiapi.SSHConfirmPath, guiapi.SerialProfilesPath, guiapi.ResizePath} {
 			if path != route {

@@ -78,7 +78,7 @@ func TestSSHAdvancedSettings(t *testing.T) {
 	if calls != 1 {
 		t.Fatal("invalid settings reached application")
 	}
-	c, cleanup, err := configuration(&sshRequest{Host: "example.invalid", User: "user", Port: 22, KnownHostsFile: "fixture-trust", IdentityFiles: []string{"fixture-key"}})
+	c, cleanup, err := configuration(&SSHRequest{Host: "example.invalid", User: "user", Port: 22, KnownHostsFile: "fixture-trust", IdentityFiles: []string{"fixture-key"}})
 	if err != nil {
 		t.Fatal(err)
 	}

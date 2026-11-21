@@ -121,8 +121,28 @@ shared token is rejected; independent AI credentials require an explicit write g
 [HTTP migration workflow](http-authentication-migration.md). SSH private keys stay in the
 opening process and never enter Session metadata.
 
-If another Host already occupies the default address, SSH fails before opening a remote connection.
-It does not add Sessions to that separate Host. Select another loopback port:
+To keep several shells and serial devices on one MCP endpoint, start a persistent HTTP Host
+and run each interactive command in its own terminal:
+
+```powershell
+channelterm mcp --transport http
+channelterm ssh user@192.168.1.50 --shared
+channelterm ssh user@192.168.1.51 --shared
+channelterm attach COM3
+channelterm list
+```
+
+`--shared` uses an existing local Host (default port 37099). If the first shell was
+opened with plain `channelterm ssh`, subsequent shells can also use `--shared`
+while the first command runs. Exiting the owning command closes every Session on that
+Host. Exiting a shared attachment leaves its Session open. A persistent Host avoids tying
+the other devices to the first terminal's lifetime. Use the printed Session ID to reattach.
+For password login with identities configured, use `--ask-password`. Use
+`--ask-passphrase` for an encrypted key. Both prompts require an interactive terminal.
+Unknown keys prompt there for explicit trust. Pipes require an existing trusted key and identity.
+
+Use `ssh USER@HOST --endpoint http://127.0.0.1:37100/mcp` to select another trusted
+local Host. Plain `ssh` still requires a free listener. To own a *separate* Host:
 
 ```bash
 channelterm ssh user@192.168.1.50 --listen 127.0.0.1:37100

@@ -178,6 +178,9 @@ channelterm ssh user@192.168.1.50
 
 # 终端 2：查看并使用同一个 shell。
 channelterm attach SSH-1
+
+# 在第三个终端中，使用同一个 Host 连接另一台 SSH 主机。
+channelterm ssh user@192.168.1.51 --shared
 ```
 
 保持第一个命令运行；退出它会关闭该 Host 及其 Session。默认本机共享端口必须空闲；如已占用，可用 `--listen` 指定另一个 Host，并使用输出中的 attach endpoint。私钥路径、主机校验、端口和当前限制见 [SSH 使用流程](docs/getting-started/ssh-terminal.md)。

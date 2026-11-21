@@ -22,7 +22,9 @@ API grants an authenticated Host client the ability to initiate outbound SSH and
 read selected identity/trust files on that Host, and persist an explicitly approved unknown SSH key. A remotely exposed HTTP Host still
 requires the trusted-network precautions in the [Host workflow](../getting-started/mcp-server.md).
 
-Older and stdio Hosts do not expose desktop routes. Foreground CLI `ssh` Hosts expose only the resize route, not SSH creation or profile management.
+Stdio Hosts have no HTTP routes. Older HTTP Hosts may lack these routes. Current foreground CLI `ssh` Hosts expose SSH creation,
+trust confirmation and resize. Serial profile management requires the standalone HTTP Host.
+The CLI uses the same authenticated SSH routes in `ssh --shared` mode.
 If an explicitly configured MCP path equals a desktop route, that path keeps its MCP
 meaning and that desktop route is not mounted. The GUI probes availability and disables
 SSH creation when unavailable; existing shared SSH Sessions can still be attached.

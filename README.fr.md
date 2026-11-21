@@ -191,6 +191,9 @@ channelterm ssh user@192.168.1.50
 
 # Terminal 2 : observer et utiliser le même shell.
 channelterm attach SSH-1
+
+# Dans un troisième terminal, ouvrez une autre connexion SSH sur le même Host.
+channelterm ssh user@192.168.1.51 --shared
 ```
 
 Gardez la première commande ouverte : sa fermeture arrête ce Host et ses Sessions. Le port local par défaut doit être libre ; utilisez `--listen` et le point de connexion attach affiché pour un autre Host. Le [guide SSH](docs/getting-started/ssh-terminal.md) décrit les chemins des clés, la vérification du serveur, les ports et les limites actuelles.
