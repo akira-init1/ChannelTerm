@@ -360,7 +360,7 @@ func runAttachSessionWithInputEnd(ctx context.Context, args []string, input io.R
 		}()
 	} else {
 		writer := encodedTerminalWriter{target: attached, codec: codec}
-		go forwardAttachInputWithPresentation(attachCtx, input, attached, writeLocalOutput, writeLocalStatus, togglePromptTimestamps, cancel, interrupts, func(data []byte) error {
+		go forwardAttachInputWithPresentation(attachCtx, input, attached, originalOutput, writeLocalOutput, writeLocalStatus, togglePromptTimestamps, cancel, interrupts, func(data []byte) error {
 			return writeSession(writer, session.ActorUser, data)
 		})
 	}

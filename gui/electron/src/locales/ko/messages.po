@@ -3101,6 +3101,16 @@ msgstr "순번 표시"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "terminal.serialSizeHint"
+msgstr "Linux 셸의 빈 입력줄에 현재 보기의 크기를 삽입한 뒤 Enter 키를 눌러 적용하세요."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.serialSizeInsert"
+msgstr "stty 명령 삽입"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.settings"
 msgstr "터미널 설정"
 

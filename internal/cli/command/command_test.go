@@ -17,6 +17,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/akira-init1/ChannelTerm/internal/cli/terminalinput"
 	"github.com/akira-init1/ChannelTerm/internal/core/app"
 	"github.com/akira-init1/ChannelTerm/internal/core/config"
 	"github.com/akira-init1/ChannelTerm/internal/core/connectionpolicy"
@@ -35,6 +36,19 @@ func newSerialSession(config serialtransport.Config) (cliSession, error) {
 		return nil, err
 	}
 	return session.New(config.Port, transport)
+}
+
+// TestEscapeHelpUsesCurrentConsoleSize covers a resized view and redirected output.
+func TestEscapeHelpUsesCurrentConsoleSize(t *testing.T) {
+	for _, size := range []terminalinput.Size{{Columns: 80, Rows: 24}, {Columns: 132, Rows: 36}} {
+		want := fmt.Sprintf("stty cols %d rows %d\r\n", size.Columns, size.Rows)
+		if got := string(escapeHelpForSize(size)); !strings.HasSuffix(got, want) {
+			t.Fatalf("help for %v = %q; want suffix %q", size, got, want)
+		}
+	}
+	if got := localEscapeHelp(io.Discard); !bytes.Equal(got, escapeHelpText) {
+		t.Fatalf("redirected output received a size hint: %q", got)
+	}
 }
 
 func TestRun(t *testing.T) {

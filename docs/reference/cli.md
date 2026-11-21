@@ -275,6 +275,9 @@ Side effects and lifecycle:
   byte `0x1b`, so navigation keys are passed through as standard VT sequences and bare Esc reaches
   the local controller; the original console mode is restored when the command exits.
 - It sends no startup input unless `--wake` resolves to true.
+- In a serial terminal or shared attachment, `Ctrl+] ?` includes a manual Linux `stty`
+  command when the displayed console size can be measured. See
+  [serial prompt wrapping](../getting-started/serial-terminal.md#long-prompts-overwrite-the-start-of-the-line).
 - `Ctrl+C` is remote input. Use `Ctrl+] q` for a local exit.
 - Pressing `Ctrl+]` enters local escape mode and displays the available escape commands locally;
   press `Esc` to cancel that local mode without sending a byte. Cancellation reports

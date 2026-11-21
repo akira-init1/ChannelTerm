@@ -3101,6 +3101,16 @@ msgstr "Show sequence numbers"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "terminal.serialSizeHint"
+msgstr "At an empty Linux shell prompt, insert this view’s dimensions and press Enter to apply."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.serialSizeInsert"
+msgstr "Insert stty command"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.settings"
 msgstr "Terminal settings"
 

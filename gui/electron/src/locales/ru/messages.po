@@ -3101,6 +3101,16 @@ msgstr "Показывать порядковые номера"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "terminal.serialSizeHint"
+msgstr "В пустой строке приглашения Linux вставьте размеры этой области терминала и нажмите Enter, чтобы применить их."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.serialSizeInsert"
+msgstr "Вставить команду stty"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.settings"
 msgstr "Настройки терминала"
 

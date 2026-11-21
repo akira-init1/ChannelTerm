@@ -233,5 +233,19 @@ original settings; close it explicitly and open a new Session to change physical
 RTS/CTS requires both handshake wires and compatible peer configuration. XON/XOFF reserves
 bytes `0x11` and `0x13`, so raw binary protocols require a different flow mode. No default changes.
 
-Physical serial connections do not support terminal resize operations. See the
-[CLI reference](../reference/cli.md) and [Transport module](../modules/transport.md) for details.
+### Long prompts overwrite the start of the line
+
+A serial link carries no window-size notification. A Linux shell editing at 80 columns can
+return to the left margin in the middle of a long path while the local view is wider. At an
+empty shell prompt, run `stty size` to see the board's rows and columns.
+
+- **Electron:** In the serial text view, click **Insert stty command**, then press Enter. The
+  command uses the fitted columns and rows of that pane, including split panes.
+- **CLI:** Press `Ctrl+]` then `?` in the serial terminal. When the output is a console, the local
+  help shows a command with its current dimensions, for example `stty cols 120 rows 32`.
+  Type the displayed command at the board prompt and press Enter.
+
+Run `stty size` again (the example gives `32 120`), then retry the long command. Repeat after
+resizing the view or changing the GUI font. This sets the shared Linux TTY size, so choose the
+view you are typing in. Use this procedure at a Linux shell with `stty`; bootloader and binary
+sessions receive no automatic size commands.

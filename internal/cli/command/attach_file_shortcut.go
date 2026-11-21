@@ -122,18 +122,17 @@ func forwardAttachInput(ctx context.Context, input io.Reader, terminal attachSes
 // forwardAttachInputWithInterrupts routes both raw console bytes and optional
 // process-level Console interruptions through one attach input dispatcher.
 func forwardAttachInputWithInterrupts(ctx context.Context, input io.Reader, terminal attachSession, writeLocal func([]byte) error, togglePromptTimestamp func() error, cancel context.CancelFunc, interrupts <-chan os.Signal) {
-	forwardAttachInputWithPresentation(ctx, input, terminal, writeLocal, writeLocal, togglePromptTimestamp, cancel, interrupts)
+	forwardAttachInputWithPresentation(ctx, input, terminal, nil, writeLocal, writeLocal, togglePromptTimestamp, cancel, interrupts, nil)
 }
 
 // forwardAttachInputWithPresentation routes input while keeping ordinary local
 // UI text distinct from status blocks that must begin at a line boundary.
-func forwardAttachInputWithPresentation(ctx context.Context, input io.Reader, terminal attachSession, writeLocal func([]byte) error, writeStatus func([]byte) error, togglePromptTimestamp func() error, cancel context.CancelFunc, interrupts <-chan os.Signal, remoteWriter ...func([]byte) error) {
+func forwardAttachInputWithPresentation(ctx context.Context, input io.Reader, terminal attachSession, console io.Writer, writeLocal func([]byte) error, writeStatus func([]byte) error, togglePromptTimestamp func() error, cancel context.CancelFunc, interrupts <-chan os.Signal, remoteWriter func([]byte) error) {
 	pump := newAttachInputPumpContext(ctx, input)
 	dispatcher := newAttachInputDispatcherWithPumpAndInterrupts(ctx, &pump, terminal, writeLocal, togglePromptTimestamp, cancel, runAttachShortcutFileTransfer, interrupts)
 	dispatcher.writeStatus = writeStatus
-	if len(remoteWriter) > 0 {
-		dispatcher.writeRemote = remoteWriter[0]
-	}
+	dispatcher.console = console
+	dispatcher.writeRemote = remoteWriter
 	dispatcher.run()
 }
 

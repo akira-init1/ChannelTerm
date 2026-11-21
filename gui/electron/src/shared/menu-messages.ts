@@ -922,6 +922,15 @@ export const menuMessages = [
   },
   /* i18n */ { id: "terminal.sizeLocal", message: "Local fitting only" },
   /* i18n */ {
+    id: "terminal.serialSizeInsert",
+    message: "Insert stty command",
+  },
+  /* i18n */ {
+    id: "terminal.serialSizeHint",
+    message:
+      "At an empty Linux shell prompt, insert this view’s dimensions and press Enter to apply.",
+  },
+  /* i18n */ {
     id: "terminal.sizeTake",
     message: "Use this view for remote size",
   },

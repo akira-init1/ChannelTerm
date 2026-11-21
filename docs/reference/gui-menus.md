@@ -562,9 +562,12 @@ is implied by this menu organization.
 
 On updated Hosts, each SSH terminal has **Use this view for remote size** / **Release size control**
 and a display hint identifying local-only fitting or control by this view. The explicit take action
-replaces the previous size controller; it does not change input permissions. Serial views have no
-remote size toolbar. No new top-level menu or shortcut is added. See the
+replaces the previous size controller; it does not change input permissions. See the
 [desktop contract](gui-host-api.md#remote-pty-size-control).
+
+Serial text views offer **Insert stty command** for an interactive Linux shell. This types the
+pane's fitted dimensions through ordinary terminal input. Enter executes the command. See
+[serial prompt wrapping](../getting-started/serial-terminal.md#long-prompts-overwrite-the-start-of-the-line).
 
 ## Debug sidebar
 

@@ -71,6 +71,7 @@ type attachInputDispatcher struct {
 	pump               *attachInputPump
 	interrupts         <-chan os.Signal
 	terminal           attachSession
+	console            io.Writer
 	writeLocal         func([]byte) error
 	writeStatus        func([]byte) error
 	// writeRemote optionally schedules owner input without blocking local
@@ -369,7 +370,7 @@ func (d *attachInputDispatcher) dispatchAttach(data []byte) bool {
 				d.cancelAttach()
 				return false
 			case interactive.ActionHelp:
-				if !flushRemote() || d.writeLocal == nil || d.writeLocal(escapeHelpText) != nil {
+				if !flushRemote() || d.writeLocal == nil || d.writeLocal(localEscapeHelp(d.console)) != nil {
 					d.cancelAttach()
 					return false
 				}

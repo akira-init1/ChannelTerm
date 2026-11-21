@@ -937,7 +937,7 @@ func runSerialWithTarget(ctx context.Context, args []string, input io.Reader, ou
 	inputDone = inputFinished
 	go func() {
 		defer close(inputFinished)
-		forwardInputWithPromptTimestampContext(sessionCtx, input, encodedTerminalWriter{target: terminal, codec: codec}, writeLocalOutput, togglePromptTimestamps, cancel)
+		forwardInputWithPromptTimestampContext(sessionCtx, input, encodedTerminalWriter{target: terminal, codec: codec}, originalOutput, writeLocalOutput, togglePromptTimestamps, cancel)
 	}()
 
 	cursor := session.OutputCursor(0)
@@ -1271,7 +1271,7 @@ func rootCause(err error) error {
 func forwardInput(input io.Reader, terminal interface {
 	Write(session.WriteRequest) (int, error)
 }, writeLocal func([]byte) error, cancel context.CancelFunc) {
-	forwardInputWithPromptTimestampContext(context.Background(), input, terminal, writeLocal, nil, cancel)
+	forwardInputWithPromptTimestampContext(context.Background(), input, terminal, nil, writeLocal, nil, cancel)
 }
 
 // forwardInputWithPromptTimestamp adds local prompt-timestamp control to the
@@ -1280,7 +1280,7 @@ func forwardInput(input io.Reader, terminal interface {
 func forwardInputWithPromptTimestamp(input io.Reader, terminal interface {
 	Write(session.WriteRequest) (int, error)
 }, writeLocal func([]byte) error, togglePromptTimestamp func() error, cancel context.CancelFunc) {
-	forwardInputWithPromptTimestampContext(context.Background(), input, terminal, writeLocal, togglePromptTimestamp, cancel)
+	forwardInputWithPromptTimestampContext(context.Background(), input, terminal, nil, writeLocal, togglePromptTimestamp, cancel)
 }
 
 // forwardInputWithPromptTimestampContext stops dispatching as soon as ctx is
@@ -1289,7 +1289,7 @@ func forwardInputWithPromptTimestamp(input io.Reader, terminal interface {
 // ownership.
 func forwardInputWithPromptTimestampContext(ctx context.Context, input io.Reader, terminal interface {
 	Write(session.WriteRequest) (int, error)
-}, writeLocal func([]byte) error, togglePromptTimestamp func() error, cancel context.CancelFunc) {
+}, console io.Writer, writeLocal func([]byte) error, togglePromptTimestamp func() error, cancel context.CancelFunc) {
 	controller := interactive.NewController(interactive.DefaultEscapeByte)
 	pump := newAttachInputPumpContext(ctx, input)
 	for {
@@ -1330,7 +1330,7 @@ func forwardInputWithPromptTimestampContext(ctx context.Context, input io.Reader
 				cancel()
 				return
 			case interactive.ActionHelp:
-				if writeLocal == nil || writeLocal(escapeHelpText) != nil {
+				if writeLocal == nil || writeLocal(localEscapeHelp(console)) != nil {
 					cancel()
 					return
 				}
@@ -1378,6 +1378,24 @@ var escapeCancelledText = []byte("\r\n[ChannelTerm] Escape cancelled\r\n")
 var escapeHelpText = []byte("\r\nChannelTerm escape commands:\r\n\r\n  q    Quit session\r\n  ?    Show this help\r\n  ]    Send Ctrl+] to remote\r\n  f    Open file transfer (attach)\r\n  i    Confirm takeover / cancel local transfer (attach)\r\n  a    Confirm allowing new AI operations (attach)\r\n  r    Query original takeover result (attach)\r\n  t    Toggle prompt timestamps\r\n  Esc  Cancel escape mode\r\n")
 
 var fileTransferUnavailableText = []byte("\r\n[ChannelTerm] File transfer is available from shared attach only.\r\n")
+
+// localEscapeHelp measures the displayed console on demand, including after a resize.
+// A pipe or unavailable measurement keeps the ordinary help with no guessed geometry.
+func localEscapeHelp(output io.Writer) []byte {
+	console, ok := output.(*os.File)
+	if !ok || console == nil {
+		return escapeHelpText
+	}
+	size, _ := terminalinput.ReadSize(console)
+	return escapeHelpForSize(size)
+}
+
+func escapeHelpForSize(size terminalinput.Size) []byte {
+	if size.Columns == 0 || size.Rows == 0 {
+		return escapeHelpText
+	}
+	return fmt.Appendf(append([]byte(nil), escapeHelpText...), "\r\nAt a Linux serial shell prompt, match this window with: stty cols %d rows %d\r\n", size.Columns, size.Rows)
+}
 
 // promptTimestampStatusText reports a CLI-local presentation setting. It is
 // written only to the current terminal output and never enters Session data.

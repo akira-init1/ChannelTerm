@@ -2423,6 +2423,12 @@ export function App() {
                           else terminals.current.delete(tab.id);
                         }}
                         attachment={tab.attachment}
+                        serial={
+                          sessions.find(
+                            (entry) =>
+                              entry.session_id === tab.attachment?.sessionId,
+                          )?.transport === "serial"
+                        }
                         targetName={
                           sessions.find(
                             (entry) =>

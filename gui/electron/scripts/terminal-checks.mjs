@@ -37,9 +37,10 @@ export async function checkTerminalControls(
     "historical queries must not write responses",
   );
   // Live, fragmented queries must still receive xterm's answer.
-  await fixture.command("output", "\x1b[");
+  // Probe the bottom right independently of the GUI's size command.
+  await fixture.command("output", "\x1b7\x1b[999;999H\x1b[");
   await read();
-  await fixture.command("output", "6n");
+  await fixture.command("output", "6n\x1b8");
   received = "";
   await expect
     .poll(async () => {
@@ -47,6 +48,18 @@ export async function checkTerminalControls(
       return received;
     })
     .toMatch(/\x1b\[\d+;\d+R/);
+
+  const [, rows, cols] = received.match(/\x1b\[(\d+);(\d+)R/);
+  const insertSize = page.getByRole("button", { name: "Insert stty command" });
+  await insertSize.click();
+  received = "";
+  await expect
+    .poll(async () => {
+      received += await read();
+      return received;
+    })
+    .toBe(`stty cols ${cols} rows ${rows}`);
+  await expect(terminal).toBeFocused();
 
   const previousClipboard = await desktop.evaluate(({ clipboard }) =>
     clipboard.readText(),
@@ -142,6 +155,7 @@ export async function checkTerminalControls(
 
     await showPreview("must-not\nsend");
     await fixture.command("lease");
+    await expect(insertSize).toBeDisabled();
     await expect(
       preview.getByRole("button", { name: "Paste into this target" }),
     ).toBeDisabled();
