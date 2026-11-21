@@ -1065,15 +1065,6 @@ export const menuMessages = [
       "Wake is always off until you select it here, even for profiles with wake enabled. Saving stores this choice.",
   },
 
-  /* i18n */ {
-    id: "display.promptTimestamps",
-    message: "Local prompt timestamps",
-  },
-  /* i18n */ {
-    id: "display.promptTimestampHint",
-    message:
-      "Add local receipt time to recognized live shell prompts. Retained history and ordinary log lines are not timestamped; this is not device capture time.",
-  },
   /* i18n */ { id: "ssh.advanced", message: "Advanced SSH settings" },
   /* i18n */ {
     id: "ssh.advancedHint",

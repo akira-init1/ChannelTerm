@@ -82,12 +82,6 @@ export class LineSidebar {
         entry.dataset.sequence = String(row.sequence);
       if (row.receivedAt !== undefined)
         entry.dataset.receivedAt = String(row.receivedAt);
-      if (display?.sequence) {
-        const ordinal = document.createElement("span");
-        ordinal.className = "line-sequence";
-        ordinal.textContent = row.present ? String(row.sequence ?? "—") : "";
-        entry.append(ordinal);
-      }
       if (display?.timestamps) {
         const stamp = document.createElement("span");
         stamp.className = "line-time";
@@ -96,14 +90,20 @@ export class LineSidebar {
         stamp.textContent = !row.present
           ? ""
           : date
-            ? [date.getHours(), date.getMinutes(), date.getSeconds()]
+            ? `[${[date.getHours(), date.getMinutes(), date.getSeconds()]
                 .map((value) => String(value).padStart(2, "0"))
-                .join(":")
+                .join(":")}]`
             : "—";
         stamp.title = date
           ? `${t("line.received")} ${date.toISOString()}`
           : t("line.unknown");
         entry.append(stamp);
+      }
+      if (display?.sequence) {
+        const ordinal = document.createElement("span");
+        ordinal.className = "line-sequence";
+        ordinal.textContent = row.present ? String(row.sequence ?? "—") : "";
+        entry.append(ordinal);
       }
       fragment.append(entry);
     }

@@ -8,7 +8,28 @@ import {
 import type { Action, MenuEntry, MenuState } from "../../shared/menus";
 import { applicationMenu } from "../../shared/menus";
 import { Icon } from "./Icon";
-import { layoutActions, shortcutLabel } from "../../shared/shortcuts";
+import { shortcutLabel } from "../../shared/shortcuts";
+
+const layoutControls = [
+  {
+    id: "view.sidebar",
+    icon: "layout-left",
+    panel: "session-sidebar",
+    visible: "sidebarVisible",
+  },
+  {
+    id: "view.panel",
+    icon: "layout-bottom",
+    panel: "bottom-panel",
+    visible: "panelVisible",
+  },
+  {
+    id: "view.auxiliary",
+    icon: "layout-right",
+    panel: "auxiliary-sidebar",
+    visible: "auxiliaryVisible",
+  },
+] as const;
 
 export interface MenuPopupRequest {
   entries: MenuEntry[];
@@ -327,38 +348,18 @@ export function WorkbenchMenu({
         role="group"
         aria-label={t("view.layout")}
       >
-        {layoutActions.map((id, index) => (
+        {layoutControls.map(({ id, icon, panel, visible }) => (
           <button
             key={id}
             className="quiet icon-button"
             data-layout={id}
             aria-label={t(id)}
             title={`${t(id)}${state.shortcuts[id] ? ` (${shortcutLabel(state.shortcuts[id])})` : ""}`}
-            aria-pressed={
-              id === "view.sidebar"
-                ? state.sidebarVisible
-                : id === "view.auxiliary"
-                  ? state.auxiliaryVisible
-                  : state.panelVisible
-            }
-            aria-controls={
-              id === "view.sidebar"
-                ? "session-sidebar"
-                : id === "view.auxiliary"
-                  ? "auxiliary-sidebar"
-                  : "bottom-panel"
-            }
+            aria-pressed={state[visible]}
+            aria-controls={panel}
             onClick={() => execute({ id })}
           >
-            <Icon
-              name={
-                index === 0
-                  ? "layout-left"
-                  : index === 1
-                    ? "layout-right"
-                    : "layout-bottom"
-              }
-            />
+            <Icon name={icon} />
           </button>
         ))}
       </div>

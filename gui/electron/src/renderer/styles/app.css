@@ -797,11 +797,12 @@ main {
   display: inline-block;
   width: var(--line-sequence-width, 5ch);
   text-align: right;
-  padding-right: 1ch;
+  padding-right: 0.5ch;
+  color: #65bada;
 }
 .line-time {
   display: inline-block;
-  width: 9ch;
+  width: 10.5ch;
 }
 .line-sidebar.unsupported {
   width: 2ch;

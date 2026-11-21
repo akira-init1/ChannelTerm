@@ -76,9 +76,15 @@ export async function checkWorkbenchPanels(
         const screen = document
           .querySelector(".xterm-screen")
           .getBoundingClientRect();
+        // Both enabled columns share the original viewport allocation with xterm.
+        const gutter = document.querySelector(".line-sidebar");
+        const gutterWidth =
+          gutter.getBoundingClientRect().width +
+          parseFloat(getComputedStyle(gutter).marginLeft);
         return (
           document.querySelector("main").getBoundingClientRect().width >= 320 &&
-          surface.width >= 304 &&
+          surface.width + gutterWidth >= 304 &&
+          surface.width >= 160 &&
           screen.right <= surface.right &&
           screen.bottom <= surface.bottom &&
           document.documentElement.scrollWidth === innerWidth

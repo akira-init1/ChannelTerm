@@ -212,12 +212,7 @@ while keeping terminal controls, selection and parser state. The preview and **R
 use the same palette. Existing font-only preferences migrate without losing font choices.
 HEX stays a byte display and does not receive semantic ANSI sequences.
 
-**Local prompt timestamps** in the same dialog defaults off and applies to recognized live shell
-prompts only. Its shared patterns are in `internal/cli/highlight/defaults.json`; preserve the CLI
-prompt tests when changing them. GUI tests cover split UTF-8/SGR, ordinary output, replay, settings
-transitions, bounded candidates and alternate-screen controls. Native checks compare visible
-timestamps against unchanged bytes from an independent Host client, then detach/reattach to verify
-retained history is unstamped. `test-results/terminal-prompt-timestamps.png` captures the live view.
+See [line metadata verification](#line-metadata-verification) for receipt timestamps and line numbers.
 
 The native suite verifies semantic colors, 16/256/TrueColor and inverse suppression, OSC background
 changes, selection visibility, CR overwrite, alternate-screen entry/exit and restoration of retained
@@ -886,7 +881,7 @@ expands one, verifies live output through an independent observer, and finds hid
 
 `line-metadata.test.ts` covers bounded anchors/pending callbacks, unknown history, first-observation
 semantics, wrap mapping, alternate screens, explicit reset/disposal and late completions. Menu and
-workspace tests cover independent default-off options, absent/stale attachment targets, strict
+workspace tests cover independent default-on columns, absent/stale attachment targets, strict
 validation and backward-compatible per-tab choices without persisting output or authority.
 
 `line-sidebar-checks.mjs`, included in production and development desktop runs, uses public xterm

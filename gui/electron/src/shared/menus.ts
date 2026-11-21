@@ -1,4 +1,8 @@
-import { isLineDisplay, type LineDisplay } from "./display-settings";
+import {
+  defaultLineDisplay,
+  isLineDisplay,
+  type LineDisplay,
+} from "./display-settings";
 import type { Attachment } from "./api";
 import {
   defaultShortcuts,
@@ -466,7 +470,8 @@ export function terminalMenu(state: MenuState): MenuEntry[] {
       label: "terminal.auxiliary",
       children: (["timestamps", "sequence"] as const).map((key) => ({
         ...attachedAction(state, `terminal.${key}`),
-        checked: !!state.lineDisplay?.[key],
+        checked:
+          !!state.attachment && (state.lineDisplay ?? defaultLineDisplay)[key],
       })),
     },
     {

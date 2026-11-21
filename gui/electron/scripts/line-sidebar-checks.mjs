@@ -50,7 +50,8 @@ export async function checkLineSidebar(environment) {
     page = await desktop.firstWindow();
     page.on("pageerror", (error) => errors.push(error.message));
     await expect(page.locator('[data-menu="terminal"]')).toBeVisible();
-    await native("host.connect");
+    const connect = page.getByRole("button", { name: "Connect to Host..." });
+    if (await connect.isVisible()) await connect.click();
     await expect(page.locator(".host-panel")).toContainText("Host connected");
   };
   const pane = () => page.locator(".terminal-pane:not([hidden])");
@@ -81,10 +82,15 @@ export async function checkLineSidebar(environment) {
     await launch();
     await page.locator(`[data-session-id="${session.session_id}"]`).click();
     await expect(rows()).toContainText("history-unknown");
+    await expect(gutter()).toBeVisible();
+    await expect(gutter().locator(".line-time").first()).toBeVisible();
+    await expect(gutter().locator(".line-sequence").first()).toBeVisible();
+    await native("terminal.timestamps");
+    await native("terminal.sequence");
     await expect(gutter()).toBeHidden();
     await observer.read(attached.id);
     const before = Date.now();
-    const raw = "first-live-设备😀\r\n";
+    const raw = "\r\nroot@board:~# echo sample\r\nfirst-live-设备😀\r\n";
     await fixture.command("output", raw);
     await expect(rows()).toContainText("first-live-设备😀");
     assert.equal(
@@ -99,6 +105,14 @@ export async function checkLineSidebar(environment) {
     await expect
       .poll(async () => !!(await find("first-live"))?.time)
       .toBe(true);
+    await expect(rows()).not.toContainText(/\[\d\d:\d\d:\d\d\] root@board/);
+    await expect(
+      gutter().locator(".line-time + .line-sequence").first(),
+    ).toBeVisible();
+    assert.match(
+      (await find("first-live")).label,
+      /^\[\d{2}:\d{2}:\d{2}\]\d+$/,
+    );
     const old = await find("history-unknown"),
       live = await find("first-live");
     assert.equal(old.time, undefined);
@@ -119,12 +133,24 @@ export async function checkLineSidebar(environment) {
       .locator(".terminal-search")
       .getByRole("button", { name: "Select all retained text", exact: true })
       .click();
-    await native("terminal.copy");
-    const copied = await desktop.evaluate(({ clipboard }) =>
+    const priorClipboard = await desktop.evaluate(({ clipboard }) =>
       clipboard.readText(),
     );
-    assert.match(copied, /first-live-设备😀/);
-    assert.ok(!copied.includes(live.label));
+    try {
+      await native("terminal.copy");
+      await expect
+        .poll(() => desktop.evaluate(({ clipboard }) => clipboard.readText()))
+        .toContain("first-live-设备😀");
+      const copied = await desktop.evaluate(({ clipboard }) =>
+        clipboard.readText(),
+      );
+      assert.ok(!copied.includes(live.label));
+    } finally {
+      await desktop.evaluate(
+        ({ clipboard }, text) => clipboard.writeText(text),
+        priorClipboard,
+      );
+    }
     await page
       .locator(".terminal-search")
       .getByRole("button", { name: "Close search (Escape)", exact: true })

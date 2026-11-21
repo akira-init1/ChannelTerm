@@ -58,9 +58,19 @@ test("font-only preferences migrate without losing choices and reject unknown st
       fontSize: 18,
       fontFamily: "Consolas",
       terminalStyle: "monochrome",
-      promptTimestamps: false,
     },
   );
+  for (const promptTimestamps of [false, true]) {
+    const saved = {
+      ...defaultDisplaySettings,
+      fontSize: 18,
+      terminalStyle: "monochrome",
+    };
+    assert.deepEqual(
+      restoreDisplaySettings({ ...saved, promptTimestamps }),
+      saved,
+    );
+  }
   for (const promptTimestamps of [0, "true", null])
     assert.equal(
       isDisplaySettings({ ...defaultDisplaySettings, promptTimestamps }),
@@ -72,7 +82,6 @@ test("font-only preferences migrate without losing choices and reject unknown st
       fontSize: 20,
       fontFamily: "Courier New",
       terminalStyle: "semantic",
-      promptTimestamps: false,
     },
   );
   assert.deepEqual(

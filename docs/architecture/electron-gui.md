@@ -88,7 +88,7 @@ theme switcher or custom title bar. This is application-defined styling.
 
 The native title bar and minimum window size (760 × 500) remain unchanged. The application
 area has a 32 px application menu bar, a flexible workspace, and a 24 px full-width status bar.
-The menu bar places menus on the left and three compact left/right/bottom layout toggles on the right,
+The menu bar places menus on the left and three compact left/bottom/right layout toggles on the right,
 without an application name, logo, or preview banner. The original slate/blue styling and
 locally drawn pane-outline icons remain independent of VS Code assets.
 **Session, Host, Terminal, View, Window, Settings, Help** expose the implemented actions described
@@ -248,13 +248,7 @@ or an IPC capability. Keep that dependency pinned and revalidate the native sear
 upgrading. The addon is pure JavaScript with no runtime dependencies; its MIT notice is bundled.
 Renderer code calls its public API and never exposes the terminal object through Preload.
 
-Optional prompt timestamps run before semantic highlighting in the renderer's bounded byte
-pipeline. The shell-prefix and exclusion patterns live in the same versioned definitions as
-CLI highlighting; the CLI retains its existing timestamp behavior. GUI candidates are limited
-to 8 KiB and share the 50 ms release timer with highlighting. Replay/preference transitions
-release incomplete candidates without a timestamp, and output loss resets presentation state.
-Only live text receives local recognition time; raw Host data, HEX and alternate screens remain
-unchanged. This is not a per-line acquisition clock or evidence of remote shell state.
+The renderer records receipt time and sequence numbers in the [line metadata margin](#local-line-metadata).
 
 Search is scoped to one mounted view's retained decoded text (or displayed HEX text), with a
 256-code-unit query limit, 100 ms input debounce and highlights for at most 1000 matches. At the limit
@@ -830,7 +824,7 @@ arrival time. This adds no disk recording, Host monitor registration or post-exi
 Independent per-view column choices are an optional workspace-v1 field, distinct from global display
 defaults. Invalid choices are ignored without discarding valid tabs. Only choices persist: restart
 rebuilds fresh metadata from the Host's finite retained output. Newly created/split/moved views start
-with columns hidden. HEX and alternate screens suspend columns with an explanatory tooltip and
+with both columns visible unless restored preferences specify otherwise. HEX and alternate screens suspend columns with an explanatory tooltip and
 retain choices. Metadata never enters xterm text, clipboard selection, search, Session storage, CLI
 or MCP output. Each collapsed command block uses public markers on two successive prompts.
 The fold margin and metadata gutter share a viewport projection that skips collapsed

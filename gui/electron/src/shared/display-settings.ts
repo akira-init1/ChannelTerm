@@ -3,14 +3,12 @@ export interface DisplaySettings {
   fontSize: number;
   fontFamily: string;
   terminalStyle: "semantic" | "monochrome";
-  promptTimestamps: boolean;
 }
 
 export const defaultDisplaySettings: Readonly<DisplaySettings> = {
   fontSize: 14,
   fontFamily: 'Consolas, "Liberation Mono", monospace',
   terminalStyle: "semantic",
-  promptTimestamps: false,
 };
 export const displayStorageKey = "channelterm.display.v1";
 
@@ -18,8 +16,7 @@ export function isDisplaySettings(value: unknown): value is DisplaySettings {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const v = value as Record<string, unknown>;
   return (
-    Object.keys(v).length === 4 &&
-    typeof v.promptTimestamps === "boolean" &&
+    Object.keys(v).length === 3 &&
     (v.terminalStyle === "semantic" || v.terminalStyle === "monochrome") &&
     Number.isInteger(v.fontSize) &&
     typeof v.fontSize === "number" &&
@@ -37,12 +34,9 @@ export function restoreDisplaySettings(value: unknown): DisplaySettings {
   if (isDisplaySettings(value)) return value;
   if (value && typeof value === "object" && !Array.isArray(value)) {
     const old = value as Record<string, unknown>;
-    if (!("promptTimestamps" in old)) {
-      const upgraded = {
-        terminalStyle: "semantic",
-        ...old,
-        promptTimestamps: false,
-      };
+    const { promptTimestamps, ...settings } = old;
+    if (!("promptTimestamps" in old) || typeof promptTimestamps === "boolean") {
+      const upgraded = { terminalStyle: "semantic", ...settings };
       if (isDisplaySettings(upgraded)) return upgraded;
     }
   }
@@ -59,6 +53,11 @@ export interface LineDisplay {
   timestamps: boolean;
   sequence: boolean;
 }
+export const defaultLineDisplay: Readonly<LineDisplay> = {
+  timestamps: true,
+  sequence: true,
+};
+
 export function isLineDisplay(value: unknown): value is LineDisplay {
   return (
     !!value &&

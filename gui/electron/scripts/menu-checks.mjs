@@ -30,6 +30,23 @@ async function open(page, id) {
 
 /** Exercise the real renderer bridge and native menu, without registering global keys. */
 export async function checkOfflineMenus(desktop, page) {
+  const controls = page.locator(".layout-controls button");
+  await expect(controls).toHaveCount(3);
+  for (const [index, panel] of [
+    "session-sidebar",
+    "bottom-panel",
+    "auxiliary-sidebar",
+  ].entries()) {
+    const toggle = controls.nth(index);
+    await expect(toggle).toHaveAttribute("aria-controls", panel);
+    const target = page.locator("#" + panel);
+    const wasVisible = await target.isVisible();
+    await toggle.click();
+    await expect(target).toBeVisible({ visible: !wasVisible });
+    await expect(toggle).toHaveAttribute("aria-pressed", String(!wasVisible));
+    await toggle.click();
+    await expect(target).toBeVisible({ visible: wasVisible });
+  }
   await expect
     .poll(async () => (await nativeItem(desktop, "language.system")).checked)
     .toBe(true);

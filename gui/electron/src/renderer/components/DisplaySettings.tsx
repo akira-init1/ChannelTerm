@@ -112,17 +112,6 @@ export function DisplaySettingsDialog({
           </span>
         </pre>
         <p className="connection-hint">{t("display.styleHint")}</p>
-        <label className="display-checkbox">
-          <input
-            type="checkbox"
-            checked={draft.promptTimestamps}
-            onChange={(event) =>
-              setDraft({ ...draft, promptTimestamps: event.target.checked })
-            }
-          />
-          {t("display.promptTimestamps")}
-        </label>
-        <p className="connection-hint">{t("display.promptTimestampHint")}</p>
         <h3>{t("workspace.defaults")}</h3>
         <TerminalSettingsFields t={t} value={terminalDefaults} />
         {error && <p role="alert">{t(error)}</p>}

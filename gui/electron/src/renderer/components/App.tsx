@@ -103,6 +103,7 @@ import {
   restoreDisplaySettings,
   zoomFontSize,
   type DisplaySettings,
+  defaultLineDisplay,
   type LineDisplay,
 } from "../../shared/display-settings";
 import { DisplaySettingsDialog } from "./DisplaySettings";
@@ -1556,10 +1557,7 @@ export function App() {
         if (!targetTab) return;
         const key =
           action.id === "terminal.timestamps" ? "timestamps" : "sequence";
-        const value = targetTab.lineDisplay ?? {
-          timestamps: false,
-          sequence: false,
-        };
+        const value = targetTab.lineDisplay ?? defaultLineDisplay;
         updateTab(targetTab.id, {
           lineDisplay: { ...value, [key]: !value[key] },
         });

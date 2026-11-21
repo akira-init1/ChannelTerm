@@ -14,7 +14,6 @@ import { checkTerminalControls } from "./terminal-checks.mjs";
 import { checkTerminalStyles } from "./highlight-checks.mjs";
 import { checkTerminalSearch } from "./search-checks.mjs";
 import { checkCommandFolding } from "./output-fold-checks.mjs";
-import { checkPromptTimestamps } from "./timestamp-checks.mjs";
 import { checkTargetCopy } from "./target-copy-checks.mjs";
 import { checkActivity } from "./activity-checks.mjs";
 import { checkDiagnostics } from "./diagnostic-checks.mjs";
@@ -67,7 +66,10 @@ async function checkLayout(desktop, page, state) {
           const side = rect(".sidebar");
           const main = rect("main");
           const bottom = rect(".statusbar");
-          const surface = rect(".terminal-view, .terminal-empty");
+          const surface = rect(".terminal-surface, .terminal-empty");
+          const textView = document
+            .querySelector(".terminal-view")
+            ?.getBoundingClientRect();
           const panel = rect(".bottom-panel");
           const screen = document
             .querySelector(".xterm-screen")
@@ -86,8 +88,9 @@ async function checkLayout(desktop, page, state) {
               document.documentElement.scrollHeight <= innerHeight,
             terminal:
               !screen ||
-              (screen.right <= surface.right &&
-                screen.bottom <= surface.bottom),
+              (textView &&
+                screen.right <= textView.right &&
+                screen.bottom <= textView.bottom),
           };
         }),
       )
@@ -315,7 +318,6 @@ try {
     .toContain("desktop-roundtrip");
   await checkTerminalControls(desktop, page, fixture, observer, attachment);
   await checkTerminalStyles(desktop, page, fixture, observer, attachment);
-  await checkPromptTimestamps(desktop, page, fixture, observer, attachment);
   await checkTerminalSearch(desktop, page, fixture, observer, attachment);
   await checkCommandFolding(page, fixture, observer, attachment);
   await checkAttachedMenus(desktop, page, fixture, observer, attachment);

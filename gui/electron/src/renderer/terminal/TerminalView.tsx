@@ -15,15 +15,15 @@ import type { Attachment, ClientError } from "../../shared/api";
 import { host, unwrap } from "../host";
 import { TerminalPresentation } from "./presentation";
 import type { TerminalSettings } from "../../shared/terminal-settings";
-import type {
-  DisplaySettings,
-  LineDisplay,
+import {
+  defaultLineDisplay,
+  type DisplaySettings,
+  type LineDisplay,
 } from "../../shared/display-settings";
 import { PastePreview } from "./PastePreview";
 import { SemanticHighlighter } from "./highlight";
 import type { HighlightRule } from "../../shared/highlight-rules";
 import { TerminalSearch } from "./TerminalSearch";
-import { PromptTimestamp } from "./prompt-timestamp";
 
 /** Controls for the current view; paste uses the existing bounded, authorized input path. */
 export interface TerminalControls {
@@ -46,7 +46,7 @@ export function TerminalView({
   t,
   settings,
   display,
-  lineDisplay,
+  lineDisplay = defaultLineDisplay,
   onZoom,
   writable,
   controlVersion,
@@ -104,8 +104,6 @@ export function TerminalView({
   };
   const terminalStyle = useRef(display.terminalStyle);
   terminalStyle.current = display.terminalStyle;
-  const promptTimestamps = useRef(display.promptTimestamps);
-  promptTimestamps.current = display.promptTimestamps;
   const clipboardBusy = useRef(false);
   const sizeQueue = useRef<ResizeQueue | undefined>(undefined);
   const sizeObservation = useRef<Promise<void> | undefined>(undefined);
@@ -251,7 +249,6 @@ export function TerminalView({
     const presentation = new TerminalPresentation(settings);
     const styling = new SemanticHighlighter();
     styling.setRules(highlightRules);
-    const timestamps = new PromptTimestamp();
     let pendingTimer: ReturnType<typeof setTimeout> | undefined;
     const terminal = new Terminal({
       cursorBlink: true,
@@ -376,16 +373,9 @@ export function TerminalView({
     if (visibility.current) geometry.schedule(terminal.cols, terminal.rows);
     const releasePending = () => {
       if (stopped) return;
-      const upstream = styling.write(
-        timestamps.release(),
-        terminalStyle.current === "semantic",
-      );
       const tail = styling.release();
-      if (upstream.length || tail.length) {
-        const pending = new Uint8Array(upstream.length + tail.length);
-        pending.set(upstream);
-        pending.set(tail, upstream.length);
-        writeObserved(pending, tailReceipt);
+      if (tail.length) {
+        writeObserved(tail, tailReceipt);
         tailPending = false;
         tailReceipt = undefined;
       }
@@ -486,7 +476,6 @@ export function TerminalView({
             tailReceipt = undefined;
             presentation.reset();
             styling.reset();
-            timestamps.reset();
             clearTimeout(pendingTimer);
             pendingTimer = undefined;
             callbacks.current.onDropped();
@@ -507,15 +496,12 @@ export function TerminalView({
                   ? new TextEncoder().encode(rendered)
                   : rendered;
               rendered = styling.write(
-                timestamps.write(bytes, promptTimestamps.current && !replay),
+                bytes,
                 terminalStyle.current === "semantic",
               );
-              tailPending = styling.hasPending || timestamps.hasPending;
+              tailPending = styling.hasPending;
               tailReceipt = tailPending ? receipt : undefined;
-              if (
-                (styling.hasPending || timestamps.hasPending) &&
-                pendingTimer === undefined
-              )
+              if (tailPending && pendingTimer === undefined)
                 pendingTimer = setTimeout(() => {
                   pendingTimer = undefined;
                   releasePending();
@@ -593,7 +579,7 @@ export function TerminalView({
   useEffect(() => {
     // A preference change cannot leave a half-styled line pending or reset xterm.
     releasePresentation.current?.();
-  }, [display.terminalStyle, display.promptTimestamps]);
+  }, [display.terminalStyle]);
 
   useEffect(() => {
     if (!visible || !attachment.remoteSize) return;

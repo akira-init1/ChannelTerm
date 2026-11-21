@@ -562,7 +562,7 @@ test("size display hints preserve menu actions but never admit private capabilit
   );
 });
 
-test("line display actions are independent, default hidden, local and attachment-fenced without shortcuts", () => {
+test("line display actions are independent, default visible, local and attachment-fenced without shortcuts", () => {
   const attachment = { id: "view", sessionId: "shared" };
   const state = {
     ...initialMenuState,
@@ -573,6 +573,13 @@ test("line display actions are independent, default hidden, local and attachment
     (entry) => entry.id === "terminal.auxiliary",
   )!;
   assert.equal(auxiliary.children?.length, 2);
+  const defaults = terminalMenu({ ...initialMenuState, attachment }).find(
+    (entry) => entry.id === "terminal.auxiliary",
+  );
+  assert.deepEqual(
+    defaults?.children?.map((entry) => entry.checked),
+    [true, true],
+  );
   for (const [index, id] of (
     ["terminal.timestamps", "terminal.sequence"] as const
   ).entries()) {

@@ -19,7 +19,10 @@ export async function checkCommandFolding(page, fixture, observer, attachment) {
     name: /command output · \$ second/i,
   });
   const history = page.locator(".fold-history");
+  const metadata = page.locator(".line-sidebar .line-observation");
   await expect(firstCommand).toHaveText("−");
+  await expect(metadata.nth(2)).toHaveAttribute("data-received-at", /^\d+$/);
+  const secondHeader = await metadata.nth(2).textContent();
   assert.ok((await firstCommand.boundingBox()).width >= 24);
   assert.equal(
     await firstCommand.evaluate(
@@ -39,6 +42,7 @@ export async function checkCommandFolding(page, fixture, observer, attachment) {
   await expect(secondCommand).toHaveAttribute("aria-expanded", "true");
   await secondCommand.click();
   await expect(history).toHaveJSProperty("textContent", "$ first\n$ second");
+  await expect(metadata.nth(1)).toHaveJSProperty("textContent", secondHeader);
   await firstCommand.click();
   await expect(history).toHaveJSProperty(
     "textContent",

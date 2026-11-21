@@ -77,7 +77,7 @@ for authentication, verification and cancellation.
 | Session row context menu > Attach Session; row click | `session.attach` | Attach the clicked open Session by opaque ID. Unavailable for the current attachment, closed/missing rows, offline state, or a pending operation. |
 | Terminal > Focus terminal; terminal context menu | `terminal.focus` | Focus the captured xterm view; requires a current idle attachment. |
 | Terminal > Find in terminal; terminal context menu | `terminal.find` | Search the captured attachment's retained local text, including read-only/closed views. No Host history query or device write. |
-| Terminal > Auxiliary display > Show system timestamps / Show sequence numbers | `terminal.timestamps` / `terminal.sequence` | Independent per-view checkboxes, initially off, with no shortcuts. Bound to the captured attachment; available for retained read-only/closed output. |
+| Terminal > Auxiliary display > Show system timestamps / Show sequence numbers | `terminal.timestamps` / `terminal.sequence` | Independent per-view checkboxes, initially on, with no shortcuts. Bound to the captured attachment; available for retained read-only/closed output. |
 | Terminal > Clear local display; terminal context menu | `terminal.clear` | Use xterm's local clear operation; requires a current idle attachment, including a read-only/closed view. |
 | Terminal > Expand all command outputs; terminal context menu | `terminal.fold` | Open all collapsed command blocks in this text view. Individual commands have a fold button in the left margin. |
 | Terminal > Resume input; error notice | `terminal.resume` | Visible in menus only while input is paused; enabled only for an open, unleased, idle attachment. Does not replay queued input. |
@@ -384,18 +384,9 @@ remote ANSI/full-screen output retains its own control semantics. Plain suppress
 semantic colors and remote foreground/background colors, including retained output, while keeping
 selection, cursor visibility and terminal controls. It does not change raw output or HEX bytes.
 Switching back restores the retained terminal attributes; it does not recover lost history.
-**Local prompt timestamps** is off by default. Enabling it adds `[HH:MM:SS]` in local time
-before recognized live shell prompts, using the CLI's shared prompt rules. This is a local
-receipt/recognition time, not the device's event time. Ordinary completed log lines, retained
-history replay, HEX, non-shell interactive prompts and alternate-screen output remain unstamped.
-The option affects future output without reattachment; existing displayed prefixes remain.
-Timestamp recognition is a heuristic, not shell state. Screen-control lines and incomplete
-candidates that exceed the bounded recognition window pass through unchanged. Copying displayed
-text includes its local prefixes; Host output and other clients' bytes remain unchanged.
-
-Settings persist in the GUI profile under `channelterm.display.v1`; old font-only settings gain
-the semantic default while retaining fonts. Font/style settings gain `promptTimestamps:false`
-without losing existing choices, and malformed values use defaults.
+The GUI displays receipt times in the [line metadata columns](#system-timestamps-and-sequence-columns).
+Existing display preferences retain font and style choices. The retired inline prompt timestamp
+setting is ignored when loading older profiles.
 If saving fails, the dialog stays open. Wheel changes still apply locally with a storage notice.
 
 ### Connection keyword rules
@@ -676,10 +667,10 @@ transfer-cancellation flow.
 ## System timestamps and sequence columns
 
 **Terminal > Auxiliary display** controls two independent columns for the current view. New views
-start with both hidden. Switching tabs preserves each choice; the workspace restores choices after
-restart, but not old timestamps or terminal contents. Split and moved views are newly created views
-and start hidden. With no attached target, the actions are disabled. Neither checkbox has a shortcut
-or changes the global font/style preferences.
+show the local time `[HH:MM:SS]` first, followed by the line number, fold control and terminal text.
+Split and moved views use the same defaults. Switching tabs preserves each choice. Workspace
+restore reapplies saved choices and rebuilds the display from retained output.
+The controls require an attached view and operate independently of global font and style settings.
 
 The timestamp is the local time this view first observed an output batch, not the device's event
 time. Hover shows the full UTC timestamp. Historical output without time evidence shows **—** with
