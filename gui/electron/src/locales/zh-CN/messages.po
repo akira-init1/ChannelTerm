@@ -3046,6 +3046,11 @@ msgstr "清理本地显示"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "terminal.collapseOutput"
+msgstr "折叠命令输出"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.copy"
 msgstr "复制终端选中内容"
 
@@ -3061,6 +3066,11 @@ msgstr "字符编码"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "terminal.expandOutput"
+msgstr "展开命令输出"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.find"
 msgstr "在终端中查找"
 
@@ -3068,6 +3078,11 @@ msgstr "在终端中查找"
 #: src/shared/menu-messages.ts
 msgid "terminal.focus"
 msgstr "聚焦终端"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.fold"
+msgstr "展开所有命令输出"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

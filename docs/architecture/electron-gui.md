@@ -104,8 +104,9 @@ defaults to 260 px, or 210 px with a 40 px rail at viewport widths of 900 px or 
 is a draggable, keyboard-focusable separator: Left/Right adjust by 10 px, Home/End select the
 allowed limits, and double-click restores the current viewport's default. Width is clamped
 between 180 and 480 px with additional viewport bounds to keep the terminal usable. When both
-sidebars are visible, each is capped at half the width remaining after reserving 320 px for the
-terminal and the activity rail. The secondary sidebar starts hidden, displays current Session
+sidebars are visible, each is capped at half the width remaining after reserving the activity
+rail, 320 px for the terminal and 32 px for its fold margin (24 px on compact windows).
+The secondary sidebar starts hidden, displays current Session
 metadata, and has the same width controls on its left edge. This is window-local view state;
 hiding either sidebar preserves its preferred width. Language, layout and terminal defaults survive GUI restart; see [workspace persistence](#preferences-and-workspace-recovery).
 The terminal takes the remaining width and height. Its header contains independent terminal tabs
@@ -260,8 +261,8 @@ Search is scoped to one mounted view's retained decoded text (or displayed HEX t
 the UI reports a lower bound, not an exact total. The addon batches output-driven refreshes and
 retains no Host cursor/history of its own. Closing search, hiding the tab or disposing the view
 removes addon listeners, timers, caches and temporary decorations. Find, navigation and select-all
-are local actions; query text never enters the terminal input path. Folding is not implemented,
-so there are currently no folded search results to expand.
+are local actions. Query text stays in the renderer. Find expands this view's command
+blocks before searching its retained xterm buffer.
 
 ## State ownership
 
@@ -831,4 +832,8 @@ defaults. Invalid choices are ignored without discarding valid tabs. Only choice
 rebuilds fresh metadata from the Host's finite retained output. Newly created/split/moved views start
 with columns hidden. HEX and alternate screens suspend columns with an explanatory tooltip and
 retain choices. Metadata never enters xterm text, clipboard selection, search, Session storage, CLI
-or MCP output. Output folding is not implemented; a future projection must preserve these anchors.
+or MCP output. Each collapsed command block uses public markers on two successive prompts.
+The fold margin and metadata gutter share a viewport projection that skips collapsed
+output while retaining wrapped command headers. The contiguous live tail uses the original
+xterm surface at its fitted size. A bounded projection displays preceding historical rows.
+Terminal parsing, the Session cursor and recording retain their original input.

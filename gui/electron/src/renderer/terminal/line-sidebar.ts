@@ -18,6 +18,7 @@ export class LineSidebar {
       text: boolean;
       t: (id: string) => string;
     },
+    private readonly drawFolds: () => number[] | undefined,
   ) {
     this.metadata = new LineMetadata(terminal);
     this.listeners = [
@@ -43,6 +44,7 @@ export class LineSidebar {
     if (!visible) return;
     const shown = !!(display?.timestamps || display?.sequence);
     const supported = text && this.terminal.buffer.active.type === "normal";
+    const projected = this.drawFolds();
     this.element.hidden = !shown;
     this.element.classList.toggle("unsupported", !supported);
     this.element.setAttribute("aria-label", t("terminal.auxiliary"));
@@ -59,10 +61,12 @@ export class LineSidebar {
     if (!height || !this.terminal.rows) return;
     this.element.style.fontSize = `${this.terminal.options.fontSize ?? 14}px`;
     this.element.style.lineHeight = `${height / this.terminal.rows}px`;
-    const rows = this.metadata.viewport(
-      this.terminal.buffer.active.viewportY,
-      this.terminal.rows,
-    );
+    const rows = projected
+      ? this.metadata.projectedViewport(projected)
+      : this.metadata.viewport(
+          this.terminal.buffer.active.viewportY,
+          this.terminal.rows,
+        );
     // Grow only with displayed ordinals; long-lived views must not overlap the time column.
     const digits = Math.max(
       4,

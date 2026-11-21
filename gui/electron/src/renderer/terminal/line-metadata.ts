@@ -166,6 +166,18 @@ export class LineMetadata {
     }
   }
 
+  /** Preserve source observations when collapsed command bodies leave gaps between rows. */
+  projectedViewport(rows: readonly number[]): LineObservation[] {
+    const result: LineObservation[] = [];
+    for (let start = 0; start < rows.length;) {
+      let end = start + 1;
+      while (end < rows.length && rows[end] === rows[end - 1]! + 1) end++;
+      result.push(...this.viewport(rows[start]!, end - start));
+      start = end;
+    }
+    return result;
+  }
+
   /** Snapshot only the requested viewport; wrapped continuations share the original observation. */
   viewport(start: number, count: number): LineObservation[] {
     if (this.disposed || this.terminal.buffer.active.type !== "normal")

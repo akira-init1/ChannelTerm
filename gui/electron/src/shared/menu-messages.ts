@@ -136,6 +136,9 @@ export const menuMessages = [
   /* i18n */ { id: "terminal.auxiliary", message: "Auxiliary display" },
   /* i18n */ { id: "terminal.timestamps", message: "Show system timestamps" },
   /* i18n */ { id: "terminal.sequence", message: "Show sequence numbers" },
+  /* i18n */ { id: "terminal.fold", message: "Expand all command outputs" },
+  /* i18n */ { id: "terminal.expandOutput", message: "Expand command output" },
+  /* i18n */ { id: "terminal.collapseOutput", message: "Fold command output" },
   /* i18n */ {
     id: "line.hint",
     message:

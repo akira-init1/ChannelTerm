@@ -13,6 +13,7 @@ import { checkFiles } from "./file-checks.mjs";
 import { checkTerminalControls } from "./terminal-checks.mjs";
 import { checkTerminalStyles } from "./highlight-checks.mjs";
 import { checkTerminalSearch } from "./search-checks.mjs";
+import { checkCommandFolding } from "./output-fold-checks.mjs";
 import { checkPromptTimestamps } from "./timestamp-checks.mjs";
 import { checkTargetCopy } from "./target-copy-checks.mjs";
 import { checkActivity } from "./activity-checks.mjs";
@@ -316,6 +317,7 @@ try {
   await checkTerminalStyles(desktop, page, fixture, observer, attachment);
   await checkPromptTimestamps(desktop, page, fixture, observer, attachment);
   await checkTerminalSearch(desktop, page, fixture, observer, attachment);
+  await checkCommandFolding(page, fixture, observer, attachment);
   await checkAttachedMenus(desktop, page, fixture, observer, attachment);
   await fixture.command("lease");
   await expect(page.locator(".notice-lease")).toBeVisible();

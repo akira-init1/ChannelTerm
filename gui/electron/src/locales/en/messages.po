@@ -3046,6 +3046,11 @@ msgstr "Clear local display"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "terminal.collapseOutput"
+msgstr "Fold command output"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.copy"
 msgstr "Copy terminal selection"
 
@@ -3061,6 +3066,11 @@ msgstr "Character encoding"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "terminal.expandOutput"
+msgstr "Expand command output"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.find"
 msgstr "Find in terminal"
 
@@ -3068,6 +3078,11 @@ msgstr "Find in terminal"
 #: src/shared/menu-messages.ts
 msgid "terminal.focus"
 msgstr "Focus terminal"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.fold"
+msgstr "Expand all command outputs"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

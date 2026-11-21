@@ -91,6 +91,7 @@ export type Action =
         | "terminal.timestamps"
         | "terminal.sequence"
         | "terminal.clear"
+        | "terminal.fold"
         | "terminal.focus"
         | "terminal.resume"
         | "terminal.copy"
@@ -166,6 +167,7 @@ function attachedAction(
     | "terminal.timestamps"
     | "terminal.sequence"
     | "terminal.clear"
+    | "terminal.fold"
     | "terminal.focus"
     | "terminal.resume"
     | "terminal.copy"
@@ -456,6 +458,10 @@ export function terminalMenu(state: MenuState): MenuEntry[] {
     attachedAction(state, "terminal.focus"),
     attachedAction(state, "terminal.clear"),
     {
+      ...attachedAction(state, "terminal.fold"),
+      enabled: !!state.attachment && !state.busy && !state.hexView,
+    },
+    {
       id: "terminal.auxiliary",
       label: "terminal.auxiliary",
       children: (["timestamps", "sequence"] as const).map((key) => ({
@@ -630,6 +636,7 @@ export function isAction(value: unknown): value is Action {
     case "uboot.open":
     case "send.open":
     case "terminal.find":
+    case "terminal.fold":
     case "terminal.paste":
     case "terminal.timestamps":
     case "terminal.sequence":
@@ -781,6 +788,7 @@ export function actionEnabled(action: Action, state: MenuState): boolean {
     case "uboot.open":
     case "send.open":
     case "terminal.find":
+    case "terminal.fold":
     case "terminal.paste":
     case "terminal.timestamps":
     case "terminal.sequence":
@@ -791,6 +799,7 @@ export function actionEnabled(action: Action, state: MenuState): boolean {
         !state.busy &&
         state.attachment?.id === action.attachment.id &&
         state.attachment.sessionId === action.attachment.sessionId &&
+        (action.id !== "terminal.fold" || !state.hexView) &&
         (!["session.close", "session.copyAI"].includes(action.id) ||
           (state.connected && state.currentOpen)) &&
         (!["tab.splitRight", "tab.splitDown"].includes(action.id) ||

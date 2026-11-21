@@ -1,4 +1,5 @@
 import { LineSidebar } from "./line-sidebar";
+import { OutputFold } from "./output-fold";
 import { ResizeQueue } from "./resize";
 import {
   useEffect,
@@ -31,6 +32,7 @@ export interface TerminalControls {
   copy(): void;
   paste(): void;
   find(): void;
+  expandCommandOutputs(): void;
 }
 
 /**
@@ -83,6 +85,10 @@ export function TerminalView({
     ((rules: readonly HighlightRule[]) => void) | undefined
   >(undefined);
   const gutter = useRef<HTMLDivElement>(null);
+  const surface = useRef<HTMLDivElement>(null);
+  const foldMargin = useRef<HTMLDivElement>(null);
+  const foldHistory = useRef<HTMLPreElement>(null);
+  const fold = useRef<OutputFold | undefined>(undefined);
   const sidebar = useRef<LineSidebar | undefined>(undefined);
   const lineState = useRef({
     display: lineDisplay,
@@ -152,7 +158,7 @@ export function TerminalView({
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchFocus, setSearchFocus] = useState(0);
   async function copy() {
-    const text = local.current?.getSelection();
+    const text = fold.current?.selection() || local.current?.getSelection();
     if (!text || clipboardBusy.current) return;
     clipboardBusy.current = true;
     const target = local.current;
@@ -208,14 +214,19 @@ export function TerminalView({
     () => ({
       // xterm.clear preserves the current line/parser and sends no remote reset.
       clear: () => {
+        fold.current?.reset();
         sidebar.current?.clear();
         local.current?.clear();
       },
       focus: () => local.current?.focus(),
       copy: () => void copy(),
       paste: () => void paste(),
+      expandCommandOutputs: () => {
+        fold.current?.clear();
+      },
       find: () => {
         if (!local.current || !visibility.current) return;
+        fold.current?.clear();
         setSearchOpen(true);
         setSearchFocus((version) => version + 1);
       },
@@ -289,8 +300,19 @@ export function TerminalView({
       terminal,
       gutter.current!,
       () => lineState.current,
+      () => fold.current?.draw(),
     );
     sidebar.current = lines;
+    if (settings.view === "text")
+      fold.current = new OutputFold(
+        terminal,
+        foldMargin.current!,
+        foldHistory.current!,
+        surface.current!,
+        (id) => lineState.current.t(id),
+        () => lines.schedule(),
+        () => setSearchOpen(false),
+      );
     let stopped = false;
     // Earliest receipt in the bounded presentation tail. Mixed historical/live tails stay unknown.
     let tailReceipt: number | undefined;
@@ -322,6 +344,7 @@ export function TerminalView({
       { final: "c" },
       () => {
         resetVersion++;
+        fold.current?.reset();
         lines.clear();
         return false;
       },
@@ -456,6 +479,7 @@ export function TerminalView({
           replay = !!output.replay;
           if (output.dropped) {
             // Do not join a partial escape/UTF-8 sequence across missing bytes.
+            fold.current?.reset();
             lines.clear();
             terminal.reset();
             tailPending = false;
@@ -525,6 +549,8 @@ export function TerminalView({
       listener.dispose();
       resetHandler.dispose();
       lines.dispose();
+      fold.current?.dispose();
+      fold.current = undefined;
       sidebar.current = undefined;
       terminal.dispose();
       local.current = undefined;
@@ -629,18 +655,38 @@ export function TerminalView({
           }}
         />
       )}
-      <div className="terminal-surface">
+      <div ref={surface} className="terminal-surface">
         <div
           ref={gutter}
           className="line-sidebar"
           hidden={!(lineDisplay?.timestamps || lineDisplay?.sequence)}
         />
         <div
+          className="fold-margin"
+          ref={foldMargin}
+          hidden={settings.view !== "text"}
+        />
+        <div
           ref={container}
           className={`terminal-view ${display.terminalStyle}`}
           aria-label={t("workbench.io")}
           onContextMenu={onContextMenu}
-        />
+        >
+          <pre
+            ref={foldHistory}
+            className="fold-history"
+            tabIndex={-1}
+            hidden
+            onCopy={(event) => {
+              event.preventDefault();
+              void copy();
+            }}
+            onMouseUp={(event) => {
+              if (event.button === 0 && !fold.current?.selection())
+                local.current?.focus();
+            }}
+          />
+        </div>
       </div>
       {pasteDraft && (
         <PastePreview

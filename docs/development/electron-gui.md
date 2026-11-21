@@ -880,6 +880,10 @@ checks must verify its downgrade and cleanup, not claim that a fixed footer surv
 
 ### Line metadata verification
 
+`output-fold.test.ts` checks independently collapsed ranges, wrapped headers and
+attachment-bound menu validation. The native `output-fold-checks.mjs` collapses two commands,
+expands one, verifies live output through an independent observer, and finds hidden text.
+
 `line-metadata.test.ts` covers bounded anchors/pending callbacks, unknown history, first-observation
 semantics, wrap mapping, alternate screens, explicit reset/disposal and late completions. Menu and
 workspace tests cover independent default-off options, absent/stale attachment targets, strict

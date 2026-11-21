@@ -3046,6 +3046,11 @@ msgstr "清除本機顯示"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "terminal.collapseOutput"
+msgstr "摺疊命令輸出"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.copy"
 msgstr "複製終端選取內容"
 
@@ -3061,6 +3066,11 @@ msgstr "字元編碼"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "terminal.expandOutput"
+msgstr "展開命令輸出"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.find"
 msgstr "在終端機中尋找"
 
@@ -3068,6 +3078,11 @@ msgstr "在終端機中尋找"
 #: src/shared/menu-messages.ts
 msgid "terminal.focus"
 msgstr "聚焦終端機"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.fold"
+msgstr "展開所有命令輸出"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

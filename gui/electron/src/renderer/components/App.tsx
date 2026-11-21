@@ -241,13 +241,19 @@ export function App() {
   }
   const [viewportWidth, setViewportWidth] = useState(window.innerWidth);
   const defaultSidebarWidth = viewportWidth <= 900 ? 210 : 260;
+  // Reserve the text viewport and fold margin before sizing the two sidebars.
+  const foldMarginWidth = viewportWidth <= 900 ? 24 : 32;
   const maximumSidebarWidth = Math.max(
     180,
     Math.min(
       480,
       sidebarVisible && auxiliaryVisible
         ? Math.floor(
-            (viewportWidth - (viewportWidth <= 900 ? 40 : 48) - 320) / 2,
+            (viewportWidth -
+              (viewportWidth <= 900 ? 40 : 48) -
+              320 -
+              foldMarginWidth) /
+              2,
           )
         : viewportWidth - 400,
     ),
@@ -707,7 +713,13 @@ export function App() {
         return;
       if (
         !id ||
-        (id.startsWith("terminal.") && !target.closest(".xterm") && !inFind)
+        (id.startsWith("terminal.") &&
+          !target.closest(".xterm") &&
+          !(
+            target.closest(".fold-history") &&
+            (id === "terminal.copy" || id === "terminal.find")
+          ) &&
+          !inFind)
       )
         return;
       event.preventDefault();
@@ -1532,6 +1544,9 @@ export function App() {
         return;
       case "terminal.find":
         terminal?.find();
+        return;
+      case "terminal.fold":
+        terminal?.expandCommandOutputs();
         return;
       case "terminal.paste":
         terminal?.paste();

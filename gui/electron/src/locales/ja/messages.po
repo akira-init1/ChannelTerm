@@ -3046,6 +3046,11 @@ msgstr "ローカル表示をクリア"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "terminal.collapseOutput"
+msgstr "コマンド出力を折りたたむ"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.copy"
 msgstr "端末の選択範囲をコピー"
 
@@ -3061,6 +3066,11 @@ msgstr "文字エンコーディング"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "terminal.expandOutput"
+msgstr "コマンド出力を展開"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.find"
 msgstr "端末内を検索"
 
@@ -3068,6 +3078,11 @@ msgstr "端末内を検索"
 #: src/shared/menu-messages.ts
 msgid "terminal.focus"
 msgstr "ターミナルにフォーカス"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.fold"
+msgstr "すべてのコマンド出力を展開"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

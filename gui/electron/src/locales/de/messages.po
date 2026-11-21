@@ -3046,6 +3046,11 @@ msgstr "Lokale Anzeige leeren"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "terminal.collapseOutput"
+msgstr "Befehlsausgabe einklappen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.copy"
 msgstr "Terminalauswahl kopieren"
 
@@ -3061,6 +3066,11 @@ msgstr "Zeichenkodierung"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "terminal.expandOutput"
+msgstr "Befehlsausgabe ausklappen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.find"
 msgstr "Im Terminal suchen"
 
@@ -3068,6 +3078,11 @@ msgstr "Im Terminal suchen"
 #: src/shared/menu-messages.ts
 msgid "terminal.focus"
 msgstr "Terminal fokussieren"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.fold"
+msgstr "Alle Befehlsausgaben ausklappen"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

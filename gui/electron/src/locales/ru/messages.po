@@ -3046,6 +3046,11 @@ msgstr "Очистить локальный экран"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "terminal.collapseOutput"
+msgstr "Свернуть вывод команды"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.copy"
 msgstr "Копировать выделение терминала"
 
@@ -3061,6 +3066,11 @@ msgstr "Кодировка символов"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "terminal.expandOutput"
+msgstr "Развернуть вывод команды"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.find"
 msgstr "Найти в терминале"
 
@@ -3068,6 +3078,11 @@ msgstr "Найти в терминале"
 #: src/shared/menu-messages.ts
 msgid "terminal.focus"
 msgstr "Перейти в терминал"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.fold"
+msgstr "Развернуть вывод всех команд"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

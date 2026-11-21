@@ -3046,6 +3046,11 @@ msgstr "로컬 화면 지우기"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "terminal.collapseOutput"
+msgstr "명령 출력 접기"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.copy"
 msgstr "터미널 선택 영역 복사"
 
@@ -3061,6 +3066,11 @@ msgstr "문자 인코딩"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "terminal.expandOutput"
+msgstr "명령 출력 펼치기"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.find"
 msgstr "터미널에서 찾기"
 
@@ -3068,6 +3078,11 @@ msgstr "터미널에서 찾기"
 #: src/shared/menu-messages.ts
 msgid "terminal.focus"
 msgstr "터미널에 포커스"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "terminal.fold"
+msgstr "모든 명령 출력 펼치기"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

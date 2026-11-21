@@ -79,6 +79,7 @@ for authentication, verification and cancellation.
 | Terminal > Find in terminal; terminal context menu | `terminal.find` | Search the captured attachment's retained local text, including read-only/closed views. No Host history query or device write. |
 | Terminal > Auxiliary display > Show system timestamps / Show sequence numbers | `terminal.timestamps` / `terminal.sequence` | Independent per-view checkboxes, initially off, with no shortcuts. Bound to the captured attachment; available for retained read-only/closed output. |
 | Terminal > Clear local display; terminal context menu | `terminal.clear` | Use xterm's local clear operation; requires a current idle attachment, including a read-only/closed view. |
+| Terminal > Expand all command outputs; terminal context menu | `terminal.fold` | Open all collapsed command blocks in this text view. Individual commands have a fold button in the left margin. |
 | Terminal > Resume input; error notice | `terminal.resume` | Visible in menus only while input is paused; enabled only for an open, unleased, idle attachment. Does not replay queued input. |
 | View > Session sidebar; upper-right toggle; activity rail | `view.sidebar` | Toggle navigation without detaching. Checkmark reflects visibility. |
 | View > Secondary sidebar; upper-right toggle | `view.auxiliary` | Toggle the resizable current-Session details sidebar. |
@@ -345,7 +346,7 @@ and a current/total count. It does not search other tabs, Host history or export
 searches the displayed hexadecimal text. All matches and the current match have distinct temporary
 decorations, including in Black and white mode. Closing with Escape or the close button clears
 decorations and the search selection, then returns terminal focus. Hiding or detaching the tab
-discards the search. There is currently no output folding or hidden folded text.
+discards the search. Opening Find expands folded output before looking for matches.
 
 Queries are limited to 256 characters, updates debounce for 100 ms, and highlights stop at 1000
 matches with an explicit limit notice; this is not an exact count beyond the cap. **Select all
@@ -355,6 +356,20 @@ IME composition and AltGr keep their existing key handling. Ordinary terminal cl
 remain scoped to terminal focus.
 
 ## Terminal display
+
+Click the boxed minus beside a recognized shell command to collapse its output. A guide
+in the margin marks the extent of the expanded command. When collapsed, the control
+becomes a filled plus and the command and subsequent prompt stay visible. Click the plus
+to reopen that command, or choose **Terminal > Expand all
+command outputs**. Opening Find reveals all retained text, including folded matches.
+
+The next recognized prompt closes a block. The fold margin recognizes the latest 512
+retained shell integration prompt markers (`OSC 133;A`). Common shell, PowerShell, drive-path and
+bootloader prompts are recognized from the displayed text. Raw serial logs without
+recognizable prompts have no command boundaries. Wrapped command rows stay together.
+Folds belong to one text view and clear on reset, output loss, detach or alternate-screen
+entry. The live terminal keeps accepting input and output during folding. Scrollback
+trimming can remove a block. Historical rows above a fold are projected in plain text.
 
 **Settings > Preferences...** opens the existing Display dialog, controlling integer font size (8-40 px, default 14) and font family (up to
 256 characters). The default is `Consolas, "Liberation Mono", monospace`. Families use installed
@@ -545,7 +560,6 @@ actions follow the contracts above; connection history and workspace recovery ar
 | Proposed category | Unimplemented scope / prerequisite |
 | --- | --- |
 | Host / Session | Automatic device reconnection and recreation of closed Sessions are not provided. Recent connections and SSH favorites prefill explicit forms; see [recent connections and SSH favorites](#recent-connections-and-ssh-favorites). Shared close and multiple tabs follow the contracts above. |
-| Terminal | Split panes are available from Window. Output folding is not exposed. SSH remote size control uses the terminal toolbar described below. Find and its select-all control operate only on the current retained view. Existing clipboard, local clear, focus and conditional resume actions remain. |
 | View | A complete MCP request audit, status-bar visibility and a combined Reset Layout action are unimplemented. Session activity shows retained Host observations, not a complete audit; Session status is not a status-bar toggle. |
 | Settings | Application theme selection and Host process management are absent. Local endpoint settings are available under Host; local preferences and workspace recovery are described below. |
 | Help | Online documentation navigation and updates remain unimplemented. Diagnostic ZIP export follows the explicit local-save contract below. |

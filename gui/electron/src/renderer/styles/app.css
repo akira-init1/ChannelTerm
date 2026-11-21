@@ -709,10 +709,69 @@ main {
   color: var(--muted);
 }
 .terminal-surface {
+  position: relative;
   display: flex;
   flex: 1;
   min-width: 0;
   min-height: 0;
+}
+.terminal-surface[data-folded] .terminal-view > .xterm {
+  transform: translateY(var(--fold-offset));
+  clip-path: inset(var(--fold-top) 0 var(--fold-bottom));
+}
+.fold-history {
+  position: absolute;
+  z-index: 2;
+  inset: 0 0 auto;
+  margin: 0;
+  white-space: pre;
+  overflow: hidden;
+  user-select: text;
+  color: var(--foreground);
+  background: var(--editor-background);
+}
+.fold-margin {
+  position: relative;
+  flex: 0 0 32px;
+  margin-block: 8px;
+  overflow: hidden;
+  background: var(--sidebar-background);
+}
+.fold-margin button {
+  position: absolute;
+  left: 3px;
+  width: calc(100% - 6px);
+  height: var(--fold-row-height);
+  display: grid;
+  place-content: center;
+  padding: 0;
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+  color: var(--foreground);
+  background: var(--selection);
+  font: bold min(22px, var(--fold-row-height)) / 1 monospace;
+  cursor: pointer;
+}
+.fold-margin button[aria-expanded="true"]::after {
+  content: "";
+  position: absolute;
+  top: calc(100% + 1px);
+  left: 50%;
+  width: 6px;
+  height: calc(var(--guide-height) - 50% - 1px);
+  box-sizing: border-box;
+  border: solid var(--accent);
+  border-width: 0 0 1px 2px;
+  pointer-events: none;
+}
+.fold-margin button[aria-expanded="false"] {
+  background: var(--accent);
+  color: var(--editor-background);
+}
+.fold-margin button:hover,
+.fold-margin button:focus-visible {
+  color: var(--editor-background);
+  background: var(--foreground);
 }
 .line-sidebar {
   flex: 0 0 auto;
@@ -749,6 +808,7 @@ main {
 }
 /* FitAddon measures this container: external spacing avoids clipping fitted rows. */
 .terminal-view {
+  position: relative;
   flex: 1;
   min-width: 0;
   min-height: 0;
@@ -866,6 +926,7 @@ main {
    overlay, including TrueColor and inverse. Selection/decorations stay separate. */
 .style-preview.monochrome,
 .terminal-view.monochrome,
+.terminal-view.monochrome .fold-history,
 .terminal-view.monochrome .xterm,
 .terminal-view.monochrome .xterm-viewport,
 .terminal-view.monochrome .xterm-scrollable-element,
@@ -904,6 +965,13 @@ main {
   white-space: nowrap;
 }
 @media (max-width: 900px) {
+  .fold-margin {
+    flex-basis: 24px;
+  }
+  .fold-margin button {
+    left: 0;
+    width: 100%;
+  }
   .workspace {
     grid-template-columns: 40px var(--sidebar-width, 210px) minmax(0, 1fr) var(
         --auxiliary-width,
