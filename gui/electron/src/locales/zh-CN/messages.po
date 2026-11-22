@@ -3076,6 +3076,11 @@ msgstr "展开所有命令输出"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "terminal.foldMarkers"
+msgstr "显示折叠标记"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.hex"
 msgstr "十六进制（只读）"
 

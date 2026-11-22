@@ -243,7 +243,7 @@ export function App() {
   const [viewportWidth, setViewportWidth] = useState(window.innerWidth);
   const defaultSidebarWidth = viewportWidth <= 900 ? 210 : 260;
   // Reserve the text viewport and fold margin before sizing the two sidebars.
-  const foldMarginWidth = viewportWidth <= 900 ? 24 : 32;
+  const foldMarginWidth = 16;
   const maximumSidebarWidth = Math.max(
     180,
     Math.min(
@@ -1553,10 +1553,16 @@ export function App() {
         terminal?.paste();
         return;
       case "terminal.timestamps":
-      case "terminal.sequence": {
+      case "terminal.sequence":
+      case "terminal.foldMarkers": {
         if (!targetTab) return;
-        const key =
-          action.id === "terminal.timestamps" ? "timestamps" : "sequence";
+        const key = (
+          {
+            "terminal.timestamps": "timestamps",
+            "terminal.sequence": "sequence",
+            "terminal.foldMarkers": "foldMarkers",
+          } as const
+        )[action.id];
         const value = targetTab.lineDisplay ?? defaultLineDisplay;
         updateTab(targetTab.id, {
           lineDisplay: { ...value, [key]: !value[key] },

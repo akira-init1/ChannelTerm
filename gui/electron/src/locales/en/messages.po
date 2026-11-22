@@ -3076,6 +3076,11 @@ msgstr "Expand all command outputs"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "terminal.foldMarkers"
+msgstr "Show fold markers"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.hex"
 msgstr "Hex (read-only)"
 

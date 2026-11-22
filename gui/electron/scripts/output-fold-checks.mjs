@@ -23,7 +23,9 @@ export async function checkCommandFolding(page, fixture, observer, attachment) {
   await expect(firstCommand).toHaveText("−");
   await expect(metadata.nth(2)).toHaveAttribute("data-received-at", /^\d+$/);
   const secondHeader = await metadata.nth(2).textContent();
-  assert.ok((await firstCommand.boundingBox()).width >= 24);
+  assert.equal((await firstCommand.boundingBox()).width, 16);
+  await expect(firstCommand).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+  await firstCommand.hover();
   assert.equal(
     await firstCommand.evaluate(
       (node) => getComputedStyle(node, "::after").borderLeftStyle,

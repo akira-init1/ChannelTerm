@@ -3076,6 +3076,11 @@ msgstr "모든 명령 출력 펼치기"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "terminal.foldMarkers"
+msgstr "접기 표시 보기"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.hex"
 msgstr "16진수(읽기 전용)"
 

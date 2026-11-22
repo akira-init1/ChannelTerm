@@ -156,10 +156,12 @@ export function restoreWorkspace(
         !bounded(target.endpoint, 1024))
     )
       return undefined;
+    // Earlier v1 tabs saved only timestamps and sequence; folding was always enabled.
+    const lineDisplay = object(entry.lineDisplay)
+      ? { foldMarkers: true, ...entry.lineDisplay }
+      : undefined;
     tabs.push({
-      ...(isLineDisplay(entry.lineDisplay)
-        ? { lineDisplay: { ...entry.lineDisplay } }
-        : {}),
+      ...(isLineDisplay(lineDisplay) ? { lineDisplay } : {}),
       settings: {
         encoding: entry.settings.encoding,
         view: entry.settings.view,

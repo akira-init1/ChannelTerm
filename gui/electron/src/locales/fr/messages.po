@@ -3076,6 +3076,11 @@ msgstr "Déplier toutes les sorties de commandes"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "terminal.foldMarkers"
+msgstr "Afficher les marqueurs de repli"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.hex"
 msgstr "Hexadécimal (lecture seule)"
 

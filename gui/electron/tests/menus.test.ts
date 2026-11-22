@@ -567,21 +567,25 @@ test("line display actions are independent, default visible, local and attachmen
   const state = {
     ...initialMenuState,
     attachment,
-    lineDisplay: { timestamps: true, sequence: false },
+    lineDisplay: { timestamps: true, sequence: false, foldMarkers: false },
   };
   const auxiliary = terminalMenu(state).find(
     (entry) => entry.id === "terminal.auxiliary",
   )!;
-  assert.equal(auxiliary.children?.length, 2);
+  assert.equal(auxiliary.children?.length, 3);
   const defaults = terminalMenu({ ...initialMenuState, attachment }).find(
     (entry) => entry.id === "terminal.auxiliary",
   );
   assert.deepEqual(
     defaults?.children?.map((entry) => entry.checked),
-    [true, true],
+    [true, true, true],
   );
   for (const [index, id] of (
-    ["terminal.timestamps", "terminal.sequence"] as const
+    [
+      "terminal.timestamps",
+      "terminal.sequence",
+      "terminal.foldMarkers",
+    ] as const
   ).entries()) {
     const entry: MenuEntry = auxiliary.children![index]!;
     assert.equal(entry.checked, index === 0);
@@ -609,6 +613,7 @@ test("line display actions are independent, default visible, local and attachmen
     null,
     { timestamps: true },
     { timestamps: true, sequence: 1 },
+    { timestamps: true, sequence: false, foldMarkers: "no" },
     { timestamps: false, sequence: false, extra: true },
   ])
     assert.equal(isMenuState({ ...state, lineDisplay }), false);

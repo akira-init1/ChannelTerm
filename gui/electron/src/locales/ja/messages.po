@@ -3076,6 +3076,11 @@ msgstr "すべてのコマンド出力を展開"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "terminal.foldMarkers"
+msgstr "折りたたみマーカーを表示"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.hex"
 msgstr "16進数（読み取り専用）"
 

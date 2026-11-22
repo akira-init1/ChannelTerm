@@ -3076,6 +3076,11 @@ msgstr "Alle Befehlsausgaben ausklappen"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "terminal.foldMarkers"
+msgstr "Faltmarkierungen anzeigen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.hex"
 msgstr "Hexadezimal (schreibgeschützt)"
 

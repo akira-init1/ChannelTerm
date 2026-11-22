@@ -105,7 +105,7 @@ is a draggable, keyboard-focusable separator: Left/Right adjust by 10 px, Home/E
 allowed limits, and double-click restores the current viewport's default. Width is clamped
 between 180 and 480 px with additional viewport bounds to keep the terminal usable. When both
 sidebars are visible, each is capped at half the width remaining after reserving the activity
-rail, 320 px for the terminal and 32 px for its fold margin (24 px on compact windows).
+rail, 320 px for the terminal and 16 px for its fold margin.
 The secondary sidebar starts hidden, displays current Session
 metadata, and has the same width controls on its left edge. This is window-local view state;
 hiding either sidebar preserves its preferred width. Language, layout and terminal defaults survive GUI restart; see [workspace persistence](#preferences-and-workspace-recovery).

@@ -52,10 +52,12 @@ export function zoomFontSize(size: number, delta: number): number {
 export interface LineDisplay {
   timestamps: boolean;
   sequence: boolean;
+  foldMarkers: boolean;
 }
 export const defaultLineDisplay: Readonly<LineDisplay> = {
   timestamps: true,
   sequence: true,
+  foldMarkers: true,
 };
 
 export function isLineDisplay(value: unknown): value is LineDisplay {
@@ -63,7 +65,8 @@ export function isLineDisplay(value: unknown): value is LineDisplay {
     !!value &&
     typeof value === "object" &&
     !Array.isArray(value) &&
-    Object.keys(value).length === 2 &&
+    Object.keys(value).length === 3 &&
+    typeof (value as Record<string, unknown>).foldMarkers === "boolean" &&
     typeof (value as Record<string, unknown>).timestamps === "boolean" &&
     typeof (value as Record<string, unknown>).sequence === "boolean"
   );

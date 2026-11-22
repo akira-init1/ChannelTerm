@@ -3076,6 +3076,11 @@ msgstr "Развернуть вывод всех команд"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "terminal.foldMarkers"
+msgstr "Показывать маркеры сворачивания"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.hex"
 msgstr "Шестнадцатеричный (только чтение)"
 

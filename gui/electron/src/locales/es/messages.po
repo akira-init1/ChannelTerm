@@ -3076,6 +3076,11 @@ msgstr "Expandir todas las salidas de comandos"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "terminal.foldMarkers"
+msgstr "Mostrar marcadores de plegado"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "terminal.hex"
 msgstr "Hexadecimal (solo lectura)"
 

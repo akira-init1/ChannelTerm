@@ -50,6 +50,16 @@ export async function checkConnectionHighlights(environment) {
     page = await desktop.firstWindow();
     page.on("pageerror", (error) => errors.push(error.message));
     await expect(page.locator('[data-menu="session"]')).toBeVisible();
+    // Native menu actions target the focused BrowserWindow, including after a relaunch.
+    const window = await desktop.browserWindow(page);
+    try {
+      await window.evaluate((window) => window.focus());
+      await expect
+        .poll(() => window.evaluate((window) => window.isFocused()))
+        .toBe(true);
+    } finally {
+      await window.dispose();
+    }
     await native("host.connect");
     await expect(page.locator(".host-panel")).toContainText("Host connected");
   };

@@ -731,28 +731,28 @@ main {
   background: var(--editor-background);
 }
 .fold-margin {
+  --fold-margin-width: 16px;
   position: relative;
-  flex: 0 0 32px;
+  flex: 0 0 var(--fold-margin-width);
   margin-block: 8px;
   overflow: hidden;
-  background: var(--sidebar-background);
 }
 .fold-margin button {
   position: absolute;
-  left: 3px;
-  width: calc(100% - 6px);
+  left: 0;
+  width: 100%;
   height: var(--fold-row-height);
   display: grid;
   place-content: center;
   padding: 0;
-  border: 1px solid var(--accent);
-  border-radius: 3px;
-  color: var(--foreground);
-  background: var(--selection);
-  font: bold min(22px, var(--fold-row-height)) / 1 monospace;
+  border: 0;
+  border-radius: 2px;
+  color: var(--muted);
+  background: transparent;
+  font: normal min(13px, var(--fold-row-height)) / 1 monospace;
   cursor: pointer;
 }
-.fold-margin button[aria-expanded="true"]::after {
+.fold-margin button[aria-expanded="true"]:is(:hover, :focus-visible)::after {
   content: "";
   position: absolute;
   top: calc(100% + 1px);
@@ -760,26 +760,45 @@ main {
   width: 6px;
   height: calc(var(--guide-height) - 50% - 1px);
   box-sizing: border-box;
-  border: solid var(--accent);
-  border-width: 0 0 1px 2px;
+  border: solid var(--muted);
+  border-width: 0 0 1px 1px;
   pointer-events: none;
-}
-.fold-margin button[aria-expanded="false"] {
-  background: var(--accent);
-  color: var(--editor-background);
 }
 .fold-margin button:hover,
 .fold-margin button:focus-visible {
-  color: var(--editor-background);
-  background: var(--foreground);
+  color: var(--foreground);
+  background: var(--selection);
+}
+/* With both metadata columns off, use the text view's existing left inset
+   for fold hit targets. Only the hovered or keyboard-focused button overlays text. */
+.line-sidebar[hidden] + .fold-margin {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--fold-margin-width);
+  z-index: 3;
+  pointer-events: none;
+  background: transparent;
+}
+.line-sidebar[hidden] + .fold-margin button {
+  left: 0;
+  width: 100%;
+  pointer-events: auto;
+  clip-path: inset(0 calc(100% - 8px) 0 0);
+  opacity: 0;
+}
+.line-sidebar[hidden] + .fold-margin button:is(:hover, :focus-visible) {
+  clip-path: none;
+  opacity: 1;
 }
 .line-sidebar {
+  display: grid;
+  grid-template-columns: max-content;
+  align-content: start;
   flex: 0 0 auto;
   max-width: 45%;
   overflow: hidden;
-  margin: 8px 0 8px 8px;
+  margin: 8px 0 8px 4px;
   color: var(--muted);
-  border-right: 1px solid var(--border);
   font-family: Consolas, "Liberation Mono", monospace;
   font-variant-numeric: tabular-nums;
   user-select: none;
@@ -788,21 +807,20 @@ main {
 .line-sidebar[hidden] {
   display: none;
 }
+.line-sidebar[data-both-columns] {
+  grid-template-columns: repeat(2, max-content);
+  column-gap: 0.5ch;
+}
 .line-observation {
   height: 1lh;
-  display: flex;
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
   white-space: nowrap;
 }
 .line-sequence {
-  display: inline-block;
-  width: var(--line-sequence-width, 5ch);
   text-align: right;
-  padding-right: 0.5ch;
-  color: #65bada;
-}
-.line-time {
-  display: inline-block;
-  width: 10.5ch;
+  color: var(--muted);
 }
 .line-sidebar.unsupported {
   width: 2ch;
@@ -966,13 +984,6 @@ main {
   white-space: nowrap;
 }
 @media (max-width: 900px) {
-  .fold-margin {
-    flex-basis: 24px;
-  }
-  .fold-margin button {
-    left: 0;
-    width: 100%;
-  }
   .workspace {
     grid-template-columns: 40px var(--sidebar-width, 210px) minmax(0, 1fr) var(
         --auxiliary-width,

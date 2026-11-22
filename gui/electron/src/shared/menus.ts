@@ -94,6 +94,7 @@ export type Action =
         | "session.info"
         | "terminal.timestamps"
         | "terminal.sequence"
+        | "terminal.foldMarkers"
         | "terminal.clear"
         | "terminal.fold"
         | "terminal.focus"
@@ -170,6 +171,7 @@ function attachedAction(
     | "session.info"
     | "terminal.timestamps"
     | "terminal.sequence"
+    | "terminal.foldMarkers"
     | "terminal.clear"
     | "terminal.fold"
     | "terminal.focus"
@@ -468,11 +470,14 @@ export function terminalMenu(state: MenuState): MenuEntry[] {
     {
       id: "terminal.auxiliary",
       label: "terminal.auxiliary",
-      children: (["timestamps", "sequence"] as const).map((key) => ({
-        ...attachedAction(state, `terminal.${key}`),
-        checked:
-          !!state.attachment && (state.lineDisplay ?? defaultLineDisplay)[key],
-      })),
+      children: (["timestamps", "sequence", "foldMarkers"] as const).map(
+        (key) => ({
+          ...attachedAction(state, `terminal.${key}`),
+          checked:
+            !!state.attachment &&
+            (state.lineDisplay ?? defaultLineDisplay)[key],
+        }),
+      ),
     },
     {
       ...attachedAction(state, "terminal.find"),
@@ -645,6 +650,7 @@ export function isAction(value: unknown): value is Action {
     case "terminal.paste":
     case "terminal.timestamps":
     case "terminal.sequence":
+    case "terminal.foldMarkers":
     case "terminal.clear":
     case "terminal.focus":
     case "terminal.resume":
@@ -797,6 +803,7 @@ export function actionEnabled(action: Action, state: MenuState): boolean {
     case "terminal.paste":
     case "terminal.timestamps":
     case "terminal.sequence":
+    case "terminal.foldMarkers":
     case "terminal.clear":
     case "terminal.focus":
     case "terminal.resume":

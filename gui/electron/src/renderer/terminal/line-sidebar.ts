@@ -67,12 +67,6 @@ export class LineSidebar {
           this.terminal.buffer.active.viewportY,
           this.terminal.rows,
         );
-    // Grow only with displayed ordinals; long-lived views must not overlap the time column.
-    const digits = Math.max(
-      4,
-      ...rows.map((row) => String(row.sequence ?? "").length),
-    );
-    this.element.style.setProperty("--line-sequence-width", `${digits + 1}ch`);
     const fragment = document.createDocumentFragment();
     for (const row of rows) {
       const entry = document.createElement("div");

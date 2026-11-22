@@ -219,7 +219,10 @@ test("line column choices restore per tab without persisting metadata or changin
     ...snapshot,
     tabs: snapshot.tabs.map((tab, index) => ({
       ...tab,
-      lineDisplay: { timestamps: index === 0, sequence: index === 1 },
+      lineDisplay:
+        index === 0
+          ? { timestamps: true, sequence: false }
+          : { timestamps: false, sequence: true, foldMarkers: false },
       metadata: [{ time: 123, text: "private" }],
     })),
   };
@@ -227,8 +230,8 @@ test("line column choices restore per tab without persisting metadata or changin
   assert.deepEqual(
     restored.tabs.map((tab) => tab.lineDisplay),
     [
-      { timestamps: true, sequence: false },
-      { timestamps: false, sequence: true },
+      { timestamps: true, sequence: false, foldMarkers: true },
+      { timestamps: false, sequence: true, foldMarkers: false },
     ],
   );
   assert.ok(!JSON.stringify(restored).includes("private"));
@@ -237,6 +240,7 @@ test("line column choices restore per tab without persisting metadata or changin
     { timestamps: true },
     { timestamps: true, sequence: "yes" },
     { timestamps: true, sequence: false, extra: 1 },
+    { timestamps: true, sequence: false, foldMarkers: 1 },
   ]) {
     const input = {
       ...saved,
@@ -248,6 +252,7 @@ test("line column choices restore per tab without persisting metadata or changin
     assert.deepEqual(parsed.tabs[1]!.lineDisplay, {
       timestamps: false,
       sequence: true,
+      foldMarkers: false,
     });
   }
   assert.equal(

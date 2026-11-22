@@ -74,6 +74,28 @@ export async function checkLineSidebar(environment) {
     });
   const find = async (text) =>
     (await snapshot()).find((row) => row.text?.includes(text));
+  // Ask the real xterm for its bottom-right cell; a wider wrapper alone is insufficient.
+  const columns = async (attachment) => {
+    // The metadata draw and the ResizeObserver refit run on separate frames.
+    await page.evaluate(
+      () =>
+        new Promise((done) =>
+          requestAnimationFrame(() => requestAnimationFrame(() => done())),
+        ),
+    );
+    await fixture.command("output", "\x1b7\x1b[999;999H\x1b[6n\x1b8");
+    let received = "";
+    const report = /\x1b\[\d+;(\d+)R/;
+    await expect
+      .poll(async () => {
+        received += Buffer.from(
+          (await observer.read(attachment.id)).data,
+        ).toString();
+        return received;
+      })
+      .toMatch(report);
+    return Number(received.match(report)[1]);
+  };
   try {
     await observer.connect();
     const session = (await observer.list())[0];
@@ -85,9 +107,58 @@ export async function checkLineSidebar(environment) {
     await expect(gutter()).toBeVisible();
     await expect(gutter().locator(".line-time").first()).toBeVisible();
     await expect(gutter().locator(".line-sequence").first()).toBeVisible();
+    await fixture.command("output", "\r\nlive-width\r\n");
+    await expect
+      .poll(async () => (await find("live-width"))?.time)
+      .toBeTruthy();
+    const bothColumns = await columns(attached);
+    await native("terminal.sequence");
+    await expect(gutter().locator(".line-sequence")).toHaveCount(0);
+    const timeOnly = await columns(attached);
+    await native("terminal.sequence");
+    await expect(gutter().locator(".line-sequence").first()).toBeVisible();
     await native("terminal.timestamps");
+    await expect(gutter().locator(".line-time")).toHaveCount(0);
+    const sequenceOnly = await columns(attached);
+    const fitsLabels = await gutter().evaluate((element) => {
+      const numbers = [...element.querySelectorAll(".line-sequence")];
+      const widths = numbers.map((number) => {
+        const range = document.createRange();
+        range.selectNodeContents(number);
+        return range.getBoundingClientRect().width;
+      });
+      return (
+        Math.abs(element.getBoundingClientRect().width - Math.max(...widths)) <
+        1
+      );
+    });
+    assert.ok(
+      fitsLabels,
+      "only the widest visible sequence number occupies space",
+    );
     await native("terminal.sequence");
     await expect(gutter()).toBeHidden();
+    const fullWidth = await columns(attached);
+    assert.ok(
+      bothColumns < timeOnly &&
+        timeOnly < sequenceOnly &&
+        sequenceOnly < fullWidth,
+      `xterm columns: ${bothColumns}, ${timeOnly}, ${sequenceOnly}, ${fullWidth}`,
+    );
+    const leftGap = () =>
+      pane().evaluate((node) => {
+        const view = node.querySelector(".terminal-view");
+        return (
+          view.getBoundingClientRect().left -
+          node.querySelector(".terminal-surface").getBoundingClientRect().left -
+          parseFloat(getComputedStyle(view).marginLeft)
+        );
+      });
+    assert.equal(
+      await leftGap(),
+      0,
+      `unused space after hiding columns (xterm ${bothColumns} → ${sequenceOnly} → ${fullWidth} cols)`,
+    );
     await observer.read(attached.id);
     const before = Date.now();
     const raw = "\r\nroot@board:~# echo sample\r\nfirst-live-设备😀\r\n";
@@ -98,10 +169,54 @@ export async function checkLineSidebar(environment) {
       raw,
     );
     const after = Date.now();
+    await fixture.command("output", "root@board:~# ");
+    const foldButton = pane().getByRole("button", {
+      name: /command output.*echo sample/i,
+    });
+    await expect(foldButton).toHaveAttribute("aria-expanded", "true");
+    const foldBox = await foldButton.boundingBox();
+    await page.mouse.move(foldBox.x + 4, foldBox.y + foldBox.height / 2);
+    await expect(foldButton).toHaveCSS("opacity", "1");
+    await foldButton.click();
+    await expect(foldButton).toHaveAttribute("aria-expanded", "false");
+    await page.mouse.move(foldBox.x + foldBox.width + 8, foldBox.y);
+    await expect(foldButton).toHaveCSS("opacity", "0");
+    // Tab from the pane's toolbar. xterm itself sends Tab to the shell.
+    await pane().getByRole("button", { name: "Insert stty command" }).focus();
+    const foldCount = await pane().locator(".fold-margin button").count();
+    for (let i = 0; i < foldCount; i++) {
+      await page.keyboard.press("Tab");
+      if (await foldButton.evaluate((node) => node === document.activeElement))
+        break;
+    }
+    await expect(foldButton).toBeFocused();
+    await expect(foldButton).toHaveCSS("opacity", "1");
+    await page.keyboard.press("Enter");
+    await expect(foldButton).toHaveAttribute("aria-expanded", "true");
+    await foldButton.focus();
+    await page.keyboard.press("Enter");
+    await expect(foldButton).toHaveAttribute("aria-expanded", "false");
+    await native("terminal.foldMarkers");
+    await expect(pane().locator(".fold-margin")).toBeHidden();
+    await expect(pane().locator(".terminal-surface")).not.toHaveAttribute(
+      "data-folded",
+      "",
+    );
+    assert.equal(await columns(attached), fullWidth);
     await native("terminal.timestamps");
     await expect(gutter()).toBeVisible();
     await expect(gutter().locator(".line-sequence")).toHaveCount(0);
     await native("terminal.sequence");
+    const noMarkers = await columns(attached);
+    assert.ok(
+      noMarkers > bothColumns,
+      "hiding just the fold margin releases its cells",
+    );
+    await native("terminal.foldMarkers");
+    await expect(foldButton).toHaveAttribute("aria-expanded", "true");
+    console.log(
+      `Terminal columns: both on ${bothColumns}, time only ${timeOnly}, sequence only ${sequenceOnly}, both off ${fullWidth}; both on without fold markers ${noMarkers}.`,
+    );
     await expect
       .poll(async () => !!(await find("first-live"))?.time)
       .toBe(true);

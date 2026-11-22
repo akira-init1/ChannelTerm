@@ -77,7 +77,7 @@ for authentication, verification and cancellation.
 | Session row context menu > Attach Session; row click | `session.attach` | Attach the clicked open Session by opaque ID. Unavailable for the current attachment, closed/missing rows, offline state, or a pending operation. |
 | Terminal > Focus terminal; terminal context menu | `terminal.focus` | Focus the captured xterm view; requires a current idle attachment. |
 | Terminal > Find in terminal; terminal context menu | `terminal.find` | Search the captured attachment's retained local text, including read-only/closed views. No Host history query or device write. |
-| Terminal > Auxiliary display > Show system timestamps / Show sequence numbers | `terminal.timestamps` / `terminal.sequence` | Independent per-view checkboxes, initially on, with no shortcuts. Bound to the captured attachment; available for retained read-only/closed output. |
+| Terminal > Auxiliary display > Show system timestamps / Show sequence numbers / Show fold markers | `terminal.timestamps` / `terminal.sequence` / `terminal.foldMarkers` | Independent per-view checkboxes, initially on, with no shortcuts. Bound to the captured attachment; available for retained read-only/closed output. |
 | Terminal > Clear local display; terminal context menu | `terminal.clear` | Use xterm's local clear operation; requires a current idle attachment, including a read-only/closed view. |
 | Terminal > Expand all command outputs; terminal context menu | `terminal.fold` | Open all collapsed command blocks in this text view. Individual commands have a fold button in the left margin. |
 | Terminal > Resume input; error notice | `terminal.resume` | Visible in menus only while input is paused; enabled only for an open, unleased, idle attachment. Does not replay queued input. |
@@ -357,9 +357,8 @@ remain scoped to terminal focus.
 
 ## Terminal display
 
-Click the boxed minus beside a recognized shell command to collapse its output. A guide
-in the margin marks the extent of the expanded command. When collapsed, the control
-becomes a filled plus and the command and subsequent prompt stay visible. Click the plus
+Click the small minus beside a recognized shell command to collapse its output. Hover or
+focus the marker to show its guide. A plus marks a collapsed command. Click the plus
 to reopen that command, or choose **Terminal > Expand all
 command outputs**. Opening Find reveals all retained text, including folded matches.
 
@@ -674,6 +673,13 @@ show the local time `[HH:MM:SS]` first, followed by the line number, fold contro
 Split and moved views use the same defaults. Switching tabs preserves each choice. Workspace
 restore reapplies saved choices and rebuilds the display from retained output.
 The controls require an attached view and operate independently of global font and style settings.
+Each column fits the widest label currently visible in it. Turning either off gives its width
+back to the terminal. **Show fold markers** controls the folding margin separately. Turning
+it off expands existing folds and removes their buttons. With both metadata columns off
+and markers enabled, the buttons use the terminal's existing left inset. Beside a foldable
+command, hover over the left edge of the text pane or Tab to the fold button to reveal it.
+On a Linux serial shell, [reapply the terminal size](../getting-started/serial-terminal.md#long-prompts-overwrite-the-start-of-the-line)
+if the shell still wraps at the previous column.
 
 The timestamp is the local time this view first observed an output batch, not the device's event
 time. Hover shows the full UTC timestamp. Historical output without time evidence shows **—** with

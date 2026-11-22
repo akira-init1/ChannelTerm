@@ -299,7 +299,10 @@ export function TerminalView({
       terminal,
       gutter.current!,
       () => lineState.current,
-      () => fold.current?.draw(),
+      () =>
+        lineState.current.display.foldMarkers
+          ? fold.current?.draw()
+          : undefined,
     );
     sidebar.current = lines;
     if (settings.view === "text")
@@ -551,6 +554,10 @@ export function TerminalView({
   }, [attachment.id]);
 
   useEffect(() => {
+    if (!lineDisplay.foldMarkers) fold.current?.clear();
+  }, [lineDisplay.foldMarkers]);
+
+  useEffect(() => {
     sidebar.current?.schedule();
   }, [lineDisplay, visible, t, display.fontSize, display.fontFamily]);
 
@@ -666,12 +673,15 @@ export function TerminalView({
         <div
           ref={gutter}
           className="line-sidebar"
+          data-both-columns={
+            (lineDisplay.timestamps && lineDisplay.sequence) || undefined
+          }
           hidden={!(lineDisplay?.timestamps || lineDisplay?.sequence)}
         />
         <div
           className="fold-margin"
           ref={foldMargin}
-          hidden={settings.view !== "text"}
+          hidden={settings.view !== "text" || !lineDisplay.foldMarkers}
         />
         <div
           ref={container}
