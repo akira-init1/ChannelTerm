@@ -55,6 +55,8 @@ export async function checkTerminalStyles(
     )
     .toBe("rgb(255, 95, 95)");
   await page.screenshot({ path: "test-results/terminal-semantic-style.png" });
+  await output("root@ATK-ZYNQ:~# \x1b[Kcd /\r\n");
+  await expect(rows).toContainText("root@ATK-ZYNQ:~# cd /");
   await setStyle("monochrome");
   await expect(rows).toContainText("ERROR ready uart0 42");
   await output(

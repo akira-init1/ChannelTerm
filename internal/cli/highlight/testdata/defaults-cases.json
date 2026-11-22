@@ -249,6 +249,11 @@
       ]
     },
     {
+      "pattern": "bracketedHostPromptPattern",
+      "input": "[alice@ATK-ZYNQ]:/tmp$ cd /",
+      "captures": ["alice", "ATK-ZYNQ", "/tmp", "$"]
+    },
+    {
       "pattern": "minimalShellPromptPattern",
       "input": "bash-5.2# ls",
       "captures": []

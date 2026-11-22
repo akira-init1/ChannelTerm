@@ -3,6 +3,7 @@ import { defaultHighlights } from "../../shared/default-highlights";
 
 const prompts = [
   defaultHighlights.prompts.promptPattern,
+  defaultHighlights.prompts.bracketedHostPromptPattern,
   defaultHighlights.prompts.minimalShellPromptPattern,
   defaultHighlights.prompts.bootloaderPromptPattern,
   "^(?:[$#%](?:\\s|$)|PS [^>]+>|[A-Za-z]:\\\\[^>]*>)",

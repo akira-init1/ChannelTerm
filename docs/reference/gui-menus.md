@@ -391,6 +391,9 @@ remote ANSI/full-screen output retains its own control semantics. Plain suppress
 semantic colors and remote foreground/background colors, including retained output, while keeping
 selection, cursor visibility and terminal controls. It does not change raw output or HEX bytes.
 Switching back restores the retained terminal attributes; it does not recover lost history.
+In Default style, `user@host:path$ ` and `[user@host]:path$ ` color the user, host, path and
+final `$` or `#`. Punctuation and echoed commands retain their original colors. The
+`[user@host path]# ` form displays immediately in its original colors.
 The GUI displays receipt times in the [line metadata columns](#system-timestamps-and-sequence-columns).
 Existing display preferences retain font and style choices. The retired inline prompt timestamp
 setting is ignored when loading older profiles.

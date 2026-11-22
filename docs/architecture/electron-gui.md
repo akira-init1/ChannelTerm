@@ -219,8 +219,10 @@ No queued draft is replayed after a state change. Preview text is local React st
 
 The terminal view's semantic highlighter consumes the shared default definitions and modifies only
 the bytes sent to its xterm instance. It retains at most 8 KiB of an incomplete line. After 50 ms
-it releases incomplete text raw, except that a possible `user@host:path` prefix of up to 256 bytes
-gets one additional 200 ms for the remaining fragments. A recognized prompt displays immediately.
+it releases incomplete text raw, except that a possible `user@host:path` or `[user@host]:path`
+prefix of up to 256 bytes gets one additional 200 ms for the remaining fragments. A recognized
+prompt displays immediately. If an escape sequence follows in the same read, the view emits
+the prompt first and forwards the control bytes in order to xterm.
 Each new tail starts its own deadline. Event-loop delays can postpone timer callbacks.
 Per-line matching is capped at 2048 candidates and 512 rendered spans; excessive/unsafe lines pass
 through raw. Split UTF-8, remote ANSI state, alternate screens and data-loss resets retain explicit

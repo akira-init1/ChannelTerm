@@ -12,6 +12,10 @@ const rules = defaultHighlights.rules.map((rule) => ({
   pattern: new RegExp(rule.pattern, `${rule.flags}gd`),
 }));
 const prompt = new RegExp(defaultHighlights.prompts.promptPattern, "d");
+const bracketedHost = new RegExp(
+  defaultHighlights.prompts.bracketedHostPromptPattern,
+  "d",
+);
 const minimal = new RegExp(defaultHighlights.prompts.minimalShellPromptPattern);
 const bootloader = new RegExp(
   defaultHighlights.prompts.bootloaderPromptPattern,
@@ -22,6 +26,8 @@ const maxPending = 8192;
 // A plain shell prompt can be split anywhere in user@host:path, even in the username.
 const partialShellPrompt =
   /^[A-Za-z0-9_.-]+(?:@[A-Za-z0-9_.-]*(?::[^\s\x00-\x1f\x7f]*)?)?$/;
+const partialBracketedHost =
+  /^\[(?:[A-Za-z0-9_.-]+(?:@[A-Za-z0-9_.-]*(?:\](?::[^\s\x00-\x1f\x7f]*)?)?)?)?$/;
 
 function style(kind: string): string {
   if (/^#[0-9a-f]{6}$/.test(kind)) {
@@ -70,7 +76,7 @@ function renderSpans(text: string, spans: Span[]): string {
 function promptText(text: string): string | undefined {
   if (minimal.test(text) || bootloader.test(text) || plainPrompt.test(text))
     return text;
-  const match = prompt.exec(text);
+  const match = prompt.exec(text) ?? bracketedHost.exec(text);
   if (!match?.indices) return;
   const kinds = ["promptUser", "promptHost", "promptPath", "promptUser"];
   return renderSpans(
@@ -152,12 +158,17 @@ export class SemanticHighlighter {
     const flush = () => notify(this.release());
     this.timer = setTimeout(() => {
       // Check once per pending tail. More fragments cannot keep extending its deadline.
-      if (
-        this.pending.length <= 256 &&
-        partialShellPrompt.test(String.fromCharCode(...this.pending))
-      ) {
-        this.timer = setTimeout(flush, 200);
-      } else flush();
+      if (this.pending.length <= 256) {
+        const prefix = String.fromCharCode(...this.pending);
+        if (
+          partialShellPrompt.test(prefix) ||
+          partialBracketedHost.test(prefix)
+        ) {
+          this.timer = setTimeout(flush, 200);
+          return;
+        }
+      }
+      flush();
     }, 50);
   }
 
@@ -198,6 +209,23 @@ export class SemanticHighlighter {
       if (raw.length) output.push(new Uint8Array(raw));
       raw = [];
     };
+    // A complete prompt can end at a read boundary or just before a remote
+    // control. Emit it before the control takes ownership of subsequent bytes.
+    const flushPrompt = () => {
+      if (!this.hasPending || this.rawLine || this.pending.includes(13)) return;
+      let text: string;
+      try {
+        text = decoder.decode(new Uint8Array(this.pending));
+      } catch {
+        return; // A split UTF-8 character may still be pending.
+      }
+      const rendered = promptText(text);
+      if (rendered === undefined) return;
+      flushRaw();
+      output.push(encoder.encode(rendered));
+      this.pending = [];
+      this.rawLine = true;
+    };
     if (!enabled) {
       output.push(this.release(), bytes);
       for (const byte of bytes) this.vt.feed(byte);
@@ -206,6 +234,7 @@ export class SemanticHighlighter {
     } else
       for (const byte of bytes) {
         if ((byte === 27 || byte === 194) && !this.passthrough) {
+          flushPrompt();
           raw.push(...this.pending);
           this.pending = [];
           this.rawLine = false;
@@ -236,22 +265,8 @@ export class SemanticHighlighter {
           this.rawLine = true;
         }
       }
+    flushPrompt();
     flushRaw();
-    // Recognize prompts once per received chunk, never repeatedly rescan a long
-    // line per byte. Incomplete UTF-8 stays bounded until the next chunk/timer.
-    if (this.pending.length && !this.rawLine && this.pending.at(-1) !== 13) {
-      try {
-        const text = decoder.decode(new Uint8Array(this.pending));
-        const rendered = promptText(text);
-        if (rendered !== undefined) {
-          output.push(encoder.encode(rendered));
-          this.pending = [];
-          this.rawLine = true;
-        }
-      } catch {
-        /* A split UTF-8 character is still pending. */
-      }
-    }
     const result = new Uint8Array(
       output.reduce((size, chunk) => size + chunk.length, 0),
     );

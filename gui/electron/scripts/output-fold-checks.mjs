@@ -9,14 +9,14 @@ export async function checkCommandFolding(page, fixture, observer, attachment) {
   const query = page.getByRole("searchbox", { name: "Find retained text" });
   await read();
   const transcript =
-    "\x1bc$ first\r\nNeedle needle NEEDLE\r\n$ second\r\n中文针 中文针\r\n$ ";
+    "\x1bc$ first\r\nNeedle needle NEEDLE\r\n[alice@board]:~$ second\r\n中文针 中文针\r\n$ ";
   await fixture.command("output", transcript);
   assert.equal(await read(), transcript);
   const firstCommand = page.getByRole("button", {
     name: /command output · \$ first/i,
   });
   const secondCommand = page.getByRole("button", {
-    name: /command output · \$ second/i,
+    name: /command output · \[alice@board\]:~\$ second/i,
   });
   const history = page.locator(".fold-history");
   const metadata = page.locator(".line-sidebar .line-observation");
@@ -43,12 +43,15 @@ export async function checkCommandFolding(page, fixture, observer, attachment) {
   );
   await expect(secondCommand).toHaveAttribute("aria-expanded", "true");
   await secondCommand.click();
-  await expect(history).toHaveJSProperty("textContent", "$ first\n$ second");
+  await expect(history).toHaveJSProperty(
+    "textContent",
+    "$ first\n[alice@board]:~$ second",
+  );
   await expect(metadata.nth(1)).toHaveJSProperty("textContent", secondHeader);
   await firstCommand.click();
   await expect(history).toHaveJSProperty(
     "textContent",
-    "$ first\nNeedle needle NEEDLE\n$ second",
+    "$ first\nNeedle needle NEEDLE\n[alice@board]:~$ second",
   );
   await expect(secondCommand).toHaveAttribute("aria-expanded", "false");
   await fixture.command("output", "live-after-fold\r\n");

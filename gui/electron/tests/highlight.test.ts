@@ -1,11 +1,84 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import xterm from "@xterm/xterm";
 import { SemanticHighlighter } from "../src/renderer/terminal/highlight";
 
 const bytes = (text: string) => new TextEncoder().encode(text);
 const plain = (data: Uint8Array) =>
   new TextDecoder().decode(data).replace(/\x1b\[[\d;]+m/g, "");
 const error = "\x1b[38;2;255;95;95mERROR\x1b[0m";
+
+test("serial prompt colors, echo and erase-to-end agree at every read boundary", async (t) => {
+  const prompt = "root@ATK-ZYNQ:~# ";
+  const input = bytes(prompt + "\x1b[Kcd /");
+  for (let split = 0; split <= input.length; split++) {
+    await t.test("split " + split, async () => {
+      const renderer = new SemanticHighlighter();
+      const terminal = new xterm.Terminal();
+      try {
+        const write = (data: string | Uint8Array) =>
+          new Promise<void>((done) => terminal.write(data, done));
+        // Old cells beyond the echo make a missing or reordered EL observable.
+        await write("x".repeat(40) + "\r");
+        await write(renderer.write(input.subarray(0, split)));
+        await write(renderer.write(input.subarray(split)));
+        assert.equal(renderer.hasPending, false);
+        const line = terminal.buffer.active.getLine(0)!;
+        assert.equal(line.translateToString(true), prompt + "cd /");
+        let column = 0;
+        for (const [text, color] of [
+          ["root", 1],
+          ["@", undefined],
+          ["ATK-ZYNQ", 6],
+          [":", undefined],
+          ["~", 12],
+          ["#", 1],
+          [" cd /", undefined],
+        ] as const) {
+          for (const character of text) {
+            const cell = line.getCell(column++)!;
+            assert.equal(cell.getChars(), character);
+            if (color === undefined) assert.ok(cell.isFgDefault(), character);
+            else {
+              assert.ok(cell.isFgPalette(), character);
+              assert.equal(cell.getFgColor(), color, character);
+            }
+          }
+        }
+      } finally {
+        terminal.dispose();
+      }
+    });
+  }
+});
+
+test("bracketed user and host receive semantic colors while the command echo stays plain", () => {
+  for (const [user, path, marker] of [
+    ["root", "~", "#"],
+    ["alice", "/tmp", "$"],
+  ] as const) {
+    const prompt = `[${user}@ATK-ZYNQ]:${path}${marker} `;
+    const expected = `[\x1b[31m${user}\x1b[0m@\x1b[36mATK-ZYNQ\x1b[0m]:\x1b[94m${path}\x1b[0m\x1b[31m${marker}\x1b[0m `;
+    for (const echo of ["", "echo ERROR 42", "echo ERROR 42\r\n"]) {
+      const input = bytes(prompt + echo);
+      for (let split = 0; split <= input.length; split++) {
+        const renderer = new SemanticHighlighter();
+        assert.equal(
+          Buffer.concat([
+            renderer.write(input.subarray(0, split)),
+            renderer.write(input.subarray(split)),
+          ]).toString(),
+          expected + echo,
+          "split " + split,
+        );
+      }
+    }
+  }
+  const minimal = bytes("[root@ATK-ZYNQ ~]# ");
+  const renderer = new SemanticHighlighter();
+  assert.deepEqual(renderer.write(minimal), minimal);
+  assert.deepEqual(renderer.write(bytes("ERROR")), bytes("ERROR"));
+});
 
 test("connection literal rules override default overlaps, preserve Unicode across chunks and never interpret patterns", () => {
   const rules = [
@@ -95,6 +168,9 @@ test("semantic colors retain text, priority fragments, Unicode and prompts acros
 test("remote controls and persistent colors remain raw until a safe boundary", () => {
   for (const remote of [
     "\x1b[31mERROR\nERROR\x1b[0m\n",
+    "\x1b[31m[root@ATK-ZYNQ]:~# \x1b[Kcd /\x1b[0m\r\n",
+    "\x1b[?1049hroot@ATK-ZYNQ:~# \x1b[Kcd /\x1b[?1049l\r\n",
+    "\x1b[10Groot@ATK-ZYNQ:~# \x1b[Kcd /\r\n",
     "\x1b[38;5;196mERROR\n\x1b[39m\n",
     "\x1b[38:2::10:20:30mERROR\n\x1b[0m\n",
     "\x1b[48;2;1;2;3mERROR\n\x1b[49m\n",
@@ -165,23 +241,24 @@ test("latency release, style changes and loss discard stale styling state withou
 
 test("a delayed serial prompt keeps its colors across every split and releases complete text immediately", (t) => {
   t.mock.timers.enable({ apis: ["setTimeout"] });
-  const prompt = "root@ATK-ZYNQ:~# ";
   const command = "cd /\r\n";
-  const expected = new SemanticHighlighter().write(bytes(prompt + command));
-  assert.ok(expected.includes(27));
-  for (let split = 1; split < prompt.length; split++) {
-    const output: Uint8Array[] = [];
-    const renderer = new SemanticHighlighter((tail) => output.push(tail));
-    output.push(renderer.write(bytes(prompt.slice(0, split))));
-    t.mock.timers.tick(50);
-    t.mock.timers.tick(100);
-    output.push(renderer.write(bytes(prompt.slice(split) + command)));
-    assert.deepEqual(
-      Buffer.concat(output),
-      Buffer.from(expected),
-      `split ${split}`,
-    );
-    assert.equal(renderer.hasPending, false);
+  for (const prompt of ["root@ATK-ZYNQ:~# ", "[root@ATK-ZYNQ]:~# "]) {
+    const expected = new SemanticHighlighter().write(bytes(prompt + command));
+    assert.ok(expected.includes(27));
+    for (let split = 1; split < prompt.length; split++) {
+      const output: Uint8Array[] = [];
+      const renderer = new SemanticHighlighter((tail) => output.push(tail));
+      output.push(renderer.write(bytes(prompt.slice(0, split))));
+      t.mock.timers.tick(50);
+      t.mock.timers.tick(100);
+      output.push(renderer.write(bytes(prompt.slice(split) + command)));
+      assert.deepEqual(
+        Buffer.concat(output),
+        Buffer.from(expected),
+        `split ${split}`,
+      );
+      assert.equal(renderer.hasPending, false);
+    }
   }
 });
 
