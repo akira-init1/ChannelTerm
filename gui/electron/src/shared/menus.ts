@@ -80,7 +80,12 @@ export type Action =
         | "app.quit";
     }
   | {
-      id: "session.attach" | "file.send" | "file.receive" | "file.resume";
+      id:
+        | "connection.settings"
+        | "session.attach"
+        | "file.send"
+        | "file.receive"
+        | "file.resume";
       sessionId: string;
     }
   | {
@@ -108,7 +113,10 @@ export type Action =
       attachment: Attachment;
     }
   | { id: "language.change"; locale: LanguagePreference }
-  | { id: "tab.select" | "tab.closeEmpty"; tabId: string };
+  | {
+      id: "tab.select" | "tab.closeEmpty" | "tab.rename" | "tab.resetName";
+      tabId: string;
+    };
 
 /** Display hints only. No menu snapshot grants device or lease authority. */
 export interface MenuState {
@@ -417,7 +425,7 @@ function windowEntry(
 
 /** Tab context actions capture that tab's current attachment, including background tabs. */
 export function tabMenu(state: MenuState): MenuEntry[] {
-  return state.attachment
+  const items = state.attachment
     ? [
         ...sessionMenu(
           state,
@@ -431,6 +439,15 @@ export function tabMenu(state: MenuState): MenuEntry[] {
         attachedAction(state, "tab.splitDown"),
       ]
     : [attachedAction(state, "tab.close")];
+  if (state.tabId)
+    for (const id of ["tab.rename", "tab.resetName"] as const)
+      items.push({
+        id,
+        label: id,
+        action: { id, tabId: state.tabId },
+        enabled: !state.busy,
+      });
+  return items;
 }
 
 export function terminalMenu(state: MenuState): MenuEntry[] {
@@ -572,6 +589,12 @@ export function sessionMenu(
     ...(state.attachment?.sessionId === sessionId
       ? [attachedAction(state, "session.close")]
       : []),
+    {
+      id: "connection.settings",
+      label: "connection.settings",
+      enabled: open,
+      action: { id: "connection.settings", sessionId },
+    },
   ];
 }
 
@@ -642,6 +665,7 @@ export function isAction(value: unknown): value is Action {
     case "file.send":
     case "file.receive":
     case "file.resume":
+    case "connection.settings":
     case "session.attach":
       return exact(value, ["id", "sessionId"]) && identifier(value.sessionId);
     case "tab.close":
@@ -667,6 +691,8 @@ export function isAction(value: unknown): value is Action {
       return (
         exact(value, ["id", "attachment"]) && isAttachment(value.attachment)
       );
+    case "tab.rename":
+    case "tab.resetName":
     case "tab.select":
     case "tab.closeEmpty":
       return exact(value, ["id", "tabId"]) && identifier(value.tabId);
@@ -766,6 +792,8 @@ export function actionEnabled(action: Action, state: MenuState): boolean {
     case "tab.next":
     case "tab.previous":
       return !state.busy && (state.tabCount ?? 0) > 1;
+    case "tab.rename":
+    case "tab.resetName":
     case "tab.select":
       return !state.busy;
     case "tab.closeEmpty":
@@ -796,6 +824,7 @@ export function actionEnabled(action: Action, state: MenuState): boolean {
     case "file.send":
     case "file.receive":
     case "file.resume":
+    case "connection.settings":
     case "session.attach":
       return state.connected && !state.busy;
     case "tab.close":

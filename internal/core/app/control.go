@@ -34,6 +34,8 @@ type ControlProof struct {
 
 // ControlStatus is a bounded current observation; reading it never renews control.
 type ControlStatus struct {
+	ManualOnly  bool                   `json:"manual_only,omitempty"`
+	Waiting     bool                   `json:"waiting,omitempty"`
 	Writable    bool                   `json:"writable"`
 	SessionID   string                 `json:"session_id"`
 	Version     string                 `json:"version"`
@@ -75,6 +77,7 @@ func ExternalControl(ctx context.Context) context.Context {
 }
 
 type sessionControl struct {
+	wait        *interruptedTask
 	view        ControlStatus
 	humanOwner  session.ClientIdentity
 	reference   string
@@ -185,6 +188,10 @@ func (a *Application) SessionControl(ctx context.Context, id string) (ControlSta
 		return ControlStatus{}, err
 	}
 	view := r.view
+	a.access.mu.Lock()
+	view.ManualOnly = a.access.blocked[a.connectionFor(t.ID())]
+	a.access.mu.Unlock()
+	view.Waiting = r.wait != nil && r.wait.pending && time.Now().Before(r.wait.deadline)
 	client := ClientIdentityFromContext(ctx)
 	view.Writable = a.validateControlIdentity(ctx, t.ID()) == nil && CheckClientAccess(ctx, ClientWrite) == nil && client.Kind == "user" && (view.State == "idle" || view.State == "human" && sameController(client, view.Client))
 	return view, nil
@@ -224,6 +231,9 @@ func (a *Application) CheckControlGeneration(ctx context.Context, id string) err
 	if err != nil {
 		return err
 	}
+	if r.view.AIPaused && ClientIdentityFromContext(ctx).Kind != "user" {
+		return ErrAgentPaused
+	}
 	p, ok := ctx.Value(controlProofKey{}).(ControlProof)
 	if !ok || p.Version == "" {
 		return ErrControlRequired
@@ -237,6 +247,16 @@ func (a *Application) CheckControlGeneration(ctx context.Context, id string) err
 // CheckOperationControl resolves existing opaque debug/task IDs without exposing
 // private status. The original tool must still validate its owner capability.
 func (a *Application) CheckOperationControl(ctx context.Context, id string) error {
+	target := a.OperationSessionID(id)
+	if target != "" {
+		return a.CheckSessionControl(ctx, target)
+	}
+	return nil
+}
+
+// OperationSessionID resolves the Session behind an opaque debug or bridge target
+// for policy checks. Tools remain responsible for their ownership proof.
+func (a *Application) OperationSessionID(id string) string {
 	var target string
 	a.debug.mu.Lock()
 	if r := a.debug.runs[id]; r != nil {
@@ -248,10 +268,7 @@ func (a *Application) CheckOperationControl(ctx context.Context, id string) erro
 		target = r.terminal.ID()
 	}
 	a.bridges.mu.Unlock()
-	if target != "" {
-		return a.CheckSessionControl(ctx, target)
-	}
-	return nil
+	return target
 }
 
 // checkControlLocked validates a normal write/lease admission while leases.mu is held.
@@ -264,6 +281,9 @@ func (a *Application) checkControlLocked(ctx context.Context, t session.Session,
 	lease, leased := a.leases.leases[t.ID()]
 	if recovery, _ := ctx.Value(controlRecoveryKey{}).(bool); recovery && leased && owner != "" && lease.Owner == owner {
 		return nil
+	}
+	if err := a.checkConnectionAccess(ctx, a.connectionFor(t.ID())); err != nil {
+		return err
 	}
 	if !controlExternal(ctx) {
 		// Composition/test callers remain trusted, but a managed worker's captured
@@ -504,6 +524,15 @@ func (a *Application) AllowAI(ctx context.Context, id string, p ControlProof) (C
 	if _, ok := a.leases.leases[t.ID()]; ok {
 		return ControlStatus{}, ErrControlBusy
 	}
+	a.access.mu.Lock()
+	blocked := a.access.blocked[a.connectionFor(t.ID())]
+	a.access.mu.Unlock()
+	if blocked {
+		return ControlStatus{}, ErrManualOnly
+	}
+	if r.wait != nil {
+		r.wait.finish("allowed")
+	}
 	r.view.AIPaused = false
 	finishControlLocked(r)
 	return r.view, nil
@@ -582,6 +611,20 @@ func (a *Application) TakeControl(ctx context.Context, id string, p ControlProof
 		a.leases.mu.Unlock()
 		return ControlResult{}, ErrControlBusy
 	}
+	if r.wait != nil {
+		r.wait.finish("superseded")
+	}
+	r.wait = nil
+	a.access.mu.Lock()
+	manualOnly := a.access.blocked[a.connectionFor(t.ID())]
+	a.access.mu.Unlock()
+	if !manualOnly && r.view.State == "active" && r.view.Client.Kind == "agent" {
+		opts, _ := ctx.Value(waitOptionsKey{}).(WaitOptions)
+		if opts.Seconds == 0 {
+			opts.Seconds = 180
+		}
+		r.wait = &interruptedTask{original: p, owner: r.view.Client, deadline: time.Now().Add(time.Duration(opts.Seconds) * time.Second), options: opts, done: make(chan struct{})}
+	}
 	result := a.stopControlLocked(r, ClientIdentityFromContext(ctx), "user_interrupted")
 	lease := a.leases.leases[t.ID()]
 	cancel := r.cancel
@@ -589,6 +632,7 @@ func (a *Application) TakeControl(ctx context.Context, id string, p ControlProof
 	if cancel != nil {
 		cancel(ErrControlInterrupted)
 	}
+	a.cancelSSHTransfers(a.connectionFor(t.ID()))
 	go a.recoverControl(r, lease, result)
 	return result, nil
 }
@@ -671,6 +715,9 @@ func (a *Application) recoverControl(r *sessionControl, lease SessionLease, resu
 	} else {
 		r.view.State = "failed"
 		result.Status = "failed"
+		if r.wait != nil {
+			r.wait.finish("recovery_failed")
+		}
 		result.Recovery = "session_closed"
 	}
 	r.view.OperationID = ""

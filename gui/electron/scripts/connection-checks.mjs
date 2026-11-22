@@ -309,7 +309,9 @@ export async function checkConnections(
     await dialog.locator('[name="user"]').fill("fixture-user");
     await dialog.locator('[name="knownHostsFile"]').fill(fixture.knownHosts);
     await dialog.locator('[name="password"]').fill("wrong-fixture-password");
-    await dialog.getByRole("button", { name: "Connect", exact: true }).click();
+    await dialog
+      .getByRole("button", { name: "New SSH terminal", exact: true })
+      .click();
     await expect(dialog.getByRole("alert")).toContainText(
       "authentication failed",
     );
@@ -320,7 +322,9 @@ export async function checkConnections(
     const originalTrust = await readFile(fixture.knownHosts, "utf8");
     await writeFile(fixture.knownHosts, "");
     await dialog.locator('[name="password"]').fill("fixture-password");
-    await dialog.getByRole("button", { name: "Connect", exact: true }).click();
+    await dialog
+      .getByRole("button", { name: "New SSH terminal", exact: true })
+      .click();
     const trustPrompt = page.getByRole("alertdialog", {
       name: "Trust this SSH server?",
       exact: true,
@@ -348,7 +352,7 @@ export async function checkConnections(
     await dialog.locator('[name="password"]').fill("fixture-password");
     await dialog.locator('[name="label"]').fill("Created SSH");
     await dialog
-      .getByRole("checkbox", { name: "Favorite SSH", exact: true })
+      .getByRole("checkbox", { name: "Save connection", exact: true })
       .check();
     await dialog.getByText("Advanced SSH settings", { exact: true }).click();
     await expect(dialog.locator('[name="timeoutSeconds"]')).toHaveValue("10");
@@ -363,13 +367,15 @@ export async function checkConnections(
       BrowserWindow.getAllWindows()[0].setSize(760, 500),
     );
     await dialog
-      .getByRole("button", { name: "Connect", exact: true })
+      .getByRole("button", { name: "New SSH terminal", exact: true })
       .scrollIntoViewIfNeeded();
     await expect(
-      dialog.getByRole("button", { name: "Connect", exact: true }),
+      dialog.getByRole("button", { name: "New SSH terminal", exact: true }),
     ).toBeInViewport();
     await page.screenshot({ path: "test-results/connection-ssh.png" });
-    await dialog.getByRole("button", { name: "Connect", exact: true }).click();
+    await dialog
+      .getByRole("button", { name: "New SSH terminal", exact: true })
+      .click();
     await expect(trustPrompt).toBeVisible();
     await trustPrompt
       .getByRole("button", { name: "Trust and connect", exact: true })

@@ -1,3 +1,4 @@
+import { chooseSession } from "./session-picker.mjs";
 import assert from "node:assert/strict";
 import { mkdtemp, writeFile, readFile } from "node:fs/promises";
 import { resolve, join } from "node:path";
@@ -41,7 +42,7 @@ export async function checkDebugSend(environment) {
     await page
       .getByRole("button", { name: "Connect to Host...", exact: true })
       .click();
-    await page.locator(".session").filter({ hasText: "Isolated echo" }).click();
+    await chooseSession(page, "Isolated echo");
     await expect(page.locator(".xterm-screen")).toBeVisible();
     await observer.read(watched.id);
     await desktop.evaluate(({ dialog }) => {
@@ -152,6 +153,9 @@ export async function checkDebugSend(environment) {
     assert.equal((await pending).ok, false);
     assert.equal((await observer.read(watched.id)).data.length, 0);
     for (const locale of locales) {
+      await page.bringToFront();
+      const window = await desktop.browserWindow(page);
+      await expect.poll(() => window.evaluate((w) => w.isFocused())).toBe(true);
       await desktop.evaluate(
         ({ Menu }, locale) =>
           Menu.getApplicationMenu()
@@ -160,6 +164,9 @@ export async function checkDebugSend(environment) {
         locale,
       );
       const i18n = setupI18n({ locale, messages: menuCatalogs });
+      await expect(page.locator('[data-menu="terminal"]')).toHaveText(
+        i18n._("menu.terminal"),
+      );
       await action(page, "terminal", "send.open");
       await expect(modal.locator("h2")).toHaveText(i18n._("send.open"));
       await expect(modal).toContainText(i18n._("send.plaintext"));

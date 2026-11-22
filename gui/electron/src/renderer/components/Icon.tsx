@@ -3,6 +3,8 @@ import {
   ChevronDown,
   FolderLock,
   Network,
+  LockKeyhole,
+  LockKeyholeOpen,
   PanelBottom,
   PanelLeft,
   PanelRight,
@@ -26,6 +28,9 @@ const glyphs = {
   "layout-right": PanelRight,
   "layout-bottom": PanelBottom,
   shell: Terminal,
+  lan: Network,
+  locked: LockKeyhole,
+  unlocked: LockKeyholeOpen,
   tcp: Network,
   sftp: FolderLock,
   telnet: SquareTerminal,
@@ -61,4 +66,37 @@ export function Icon({ name }: { name: IconName }) {
     );
   const Glyph = glyphs[name];
   return <Glyph className="icon" strokeWidth={1.6} aria-hidden="true" />;
+}
+
+export function TransportIcon({
+  transport,
+  t,
+}: {
+  transport: string;
+  t: (id: string) => string;
+}) {
+  const label =
+    transport === "serial"
+      ? t("debug.serial")
+      : transport === "ssh"
+        ? "SSH"
+        : transport;
+  return (
+    <span
+      className="directory-transport"
+      role="img"
+      aria-label={label}
+      title={label}
+    >
+      <Icon
+        name={
+          transport === "serial"
+            ? "serial"
+            : transport === "ssh"
+              ? "monitor"
+              : "shell"
+        }
+      />
+    </span>
+  );
 }

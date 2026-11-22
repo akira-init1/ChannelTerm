@@ -57,7 +57,13 @@ export async function checkDebugOverview(desktop, page, fixture) {
     .getByRole("button", { name: "Locate Session", exact: true })
     .click();
   await expect(
-    page.getByRole("navigation", { name: "Sessions", exact: true }),
+    page
+      .locator(".session-picker")
+      .getByRole("navigation", { name: "Sessions", exact: true }),
   ).toBeVisible();
+  await expect(
+    page.locator('.session-picker [data-session-id="electron-fixture"]'),
+  ).toBeFocused();
+  await page.keyboard.press("Escape");
   assert.equal(await page.locator(".terminal-pane").count(), before);
 }

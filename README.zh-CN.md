@@ -15,6 +15,8 @@ ChannelTerm 让你和 AI 客户端共享真实的串口或 SSH 终端：读取�
 
 所有 Session 现在默认采用经过身份验证的操作控制。新版 CLI/Electron 自动适配；旧写入客户端和无身份 stdio 需要迁移。人工接管先撤销旧操作的写入，再执行恢复，并持续暂停 AI，直到明确允许。无法确认恢复时可能关闭 Session；不重放被打断的输入。参见[迁移指南](docs/getting-started/http-authentication-migration.md#default-controlled-sessions)。
 
+在 Electron 中，「禁止 AI 访问」可持续保护已保存的连接，重连后仍然生效。临时接管后，原 Agent 默认最多等待三分钟，由用户明确交还。详见[终端列表与控制](docs/reference/gui-menus.md#terminal-directory-and-naming)。
+
 ## 为什么使用 ChannelTerm？
 
 保持终端连接，让 AI 使用同一条设备连接协助操作：

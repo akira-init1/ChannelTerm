@@ -1,6 +1,6 @@
 import { sessionStateMessage } from "../../shared/host-recovery";
 import type { SessionSummary } from "../../shared/api";
-import { useEffect, useState, type MouseEvent } from "react";
+import { useEffect, useRef, useState, type MouseEvent } from "react";
 import { Icon } from "../components/Icon";
 
 /**
@@ -38,11 +38,12 @@ export function SessionList({
 }) {
   // Filtering only changes visible rows; it never detaches a hidden selection.
   const [query, setQuery] = useState("");
+  const browser = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!locateTarget) return;
     setQuery("");
     const frame = requestAnimationFrame(() => {
-      const target = document.querySelector<HTMLElement>(
+      const target = browser.current?.querySelector<HTMLElement>(
         `[data-session-id="${CSS.escape(locateTarget.id)}"]`,
       );
       const group = target?.closest("details");
@@ -75,11 +76,14 @@ export function SessionList({
     groups.set(group, entries);
   }
   return (
-    <div className="session-browser">
+    <div className="session-browser" ref={browser}>
       <label className="session-search">
         <Icon name="search" />
         <input
           type="search"
+          onKeyDown={(event) => {
+            if (event.key === "Enter") event.preventDefault();
+          }}
           aria-label={t("workbench.search")}
           placeholder={t("workbench.search")}
           value={query}
@@ -113,6 +117,7 @@ export function SessionList({
                   onContextMenu={(event) => onContextMenu(event, session)}
                 >
                   <button
+                    type="button"
                     key={session.session_id}
                     data-session-id={session.session_id}
                     className={`session ${selected === session.session_id ? "selected" : ""}`}
@@ -155,6 +160,7 @@ export function SessionList({
                   {(debugIds?.has(session.session_id) ||
                     session.lease?.type === "debug") && (
                     <button
+                      type="button"
                       className="debug-badge"
                       onClick={onDebug}
                       aria-label={`${debugLabel} · ${session.session_ref}`}

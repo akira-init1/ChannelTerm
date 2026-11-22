@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/binary"
@@ -10,7 +11,9 @@ import (
 	"io"
 	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"sync"
 	"time"
 
@@ -58,7 +61,7 @@ func startSSHFixture() (port, trust string, cleanup func(), err error) {
 		return "", "", nil, err
 	}
 	config := &gossh.ServerConfig{PasswordCallback: func(meta gossh.ConnMetadata, password []byte) (*gossh.Permissions, error) {
-		if meta.User() != "fixture-user" || string(password) != "fixture-password" {
+		if (meta.User() != "fixture-user" && meta.User() != "fixture-cwd") || string(password) != "fixture-password" {
 			return nil, errors.New("fixture authentication rejected")
 		}
 		return nil, nil
@@ -127,7 +130,11 @@ func startSSHFixture() (port, trust string, cleanup func(), err error) {
 								}
 							}()
 							_, _ = stream.Write([]byte("SSH fixture ready\r\n"))
-							_, _ = io.Copy(stream, stream)
+							if server.User() == "fixture-cwd" {
+								serveWorkingDirectory(stream, directory)
+							} else {
+								_, _ = io.Copy(stream, stream)
+							}
 							_ = stream.Close()
 							break
 						}
@@ -148,6 +155,43 @@ func startSSHFixture() (port, trust string, cleanup func(), err error) {
 		_ = os.RemoveAll(directory)
 	}
 	return port, trust, cleanup, nil
+}
+
+// serveWorkingDirectory starts a real disposable shell and accepts only two
+// fixed test actions. No received text is interpreted as a shell command.
+func serveWorkingDirectory(stream io.ReadWriter, directory string) {
+	if err := os.MkdirAll(filepath.Join(directory, "child"), 0700); err != nil {
+		return
+	}
+	cmd := exec.Command("sh")
+	query := "printf 'CURRENT:%s\\n' \"$PWD\"\n"
+	if runtime.GOOS == "windows" {
+		cmd = exec.Command("cmd.exe", "/d", "/q")
+		query = "echo CURRENT:%CD%\r\n"
+	}
+	cmd.Dir, cmd.Stdout, cmd.Stderr = directory, stream, stream
+	input, err := cmd.StdinPipe()
+	if err != nil {
+		return
+	}
+	if err := cmd.Start(); err != nil {
+		_ = input.Close()
+		return
+	}
+	scanner := bufio.NewScanner(stream)
+	for scanner.Scan() {
+		switch scanner.Text() {
+		case "cd child":
+			_, err = io.WriteString(input, "cd child\n")
+		case "pwd":
+			_, err = io.WriteString(input, query)
+		}
+		if err != nil {
+			break
+		}
+	}
+	_ = input.Close()
+	_ = cmd.Wait()
 }
 
 // slowFileStream makes progress and cancellation observable without huge test

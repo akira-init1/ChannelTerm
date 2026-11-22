@@ -137,7 +137,27 @@ export interface Output {
 }
 
 /** Window-local bootstrap data, never credentials or permission to close a shared Session. */
+export interface OpenTabRow {
+  transport: string;
+  connectionLabel: string;
+  id: string;
+  label: string;
+  reference: string;
+  endpoint: string;
+}
+export interface SavedPolicyTarget {
+  transport: "serial" | "ssh";
+  endpoint: string;
+}
+export interface PeerSessions {
+  id: string;
+  label: string;
+  sessions: SessionSummary[];
+  error?: ErrorCode;
+}
 export interface WindowInfo {
+  peer?: boolean;
+  initialSession?: string;
   /** Bounded local persistence slot; never a Host identifier or capability. */
   workspaceSlot: number;
   count: number;
@@ -145,6 +165,7 @@ export interface WindowInfo {
   autoConnect: boolean;
   languagePreference?: LanguagePreference;
   incoming?: {
+    alias?: string;
     moveId: string;
     attachment: Attachment;
     settings: TerminalSettings;
@@ -154,6 +175,14 @@ export interface WindowInfo {
 
 /** One method per IPC channel; no arbitrary tool, URL, file, or process access. */
 export interface DesktopAPI {
+  connectionPolicies(
+    change?: SavedPolicyTarget & { enabled: boolean },
+  ): Promise<Result<SavedPolicyTarget[]>>;
+  publishTabs(rows: OpenTabRow[]): Promise<Result<void>>;
+  openedTabs(): Promise<Result<OpenTabRow[]>>;
+  focusTab(id: string): Promise<Result<void>>;
+  peers(): Promise<Result<PeerSessions[]>>;
+  attachPeer(peer: string, session: string): Promise<Result<void>>;
   startUBoot(
     id: string,
     request: UBootRequest,
@@ -192,7 +221,11 @@ export interface DesktopAPI {
   newWindow(): Promise<Result<void>>;
   closeWindow(): Promise<Result<void>>;
   focusWindow(direction: "next" | "previous"): Promise<Result<void>>;
-  moveTab(attachmentId: string, inputPaused: boolean): Promise<Result<void>>;
+  moveTab(
+    attachmentId: string,
+    inputPaused: boolean,
+    alias?: string,
+  ): Promise<Result<void>>;
   acceptMovedTab(moveId: string, attachmentId: string): Promise<Result<void>>;
   onWindowCount(listener: (count: number) => void): () => void;
   readClipboard(attachmentId: string): Promise<Result<string>>;
@@ -290,6 +323,12 @@ export const channels = {
   selectDroppedFiles: "files:drop",
   transferPreference: "files:preference",
   saveTransferPreference: "files:preference-save",
+  connectionPolicies: "host:connection-policies",
+  publishTabs: "window:publish-tabs",
+  openedTabs: "window:opened-tabs",
+  focusTab: "window:focus-tab",
+  peers: "host:peers",
+  attachPeer: "host:attach-peer",
   windowInfo: "window:info",
   newWindow: "window:new",
   closeWindow: "window:close",

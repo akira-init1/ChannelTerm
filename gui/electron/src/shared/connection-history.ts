@@ -84,7 +84,7 @@ export function restoreConnections(raw: string | null): ConnectionRecord[] {
       return [
         {
           request: connectionPreset(v.request),
-          favorite: v.request.kind === "ssh" && v.favorite,
+          favorite: v.favorite,
           lastUsed: v.lastUsed,
           uses: v.uses,
           ...(id ? { id } : {}),
@@ -123,7 +123,7 @@ export function recordConnection(
   return [
     {
       request: preset,
-      favorite: preset.kind === "ssh" && (favorite || !!previous?.favorite),
+      favorite: favorite || !!previous?.favorite,
       lastUsed: now,
       uses: Math.min(Number.MAX_SAFE_INTEGER, (previous?.uses ?? 0) + 1),
       ...(isConnectionIdentity(id) ? { id } : {}),
@@ -138,4 +138,50 @@ export function recordConnection(
         Number(b.favorite) - Number(a.favorite) || b.lastUsed - a.lastUsed,
     )
     .slice(0, 50);
+}
+
+/** Public Host endpoint corresponding to the credential-free preset. */
+export function presetEndpoint(q: ConnectionRequest): string {
+  if (q.kind === "serial") return q.port;
+  const host =
+    q.host.includes(":") && !q.host.startsWith("[")
+      ? "[" + q.host + "]"
+      : q.host;
+  return q.user + "@" + host + ":" + q.port;
+}
+
+// A Session first used through attachment supplies its endpoint. Unknown
+// transport settings are the editable new-form defaults, never auto-applied.
+export function sharedPreset(s: {
+  transport: string;
+  endpoint: string;
+  label: string;
+}): ConnectionRequest | undefined {
+  let request: ConnectionRequest;
+  if (s.transport === "serial")
+    request = {
+      kind: "serial",
+      port: s.endpoint,
+      label: s.label,
+      baud: 115200,
+      dataBits: 8,
+      parity: "none",
+      stopBits: "1",
+      flowControl: "none",
+      wake: false,
+    };
+  else if (s.transport === "ssh") {
+    const match = /^(.+)@(?:\[([^\]]+)\]|([^:]+)):(\d+)$/.exec(s.endpoint);
+    if (!match) return;
+    request = {
+      kind: "ssh",
+      user: match[1]!,
+      host: match[2] ?? match[3]!,
+      port: Number(match[4]),
+      label: s.label,
+      identityFiles: [],
+      knownHostsFile: "",
+    };
+  } else return;
+  return isConnectionRequest(request) ? request : undefined;
 }

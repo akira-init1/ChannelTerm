@@ -1,3 +1,4 @@
+import { chooseSession } from "./session-picker.mjs";
 import assert from "node:assert/strict";
 import { expect } from "@playwright/test";
 
@@ -20,7 +21,7 @@ export async function checkTerminalControls(
     "\r\nhistorical-query\x1b[6n\x1b[?6n\x1b[c\x1b[>c",
   );
   await read();
-  await page.locator("button.session").filter({ hasText: /SER-1/ }).click();
+  await chooseSession(page, /SER-1/);
   await expect(terminal).toBeVisible();
   await terminal.focus();
   await page.keyboard.type("replay-complete");
@@ -73,14 +74,24 @@ export async function checkTerminalControls(
     await fixture.command("output", "\x1b[2J\x1b[Hclipboard\r\n");
     await read();
     // Double-click selects a word through xterm's real selection service.
-    const screen = await page.locator(".xterm-screen").boundingBox();
+    const word = page
+      .locator(".xterm-rows:visible")
+      .getByText("clipboard", { exact: true })
+      .first();
     await expect
       .poll(async () => {
-        await page.mouse.dblclick(screen.x + 20, screen.y + 8);
+        const cell = await word.boundingBox();
+        if (!cell) return false;
+        await page.mouse.dblclick(
+          cell.x + Math.min(12, cell.width / 2),
+          cell.y + cell.height / 2,
+        );
         await page.keyboard.press("Control+Shift+c");
-        return desktop.evaluate(({ clipboard }) => clipboard.readText());
+        return desktop.evaluate(
+          async ({ clipboard }) => (await clipboard.readText()) === "clipboard",
+        );
       })
-      .toBe("clipboard");
+      .toBe(true);
     assert.equal(await read(), "", "copy must send no terminal bytes");
     await desktop.evaluate(({ clipboard }) =>
       clipboard.writeText("paste-test"),
@@ -218,7 +229,7 @@ export async function checkTerminalControls(
       Menu.getApplicationMenu().getMenuItemById("tab.close").click(),
     );
     await expect(preview).toHaveCount(0);
-    await page.locator("button.session").filter({ hasText: /SER-1/ }).click();
+    await chooseSession(page, /SER-1/);
     await expect(terminal).toBeVisible();
     assert.equal(
       await read(),

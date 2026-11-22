@@ -270,15 +270,34 @@ export async function checkMCPSetup(environment) {
     ).toBeVisible({ timeout: 30000 });
     assert.notEqual(await readFile(config, "utf8"), stored);
     await page.getByRole("button", { name: "Close", exact: true }).click();
+    let previousLocale = "en";
     for (const locale of locales) {
-      await desktop.evaluate(
-        ({ Menu }, locale) =>
-          Menu.getApplicationMenu()
-            .getMenuItemById(`language.${locale}`)
-            .click(),
-        locale,
-      );
+      // Client discovery can change OS focus. Choose the language in the tested window.
+      const previous = setupI18n({
+        locale: previousLocale,
+        messages: menuCatalogs,
+      });
+      await page.locator('[data-menu="settings"]').click();
+      await page
+        .getByRole("menuitem", {
+          name: previous._("menu.language"),
+          exact: true,
+        })
+        .hover();
+      await page
+        .getByRole("menuitemradio", {
+          name: previous._("language." + locale),
+          exact: true,
+        })
+        .click();
       const t = setupI18n({ locale, messages: menuCatalogs });
+      await expect(
+        page.getByRole("searchbox", {
+          name: t._("workbench.search"),
+          exact: true,
+        }),
+      ).toBeVisible();
+      previousLocale = locale;
       await page.locator('[data-menu="host"]').click();
       await page.locator('[data-action="setup.open"]').click();
       const modal = page.getByRole("dialog", { name: t._("setup.open") });

@@ -1,3 +1,4 @@
+import { chooseSession } from "./session-picker.mjs";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { cp, mkdtemp, readFile } from "node:fs/promises";
@@ -98,10 +99,7 @@ try {
   await expect(page.locator(".host-panel .connection")).toHaveText(
     "Host connected",
   );
-  await page
-    .locator("button.session")
-    .filter({ hasText: "Isolated echo" })
-    .click();
+  await chooseSession(page, "Isolated echo");
   await page
     .locator(".terminal-pane:not([hidden]) .xterm-helper-textarea")
     .focus();

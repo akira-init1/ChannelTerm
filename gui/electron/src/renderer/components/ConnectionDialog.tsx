@@ -34,6 +34,10 @@ import type { HighlightRule } from "../../shared/highlight-rules";
 /** Collect explicit user intent. Credentials live in password inputs, never preferences. */
 export function ConnectionDialog({
   kind: initialKind,
+  initialPreset,
+  ready,
+  picker,
+  chooseExisting,
   terminalDefaults,
   sshAvailable,
   sshAdvanced,
@@ -43,6 +47,10 @@ export function ConnectionDialog({
   onClose,
 }: {
   kind: ConnectionRequest["kind"];
+  initialPreset?: ConnectionRequest;
+  ready: boolean;
+  picker: React.ReactNode;
+  chooseExisting: boolean;
   terminalDefaults: TerminalSettings;
   sshAvailable: boolean;
   sshAdvanced: boolean;
@@ -50,6 +58,7 @@ export function ConnectionDialog({
   onOpen: (
     request: ConnectionRequest,
     settings?: TerminalSettings,
+    reuseExisting?: boolean,
   ) => Promise<void>;
   onStorageError: () => void;
   onClose: () => void;
@@ -169,6 +178,13 @@ export function ConnectionDialog({
   }
   useEffect(() => {
     dialog.current?.showModal();
+    if (chooseExisting)
+      dialog.current
+        ?.querySelector<HTMLInputElement>(
+          '.session-picker input[type="search"]',
+        )
+        ?.focus();
+    if (initialPreset) applyPreset(initialPreset);
   }, []);
   function readSerial(): SerialProfile {
     const data = new FormData(formRef.current!);
@@ -271,15 +287,30 @@ export function ConnectionDialog({
       setError("connection.invalid");
       return;
     }
-    submitting.current = true;
-    setBusy(true);
-    setError("");
     // Clear DOM secrets immediately after capture, including failed attempts.
     form
       .querySelectorAll<HTMLInputElement>('input[type="password"]')
       .forEach((input) => {
         input.value = "";
       });
+    await submitRequest(request, settings ?? terminalDefaults);
+  }
+  const attemptedPreset = useRef(false);
+  useEffect(() => {
+    if (!initialPreset || !ready || attemptedPreset.current) return;
+    attemptedPreset.current = true;
+    void submitRequest({ ...initialPreset }, terminalDefaults, true);
+  }, [initialPreset, ready]);
+
+  async function submitRequest(
+    request: ConnectionRequest,
+    settings: TerminalSettings,
+    reuseExisting = false,
+  ) {
+    if (submitting.current) return;
+    submitting.current = true;
+    setBusy(true);
+    setError("");
     try {
       let latest = history;
       try {
@@ -297,10 +328,14 @@ export function ConnectionDialog({
       )[0];
       if (!planned?.id)
         throw new Error("Cannot prepare local connection identity.");
-      await onOpen(request, {
-        ...(settings ?? terminalDefaults),
-        highlightProfile: planned.id,
-      });
+      await onOpen(
+        request,
+        {
+          ...settings,
+          highlightProfile: planned.id,
+        },
+        reuseExisting,
+      );
       try {
         const updated = recordConnection(
           restoreConnections(localStorage.getItem(connectionHistoryKey)),
@@ -365,6 +400,13 @@ export function ConnectionDialog({
         autoComplete="off"
       >
         <fieldset disabled={busy || scanning}>
+          <details
+            className="session-picker"
+            open={chooseExisting || undefined}
+          >
+            <summary>{t("connection.share")}</summary>
+            {picker}
+          </details>
           <details className="connection-history">
             <summary>{t("history.title")}</summary>
             <p className="connection-hint">{t("history.hint")}</p>
@@ -388,26 +430,24 @@ export function ConnectionDialog({
                 <button type="button" onClick={() => editHighlights(entry)}>
                   {t("highlight.title")}
                 </button>
-                {entry.request.kind === "ssh" && (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      saveHistory(
-                        history.map((item, i) =>
-                          i === index
-                            ? { ...item, favorite: !item.favorite }
-                            : item,
-                        ),
-                      )
-                    }
-                  >
-                    {t(
-                      entry.favorite
-                        ? "history.unfavorite"
-                        : "history.favorite",
-                    )}
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={() =>
+                    saveHistory(
+                      history.map((item, i) =>
+                        i === index
+                          ? { ...item, favorite: !item.favorite }
+                          : item,
+                      ),
+                    )
+                  }
+                >
+                  {t(
+                    entry.favorite
+                      ? "history.unfavorite"
+                      : "connection.savePreset",
+                  )}
+                </button>
                 <button
                   type="button"
                   onClick={() =>
@@ -675,16 +715,16 @@ export function ConnectionDialog({
             {t("connection.label")}
             <input name="label" defaultValue={preset?.label} maxLength={128} />
           </label>
-          {kind === "ssh" && (
+          {
             <label className="display-checkbox">
               <input
                 type="checkbox"
                 checked={favorite}
                 onChange={(event) => setFavorite(event.target.checked)}
               />
-              {t("history.favorite")}
+              {t("connection.savePreset")}
             </label>
-          )}
+          }
           {kind === "serial" && (
             <details>
               <summary>{t("terminal.settings")}</summary>
@@ -710,7 +750,13 @@ export function ConnectionDialog({
           form="new-connection-form"
           type="submit"
         >
-          {t(busy ? "connection.opening" : "connection.open")}
+          {t(
+            busy
+              ? "connection.opening"
+              : kind === "ssh"
+                ? "connection.newShell"
+                : "connection.open",
+          )}
         </button>
       </footer>
       {highlightTarget && (

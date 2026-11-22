@@ -196,6 +196,11 @@ msgstr "Новое подключение..."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "connection.newShell"
+msgstr "Новый SSH-терминал"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "connection.open"
 msgstr "Подключиться"
 
@@ -231,6 +236,11 @@ msgstr "Протокол"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "connection.savePreset"
+msgstr "Сохранить подключение"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "connection.scan"
 msgstr "Найти порты"
 
@@ -248,6 +258,16 @@ msgstr "Последовательный порт"
 #: src/shared/menu-messages.ts
 msgid "connection.serialTab"
 msgstr "Последовательный порт"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.settings"
+msgstr "Настройки подключения"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.share"
+msgstr "Открыть существующий сеанс в новой вкладке"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -286,8 +306,18 @@ msgstr "Разрешить новые операции ИИ? Отменённы�
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "control.ask"
+msgstr "Запрашивать подтверждение перехвата"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "control.confirm"
 msgstr "Подтвердить"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.continue"
+msgstr "Продолжить задачу ИИ"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -306,6 +336,21 @@ msgstr "Прервать ИИ"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "control.manual"
+msgstr "🔒 Только вручную"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.mine"
+msgstr "Перехватить управление"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.operating"
+msgstr "ИИ управляет терминалом"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "control.paused"
 msgstr "ИИ приостановлен"
 
@@ -313,6 +358,11 @@ msgstr "ИИ приостановлен"
 #: src/shared/menu-messages.ts
 msgid "control.processing"
 msgstr "Запрос обрабатывается · ввод требует подтверждения Host"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.protect"
+msgstr "Запретить доступ ИИ"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -353,6 +403,11 @@ msgstr "Управление сеансом"
 #: src/shared/menu-messages.ts
 msgid "control.unknown"
 msgstr "Результат не подтверждён или запрос отклонён. Проверьте исходный запрос; не повторяйте ввод."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.waitLimit"
+msgstr "Предел ожидания ИИ (секунды)"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -922,6 +977,46 @@ msgstr "Диагностический ZIP…"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "directory.all"
+msgstr "Все"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.empty"
+msgstr "Подключений пока нет."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.filter"
+msgstr "Состояние подключения"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.lan"
+msgstr "Локальная сеть"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.noHosts"
+msgstr "Доверенные хосты не настроены."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.offline"
+msgstr "Отключено"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.online"
+msgstr "Подключено"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.reorder"
+msgstr "Перетащите для изменения порядка или нажмите Alt+↑ / Alt+↓."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "display.fontFamily"
 msgstr "Семейство шрифтов"
 
@@ -1463,11 +1558,6 @@ msgstr "Правило выше"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
-msgid "history.favorite"
-msgstr "В избранное SSH"
-
-#. js-lingui-explicit-id
-#: src/shared/menu-messages.ts
 msgid "history.hint"
 msgstr "Локальные шаблоны: выберите, проверьте и подключитесь. Введите заново учётные данные и пути. Профили порта общие с CLI."
 
@@ -1484,7 +1574,7 @@ msgstr "История не сохранена. Проверьте хранил�
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
 msgid "history.title"
-msgstr "Недавние подключения и избранное SSH"
+msgstr "Недавние и сохранённые подключения"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -2970,8 +3060,18 @@ msgstr "Предыдущая вкладка"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "tab.rename"
+msgstr "Переименовать вкладку…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "tab.reorderHint"
 msgstr "Перетащите для смены порядка или нажмите Shift+Влево/Вправо, когда эта кнопка вкладки в фокусе."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.resetName"
+msgstr "Восстановить имя по умолчанию"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -3628,7 +3728,7 @@ msgstr "Выберите сеанс"
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
 msgid "workbench.selectHint"
-msgstr "Выберите открытый сеанс на боковой панели для просмотра вывода и отправки ввода."
+msgstr "Выберите существующий сеанс в меню сеансов, чтобы открыть его терминал."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

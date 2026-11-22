@@ -16,6 +16,8 @@ Bei kurzen Boot-Zeitfenstern kann der Host U-Boot unterbrechen und die Eingabeau
 
 Alle Sessions verwenden jetzt authentifizierte Operationskontrolle. Aktuelle CLI/Electron-Clients passen sich automatisch an; ältere Schreibclients und nicht registriertes stdio müssen migriert werden. Eine menschliche Übernahme sperrt alte Operationen vor der Wiederherstellung und pausiert die KI bis zur ausdrücklichen Freigabe. Unbestätigte Wiederherstellung kann die Session schließen; unterbrochene Eingaben werden nie erneut gesendet. Siehe [Migrationsanleitung](docs/getting-started/http-authentication-migration.md#default-controlled-sessions).
 
+In Electron schützt die KI-Zugriffssperre eine gespeicherte Verbindung auch nach erneutem Verbinden. Nach einer vorübergehenden Übernahme kann der Agent standardmäßig bis zu drei Minuten auf die ausdrückliche Freigabe warten. Siehe [Terminalübersicht und Steuerung](docs/reference/gui-menus.md#terminal-directory-and-naming).
+
 ## Warum ChannelTerm?
 
 Lassen Sie Ihr Terminal offen, während die KI dieselbe Geräteverbindung nutzt:

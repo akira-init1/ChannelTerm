@@ -83,6 +83,11 @@ responses. Mutable request/credential buffers are cleared on completion; GUI pas
 inputs clear after submission. Managed runtimes cannot guarantee erasure of all
 temporary string copies. Nothing is written to GUI preferences or connection profiles.
 
+A Host advertising `independent_shell: true` accepts optional boolean `independent`.
+Electron sends `true` when creating an SSH terminal. This allocates a distinct authenticated
+SSH connection, PTY, Session ID and resize owner. Omitting the field preserves the existing
+endpoint reuse contract. Attaching to a full Session ID continues to share that exact shell.
+
 Without confirmation streaming, successful creation or reuse returns:
 
 ```json

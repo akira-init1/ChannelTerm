@@ -98,7 +98,7 @@ for authentication, verification and cancellation.
 | Settings > File transfer | `settings.transfers` | Read/save the shared local CLI/GUI directory choice: ask, TAR or per-file. Applies to serial directories; SSH remains recursive. |
 | Settings > Preferences... | `settings.display` | Open Display settings and terminal defaults for new views; font changes apply without reattachment. Keyboard shortcuts retain their separate entry. |
 | Session > New Connection... | `connection.new` | Open the unified form on a connected idle Host. No protocol submenu. |
-| Session > Attach Session... | `session.choose` | Reveal the existing sidebar and focus its search field while connected and idle. Selecting a row reuses `session.attach`; opening the picker does not change the attachment. |
+| Session > Attach Session... | `session.choose` | Open the available-Session selector inside the connection dialog and focus its search field while connected and idle. Selecting a row reuses `session.attach`; opening the picker does not change the attachment. |
 | Session > Session Information... | `session.info` | Reveal the existing details sidebar for the captured current attachment; no new Host query. |
 | Settings > Language | `language.change` | Follow the system or select one of the nine supported menu languages. Exactly one preference is checked. |
 | Help > Diagnostic ZIP... | `help.diagnostics` | Export the captured attachment snapshot or download an existing Host diagnostic ID to a new local file. Requires a connected idle Host. |
@@ -401,7 +401,7 @@ If saving fails, the dialog stays open. Wheel changes still apply locally with a
 
 ### Connection keyword rules
 
-Open **New Connection... > Recent connections and SSH favorites > Keyword highlights...** for one
+Open **New Connection... > Recent and saved connections > Keyword highlights...** for one
 saved record. Add or edit literal text and color, enable/disable rules, move them up/down, remove
 one, or clear the current draft. **Save connection rules** applies that draft; Cancel keeps saved
 rules. Up to 32 rules are allowed, each with 1–128 UTF-16 code units, no control characters or lone
@@ -560,7 +560,7 @@ actions follow the contracts above; connection history and workspace recovery ar
 
 | Proposed category | Unimplemented scope / prerequisite |
 | --- | --- |
-| Host / Session | Automatic device reconnection and recreation of closed Sessions are not provided. Recent connections and SSH favorites prefill explicit forms; see [recent connections and SSH favorites](#recent-connections-and-ssh-favorites). Shared close and multiple tabs follow the contracts above. |
+| Host / Session | Automatic device reconnection and recreation of closed Sessions are not provided. Recent and saved connections prefill explicit forms; see [recent and saved connections](#recent-and-saved-connections). Shared close and multiple tabs follow the contracts above. |
 | View | A complete MCP request audit, status-bar visibility and a combined Reset Layout action are unimplemented. Session activity shows retained Host observations, not a complete audit; Session status is not a status-bar toggle. |
 | Settings | Application theme selection and Host process management are absent. Local endpoint settings are available under Host; local preferences and workspace recovery are described below. |
 | Help | Online documentation navigation and updates remain unimplemented. Diagnostic ZIP export follows the explicit local-save contract below. |
@@ -583,9 +583,9 @@ pane's current dimensions at an empty Linux shell prompt. Press Enter to apply t
 ## Debug sidebar
 
 **View → Debug** and the accessible Debug activity-rail button share one action. Clicking the
-active rail view hides the sidebar; switching between Sessions and Debug preserves terminal
+active rail view hides the sidebar; switching between Sessions, LAN and Debug preserves terminal
 tabs and local selection/filter state. The sidebar offers refresh, filter, expandable read-only
-details and **Locate Session**, which focuses an existing Session row without attaching it.
+details and **Locate Session**, which opens the connection dialog and focuses the target in its Session selector.
 Full Session IDs are used for associations; missing Sessions stay unavailable and independent
 network operations appear without a Session. Session debug badges and the current-Session footer
 entry open the same sidebar. A debug lease alone never proves target execution state.
@@ -595,13 +595,13 @@ separate connection/target/tunnel status, configured versus observed endpoints, 
 provenance and update time. Unavailable/expired observations remain explicitly unknown. See the
 [unified contract](mcp-tools.md#unified-debug-observation). No debugger control actions are added.
 
-## Recent connections and SSH favorites
+## Recent and saved connections
 
-**Session > New Connection... > Recent connections and SSH favorites** lists up to 50
+**Session > New Connection... > Recent and saved connections** lists up to 50
 successful GUI connections, with names, last-use times and use counts. Select a record to prefill
-its form, review the settings and explicitly connect. SSH records can be favorited/unfavorited;
+its form, review the settings and explicitly connect. Serial and SSH records can be saved explicitly or removed from favorites;
 any record can be forgotten. Favorites are retained before older recent records when the bound
-is reached. The connection label names the record; editing it creates a distinct preset.
+is reached. Changing the label in a new connection form creates a distinct preset. **Connection settings** renames an existing record in place.
 
 The GUI profile stores allowlisted serial/SSH parameters, optional local profile UUIDs and
 [keyword rules](#connection-keyword-rules) in renderer local storage under
@@ -614,6 +614,52 @@ not update successful-use history. Storage failure reports a notice without retr
 These records are local form presets, separate from the Host-owned serial profiles shared with
 CLI. CLI has no persistent SSH profiles; this feature adds no CLI profile compatibility. Storage
 is shared by windows in the same GUI profile; independent simultaneous edits use last-writer wins.
+
+### Terminal directory and naming
+
+The far-left activity rail opens one panel at a time: **Sessions**, **LAN**, or **Debug**.
+**Sessions** shows connections used from the desktop, including previous successful
+connections and attachments. By default, explicitly saved connections are starred and appear first;
+other records are ordered by most recent use. Search by connection, endpoint, tab name
+or short reference. Use the status selector on either the Sessions or LAN panel to filter connected
+or disconnected entries. A green dot means the Host reports an open Session; a red dot means
+there is no confirmed open connection. In LAN, the dot beside the Host name reports whether its
+latest authenticated refresh succeeded. Search LAN by Host name, Session label, endpoint or short reference.
+Closed Sessions still listed by a remote Host cannot be attached.
+
+Drag a connection row onto another to change its position, or focus it and press Alt+Up/Down.
+The manual order is saved for that Host and shared across desktop windows. Rows hidden by a
+filter retain their positions. Newly used connections follow the manually ordered rows.
+Each connection row has a serial connector or SSH monitor icon beside its status light.
+Click a single open view to focus it, or expand a connection with multiple views to choose a tab.
+Double-click a connection (or focus it and press Enter) to focus an open tab, attach to its live
+Session, or reconnect using its stored settings. If the local Host is disconnected, the desktop
+connects to it first. SSH can still require host-key approval or additional credentials in the form.
+Previously saved SSH favorites retain their settings. For a Session first attached from
+another client, history uses the form defaults for transport settings the Host did not expose.
+Use **New Connection...** to edit those values before connecting.
+
+Use **Session > New Connection...** to open a serial connection or an independent SSH shell.
+The existing-Session selector is inside that form. **Session > Attach Session...** opens
+the selector directly. **New Tab** creates an empty view. Connection settings and the
+manual-only switch are available on the connection row.
+
+Double-click a tab or use **Rename Tab...**. Enter saves, Escape cancels and **Restore Default
+Name** clears the override. The tab name takes precedence over the connection alias. The
+short reference and endpoint identify the terminal, including in the tab tooltip. A tab's
+alias travels with its window handoff and saved workspace slot.
+
+**Block AI access** persists an endpoint rule on the authenticated Host. **Manual only**
+covers independent shells from the same SSH login and port. The manual operator retains
+access. The Host also cancels pending agent reads. When an agent holds write control,
+**Take over** targets the observed operation. **Ask before taking over** and the AI wait limit
+are stored with local preferences. Recovery can end the Session when delivery or cleanup is
+uncertain. **Continue AI task** appears for a live waiter. **Allow AI operations** permits
+new work. Neither action sends the old command. See [Session control](mcp-tools.md#session-control).
+
+The **LAN** rail button groups authenticated results by configured Host. Double-clicking an open Session (or pressing Enter on its row) opens
+a window bound to that Host. Refresh uses the arrow or a five-second interval while the view
+is visible. See [trusted Host configuration](configuration.md#trusted-host-directory).
 
 ## Preferences and workspace recovery
 

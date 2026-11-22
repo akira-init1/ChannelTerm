@@ -278,7 +278,7 @@ a given state file.
 
 ## Electron client settings
 
-The independent Electron frontend does not add TOML fields or alter Host configuration.
+The Electron frontend stores its presentation preferences locally. An explicit manual-only change updates the corresponding Host policy.
 `CHANNELTERM_GUI_ENDPOINT` is a GUI Main-process override for the existing MCP endpoint. Precedence is
 the environment override, the saved GUI default, then `http://127.0.0.1:37099/mcp`.
 **Host > Host information and connection** edits the saved default unless the override is set.
@@ -395,7 +395,7 @@ trusted and unchanged. See the [upgrade workflow](../getting-started/http-authen
 
 ## Electron local preferences
 
-GUI display, shortcuts, language/layout/terminal defaults, recent connections and workspace views
+GUI display, shortcuts, language/layout/terminal defaults, recent connections, per-Host manual connection ordering and workspace views
 are stored in the Electron profile's renderer local storage, separately from Host TOML and CLI
 serial profiles. They do not configure Session/Transport ownership or provide CLI SSH profiles.
 See [GUI preferences and workspace recovery](gui-menus.md#preferences-and-workspace-recovery)
@@ -446,3 +446,25 @@ no unsaved draft and no startup execution. Main requests owner-only permissions 
 Windows access is controlled by the containing profile's ACL. Do not store secrets. The
 [debug-send workflow](gui-menus.md#debug-send-and-snippets) owns limits, explicit replacement consent,
 errors and deletion. No new environment variable or Host config field is introduced.
+
+### Trusted Host directory
+
+Set `CHANNELTERM_GUI_PEERS` to the absolute path of a private JSON file. Each of up to eight
+records names an operator-configured loopback endpoint and the file containing its own
+registered credential. Configure an authenticated SSH local forward to the remote Host's
+loopback listener before starting Electron. For example, forward localhost port 37101 to
+the lab Host's port 37099. A second Host needs a separate local port and credential.
+
+```json
+[{"id":"lab","label":"Lab Host","endpoint":"http://127.0.0.1:37101/mcp","tokenFile":"/absolute/private/lab.token"}]
+```
+
+Use OS-native absolute paths (escape Windows backslashes in JSON). The GUI does not start
+tunnels, discover neighbors, change listeners or fall back to the local credential for a peer.
+The remote window supports terminal attachment. Local companion file helpers and connection
+creation remain local-window actions. Authentication and disconnect errors appear per group.
+
+The Host configuration records `[[manual_only]]` entries with `transport` and `endpoint`.
+These keys identify the physical serial port or SSH login/address/port independently of GUI
+labels and Session IDs. GUI workbench preferences store `confirmTakeover` (default true) and
+`waitSeconds` (default 180). Existing preference and workspace records remain readable.

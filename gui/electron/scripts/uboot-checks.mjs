@@ -1,3 +1,4 @@
+import { chooseSession } from "./session-picker.mjs";
 import assert from "node:assert/strict";
 import { mkdtemp, writeFile, readFile } from "node:fs/promises";
 import { resolve, join } from "node:path";
@@ -50,7 +51,7 @@ export async function checkUBoot(environment) {
     await page
       .getByRole("button", { name: "Connect to Host...", exact: true })
       .click();
-    await page.locator(`[data-session-id="${id}"]`).click();
+    await chooseSession(page, undefined, id);
     await expect(page.locator(".xterm-screen")).toBeVisible();
     await observer.read(watched.id);
     await desktop.evaluate(({ dialog }) => {
@@ -114,6 +115,14 @@ export async function checkUBoot(environment) {
     assert.equal(previews[0].defaultId, 0);
     assert.equal(previews[0].cancelId, 0);
     assert.ok(previews[0].detail.includes(id));
+    // Hold the renderer snapshot still. A second explicit operation cannot rely
+    // on background polling to refresh the Main-owned control version.
+    const idle = await page.evaluate(() => window.channelterm.list());
+    assert.equal(idle.ok, true);
+    await desktop.evaluate(({ ipcMain }, snapshot) => {
+      ipcMain.removeHandler("host:list");
+      ipcMain.handle("host:list", () => snapshot);
+    }, idle);
     assert.ok(previews[0].detail.includes('"Board> "'));
     await desktop.evaluate(() => {
       globalThis.ubootConfirm = true;

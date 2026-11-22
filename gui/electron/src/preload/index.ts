@@ -43,13 +43,20 @@ const api: DesktopAPI = {
   transferPreference: () => ipcRenderer.invoke(channels.transferPreference),
   saveTransferPreference: (mode) =>
     ipcRenderer.invoke(channels.saveTransferPreference, mode),
+  connectionPolicies: (change) =>
+    ipcRenderer.invoke(channels.connectionPolicies, change),
+  publishTabs: (rows) => ipcRenderer.invoke(channels.publishTabs, rows),
+  openedTabs: () => ipcRenderer.invoke(channels.openedTabs),
+  focusTab: (id) => ipcRenderer.invoke(channels.focusTab, id),
+  peers: () => ipcRenderer.invoke(channels.peers),
+  attachPeer: (peer, id) => ipcRenderer.invoke(channels.attachPeer, peer, id),
   windowInfo: () => ipcRenderer.invoke(channels.windowInfo),
   newWindow: () => ipcRenderer.invoke(channels.newWindow),
   closeWindow: () => ipcRenderer.invoke(channels.closeWindow),
   focusWindow: (direction) =>
     ipcRenderer.invoke(channels.focusWindow, direction),
-  moveTab: (id, inputPaused) =>
-    ipcRenderer.invoke(channels.moveTab, id, inputPaused),
+  moveTab: (id, inputPaused, alias) =>
+    ipcRenderer.invoke(channels.moveTab, id, inputPaused, alias),
   acceptMovedTab: (moveId, id) =>
     ipcRenderer.invoke(channels.acceptMovedTab, moveId, id),
   onWindowCount: (listener) => {

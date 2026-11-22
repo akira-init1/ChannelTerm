@@ -1,3 +1,6 @@
+import { configuredPeers, listPeers, peerToken, type Peer } from "./host/peers";
+import type { OpenTabRow, PeerSessions } from "../shared/api";
+import { isTabAlias } from "../shared/workspace";
 import { CommandSnippets } from "./snippets";
 import { isDebugPayload } from "../shared/debug-send";
 import { DesktopFiles, TransferConfirmation } from "./files";
@@ -96,6 +99,9 @@ interface WindowContext {
   autoConnect: boolean;
   languagePreference?: LanguagePreference;
   workspaceSlot: number;
+  rows: OpenTabRow[];
+  peer?: Peer;
+  initialSession?: string;
   incoming?: WindowInfo["incoming"];
   incomingMove?: TabMove;
   outgoingMove?: TabMove;
@@ -114,6 +120,7 @@ interface TabMove {
   settled: boolean;
 }
 
+let peerListing: Promise<PeerSessions[]> | undefined;
 const desktop = {
   windows: new Map<number, WindowContext>(),
   quitting: false,
@@ -222,6 +229,7 @@ async function newWindow(source?: WindowContext): Promise<void> {
     source?.endpoint,
   );
   try {
+    context.peer = source?.peer;
     await loadWindow(context);
   } catch (error) {
     context.window.destroy();
@@ -267,9 +275,13 @@ async function moveTab(
   source: WindowContext,
   id: unknown,
   inputPaused: unknown,
+  alias: unknown,
 ): Promise<void> {
   identifier(id);
-  if (typeof inputPaused !== "boolean")
+  if (
+    typeof inputPaused !== "boolean" ||
+    (alias !== undefined && !isTabAlias(alias))
+  )
     throw new HostError("invalid_input", "Invalid tab state.");
   if (source.outgoingMove || source.files.busy || source.sshFiles.busy)
     throw new HostError(
@@ -283,6 +295,7 @@ async function moveTab(
     source.menu.languagePreference ?? source.menu.locale,
     source.endpoint,
   );
+  target.peer = source.peer;
   const completed = new Promise<void>((resolve, reject) => {
     const move: TabMove = {
       id: randomUUID(),
@@ -313,7 +326,7 @@ async function moveTab(
       // Reuse the authenticated Host endpoint; moving never invokes device creation or startup.
       target.host = new HostClient(
         sourceHost.info().endpoint,
-        await loadToken(),
+        source.peer ? await peerToken(source.peer) : await loadToken(),
       );
       if (move.settled) {
         await target.host.disconnect();
@@ -332,6 +345,7 @@ async function moveTab(
         moveId: move.id,
         attachment,
         settings: description.settings,
+        alias,
         inputPaused,
       };
       await loadWindow(target);
@@ -385,6 +399,14 @@ async function acceptMovedTab(
 }
 
 function createHandlers(context: WindowContext): Record<string, Handler> {
+  function directoryWindows() {
+    return windowContexts().filter(
+      (other) =>
+        other !== context &&
+        other.endpoint === context.endpoint &&
+        other.peer?.id === context.peer?.id,
+    );
+  }
   let copyingTarget = false;
   let deletingLog = false;
   const handlers: Record<string, (...args: unknown[]) => unknown> = {
@@ -409,10 +431,13 @@ function createHandlers(context: WindowContext): Record<string, Handler> {
           "busy",
           "The target is changing or an operation is pending.",
         );
-      const host = currentHost(context),
-        prepared = host.prepareUBoot(id, request);
+      const host = currentHost(context);
       context.ubootConfirming = true;
       try {
+        // Completion rotates the Host's control version. Capture the current
+        // version before confirmation, even if the sidebar has not polled yet.
+        await host.list();
+        const prepared = host.prepareUBoot(id, request);
         const i18n = setupI18n({
           locale: context.menu.locale,
           messages: menuCatalogs,
@@ -736,9 +761,88 @@ function createHandlers(context: WindowContext): Record<string, Handler> {
       currentHost(context).validateAttachment(id);
       return clipboard.writeText(text);
     },
+    [channels.connectionPolicies]: (change) =>
+      currentHost(context).connectionPolicies(change),
+    [channels.peers]: () => {
+      if (!peerListing)
+        peerListing = listPeers().finally(() => {
+          peerListing = undefined;
+        });
+      return peerListing;
+    },
+    [channels.attachPeer]: async (id, sessionId) => {
+      identifier(id);
+      identifier(sessionId);
+      const peer = (await configuredPeers()).find((row) => row.id === id);
+      if (!peer)
+        throw new HostError("configuration", "Unknown configured Host.");
+      const target = makeWindow(
+        true,
+        context.menu.languagePreference,
+        peer.endpoint,
+      );
+      target.peer = peer;
+      target.initialSession = sessionId;
+      try {
+        await loadWindow(target);
+      } catch (e) {
+        target.window.destroy();
+        throw e;
+      }
+    },
+    [channels.publishTabs]: (rows) => {
+      if (!Array.isArray(rows) || rows.length > 32)
+        throw new HostError("invalid_input", "Invalid tab list.");
+      context.rows = rows.map((row) => {
+        if (
+          !row ||
+          typeof row !== "object" ||
+          ![
+            row.id,
+            row.reference,
+            row.endpoint,
+            row.label,
+            row.transport,
+            row.connectionLabel,
+          ].every(
+            (v) =>
+              typeof v === "string" &&
+              v.length <= 1024 &&
+              !/[\x00-\x1f\x7f]/.test(v),
+          )
+        )
+          throw new HostError("invalid_input", "Invalid tab metadata.");
+        identifier(row.id);
+        return {
+          id: row.id,
+          label: row.label,
+          transport: row.transport,
+          connectionLabel: row.connectionLabel,
+          endpoint: row.endpoint,
+          reference: row.reference,
+        };
+      });
+    },
+    [channels.openedTabs]: () => directoryWindows().flatMap((c) => c.rows),
+    [channels.focusTab]: (id) => {
+      identifier(id);
+      const target = directoryWindows().find((c) =>
+        c.rows.some((row) => row.id === id),
+      );
+      if (!target) throw new HostError("closed", "Tab has closed.");
+      if (target.window.isMinimized()) target.window.restore();
+      target.window.show();
+      target.window.focus();
+      target.window.webContents.send(channels.menuAction, {
+        id: "tab.select",
+        tabId: id,
+      });
+    },
     [channels.windowInfo]: (): WindowInfo => ({
       count: Math.max(1, windowContexts().length),
       workspaceSlot: context.workspaceSlot,
+      initialSession: context.initialSession,
+      peer: !!context.peer,
       connected: context.connected,
       autoConnect: context.autoConnect,
       languagePreference: context.languagePreference,
@@ -751,7 +855,8 @@ function createHandlers(context: WindowContext): Record<string, Handler> {
       });
     },
     [channels.focusWindow]: (direction) => focusWindow(context, direction),
-    [channels.moveTab]: (id, inputPaused) => moveTab(context, id, inputPaused),
+    [channels.moveTab]: (id, inputPaused, alias) =>
+      moveTab(context, id, inputPaused, alias),
     [channels.acceptMovedTab]: (moveId, id) =>
       acceptMovedTab(context, moveId, id),
     [channels.info]: () => hostInfo(context),
@@ -826,8 +931,17 @@ function createHandlers(context: WindowContext): Record<string, Handler> {
           desktop.quitting
         )
           throw new HostError("cancelled", "Connection cancelled.");
-        await desktop.startup.ensure(endpoint, controller.signal);
-        const token = await loadToken();
+        const peer = (await configuredPeers()).find(
+          (record) => record.endpoint === endpoint,
+        );
+        if (context.peer && (!peer || peer.id !== context.peer.id))
+          throw new HostError(
+            "configuration",
+            "The configured Host has changed.",
+          );
+        context.peer = peer;
+        if (!peer) await desktop.startup.ensure(endpoint, controller.signal);
+        const token = peer ? await peerToken(peer) : await loadToken();
         if (
           version !== context.connectionVersion ||
           context.disposed ||
@@ -1006,9 +1120,11 @@ function createHandlers(context: WindowContext): Record<string, Handler> {
         throw new HostError("busy", "Tab move is in progress.");
       return currentHost(context).resizeControl(id, action);
     },
-    [channels.attach]: (id, settings) => {
+    [channels.attach]: async (id, settings) => {
       identifier(id);
-      return currentHost(context).attach(id, settings);
+      const attachment = await currentHost(context).attach(id, settings);
+      if (context.initialSession === id) context.initialSession = undefined;
+      return attachment;
     },
     [channels.detach]: (id) => {
       identifier(id);
@@ -1080,6 +1196,7 @@ function registerIPC(): void {
             context.incomingMove &&
             ![
               channels.windowInfo,
+              channels.publishTabs,
               channels.info,
               channels.list,
               channels.read,
@@ -1088,10 +1205,28 @@ function registerIPC(): void {
             ].includes(channel as typeof channels.read)
           )
             throw new HostError("busy", "The incoming tab is not ready yet.");
+          if (
+            context.peer &&
+            [
+              channels.saveHostEndpoint,
+              channels.mcpSetup,
+              channels.manageSSH,
+              channels.browseSSH,
+              channels.startTransfer,
+              channels.startSSHTransfer,
+              channels.resumeTransfer,
+              channels.changeSerialProfile,
+              channels.openConnection,
+            ].includes(channel as typeof channels.startTransfer)
+          )
+            throw new HostError(
+              "unauthorized",
+              "This action requires the local Host window.",
+            );
           const expected = [
+            channels.attachPeer,
             channels.resize,
             channels.resizeControl,
-            channels.moveTab,
             channels.acceptMovedTab,
             channels.attach,
             channels.write,
@@ -1107,9 +1242,13 @@ function registerIPC(): void {
             channels.selectDroppedFiles,
           ].includes(channel as typeof channels.write)
             ? 2
-            : channel === channels.chooseTransferPath
+            : channel === channels.chooseTransferPath ||
+                channel === channels.moveTab
               ? 3
               : [
+                    channels.connectionPolicies,
+                    channels.publishTabs,
+                    channels.focusTab,
                     channels.control,
                     channels.cancelUBoot,
                     channels.startRecording,
@@ -1188,6 +1327,7 @@ function makeWindow(
   });
   const context: WindowContext = {
     window: created,
+    rows: [],
     workspaceSlot: Array.from({ length: 16 }, (_, index) => index).find(
       (slot) =>
         ![...desktop.windows.values()].some(

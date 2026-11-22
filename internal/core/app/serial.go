@@ -53,6 +53,7 @@ type configUpdater func(string, func(*config.File) error) error
 // not own the Manager itself; the embedding application closes that owner at
 // process shutdown.
 type SerialService struct {
+	guardAccess  func(context.Context, config.ManualConnection) (context.Context, func() error, error)
 	manager      *session.Manager
 	configPath   configPathResolver
 	loadConfig   configLoader
@@ -142,7 +143,7 @@ func NewSerialServiceWithDependencies(manager *session.Manager, dependencies Ser
 // carriage return is sent only when the final resolved profile explicitly
 // enables it. A reused Session keeps the metadata and connection settings from
 // its original open operation.
-func (s *SerialService) OpenSerial(ctx context.Context, request OpenSerialRequest) (OpenSerialResult, error) {
+func (s *SerialService) OpenSerial(ctx context.Context, request OpenSerialRequest) (opened OpenSerialResult, openErr error) {
 	if err := ctx.Err(); err != nil {
 		return OpenSerialResult{}, err
 	}
@@ -169,6 +170,21 @@ func (s *SerialService) OpenSerial(ctx context.Context, request OpenSerialReques
 	if err := config.RequireSerialPort(profile); err != nil {
 		return OpenSerialResult{}, err
 	}
+	key := connectionKey("serial", profile.Port)
+	if s.guardAccess != nil {
+		var finish func() error
+		ctx, finish, err = s.guardAccess(ctx, key)
+		if err != nil {
+			return OpenSerialResult{}, err
+		}
+		defer func() {
+			if denied := finish(); denied != nil {
+				opened = OpenSerialResult{}
+				openErr = denied
+			}
+		}()
+	}
+
 	if strings.TrimSpace(request.Save) != "" {
 		if err := s.updateConfig(path, func(latest *config.File) error {
 			latest.SaveSerialProfile(request.Save, profile)
@@ -178,11 +194,11 @@ func (s *SerialService) OpenSerial(ctx context.Context, request OpenSerialReques
 		}
 	}
 	serialConfig := serialProfileToTransportConfig(profile)
-	info, created, err := s.manager.GetOrCreate(ctx, session.SessionMetadata{
+	info, created, err := s.manager.GetOrCreateByKey(ctx, session.SessionMetadata{
 		Transport: serialTransportName,
 		Endpoint:  serialConfig.Port,
 		Label:     request.Label,
-	}, func() (session.Session, error) {
+	}, key.Endpoint, func() (session.Session, error) {
 		return s.createConnectedSerialSession(ctx, profile, serialConfig)
 	})
 	if err != nil {

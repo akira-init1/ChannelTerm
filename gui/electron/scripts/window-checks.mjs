@@ -1,3 +1,4 @@
+import { chooseSession } from "./session-picker.mjs";
 import assert from "node:assert/strict";
 import { mkdtemp, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
@@ -49,7 +50,7 @@ async function connect(page) {
   await expect(page.locator(".host-panel")).toContainText("Host connected");
 }
 async function select(page, label) {
-  await page.locator(".session").filter({ hasText: label }).click();
+  await chooseSession(page, label);
   await expect(page.locator(".terminal-tab.active")).toContainText(label);
   await expect(activeTerminal(page)).toHaveCount(1);
 }
@@ -252,6 +253,18 @@ export async function checkWindows(environment) {
     const identities = (await observer.list())
       .map((session) => session.session_id)
       .sort();
+    const named = source
+      .locator(".terminal-tab")
+      .filter({ hasText: "Isolated echo" });
+    await named.getByRole("tab").dblclick();
+    const rename = source.getByRole("textbox", { name: "Rename Tab…" });
+    await rename.fill("Isolated echo · startup log");
+    await rename.press("Enter");
+    await source
+      .locator(".terminal-tab")
+      .filter({ hasText: "Second endpoint" })
+      .getByRole("tab")
+      .click();
     // Move the background tab, not the active Second endpoint tab.
     await source.bringToFront();
     await source
@@ -265,7 +278,7 @@ export async function checkWindows(environment) {
     const moved = await movedWindow;
     moved.on("pageerror", (error) => errors.push(error.message));
     await expect(moved.locator(".terminal-tab.active")).toContainText(
-      "Isolated echo",
+      "Isolated echo · startup log",
       { timeout: 25000 },
     );
     await expect(moved.locator(".notices")).toContainText("up to 64 KiB");

@@ -122,7 +122,9 @@ asks the SSH Transport constructor to validate and load them; it does not constr
 third-party SSH signers, clients, sessions, or callbacks. Generic Session I/O still sees only the
 existing Channel contract.
 
-A candidate connects before registration. Failed or cancelled candidates are closed, and failed
+Explicit independent SSH opens bypass the reusable endpoint slot. Each opening participates in
+Manager shutdown and candidate cleanup. Independent shells never replace the default reusable
+shell. A candidate connects before registration. Failed or cancelled candidates are closed, and failed
 opens do not reserve the endpoint. Successful SSH Sessions use opaque random IDs and `SSH-N`
 references from the existing Manager. There are no changes to Session or generic read/write/close
 ownership. See the [SSH workflow](../getting-started/ssh-terminal.md) for CLI Host lifetime.
@@ -761,3 +763,10 @@ to cancel its server context. HTTP performs its existing bounded graceful shutdo
 that wins admission prevents exit; a late one receives `host_draining`. Session reads on a reclaiming
 Host require a registered instance (`instance_required` for old clients); retained monitoring should
 also declare a Session use across polling/thinking gaps. Existing write authorization is unchanged.
+
+Human management can apply a manual-only policy to a transport and actual endpoint. Application
+loads persisted rules before serving clients. It binds pending automation requests to the
+connection and discards their results upon revocation. Session aliases and view IDs have no
+authority. An interrupted operation retains its original authenticated instance, generation and
+deadline. One live request may wait for explicit release. Timeout never grants writes.
+See [the protocol](../reference/mcp-tools.md#session-control).

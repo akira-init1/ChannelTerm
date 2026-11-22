@@ -199,3 +199,139 @@ test("desktop takeover keeps the original outcome across reconnect and never ret
     await fixture.stop();
   }
 });
+
+test("authenticated agent waits for the operator, then a protected port rejects reads across reconnects", async () => {
+  const f = await startFixture();
+  const human = new HostClient(f.endpoint, f.token);
+  const agent = new Client({ name: "operator-flow", version: "1" });
+  try {
+    await human.connect();
+    await agent.connect(
+      new StreamableHTTPClientTransport(new URL(f.endpoint), {
+        requestInit: { headers: { Authorization: "Bearer " + f.agentToken } },
+      }),
+    );
+    const reg = await agent.callTool({
+      name: "client_instance",
+      arguments: { action: "register", name: "operator-flow", entry: "test" },
+    });
+    const credential = object(object(reg.structuredContent).credential);
+    const call = (
+      name: string,
+      args: Record<string, unknown>,
+      proof?: Record<string, unknown>,
+    ) =>
+      agent.callTool({
+        name,
+        arguments: args,
+        _meta: {
+          "io.channelterm/instance": credential,
+          ...(proof ? { "io.channelterm/control": proof } : {}),
+        },
+      });
+    const serial = {
+      kind: "serial",
+      port: "COM8",
+      label: "saved",
+      baud: 115200,
+      dataBits: 8,
+      parity: "none",
+      stopBits: "1",
+      flowControl: "none",
+      wake: false,
+    } as const;
+    const s = await human.openConnection(serial);
+    assert.equal((await human.openConnection(serial)).sessionId, s.sessionId);
+    const other = await human.openConnection({ ...serial, port: "COM9" });
+    const target = { session_id: s.sessionId };
+    const status = async () =>
+      (await human.list()).find((row) => row.session_id === s.sessionId)!
+        .control!;
+    const idle = await status();
+    const begin = await call("terminal_control", {
+      ...target,
+      action: "begin",
+      version: idle.version,
+    });
+    const active = object(object(begin.structuredContent).control);
+    const proof = {
+      version: text(active.version),
+      operation_id: text(active.operation_id),
+    };
+    await human.control({
+      ...target,
+      ...proof,
+      action: "takeover",
+      locale: "zh-CN",
+    });
+    const write = await call(
+      "terminal_write",
+      { ...target, text: "old", actor: "user" },
+      proof,
+    );
+    assert.equal(write.isError, true);
+    assert.equal(
+      object(object(object(write.structuredContent).result).wait)
+        .write_forbidden,
+      true,
+    );
+    const wait = call("terminal_control", {
+      ...target,
+      ...proof,
+      action: "wait",
+    });
+    let current = await status();
+    for (let i = 0; i < 100 && (!current.waiting || !current.writable); i++) {
+      await delay(10);
+      current = await status();
+    }
+    assert.equal(current.waiting, true);
+    assert.equal(current.writable, true);
+    const tab = await human.attach(s.sessionId);
+    await human.write(tab.id, "manual");
+    await human.control({
+      ...target,
+      action: "allow",
+      version: current.version,
+      operation_id: current.operation_id,
+    });
+    const released = object(object((await wait).structuredContent).wait);
+    assert.equal(released.status, "allowed");
+    const before = await status();
+    const snapshot = await call("terminal_read", target);
+    const cursor = object(snapshot.structuredContent).next;
+    const pending = call("terminal_read", {
+      ...target,
+      cursor,
+      timeout_ms: 10000,
+    });
+    await delay(30);
+    await human.control({
+      ...target,
+      action: "protect",
+      version: before.version,
+      operation_id: before.operation_id,
+    });
+    assert.equal(
+      object(object((await pending).structuredContent).error).code,
+      "manual_only",
+    );
+    assert.equal((await call("terminal_read", target)).isError, true);
+    assert.equal(
+      (await call("terminal_read", { session_id: other.sessionId })).isError,
+      undefined,
+    );
+    await human.closeSession(tab.id);
+    await human.detach(tab.id);
+    const reopened = await human.openConnection(serial);
+    assert.notEqual(reopened.sessionId, s.sessionId);
+    assert.equal(
+      (await call("terminal_read", { session_id: reopened.sessionId })).isError,
+      true,
+    );
+  } finally {
+    await agent.close();
+    await human.disconnect();
+    await f.stop();
+  }
+});

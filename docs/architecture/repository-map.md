@@ -178,7 +178,7 @@ gui/electron/
 `-- .gitignore                     Local dependencies, build output, compiled catalogs and test artifacts
 ```
 
-Main owns independent Host Clients and file adapters per window; each Host Client owns bounded
+Main owns the trusted peer directory, per-window tab navigation, independent Host Clients and file adapters per window; each Host Client owns bounded
 attachment handles with independent cursors/codecs/queues. The shared startup coordinator reuses
 the configured Host. Main's Host Client calls existing authenticated MCP tools; it does not import Go source, own a
 Session, or manage leases. The Go fixture is test composition only, not a second production Host

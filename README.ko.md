@@ -15,6 +15,8 @@ GDB를 통해 AI가 중단점을 설정하고 Linux 프로그램을 단계 실�
 
 모든 Session은 이제 인증된 작업 제어를 기본으로 사용합니다. 최신 CLI/Electron은 자동으로 대응하며, 이전 쓰기 클라이언트와 인증되지 않은 stdio는 마이그레이션이 필요합니다. 사용자가 제어를 인계하면 이전 작업의 쓰기를 차단한 뒤 복구하며, 명시적으로 허용할 때까지 AI를 일시 중지합니다. 복구를 확인하지 못하면 Session을 닫을 수 있습니다. 중단된 입력을 재전송하지 않습니다. [마이그레이션 안내](docs/getting-started/http-authentication-migration.md#default-controlled-sessions)를 참고하세요.
 
+Electron의 AI 접근 차단은 재연결 후에도 저장된 연결을 보호합니다. 사용자가 일시적으로 제어권을 인수하면 기존 에이전트는 명시적인 재개를 기본 3분까지 기다릴 수 있습니다. [터미널 목록과 제어](docs/reference/gui-menus.md#terminal-directory-and-naming)를 참조하세요.
+
 ## ChannelTerm을 사용하는 이유
 
 터미널을 열어 둔 채 AI와 같은 장치 연결을 사용하세요.

@@ -892,3 +892,8 @@ Host overwrite, clear and restart; alternate-screen suspension; and nine-locale 
 The fixture retains only 1 KiB: retention tests feed sub-capacity batches and wait for parsing;
 intentional flood tests separately exercise loss. These checks do not prove native behavior on
 unavailable desktop targets or device event timing.
+
+The desktop acceptance runner also exercises the terminal directory with two disposable
+loopback Hosts, distinct credentials and the same short reference and opaque Session ID.
+The GUI checks cover the Sessions/LAN activity rail, history after closing tabs, drag reordering across windows and restarts, connection status filters, and suspended LAN polling. The directory checks double-click a stored serial connection with its Host disconnected, verify one new live Session, and reattach to loopback SSH through transport-specific rows. The fixture closes one serial channel while its Host remains reachable to check independent Host and Session status lights. The U-Boot regression holds the renderer list snapshot fixed between two confirmed attempts to exercise control-version rotation. The COM8 and COM9 fixtures use in-memory streams. The MCP tests use the SDK client with
+an independent agent credential. No physical port or operator credential is required.

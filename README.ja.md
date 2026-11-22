@@ -15,6 +15,8 @@ GDB を使えば、AI にブレークポイント設定、Linux プログラム�
 
 すべての Session は認証済み操作制御を標準で使用します。新版 CLI/Electron は自動対応しますが、旧書き込みクライアントと未認証 stdio は移行が必要です。人間による引き継ぎは旧操作の書き込みを失効させてから復旧し、明示的に許可するまで AI を停止します。復旧を確認できない場合は Session を閉じます。中断した入力は再送しません。[移行ガイド](docs/getting-started/http-authentication-migration.md#default-controlled-sessions)を参照してください。
 
+Electron の「AI アクセスを禁止」は、再接続後も保存済みの接続を保護します。一時的に操作を引き継ぐと、元のエージェントは明示的な再開を既定で最大 3 分間待機できます。[端末一覧と操作](docs/reference/gui-menus.md#terminal-directory-and-naming)を参照してください。
+
 ## ChannelTerm を使う理由
 
 端末を開いたまま、AI と同じデバイス接続を使えます。

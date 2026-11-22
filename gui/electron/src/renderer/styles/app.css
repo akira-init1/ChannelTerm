@@ -688,7 +688,7 @@ main {
   scrollbar-width: thin;
 }
 .terminal-tabs .terminal-tab {
-  flex: 0 0 auto;
+  flex: 0 1 auto;
   max-width: 240px;
   gap: 2px;
   padding: 0 4px;
@@ -1911,4 +1911,191 @@ main {
 }
 .highlight-templates {
   padding: 8px 0;
+}
+
+.terminal-directory {
+  padding: 0 8px 6px;
+}
+.terminal-directory h2 {
+  font-size: 13px;
+  margin: 8px 0;
+}
+.terminal-directory details > summary,
+.session-picker > summary {
+  cursor: pointer;
+  padding: 4px;
+}
+.connection-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  margin: 3px 0;
+}
+.directory-row {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.directory-row small {
+  color: var(--muted);
+}
+.directory-row[aria-pressed="true"] {
+  border-color: var(--accent);
+}
+.connection-card label {
+  width: 100%;
+  font-size: 11px;
+}
+.terminal-tab input {
+  min-width: 4em;
+  max-width: 12em;
+}
+.workspace > main {
+  position: relative;
+}
+.control-overlay {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 4;
+  width: max-content;
+  max-width: 90%;
+  background: color-mix(in srgb, var(--panel-background) 90%, transparent);
+  backdrop-filter: blur(2px);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.control-overlay .control-actions button:disabled {
+  display: none;
+}
+
+.tab-reference {
+  flex: none;
+}
+.tab-endpoint {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  text-overflow: ellipsis;
+}
+@media (max-width: 1000px) {
+  .tab-endpoint {
+    display: none;
+  }
+}
+
+.connection-card .directory-protection {
+  position: relative;
+  display: inline-flex;
+  width: auto;
+  gap: 3px;
+  align-items: center;
+  cursor: pointer;
+  padding: 4px;
+  color: var(--muted);
+}
+.directory-protection input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
+.directory-protection:focus-within {
+  outline: 1px solid var(--accent);
+}
+.directory-tabs {
+  flex-basis: 100%;
+  padding-inline-start: 14px;
+  border-inline-start: 1px solid var(--border);
+}
+.directory-tabs .directory-row {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  width: 100%;
+  align-items: baseline;
+}
+.session-picker .session-browser {
+  max-height: 36vh;
+  overflow: auto;
+}
+.session-picker[open] .session-search {
+  margin: 0;
+}
+.terminal-directory .directory-row strong,
+.terminal-directory .directory-row small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.host-panel[hidden] {
+  display: none;
+}
+
+.connection-card .directory-row.session {
+  gap: 1px;
+  line-height: 16px;
+  padding: 4px 6px;
+}
+
+.directory-filters {
+  display: flex;
+  align-items: stretch;
+  gap: 5px;
+  margin: 0 8px 6px;
+}
+.directory-filters .session-search {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+.directory-filters select {
+  max-width: 46%;
+  min-width: 0;
+  color: var(--foreground);
+  background: #151a21;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  font: inherit;
+}
+.directory-light {
+  margin-inline-end: 6px;
+  vertical-align: middle;
+}
+.dot.directory-light.offline {
+  background: #ee7771;
+}
+.directory-row[draggable="true"] {
+  cursor: grab;
+}
+.directory-row[draggable="true"]:active {
+  cursor: grabbing;
+}
+.directory-row[data-drop="before"] {
+  box-shadow: inset 0 2px #5799ed;
+}
+.directory-row[data-drop="after"] {
+  box-shadow: inset 0 -2px #5799ed;
+}
+
+.directory-transport {
+  display: inline-flex;
+  align-items: center;
+  margin-inline-end: 5px;
+  vertical-align: middle;
+  color: var(--muted);
+}
+.directory-transport .icon {
+  width: 15px;
+  height: 15px;
 }

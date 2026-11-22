@@ -215,3 +215,8 @@ to keep resources (`0s`) or explicitly enable fully idle exit. Policy changes re
 Host restart after finishing shared work. A released serial endpoint may be opened by another
 program; closing an SSH Session may end its shell. Reconnect explicitly to create a new Session.
 Reconnection never resends input. A stopped Host needs an external launch; HTTP requests cannot wake it.
+
+In Electron, open **Session > New Connection...** and choose an existing Session to give it a
+second view. Each tab can have its own name. A human can take over a running agent operation
+or block AI access to the connection. See the [terminal directory](../reference/gui-menus.md#terminal-directory-and-naming)
+and [interrupted-task protocol](../reference/mcp-tools.md#interrupted-tasks-and-manual-only-connections).

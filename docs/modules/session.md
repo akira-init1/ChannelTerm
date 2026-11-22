@@ -178,3 +178,7 @@ owns no idle timer or client-presence authority. The Application publishes `OPER
 outside admission locks. Existing Channel/Transport cleanup, finite buffers and close semantics
 apply. Reopen requires a new explicit connection; old IDs and unsent input are not restored. See
 [Host idle reclamation](application.md#host-idle-reclamation) for protected work and atomic admission.
+
+Explicit independent opens reserve a creation attempt in Manager without entering the reusable
+endpoint slot. Shutdown waits for these attempts and closes rejected candidates. See
+[SSH opening](application.md#ssh-open-invariants).

@@ -11,6 +11,12 @@ import (
 	"github.com/akira-init1/ChannelTerm/internal/core/connectionpolicy"
 )
 
+// ManualConnection identifies one protected physical serial endpoint or SSH login on this Host.
+type ManualConnection struct {
+	Transport string `toml:"transport" json:"transport"`
+	Endpoint  string `toml:"endpoint" json:"endpoint"`
+}
+
 // File is the complete ChannelTerm configuration file.
 //
 // Serial stores connection profiles, Connection stores discovery policy, and
@@ -21,11 +27,12 @@ import (
 //
 // Empty preferences are omitted from TOML; client choices do not grant Host access.
 type File struct {
-	Host         Host         `toml:"host,omitempty"`
-	Serial       Serial       `toml:"serial"`
-	Connection   Connection   `toml:"connection"`
-	Preferences  Preferences  `toml:"preferences,omitempty"`
-	FileTransfer FileTransfer `toml:"file_transfer,omitempty"`
+	ManualOnly   []ManualConnection `toml:"manual_only,omitempty"`
+	Host         Host               `toml:"host,omitempty"`
+	Serial       Serial             `toml:"serial"`
+	Connection   Connection         `toml:"connection"`
+	Preferences  Preferences        `toml:"preferences,omitempty"`
+	FileTransfer FileTransfer       `toml:"file_transfer,omitempty"`
 }
 
 // Host configures only persistent Host idleness. Empty values select the launch

@@ -143,7 +143,15 @@ func runSSH(ctx context.Context, args []string, input io.Reader, output io.Write
 	defer listener.Close()
 	manager := session.NewManager()
 	defer func() { err = errors.Join(err, manager.Close()) }()
-	application, err := app.New(app.Dependencies{Manager: manager})
+	configPath, err := config.DefaultPath()
+	if err != nil {
+		return err
+	}
+	file, err := config.LoadOrCreate(configPath)
+	if err != nil {
+		return err
+	}
+	application, err := app.New(app.Dependencies{Manager: manager, ConfigPath: configPath, ManualOnly: file.ManualOnly})
 	if err != nil {
 		return err
 	}

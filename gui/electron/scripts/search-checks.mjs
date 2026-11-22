@@ -1,3 +1,4 @@
+import { chooseSession } from "./session-picker.mjs";
 import assert from "node:assert/strict";
 import { expect } from "@playwright/test";
 
@@ -98,9 +99,11 @@ export async function checkTerminalSearch(
       .locator('xpath=self::*[contains(@style, "rgb(181, 155, 53)")]')
       .first(),
   ).toHaveCSS("outline-color", "rgb(181, 155, 53)");
-  await desktop.evaluate(({ BrowserWindow }) =>
-    BrowserWindow.getAllWindows()[0].setSize(760, 500),
-  );
+  const testWindow = await desktop.browserWindow(page);
+  await testWindow.evaluate((window) => {
+    if (window.isMinimized()) window.restore();
+    window.setSize(760, 500);
+  });
   await expect.poll(() => page.evaluate(() => window.outerWidth)).toBe(760);
   await expect(query).toBeInViewport();
   await expect(
@@ -159,7 +162,7 @@ export async function checkTerminalSearch(
     Menu.getApplicationMenu().getMenuItemById("tab.close").click(),
   );
   await expect(search).toHaveCount(0);
-  await page.locator("button.session").filter({ hasText: /SER-1/ }).click();
+  await chooseSession(page, /SER-1/);
   await expect(terminal).toBeVisible();
   await expect(search).toHaveCount(0);
   assert.equal(

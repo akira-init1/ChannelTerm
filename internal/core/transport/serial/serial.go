@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"path/filepath"
 	"runtime"
 	"strings"
 
@@ -144,6 +145,21 @@ func SamePortName(discovered, supplied string) bool {
 // discovered name when opening a port or presenting it to a user.
 func PortNameKey(name string) string {
 	return portNameKey(runtime.GOOS, name)
+}
+
+// EndpointKey compares aliases of the same physical port when possible. The
+// caller keeps the original OS endpoint for the actual open and display.
+func EndpointKey(name string) string {
+	key := PortNameKey(name)
+	if runtime.GOOS == "windows" {
+		return strings.TrimPrefix(key, `\\.\`)
+	}
+	if filepath.IsAbs(key) {
+		if resolved, err := filepath.EvalSymlinks(key); err == nil {
+			return resolved
+		}
+	}
+	return key
 }
 
 func portNameKey(platform, name string) string {

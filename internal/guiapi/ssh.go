@@ -29,6 +29,7 @@ type sshOpener interface {
 
 // SSHRequest describes a management client's request to open a Host-owned SSH shell.
 type SSHRequest struct {
+	Independent    bool         `json:"independent,omitempty"`
 	ConfirmHostKey bool         `json:"confirm_host_key"`
 	Host           string       `json:"host"`
 	User           string       `json:"user"`
@@ -90,7 +91,7 @@ func newSSHHandler(application sshOpener) http.Handler {
 			return
 		}
 		if r.Method == http.MethodGet {
-			reply(w, 200, map[string]bool{"available": true, "advanced": true, "trust_confirmation": true, "resize_control": true})
+			reply(w, 200, map[string]bool{"available": true, "independent_shell": true, "advanced": true, "trust_confirmation": true, "resize_control": true})
 			return
 		}
 		if r.Method != http.MethodPost {
@@ -157,7 +158,7 @@ func newSSHHandler(application sshOpener) http.Handler {
 				return trust.confirm(promptContext, w, key)
 			}
 		}
-		opened, err := application.OpenSSH(ctx, app.OpenSSHRequest{Config: config, Label: input.Label})
+		opened, err := application.OpenSSH(ctx, app.OpenSSHRequest{Config: config, Label: input.Label, Independent: input.Independent})
 		if err != nil {
 			code := "connection_failed"
 			var stage *sshtransport.StageError

@@ -8,6 +8,8 @@ export interface ControlSnapshot {
   state: "idle" | "active" | "stopping" | "human" | "failed";
   writable: boolean;
   ai_paused: boolean;
+  waiting?: boolean;
+  manual_only?: boolean;
   source?: OperationSource;
 }
 
@@ -25,7 +27,9 @@ export interface ControlOutcome extends ControlTarget {
   source?: OperationSource;
 }
 export type ControlRequest = ControlTarget & {
-  action: "takeover" | "allow" | "result";
+  action: "takeover" | "allow" | "result" | "protect" | "unprotect";
+  locale?: string;
+  wait_seconds?: number;
 };
 export type ControlReply =
   { control: ControlSnapshot } | { result: ControlOutcome };

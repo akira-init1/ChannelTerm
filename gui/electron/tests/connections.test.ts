@@ -47,7 +47,8 @@ test("advanced SSH settings are bounded and require explicit Host support", asyn
   try {
     globalThis.fetch = async (input, init) => {
       if (new URL(input.toString()).pathname === "/gui/v1/ssh") {
-        if (init?.method === "GET") return Response.json({ available: true });
+        if (init?.method === "GET")
+          return Response.json({ available: true, independent_shell: true });
         posts++;
       }
       return original(input, init);

@@ -99,7 +99,7 @@ strip remains the visible Windows/Linux menu surface; macOS also has its native 
 The official Lingui CLI maintains PO catalogs and compiles shared resource imports before both
 esbuild and Vite run. Each process owns its own Lingui instance; there is no cross-process
 translation loader or credential access. See the [maintenance workflow](../development/electron-gui.md#menu-translations-lingui-590).
-A 48 px activity rail toggles the Session sidebar without changing the attachment. The sidebar
+A 48 px activity rail selects the connection history, trusted LAN Host directory or debug sidebar. Changing panels preserves the current attachment. The sidebar
 defaults to 260 px, or 210 px with a 40 px rail at viewport widths of 900 px or less. Its edge
 is a draggable, keyboard-focusable separator: Left/Right adjust by 10 px, Home/End select the
 allowed limits, and double-click restores the current viewport's default. Width is clamped
@@ -750,7 +750,7 @@ All labels use the nine maintained Lingui catalogs. See the
 ## Local connection presets
 
 Renderer projects successful explicit connection requests through a strict allowlist into bounded
-local storage. Recent connections and SSH favorites are presentation/form data, not Session or
+local storage. Recent connections and explicitly saved serial/SSH favorites are presentation/form data, not Session or
 Transport ownership. They exclude credentials, credential paths and wake intent; loading a record
 only fills the connection dialog. Main and Host retain all existing validation and creation authority.
 Successful records receive local UUIDs; legacy records gain one on explicit use or opening their
@@ -798,7 +798,7 @@ is an authorization capability. SSH resize submission uses the same Host write g
 never retry rejected bytes or grant an observer control. See [the protocol](../reference/mcp-tools.md#session-control).
 
 Main exposes fixed, validated `control` and `interruptSSHTransfer` IPC methods. Control requests
-carry the captured full Session/version/operation tuple; only the fixed takeover, allow and result
+carry the captured full Session/version/operation tuple; only the fixed protection, takeover, allow and result
 actions are accepted. Main rejects unknown fields and validates response identity before selecting
 public fields. It invalidates queued input before submitting takeover. Renderer owns confirmation,
 a bounded pending/result view and explicit result queries, including after disconnect; it never
@@ -835,3 +835,9 @@ The fold margin and metadata gutter share a viewport projection that skips colla
 output while retaining wrapped command headers. The contiguous live tail uses the original
 xterm surface at its fitted size. A bounded projection displays preceding historical rows.
 Terminal parsing, the Session cursor and recording retain their original input.
+
+Main indexes tab display rows by their owning window for navigation. Renderer keeps per-tab
+names in its workspace, and Main validates names during handoff. The trusted peer directory
+uses individually configured loopback forwards and credentials. Listings do not start
+companions. Attachment enters a window bound to the selected peer. See the
+[configuration contract](../reference/configuration.md#trusted-host-directory).

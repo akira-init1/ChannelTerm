@@ -14,6 +14,8 @@ import (
 type OpenSSHRequest struct {
 	Config sshtransport.Config
 	Label  string
+	// Independent requests a fresh PTY shell outside endpoint-based reuse.
+	Independent bool
 }
 
 // OpenSSHResult identifies a Manager-owned SSH PTY shell Session.
@@ -54,7 +56,11 @@ func (a *Application) openSSH(ctx context.Context, request OpenSSHRequest, creat
 	if err != nil {
 		return OpenSSHResult{}, err
 	}
-	info, created, err := a.manager.GetOrCreate(ctx, session.SessionMetadata{
+	open := a.manager.GetOrCreate
+	if request.Independent {
+		open = a.manager.CreateIndependent
+	}
+	info, created, err := open(ctx, session.SessionMetadata{
 		Transport: "ssh", Endpoint: transport.Endpoint(), Label: request.Label,
 	}, func() (session.Session, error) {
 		id, err := allocateSessionID(ctx, a.manager, newSessionID)

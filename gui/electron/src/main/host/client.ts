@@ -1,3 +1,4 @@
+import type { SavedPolicyTarget } from "../../shared/api";
 import { debugBytes } from "./debug-send";
 import {
   isUBootRequest,
@@ -116,6 +117,7 @@ export class HostClient {
   readonly sshTrust = new SSHTrustExchange();
   private sshTrustAvailable = false;
   private sshAvailable = false;
+  private independentSSH = false;
   private sshAdvanced = false;
   private resizeAvailable = false;
   private pendingSizes = new Map<string, RemoteSize>();
@@ -401,6 +403,7 @@ export class HostClient {
         const capabilities = response.ok ? object(await response.json()) : {};
         this.sshTrustAvailable = capabilities.trust_confirmation === true;
         this.sshAvailable = capabilities.available === true;
+        this.independentSSH = capabilities.independent_shell === true;
         this.sshAdvanced = this.sshAvailable && capabilities.advanced === true;
       } catch {
         this.sshTrustAvailable = false;
@@ -490,6 +493,47 @@ export class HostClient {
     return object(result.structuredContent);
   }
 
+  async connectionPolicies(raw: unknown): Promise<SavedPolicyTarget[]> {
+    let args: Record<string, unknown> = { action: "policies" };
+    if (raw !== undefined) {
+      const q = object(raw);
+      if (
+        Object.keys(q).length !== 3 ||
+        typeof q.enabled !== "boolean" ||
+        !["serial", "ssh"].includes(String(q.transport)) ||
+        typeof q.endpoint !== "string" ||
+        !q.endpoint ||
+        q.endpoint.length > 1024 ||
+        /[\x00-\x1f\x7f]/.test(q.endpoint)
+      )
+        throw incompatible();
+      args = {
+        action: q.enabled ? "protect_saved" : "unprotect_saved",
+        transport: q.transport,
+        endpoint: q.endpoint,
+      };
+    }
+    const response = await this.call(
+      "terminal_control",
+      args,
+      this.connection.signal,
+    );
+    if (
+      !Array.isArray(response.connections) ||
+      response.connections.length > 256
+    )
+      throw incompatible();
+    return response.connections.map((row) => {
+      const r = object(row);
+      if (
+        (r.transport !== "ssh" && r.transport !== "serial") ||
+        typeof r.endpoint !== "string" ||
+        r.endpoint.length > 1024
+      )
+        throw incompatible();
+      return { transport: r.transport, endpoint: r.endpoint };
+    });
+  }
   private controlPending = false;
   async control(value: unknown): Promise<ControlReply> {
     const request = controlRequest(value);
@@ -516,7 +560,11 @@ export class HostClient {
           "cancelled",
           "Control observation ended; query the original result.",
         );
-      if (request.action === "allow") {
+      if (
+        request.action === "allow" ||
+        request.action === "protect" ||
+        request.action === "unprotect"
+      ) {
         const control = controlSnapshot(response.control);
         if (control.session_id !== request.session_id) throw incompatible();
         this.controls.set(control.session_id, control);
@@ -834,6 +882,11 @@ export class HostClient {
         "incompatible",
         "This Host does not provide SSH creation. Start an updated standalone Host.",
       );
+    if (request.kind === "ssh" && !this.independentSSH)
+      throw new HostError(
+        "incompatible",
+        "Update the Host to create an independent SSH terminal.",
+      );
     if (request.kind === "ssh" && request.advanced && !this.sshAdvanced)
       throw new HostError(
         "incompatible",
@@ -866,6 +919,7 @@ export class HostClient {
         const response = await this.sshRequest(
           "POST",
           JSON.stringify({
+            independent: true,
             confirm_host_key: trust || undefined,
             host: request.host,
             user: request.user,

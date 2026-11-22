@@ -1,3 +1,4 @@
+import { chooseSession } from "./session-picker.mjs";
 import assert from "node:assert/strict";
 import { mkdtemp, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
@@ -64,11 +65,14 @@ export async function checkWorkspace(environment) {
     });
     await launch();
     await native("host.connect");
-    await page.locator(`[data-session-id="${live.session_id}"]`).click();
+    await chooseSession(page, undefined, live.session_id);
     await expect(page.locator(".xterm-screen")).toHaveCount(1);
-    await page.locator(`[data-session-id="${closed.sessionId}"]`).click();
+    await chooseSession(page, undefined, closed.sessionId);
     await expect(page.locator(".terminal-tab")).toHaveCount(2);
     await page.locator('.terminal-tab [role="tab"]').first().click();
+    await page.locator('.terminal-tab [role="tab"]').first().dblclick();
+    await page.getByRole("textbox", { name: "Rename Tab…" }).fill("启动日志");
+    await page.getByRole("textbox", { name: "Rename Tab…" }).press("Enter");
     await native("settings.display");
     const dialog = page.getByRole("dialog");
     await dialog.locator('[name="encoding"]').selectOption("gbk");
@@ -149,6 +153,9 @@ export async function checkWorkspace(environment) {
     await expect(page.locator(".notices")).toContainText(
       zh._("workspace.hint"),
     );
+    await expect(
+      page.locator('.terminal-tab [role="tab"]').first(),
+    ).toContainText("启动日志");
     assert.equal((await observer.list()).length, 1);
     assert.equal(
       Buffer.from((await observer.read(attached.id)).data).toString(),

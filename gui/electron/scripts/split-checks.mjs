@@ -1,3 +1,4 @@
+import { chooseSession } from "./session-picker.mjs";
 import assert from "node:assert/strict";
 import { mkdtemp, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
@@ -105,7 +106,7 @@ export async function checkSplits(environment) {
     const secondObserver = await observer.attach(second.sessionId);
     await launch();
     await native("host.connect");
-    await page.locator(".session").filter({ hasText: "Isolated echo" }).click();
+    await chooseSession(page, "Isolated echo");
     const original = await focusedAttachment();
     await native("tab.splitRight");
     await expect(panes()).toHaveCount(2);
@@ -146,7 +147,7 @@ export async function checkSplits(environment) {
     await native("tab.splitRight");
     await expect(panes()).toHaveCount(2);
     // Splitting again explicitly creates a new observer; the former hidden observer remains a tab.
-    await page.locator(".session").filter({ hasText: "Split second" }).click();
+    await chooseSession(page, "Split second");
     await expect(page.locator(".terminal-tab.active")).toContainText(
       "Split second",
     );
@@ -168,14 +169,22 @@ export async function checkSplits(environment) {
     });
     await textarea(right).focus();
     await page.keyboard.type("only-second-pane");
-    assert.equal(
-      Buffer.from((await observer.read(firstObserver.id)).data).toString(),
-      "only-first-pane",
-    );
-    assert.equal(
-      Buffer.from((await observer.read(secondObserver.id)).data).toString(),
-      "only-second-pane",
-    );
+    // Keystrokes are individual asynchronous writes. One Host read can contain
+    // a partial payload while the remaining keystrokes are still in flight.
+    for (const [handle, expected] of [
+      [firstObserver, "only-first-pane"],
+      [secondObserver, "only-second-pane"],
+    ]) {
+      let received = "";
+      await expect
+        .poll(async () => {
+          received += Buffer.from(
+            (await observer.read(handle.id)).data,
+          ).toString();
+          return received;
+        })
+        .toBe(expected);
+    }
     const before = await page
       .locator(".terminal-tab")
       .evaluateAll((nodes) => nodes.map((node) => node.dataset.tabId));
@@ -213,7 +222,8 @@ export async function checkSplits(environment) {
       .locator(".terminal-tab")
       .last()
       .dragTo(page.locator(".terminal-tab").first(), {
-        targetPosition: { x: 2, y: 8 },
+        sourcePosition: { x: 4, y: 8 },
+        targetPosition: { x: 4, y: 8 },
       });
     const dragged = await page
       .locator(".terminal-tab")
@@ -311,7 +321,7 @@ export async function checkSplits(environment) {
     const owner = await observer.attach(ssh.sessionId);
     assert.equal(owner.ownsRemoteSize, true);
     await native("session.refresh");
-    await page.locator(".session").filter({ hasText: "Split SSH" }).click();
+    await chooseSession(page, "Split SSH");
     const observing = await focusedAttachment();
     assert.equal(observing.ownsRemoteSize, false);
     const originalTabId = await page

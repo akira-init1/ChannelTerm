@@ -16,6 +16,8 @@ Para ventanas de arranque cortas, el Host puede interrumpir U-Boot y verificar e
 
 Todas las Sessions usan ahora control de operaciones autenticado. Los clientes CLI/Electron actuales se adaptan automáticamente; los escritores antiguos y stdio sin registro deben migrar. La toma de control humana bloquea las operaciones antiguas antes de la recuperación y pausa la IA hasta una autorización explícita. Una recuperación no confirmada puede cerrar la Session; nunca se reenvían las entradas interrumpidas. Consulte la [guía de migración](docs/getting-started/http-authentication-migration.md#default-controlled-sessions).
 
+En Electron, bloquear el acceso de la IA protege una conexión guardada incluso después de reconectarla. Tras una toma de control temporal, el agente puede esperar una autorización explícita durante tres minutos de forma predeterminada. Consulte el [directorio y los controles de terminales](docs/reference/gui-menus.md#terminal-directory-and-naming).
+
 ## ¿Por qué ChannelTerm?
 
 Mantenga su terminal abierto mientras la IA usa la misma conexión al dispositivo:

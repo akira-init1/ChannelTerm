@@ -1416,3 +1416,47 @@ old Session readers receive `instance_required` and must register/use/renew expl
 opt-in Host exit commits, new work receives `host_draining`. Neither error permits automatic input
 replay. `OPERATION_STATE` with `operation=idle_release`, `state=closing` and
 `reason=no_registered_use` records removal before ordinary Session Close.
+
+### Interrupted tasks and manual-only connections
+
+A human `terminal_control` takeover accepts optional `locale` and `wait_seconds` (1–3600,
+default 180). On a paused write the structured error includes `result.wait` when the calling
+instance owns the interrupted task. A subsequent `status` from that instance can also return
+`wait`. The object contains the original `version` and `operation_id`, status, endpoint,
+UTC deadline, wait limit, `write_forbidden`, `retry_allowed` and a localized message.
+
+Call `terminal_control` with `action: "wait"`, the full `session_id` and the **original**
+version/operation pair, using the same registered instance. Keep its heartbeat alive. Allow
+the MCP request to remain pending through the indicated deadline. The Host accepts one live
+waiter. An explicit release before registration is observable until that deadline. On
+`allowed`, read fresh terminal output and obtain current control before continuing the
+user's goal. Never replay a discarded command. On `timed_out`, failed recovery, cancellation,
+expired identity or unavailable Session, end the terminal task and await new instructions.
+A client without this wait call does not register a continuation.
+
+For example, an MCP TypeScript SDK client can set the transport timeout from the Host
+deadline. Here, `client` is already connected, `credential` is its registered instance
+credential, and `wait` is the interruption notice returned for `sessionId`.
+
+```js
+const result = await client.callTool(
+  {
+    name: "terminal_control",
+    arguments: {
+      action: "wait", session_id: sessionId,
+      version: wait.version, operation_id: wait.operation_id,
+    },
+    _meta: { "io.channelterm/instance": credential },
+  },
+  undefined,
+  { timeout: Math.max(1000, Date.parse(wait.deadline) - Date.now() + 5000) },
+);
+```
+
+Registered user management may call `protect` or `unprotect` with the captured Session
+generation. `policies` returns protected connection keys. For a saved connection without an
+open Session, use `protect_saved` or `unprotect_saved` with `transport` and `endpoint`.
+All three connection-level actions omit `session_id`. Live connections require the Session
+operation. Protected targets are omitted from agent Session listings. Reads, pending output
+waits and writes fail with `manual_only`. Management changes use the authenticated user
+identity. The `actor` argument provides no permission.

@@ -196,6 +196,11 @@ msgstr "新建连接..."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "connection.newShell"
+msgstr "新建 SSH 终端"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "connection.open"
 msgstr "连接"
 
@@ -231,6 +236,11 @@ msgstr "协议"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "connection.savePreset"
+msgstr "保存连接"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "connection.scan"
 msgstr "扫描串口"
 
@@ -248,6 +258,16 @@ msgstr "串口连接"
 #: src/shared/menu-messages.ts
 msgid "connection.serialTab"
 msgstr "serial"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.settings"
+msgstr "连接设置"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.share"
+msgstr "在新标签查看已有 Session"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -286,8 +306,18 @@ msgstr "允许新的 AI 操作？不会重启已取消的工作，也不会重�
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "control.ask"
+msgstr "接管前询问"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "control.confirm"
 msgstr "确认"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.continue"
+msgstr "继续 AI 任务"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -306,6 +336,21 @@ msgstr "打断 AI"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "control.manual"
+msgstr "🔒 仅手动"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.mine"
+msgstr "我来接管"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.operating"
+msgstr "AI 正在操作"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "control.paused"
 msgstr "AI 已暂停"
 
@@ -313,6 +358,11 @@ msgstr "AI 已暂停"
 #: src/shared/menu-messages.ts
 msgid "control.processing"
 msgstr "请求处理中 · 输入需经 Host 确认"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.protect"
+msgstr "禁止 AI 访问"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -342,7 +392,7 @@ msgstr "恢复已确认 · AI 仍暂停"
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
 msgid "control.takeover"
-msgstr "接管控制"
+msgstr "接管"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -353,6 +403,11 @@ msgstr "会话控制"
 #: src/shared/menu-messages.ts
 msgid "control.unknown"
 msgstr "结果未确认或请求被拒绝。请查询原请求，不要重试输入。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.waitLimit"
+msgstr "AI 等待上限（秒）"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -922,6 +977,46 @@ msgstr "诊断 ZIP…"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "directory.all"
+msgstr "全部"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.empty"
+msgstr "还没有使用过的连接。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.filter"
+msgstr "连接状态"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.lan"
+msgstr "局域网"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.noHosts"
+msgstr "尚未配置受信任的 Host。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.offline"
+msgstr "已断开"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.online"
+msgstr "已连接"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.reorder"
+msgstr "拖动调整顺序，或按 Alt+↑ / Alt+↓。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "display.fontFamily"
 msgstr "字体样式（字体族）"
 
@@ -1463,11 +1558,6 @@ msgstr "上移规则"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
-msgid "history.favorite"
-msgstr "收藏 SSH"
-
-#. js-lingui-explicit-id
-#: src/shared/menu-messages.ts
 msgid "history.hint"
 msgstr "仅为本地表单预设：选择、核对后手动连接。凭据及路径需重新输入。串口 profiles 仍与 CLI 共享。"
 
@@ -1484,7 +1574,7 @@ msgstr "无法保存连接记录。请检查本地存储；不要重复已成功
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
 msgid "history.title"
-msgstr "最近连接与 SSH 收藏"
+msgstr "最近使用和已保存的连接"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -2970,8 +3060,18 @@ msgstr "上一个标签页"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "tab.rename"
+msgstr "重命名标签…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "tab.reorderHint"
 msgstr "拖动可调整顺序；此标签按钮获得焦点时，也可按 Shift+左／右方向键。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.resetName"
+msgstr "恢复默认名称"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -3628,7 +3728,7 @@ msgstr "选择会话"
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
 msgid "workbench.selectHint"
-msgstr "从侧栏选择已打开的会话，查看输出并发送输入。"
+msgstr "选择「会话 → 附加会话…」查看已有终端。"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

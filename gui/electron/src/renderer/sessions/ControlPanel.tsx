@@ -7,18 +7,25 @@ import { OperationSource } from "../components/OperationSource";
 /** A single captured request survives selection changes and disconnection. Host alone grants input. */
 export function ControlPanel({
   current,
+  locale,
+  confirmTakeover,
+  waitSeconds,
   connected,
   t,
   refresh,
   pauseInput,
 }: {
   current?: SessionSummary;
+  locale: string;
+  confirmTakeover: boolean;
+  waitSeconds: number;
   connected: boolean;
   t: (id: string) => string;
   refresh: () => Promise<void>;
   pauseInput: (sessionId: string, version: string, paused: boolean) => void;
 }) {
   const [draft, setDraft] = useState<ControlRequest>();
+  const [draftTarget, setDraftTarget] = useState("");
   const [last, setLast] = useState<ControlRequest>();
   const [outcome, setOutcome] = useState<ControlOutcome>();
   const [message, setMessage] = useState("");
@@ -71,17 +78,43 @@ export function ControlPanel({
   function capture(action: "takeover" | "allow") {
     const control = current?.control;
     if (!control || !connected || pending) return;
-    setDraft({
+    const request: ControlRequest = {
       action,
+      ...(action === "takeover" ? { locale, wait_seconds: waitSeconds } : {}),
       session_id: control.session_id,
       version: control.version,
       operation_id: control.operation_id,
-    });
+    };
+    if (
+      (action === "allow" && control.waiting) ||
+      (action === "takeover" && !confirmTakeover)
+    )
+      void run(request);
+    else {
+      setDraftTarget(
+        [current?.session_ref, current?.endpoint, control.source?.name]
+          .filter(Boolean)
+          .join(" · "),
+      );
+      setDraft(request);
+    }
   }
   if (!current?.control && !last && !draft) return null;
   return (
-    <section className="control-panel" aria-label={t("control.title")}>
+    <section
+      className={
+        current?.control?.state === "active" &&
+        current.control.source?.kind === "agent"
+          ? "control-panel control-overlay"
+          : "control-panel"
+      }
+      aria-label={t("control.title")}
+    >
       <div className="control-actions">
+        {current?.control?.state === "active" &&
+          current.control.source?.kind === "agent" && (
+            <span>{t("control.operating")}</span>
+          )}
         <button
           data-testid="control-takeover"
           disabled={
@@ -94,7 +127,7 @@ export function ControlPanel({
         >
           {t(
             current?.control?.source?.kind === "agent"
-              ? "control.interrupt"
+              ? "control.mine"
               : "control.takeover",
           )}
         </button>
@@ -103,12 +136,13 @@ export function ControlPanel({
           disabled={
             !connected ||
             pending ||
+            current?.control?.manual_only ||
             !current?.control?.ai_paused ||
             current.state !== "open"
           }
           onClick={() => capture("allow")}
         >
-          {t("control.allow")}
+          {t(current?.control?.waiting ? "control.continue" : "control.allow")}
         </button>
         {current?.control?.ai_paused && <span>{t("control.paused")}</span>}
       </div>
@@ -121,6 +155,7 @@ export function ControlPanel({
                 : "control.warning",
             )}
           </div>
+          <div>{draftTarget}</div>
           <code>
             {draft.session_id} · {draft.operation_id || "—"} · {draft.version}
           </code>
@@ -129,10 +164,14 @@ export function ControlPanel({
               disabled={!connected || pending}
               onClick={() => void run(draft)}
             >
-              {t("control.confirm")}
+              {t(
+                draft.action === "takeover"
+                  ? "control.takeover"
+                  : "control.confirm",
+              )}
             </button>
             <button onClick={() => setDraft(undefined)}>
-              {t("control.dismiss")}
+              {t("connection.cancel")}
             </button>
           </div>
         </div>

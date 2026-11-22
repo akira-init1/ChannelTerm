@@ -32,8 +32,39 @@ test("SSH creator controls real PTY size; reuse, takeover and detach preserve Se
       "remoteSize",
       "sessionId",
     ]);
-    assert.equal((await other.openConnection(request)).reused, true);
+    const independent = await other.openConnection(request);
+    assert.equal(independent.reused, false);
+    assert.notEqual(independent.sessionId, opened.sessionId);
     const b = await other.attach(opened.sessionId);
+    const separate = await other.attach(independent.sessionId);
+    await owner.write(a.id, "first-shell-marker");
+    await other.write(separate.id, "second-shell-marker");
+    const readMarker = async (
+      client: HostClient,
+      id: string,
+      marker: string,
+    ) => {
+      let text = "";
+      const deadline = Date.now() + 5000;
+      while (!text.includes(marker) && Date.now() < deadline) {
+        text += Buffer.from((await client.read(id)).data).toString();
+      }
+      assert.ok(text.includes(marker));
+      return text;
+    };
+    assert.doesNotMatch(
+      await readMarker(owner, a.id, "first-shell-marker"),
+      /second-shell-marker/,
+    );
+    assert.doesNotMatch(
+      await readMarker(other, b.id, "first-shell-marker"),
+      /second-shell-marker/,
+    );
+    assert.doesNotMatch(
+      await readMarker(other, separate.id, "second-shell-marker"),
+      /first-shell-marker/,
+    );
+    await other.detach(separate.id);
     assert.equal(b.ownsRemoteSize, false);
     assert.equal(await other.resize(b.id, { columns: 90, rows: 30 }), false);
     await assert.rejects(other.resize(a.id, { columns: 100, rows: 40 }), {
@@ -83,6 +114,52 @@ test("SSH creator controls real PTY size; reuse, takeover and detach preserve Se
   } finally {
     await owner.disconnect();
     await other.disconnect();
+    await fixture.stop();
+  }
+});
+
+test("two new SSH shells keep separate working directories and an attachment follows its shell", async () => {
+  const fixture = await startFixture();
+  const client = new HostClient(fixture.endpoint, fixture.token);
+  try {
+    await client.connect();
+    const request = {
+      kind: "ssh",
+      host: "127.0.0.1",
+      port: fixture.sshPort,
+      user: "fixture-cwd",
+      password: "fixture-password",
+      identityFiles: [],
+      knownHostsFile: fixture.knownHosts,
+      label: "Directory fixture",
+    } as const;
+    const first = await client.openConnection(request);
+    const second = await client.openConnection(request);
+    const a = await client.attach(first.sessionId);
+    const b = await client.attach(second.sessionId);
+    const shared = await client.attach(first.sessionId);
+    const directory = async (id: string) => {
+      let output = "";
+      const deadline = Date.now() + 5000;
+      while (Date.now() < deadline) {
+        output += Buffer.from((await client.read(id)).data).toString();
+        const path = output.match(/CURRENT:([^\r\n]+)[\r\n]/);
+        if (path) return path[1]!;
+      }
+      throw Error("shell did not report its working directory");
+    };
+    await client.write(a.id, "cd child\npwd\n");
+    await client.write(b.id, "pwd\n");
+    const [changed, original, observed] = await Promise.all([
+      directory(a.id),
+      directory(b.id),
+      directory(shared.id),
+    ]);
+    assert.equal(observed, changed);
+    assert.match(changed, /[\\/]child$/);
+    assert.equal(changed.slice(0, -6), original);
+  } finally {
+    await client.disconnect();
     await fixture.stop();
   }
 });

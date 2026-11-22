@@ -1,3 +1,4 @@
+import { chooseSession, openPicker } from "./session-picker.mjs";
 import assert from "node:assert/strict";
 import { expect } from "@playwright/test";
 
@@ -18,7 +19,9 @@ export async function checkControl(desktop, page, observer, sessionId) {
     version: old.version,
     operation_id: old.operation_id,
   });
-  await confirm.getByRole("button", { name: "Confirm", exact: true }).click();
+  await confirm
+    .getByRole("button", { name: "Take control", exact: true })
+    .click();
   await expect(page.getByTestId("control-result")).toContainText(
     "Operation changed or completed",
   );
@@ -37,17 +40,18 @@ export async function checkControl(desktop, page, observer, sessionId) {
     label: "Control secondary",
     wake: false,
   });
+  await openPicker(page);
   await page
     .getByRole("button", { name: "Refresh Sessions", exact: true })
     .click();
+  await page.keyboard.press("Escape");
   await page.getByTestId("control-takeover").click();
-  await page
-    .locator("button.session")
-    .filter({ hasText: "Control secondary" })
-    .click();
+  await chooseSession(page, "Control secondary");
   await expect(confirm).toContainText(sessionId);
   await expect(confirm).not.toContainText(secondary.sessionId);
-  await confirm.getByRole("button", { name: "Confirm", exact: true }).click();
+  await confirm
+    .getByRole("button", { name: "Take control", exact: true })
+    .click();
   const result = page.getByTestId("control-result");
   await expect(result).toContainText(/Recovery confirmed|Stopping/);
   await result.getByRole("button", { name: "Query original result" }).click();
@@ -57,7 +61,7 @@ export async function checkControl(desktop, page, observer, sessionId) {
       .control.ai_paused,
     false,
   );
-  await page.locator("button.session").filter({ hasText: /SER-1/ }).click();
+  await chooseSession(page, /SER-1/);
   await expect(page.getByTestId("control-allow")).toBeEnabled();
   await expect
     .poll(
@@ -88,7 +92,7 @@ export async function checkControl(desktop, page, observer, sessionId) {
     .click();
   await result.getByRole("button", { name: "Query original result" }).click();
   await expect(result).toContainText("Recovery confirmed");
-  await page.locator("button.session").filter({ hasText: /SER-1/ }).click();
+  await chooseSession(page, /SER-1/);
   await page.getByTestId("control-allow").click();
   await confirm.getByRole("button", { name: "Confirm", exact: true }).click();
   await expect(result).toContainText("AI pause removed");

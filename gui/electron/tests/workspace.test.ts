@@ -261,3 +261,34 @@ test("line column choices restore per tab without persisting metadata or changin
   );
   assert.ok(!("lineDisplay" in defaultWorkbenchPreferences));
 });
+
+test("two views of the same Session retain independent names in a workspace", () => {
+  const endpoint = "http://127.0.0.1:9000/mcp";
+  const target = {
+    sessionId: "opaque",
+    reference: "SER-4",
+    label: "Board",
+    transport: "serial",
+    endpoint: "COM8",
+  };
+  const snapshot = {
+    endpoint,
+    selected: 0,
+    tabs: ["启动日志", "手动输入"].map((alias) => ({
+      target,
+      settings: defaultTerminalSettings,
+      alias,
+    })),
+  };
+  const restored = restoreWorkspace(JSON.stringify(snapshot), endpoint)!;
+  assert.deepEqual(
+    restored.tabs.map((tab) => tab.alias),
+    ["启动日志", "手动输入"],
+  );
+  assert.equal(restored.tabs[1]?.target?.reference, "SER-4");
+});
+
+test("LAN restores as an independent rail panel", () => {
+  const saved = { ...defaultWorkbenchPreferences, sidebarView: "lan" };
+  assert.deepEqual(restoreWorkbenchPreferences(JSON.stringify(saved)), saved);
+});

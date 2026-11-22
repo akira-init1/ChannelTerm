@@ -1,3 +1,4 @@
+import { chooseSession } from "./session-picker.mjs";
 import assert from "node:assert/strict";
 import { mkdtemp, writeFile, readFile, readdir } from "node:fs/promises";
 import { resolve, join } from "node:path";
@@ -44,7 +45,7 @@ export async function checkRecordings(environment) {
     await page
       .getByRole("button", { name: "Connect to Host...", exact: true })
       .click();
-    await page.locator(".session").filter({ hasText: "Isolated echo" }).click();
+    await chooseSession(page, "Isolated echo");
     await expect(page.locator(".xterm-screen")).toBeVisible();
     await observer.write(watched.id, "before-recording-must-not-be-exported");
     await desktop.evaluate(({ dialog }, directory) => {
@@ -135,7 +136,7 @@ export async function checkRecordings(environment) {
       .poll(() => desktop.evaluate(() => globalThis.trashedLog))
       .toBe(dataPath);
     await modal.getByRole("button", { name: "Close", exact: true }).click();
-    await page.locator(".session").filter({ hasText: "Isolated echo" }).click();
+    await chooseSession(page, "Isolated echo");
     await desktop.evaluate(({ dialog }, directory) => {
       dialog.showOpenDialog = async () => ({
         canceled: false,

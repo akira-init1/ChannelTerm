@@ -6,9 +6,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"path"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -75,6 +77,7 @@ type transferCoordinator struct {
 }
 
 type transferRun struct {
+	connection  config.ManualConnection
 	mu          sync.Mutex
 	status      TransferStatus
 	request     TransferRequest
@@ -87,6 +90,21 @@ type transferRun struct {
 	// Progress reporting is worker-owned; snapshots alone are read concurrently.
 	reportProgress func(TransferStatus) error
 	lastProgress   time.Time
+}
+
+// Separate SSH file channels have no Session proof. Fence matching agent
+// workers after pausing the shell, using the same mutex as new admissions.
+func (a *Application) cancelSSHTransfers(key config.ManualConnection) {
+	if key.Transport != "ssh" {
+		return
+	}
+	a.transfers.mu.Lock()
+	defer a.transfers.mu.Unlock()
+	for _, run := range a.transfers.runs {
+		if run.connection == key && run.snapshot().Client.Kind == "agent" {
+			run.cancel()
+		}
+	}
 }
 
 func (r *transferRun) snapshot() TransferStatus {
@@ -201,6 +219,26 @@ func (a *Application) StartFileTransfer(ctx context.Context, q TransferRequest) 
 		operationContext = context.WithValue(WithControlProof(operationContext, preparation), controlWorkerKey{}, true)
 	}
 	worker, cancel := context.WithTimeout(context.WithoutCancel(operationContext), time.Duration(q.TimeoutSeconds)*time.Second)
+	key := a.connectionFor(q.SessionID)
+	if q.Transport != "serial" {
+		profile := c.settings.SSH[q.SSHProfile]
+		port := profile.Port
+		if port == 0 {
+			port = 22
+		}
+		key = connectionKey("ssh", profile.User+"@"+net.JoinHostPort(profile.Host, strconv.Itoa(port)))
+	}
+	if err := a.checkTransferPause(ctx, key); err != nil {
+		cancel()
+		finishUse()
+		return TransferStatus{}, err
+	}
+	worker, finishAccess, accessErr := a.guardConnection(worker, key)
+	if accessErr != nil {
+		cancel()
+		finishUse()
+		return TransferStatus{}, accessErr
+	}
 	id := "FT-" + rand.Text()
 	sessionID := ""
 	if q.SessionID != "" {
@@ -208,7 +246,7 @@ func (a *Application) StartFileTransfer(ctx context.Context, q TransferRequest) 
 			sessionID = terminal.ID()
 		}
 	}
-	r := &transferRun{app: a, request: q, fingerprint: string(encoded), client: client, created: time.Now(), cancel: cancel, done: make(chan struct{}), status: TransferStatus{Client: ClientIdentityFromContext(operationContext), ID: id, State: "running", Phase: "preflight", Transport: q.Transport, Mode: q.Mode}}
+	r := &transferRun{connection: key, app: a, request: q, fingerprint: string(encoded), client: client, created: time.Now(), cancel: cancel, done: make(chan struct{}), status: TransferStatus{Client: ClientIdentityFromContext(operationContext), ID: id, State: "running", Phase: "preflight", Transport: q.Transport, Mode: q.Mode}}
 	if c.runs == nil {
 		c.runs = make(map[string]*transferRun)
 	}
@@ -253,6 +291,7 @@ func (a *Application) StartFileTransfer(ctx context.Context, q TransferRequest) 
 	}
 	go func() {
 		defer func() { cancel(); <-controlDone }()
+		defer finishAccess()
 		defer finishPreparation()
 		defer finishUse()
 		defer close(r.done)
@@ -275,7 +314,7 @@ func (a *Application) StartFileTransfer(ctx context.Context, q TransferRequest) 
 // FileTransferStatus observes or cancels only the authenticated caller's task.
 // wait is bounded to 30 seconds; its timeout returns the latest running snapshot
 // without cancelling the task. Cancel is idempotent and still requires cleanup.
-func (a *Application) FileTransferStatus(ctx context.Context, id string, cancel bool, wait time.Duration) (TransferStatus, error) {
+func (a *Application) FileTransferStatus(ctx context.Context, id string, cancel bool, wait time.Duration) (status TransferStatus, statusErr error) {
 	effect := ClientRead
 	if cancel {
 		effect = ClientWrite
@@ -292,6 +331,17 @@ func (a *Application) FileTransferStatus(ctx context.Context, id string, cancel 
 	if r == nil || r.client != ClientIdentityFromContext(ctx).ID {
 		return TransferStatus{}, errors.New("unknown file transfer for this client")
 	}
+	ctx, finishAccess, accessErr := a.guardConnection(ctx, r.connection)
+	if accessErr != nil {
+		return TransferStatus{}, accessErr
+	}
+	defer func() {
+		if denied := finishAccess(); denied != nil {
+			status = TransferStatus{}
+			statusErr = denied
+		}
+	}()
+
 	if cancel {
 		r.cancel()
 	}

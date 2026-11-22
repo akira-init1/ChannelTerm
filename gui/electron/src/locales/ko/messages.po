@@ -196,6 +196,11 @@ msgstr "새 연결..."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "connection.newShell"
+msgstr "새 SSH 터미널"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "connection.open"
 msgstr "연결"
 
@@ -231,6 +236,11 @@ msgstr "프로토콜"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "connection.savePreset"
+msgstr "연결 저장"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "connection.scan"
 msgstr "포트 검색"
 
@@ -248,6 +258,16 @@ msgstr "직렬 연결"
 #: src/shared/menu-messages.ts
 msgid "connection.serialTab"
 msgstr "직렬"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.settings"
+msgstr "연결 설정"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.share"
+msgstr "기존 세션을 새 탭에서 보기"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -286,8 +306,18 @@ msgstr "새 AI 작업을 허용하시겠습니까? 취소한 작업과 버린 �
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "control.ask"
+msgstr "제어권 인수 전 확인"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "control.confirm"
 msgstr "확인"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.continue"
+msgstr "AI 작업 계속"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -306,6 +336,21 @@ msgstr "AI 중단"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "control.manual"
+msgstr "🔒 수동 전용"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.mine"
+msgstr "제어권 인수"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.operating"
+msgstr "AI 조작 중"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "control.paused"
 msgstr "AI 일시 중지됨"
 
@@ -313,6 +358,11 @@ msgstr "AI 일시 중지됨"
 #: src/shared/menu-messages.ts
 msgid "control.processing"
 msgstr "요청 처리 중 · 입력은 Host 확인 필요"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.protect"
+msgstr "AI 접근 차단"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -353,6 +403,11 @@ msgstr "세션 제어"
 #: src/shared/menu-messages.ts
 msgid "control.unknown"
 msgstr "결과가 확인되지 않았거나 요청이 거부되었습니다. 원래 요청을 조회하고 입력을 재시도하지 마세요."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.waitLimit"
+msgstr "AI 대기 한도(초)"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -922,6 +977,46 @@ msgstr "진단 ZIP…"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "directory.all"
+msgstr "전체"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.empty"
+msgstr "사용한 연결이 없습니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.filter"
+msgstr "연결 상태"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.lan"
+msgstr "로컬 네트워크"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.noHosts"
+msgstr "설정된 신뢰 호스트가 없습니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.offline"
+msgstr "연결 끊김"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.online"
+msgstr "연결됨"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.reorder"
+msgstr "드래그하거나 Alt+↑ / Alt+↓ 키로 순서를 변경하세요."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "display.fontFamily"
 msgstr "글꼴 모음"
 
@@ -1463,11 +1558,6 @@ msgstr "규칙 위로"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
-msgid "history.favorite"
-msgstr "SSH 즐겨찾기"
-
-#. js-lingui-explicit-id
-#: src/shared/menu-messages.ts
 msgid "history.hint"
 msgstr "로컬 설정입니다. 선택하고 검토한 후 연결하세요. 인증 정보와 경로를 다시 입력하세요. 직렬 프로필은 CLI와 공유됩니다."
 
@@ -1484,7 +1574,7 @@ msgstr "연결 기록을 저장하지 못했습니다. 로컬 저장소를 확�
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
 msgid "history.title"
-msgstr "최근 연결 및 SSH 즐겨찾기"
+msgstr "최근 연결 및 저장된 연결"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -2970,8 +3060,18 @@ msgstr "이전 탭"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "tab.rename"
+msgstr "탭 이름 바꾸기…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "tab.reorderHint"
 msgstr "드래그하여 순서를 바꾸거나, 이 탭 버튼에 초점이 있을 때 Shift+왼쪽/오른쪽 키를 누르세요."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.resetName"
+msgstr "기본 이름 복원"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -3628,7 +3728,7 @@ msgstr "세션 선택"
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
 msgid "workbench.selectHint"
-msgstr "사이드바에서 열린 세션을 선택하여 출력을 보고 입력을 보내세요."
+msgstr "세션 메뉴에서 기존 세션에 연결하여 터미널을 확인하세요."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

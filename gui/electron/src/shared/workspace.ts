@@ -12,9 +12,11 @@ export const workspaceKey = "channelterm.workspace.v1";
 
 /** Local presentation defaults. No Host, input queue or terminal screen state. */
 export interface WorkbenchPreferences {
+  confirmTakeover: boolean;
+  waitSeconds: number;
   language: LanguagePreference;
   sidebarVisible: boolean;
-  sidebarView: "sessions" | "debug";
+  sidebarView: "sessions" | "lan" | "debug";
   sidebarWidth: number | null;
   auxiliaryVisible: boolean;
   auxiliaryWidth: number;
@@ -24,6 +26,8 @@ export interface WorkbenchPreferences {
   terminal: TerminalSettings;
 }
 export const defaultWorkbenchPreferences: WorkbenchPreferences = {
+  confirmTakeover: true,
+  waitSeconds: 180,
   language: "system",
   sidebarVisible: true,
   sidebarView: "sessions",
@@ -74,7 +78,9 @@ export function restoreWorkbenchPreferences(
       v.language === "system" || locales.some((locale) => locale === v.language)
     ) ||
     typeof v.sidebarVisible !== "boolean" ||
-    (v.sidebarView !== "sessions" && v.sidebarView !== "debug") ||
+    (v.sidebarView !== "sessions" &&
+      v.sidebarView !== "lan" &&
+      v.sidebarView !== "debug") ||
     (v.sidebarWidth !== null && !size(v.sidebarWidth, 180, 480)) ||
     typeof v.auxiliaryVisible !== "boolean" ||
     !size(v.auxiliaryWidth, 180, 480) ||
@@ -90,6 +96,11 @@ export function restoreWorkbenchPreferences(
       terminal: { ...defaultTerminalSettings },
     };
   return {
+    confirmTakeover: v.confirmTakeover !== false,
+    waitSeconds:
+      size(v.waitSeconds, 1, 3600) && Number.isInteger(v.waitSeconds)
+        ? v.waitSeconds
+        : 180,
     language: v.language as LanguagePreference,
     sidebarVisible: v.sidebarVisible,
     sidebarView: v.sidebarView,
@@ -108,12 +119,19 @@ export function restoreWorkbenchPreferences(
 }
 
 export interface WorkspaceTarget {
+  reference?: string;
   sessionId: string;
   label: string;
   transport: string;
   endpoint: string;
 }
+/** Validates local tab titles at storage and IPC boundaries. */
+export function isTabAlias(value: unknown): value is string {
+  return bounded(value, 128) && value.trim() === value;
+}
+
 export interface WorkspaceTab {
+  alias?: string;
   lineDisplay?: LineDisplay;
   target?: WorkspaceTarget;
   settings: TerminalSettings;
@@ -161,6 +179,7 @@ export function restoreWorkspace(
       ? { foldMarkers: true, ...entry.lineDisplay }
       : undefined;
     tabs.push({
+      ...(isTabAlias(entry.alias) && entry.alias ? { alias: entry.alias } : {}),
       ...(isLineDisplay(lineDisplay) ? { lineDisplay } : {}),
       settings: {
         encoding: entry.settings.encoding,
@@ -174,6 +193,9 @@ export function restoreWorkspace(
         ? {
             target: {
               sessionId: String(target.sessionId),
+              ...(bounded(target.reference, 128)
+                ? { reference: target.reference }
+                : {}),
               label: String(target.label),
               transport: String(target.transport),
               endpoint: String(target.endpoint),

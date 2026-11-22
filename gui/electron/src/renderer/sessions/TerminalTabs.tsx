@@ -4,6 +4,9 @@ import { Icon } from "../components/Icon";
 export interface TabSummary {
   id: string;
   label: string;
+  alias?: string;
+  reference?: string;
+  endpoint?: string;
   transport?: string;
   moving?: boolean;
 }
@@ -14,6 +17,9 @@ export function TerminalTabs({
   selected,
   disabled,
   t,
+  renaming,
+  onRename,
+  onFinishRename,
   onSelect,
   onClose,
   onNew,
@@ -24,6 +30,9 @@ export function TerminalTabs({
   selected?: string;
   disabled: boolean;
   t: (id: string) => string;
+  renaming?: string;
+  onRename: (id: string) => void;
+  onFinishRename: (id: string, alias?: string) => void;
   onSelect: (id: string) => void;
   onClose: (id: string) => void;
   onNew: () => void;
@@ -58,7 +67,7 @@ export function TerminalTabs({
             key={tab.id}
             className={`terminal-tab ${tab.id === selected ? "active attached" : ""} ${drop?.id === tab.id ? `drop-${drop.position}` : ""}`}
             data-tab-id={tab.id}
-            draggable={!disabled && !tab.moving}
+            draggable={!disabled && !tab.moving && renaming !== tab.id}
             onDragStart={(event) => {
               if (disabled || tab.moving) {
                 event.preventDefault();
@@ -116,70 +125,112 @@ export function TerminalTabs({
             }}
             onContextMenu={(event) => onContextMenu(event, tab.id)}
           >
-            <button
-              role="tab"
-              aria-selected={tab.id === selected}
-              tabIndex={tab.id === selected ? 0 : -1}
-              title={`${tab.label}\n${t("tab.reorderHint")}`}
-              aria-description={t("tab.reorderHint")}
-              disabled={disabled}
-              onClick={() => onSelect(tab.id)}
-              onKeyDown={(event) => {
-                if (
-                  event.nativeEvent.isComposing ||
-                  event.keyCode === 229 ||
-                  event.ctrlKey ||
-                  event.altKey ||
-                  event.metaKey
-                )
-                  return;
-                // Reordering keys are scoped to the focused tab button, never terminal input or IME.
-                if (
-                  event.shiftKey &&
-                  (event.key === "ArrowLeft" || event.key === "ArrowRight")
-                ) {
+            {renaming === tab.id ? (
+              <input
+                autoFocus
+                maxLength={128}
+                defaultValue={tab.alias ?? tab.label}
+                aria-label={t("tab.rename")}
+                onFocus={(event) => event.currentTarget.select()}
+                onBlur={() => onFinishRename(tab.id)}
+                onKeyDown={(event) => {
+                  if (event.nativeEvent.isComposing || event.keyCode === 229)
+                    return;
+                  if (event.key !== "Enter" && event.key !== "Escape") return;
                   event.preventDefault();
                   event.stopPropagation();
-                  const target =
-                    tabs[index + (event.key === "ArrowLeft" ? -1 : 1)];
-                  if (!disabled && !tab.moving && target && !target.moving)
-                    onReorder(
-                      tab.id,
-                      target.id,
-                      event.key === "ArrowLeft" ? "before" : "after",
-                    );
-                  return;
-                }
-                if (event.shiftKey) return;
-                const next =
-                  event.key === "ArrowRight"
-                    ? (index + 1) % tabs.length
-                    : event.key === "ArrowLeft"
-                      ? (index + tabs.length - 1) % tabs.length
-                      : event.key === "Home"
-                        ? 0
-                        : event.key === "End"
-                          ? tabs.length - 1
-                          : undefined;
-                if (next === undefined) return;
-                event.preventDefault();
-                onSelect(tabs[next]!.id);
-                strip.current
-                  ?.querySelectorAll<HTMLButtonElement>('[role="tab"]')
-                  [next]?.focus();
-              }}
-            >
-              <Icon
-                name={
-                  tab.transport === "serial"
-                    ? "serial"
-                    : tab.transport === "ssh"
-                      ? "monitor"
-                      : "terminal"
-                }
+                  onFinishRename(
+                    tab.id,
+                    event.key === "Enter"
+                      ? event.currentTarget.value
+                          .trim()
+                          .replace(/[\x00-\x1f\x7f]/g, "")
+                      : undefined,
+                  );
+                }}
               />
-              <span>{tab.moving ? t("tab.moving") : tab.label}</span>
-            </button>
+            ) : (
+              <button
+                role="tab"
+                aria-selected={tab.id === selected}
+                tabIndex={tab.id === selected ? 0 : -1}
+                onDoubleClick={() => !tab.moving && onRename(tab.id)}
+                title={[
+                  tab.label,
+                  tab.reference,
+                  tab.endpoint,
+                  t("tab.reorderHint"),
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+                aria-description={t("tab.reorderHint")}
+                disabled={disabled}
+                onClick={() => onSelect(tab.id)}
+                onKeyDown={(event) => {
+                  if (
+                    event.nativeEvent.isComposing ||
+                    event.keyCode === 229 ||
+                    event.ctrlKey ||
+                    event.altKey ||
+                    event.metaKey
+                  )
+                    return;
+                  // Reordering keys are scoped to the focused tab button, never terminal input or IME.
+                  if (
+                    event.shiftKey &&
+                    (event.key === "ArrowLeft" || event.key === "ArrowRight")
+                  ) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    const target =
+                      tabs[index + (event.key === "ArrowLeft" ? -1 : 1)];
+                    if (!disabled && !tab.moving && target && !target.moving)
+                      onReorder(
+                        tab.id,
+                        target.id,
+                        event.key === "ArrowLeft" ? "before" : "after",
+                      );
+                    return;
+                  }
+                  if (event.shiftKey) return;
+                  const next =
+                    event.key === "ArrowRight"
+                      ? (index + 1) % tabs.length
+                      : event.key === "ArrowLeft"
+                        ? (index + tabs.length - 1) % tabs.length
+                        : event.key === "Home"
+                          ? 0
+                          : event.key === "End"
+                            ? tabs.length - 1
+                            : undefined;
+                  if (next === undefined) return;
+                  event.preventDefault();
+                  onSelect(tabs[next]!.id);
+                  strip.current
+                    ?.querySelectorAll<HTMLButtonElement>('[role="tab"]')
+                    [next]?.focus();
+                }}
+              >
+                <Icon
+                  name={
+                    tab.transport === "serial"
+                      ? "serial"
+                      : tab.transport === "ssh"
+                        ? "monitor"
+                        : "terminal"
+                  }
+                />
+                <span>{tab.moving ? t("tab.moving") : tab.label}</span>
+                {!tab.moving &&
+                  tab.reference &&
+                  tab.reference !== tab.label && (
+                    <small className="tab-reference">{tab.reference}</small>
+                  )}
+                {!tab.moving && tab.endpoint && tab.endpoint !== tab.label && (
+                  <small className="tab-endpoint">{tab.endpoint}</small>
+                )}
+              </button>
+            )}
             <button
               className="quiet icon-button"
               aria-label={t("tab.close")}

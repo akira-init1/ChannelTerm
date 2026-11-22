@@ -565,6 +565,9 @@ func (t *listSessionsTool) Call(ctx context.Context, _ json.RawMessage) (tool.Re
 	sessions := t.application.ListSessions()
 	result := make([]sessionSummary, 0, len(sessions))
 	for _, info := range sessions {
+		if !t.application.SessionVisible(ctx, info.ID) {
+			continue
+		}
 		summary := sessionSummary{
 			ID:        info.ID,
 			Reference: info.Metadata.Reference,

@@ -15,7 +15,7 @@ type authorizedTool struct {
 	application *app.Application
 }
 
-func (t authorizedTool) Call(ctx context.Context, input json.RawMessage) (tool.Result, error) {
+func (t authorizedTool) Call(ctx context.Context, input json.RawMessage) (result tool.Result, callErr error) {
 	if err := app.CheckClientAccess(ctx, clientEffect(t.Name())); err != nil {
 		return nil, err
 	}
@@ -33,6 +33,31 @@ func (t authorizedTool) Call(ctx context.Context, input json.RawMessage) (tool.R
 			BridgeID  string `json:"bridge_id"`
 		}
 		_ = json.Unmarshal(input, &target)
+		guardTarget := target.SessionID
+		if guardTarget == "" && target.DebugID != "" {
+			guardTarget = t.application.OperationSessionID(target.DebugID)
+		}
+		if guardTarget == "" && target.BridgeID != "" {
+			guardTarget = t.application.OperationSessionID(target.BridgeID)
+		}
+		var finish func() error
+		ctx, finish, err = t.application.GuardSessionCall(ctx, guardTarget)
+		if err != nil {
+			return nil, err
+		}
+		guarded := ctx
+		defer func() {
+			if denied := finish(); denied != nil {
+				result = nil
+				callErr = denied
+			} else if callErr != nil {
+				if notice, ok := t.application.InterruptedNoticeForRequest(guarded, guardTarget); ok && notice.Status != "allowed" {
+					reply := localizeWait(notice)
+					result = tool.Result{"wait": reply}
+					callErr = &pausedTaskError{reply}
+				}
+			}
+		}()
 		if t.Name() != "terminal_control" && clientEffect(t.Name()) != app.ClientRead {
 			if err = app.RequireControlIdentity(ctx); err != nil {
 				return nil, err

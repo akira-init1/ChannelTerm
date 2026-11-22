@@ -1,3 +1,4 @@
+import { chooseSession } from "./session-picker.mjs";
 import assert from "node:assert/strict";
 import { mkdtemp, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
@@ -36,10 +37,7 @@ export async function checkIdle(environment, preloadArgs) {
     await expect(page.locator(".host-idle-policy")).toContainText(
       "released after 1 s;",
     );
-    await page
-      .locator("button.session")
-      .filter({ hasText: "Isolated echo" })
-      .click();
+    await chooseSession(page, "Isolated echo");
     await expect(page.locator(".xterm-screen")).toBeVisible();
     await desktop.close();
     desktop = undefined;

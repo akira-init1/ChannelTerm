@@ -59,6 +59,18 @@ import {
   retainSplit,
   type SplitLayout,
 } from "../../shared/tab-layout";
+import { LanDirectory } from "../sessions/LanDirectory";
+import { TerminalDirectory } from "../sessions/TerminalDirectory";
+import {
+  presetEndpoint,
+  connectionHistoryKey,
+  connectionHighlightsChanged,
+  sharedPreset,
+  maxConnectionHistoryLength,
+  recordConnection,
+  restoreConnections,
+  type ConnectionRecord,
+} from "../../shared/connection-history";
 import { SessionList } from "../sessions/SessionList";
 import { CloseSessionDialog } from "../sessions/CloseSessionDialog";
 import { TerminalView, type TerminalControls } from "../terminal/TerminalView";
@@ -109,6 +121,7 @@ import {
 import { DisplaySettingsDialog } from "./DisplaySettings";
 
 interface TerminalTab {
+  alias?: string;
   lineDisplay?: LineDisplay;
   id: string;
   attachment?: Attachment;
@@ -166,7 +179,7 @@ export function App() {
   const [sidebarVisible, setSidebarVisible] = useState(
     initialPreferences.sidebarVisible,
   );
-  const [sidebarView, setSidebarView] = useState<"sessions" | "debug">(
+  const [sidebarView, setSidebarView] = useState<"sessions" | "lan" | "debug">(
     initialPreferences.sidebarView,
   );
   const debug = useDebugOverview(
@@ -274,6 +287,7 @@ export function App() {
   >();
   const working = operation !== undefined || restoringWorkspace;
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
+  const [renamingTab, setRenamingTab] = useState<string>();
   const [tabs, setTabState] = useState<TerminalTab[]>([]);
   const tabsRef = useRef(tabs);
   // Update the ref synchronously so async completions cannot target a replaced tab.
@@ -302,7 +316,7 @@ export function App() {
         )?.control;
         if (
           !targets.has(id) ||
-          (pending.confirmed &&
+          ((pending.confirmed || control?.state === "human") &&
             control?.writable &&
             control.version !== pending.version)
         )
@@ -399,7 +413,7 @@ export function App() {
     setTabs((tabs) => [...tabs, tab]);
     setSelectedTabId(tab.id);
     setSidebarVisible(true);
-    setChoosingSession(true);
+    setSidebarView("sessions");
   }
   const [languagePreference, setLanguagePreference] =
     useState<LanguagePreference>(initialPreferences.language);
@@ -439,15 +453,222 @@ export function App() {
   const [menuContext, setMenuContext] = useState<MenuPopupRequest>();
   const terminals = useRef(new Map<string, TerminalControls>());
   const acceptingMoves = useRef(new Set<string>());
-  const sessionSidebar = useRef<HTMLElement>(null);
+
   const [choosingSession, setChoosingSession] = useState(false);
-  useEffect(() => {
-    if (!choosingSession) return;
-    sessionSidebar.current
-      ?.querySelector<HTMLInputElement>('input[type="search"]')
-      ?.focus();
+  const [peerWindow, setPeerWindow] = useState(false);
+  function closeConnectionDialog() {
+    setConnectionKind(undefined);
+    setSelectedPreset(undefined);
     setChoosingSession(false);
-  }, [choosingSession]);
+    setLocateTarget(undefined);
+  }
+  const [confirmTakeover, setConfirmTakeover] = useState(
+    initialPreferences.confirmTakeover,
+  );
+  const [waitSeconds, setWaitSeconds] = useState(
+    initialPreferences.waitSeconds,
+  );
+  const [policies, setPolicies] =
+    useState<import("../../shared/api").SavedPolicyTarget[]>();
+  const policyEpoch = useRef(0);
+  const refreshPolicies = useCallback(async () => {
+    const epoch = ++policyEpoch.current;
+    const result = await host.connectionPolicies();
+    if (epoch === policyEpoch.current)
+      setPolicies(result.ok ? result.value : undefined);
+  }, []);
+  useEffect(() => {
+    if (!connected || !sidebarVisible || sidebarView !== "sessions") {
+      setPolicies(undefined);
+      return;
+    }
+    void refreshPolicies();
+    const timer = setInterval(() => {
+      if (!document.hidden) void refreshPolicies();
+    }, 5000);
+    return () => {
+      ++policyEpoch.current;
+      clearInterval(timer);
+    };
+  }, [connected, sidebarVisible, sidebarView, refreshPolicies]);
+  async function savedProtection(record: ConnectionRecord, enabled: boolean) {
+    const q = record.request;
+    const session = sessions.find(
+      (s) => s.transport === q.kind && s.endpoint === presetEndpoint(q),
+    );
+    if (session) {
+      requestProtection(session);
+      return;
+    }
+    try {
+      setPolicies(
+        await unwrap(
+          host.connectionPolicies({
+            transport: q.kind,
+            endpoint: presetEndpoint(q),
+            enabled,
+          }),
+        ),
+      );
+    } catch (e) {
+      report(e as ClientError);
+      await refresh();
+    }
+  }
+  const [protectDraft, setProtectDraft] = useState<SessionSummary>();
+  async function applyProtection(s: SessionSummary) {
+    setProtectDraft(undefined);
+    if (!s.control) return;
+    try {
+      await unwrap(
+        host.control({
+          session_id: s.session_id,
+          action: s.control.manual_only ? "unprotect" : "protect",
+          version: s.control.version,
+          operation_id: s.control.operation_id,
+          locale,
+          wait_seconds: waitSeconds,
+        }),
+      );
+      await refresh();
+      void refreshPolicies();
+    } catch (e) {
+      report(e as ClientError);
+    }
+  }
+  function requestProtection(s: SessionSummary) {
+    if (
+      !s.control?.manual_only &&
+      confirmTakeover &&
+      sessions.some(
+        (peer) =>
+          peer.endpoint === s.endpoint &&
+          peer.transport === s.transport &&
+          peer.control?.state === "active" &&
+          peer.control.source?.kind === "agent",
+      )
+    )
+      setProtectDraft(s);
+    else void applyProtection(s);
+  }
+  const [selectedPreset, setSelectedPreset] = useState<ConnectionRequest>();
+  const [settingsCard, setSettingsCard] = useState<{
+    session?: SessionSummary;
+    profile?: ConnectionRecord;
+  }>();
+  const [connectionAlias, setConnectionAlias] = useState("");
+  const [, setAliasRevision] = useState(0);
+  const aliasStorageKey = (s: SessionSummary) =>
+    "channelterm.connection-alias.v1." +
+    JSON.stringify([info?.endpoint, s.transport, s.endpoint]);
+  function aliasFor(s: SessionSummary | undefined) {
+    if (!s) return "";
+    try {
+      const alias = localStorage.getItem(aliasStorageKey(s));
+      return alias && alias.length <= 128 ? alias : "";
+    } catch {
+      return "";
+    }
+  }
+  useEffect(() => {
+    const changed = (e: StorageEvent) => {
+      if (e.key?.startsWith("channelterm.connection-alias.v1."))
+        setAliasRevision((v) => v + 1);
+    };
+    window.addEventListener("storage", changed);
+    return () => window.removeEventListener("storage", changed);
+  }, []);
+  function settingsFor(session?: SessionSummary, profile?: ConnectionRecord) {
+    if (!session && profile)
+      session = sessions.find(
+        (s) =>
+          s.transport === profile.request.kind &&
+          s.endpoint === presetEndpoint(profile.request),
+      );
+    setConnectionAlias(
+      aliasFor(session) || profile?.request.label || session?.label || "",
+    );
+    setSettingsCard({ session, profile });
+  }
+  function saveCard() {
+    if (!settingsCard) return;
+    const alias = connectionAlias.trim();
+    if (/[\x00-\x1f\x7f]/.test(alias) || alias.length > 128) return;
+    try {
+      const { session, profile } = settingsCard;
+      if (profile) {
+        const entries = restoreConnections(
+          localStorage.getItem(connectionHistoryKey),
+        );
+        const match = entries.find((e) =>
+          profile.id
+            ? e.id === profile.id
+            : JSON.stringify(e.request) === JSON.stringify(profile.request),
+        );
+        if (!match) throw Error();
+        match.request.label = alias;
+        localStorage.setItem(connectionHistoryKey, JSON.stringify(entries));
+        window.dispatchEvent(new Event(connectionHighlightsChanged));
+      }
+      if (session) localStorage.setItem(aliasStorageKey(session), alias);
+      setAliasRevision((v) => v + 1);
+      setSettingsCard(undefined);
+    } catch {
+      setHistoryError(true);
+    }
+  }
+  const tabSummaries = tabs.map((tab) => {
+    const session = sessions.find(
+      (entry) => entry.session_id === tab.attachment?.sessionId,
+    );
+    const target = tab.savedTarget;
+    const profile = highlightProfiles.entries.find(
+      (entry) => entry.id && entry.id === tab.settings.highlightProfile,
+    );
+    const endpoint = session?.endpoint ?? target?.endpoint;
+    return {
+      id: tab.id,
+      alias: tab.alias,
+      attached: !!tab.attachment && session?.state === "open",
+      session,
+      profile,
+      connectionLabel:
+        aliasFor(session) ||
+        profile?.request.label ||
+        session?.label ||
+        target?.label ||
+        endpoint ||
+        "",
+      label:
+        tab.alias ||
+        aliasFor(session) ||
+        profile?.request.label ||
+        session?.label ||
+        target?.label ||
+        session?.session_ref ||
+        endpoint ||
+        t("tab.empty"),
+      reference: session?.session_ref ?? target?.reference,
+      endpoint,
+      moving: tab.moving,
+      transport: session?.transport ?? target?.transport,
+    };
+  });
+  const directoryTabs = tabSummaries
+    .filter((row) => row.attached && row.endpoint && row.transport)
+    .map(({ id, label, reference, endpoint, transport, connectionLabel }) => ({
+      transport: transport!,
+      connectionLabel,
+      id,
+      label,
+      reference: reference ?? "",
+      endpoint: endpoint ?? "",
+    }));
+  const publishedTabs = JSON.stringify(directoryTabs);
+  useEffect(() => {
+    void host.publishTabs(JSON.parse(publishedTabs));
+  }, [publishedTabs]);
+  const initialSession = useRef<string | undefined>(undefined);
   const [fileDialog, setFileDialog] = useState<{
     sessionId: string;
     name: string;
@@ -757,6 +978,7 @@ export function App() {
         ["disconnected", "unauthorized", "incompatible"].includes(failure.code)
       ) {
         generation.current++;
+        closeConnectionDialog();
         setError(failure);
         setConnected(false);
         setTabs([]);
@@ -800,7 +1022,9 @@ export function App() {
         setInfo(next);
         setWindowCount(windowState.count);
         workspaceSlot.current = windowState.workspaceSlot;
-        if (!windowState.incoming) {
+        setPeerWindow(!!windowState.peer);
+        initialSession.current = windowState.initialSession;
+        if (!windowState.incoming && !windowState.initialSession) {
           try {
             const saved = restoreWorkspace(
               localStorage.getItem(
@@ -812,6 +1036,7 @@ export function App() {
               const restored = saved.tabs.map((tab) => ({
                 id: crypto.randomUUID(),
                 settings: tab.settings,
+                alias: tab.alias,
                 lineDisplay: tab.lineDisplay,
                 savedTarget: tab.target,
                 dropped: false,
@@ -846,6 +1071,7 @@ export function App() {
               {
                 id,
                 attachment: incoming.attachment,
+                alias: incoming.alias,
                 settings: incoming.settings,
                 inputPaused: incoming.inputPaused,
                 dropped: false,
@@ -892,11 +1118,27 @@ export function App() {
       setInputPaused(false);
       await refresh();
     } catch (error) {
+      closeConnectionDialog();
       report(error as ClientError);
     } finally {
       setOperation(undefined);
     }
   }
+
+  useEffect(() => {
+    if (!initialSession.current || !connected || !sessionsKnown || working)
+      return;
+    const target = sessions.find(
+      (s) => s.session_id === initialSession.current && s.state === "open",
+    );
+    initialSession.current = undefined;
+    if (target) void select(target);
+    else
+      report({
+        code: "closed",
+        message: "The requested Session is unavailable.",
+      });
+  }, [sessionsKnown, sessions, working, connected]);
 
   // Recovery only attaches listed live Sessions. It has no connection-creation or write path.
   useEffect(() => {
@@ -937,6 +1179,8 @@ export function App() {
 
   const workbenchPreferences: WorkbenchPreferences = {
     language: languagePreference,
+    confirmTakeover,
+    waitSeconds,
     sidebarVisible,
     sidebarView,
     sidebarWidth: sidebarWidth ?? null,
@@ -963,6 +1207,8 @@ export function App() {
     sidebarVisible,
     sidebarView,
     sidebarWidth,
+    confirmTakeover,
+    waitSeconds,
     auxiliaryVisible,
     auxiliaryWidth,
     panelVisible,
@@ -994,6 +1240,7 @@ export function App() {
           }
         : {}),
       tabs: tabs.map((tab) => ({
+        alias: tab.alias,
         settings: tab.settings,
         lineDisplay: tab.lineDisplay,
         target:
@@ -1005,6 +1252,7 @@ export function App() {
             return session
               ? {
                   sessionId: session.session_id,
+                  reference: session.session_ref,
                   label: session.label,
                   transport: session.transport,
                   endpoint: session.endpoint,
@@ -1035,7 +1283,7 @@ export function App() {
   async function disconnect() {
     preferences.current.clear();
     setSettingsTarget(undefined);
-    setConnectionKind(undefined);
+    closeConnectionDialog();
     setDiagnostics(undefined);
     setOperation("disconnecting");
     generation.current++;
@@ -1057,17 +1305,18 @@ export function App() {
     session: SessionSummary,
     settings = preferences.current.get(session.session_id) ?? terminalDefaults,
     replaceTabId?: string,
+    newView = false,
   ) {
     const selected = tabsRef.current.find(
       (tab) => tab.id === selectedTabRef.current,
     );
-    if (!replaceTabId && selected?.attachment) {
+    if (!newView && !replaceTabId && selected?.attachment) {
       const existing = tabsRef.current.find(
         (tab) => tab.attachment?.sessionId === session.session_id,
       );
       if (existing) {
         setSelectedTabId(existing.id);
-        return;
+        return true;
       }
     }
     const target = replaceTabId
@@ -1108,11 +1357,13 @@ export function App() {
         attachment: next,
         savedTarget: {
           sessionId: session.session_id,
+          reference: session.session_ref,
           label: session.label,
           transport: session.transport,
           endpoint: session.endpoint,
         },
         workspaceRestored: target?.workspaceRestored,
+        alias: liveTarget?.alias,
         lineDisplay: target?.lineDisplay,
         settings,
         inputPaused: false,
@@ -1124,6 +1375,7 @@ export function App() {
           : [...tabs, tab],
       );
       setSelectedTabId(tabId);
+      return true;
     } catch (error) {
       report(error as ClientError, target?.id);
     } finally {
@@ -1194,7 +1446,7 @@ export function App() {
     if (!tab.attachment || tab.moving) return;
     updateTab(tab.id, { moving: true });
     try {
-      await unwrap(host.moveTab(tab.attachment.id, tab.inputPaused));
+      await unwrap(host.moveTab(tab.attachment.id, tab.inputPaused, tab.alias));
       removeTab(tab.id);
     } catch (error) {
       updateTab(tab.id, {
@@ -1222,9 +1474,39 @@ export function App() {
     }
   }
 
+  function rememberShared(session: SessionSummary) {
+    if (peerWindow) return;
+    try {
+      const entries = restoreConnections(
+        localStorage.getItem(connectionHistoryKey),
+      );
+      const request =
+        entries.find(
+          (p) =>
+            p.request.kind === session.transport &&
+            presetEndpoint(p.request) === session.endpoint,
+        )?.request ?? sharedPreset(session);
+      if (!request) return;
+      const next = recordConnection(
+        entries,
+        request,
+        false,
+        Date.now(),
+        crypto.randomUUID(),
+      );
+      const serialized = JSON.stringify(next);
+      if (serialized.length > maxConnectionHistoryLength)
+        throw new Error("Connection history is full.");
+      localStorage.setItem(connectionHistoryKey, serialized);
+      window.dispatchEvent(new Event(connectionHighlightsChanged));
+    } catch {
+      setHistoryError(true);
+    }
+  }
   async function openConnection(
     request: ConnectionRequest,
     settings?: TerminalSettings,
+    reuseExisting = false,
   ) {
     if (!connected || working || actionBusy.current)
       throw {
@@ -1235,38 +1517,43 @@ export function App() {
     setOperation("opening");
     const version = generation.current;
     try {
-      const opened = await unwrap(host.openConnection(request));
-      const entries = await unwrap(host.list());
-      if (version !== generation.current)
-        throw {
-          code: "cancelled",
-          message:
-            "Host changed. Refresh Sessions to check the connection result.",
-        } satisfies ClientError;
-      setSessions(entries);
-      const target = entries.find(
-        (entry) => entry.session_id === opened.sessionId,
-      );
+      const checkHost = () => {
+        if (version !== generation.current)
+          throw {
+            code: "cancelled",
+            message: "Host changed during connection.",
+          } satisfies ClientError;
+      };
+      let target: SessionSummary | undefined;
+      if (reuseExisting) {
+        const current = await unwrap(host.list());
+        checkHost();
+        target = current.find(
+          (s) =>
+            s.state === "open" &&
+            s.transport === request.kind &&
+            s.endpoint === presetEndpoint(request),
+        );
+      }
+      if (!target) {
+        const opened = await unwrap(host.openConnection(request));
+        checkHost();
+        const entries = await unwrap(host.list());
+        checkHost();
+        setSessions(entries);
+        target = entries.find((entry) => entry.session_id === opened.sessionId);
+      }
       if (!target || target.state !== "open")
         throw {
           code: "closed",
           message:
             "The created Session is unavailable. Refresh Sessions before trying again.",
         } satisfies ClientError;
-      const existing = tabsRef.current.find(
-        (tab) => tab.attachment?.sessionId === target.session_id,
-      );
-      // Explicitly opening a saved connection may change local presentation binding. Use the
-      // existing guarded replacement path so window handoff retains the same validated settings.
-      await select(
-        target,
-        settings,
-        existing &&
-          settings?.highlightProfile !== undefined &&
-          existing.settings.highlightProfile !== settings.highlightProfile
-          ? existing.id
-          : undefined,
-      );
+      if (!(await select(target, settings, undefined, !reuseExisting)))
+        throw {
+          code: "cancelled",
+          message: "Session attachment did not complete.",
+        } satisfies ClientError;
     } finally {
       actionBusy.current = false;
       setOperation(undefined);
@@ -1403,6 +1690,12 @@ export function App() {
       case "tab.new":
         newTab();
         return;
+      case "tab.rename":
+        setRenamingTab(action.tabId);
+        return;
+      case "tab.resetName":
+        updateTab(action.tabId, { alias: undefined });
+        return;
       case "tab.select":
         setSelectedTabId(action.tabId);
         return;
@@ -1479,9 +1772,8 @@ export function App() {
         setConnectionKind("ssh");
         return;
       case "session.choose":
-        setSidebarVisible(true);
-        // The existing Session picker owns attachment; reveal it without choosing a target.
         setChoosingSession(true);
+        setConnectionKind("serial");
         return;
       case "session.info":
         if (targetTab) setSelectedTabId(targetTab.id);
@@ -1615,11 +1907,25 @@ export function App() {
         case "session.refresh":
           await refresh();
           break;
+        case "connection.settings": {
+          const item = sessions.find((s) => s.session_id === action.sessionId);
+          if (item)
+            settingsFor(
+              item,
+              highlightProfiles.entries.find(
+                (p) =>
+                  p.request.kind === item.transport &&
+                  presetEndpoint(p.request) === item.endpoint,
+              ),
+            );
+          break;
+        }
         case "session.attach": {
           const target = sessions.find(
             (entry) => entry.session_id === action.sessionId,
           );
-          if (target?.state === "open") await select(target);
+          if (target?.state === "open" && (await select(target)))
+            rememberShared(target);
           break;
         }
         case "tab.close":
@@ -1635,6 +1941,24 @@ export function App() {
     void execute(action);
   };
   dispatchRef.current = dispatch;
+
+  function showSessionActions(
+    event: MouseEvent<HTMLElement>,
+    item: SessionSummary,
+  ) {
+    openContext(
+      event,
+      sessionMenu(
+        stateForTab(
+          tabs.find((tab) => tab.attachment?.sessionId === item.session_id),
+        ),
+        item.session_id,
+        item.state === "open" && (item.transport === "ssh" || !item.lease),
+        item.transport === "serial",
+        item.transport === "ssh",
+      ),
+    );
+  }
 
   function openContext(
     event: MouseEvent<HTMLElement>,
@@ -1801,7 +2125,7 @@ export function App() {
             preferences.current.clear();
             pendingWorkspace.current = false;
             setSettingsTarget(undefined);
-            setConnectionKind(undefined);
+            closeConnectionDialog();
             setDiagnostics(undefined);
             setTabs([]);
             setSelectedTabId(undefined);
@@ -1923,9 +2247,153 @@ export function App() {
           onClose={() => setSSHFileDialog(undefined)}
         />
       )}
+      {protectDraft && (
+        <dialog
+          ref={(el) => {
+            if (el && !el.open) el.showModal();
+          }}
+          onCancel={() => setProtectDraft(undefined)}
+          className="connection-dialog"
+          role="alertdialog"
+        >
+          <p>
+            {t("control.warning")} {protectDraft.session_ref} ·{" "}
+            {protectDraft.endpoint} · {protectDraft.control?.operation_id}
+          </p>
+          <button onClick={() => void applyProtection(protectDraft)}>
+            {t("control.confirm")}
+          </button>
+          <button onClick={() => setProtectDraft(undefined)}>
+            {t("control.dismiss")}
+          </button>
+        </dialog>
+      )}
+      {settingsCard && (
+        <dialog
+          ref={(el) => {
+            if (el && !el.open) el.showModal();
+          }}
+          onCancel={() => setSettingsCard(undefined)}
+          className="connection-dialog"
+          onKeyDown={(e) => {
+            if (e.key === "Escape") setSettingsCard(undefined);
+          }}
+        >
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              saveCard();
+            }}
+          >
+            <h2>{t("connection.settings")}</h2>
+            <p>
+              {settingsCard.session?.session_ref}{" "}
+              {settingsCard.session?.endpoint}
+            </p>
+            <label>
+              <input
+                type="checkbox"
+                checked={confirmTakeover}
+                onChange={(e) => setConfirmTakeover(e.target.checked)}
+              />
+              {t("control.ask")}
+            </label>
+            <label>
+              {t("control.waitLimit")}
+              <input
+                type="number"
+                min={1}
+                max={3600}
+                value={waitSeconds}
+                onChange={(e) => {
+                  const v = e.target.valueAsNumber;
+                  if (Number.isInteger(v) && v >= 1 && v <= 3600)
+                    setWaitSeconds(v);
+                }}
+              />
+            </label>
+            <label>
+              {t("connection.label")}
+              <input
+                autoFocus
+                maxLength={128}
+                value={connectionAlias}
+                onChange={(e) => setConnectionAlias(e.target.value)}
+              />
+            </label>
+            <button type="submit">{t("connection.savePreset")}</button>
+            <button type="button" onClick={() => setSettingsCard(undefined)}>
+              {t("connection.cancel")}
+            </button>
+          </form>
+        </dialog>
+      )}
       {connectionKind && connected && (
         <ConnectionDialog
           key={connectionKind}
+          initialPreset={selectedPreset}
+          ready={!working}
+          chooseExisting={choosingSession}
+          picker={
+            <>
+              {" "}
+              <div className="section-heading">
+                <h2>
+                  {t("workbench.sessions")}{" "}
+                  <span className="session-count">{sessions.length}</span>
+                </h2>
+                <button
+                  type="button"
+                  className="quiet icon-button"
+                  aria-label={t("session.refresh")}
+                  title={t("session.refresh")}
+                  disabled={!connected || working}
+                  onClick={() => dispatch({ id: "session.refresh" })}
+                >
+                  <Icon name="refresh" />
+                </button>
+              </div>
+              <SessionList
+                t={t}
+                locateTarget={locateTarget}
+                debugIds={
+                  new Set(
+                    debug.snapshot?.operations
+                      .map((r) => r.session_id)
+                      .filter(Boolean),
+                  )
+                }
+                debugLabel={t("debug.title")}
+                onDebug={() => {
+                  closeConnectionDialog();
+                  setSidebarView("debug");
+                  setSidebarVisible(true);
+                }}
+                sessions={sessions}
+                selected={attachment?.sessionId}
+                disabled={!connected || working}
+                emptyMessage={
+                  connected ? t("workbench.noResults") : t("workbench.listHint")
+                }
+                onSelect={async (item) => {
+                  const attached = await select(
+                    item,
+                    undefined,
+                    undefined,
+                    !choosingSession,
+                  );
+                  if (attached) {
+                    rememberShared(item);
+                    closeConnectionDialog();
+                  }
+                }}
+                onContextMenu={(event, item) => {
+                  closeConnectionDialog();
+                  showSessionActions(event, item);
+                }}
+              />
+            </>
+          }
           kind={connectionKind}
           terminalDefaults={terminalDefaults}
           sshAvailable={!!info?.sshAvailable}
@@ -1933,7 +2401,7 @@ export function App() {
           t={t}
           onOpen={openConnection}
           onStorageError={() => setHistoryError(true)}
-          onClose={() => setConnectionKind(undefined)}
+          onClose={closeConnectionDialog}
         />
       )}
       {diagnostics && connected && (
@@ -2001,6 +2469,20 @@ export function App() {
           </button>
           <button
             className="rail-button"
+            aria-label={t("directory.lan")}
+            title={t("directory.lan")}
+            aria-expanded={sidebarVisible && sidebarView === "lan"}
+            aria-pressed={sidebarVisible && sidebarView === "lan"}
+            aria-controls="session-sidebar"
+            onClick={() => {
+              setSidebarVisible(!sidebarVisible || sidebarView !== "lan");
+              setSidebarView("lan");
+            }}
+          >
+            <Icon name="lan" />
+          </button>
+          <button
+            className="rail-button"
             aria-label={t("debug.title")}
             title={t("debug.title")}
             aria-pressed={sidebarVisible && sidebarView === "debug"}
@@ -2017,11 +2499,14 @@ export function App() {
           </span>
         </div>
         <aside
-          ref={sessionSidebar}
           id="session-sidebar"
           className="sidebar"
           aria-label={
-            sidebarView === "debug" ? t("debug.title") : t("view.sidebar")
+            sidebarView === "lan"
+              ? t("directory.lan")
+              : sidebarView === "debug"
+                ? t("debug.title")
+                : t("view.sidebar")
           }
           hidden={!sidebarVisible}
         >
@@ -2029,62 +2514,41 @@ export function App() {
             hidden={sidebarView !== "sessions"}
             className="session-sidebar-content"
           >
-            <div className="section-heading">
-              <h2>
-                {t("workbench.sessions")}{" "}
-                <span className="session-count">{sessions.length}</span>
-              </h2>
-              <button
-                className="quiet icon-button"
-                aria-label={t("session.refresh")}
-                title={t("session.refresh")}
-                disabled={!connected || working}
-                onClick={() => dispatch({ id: "session.refresh" })}
-              >
-                <Icon name="refresh" />
-              </button>
-            </div>
-            <SessionList
+            <TerminalDirectory
+              orderScope={JSON.stringify([peerWindow, info?.endpoint ?? ""])}
               t={t}
-              locateTarget={locateTarget}
-              debugIds={
-                new Set(
-                  debug.snapshot?.operations
-                    .map((r) => r.session_id)
-                    .filter(Boolean),
-                )
-              }
-              debugLabel={t("debug.title")}
-              onDebug={() => {
-                setSidebarView("debug");
-                setSidebarVisible(true);
-              }}
+              visible={sidebarVisible && sidebarView === "sessions"}
+              rows={directoryTabs}
+              selected={selectedTabId}
+              history={peerWindow ? [] : highlightProfiles.entries}
               sessions={sessions}
-              selected={attachment?.sessionId}
-              disabled={!connected || working}
-              emptyMessage={
-                connected ? t("workbench.noResults") : t("workbench.listHint")
+              onContext={showSessionActions}
+              onSelect={setSelectedTabId}
+              onAttach={(session) =>
+                dispatch({
+                  id: "session.attach",
+                  sessionId: session.session_id,
+                })
               }
-              onSelect={(item) =>
-                dispatch({ id: "session.attach", sessionId: item.session_id })
-              }
-              onContextMenu={(event, item) =>
-                openContext(
-                  event,
-                  sessionMenu(
-                    stateForTab(
-                      tabs.find(
-                        (tab) => tab.attachment?.sessionId === item.session_id,
-                      ),
-                    ),
-                    item.session_id,
-                    item.state === "open" &&
-                      (item.transport === "ssh" || !item.lease),
-                    item.transport === "serial",
-                    item.transport === "ssh",
-                  ),
-                )
-              }
+              policies={policies}
+              onSavedProtection={savedProtection}
+              onSettings={settingsFor}
+              onOpen={(entry) => {
+                if (working || actionBusy.current) return;
+                setSelectedPreset(entry.request);
+                setConnectionKind(entry.request.kind);
+                if (!connected && !working) void connect();
+              }}
+              onProtect={(session) => requestProtection(session)}
+            />
+          </div>
+          <div
+            className="session-sidebar-content"
+            hidden={sidebarView !== "lan"}
+          >
+            <LanDirectory
+              visible={sidebarVisible && sidebarView === "lan"}
+              t={t}
             />
           </div>
           <div
@@ -2100,6 +2564,8 @@ export function App() {
               locate={(id) => {
                 setSidebarView("sessions");
                 setSidebarVisible(true);
+                setConnectionKind("serial");
+                setChoosingSession(true);
                 setLocateTarget((previous) => ({
                   id,
                   revision: (previous?.revision ?? 0) + 1,
@@ -2107,7 +2573,11 @@ export function App() {
               }}
             />
           </div>
-          <section className="host-panel" aria-label={t("workbench.host")}>
+          <section
+            hidden={sidebarView === "lan"}
+            className="host-panel"
+            aria-label={t("workbench.host")}
+          >
             <h2>{t("workbench.host")}</h2>
             <div className="host-connection">
               <div
@@ -2155,22 +2625,14 @@ export function App() {
         <main aria-label={t("workbench.terminal")}>
           <div className="terminal-toolbar">
             <TerminalTabs
-              tabs={tabs.map((tab) => {
-                const session = sessions.find(
-                  (session) => session.session_id === tab.attachment?.sessionId,
-                );
-                return {
-                  id: tab.id,
-                  label:
-                    session?.label ||
-                    session?.session_ref ||
-                    tab.savedTarget?.label ||
-                    tab.savedTarget?.sessionId ||
-                    t("tab.empty"),
-                  transport: session?.transport ?? tab.savedTarget?.transport,
-                  moving: tab.moving,
-                };
-              })}
+              tabs={tabSummaries}
+              renaming={renamingTab}
+              onRename={setRenamingTab}
+              onFinishRename={(id, alias) => {
+                if (alias !== undefined)
+                  updateTab(id, { alias: alias || undefined });
+                setRenamingTab(undefined);
+              }}
               selected={selectedTabId}
               disabled={working}
               t={t}
@@ -2341,6 +2803,9 @@ export function App() {
             )}
           </div>
           <ControlPanel
+            locale={locale}
+            confirmTakeover={confirmTakeover}
+            waitSeconds={waitSeconds}
             current={current}
             connected={connected}
             t={t}

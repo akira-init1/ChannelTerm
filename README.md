@@ -12,6 +12,8 @@ For short boot windows, let the Host interrupt U-Boot and verify the prompt. Exp
 
 All Sessions now use authenticated operation control. Current CLI/Electron clients adapt automatically; older writers and unregistered stdio must migrate. Human takeover fences old operations before recovery and keeps AI paused until explicitly allowed. Unknown recovery can close the Session; interrupted input is never replayed. See the [migration guide](docs/getting-started/http-authentication-migration.md#default-controlled-sessions).
 
+In Electron, **Block AI access** protects a saved connection across reconnects. After a temporary takeover, an interrupted agent can wait up to three minutes by default for explicit release. See the [terminal directory and controls](docs/reference/gui-menus.md#terminal-directory-and-naming).
+
 ## Why ChannelTerm?
 
 Keep your terminal open while the AI works with the same device connection:

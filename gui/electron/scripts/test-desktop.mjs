@@ -1,3 +1,4 @@
+import { chooseSession, openPicker } from "./session-picker.mjs";
 import { checkUBoot } from "./uboot-checks.mjs";
 import { checkLineSidebar } from "./line-sidebar-checks.mjs";
 import { checkDebugSend } from "./debug-send-checks.mjs";
@@ -7,6 +8,7 @@ import { checkHostSettings } from "./host-settings-checks.mjs";
 import { checkRecordings } from "./recording-checks.mjs";
 import { checkMCPSetup } from "./mcp-setup-checks.mjs";
 import { checkControl } from "./control-checks.mjs";
+import { checkDirectory } from "./directory-checks.mjs";
 import { checkWorkspace } from "./workspace-checks.mjs";
 import { checkDebugOverview } from "./debug-checks.mjs";
 import { checkFiles } from "./file-checks.mjs";
@@ -124,14 +126,20 @@ async function checkLayout(desktop, page, state) {
         });
         throw error;
       });
-    await expect(
-      page.getByRole("button", {
-        name: /Connect to Host|Disconnect from Host|Retry connection/,
-      }),
-    ).toBeInViewport();
-    await expect(
-      page.getByRole("searchbox", { name: "Search Sessions" }),
-    ).toBeInViewport();
+    if (state === "long-list") {
+      await expect(
+        page.locator(".session-picker input[type=search]"),
+      ).toBeInViewport();
+    } else {
+      await expect(
+        page.getByRole("button", {
+          name: /Connect to Host|Disconnect from Host|Retry connection/,
+        }),
+      ).toBeInViewport();
+      await expect(
+        page.getByRole("searchbox", { name: "Search Sessions" }),
+      ).toBeInViewport();
+    }
     if (width === 760) {
       await page.screenshot({
         path: `test-results/workbench-${state}-compact.png`,
@@ -232,10 +240,7 @@ try {
   await expect(
     page.getByRole("heading", { name: "No Host connected" }),
   ).toBeVisible();
-  await expect(page.getByRole("button", { name: "Refresh" })).toBeDisabled();
-  await expect(
-    page.getByText("Connect a Host to list Sessions."),
-  ).toBeVisible();
+  await expect(page.getByText("No connections used yet.")).toBeVisible();
   await expect(
     page.getByRole("button", {
       name: /MCP|transfer|Agent|Start Host|New Session/i,
@@ -250,7 +255,7 @@ try {
   await expect(
     page.getByRole("heading", { name: "Select a Session" }),
   ).toBeVisible();
-  await page.locator("button.session").filter({ hasText: /SER-1/ }).click();
+  await chooseSession(page, /SER-1/);
   await expect(page.locator(".xterm-screen")).toBeVisible();
   // FitAddon reads the container's size. Wrapper spacing must neither inflate
   // that size nor leak onto xterm's own .terminal class and clip fitted cells.
@@ -282,13 +287,15 @@ try {
     .fill("ISOLATED");
   await expect(page.locator(".session")).toHaveCount(1);
   await page.getByRole("searchbox", { name: "Search Sessions" }).fill("");
-  await page.locator(".session-group summary").click();
-  await expect(page.locator(".session")).not.toBeVisible();
-  await page
+  const chooser = await openPicker(page);
+  await chooser.locator(".session-group summary").click();
+  await expect(chooser.locator(".session")).not.toBeVisible();
+  await chooser
     .getByRole("button", { name: "Refresh Sessions", exact: true })
     .click();
-  await expect(page.locator(".session")).not.toBeVisible();
-  await page.locator(".session-group summary").click();
+  await expect(chooser.locator(".session")).not.toBeVisible();
+  await chooser.locator(".session-group summary").click();
+  await page.keyboard.press("Escape");
   const beforeCollapse = await page.locator(".terminal-view").boundingBox();
   await page.getByRole("button", { name: "Toggle Session sidebar" }).click();
   await expect(
@@ -359,7 +366,7 @@ try {
   await expect(
     page.getByText(/Output overwritten in the Host buffer/),
   ).toHaveCount(0);
-  await page.locator("button.session").filter({ hasText: /SER-1/ }).click();
+  await chooseSession(page, /SER-1/);
   await expect(page.locator(".xterm-screen")).toBeVisible();
   await desktop.evaluate(() => globalThis.staleClose.click());
   // A second FIFO native action is a barrier before checking the stale callback.
@@ -375,7 +382,7 @@ try {
     page.getByText("Host disconnected", { exact: true }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Connect to Host..." }).click();
-  await page.locator("button.session").filter({ hasText: /SER-1/ }).click();
+  await chooseSession(page, /SER-1/);
   await expect(page.locator(".xterm-screen")).toBeVisible();
   // Exit GUI shares native close cleanup and leaves the Host/observer alive.
   const savedPanelBinding =
@@ -424,7 +431,6 @@ try {
   await expect(
     listPage.getByText("Host connected", { exact: true }),
   ).toBeVisible();
-  await expect(listPage.getByRole("button", { name: "Refresh" })).toBeEnabled();
   await expect(listPage.getByText("0 Sessions", { exact: true })).toBeVisible();
   // Restart now retains a missing-target placeholder. Closing it restores the
   // genuinely empty workbench used by the existing empty-list/menu assertions.
@@ -453,24 +459,28 @@ try {
       })),
     }));
   });
-  await listPage.getByRole("button", { name: "Refresh" }).click();
-  await expect(listPage.locator(".session")).toHaveCount(40);
-  await expect(listPage.locator(".session-group summary")).toHaveText([
+  const listPicker = await openPicker(listPage);
+  await listPage
+    .getByRole("button", { name: "Refresh Sessions", exact: true })
+    .click();
+  await expect(listPicker.locator(".session")).toHaveCount(40);
+  await expect(listPicker.locator(".session-group summary")).toHaveText([
     "Serial (20)",
     "SSH (20)",
   ]);
-  await listPage
+  await listPicker
     .getByRole("searchbox", { name: "Search Sessions" })
     .fill("ssh");
-  await expect(listPage.locator(".session")).toHaveCount(20);
-  await expect(listPage.locator(".session-group summary")).toHaveText([
+  await expect(listPicker.locator(".session")).toHaveCount(20);
+  await expect(listPicker.locator(".session-group summary")).toHaveText([
     "SSH (20)",
   ]);
-  await listPage.getByRole("searchbox", { name: "Search Sessions" }).fill("");
-  await expect(listPage.locator(".session").first()).toBeDisabled();
+  await listPicker.getByRole("searchbox", { name: "Search Sessions" }).fill("");
+  await expect(listPicker.locator(".session").first()).toBeDisabled();
   await checkLayout(desktop, listPage, "long-list");
-  await listPage.locator(".session").last().scrollIntoViewIfNeeded();
-  await expect(listPage.locator(".session").last()).toBeInViewport();
+  await listPicker.locator(".session").last().scrollIntoViewIfNeeded();
+  await expect(listPicker.locator(".session").last()).toBeInViewport();
+  await listPage.keyboard.press("Escape");
   await expect(listPage.locator(".statusbar")).toBeInViewport();
   assert.deepEqual(listErrors, []);
   // Corrupt preferences recover to platform defaults on the next app launch.
@@ -496,7 +506,7 @@ try {
   await recoveryPage
     .getByRole("button", { name: "Connect to Host..." })
     .click();
-  await recoveryPage.getByRole("button", { name: /SER-1/ }).click();
+  await chooseSession(recoveryPage, /SER-1/);
   await expect(recoveryPage.locator(".xterm-screen")).toBeVisible();
   // Preserve closed-row coverage before the explicit shared-close test unregisters the Session.
   await fixture.command("close");
@@ -515,7 +525,7 @@ try {
   await desktop.evaluate(({ Menu }) =>
     Menu.getApplicationMenu().getMenuItemById("session.refresh").click(),
   );
-  await recoveryPage.getByRole("button", { name: /Close target/ }).click();
+  await chooseSession(recoveryPage, /Close target/, reopened.sessionId);
   // Explicit shared close has its own confirmation; cancel and stale IPC never close a target.
   const invalidClose = await recoveryPage.evaluate(() =>
     window.channelterm.closeSession("expired-view"),
@@ -572,8 +582,10 @@ try {
   await expect(
     recoveryPage.getByRole("heading", { name: "Host unavailable" }),
   ).toBeVisible();
-  await expect(recoveryPage.locator(".session")).toHaveCount(0);
   await expect(recoveryPage.locator(".xterm-screen")).toHaveCount(0);
+  await expect(
+    recoveryPage.locator(".connection-card [aria-pressed=true]"),
+  ).toHaveCount(0);
   await checkMenuAvailability(desktop, false);
   await recoveryPage.getByRole("button", { name: "Retry connection" }).click();
   await expect(
@@ -589,6 +601,7 @@ try {
   await checkConnectionHighlights(desktopEnvironment);
   await checkLineSidebar(desktopEnvironment);
   await checkWorkspace(desktopEnvironment);
+  await checkDirectory(desktopEnvironment);
   await checkStartup(desktopEnvironment, preloadArgs);
   await checkIdle(desktopEnvironment, preloadArgs);
   await checkHostSettings(desktopEnvironment);

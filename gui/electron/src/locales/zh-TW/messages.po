@@ -196,6 +196,11 @@ msgstr "新增連線..."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "connection.newShell"
+msgstr "新增 SSH 終端機"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "connection.open"
 msgstr "連線"
 
@@ -231,6 +236,11 @@ msgstr "通訊協定"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "connection.savePreset"
+msgstr "儲存連線"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "connection.scan"
 msgstr "掃描序列埠"
 
@@ -248,6 +258,16 @@ msgstr "序列埠連線"
 #: src/shared/menu-messages.ts
 msgid "connection.serialTab"
 msgstr "serial"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.settings"
+msgstr "連線設定"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.share"
+msgstr "在新分頁檢視現有 Session"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -286,8 +306,18 @@ msgstr "允許新的 AI 操作？不會重新啟動已取消的工作，也不�
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "control.ask"
+msgstr "接管前詢問"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "control.confirm"
 msgstr "確認"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.continue"
+msgstr "繼續 AI 任務"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -306,6 +336,21 @@ msgstr "中斷 AI"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "control.manual"
+msgstr "🔒 僅限手動"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.mine"
+msgstr "由我接管"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.operating"
+msgstr "AI 正在操作"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "control.paused"
 msgstr "AI 已暫停"
 
@@ -313,6 +358,11 @@ msgstr "AI 已暫停"
 #: src/shared/menu-messages.ts
 msgid "control.processing"
 msgstr "請求處理中 · 輸入須經 Host 確認"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.protect"
+msgstr "禁止 AI 存取"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -342,7 +392,7 @@ msgstr "復原已確認 · AI 仍暫停"
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
 msgid "control.takeover"
-msgstr "接管控制"
+msgstr "接管"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -353,6 +403,11 @@ msgstr "工作階段控制"
 #: src/shared/menu-messages.ts
 msgid "control.unknown"
 msgstr "結果未確認或請求遭拒。請查詢原請求，勿重試輸入。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.waitLimit"
+msgstr "AI 等待上限（秒）"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -922,6 +977,46 @@ msgstr "診斷 ZIP…"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "directory.all"
+msgstr "全部"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.empty"
+msgstr "尚無使用過的連線。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.filter"
+msgstr "連線狀態"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.lan"
+msgstr "區域網路"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.noHosts"
+msgstr "尚未設定受信任的 Host。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.offline"
+msgstr "已中斷"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.online"
+msgstr "已連線"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.reorder"
+msgstr "拖曳調整順序，或按 Alt+↑ / Alt+↓。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "display.fontFamily"
 msgstr "字型樣式（字型家族）"
 
@@ -1463,11 +1558,6 @@ msgstr "上移規則"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
-msgid "history.favorite"
-msgstr "收藏 SSH"
-
-#. js-lingui-explicit-id
-#: src/shared/menu-messages.ts
 msgid "history.hint"
 msgstr "僅為本機表單預設：選擇、核對後手動連線。憑證及路徑需重新輸入。序列埠 profiles 仍與 CLI 共用。"
 
@@ -1484,7 +1574,7 @@ msgstr "無法儲存連線記錄。請檢查本機儲存空間；不要重複已
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
 msgid "history.title"
-msgstr "最近連線與 SSH 收藏"
+msgstr "最近使用和已儲存的連線"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -2970,8 +3060,18 @@ msgstr "上一個分頁"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "tab.rename"
+msgstr "重新命名分頁…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "tab.reorderHint"
 msgstr "拖曳可調整順序；此分頁按鈕取得焦點時，也可按 Shift+左／右方向鍵。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.resetName"
+msgstr "還原預設名稱"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -3628,7 +3728,7 @@ msgstr "選取工作階段"
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
 msgid "workbench.selectHint"
-msgstr "從側欄選取已開啟的工作階段，以查看輸出並傳送輸入。"
+msgstr "選擇「工作階段 → 附加工作階段…」以查看現有終端機。"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

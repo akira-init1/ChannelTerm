@@ -3,6 +3,36 @@ import type { MessageDescriptor } from "@lingui/core";
 // Lingui 5 extracts these official annotated descriptors without a runtime macro
 // transform. Translations belong in PO catalogs; this file owns IDs and English defaults.
 export const menuMessages = [
+  /* i18n */ { id: "tab.rename", message: "Rename Tab…" },
+  /* i18n */ { id: "tab.resetName", message: "Restore Default Name" },
+  /* i18n */ { id: "connection.newShell", message: "New SSH terminal" },
+  /* i18n */ {
+    id: "connection.share",
+    message: "View an existing Session in a new tab",
+  },
+  /* i18n */ { id: "connection.settings", message: "Connection settings" },
+  /* i18n */ { id: "connection.savePreset", message: "Save connection" },
+  /* i18n */ { id: "directory.filter", message: "Connection status" },
+  /* i18n */ { id: "directory.all", message: "All" },
+  /* i18n */ { id: "directory.online", message: "Connected" },
+  /* i18n */ { id: "directory.offline", message: "Disconnected" },
+  /* i18n */ {
+    id: "directory.reorder",
+    message: "Drag to reorder, or use Alt+↑ / Alt+↓.",
+  },
+  /* i18n */ { id: "directory.empty", message: "No connections used yet." },
+  /* i18n */ {
+    id: "directory.noHosts",
+    message: "No trusted Hosts configured.",
+  },
+  /* i18n */ { id: "directory.lan", message: "LAN" },
+  /* i18n */ { id: "control.protect", message: "Block AI access" },
+  /* i18n */ { id: "control.manual", message: "🔒 Manual only" },
+  /* i18n */ { id: "control.ask", message: "Ask before taking over" },
+  /* i18n */ { id: "control.waitLimit", message: "AI wait limit (seconds)" },
+  /* i18n */ { id: "control.operating", message: "AI is operating" },
+  /* i18n */ { id: "control.continue", message: "Continue AI task" },
+  /* i18n */ { id: "control.mine", message: "Take over" },
   /* i18n */ { id: "uboot.open", message: "Enter U-Boot…" },
   /* i18n */ { id: "uboot.mode", message: "Reset mode" },
   /* i18n */ {
@@ -556,8 +586,7 @@ export const menuMessages = [
   },
   /* i18n */ {
     id: "workbench.selectHint",
-    message:
-      "Choose an open Session from the sidebar to view output and send input.",
+    message: "Choose Session > Attach Session… to view an existing terminal.",
   },
   /* i18n */ { id: "workbench.navigation", message: "Workspace navigation" },
   /* i18n */ {
@@ -1556,14 +1585,13 @@ export const menuMessages = [
   },
   /* i18n */ {
     id: "history.title",
-    message: "Recent connections and SSH favorites",
+    message: "Recent and saved connections",
   },
   /* i18n */ {
     id: "history.hint",
     message:
       "Local form presets only; select, review and connect explicitly. Credentials and credential paths must be entered again. Serial profiles remain shared with CLI.",
   },
-  /* i18n */ { id: "history.favorite", message: "Favorite SSH" },
   /* i18n */ { id: "history.unfavorite", message: "Remove favorite" },
   /* i18n */ { id: "history.remove", message: "Forget connection" },
   /* i18n */ {

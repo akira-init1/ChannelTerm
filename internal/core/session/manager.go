@@ -26,7 +26,7 @@ type Manager struct {
 	nextReferences map[string]uint64
 	openings       map[string]*endpointOpening
 	closed         bool
-	openingDone    *sync.Cond
+	openingDone    sync.WaitGroup
 }
 
 // SessionMetadata describes fixed, display-oriented information for a Session.
@@ -57,8 +57,10 @@ type SessionInfo struct {
 // same map entry. Keeping metadata beside, rather than inside, a Transport
 // preserves the protocol-neutral Session boundary.
 type registeredSession struct {
-	session  Session
-	metadata SessionMetadata
+	independent bool
+	reuseKey    string
+	session     Session
+	metadata    SessionMetadata
 }
 
 // managedLifecycleSession exposes internal lifecycle information implemented
@@ -85,7 +87,6 @@ func NewManager() *Manager {
 		nextReferences: make(map[string]uint64),
 		openings:       make(map[string]*endpointOpening),
 	}
-	manager.openingDone = sync.NewCond(&manager.mu)
 	return manager
 }
 
@@ -117,7 +118,7 @@ func (m *Manager) RegisterWithMetadata(s Session, metadata SessionMetadata) erro
 		return ErrDuplicateSession
 	}
 	metadata.Reference = m.nextReferenceLocked(metadata.Transport)
-	m.sessions[s.ID()] = registeredSession{session: s, metadata: metadata}
+	m.sessions[s.ID()] = registeredSession{session: s, metadata: metadata, reuseKey: metadata.Endpoint}
 	m.mu.Unlock()
 	publishSessionCreated(s, metadata)
 	m.watchLifecycle(s)
@@ -133,20 +134,26 @@ func (m *Manager) RegisterWithMetadata(s Session, metadata SessionMetadata) erro
 // wait for the first attempt and receive the same successful Session or error.
 // Failed and closed Sessions do not prevent a later retry.
 func (m *Manager) GetOrCreate(ctx context.Context, metadata SessionMetadata, create func() (Session, error)) (SessionInfo, bool, error) {
+	return m.GetOrCreateByKey(ctx, metadata, metadata.Endpoint, create)
+}
+
+// GetOrCreateByKey compares a Transport-provided endpoint key while preserving
+// the actual endpoint in public metadata. Concurrent equivalent opens share one result.
+func (m *Manager) GetOrCreateByKey(ctx context.Context, metadata SessionMetadata, reuseKey string, create func() (Session, error)) (SessionInfo, bool, error) {
 	if err := ctx.Err(); err != nil {
 		return SessionInfo{}, false, err
 	}
 	if create == nil {
 		return SessionInfo{}, false, errors.New("session create function must not be nil")
 	}
-	key := sessionEndpointKey(metadata.Transport, metadata.Endpoint)
+	key := sessionEndpointKey(metadata.Transport, reuseKey)
 	for {
 		m.mu.Lock()
 		if m.closed {
 			m.mu.Unlock()
 			return SessionInfo{}, false, ErrManagerClosed
 		}
-		if info, ok := m.activeSessionForEndpointLocked(metadata.Transport, metadata.Endpoint); ok {
+		if info, ok := m.activeSessionForEndpointLocked(metadata.Transport, reuseKey); ok {
 			m.mu.Unlock()
 			return info, false, nil
 		}
@@ -164,48 +171,79 @@ func (m *Manager) GetOrCreate(ctx context.Context, metadata SessionMetadata, cre
 		}
 		opening := &endpointOpening{done: make(chan struct{})}
 		m.openings[key] = opening
+		m.openingDone.Add(1)
 		m.mu.Unlock()
 
-		candidate, err := create()
-		if err == nil && candidate == nil {
-			err = errors.New("session create function returned nil session")
-		}
-		var info SessionInfo
-		if err == nil {
-			m.mu.Lock()
-			if m.closed {
-				err = ErrManagerClosed
-			} else if _, exists := m.sessions[candidate.ID()]; exists {
-				err = ErrDuplicateSession
-			} else {
-				metadata.Reference = m.nextReferenceLocked(metadata.Transport)
-				m.sessions[candidate.ID()] = registeredSession{session: candidate, metadata: metadata}
-				info = SessionInfo{ID: candidate.ID(), Metadata: metadata, State: candidate.State()}
-			}
-			m.mu.Unlock()
-			if err == nil {
-				publishSessionCreated(candidate, metadata)
-				m.watchLifecycle(candidate)
-			}
-		}
-		if err != nil && candidate != nil {
-			if closeErr := candidate.Close(); closeErr != nil {
-				err = errors.Join(err, closeErr)
-			}
-		}
+		info, err := m.createReserved(metadata, reuseKey, create, false)
 
 		m.mu.Lock()
 		opening.info = info
 		opening.err = err
 		delete(m.openings, key)
 		close(opening.done)
-		m.openingDone.Broadcast()
+		m.openingDone.Done()
 		m.mu.Unlock()
 		if err != nil {
 			return SessionInfo{}, false, err
 		}
 		return info, true, nil
 	}
+}
+
+// CreateIndependent reserves a separate connection attempt, even if an endpoint
+// already has a live Session. Close waits for candidate cleanup. These Sessions
+// are selected by ID or reference and do not replace the default reusable shell.
+func (m *Manager) CreateIndependent(ctx context.Context, metadata SessionMetadata, create func() (Session, error)) (SessionInfo, bool, error) {
+	if err := ctx.Err(); err != nil {
+		return SessionInfo{}, false, err
+	}
+	if create == nil {
+		return SessionInfo{}, false, errors.New("session create function must not be nil")
+	}
+	m.mu.Lock()
+	if m.closed {
+		m.mu.Unlock()
+		return SessionInfo{}, false, ErrManagerClosed
+	}
+	m.openingDone.Add(1)
+	m.mu.Unlock()
+	defer m.openingDone.Done()
+	info, err := m.createReserved(metadata, metadata.Endpoint, create, true)
+	return info, err == nil, err
+}
+
+// createReserved transfers ownership only after registration. The caller has
+// reserved an opening, so shutdown waits until any rejected candidate is closed.
+func (m *Manager) createReserved(metadata SessionMetadata, reuseKey string, create func() (Session, error), independent bool) (SessionInfo, error) {
+	candidate, err := create()
+	if err == nil && candidate == nil {
+		err = errors.New("session create function returned nil session")
+	}
+	var info SessionInfo
+	if err == nil {
+		m.mu.Lock()
+		if m.closed {
+			err = ErrManagerClosed
+		} else if _, exists := m.sessions[candidate.ID()]; exists {
+			err = ErrDuplicateSession
+		} else {
+			metadata.Reference = m.nextReferenceLocked(metadata.Transport)
+			m.sessions[candidate.ID()] = registeredSession{session: candidate, metadata: metadata, independent: independent, reuseKey: reuseKey}
+			info = SessionInfo{ID: candidate.ID(), Metadata: metadata, State: candidate.State()}
+		}
+		m.mu.Unlock()
+		if err == nil {
+			publishSessionCreated(candidate, metadata)
+			m.watchLifecycle(candidate)
+		}
+	}
+	if err != nil && candidate != nil {
+		if closeErr := candidate.Close(); closeErr != nil {
+			err = errors.Join(err, closeErr)
+		}
+	}
+
+	return info, err
 }
 
 // publishSessionCreated records Manager registration after the Session becomes
@@ -285,6 +323,15 @@ func (m *Manager) Reference(identifier string) (string, bool) {
 	return registered.metadata.Reference, true
 }
 
+// ConnectionEndpoint returns the registration-time transport and comparison key.
+// The key remains stable if an OS device symlink is removed or retargeted.
+func (m *Manager) ConnectionEndpoint(identifier string) (string, string) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	entry, _ := m.sessionLocked(identifier)
+	return entry.metadata.Transport, entry.reuseKey
+}
+
 // List returns a snapshot of every currently registered Session.
 //
 // The returned slice is independent from Manager's internal map, but each
@@ -349,9 +396,9 @@ func (m *Manager) Remove(identifier string) (Session, bool) {
 func (m *Manager) Close() error {
 	m.mu.Lock()
 	m.closed = true
-	for len(m.openings) != 0 {
-		m.openingDone.Wait()
-	}
+	m.mu.Unlock()
+	m.openingDone.Wait()
+	m.mu.Lock()
 	sessions := m.sessions
 	m.sessions = make(map[string]registeredSession)
 	m.mu.Unlock()
@@ -407,7 +454,7 @@ func (m *Manager) sessionIDLocked(identifier string) (string, registeredSession,
 func (m *Manager) activeSessionForEndpointLocked(transport, endpoint string) (SessionInfo, bool) {
 	var selected SessionInfo
 	for id, registered := range m.sessions {
-		if registered.metadata.Transport != transport || registered.metadata.Endpoint != endpoint || !managerOwnsEndpoint(registered.session.State()) {
+		if registered.independent || registered.metadata.Transport != transport || registered.reuseKey != endpoint || !managerOwnsEndpoint(registered.session.State()) {
 			continue
 		}
 		if selected.ID == "" || id < selected.ID {

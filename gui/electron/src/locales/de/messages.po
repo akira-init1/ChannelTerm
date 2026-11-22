@@ -196,6 +196,11 @@ msgstr "Neue Verbindung..."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "connection.newShell"
+msgstr "Neues SSH-Terminal"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "connection.open"
 msgstr "Verbinden"
 
@@ -231,6 +236,11 @@ msgstr "Protokoll"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "connection.savePreset"
+msgstr "Verbindung speichern"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "connection.scan"
 msgstr "Ports suchen"
 
@@ -248,6 +258,16 @@ msgstr "Serielle Verbindung"
 #: src/shared/menu-messages.ts
 msgid "connection.serialTab"
 msgstr "Seriell"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.settings"
+msgstr "Verbindungseinstellungen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.share"
+msgstr "Vorhandene Sitzung in neuem Tab anzeigen"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -286,8 +306,18 @@ msgstr "Neue KI-Aktionen erlauben? Abgebrochene Vorgänge und verworfene Eingabe
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "control.ask"
+msgstr "Vor Übernahme nachfragen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "control.confirm"
 msgstr "Bestätigen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.continue"
+msgstr "KI-Aufgabe fortsetzen"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -306,6 +336,21 @@ msgstr "KI unterbrechen"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "control.manual"
+msgstr "🔒 Nur manuell"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.mine"
+msgstr "Übernehmen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.operating"
+msgstr "KI ist aktiv"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "control.paused"
 msgstr "KI pausiert"
 
@@ -313,6 +358,11 @@ msgstr "KI pausiert"
 #: src/shared/menu-messages.ts
 msgid "control.processing"
 msgstr "Anfrage läuft · Eingabe erfordert Host-Bestätigung"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.protect"
+msgstr "KI-Zugriff sperren"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -353,6 +403,11 @@ msgstr "Sitzungssteuerung"
 #: src/shared/menu-messages.ts
 msgid "control.unknown"
 msgstr "Ergebnis unbestätigt oder Anfrage abgelehnt. Ursprüngliche Anfrage abfragen; Eingabe nicht wiederholen."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.waitLimit"
+msgstr "KI-Wartezeit (Sekunden)"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -922,6 +977,46 @@ msgstr "Diagnose-ZIP…"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "directory.all"
+msgstr "Alle"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.empty"
+msgstr "Noch keine Verbindungen verwendet."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.filter"
+msgstr "Verbindungsstatus"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.lan"
+msgstr "Lokales Netzwerk"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.noHosts"
+msgstr "Keine vertrauenswürdigen Hosts konfiguriert."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.offline"
+msgstr "Getrennt"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.online"
+msgstr "Verbunden"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.reorder"
+msgstr "Zum Sortieren ziehen oder Alt+↑ / Alt+↓ drücken."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "display.fontFamily"
 msgstr "Schriftfamilie"
 
@@ -1463,11 +1558,6 @@ msgstr "Regel nach oben"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
-msgid "history.favorite"
-msgstr "SSH favorisieren"
-
-#. js-lingui-explicit-id
-#: src/shared/menu-messages.ts
 msgid "history.hint"
 msgstr "Lokale Vorlagen: auswählen, prüfen und verbinden. Zugangsdaten und Pfade erneut eingeben. Serielle Profile bleiben mit CLI geteilt."
 
@@ -1484,7 +1574,7 @@ msgstr "Verlauf nicht gespeichert. Lokalen Speicher prüfen; erfolgreiche Verbin
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
 msgid "history.title"
-msgstr "Letzte Verbindungen und SSH-Favoriten"
+msgstr "Zuletzt verwendete und gespeicherte Verbindungen"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -2970,8 +3060,18 @@ msgstr "Vorheriger Tab"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "tab.rename"
+msgstr "Tab umbenennen…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "tab.reorderHint"
 msgstr "Zum Umordnen ziehen oder Umschalt+Links/Rechts drücken, wenn diese Tab-Schaltfläche fokussiert ist."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.resetName"
+msgstr "Standardnamen wiederherstellen"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -3628,7 +3728,7 @@ msgstr "Session auswählen"
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
 msgid "workbench.selectHint"
-msgstr "Wählen Sie eine offene Session in der Seitenleiste, um Ausgaben zu lesen und Eingaben zu senden."
+msgstr "Wählen Sie im Sitzungsmenü eine vorhandene Sitzung zum Verbinden aus."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

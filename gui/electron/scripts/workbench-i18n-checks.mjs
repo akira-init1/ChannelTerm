@@ -25,7 +25,7 @@ export async function checkWorkbenchLocales(desktop, page, dropped = false) {
     await expect(page.locator(".host-panel .connection")).toHaveText(
       t(dropped ? "workbench.connected" : "workbench.disconnected"),
     );
-    await expect(page.locator(".session-search input")).toHaveAttribute(
+    await expect(page.locator(".session-search:visible input")).toHaveAttribute(
       "aria-label",
       t("workbench.search"),
     );
@@ -43,7 +43,9 @@ export async function checkWorkbenchLocales(desktop, page, dropped = false) {
       )
       .toBe(true);
     if (dropped) {
-      await expect(page.locator(".session.selected .dot.open")).toBeVisible();
+      await expect(
+        page.locator('.session.selected[aria-pressed="true"]'),
+      ).toBeVisible();
       await expect(page.locator(".notices")).toContainText(
         t("workbench.dropped"),
       );

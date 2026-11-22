@@ -47,6 +47,9 @@ var (
 // Serial and ListSerialPorts are test seams; nil values select production
 // configuration, Serial Transport construction, and port enumeration.
 type Dependencies struct {
+	// ConfigPath and ManualOnly supply the durable operator policy loaded before serving requests.
+	ConfigPath string
+	ManualOnly []config.ManualConnection
 	// Idle is immutable Host policy; zero durations retain existing lifetimes.
 	Idle IdlePolicy
 	// Build identifies the running executable in diagnostic manifests. Unknown
@@ -69,6 +72,7 @@ type Dependencies struct {
 // host stdin/stdout, or Host process lifetime. The Composition Root owns the
 // supplied Manager and Registry.
 type Application struct {
+	access          connectionAccess
 	manager         *session.Manager
 	serial          *SerialService
 	leases          *leaseCoordinator
@@ -122,6 +126,12 @@ func New(dependencies Dependencies) (*Application, error) {
 		policy:          policy,
 		listSerialPorts: listPorts,
 	}
+	application.access.path = dependencies.ConfigPath
+	application.access.blocked = make(map[config.ManualConnection]bool)
+	for _, key := range dependencies.ManualOnly {
+		application.access.blocked[connectionKey(key.Transport, key.Endpoint)] = true
+	}
+	application.serial.guardAccess = application.guardConnection
 	application.leases.onExpired = application.publishExpiredLease
 	application.idle.policy = dependencies.Idle
 	application.transfers.settings = dependencies.FileTransfer

@@ -64,7 +64,7 @@ func run() error {
 	if os.Getenv("CHANNELTERM_FIXTURE_IDLE_TEST") == "1" {
 		idle = app.IdlePolicy{SessionTimeout: time.Second, Origin: "desktop"}
 	}
-	application, err := app.New(app.Dependencies{Manager: manager,
+	application, err := app.New(app.Dependencies{Manager: manager, ConfigPath: filepath.Join(configDirectory, "config.toml"),
 		Devices: discovery.registry,
 		Idle:    idle,
 		ListSerialPorts: func() ([]serialtransport.Port, error) {
@@ -79,7 +79,7 @@ func run() error {
 				if err := discovery.opening(); err != nil {
 					return nil, err
 				}
-				if c.Port != "COM-FIXTURE" && c.Port != "COM-MOVED" {
+				if c.Port != "COM-FIXTURE" && c.Port != "COM-MOVED" && c.Port != "COM8" && c.Port != "COM9" {
 					return nil, fmt.Errorf("fixture port unavailable")
 				}
 				local, remote := net.Pipe()
@@ -157,12 +157,19 @@ func run() error {
 	defer stopSSH()
 	sshHandler := guiapi.NewHandler(application)
 	server := &http.Server{ReadHeaderTimeout: 5 * time.Second, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		identity := session.ClientIdentity{ID: "CL-fixture", Name: "Fixture user", Kind: "user"}
+		manage := true
 		if subtle.ConstantTimeCompare([]byte(r.Header.Get("Authorization")), []byte("Bearer "+token)) != 1 {
-			w.WriteHeader(http.StatusUnauthorized)
-			return
+			agent := os.Getenv("CHANNELTERM_FIXTURE_AGENT")
+			if agent == "" || subtle.ConstantTimeCompare([]byte(r.Header.Get("Authorization")), []byte("Bearer "+agent)) != 1 {
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+			identity = session.ClientIdentity{ID: "CL-agent", Name: "Fixture agent", Kind: "agent"}
+			manage = false
 		}
-		ctx := app.WithClientIdentity(r.Context(), session.ClientIdentity{ID: "CL-fixture", Name: "Fixture user", Kind: "user"})
-		r = r.WithContext(app.WithClientAccess(ctx, app.ClientAccess{Write: true, Manage: true}))
+		ctx := app.WithClientIdentity(r.Context(), identity)
+		r = r.WithContext(app.WithClientAccess(ctx, app.ClientAccess{Write: true, Manage: manage}))
 		if r.URL.Path == guiapi.SSHPath || r.URL.Path == guiapi.SSHConfirmPath || r.URL.Path == guiapi.SerialProfilesPath || r.URL.Path == guiapi.ResizePath {
 			sshHandler.ServeHTTP(w, r)
 			return

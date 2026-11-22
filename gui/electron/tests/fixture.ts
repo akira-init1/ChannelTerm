@@ -5,6 +5,7 @@ import { randomBytes } from "node:crypto";
 
 /** Run the real Go protocol stack with a disposable token and in-memory terminal. */
 export async function startFixture(options: { idle?: boolean } = {}) {
+  const agentToken = randomBytes(32).toString("base64url");
   const token = randomBytes(32).toString("base64url");
   const process = spawn(
     resolve(
@@ -18,6 +19,7 @@ export async function startFixture(options: { idle?: boolean } = {}) {
       env: {
         ...globalThis.process.env,
         CHANNELTERM_HTTP_AUTH_TOKEN: token,
+        CHANNELTERM_FIXTURE_AGENT: agentToken,
         CHANNELTERM_FIXTURE_IDLE_TEST: options.idle ? "1" : "0",
       },
     },
@@ -56,6 +58,7 @@ export async function startFixture(options: { idle?: boolean } = {}) {
   return {
     endpoint: ready.endpoint,
     token,
+    agentToken,
     sshPort: Number(ready.ssh_port),
     knownHosts: ready.known_hosts!,
     process,

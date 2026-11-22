@@ -1,3 +1,4 @@
+import { chooseSession } from "./session-picker.mjs";
 import assert from "node:assert/strict";
 import { mkdtemp, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
@@ -102,7 +103,7 @@ export async function checkLineSidebar(environment) {
     const attached = await observer.attach(session.session_id);
     await fixture.command("output", "history-unknown\r\n");
     await launch();
-    await page.locator(`[data-session-id="${session.session_id}"]`).click();
+    await chooseSession(page, undefined, session.session_id);
     await expect(rows()).toContainText("history-unknown");
     await expect(gutter()).toBeVisible();
     await expect(gutter().locator(".line-time").first()).toBeVisible();

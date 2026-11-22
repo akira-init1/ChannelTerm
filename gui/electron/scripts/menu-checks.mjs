@@ -1,3 +1,4 @@
+import { openPicker } from "./session-picker.mjs";
 import assert from "node:assert/strict";
 import { expect } from "@playwright/test";
 import { HostClient } from "../src/main/host/client.ts";
@@ -394,6 +395,8 @@ export async function checkAttachedMenus(
   await expect(
     page.getByRole("searchbox", { name: "Search Sessions" }),
   ).toBeFocused();
+  await page.keyboard.press("Escape");
+  await nativeClick(desktop, "view.sidebar");
   await nativeClick(desktop, "session.info");
   await expect(page.locator(".session-details")).toContainText(
     observerAttachment.sessionId,
@@ -520,10 +523,15 @@ export async function checkContextTargets(desktop, page, observer) {
       value: globalThis.menuTestRows,
     }));
   }, realRows);
+  await openPicker(page);
   await page
     .getByRole("button", { name: "Refresh Sessions", exact: true })
     .click();
-  await page.getByRole("button", { name: /SER-2/ }).click({ button: "right" });
+  await (
+    await openPicker(page)
+  )
+    .getByRole("button", { name: /SER-2/ })
+    .click({ button: "right" });
   await expect(
     popup(page).getByRole("menuitem", {
       name: "Close tab (detach)",
@@ -541,7 +549,11 @@ export async function checkContextTargets(desktop, page, observer) {
   ).toHaveAttribute("aria-pressed", "true");
   await expect(page.locator(".xterm-screen")).toBeVisible();
   await page.getByRole("button", { name: "Resume input", exact: true }).click();
-  await page.getByRole("button", { name: /SER-2/ }).click({ button: "right" });
+  await (
+    await openPicker(page)
+  )
+    .getByRole("button", { name: /SER-2/ })
+    .click({ button: "right" });
   await desktop.evaluate(() => {
     globalThis.menuTestRows = globalThis.menuTestRows.slice(0, 1);
   });
@@ -551,7 +563,9 @@ export async function checkContextTargets(desktop, page, observer) {
   await page.keyboard.press("Escape");
   // A later fresh process restores production list IPC. Remaining checks in
   // this process only need the real-row snapshot, not live lease changes.
-  await expect(page.locator(".session")).toHaveCount(1);
+  const picker = await openPicker(page);
+  await expect(picker.locator(".session")).toHaveCount(1);
+  await page.keyboard.press("Escape");
 }
 
 export async function checkMenuAvailability(desktop, connected) {
@@ -567,7 +581,9 @@ export async function checkClosedMenus(desktop, page) {
   await expect
     .poll(async () => (await nativeItem(desktop, "tab.close")).enabled)
     .toBe(true);
-  await page
+  await (
+    await openPicker(page)
+  )
     .locator(".session")
     .first()
     .locator("..")

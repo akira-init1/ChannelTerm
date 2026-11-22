@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/akira-init1/ChannelTerm/internal/core/config"
 	"runtime"
 	"runtime/debug"
 	"sort"
@@ -48,8 +49,9 @@ type DiagnosticArchive struct {
 }
 
 type diagnosticEntry struct {
-	info DiagnosticArchive
-	data []byte
+	connection config.ManualConnection
+	info       DiagnosticArchive
+	data       []byte
 }
 
 // diagnosticStore bounds both concurrent archive construction and retained
@@ -141,6 +143,9 @@ func (a *Application) ReadDiagnostic(ctx context.Context, id string, offset, lim
 	for _, e := range a.diagnostics.entries {
 		if e.info.ID != id {
 			continue
+		}
+		if err := a.checkConnectionAccess(ctx, e.connection); err != nil {
+			return nil, 0, false, err
 		}
 		if offset > len(e.data) {
 			return nil, 0, false, errors.New("diagnostic offset exceeds archive size")
@@ -299,7 +304,7 @@ func (a *Application) buildDiagnosticLocked(ctx context.Context, t session.Sessi
 	if len(a.diagnostics.entries) >= diagnosticCountLimit {
 		a.diagnostics.entries = append([]diagnosticEntry(nil), a.diagnostics.entries[1:]...)
 	}
-	a.diagnostics.entries = append(a.diagnostics.entries, diagnosticEntry{info: meta, data: archive.Bytes()})
+	a.diagnostics.entries = append(a.diagnostics.entries, diagnosticEntry{connection: connectionKey(info.Metadata.Transport, info.Metadata.Endpoint), info: meta, data: archive.Bytes()})
 	return meta, nil
 }
 

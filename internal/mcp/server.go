@@ -404,7 +404,7 @@ func waitSchema(schema tool.InputSchema) tool.InputSchema {
 // to an Agent instead of hiding them behind a protocol-level JSON-RPC failure.
 func (a *adapter) handler(exposed exposedTool) protocol.ToolHandler {
 	return func(ctx context.Context, request *protocol.CallToolRequest) (*protocol.CallToolResult, error) {
-		if exposed.name == "terminal_enter_uboot" {
+		if exposed.name == "terminal_enter_uboot" || exposed.name == "terminal_control" {
 			if original, ok := ctx.Value(httpRequestContextKey{}).(context.Context); ok {
 				// Cancellation notifications cannot find a different ephemeral
 				// stateless session. Tie only this operation to its original HTTP
@@ -489,6 +489,8 @@ func errorResult(name string, err error) *protocol.CallToolResult {
 	code := "tool_error"
 	var classified interface{ ErrorCode() string }
 	switch {
+	case errors.Is(err, app.ErrManualOnly):
+		code = "manual_only"
 	case errors.Is(err, app.ErrHostDraining):
 		code = "host_draining"
 	case errors.Is(err, app.ErrIdleRegistration):

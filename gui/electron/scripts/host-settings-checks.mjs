@@ -1,3 +1,4 @@
+import { chooseSession } from "./session-picker.mjs";
 import assert from "node:assert/strict";
 import { mkdtemp, writeFile, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
@@ -72,7 +73,7 @@ export async function checkHostSettings(environment) {
     desktop = await electron.launch(options);
     let page = await desktop.firstWindow();
     await connect(page);
-    await page.locator(".session").filter({ hasText: "Isolated echo" }).click();
+    await chooseSession(page, "Isolated echo");
     // The UI attachment must finish before creating this separate stale-handle probe.
     // Main deliberately rejects overlapping attachment changes; do not race or retry them.
     await expect(page.locator(".xterm-screen")).toBeVisible();

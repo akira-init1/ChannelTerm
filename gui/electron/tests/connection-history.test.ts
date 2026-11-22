@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  sharedPreset,
   connectionPreset,
   recordConnection,
   restoreConnections,
@@ -70,7 +71,7 @@ test("history rejects malformed storage and bounds recent entries while retainin
   assert.equal(entries[1]?.lastUsed, 61);
 });
 
-test("serial history never restores wake intent or gains SSH favorite semantics", () => {
+test("only explicitly saved serial connections are favorites and wake intent is never restored", () => {
   const serial: ConnectionRequest = {
     kind: "serial",
     port: "COM-FAKE",
@@ -83,5 +84,35 @@ test("serial history never restores wake intent or gains SSH favorite semantics"
     wake: true,
   };
   assert.deepEqual(connectionPreset(serial), { ...serial, wake: false });
-  assert.equal(recordConnection([], serial, true)[0]?.favorite, false);
+  assert.equal(recordConnection([], serial, false)[0]?.favorite, false);
+  const saved = recordConnection([], serial, true);
+  assert.equal(restoreConnections(JSON.stringify(saved))[0]?.favorite, true);
+});
+
+test("first attachment retains only usable endpoint hints for a reviewed reconnect", () => {
+  assert.deepEqual(
+    sharedPreset({
+      transport: "ssh",
+      endpoint: "dev@[::1]:2222",
+      label: "Board",
+    }),
+    {
+      kind: "ssh",
+      host: "::1",
+      port: 2222,
+      user: "dev",
+      label: "Board",
+      knownHostsFile: "",
+      identityFiles: [],
+    },
+  );
+  assert.equal(
+    sharedPreset({ transport: "ssh", endpoint: "missing-login", label: "" }),
+    undefined,
+  );
+  assert.equal(
+    sharedPreset({ transport: "serial", endpoint: "COM8", label: "Board" })
+      ?.kind,
+    "serial",
+  );
 });

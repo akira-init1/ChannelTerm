@@ -196,6 +196,11 @@ msgstr "Nueva conexión..."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "connection.newShell"
+msgstr "Nuevo terminal SSH"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "connection.open"
 msgstr "Conectar"
 
@@ -231,6 +236,11 @@ msgstr "Protocolo"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "connection.savePreset"
+msgstr "Guardar conexión"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "connection.scan"
 msgstr "Buscar puertos"
 
@@ -248,6 +258,16 @@ msgstr "Conexión serie"
 #: src/shared/menu-messages.ts
 msgid "connection.serialTab"
 msgstr "Serie"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.settings"
+msgstr "Ajustes de conexión"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.share"
+msgstr "Ver una sesión existente en una pestaña nueva"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -286,8 +306,18 @@ msgstr "¿Permitir nuevas operaciones de IA? No se reiniciarán los trabajos can
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "control.ask"
+msgstr "Preguntar antes de tomar el control"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "control.confirm"
 msgstr "Confirmar"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.continue"
+msgstr "Continuar tarea de IA"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -306,6 +336,21 @@ msgstr "Interrumpir IA"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "control.manual"
+msgstr "🔒 Solo manual"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.mine"
+msgstr "Tomar el control"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.operating"
+msgstr "IA en ejecución"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "control.paused"
 msgstr "IA en pausa"
 
@@ -313,6 +358,11 @@ msgstr "IA en pausa"
 #: src/shared/menu-messages.ts
 msgid "control.processing"
 msgstr "Solicitud pendiente · la entrada requiere confirmación del Host"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.protect"
+msgstr "Bloquear acceso de IA"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -353,6 +403,11 @@ msgstr "Control de sesión"
 #: src/shared/menu-messages.ts
 msgid "control.unknown"
 msgstr "Resultado sin confirmar o solicitud denegada. Consultar la solicitud original; no repetir la entrada."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "control.waitLimit"
+msgstr "Espera máxima de IA (segundos)"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -922,6 +977,46 @@ msgstr "ZIP de diagnóstico…"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "directory.all"
+msgstr "Todas"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.empty"
+msgstr "Todavía no se han usado conexiones."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.filter"
+msgstr "Estado de conexión"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.lan"
+msgstr "Red local"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.noHosts"
+msgstr "No hay hosts de confianza configurados."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.offline"
+msgstr "Desconectada"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.online"
+msgstr "Conectada"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.reorder"
+msgstr "Arrastra para reordenar o usa Alt+↑ / Alt+↓."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "display.fontFamily"
 msgstr "Familia de fuente"
 
@@ -1463,11 +1558,6 @@ msgstr "Subir regla"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
-msgid "history.favorite"
-msgstr "Favorito SSH"
-
-#. js-lingui-explicit-id
-#: src/shared/menu-messages.ts
 msgid "history.hint"
 msgstr "Preajustes locales: seleccione, revise y conecte. Reintroduzca credenciales y rutas. Los perfiles serie se comparten con CLI."
 
@@ -1484,7 +1574,7 @@ msgstr "No se guardó el historial. Revise el almacenamiento local; no repita un
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
 msgid "history.title"
-msgstr "Conexiones recientes y favoritos SSH"
+msgstr "Conexiones recientes y guardadas"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -2970,8 +3060,18 @@ msgstr "Pestaña anterior"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "tab.rename"
+msgstr "Renombrar pestaña…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "tab.reorderHint"
 msgstr "Arrastre para reordenar, o pulse Mayús+Izquierda/Derecha con este botón de pestaña enfocado."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "tab.resetName"
+msgstr "Restaurar nombre predeterminado"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -3628,7 +3728,7 @@ msgstr "Seleccionar una sesión"
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
 msgid "workbench.selectHint"
-msgstr "Seleccione una sesión abierta en la barra lateral para ver la salida y enviar entradas."
+msgstr "Elija una sesión existente en el menú Sesión para ver su terminal."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
