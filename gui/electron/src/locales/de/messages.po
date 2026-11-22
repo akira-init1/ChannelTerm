@@ -166,6 +166,11 @@ msgstr "Schlüsseldateien auf dem Host (eine pro Zeile; leer für Standardwerte)
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "connection.inDevelopment"
+msgstr "In Entwicklung"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "connection.invalid"
 msgstr "Prüfen Sie die Verbindungseinstellungen."
 
@@ -238,6 +243,11 @@ msgstr "Suche…"
 #: src/shared/menu-messages.ts
 msgid "connection.serial"
 msgstr "Serielle Verbindung"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.serialTab"
+msgstr "Seriell"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

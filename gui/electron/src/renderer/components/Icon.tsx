@@ -1,50 +1,64 @@
+import {
+  Bug,
+  ChevronDown,
+  FolderLock,
+  Network,
+  PanelBottom,
+  PanelLeft,
+  PanelRight,
+  Plug,
+  RefreshCw,
+  Search,
+  SquareTerminal,
+  Terminal,
+  X,
+} from "lucide-react";
+
+const glyphs = {
+  debug: Bug,
+  terminal: SquareTerminal,
+  search: Search,
+  refresh: RefreshCw,
+  close: X,
+  chevron: ChevronDown,
+  plug: Plug,
+  "layout-left": PanelLeft,
+  "layout-right": PanelRight,
+  "layout-bottom": PanelBottom,
+  shell: Terminal,
+  tcp: Network,
+  sftp: FolderLock,
+  telnet: SquareTerminal,
+};
+
+// The Serial connector and SSH monitor are the existing Session glyphs.
+const sessionPaths = {
+  serial:
+    "M5 5h14l2 8-4 4H7l-4-4z M8 9h.01 M12 9h.01 M16 9h.01 M10 13h.01 M14 13h.01 M12 17v4 M8 21h8",
+  monitor: "M3 4h18v13H3z M12 17v4 M7 21h10",
+};
+
+export type IconName = keyof typeof glyphs | keyof typeof sessionPaths | "wsl";
+
 /** Icon supplies decorative workbench glyphs; interactive parents own labels. */
-export function Icon({
-  name,
-}: {
-  name:
-    | "debug"
-    | "terminal"
-    | "serial"
-    | "monitor"
-    | "search"
-    | "refresh"
-    | "close"
-    | "chevron"
-    | "plug"
-    | "layout-left"
-    | "layout-right"
-    | "layout-bottom";
-}) {
-  const paths = {
-    debug:
-      "M8 8h8v9a4 4 0 0 1-8 0z M9 8V5h6v3 M4 10h4 M16 10h4 M4 15h4 M16 15h4 M5 21l4-3 M19 21l-4-3 M12 8v12",
-    "layout-left": "M3 4h18v16H3z M9 4v16 M5 7h2 M5 10h2 M5 13h2",
-    "layout-right": "M3 4h18v16H3z M15 4v16 M17 7h2 M17 10h2 M17 13h2",
-    "layout-bottom": "M3 4h18v16H3z M3 14h18 M6 17h12",
-    terminal: "M4 4h16v16H4z M7 8l3 3-3 3 M13 15h4",
-    serial:
-      "M5 5h14l2 8-4 4H7l-4-4z M8 9h.01 M12 9h.01 M16 9h.01 M10 13h.01 M14 13h.01 M12 17v4 M8 21h8",
-    monitor: "M3 4h18v13H3z M12 17v4 M7 21h10",
-    search: "M16 16l5 5 M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0",
-    refresh:
-      "M20 7v5h-5 M4 17v-5h5 M5 8a8 8 0 0 1 14-2l1 2 M4 16l1 2a8 8 0 0 0 14-2",
-    close: "M6 6l12 12 M18 6L6 18",
-    chevron: "M7 9l5 5 5-5",
-    plug: "M9 3v5 M15 3v5 M7 8h10v4a5 5 0 0 1-10 0z M12 17v4",
-  };
-  return (
-    <svg
-      className="icon"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.6"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d={paths[name]} />
-    </svg>
-  );
+export function Icon({ name }: { name: IconName }) {
+  if (name === "wsl")
+    return <span className="icon icon-windows" aria-hidden="true" />;
+  if (name === "serial" || name === "monitor")
+    return (
+      <svg
+        className="icon"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <path d={sessionPaths[name]} />
+      </svg>
+    );
+  const Glyph = glyphs[name];
+  return <Glyph className="icon" strokeWidth={1.6} aria-hidden="true" />;
 }

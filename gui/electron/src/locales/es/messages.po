@@ -166,6 +166,11 @@ msgstr "Archivos de clave en el Host (uno por línea; vacío para valores predet
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "connection.inDevelopment"
+msgstr "En desarrollo"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "connection.invalid"
 msgstr "Revise la configuración de conexión."
 
@@ -238,6 +243,11 @@ msgstr "Buscando…"
 #: src/shared/menu-messages.ts
 msgid "connection.serial"
 msgstr "Conexión serie"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.serialTab"
+msgstr "Serie"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

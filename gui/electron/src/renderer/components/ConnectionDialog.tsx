@@ -13,6 +13,7 @@ import type { DeviceSelection, SerialPort } from "../../shared/devices";
 import { SSHTrustConfirmation } from "./SSHTrustConfirmation";
 import { SerialProfilesFields } from "./SerialProfiles";
 import { SerialPortInput } from "./SerialPortInput";
+import { ProtocolPanel, ProtocolTabs, type Protocol } from "./ProtocolTabs";
 import type { SerialProfile } from "../../shared/serial-profiles";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
@@ -121,6 +122,7 @@ export function ConnectionDialog({
     }
   }
   function applyPreset(request: ConnectionRequest) {
+    setPreview(undefined);
     setKind(request.kind);
     setPreset(request);
     setRevision((value) => value + 1);
@@ -134,6 +136,8 @@ export function ConnectionDialog({
   const [serialRevision, setSerialRevision] = useState(0);
   const dialog = useRef<HTMLDialogElement>(null);
   const [kind, setKind] = useState(initialKind);
+  const [preview, setPreview] =
+    useState<Exclude<Protocol, ConnectionRequest["kind"]>>();
   const submitting = useRef(false);
   const [busy, setBusy] = useState(false);
   const [scanning, setScanning] = useState(false);
@@ -144,6 +148,25 @@ export function ConnectionDialog({
   const [error, setError] = useState("");
   const [auth, setAuth] = useState("key");
   const [baudChoice, setBaudChoice] = useState("115200");
+  function selectProtocol(next: Protocol) {
+    if (next !== "serial" && next !== "ssh") {
+      setPreview(next);
+      return;
+    }
+    if (next === "ssh" && !sshAvailable) return;
+    setPreview(undefined);
+    if (next === kind) return;
+    setKind(next);
+    setDiscovery(undefined);
+    setDiscoveryCurrent(true);
+    setDiscoveryOpen(false);
+    setPreset(undefined);
+    setFavorite(false);
+    setError("");
+    setAuth("key");
+    setBaudChoice("115200");
+    setSerialDefaults(undefined);
+  }
   useEffect(() => {
     dialog.current?.showModal();
   }, []);
@@ -186,6 +209,7 @@ export function ConnectionDialog({
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (
+      preview ||
       submitting.current ||
       (kind === "serial" && discovery && !discoveryCurrent)
     )
@@ -395,35 +419,20 @@ export function ConnectionDialog({
               </div>
             ))}
           </details>
-          <label>
-            {t("connection.protocol")}
-            <select
-              value={kind}
-              onChange={(event) => {
-                const next = event.target.value;
-                if (next !== "serial" && (next !== "ssh" || !sshAvailable))
-                  return;
-                setKind(next);
-                setDiscovery(undefined);
-                setDiscoveryCurrent(true);
-                setDiscoveryOpen(false);
-                setPreset(undefined);
-                setFavorite(false);
-                setError("");
-                setAuth("key");
-                setBaudChoice("115200");
-                setSerialDefaults(undefined);
-              }}
-            >
-              <option value="serial">{t("debug.serial")}</option>
-              <option value="ssh" disabled={!sshAvailable}>
-                SSH
-              </option>
-            </select>
-          </label>
+          <ProtocolTabs
+            selected={preview ?? kind}
+            sshAvailable={sshAvailable}
+            onSelect={selectProtocol}
+            t={t}
+          />
         </fieldset>
         {/* Remount protocol fields so secrets and overlapping field names cannot cross forms. */}
-        <fieldset key={`${kind}-${revision}`} disabled={busy || scanning}>
+        <ProtocolPanel
+          key={`${kind}-${revision}`}
+          selected={preview ?? kind}
+          notice={preview ? t("connection.inDevelopment") : undefined}
+          disabled={busy || scanning}
+        >
           {kind === "serial" ? (
             <>
               <SerialProfilesFields
@@ -682,10 +691,10 @@ export function ConnectionDialog({
               <TerminalSettingsFields t={t} value={terminalDefaults} />
             </details>
           )}
-        </fieldset>
+        </ProtocolPanel>
         {kind === "ssh" && busy && <SSHTrustConfirmation t={t} />}
       </form>
-      {error && <p role="alert">{t(error)}</p>}
+      {error && !preview && <p role="alert">{t(error)}</p>}
       <footer>
         <button type="button" disabled={busy} onClick={onClose}>
           {t("connection.cancel")}
@@ -693,6 +702,7 @@ export function ConnectionDialog({
         <button
           className="primary"
           disabled={
+            !!preview ||
             busy ||
             scanning ||
             (kind === "serial" && !!discovery && !discoveryCurrent)

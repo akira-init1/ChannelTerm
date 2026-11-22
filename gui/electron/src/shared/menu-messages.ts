@@ -1176,6 +1176,8 @@ export const menuMessages = [
     message: "Use Session > New Connection to open a Session.",
   },
   /* i18n */ { id: "connection.protocol", message: "Protocol" },
+  /* i18n */ { id: "connection.serialTab", message: "Serial" },
+  /* i18n */ { id: "connection.inDevelopment", message: "In development" },
   /* i18n */ { id: "window.new", message: "New Window" },
   /* i18n */ { id: "tab.new", message: "New Tab" },
   /* i18n */ { id: "window.tab.close", message: "Close Tab" },

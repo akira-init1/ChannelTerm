@@ -306,6 +306,47 @@ p {
 .new-connection-dialog fieldset {
   min-inline-size: 0;
 }
+.protocol-tabs {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  padding: 5px 0 8px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.protocol-tabs button {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 5px;
+  flex: 1 0 60px;
+  padding: 9px 6px;
+  background: transparent;
+  border-color: transparent;
+}
+.protocol-tabs .icon {
+  width: 22px;
+  height: 22px;
+}
+.protocol-tabs .planned-protocol {
+  color: var(--muted);
+}
+.protocol-tabs button[aria-selected="true"] {
+  background: var(--selection);
+  border-color: var(--accent);
+}
+.protocol-tabs button[aria-selected="true"]:not(.planned-protocol) .icon {
+  color: var(--accent);
+}
+.icon-windows {
+  background: currentColor;
+  mask: url("../assets/windows.svg?inline") center / contain no-repeat;
+}
+.protocol-notice {
+  padding: 24px 0;
+  text-align: center;
+  color: var(--muted);
+}
 .serial-setup {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));

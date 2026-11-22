@@ -166,6 +166,11 @@ msgstr "Файлы ключей на Host (по одному в строке; п
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "connection.inDevelopment"
+msgstr "В разработке"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "connection.invalid"
 msgstr "Проверьте параметры подключения."
 
@@ -237,6 +242,11 @@ msgstr "Поиск…"
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
 msgid "connection.serial"
+msgstr "Последовательный порт"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.serialTab"
 msgstr "Последовательный порт"
 
 #. js-lingui-explicit-id

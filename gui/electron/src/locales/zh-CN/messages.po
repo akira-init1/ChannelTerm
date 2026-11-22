@@ -166,6 +166,11 @@ msgstr "Host 上的私钥文件（每行一个，留空使用默认值）"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "connection.inDevelopment"
+msgstr "待开发中"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "connection.invalid"
 msgstr "请检查连接设置。"
 
@@ -238,6 +243,11 @@ msgstr "正在扫描…"
 #: src/shared/menu-messages.ts
 msgid "connection.serial"
 msgstr "串口连接"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.serialTab"
+msgstr "serial"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

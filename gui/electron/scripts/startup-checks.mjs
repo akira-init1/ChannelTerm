@@ -105,9 +105,7 @@ export async function checkStartup(environment, preloadArgs) {
       .click();
     await expect(page.getByRole("dialog")).toBeVisible();
     await expect(
-      page
-        .getByRole("combobox", { name: "Protocol", exact: true })
-        .locator('option[value="ssh"]'),
+      page.getByRole("dialog").getByRole("tab", { name: "SSH", exact: true }),
     ).toBeEnabled();
     await page.keyboard.press("Escape");
     await page

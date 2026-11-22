@@ -166,6 +166,11 @@ msgstr "Host의 키 파일 (한 줄에 하나, 비워 두면 기본값)"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "connection.inDevelopment"
+msgstr "개발 중"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "connection.invalid"
 msgstr "연결 설정을 확인하세요."
 
@@ -238,6 +243,11 @@ msgstr "검색 중…"
 #: src/shared/menu-messages.ts
 msgid "connection.serial"
 msgstr "직렬 연결"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.serialTab"
+msgstr "직렬"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

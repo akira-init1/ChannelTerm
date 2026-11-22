@@ -166,6 +166,11 @@ msgstr "Host 上的私密金鑰檔案（每行一個，留空使用預設值）"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "connection.inDevelopment"
+msgstr "待開發中"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "connection.invalid"
 msgstr "請檢查連線設定。"
 
@@ -238,6 +243,11 @@ msgstr "正在掃描…"
 #: src/shared/menu-messages.ts
 msgid "connection.serial"
 msgstr "序列埠連線"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.serialTab"
+msgstr "serial"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

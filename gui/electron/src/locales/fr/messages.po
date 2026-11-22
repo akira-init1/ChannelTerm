@@ -166,6 +166,11 @@ msgstr "Fichiers de clés sur le Host (un par ligne ; vide pour les valeurs par 
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "connection.inDevelopment"
+msgstr "En cours de développement"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "connection.invalid"
 msgstr "Vérifiez les paramètres de connexion."
 
@@ -238,6 +243,11 @@ msgstr "Recherche…"
 #: src/shared/menu-messages.ts
 msgid "connection.serial"
 msgstr "Connexion série"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.serialTab"
+msgstr "Série"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

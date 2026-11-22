@@ -166,6 +166,11 @@ msgstr "Host 上の秘密鍵ファイル（1 行に 1 つ、空欄は既定値�
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "connection.inDevelopment"
+msgstr "開発中"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "connection.invalid"
 msgstr "接続設定を確認してください。"
 
@@ -238,6 +243,11 @@ msgstr "検索中…"
 #: src/shared/menu-messages.ts
 msgid "connection.serial"
 msgstr "シリアル接続"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.serialTab"
+msgstr "シリアル"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

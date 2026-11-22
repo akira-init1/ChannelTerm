@@ -166,6 +166,11 @@ msgstr "Key files on Host (one per line; blank uses defaults)"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "connection.inDevelopment"
+msgstr "In development"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "connection.invalid"
 msgstr "Check the connection settings."
 
@@ -238,6 +243,11 @@ msgstr "Scanning…"
 #: src/shared/menu-messages.ts
 msgid "connection.serial"
 msgstr "Serial connection"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "connection.serialTab"
+msgstr "Serial"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

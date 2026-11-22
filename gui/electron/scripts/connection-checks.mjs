@@ -40,8 +40,11 @@ export async function checkConnections(
       const dialog = page.getByRole("dialog");
       await expect(dialog).toBeVisible();
       await dialog
-        .getByRole("combobox", { name: "Protocol", exact: true })
-        .selectOption(kind);
+        .getByRole("tab", {
+          name: kind === "serial" ? "Serial" : "SSH",
+          exact: true,
+        })
+        .click();
       return dialog;
     }
     await page.locator('[data-menu="session"]').click();
@@ -57,26 +60,47 @@ export async function checkConnections(
     ).toBeVisible();
     await observer.connect();
     let dialog = await open("serial");
-    const protocol = dialog.getByRole("combobox", {
-      name: "Protocol",
-      exact: true,
-    });
-    await protocol.selectOption("ssh");
+    const protocols = dialog.getByRole("tablist", { name: "Protocol" });
+    const tab = (name) => protocols.getByRole("tab", { name, exact: true });
+    const windows = process.platform === "win32";
+    await expect(tab("WSL")).toHaveCount(windows ? 1 : 0);
+    await dialog.locator('[name="port"]').fill("unsaved-port");
+    for (const name of [
+      "Shell",
+      "TCP",
+      "SFTP",
+      "Telnet",
+      ...(windows ? ["WSL"] : []),
+    ]) {
+      await tab(name).click();
+      await expect(tab(name)).toHaveAttribute("aria-selected", "true");
+      await expect(
+        dialog.getByRole("tabpanel", { name, exact: true }),
+      ).toContainText("In development");
+      await expect(
+        dialog.getByRole("button", { name: "Connect", exact: true }),
+      ).toBeDisabled();
+    }
+    await tab(windows ? "WSL" : "Telnet").press("Home");
+    await expect(tab("Serial")).toBeFocused();
+    await tab("Serial").press("Space");
+    await expect(dialog.locator('[name="port"]')).toHaveValue("unsaved-port");
+    await tab("SSH").click();
     await dialog
       .getByRole("combobox", { name: "Authentication", exact: true })
       .selectOption("password");
     await dialog
       .locator('[name="password"]')
       .fill("discard-on-protocol-switch");
-    await protocol.selectOption("serial");
+    await tab("Serial").click();
     await expect(dialog.locator('[name="password"]')).toHaveCount(0);
     await expect(dialog.locator('[name="port"]')).toHaveValue("");
-    await protocol.selectOption("ssh");
+    await tab("SSH").click();
     await expect(
       dialog.getByRole("combobox", { name: "Authentication", exact: true }),
     ).toHaveValue("key");
     await expect(dialog.locator('[name="port"]')).toHaveValue("22");
-    await protocol.selectOption("serial");
+    await tab("Serial").click();
     const baud = dialog.getByRole("combobox", {
       name: "Baud rate",
       exact: true,
