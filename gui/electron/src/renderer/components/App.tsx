@@ -1552,6 +1552,9 @@ export function App() {
       case "terminal.paste":
         terminal?.paste();
         return;
+      case "terminal.serialSizeInsert":
+        terminal?.insertSizeCommand();
+        return;
       case "terminal.timestamps":
       case "terminal.sequence":
       case "terminal.foldMarkers": {
@@ -2429,12 +2432,6 @@ export function App() {
                           else terminals.current.delete(tab.id);
                         }}
                         attachment={tab.attachment}
-                        serial={
-                          sessions.find(
-                            (entry) =>
-                              entry.session_id === tab.attachment?.sessionId,
-                          )?.transport === "serial"
-                        }
                         targetName={
                           sessions.find(
                             (entry) =>

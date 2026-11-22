@@ -829,6 +829,7 @@ main {
   color: var(--muted);
 }
 .terminal-surface {
+  --terminal-inset: 8px;
   position: relative;
   display: flex;
   flex: 1;
@@ -877,7 +878,7 @@ main {
   position: absolute;
   top: calc(100% + 1px);
   left: 50%;
-  width: 6px;
+  width: min(6px, 50%);
   height: calc(var(--guide-height) - 50% - 1px);
   box-sizing: border-box;
   border: solid var(--muted);
@@ -889,25 +890,20 @@ main {
   color: var(--foreground);
   background: var(--selection);
 }
-/* With both metadata columns off, use the text view's existing left inset
-   for fold hit targets. Only the hovered or keyboard-focused button overlays text. */
+/* Keep the marker and its guide inside the left inset when metadata is hidden. */
 .line-sidebar[hidden] + .fold-margin {
   position: absolute;
   inset: 0 auto 0 0;
-  width: var(--fold-margin-width);
+  width: var(--terminal-inset);
   z-index: 3;
   pointer-events: none;
   background: transparent;
 }
 .line-sidebar[hidden] + .fold-margin button {
-  left: 0;
-  width: 100%;
   pointer-events: auto;
-  clip-path: inset(0 calc(100% - 8px) 0 0);
   opacity: 0;
 }
 .line-sidebar[hidden] + .fold-margin button:is(:hover, :focus-visible) {
-  clip-path: none;
   opacity: 1;
 }
 .line-sidebar {
@@ -951,7 +947,7 @@ main {
   flex: 1;
   min-width: 0;
   min-height: 0;
-  margin: 8px;
+  margin: var(--terminal-inset);
   overflow: hidden;
 }
 .terminal-view .xterm {

@@ -927,11 +927,6 @@ export const menuMessages = [
     message: "Insert stty command",
   },
   /* i18n */ {
-    id: "terminal.serialSizeHint",
-    message:
-      "At an empty Linux shell prompt, insert this view’s dimensions and press Enter to apply.",
-  },
-  /* i18n */ {
     id: "terminal.sizeTake",
     message: "Use this view for remote size",
   },

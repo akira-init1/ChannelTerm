@@ -173,24 +173,34 @@ export async function checkLineSidebar(environment) {
     const foldButton = pane().getByRole("button", {
       name: /command output.*echo sample/i,
     });
+    const checkFoldInset = async () => {
+      const marker = await foldButton.boundingBox();
+      const screen = await pane().locator(".xterm-screen").boundingBox();
+      assert.ok(
+        marker.x + marker.width <= screen.x,
+        "fold button covers the first terminal cell",
+      );
+    };
     await expect(foldButton).toHaveAttribute("aria-expanded", "true");
     const foldBox = await foldButton.boundingBox();
     await page.mouse.move(foldBox.x + 4, foldBox.y + foldBox.height / 2);
     await expect(foldButton).toHaveCSS("opacity", "1");
+    await checkFoldInset();
     await foldButton.click();
     await expect(foldButton).toHaveAttribute("aria-expanded", "false");
     await page.mouse.move(foldBox.x + foldBox.width + 8, foldBox.y);
     await expect(foldButton).toHaveCSS("opacity", "0");
-    // Tab from the pane's toolbar. xterm itself sends Tab to the shell.
-    await pane().getByRole("button", { name: "Insert stty command" }).focus();
-    const foldCount = await pane().locator(".fold-margin button").count();
-    for (let i = 0; i < foldCount; i++) {
+    // Start at the tab strip because xterm itself sends Tab to the shell.
+    await page.locator(".new-tab-button").focus();
+    const buttonCount = await page.getByRole("button").count();
+    for (let i = 0; i < buttonCount; i++) {
       await page.keyboard.press("Tab");
       if (await foldButton.evaluate((node) => node === document.activeElement))
         break;
     }
     await expect(foldButton).toBeFocused();
     await expect(foldButton).toHaveCSS("opacity", "1");
+    await checkFoldInset();
     await page.keyboard.press("Enter");
     await expect(foldButton).toHaveAttribute("aria-expanded", "true");
     await foldButton.focus();

@@ -50,8 +50,13 @@ export async function checkTerminalControls(
     .toMatch(/\x1b\[\d+;\d+R/);
 
   const [, rows, cols] = received.match(/\x1b\[(\d+);(\d+)R/);
-  const insertSize = page.getByRole("button", { name: "Insert stty command" });
-  await insertSize.click();
+  await expect(
+    page.getByRole("button", { name: "Insert stty command" }),
+  ).toHaveCount(0);
+  await page.locator('[data-menu="terminal"]').click();
+  await page
+    .getByRole("menuitem", { name: "Insert stty command", exact: true })
+    .click();
   received = "";
   await expect
     .poll(async () => {
@@ -155,7 +160,16 @@ export async function checkTerminalControls(
 
     await showPreview("must-not\nsend");
     await fixture.command("lease");
-    await expect(insertSize).toBeDisabled();
+    await expect
+      .poll(() =>
+        desktop.evaluate(
+          ({ Menu }) =>
+            Menu.getApplicationMenu().getMenuItemById(
+              "terminal.serialSizeInsert",
+            )?.enabled,
+        ),
+      )
+      .toBe(false);
     await expect(
       preview.getByRole("button", { name: "Paste into this target" }),
     ).toBeDisabled();

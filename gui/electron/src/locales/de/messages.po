@@ -3116,11 +3116,6 @@ msgstr "Laufende Nummern anzeigen"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
-msgid "terminal.serialSizeHint"
-msgstr "An einer leeren Linux-Shell-Eingabeaufforderung die Größe dieser Ansicht einfügen und mit Enter übernehmen."
-
-#. js-lingui-explicit-id
-#: src/shared/menu-messages.ts
 msgid "terminal.serialSizeInsert"
 msgstr "stty-Befehl einfügen"
 

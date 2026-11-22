@@ -31,6 +31,7 @@ export interface TerminalControls {
   focus(): void;
   copy(): void;
   paste(): void;
+  insertSizeCommand(): void;
   find(): void;
   expandCommandOutputs(): void;
 }
@@ -42,7 +43,6 @@ export interface TerminalControls {
  */
 export function TerminalView({
   attachment,
-  serial,
   targetName,
   t,
   settings,
@@ -61,7 +61,6 @@ export function TerminalView({
   onContextMenu,
 }: {
   attachment: Attachment;
-  serial: boolean;
   targetName: string;
   t: (id: string) => string;
   settings: TerminalSettings;
@@ -221,6 +220,19 @@ export function TerminalView({
       focus: () => local.current?.focus(),
       copy: () => void copy(),
       paste: () => void paste(),
+      insertSizeCommand: () => {
+        const target = local.current;
+        if (
+          !target ||
+          !visibility.current ||
+          !inputEnabled.current ||
+          document.querySelector("dialog[open]")
+        )
+          return;
+        fitting.current?.fit();
+        target.paste(`stty cols ${target.cols} rows ${target.rows}`);
+        target.focus();
+      },
       expandCommandOutputs: () => {
         fold.current?.clear();
       },
@@ -615,25 +627,6 @@ export function TerminalView({
 
   return (
     <>
-      {serial && settings.view === "text" && (
-        <div className="remote-size-controls">
-          <button
-            type="button"
-            disabled={!enabled}
-            title={t("terminal.serialSizeHint")}
-            onClick={() => {
-              const target = local.current;
-              if (!target || !visibility.current || !inputEnabled.current)
-                return;
-              fitting.current?.fit();
-              target.paste(`stty cols ${target.cols} rows ${target.rows}`);
-              target.focus();
-            }}
-          >
-            {t("terminal.serialSizeInsert")}
-          </button>
-        </div>
-      )}
       {attachment.remoteSize && (
         <div className="remote-size-controls">
           <span>

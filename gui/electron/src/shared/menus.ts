@@ -103,6 +103,7 @@ export type Action =
         | "uboot.open"
         | "send.open"
         | "terminal.find"
+        | "terminal.serialSizeInsert"
         | "terminal.paste";
       attachment: Attachment;
     }
@@ -180,6 +181,7 @@ function attachedAction(
     | "uboot.open"
     | "send.open"
     | "terminal.find"
+    | "terminal.serialSizeInsert"
     | "terminal.paste",
 ): MenuEntry {
   if (id === "tab.close" && !state.attachment && state.tabId)
@@ -497,6 +499,13 @@ export function terminalMenu(state: MenuState): MenuEntry[] {
             !state.inputPaused)),
     })),
   ];
+  if (state.currentSerial && !state.hexView && state.attachment) {
+    const entry = attachedAction(state, "terminal.serialSizeInsert");
+    items.push({
+      ...entry,
+      enabled: !!entry.action && actionEnabled(entry.action, state),
+    });
+  }
   if (state.inputPaused)
     items.push({
       ...attachedAction(state, "terminal.resume"),
@@ -647,6 +656,7 @@ export function isAction(value: unknown): value is Action {
     case "send.open":
     case "terminal.find":
     case "terminal.fold":
+    case "terminal.serialSizeInsert":
     case "terminal.paste":
     case "terminal.timestamps":
     case "terminal.sequence":
@@ -800,6 +810,7 @@ export function actionEnabled(action: Action, state: MenuState): boolean {
     case "send.open":
     case "terminal.find":
     case "terminal.fold":
+    case "terminal.serialSizeInsert":
     case "terminal.paste":
     case "terminal.timestamps":
     case "terminal.sequence":
@@ -834,7 +845,8 @@ export function actionEnabled(action: Action, state: MenuState): boolean {
             state.currentOpen &&
             !state.leased &&
             !state.inputPaused)) &&
-        (action.id !== "terminal.paste" ||
+        (action.id !== "terminal.serialSizeInsert" || state.currentSerial) &&
+        (!["terminal.paste", "terminal.serialSizeInsert"].includes(action.id) ||
           (state.connected &&
             state.currentOpen &&
             !state.hexView &&

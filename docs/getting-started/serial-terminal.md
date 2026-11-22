@@ -239,7 +239,7 @@ A serial link carries no window-size notification. A Linux shell editing at 80 c
 return to the left margin in the middle of a long path while the local view is wider. At an
 empty shell prompt, run `stty size` to see the board's rows and columns.
 
-- **Electron:** In the serial text view, click **Insert stty command**, then press Enter. The
+- **Electron:** In the serial text view, choose **Terminal > Insert stty command**, then press Enter. The
   command uses the fitted columns and rows of that pane, including split panes.
 - **CLI:** Press `Ctrl+]` then `?` in the serial terminal. When the output is a console, the local
   help shows a command with its current dimensions, for example `stty cols 120 rows 32`.

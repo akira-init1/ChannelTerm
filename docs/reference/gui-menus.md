@@ -575,8 +575,9 @@ and a display hint identifying local-only fitting or control by this view. The e
 replaces the previous size controller; it does not change input permissions. See the
 [desktop contract](gui-host-api.md#remote-pty-size-control).
 
-Serial text views offer **Insert stty command** for an interactive Linux shell. This types the
-pane's fitted dimensions through ordinary terminal input. Enter executes the command. See
+Serial panes fit their local rows and columns automatically when resized. In a writable serial
+text view, **Terminal > Insert stty command** (also in the terminal context menu) types the
+pane's current dimensions at an empty Linux shell prompt. Press Enter to apply them on the board. See
 [serial prompt wrapping](../getting-started/serial-terminal.md#long-prompts-overwrite-the-start-of-the-line).
 
 ## Debug sidebar

@@ -3116,11 +3116,6 @@ msgstr "顯示序號"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
-msgid "terminal.serialSizeHint"
-msgstr "在 Linux shell 的空白命令列填入目前窗格的尺寸，按 Enter 套用。"
-
-#. js-lingui-explicit-id
-#: src/shared/menu-messages.ts
 msgid "terminal.serialSizeInsert"
 msgstr "填入 stty 指令"
 

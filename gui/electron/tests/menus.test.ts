@@ -22,6 +22,49 @@ function flatten(items: MenuEntry[]): MenuEntry[] {
   return items.flatMap((item) => [item, ...flatten(item.children ?? [])]);
 }
 
+test("the serial size command targets a writable serial text attachment", () => {
+  const attachment = { id: "pane", sessionId: "board" };
+  const state = {
+    ...initialMenuState,
+    attachment,
+    connected: true,
+    currentOpen: true,
+    currentSerial: true,
+  };
+  const action = { id: "terminal.serialSizeInsert", attachment } as const;
+  const entry = (menu: MenuEntry[]) =>
+    flatten(menu).find((item) => item.id === action.id);
+  assert.deepEqual(entry(applicationMenu(state))?.action, action);
+  assert.equal(entry(terminalMenu(state))?.enabled, true);
+  assert.equal(isAction(action), true);
+  assert.equal(isAction({ ...action, command: "arbitrary" }), false);
+  for (const change of [
+    { currentSerial: false },
+    { hexView: true },
+    { attachment: undefined },
+  ]) {
+    assert.equal(entry(terminalMenu({ ...state, ...change })), undefined);
+    assert.equal(actionEnabled(action, { ...state, ...change }), false);
+  }
+  for (const change of [
+    { currentOpen: false },
+    { connected: false },
+    { busy: true },
+    { leased: true },
+    { inputPaused: true },
+  ]) {
+    assert.equal(entry(terminalMenu({ ...state, ...change }))?.enabled, false);
+    assert.equal(actionEnabled(action, { ...state, ...change }), false);
+  }
+  assert.equal(
+    actionEnabled(action, {
+      ...state,
+      attachment: { ...attachment, id: "other" },
+    }),
+    false,
+  );
+});
+
 test("U-Boot is a finite serial-only action requiring advertised cancellation and the original attachment", () => {
   const state = {
     ...initialMenuState,

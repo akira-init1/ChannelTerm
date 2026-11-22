@@ -3116,11 +3116,6 @@ msgstr "連番を表示"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
-msgid "terminal.serialSizeHint"
-msgstr "Linux シェルの空の入力行で、このビューのサイズを挿入し、Enter キーで適用します。"
-
-#. js-lingui-explicit-id
-#: src/shared/menu-messages.ts
 msgid "terminal.serialSizeInsert"
 msgstr "stty コマンドを挿入"
 
