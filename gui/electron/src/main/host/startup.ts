@@ -97,7 +97,7 @@ export function launchCompanion(
       ),
     );
     child.once("spawn", () => {
-      // Host owns shared Sessions and intentionally survives GUI exit.
+      // The Host enforces idle exit independently of the window that started it.
       child.unref();
       resolve();
     });

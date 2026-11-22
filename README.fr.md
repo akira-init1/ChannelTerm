@@ -390,7 +390,7 @@ La GUI propose aussi la [configuration et la réparation des clients MCP](docs/g
 
 Les [paquets de bureau](docs/development/electron-gui.md#local-desktop-packages) locaux non signés incluent Electron et les auxiliaires Host/CLI correspondants ; les utilisateurs ne nécessitent ni Node ni Go. Des vérifications ZIP et installateur par utilisateur sont disponibles pour Windows x64. Les autres cibles natives et les appareils réels restent à valider. La signature et la publication du bureau ne sont pas configurées.
 
-Les nouveaux Hosts lancés par le bureau libèrent les Sessions inutilisées après 30 secondes et maintiennent MCP actif. Les Hosts lancés manuellement conservent leur comportement par défaut. La surveillance enregistrée, les opérations en cours et la pause de l’IA par un humain maintiennent la Session. Voir la [politique d’inactivité et la migration](docs/reference/configuration.md#host-idle-policy).
+Par défaut, les Hosts HTTP libèrent les Sessions inutilisées et s’arrêtent après une période d’inactivité. Les paramètres du Host permettent de garder MCP actif en arrière-plan. [politique d’inactivité et la migration](docs/reference/configuration.md#host-idle-policy)
 
 - [Utiliser le terminal série](docs/getting-started/serial-terminal.md)
 - [Utiliser un shell SSH](docs/getting-started/ssh-terminal.md)

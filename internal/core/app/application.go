@@ -431,6 +431,17 @@ func (a *Application) writeSession(ctx context.Context, identifier, owner string
 			}
 			remaining = remaining[n:]
 		}
+		// The write gate still excludes successor writes. A concurrent takeover
+		// may already have fenced this operation while the transport was writing.
+		if owner == "" && controlExternal(ctx) {
+			a.leases.mu.Lock()
+			r := a.leases.controls.entries[terminal.ID()]
+			p, _ := ctx.Value(controlProofKey{}).(ControlProof)
+			if r != nil && r.lifetime == singleOperationScope && r.view.State == "active" && r.view.Version == p.Version && r.view.OperationID == p.OperationID {
+				finishControlLocked(r)
+			}
+			a.leases.mu.Unlock()
+		}
 		return written, nil
 	})
 }
@@ -461,7 +472,7 @@ func (a *Application) AcquireLeaseForClient(ctx context.Context, identifier, own
 		if controlExternal(ctx) {
 			r := a.leases.controls.entries[terminal.ID()]
 			if r.view.State != "active" {
-				a.startControlLocked(r, ClientIdentityFromContext(ctx), true)
+				a.startControlLocked(r, ClientIdentityFromContext(ctx), managedScope)
 			}
 			lease.controlVersion = r.view.Version
 			lease.Control = ControlProof{Version: r.view.Version, OperationID: r.view.OperationID}
@@ -509,7 +520,7 @@ func (a *Application) RenewLease(identifier, owner string) (SessionLease, error)
 	lease, err := a.leases.renew(terminal.ID(), owner)
 	if err == nil {
 		a.leases.mu.Lock()
-		if r := a.leases.controls.entries[terminal.ID()]; r != nil && r.automatic && r.view.State == "active" && r.view.Version == lease.controlVersion {
+		if r := a.leases.controls.entries[terminal.ID()]; r != nil && r.lifetime != explicitScope && r.view.State == "active" && r.view.Version == lease.controlVersion {
 			a.renewControlLocked(r)
 		}
 		a.leases.mu.Unlock()

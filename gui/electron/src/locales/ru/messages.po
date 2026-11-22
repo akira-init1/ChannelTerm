@@ -1593,31 +1593,6 @@ msgstr "Отключиться от хоста"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
-msgid "host.idle.exit"
-msgstr "Неиспользуемые Session освобождаются через {seconds} с; Host завершается после {exitSeconds} с полного простоя."
-
-#. js-lingui-explicit-id
-#: src/shared/menu-messages.ts
-msgid "host.idle.keep"
-msgstr "Host сохраняет неиспользуемые Session."
-
-#. js-lingui-explicit-id
-#: src/shared/menu-messages.ts
-msgid "host.idle.release"
-msgstr "Неиспользуемые Session освобождаются через {seconds} с; MCP остаётся доступен."
-
-#. js-lingui-explicit-id
-#: src/shared/menu-messages.ts
-msgid "host.origin.desktop"
-msgstr "Запущен из настольного приложения."
-
-#. js-lingui-explicit-id
-#: src/shared/menu-messages.ts
-msgid "host.origin.manual"
-msgstr "Host запущен вручную."
-
-#. js-lingui-explicit-id
-#: src/shared/menu-messages.ts
 msgid "host.settings"
 msgstr "Сведения о Host и подключение"
 
@@ -1630,6 +1605,11 @@ msgstr "Сохранить и отключить это окно"
 #: src/shared/menu-messages.ts
 msgid "host.settings.available"
 msgstr "Доступно"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.backgroundMCP"
+msgstr "Оставлять MCP в фоновом режиме после отключения"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

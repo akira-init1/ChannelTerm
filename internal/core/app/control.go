@@ -76,12 +76,20 @@ func ExternalControl(ctx context.Context) context.Context {
 	return context.WithValue(ctx, controlExternalKey{}, true)
 }
 
+type scopeLifetime uint8
+
+const (
+	explicitScope        scopeLifetime = iota // caller ends a multi-call sequence
+	singleOperationScope                      // one agent write or lease
+	managedScope                              // acquired internally by a managed operation
+)
+
 type sessionControl struct {
 	wait        *interruptedTask
 	view        ControlStatus
 	humanOwner  session.ClientIdentity
 	reference   string
-	automatic   bool
+	lifetime    scopeLifetime
 	touched     bool
 	recovered   bool
 	timer       *time.Timer
@@ -324,7 +332,7 @@ func (a *Application) checkControlLocked(ctx context.Context, t session.Session,
 		if !time.Now().Before(r.view.ExpiresAt) {
 			return ErrControlStale
 		}
-		if p.OperationID != r.view.OperationID && !(leased && owner != "" && lease.Owner == owner && r.automatic) {
+		if p.OperationID != r.view.OperationID && !(leased && owner != "" && lease.Owner == owner && r.lifetime == managedScope) {
 			return ErrControlStale
 		}
 	} else if r.view.State == "human" {
@@ -364,10 +372,19 @@ func (a *Application) validateControlIdentity(ctx context.Context, target string
 
 // BeginControl reserves a multi-call workflow. Reads never acquire this scope.
 func (a *Application) BeginControl(ctx context.Context, id string, expected ControlProof) (ControlStatus, error) {
-	return a.beginControl(ctx, id, expected, false)
+	return a.beginControl(ctx, id, expected, explicitScope)
 }
 
-func (a *Application) beginControl(ctx context.Context, id string, expected ControlProof, automatic bool) (ControlStatus, error) {
+// BeginOperationControl reserves one agent operation and returns its fencing proof.
+// Human callers retain their explicit scope until they end it.
+func (a *Application) BeginOperationControl(ctx context.Context, id string, expected ControlProof) (ControlStatus, error) {
+	if ClientIdentityFromContext(ctx).Kind == "agent" {
+		return a.beginControl(ctx, id, expected, singleOperationScope)
+	}
+	return a.BeginControl(ctx, id, expected)
+}
+
+func (a *Application) beginControl(ctx context.Context, id string, expected ControlProof, lifetime scopeLifetime) (ControlStatus, error) {
 	ctx = WithControlProof(ExternalControl(ctx), expected)
 	t, ref, err := a.controlTarget(id)
 	if err != nil {
@@ -385,7 +402,7 @@ func (a *Application) beginControl(ctx context.Context, id string, expected Cont
 	}
 	r := a.leases.controls.entries[t.ID()]
 	if r.view.State == "active" {
-		if automatic && r.automatic {
+		if lifetime == managedScope && r.lifetime == managedScope {
 			return ControlStatus{}, ErrControlBusy
 		}
 		return r.view, nil
@@ -393,15 +410,15 @@ func (a *Application) beginControl(ctx context.Context, id string, expected Cont
 	if _, ok := a.leases.leases[t.ID()]; ok {
 		return ControlStatus{}, ErrControlBusy
 	}
-	a.startControlLocked(r, ClientIdentityFromContext(ctx), automatic)
+	a.startControlLocked(r, ClientIdentityFromContext(ctx), lifetime)
 	return r.view, nil
 }
 
-func (a *Application) startControlLocked(r *sessionControl, client session.ClientIdentity, automatic bool) {
+func (a *Application) startControlLocked(r *sessionControl, client session.ClientIdentity, lifetime scopeLifetime) {
 	r.view.State = "active"
 	r.view.Client = client
 	r.view.OperationID = "OC-" + rand.Text()
-	r.automatic = automatic
+	r.lifetime = lifetime
 	r.touched = false
 	r.recovered = false
 	a.renewControlLocked(r)
@@ -807,7 +824,7 @@ func (a *Application) bindPreparingControl(id string, p ControlProof, cancel con
 			r.cancel = nil
 			r.cancelOwner = ""
 		}
-		if r.automatic && r.view.Version == p.Version && r.view.OperationID == p.OperationID && r.view.State == "active" {
+		if r.lifetime != explicitScope && r.view.Version == p.Version && r.view.OperationID == p.OperationID && r.view.State == "active" {
 			if _, leased := a.leases.leases[id]; !leased {
 				finishControlLocked(r)
 			}

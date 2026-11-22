@@ -330,6 +330,42 @@ export class HostClient {
     };
   }
 
+  async refreshIdlePolicy(): Promise<void> {
+    if (!this.presence?.idlePolicyAvailable) return;
+    const signal = this.connection.signal;
+    const result = await this.call("host_idle_status", {}, signal);
+    signal.throwIfAborted();
+    this.idle = idlePolicy(result.policy);
+  }
+
+  async setBackgroundMCP(enabled: boolean): Promise<HostInfo> {
+    if (!this.client || !this.idle?.backgroundSwitch)
+      throw new HostError(
+        "invalid_input",
+        "Background MCP requires a connected desktop Host.",
+      );
+    const response = await fetch(
+      new URL("/gui/v1/background-mcp", this.endpoint),
+      {
+        method: enabled ? "PUT" : "DELETE",
+        headers: { Authorization: `Bearer ${this.token}` },
+        redirect: "error",
+        signal: AbortSignal.any([
+          this.connection.signal,
+          AbortSignal.timeout(5000),
+        ]),
+      },
+    );
+    await response.body?.cancel();
+    if (response.status !== 204)
+      throw new HostError(
+        response.status === 403 ? "unauthorized" : "tool_error",
+        "The Host rejected the background MCP setting.",
+      );
+    await this.refreshIdlePolicy();
+    return this.info();
+  }
+
   async connect(): Promise<HostInfo> {
     if (this.client || this.changing)
       throw new HostError(
@@ -391,10 +427,7 @@ export class HostClient {
       this.hostVersion = displayVersion(client.getServerVersion()?.version);
       this.presence = new ClientPresence(client, signal);
       await this.presence.start();
-      if (this.presence.idlePolicyAvailable) {
-        const result = await this.call("host_idle_status", {});
-        this.idle = idlePolicy(result.policy);
-      }
+      await this.refreshIdlePolicy();
       await this.list();
       // Older/foreground Hosts may expose MCP only. Probe a fixed same-origin
       // route; never derive a URL or credential from Renderer input.

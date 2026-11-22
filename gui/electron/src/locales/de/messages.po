@@ -1593,31 +1593,6 @@ msgstr "Vom Host trennen"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
-msgid "host.idle.exit"
-msgstr "Ungenutzte Sessions werden nach {seconds} s freigegeben; der Host beendet sich nach {exitSeconds} s vollständiger Inaktivität."
-
-#. js-lingui-explicit-id
-#: src/shared/menu-messages.ts
-msgid "host.idle.keep"
-msgstr "Der Host behält ungenutzte Sessions."
-
-#. js-lingui-explicit-id
-#: src/shared/menu-messages.ts
-msgid "host.idle.release"
-msgstr "Ungenutzte Sessions werden nach {seconds} s freigegeben; MCP bleibt verfügbar."
-
-#. js-lingui-explicit-id
-#: src/shared/menu-messages.ts
-msgid "host.origin.desktop"
-msgstr "Vom Desktop gestartet."
-
-#. js-lingui-explicit-id
-#: src/shared/menu-messages.ts
-msgid "host.origin.manual"
-msgstr "Manuell gestarteter Host."
-
-#. js-lingui-explicit-id
-#: src/shared/menu-messages.ts
 msgid "host.settings"
 msgstr "Host-Informationen und Verbindung"
 
@@ -1630,6 +1605,11 @@ msgstr "Speichern und dieses Fenster trennen"
 #: src/shared/menu-messages.ts
 msgid "host.settings.available"
 msgstr "Verfügbar"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.backgroundMCP"
+msgstr "MCP nach dem Trennen im Hintergrund weiter ausführen"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

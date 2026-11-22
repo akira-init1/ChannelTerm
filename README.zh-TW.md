@@ -372,7 +372,7 @@ GUI 也提供 [MCP 用戶端設定與修復](docs/getting-started/mcp-server.md#
 
 本機未簽署的[桌面套件](docs/development/electron-gui.md#local-desktop-packages)包含 Electron 和相符的 Host/CLI 輔助程式，使用者無需安裝 Node 或 Go。已有 Windows x64 ZIP 與每使用者安裝程式檢查；其他原生目標及真實裝置仍需驗收。尚未設定簽署與桌面發佈。
 
-桌面新啟動的 Host 預設在 Session 無人使用 30 秒後釋放它，並保留 MCP；手動啟動的 Host 維持原有預設行為。已登記監控、活動操作和人工暫停會保留 Session。參見[閒置策略與遷移](docs/reference/configuration.md#host-idle-policy)。
+HTTP Host 預設會釋放無人使用的 Session，並在閒置後結束。若需要讓 MCP 在背景等候連線，可在 GUI 的 Host 設定中開啟。 [閒置策略與遷移](docs/reference/configuration.md#host-idle-policy)
 
 - [序列埠終端流程](docs/getting-started/serial-terminal.md)
 - [SSH shell 使用流程](docs/getting-started/ssh-terminal.md)

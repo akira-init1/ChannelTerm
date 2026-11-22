@@ -34,11 +34,12 @@ export async function checkIdle(environment, preloadArgs) {
     await page
       .getByRole("button", { name: "Connect to Host...", exact: true })
       .click();
-    await expect(page.locator(".host-idle-policy")).toContainText(
-      "released after 1 s;",
-    );
+    await expect(page.locator(".host-panel")).toContainText("Host connected");
     await chooseSession(page, "Isolated echo");
     await expect(page.locator(".xterm-screen")).toBeVisible();
+    await expect(page.locator(".host-idle-policy")).toHaveCount(0);
+    await expect(page.getByTestId("control-takeover")).toBeEnabled();
+    await expect(page.getByTestId("control-allow")).toBeVisible();
     await desktop.close();
     desktop = undefined;
     await fixture.command("sweep-idle");
@@ -58,13 +59,13 @@ export async function checkIdle(environment, preloadArgs) {
       [],
       "Host retained an unused Session",
     );
-    assert.equal(
-      observer.info().idlePolicy.mode,
-      "release",
-      "MCP remains reachable after release",
-    );
+    assert.equal(observer.info().idlePolicy.mode, "exit");
+    await observer.disconnect();
+    assert.equal((await fixture.command("sweep-idle")).data, "false");
+    await delay(3100);
+    assert.equal((await fixture.command("sweep-idle")).data, "true");
     console.log(
-      "PASS idle policy: another client's use survives GUI exit; final detach releases Session after grace and leaves MCP running",
+      "PASS idle policy: another client's use survives GUI exit; final detach releases the Session and final disconnect permits Host exit",
     );
   } finally {
     await desktop?.close();

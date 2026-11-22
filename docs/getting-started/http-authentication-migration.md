@@ -155,7 +155,9 @@ trust; credentials do not sandbox an AI with access to that account or private c
 All current Sessions require the control protocol; there is no opt-in compatibility mode. Upgrade
 CLI and Electron together with the Host. Generic MCP writers must register `client_instance`, renew
 presence, read `terminal_control status`, and attach the captured instance/control metadata to each
-mutation. Agent raw workflows must explicitly begin, renew and end a scope. Use an independent
+mutation. An agent's default `begin` now covers one raw payload or one lease. Clients using a
+single proof across multiple operations must pass `multi_call: true`, renew during the sequence
+and end as soon as it finishes. Use an independent
 registered HTTP agent credential with a write grant; local stdio has no authenticated user/agent and
 is read-only. A caller-supplied `actor` never bypasses this restriction.
 
@@ -177,9 +179,9 @@ Protocol details and limits are in [Session control](../reference/mcp-tools.md#s
 
 ## Readers on reclaiming Hosts
 
-Host idle reclamation is independently opt-in for manual Hosts and defaults to 30 seconds only for
-new Electron-launched Hosts. It requires old Session readers to migrate to `client_instance` proofs;
-`instance_required` does not grant writing. Declare an observe/monitor/operation use for each Session
+Standalone HTTP Hosts reclaim unused Sessions by default. On a reclaiming Host, old Session
+readers must migrate to `client_instance` proofs. Write access requires a separate grant.
+Declare an observe/monitor/operation use for each Session
 that must survive polling or thinking gaps, renew the instance, and explicitly unuse/end on exit.
 List/discovery calls create no Session use. Instance expiry does not cancel already accepted work.
 Use `host_idle_status` to inspect actual policy; a GUI connection never changes an existing Host's

@@ -52,6 +52,7 @@ func (p serialProfile) valid() bool {
 func NewHandler(application *app.Application) http.Handler {
 	mux := newSSHRoutes(application)
 	mux.Handle(SerialProfilesPath, newSerialProfilesHandler(application))
+	mux.Handle(BackgroundPath, backgroundHandler(application))
 	return mux
 }
 

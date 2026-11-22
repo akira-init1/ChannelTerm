@@ -687,7 +687,7 @@ CLI and Electron are narrow consumers of this same application snapshot.
 
 Application owns control alongside its existing lease coordinator. Every protocol writer needs an
 authenticated user/agent, a registered instance and a captured control generation. Agent raw writes
-also need an explicit multi-call scope. Scope/lease admission shares the write gate; each payload
+also need an explicit operation scope. Scope/lease admission shares the write gate; each payload
 and each short-write continuation rechecks control. Reader cursors remain independent. Ordinary
 human input is permitted while idle; active scopes exclude other instances. Human takeover requires
 user identity and management permission, fences the generation first, and cancels the captured
@@ -705,7 +705,8 @@ Control records are volatile and limited to 256 live Session registrations. Dead
 pruned; live human pauses are never evicted. Scopes have a 30-second TTL. Accepted Host-managed
 serial preparation owns and renews its captured scope, survives request/presence loss, and must pass
 lease admission before any device bytes. Lease release and automatic scope completion are atomic;
-explicit raw scopes end only by their owner's request or expiry. Scope expiry closes the original
+single-operation agent scopes finish under the write gate after a successful raw payload or
+with their lease release. Explicit multi-call scopes end by owner request or expiry. Scope expiry closes the original
 Session, including an untouched scope. Trusted in-process composition and private, captured recovery
 contexts are not protocol escape hatches; every MCP call is marked external even without identity.
 
@@ -729,17 +730,20 @@ process termination. Existing owner-only status/cancel grants remain unchanged.
 
 ## Host idle reclamation
 
-`IdlePolicy` is immutable per Application. A zero timeout preserves existing ownership. The
+`IdlePolicy` supplies launch defaults. The authenticated human desktop management route can
+override idle exit for the current companion under the instance lock. A zero timeout preserves existing ownership. The
 composition root selects configured defaults and calls `SweepIdle`; Core never exits a process.
 `HostIdlePolicy` returns effective policy and at most 256 public retention decisions, with an
 explicit truncation flag. Reading that snapshot neither renews usage nor starts a countdown.
 
 The decision uses complete private presence records, not their truncated display projection.
 Live explicit observe/monitor/operation uses, accepted calls even after instance expiry, active
-writes, leases, recovery, control scopes and human AI pause retain their Session. Connection setup
-retains resources while setup is unresolved. Active external debug observations are conservative:
-unknown/stale/manual observations do not prove completion, so the associated Session remains until
-explicit closure or a disconnected/completed report. Independent work without a Session retains
+writes, leases, recovery and active control scopes retain their Session. A completed takeover
+keeps AI paused while the Session exists. After its last use, reclamation closes that Session. Connection setup
+retains resources while setup is unresolved. External debugger registrations and reports retain
+resources for their 30-second freshness window unless explicitly disconnected. Longer monitoring
+requires a live Session use or fresh reports. Managed debugger leases retain their own recovery
+rules. Independent work without a Session retains
 Host lifetime, not unrelated terminal Sessions. Byte output, keepalives and list polling are not use.
 
 Lock order is lease coordinator, then instance registry, then Manager. Use registration resolves
@@ -756,7 +760,7 @@ unavailable; explicit reopen creates a new Session. No input, operation, full sc
 Session is restored. Transport Close can affect a serial control line or an SSH shell; physical
 acceptance is separate from fake-I/O concurrency coverage.
 
-A fully idle exit additionally requires no Sessions, registered live instances, accepted independent
+A fully idle exit additionally requires no Sessions, live non-agent instances, accepted independent
 work, debug operations, leases, active writes, recovery or pending closes. After its separate grace,
 Application irreversibly fences new registration/setup/call admission and asks the composition root
 to cancel its server context. HTTP performs its existing bounded graceful shutdown. A new operation

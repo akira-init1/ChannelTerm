@@ -1064,9 +1064,9 @@ serving failure. Normal client EOF and process cancellation are normal shutdowns
 
 ### Persistent Host idle policy
 
-`mcp` keeps resources by default. A Host launched by Electron passes `--host-origin desktop`, selecting
-30-second unused-Session reclamation while keeping MCP available. Existing/manual Hosts keep their
-policy. Persistent HTTP Hosts may explicitly select `--idle-session-timeout 30s` and, if desired,
+Standalone HTTP Hosts release unused Sessions after a one-second idle grace by default.
+Fully idle exit defaults to 30 seconds for a manual launch and three seconds for a desktop
+companion. Persistent HTTP Hosts may explicitly select `--idle-session-timeout 30s` and
 `--idle-exit-timeout 1m`; zero disables the corresponding timeout. Settings/precedence and restrictions
 are in [Host idle policy](configuration.md#host-idle-policy). Attachment-owned Hosts retain their
 original owner-driven lifetime. The source label does not authenticate a user or client.
@@ -1175,7 +1175,7 @@ the new tool returns an error rather than a misleading empty inventory. See the
 ## Default Session control
 
 Current CLI invocations register instances and supply captured control metadata automatically.
-Agent credentials start an explicit scope for raw multi-call work; invocation shutdown ends owned
+Agent credentials start a fresh scope for each raw write on current Hosts. Invocation shutdown ends remaining owned
 scopes best-effort. Renewal failure rejects further calls. Host-managed command/transfer leases
 retain their existing recovery boundary. Queued foreground SSH input captures its generation before
 waiting and is discarded after rejection. No old payload is retried under a refreshed generation.

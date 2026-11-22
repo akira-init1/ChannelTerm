@@ -388,7 +388,7 @@ La GUI también ofrece [configuración y reparación de clientes MCP](docs/getti
 
 Los [paquetes de escritorio](docs/development/electron-gui.md#local-desktop-packages) locales sin firmar incluyen Electron y auxiliares Host/CLI compatibles; el usuario no necesita Node ni Go. Hay comprobaciones para ZIP e instaladores por usuario de Windows x64. Los demás destinos nativos y los dispositivos reales aún requieren validación. La firma y la publicación del escritorio no están configuradas.
 
-Los nuevos Hosts iniciados desde el escritorio liberan las Sessions sin uso tras 30 segundos y mantienen MCP activo. Los Hosts iniciados manualmente conservan su comportamiento predeterminado. La supervisión registrada, las operaciones activas y la pausa de la IA por una persona mantienen la Session. Consulta la [política de inactividad y migración](docs/reference/configuration.md#host-idle-policy).
+Por defecto, los Hosts HTTP liberan las Sessions sin uso y se cierran al quedar inactivos. La configuración del Host permite mantener MCP en segundo plano. [política de inactividad y migración](docs/reference/configuration.md#host-idle-policy)
 
 - [Uso del terminal serie](docs/getting-started/serial-terminal.md)
 - [Flujo de shell SSH](docs/getting-started/ssh-terminal.md)

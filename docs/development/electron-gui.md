@@ -28,7 +28,7 @@ platform runtime on first launch; dependency and runtime downloads require netwo
 `dev` compiles PO catalogs, builds Main/Preload once, starts Vite on `127.0.0.1:5173`, and opens the native desktop window.
 Renderer changes use Vite refresh. Restart `dev` after Main, Preload, shared bridge, or build-script
 changes; a renderer reload disconnects its Host client. Closing Electron also stops this development
-server, while the shared Host remains running. Port 5173 is strict: a conflict fails startup rather than loading an unrelated server.
+server. The shared Host follows its own idle policy. Port 5173 is strict: a conflict fails startup rather than loading an unrelated server.
 
 Build and launch the production assets independently:
 
@@ -301,10 +301,9 @@ readiness, and authenticates. No terminal command or existing Session is needed.
 listener is reused; wrong credentials, incompatible services, probe timeouts and occupied ports
 never start a replacement or select another port. Failures expose **Retry connection**.
 
-By default the Host survives GUI exit and manual disconnect so other clients can continue
-using shared Sessions. New desktop companions independently release unused Sessions after a
-30-second grace; explicit configuration can retain them or enable full idle exit. Existing Host
-policy is unchanged by GUI connections. See [Host idle policy](../reference/configuration.md#host-idle-policy). Manual disconnect stays disconnected until explicitly reconnected.
+Other connected clients can keep using shared Sessions after GUI exit or disconnect. Desktop
+companions reclaim unused Sessions and exit when fully idle by default. The Host settings
+checkbox can keep the listener available after disconnect. See [Host idle policy](../reference/configuration.md#host-idle-policy). Manual disconnect stays disconnected until explicitly reconnected.
 To stop an automatically started Host, finish shared work and stop its `channelterm` process
 using the OS process manager; stopping it closes all of its Sessions. There is no GUI Host-stop
 action. See the [Host workflow](../getting-started/mcp-server.md) for manual ownership.

@@ -105,6 +105,7 @@ export interface HostInfo {
   sshAdvanced?: boolean;
   autoConnect?: boolean;
   idlePolicy?: {
+    backgroundSwitch?: boolean;
     mode: "keep" | "release" | "exit";
     origin: "manual" | "desktop";
     sessionTimeoutMs: number;
@@ -203,6 +204,7 @@ export interface DesktopAPI {
   stopRecording(id: string): Promise<Result<void>>;
   deleteRecordingFile(): Promise<Result<boolean>>;
   hostSettings(): Promise<Result<HostSettingsInfo>>;
+  setBackgroundMCP(enabled: boolean): Promise<Result<HostInfo>>;
   saveHostEndpoint(endpoint: string): Promise<Result<HostInfo>>;
   control(request: ControlRequest): Promise<Result<ControlReply>>;
   /** File objects are consumed in Preload; only opaque selections return to Renderer. */
@@ -318,6 +320,7 @@ export const channels = {
   stopRecording: "logs:stop",
   deleteRecordingFile: "logs:delete-file",
   hostSettings: "host:settings",
+  setBackgroundMCP: "host:background-mcp",
   saveHostEndpoint: "host:save-endpoint",
   control: "host:control",
   selectDroppedFiles: "files:drop",

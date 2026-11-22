@@ -61,7 +61,12 @@ func newInstanceMCPClient(ctx context.Context, remote *protocol.ClientSession, e
 	found := false
 	for _, t := range listed.Tools {
 		found = found || t.Name == "client_instance"
-		c.controls.available = c.controls.available || t.Name == "terminal_control"
+		if t.Name == "terminal_control" {
+			c.controls.available = true
+			schema, _ := t.InputSchema.(map[string]any)
+			properties, _ := schema["properties"].(map[string]any)
+			c.controls.singleOperation = properties["multi_call"] != nil
+		}
 	}
 	delegation := os.Getenv("CHANNELTERM_CLIENT_DELEGATION")
 	if delegation != "" && os.Getenv("CHANNELTERM_CLIENT_DELEGATION_ENDPOINT") != endpoint {
@@ -136,6 +141,13 @@ func (c *instanceMCPClient) CallTool(ctx context.Context, params *protocol.CallT
 		return nil, controlErr
 	}
 	result, err := c.ClientSession.CallTool(ctx, &q)
+	if c.controls.kind == "agent" && c.controls.singleOperation && err == nil && !result.IsError &&
+		(q.Name == "debug_stop" || q.Name == "debug_bridge_close" || q.Name == "debug_bridge_restore") {
+		c.controls.mu.Lock()
+		delete(c.controls.scopes, target)
+		delete(c.controls.leases, target)
+		c.controls.mu.Unlock()
+	}
 	if (q.Name == "debug_start" || q.Name == "debug_bridge_start") && err == nil && !result.IsError {
 		encoded, _ := json.Marshal(result.StructuredContent)
 		var r struct {

@@ -1593,31 +1593,6 @@ msgstr "Se déconnecter de l’hôte"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
-msgid "host.idle.exit"
-msgstr "Les Sessions inutilisées sont libérées après {seconds} s ; le Host se ferme après {exitSeconds} s d’inactivité totale."
-
-#. js-lingui-explicit-id
-#: src/shared/menu-messages.ts
-msgid "host.idle.keep"
-msgstr "Le Host conserve les Sessions inutilisées."
-
-#. js-lingui-explicit-id
-#: src/shared/menu-messages.ts
-msgid "host.idle.release"
-msgstr "Les Sessions inutilisées sont libérées après {seconds} s ; MCP reste disponible."
-
-#. js-lingui-explicit-id
-#: src/shared/menu-messages.ts
-msgid "host.origin.desktop"
-msgstr "Lancement depuis le bureau."
-
-#. js-lingui-explicit-id
-#: src/shared/menu-messages.ts
-msgid "host.origin.manual"
-msgstr "Host lancé manuellement."
-
-#. js-lingui-explicit-id
-#: src/shared/menu-messages.ts
 msgid "host.settings"
 msgstr "Informations du Host et connexion"
 
@@ -1630,6 +1605,11 @@ msgstr "Enregistrer et déconnecter cette fenêtre"
 #: src/shared/menu-messages.ts
 msgid "host.settings.available"
 msgstr "Disponible"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "host.settings.backgroundMCP"
+msgstr "Garder MCP actif en arrière-plan après la déconnexion"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

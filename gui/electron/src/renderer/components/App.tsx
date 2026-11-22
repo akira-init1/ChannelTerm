@@ -2117,6 +2117,12 @@ export function App() {
       {hostSettingsOpen && (
         <HostSettingsDialog
           t={t}
+          onBackground={async (enabled) => {
+            const version = generation.current;
+            const next = await unwrap(host.setBackgroundMCP(enabled));
+            if (version === generation.current) setInfo(next);
+            return next;
+          }}
           onClose={() => setHostSettingsOpen(false)}
           onApply={async (endpoint) => {
             // Fence pending list/attach work before changing the Main-owned endpoint.
@@ -2756,15 +2762,6 @@ export function App() {
               )}
             {info?.lifetime === "attachment" && connected && (
               <div className="notice">{t("workbench.attachmentHost")} </div>
-            )}
-            {info?.idlePolicy && connected && (
-              <div className="notice host-idle-policy" role="status">
-                {t(`host.origin.${info.idlePolicy.origin}`)}{" "}
-                {t(`host.idle.${info.idlePolicy.mode}`, {
-                  seconds: info.idlePolicy.sessionTimeoutMs / 1000,
-                  exitSeconds: info.idlePolicy.exitTimeoutMs / 1000,
-                })}
-              </div>
             )}
             {error && (
               <div role="alert" className="notice error">

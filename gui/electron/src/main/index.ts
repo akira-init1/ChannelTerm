@@ -123,6 +123,7 @@ interface TabMove {
 let peerListing: Promise<PeerSessions[]> | undefined;
 const desktop = {
   windows: new Map<number, WindowContext>(),
+  disconnects: new Set<Promise<void>>(),
   quitting: false,
   startup: localHostStartup(
     companionPath(
@@ -147,11 +148,15 @@ const cliVersion = companionVersion(
 );
 
 function hostInfo(context: WindowContext) {
+  const info = context.host?.info();
   return {
-    ...(context.host?.info() ?? {
+    ...(info ?? {
       endpoint: context.endpoint,
       lifetime: "unknown" as const,
     }),
+    ...(info?.idlePolicy && context.peer
+      ? { idlePolicy: { ...info.idlePolicy, backgroundSwitch: false } }
+      : {}),
     autoConnect:
       context.autoConnect || context.endpoint === defaultHostEndpoint,
   };
@@ -178,7 +183,13 @@ function disconnectHost(context: WindowContext): Promise<void> {
   const host = context.host;
   context.host = undefined;
   const stopped = context.recordings.stopAll();
-  return Promise.all([stopped, host?.disconnect()]).then(() => {});
+  const cleanup = Promise.all([stopped, host?.disconnect()]).then(() => {});
+  desktop.disconnects.add(cleanup);
+  const forget = () => {
+    desktop.disconnects.delete(cleanup);
+  };
+  void cleanup.then(forget, forget);
+  return cleanup;
 }
 
 function currentHost(context: WindowContext): HostClient {
@@ -860,7 +871,16 @@ function createHandlers(context: WindowContext): Record<string, Handler> {
     [channels.acceptMovedTab]: (moveId, id) =>
       acceptMovedTab(context, moveId, id),
     [channels.info]: () => hostInfo(context),
+    [channels.setBackgroundMCP]: async (enabled) => {
+      if (typeof enabled !== "boolean")
+        throw new HostError(
+          "invalid_input",
+          "Expected a background MCP setting.",
+        );
+      return currentHost(context).setBackgroundMCP(enabled);
+    },
     [channels.hostSettings]: async () => {
+      if (context.connected) await currentHost(context).refreshIdlePolicy();
       const version = await cliVersion;
       return {
         host: hostInfo(context),
@@ -1209,6 +1229,7 @@ function registerIPC(): void {
             context.peer &&
             [
               channels.saveHostEndpoint,
+              channels.setBackgroundMCP,
               channels.mcpSetup,
               channels.manageSSH,
               channels.browseSSH,
@@ -1256,6 +1277,7 @@ function registerIPC(): void {
                     channels.changeSnippet,
                     channels.stopRecording,
                     channels.saveHostEndpoint,
+                    channels.setBackgroundMCP,
                     channels.focusWindow,
                     channels.detach,
                     channels.closeSession,
@@ -1507,5 +1529,7 @@ app.on("before-quit", (event) => {
     return;
   }
   desktop.quitting = true;
-  void Promise.all(contexts.map(disconnectHost)).finally(() => app.quit());
+  for (const context of contexts) void disconnectHost(context);
+  // The last native window may already be gone while its presence end is in flight.
+  void Promise.allSettled(desktop.disconnects).then(() => app.quit());
 });

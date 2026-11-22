@@ -13,7 +13,7 @@ import { startFixture } from "../tests/fixture.ts";
 
 /** Real Main/Preload/window switching with isolated storage and fake device I/O. */
 export async function checkHostSettings(environment) {
-  const fixture = await startFixture();
+  const fixture = await startFixture({ idle: true });
   const observer = new HostClient(fixture.endpoint, fixture.token);
   const profile = await mkdtemp(resolve("test-results/host-settings-"));
   const preload = resolve(profile, "profile.cjs");
@@ -91,6 +91,16 @@ export async function checkHostSettings(environment) {
     const info = (await page.evaluate(() => window.channelterm.hostSettings()))
       .value;
     assert.ok(info.host.hostVersion);
+    const background = page.getByRole("checkbox", {
+      name: "Keep MCP running in the background after disconnect",
+    });
+    await expect(background).not.toBeChecked();
+    await background.click();
+    await expect(background).toBeChecked();
+    await observer.refreshIdlePolicy();
+    assert.equal(observer.info().idlePolicy.mode, "release");
+    await background.click();
+    await expect(background).not.toBeChecked();
     assert.ok(info.electronVersion);
     assert.equal(info.environmentOverride, false);
     assert.equal(JSON.stringify(info).includes(fixture.token), false);

@@ -7,10 +7,12 @@ import { host, unwrap } from "../host";
 export function HostSettingsDialog({
   t,
   onApply,
+  onBackground,
   onClose,
 }: {
   t: (id: string) => string;
   onApply: (endpoint: string) => Promise<HostInfo>;
+  onBackground: (enabled: boolean) => Promise<HostInfo>;
   onClose: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
@@ -92,6 +94,24 @@ export function HostSettingsDialog({
                 <dt>{t("host.settings.transfers")}</dt>
                 <dd>{capability(info.host.managedTransfers)}</dd>
               </dl>
+              {info.connected && info.host.idlePolicy?.backgroundSwitch && (
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={info.host.idlePolicy.mode === "release"}
+                    disabled={busy}
+                    onChange={(event) => {
+                      setBusy(true);
+                      setError("");
+                      void onBackground(event.target.checked)
+                        .then((host) => setInfo({ ...info, host }))
+                        .catch((e) => setError(clientErrorMessageId(e)))
+                        .finally(() => setBusy(false));
+                    }}
+                  />
+                  {t("host.settings.backgroundMCP")}
+                </label>
+              )}
               <label>
                 {t("host.settings.endpoint")}
                 <input

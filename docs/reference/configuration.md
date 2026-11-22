@@ -416,16 +416,19 @@ idle_session_timeout = "30s"
 idle_exit_timeout = "0s"
 ```
 
-Empty/omitted values select launch defaults: manual Hosts keep Sessions indefinitely;
-Hosts newly launched by Electron use a 30-second Session grace period and keep MCP running.
-An existing listener retains its own policy when a GUI connects. Explicit `"0s"` disables that
-behavior, including the desktop default. Nonzero durations must be between 1 second and 24 hours.
-Exit requires a nonzero Session timeout and remains disabled unless explicitly configured.
+With omitted settings, standalone HTTP Hosts release unused Sessions after a one-second grace
+period. A desktop companion exits after three more seconds of complete inactivity. A manually
+started HTTP Host allows 30 seconds, including for its first client to connect. The example
+above opts into longer retention and a persistent listener. Explicit `"0s"` disables the
+corresponding timeout. Nonzero durations range from one second to 24 hours. Exit requires Session reclamation.
 
 `mcp --idle-session-timeout` and `--idle-exit-timeout` override these settings for that invocation.
 `--host-origin manual|desktop` selects the launch default and public source label; it is not an
 authenticated identity or management grant. Electron passes the fixed `desktop` value. Policy is
-immutable for that Host lifetime; restart explicitly after changing configuration. Attachment-owned
+loaded at startup. In **Host > Host information and connection**, **Keep MCP running in the background after disconnect**
+changes idle exit immediately for the connected desktop companion. It keeps only the listener
+available. Turning it off restores the configured exit grace (three seconds if disabled at launch).
+The choice lasts for this Host process. Use TOML for defaults across launches. Attachment-owned
 CLI Hosts preserve their original lifetime, ignore these persistent-Host settings, and reject
 explicit idle overrides. Reclamation/exit options are restricted to HTTP Hosts.
 

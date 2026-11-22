@@ -20,6 +20,8 @@ const api: DesktopAPI = {
   stopRecording: (id) => ipcRenderer.invoke(channels.stopRecording, id),
   deleteRecordingFile: () => ipcRenderer.invoke(channels.deleteRecordingFile),
   hostSettings: () => ipcRenderer.invoke(channels.hostSettings),
+  setBackgroundMCP: (enabled) =>
+    ipcRenderer.invoke(channels.setBackgroundMCP, enabled),
   saveHostEndpoint: (endpoint) =>
     ipcRenderer.invoke(channels.saveHostEndpoint, endpoint),
   control: (request) => ipcRenderer.invoke(channels.control, request),

@@ -1,7 +1,7 @@
 import type { HostInfo } from "../../shared/api";
 import { incompatible, integer, object } from "./validation";
 
-/** Only effective immutable policy crosses IPC; presence and authority stay in Host. */
+/** Only effective policy crosses IPC; presence and authority stay in Host. */
 export function idlePolicy(
   value: unknown,
 ): NonNullable<HostInfo["idlePolicy"]> {
@@ -23,5 +23,15 @@ export function idlePolicy(
     (mode === "exit" && (sessionTimeoutMs === 0 || exitTimeoutMs === 0))
   )
     throw incompatible();
-  return { mode, origin, sessionTimeoutMs, exitTimeoutMs };
+  return {
+    mode,
+    origin,
+    sessionTimeoutMs,
+    exitTimeoutMs,
+    ...(policy.background_switch === true &&
+    origin === "desktop" &&
+    mode !== "keep"
+      ? { backgroundSwitch: true }
+      : {}),
+  };
 }

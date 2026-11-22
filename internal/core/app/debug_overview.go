@@ -10,6 +10,8 @@ import (
 	"github.com/akira-init1/ChannelTerm/internal/core/session"
 )
 
+const debugObservationFreshness = 30 * time.Second
+
 // DebugPort separates configured targets from observed endpoints and their role.
 // Address/Port are empty/zero unless State is observed; no default port is inferred.
 type DebugPort struct {
@@ -104,7 +106,7 @@ func (a *Application) DebugOverview(ctx context.Context) (DebugOverview, error) 
 	for _, r := range a.observations.runs {
 		item := r.item
 		item.Ports = append([]DebugPort{}, item.Ports...)
-		item.Stale = item.Source == "client_report" && out.ObservedAt.Sub(item.UpdatedAt) > 30*time.Second
+		item.Stale = item.Source == "client_report" && out.ObservedAt.Sub(item.UpdatedAt) > debugObservationFreshness
 		if item.Stale {
 			item.Connection = "unknown"
 			if item.Mode == "ssh_tunnel" {

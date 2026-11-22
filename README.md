@@ -386,7 +386,7 @@ The GUI also provides [MCP client setup and repair](docs/getting-started/mcp-ser
 
 Local unsigned [desktop packages](docs/development/electron-gui.md#local-desktop-packages) bundle Electron and matching Host/CLI helpers, so users need no Node or Go. Windows x64 ZIP and per-user installer checks are available; other native targets and real devices still require acceptance. Signing and desktop publishing are not configured.
 
-New desktop-started Hosts release unused Sessions after 30 seconds and keep MCP running; manual Hosts keep their existing default. Registered monitoring, active operations and human pause retain a Session. See [idle policy and migration](docs/reference/configuration.md#host-idle-policy).
+HTTP Hosts release unused Sessions and exit when idle by default. Enable background MCP in the desktop Host settings to keep the listener available. [idle policy and migration](docs/reference/configuration.md#host-idle-policy)
 
 - [Serial terminal workflow](docs/getting-started/serial-terminal.md)
 - [SSH shell workflow](docs/getting-started/ssh-terminal.md)

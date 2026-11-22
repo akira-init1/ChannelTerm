@@ -65,6 +65,17 @@ export async function checkWorkspace(environment) {
     });
     await launch();
     await native("host.connect");
+    // The native action starts an asynchronous connection. Open the renderer
+    // menu only after it can capture the connected window's action state.
+    await expect
+      .poll(() =>
+        desktop.evaluate(
+          ({ Menu }) =>
+            Menu.getApplicationMenu()?.getMenuItemById("session.choose")
+              ?.enabled,
+        ),
+      )
+      .toBe(true);
     await chooseSession(page, undefined, live.session_id);
     await expect(page.locator(".xterm-screen")).toHaveCount(1);
     await chooseSession(page, undefined, closed.sessionId);

@@ -31,8 +31,8 @@ func resolveHostIdlePolicy(flags *flag.FlagSet, file config.Host, sessionTimeout
 			if err != nil {
 				return app.IdlePolicy{}, fmt.Errorf("host.idle_session_timeout: %w", err)
 			}
-		} else if origin == "desktop" {
-			sessionTimeout = 30 * time.Second
+		} else if transport == "http" {
+			sessionTimeout = time.Second
 		}
 	}
 	if !set["idle-exit-timeout"] && file.IdleExitTimeout != "" {
@@ -40,6 +40,11 @@ func resolveHostIdlePolicy(flags *flag.FlagSet, file config.Host, sessionTimeout
 		exitTimeout, err = time.ParseDuration(file.IdleExitTimeout)
 		if err != nil {
 			return app.IdlePolicy{}, fmt.Errorf("host.idle_exit_timeout: %w", err)
+		}
+	} else if !set["idle-exit-timeout"] && transport == "http" && sessionTimeout != 0 {
+		exitTimeout = 30 * time.Second
+		if origin == "desktop" {
+			exitTimeout = app.DesktopIdleExitTimeout
 		}
 	}
 	if transport != "http" && (sessionTimeout != 0 || exitTimeout != 0 || origin == "desktop") {

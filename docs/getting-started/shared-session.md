@@ -142,8 +142,8 @@ See [Identifiers](../reference/identifiers.md) before passing serial targets, Se
 
 For a desktop view, the [Electron client](../development/electron-gui.md#connect-to-an-existing-host)
 can attach to an existing Session on the same Host. It shows raw output and ordinary input with
-Host-authoritative lease checks. Detaching or closing that GUI leaves the Host and other clients
-running. Its serial file picker and progress panel reuse the [managed file workflow](file-transfer.md#electron-file-picker-and-progress), including safe cancellation. A GUI-owned file operation must finish or be cancelled before disconnect/exit. Debug observation and explicit Session takeover are available; general debugger commands remain outside this GUI scope.
+Host-authoritative lease checks. Detaching or closing the GUI releases its monitor. Other live
+views can continue using the same Session. Its serial file picker and progress panel reuse the [managed file workflow](file-transfer.md#electron-file-picker-and-progress), including safe cancellation. A GUI-owned file operation must finish or be cancelled before disconnect/exit. Debug observation and explicit Session takeover are available; general debugger commands remain outside this GUI scope.
 
 ## Shared SSH shell
 
@@ -203,16 +203,17 @@ cancelling them does not send terminal Ctrl+C, close a Session or prevent later 
 
 ## Unused Sessions and Host lifetime
 
-New Electron-launched Hosts release a Session after 30 seconds with no registered use or protected
-work; the MCP listener stays available. Existing manual Hosts keep their own policy. Closing a tab
-or window still only detaches that view. Another client's live monitor, a background tab, active
-operation, lease, debugger, recovery or human AI pause retains the relevant Session. A standalone
-list poll does not. Unknown external debugger state is retained conservatively.
+Closing the last tab using a Session, disconnecting, or quitting removes the GUI's monitor.
+By default the Host reclaims the Session after one second of observed inactivity. Another
+live monitor, a background tab, active operation, lease, debugger or recovery keeps its
+Session. A list poll or a completed human takeover alone cannot pin the device. External debugger
+reports expire after 30 seconds of silence. Register a monitor for longer observation gaps.
 
-Check `host_idle_status` for effective policy and retention reasons; GUI displays its effective
-source/defaults and grace periods. Use [Host configuration](../reference/configuration.md#host-idle-policy)
-to keep resources (`0s`) or explicitly enable fully idle exit. Policy changes require an explicit
-Host restart after finishing shared work. A released serial endpoint may be opened by another
+Check `host_idle_status` for the effective policy, grace periods and retention reasons.
+Use [Host configuration](../reference/configuration.md#host-idle-policy)
+to adjust the grace periods. For background access, enable **Keep MCP running in the background
+after disconnect** in the desktop Host settings. The companion otherwise exits after three
+seconds of complete inactivity. A released serial endpoint may be opened by another
 program; closing an SSH Session may end its shell. Reconnect explicitly to create a new Session.
 Reconnection never resends input. A stopped Host needs an external launch; HTTP requests cannot wake it.
 

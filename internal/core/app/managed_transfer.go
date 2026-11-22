@@ -210,7 +210,7 @@ func (a *Application) StartFileTransfer(ctx context.Context, q TransferRequest) 
 	var preparation ControlProof
 	if q.Transport == "serial" && controlExternal(ctx) {
 		p, _ := ctx.Value(controlProofKey{}).(ControlProof)
-		scope, err := a.beginControl(ctx, q.SessionID, p, true)
+		scope, err := a.beginControl(ctx, q.SessionID, p, managedScope)
 		if err != nil {
 			finishUse()
 			return TransferStatus{}, err

@@ -66,6 +66,45 @@ func TestControlRequiresVersionAndExplicitAgentScope(t *testing.T) {
 	}
 }
 
+func TestAgentOperationHandsControlBackBeforeNextWrite(t *testing.T) {
+	for _, leased := range []bool{false, true} {
+		a, _, _ := instanceFixture(t)
+		agent := controlTestClient(t, a, "CL-agent", "agent")
+		human := controlTestClient(t, a, "CL-human", "user")
+		idle, _ := a.SessionControl(agent, "board")
+		active, err := a.BeginOperationControl(agent, "board", controlProof(idle))
+		if err != nil {
+			t.Fatal(err)
+		}
+		writer := WithControlProof(agent, controlProof(active))
+		payload := session.WriteRequest{Actor: "agent", Data: []byte("x")}
+		if leased {
+			lease, err := a.AcquireLeaseForClient(writer, "board", "test-agent", LeaseTypeTerminal)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := a.WriteSessionWithLease(writer, "board", lease.Owner, payload); err != nil {
+				t.Fatal(err)
+			}
+			if err := a.ReleaseLease("board", lease.Owner); err != nil {
+				t.Fatal(err)
+			}
+		} else if _, err := a.WriteSession(writer, "board", payload); err != nil {
+			t.Fatal(err)
+		}
+		released, err := a.SessionControl(human, "board")
+		if err != nil || released.State != "idle" || released.Version == active.Version {
+			t.Fatalf("after completion: %+v %v", released, err)
+		}
+		if _, err := a.WriteSession(writer, "board", payload); !errors.Is(err, ErrControlStale) {
+			t.Fatalf("stale agent: %v", err)
+		}
+		if _, err := a.WriteSession(WithControlProof(human, controlProof(released)), "board", session.WriteRequest{Actor: "user", Data: []byte("y")}); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
 func TestControlTakeoverPinsHumanAndRequiresExplicitAllow(t *testing.T) {
 	a, _, _ := instanceFixture(t)
 	user := controlTestClient(t, a, "CL-human", "user")

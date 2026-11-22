@@ -1361,7 +1361,7 @@ has no existing Session generation; authentication/instance and connection grant
 | Action | Additional input | Successful result |
 | --- | --- | --- |
 | `status` | None | `control` |
-| `begin` | Captured `version`, current `operation_id` if any | `control` for an exclusive multi-call scope |
+| `begin` | Captured `version`, current `operation_id` if any, optional `multi_call` | `control` for one agent operation by default |
 | `renew`, `end` | Exact scope `version` and `operation_id` | `control` |
 | `takeover` | Exact observed `version` and `operation_id` if active | `result`; requires user + management |
 | `allow` | Exact current `version` and `operation_id` if present | `control`; requires user + management |
@@ -1373,7 +1373,12 @@ human-input hint for the requesting instance, never authorization. Session lists
 snapshot. Scope TTL is 30 seconds; renew before expiry. Reading does not renew it. Agent raw writes
 require `begin` and the returned operation ID; managed operations associate their existing lease
 with control automatically. Lease acquisition returns optional public `control` metadata; use it
-for subsequent leased requests. An explicit outer scope outlives an inner lease until `end`.
+for subsequent leased requests. By default an agent's scope ends on successful delivery of
+one raw payload or release of its lease. A human can use the fresh version immediately.
+Uncertain partial writes retain fencing. Clients that previously used one proof across several
+raw writes or leases must now request `multi_call: true` at `begin` and call `end` as soon as
+the sequence finishes. End explicit monitor/operation uses with `client_instance unuse` and
+end the instance when finished. Human-initiated scopes retain their explicit end semantics.
 
 `result` contains `session_id`, original `version`/`operation_id`, `status` (`stopping`, `taken_over`,
 `failed`), `reason` (`user_interrupted`, `control_expired`), `recovery` (`pending`, `restored`,
@@ -1404,7 +1409,8 @@ can reconnect and query a retained original key; no notification is sent to an A
 
 `host_idle_status` takes an empty object and returns `policy`: `mode` (`keep`, `release`, `exit`),
 `origin` (`manual`, `desktop`), `session_timeout_ms`, `exit_timeout_ms`, `draining`, `sessions`, and
-`truncated`. Each entry contains `session_id`, `reference`, `reason`, and an optional `idle_since`.
+`truncated`. Optional `background_switch: true` advertises live desktop idle-exit management.
+Each entry contains `session_id`, `reference`, `reason`, and an optional `idle_since`.
 Reasons are `keep`, `idle`, `setup`, `debug`, `operation`, `lease`, `recovery`, `human_pause`,
 `control`, `observe`, or `monitor`. At most 256 entries are shown; truncation never affects the
 underlying complete decision. A source label describes composition, not authenticated client identity.
@@ -1413,7 +1419,7 @@ The tool is read-only and does not renew instances, acquire control, alter polic
 See [configuration](configuration.md#host-idle-policy) and
 [reclamation semantics](../modules/application.md#host-idle-reclamation). On reclaiming Hosts,
 old Session readers receive `instance_required` and must register/use/renew explicitly. Once an
-opt-in Host exit commits, new work receives `host_draining`. Neither error permits automatic input
+idle Host exit commits, new work receives `host_draining`. Neither error permits automatic input
 replay. `OPERATION_STATE` with `operation=idle_release`, `state=closing` and
 `reason=no_registered_use` records removal before ordinary Session Close.
 

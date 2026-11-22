@@ -519,7 +519,8 @@ owns wire limits and trust semantics.
 
 A Transport establishes the Channel before attachment; it is not an additional hop for every byte.
 Preload is an isolated context, not a third application process. Main may launch a detached
-standalone Go Host, but closing the GUI never stops that Host or its shared Sessions. Renderer sandboxing and `contextIsolation` are enabled, and `nodeIntegration`
+standalone Go Host. Closing the GUI ends its registered uses. The Host reclaims unused Sessions
+and exits according to its idle policy. Renderer sandboxing and `contextIsolation` are enabled, and `nodeIntegration`
 is disabled. The production UI is served through a restricted `channelterm://app/` scheme.
 
 Serial profile selection and edits use Main-owned fixed desktop API requests to Application.
@@ -556,7 +557,7 @@ The check is not an atomic hardware identity guarantee; see [identity limits](..
 | Initial output | `terminal_read` without cursor, Base64, at most 64 KiB |
 | Further output | `terminal_read` with Main-owned cursor and a one-second Host wait |
 | Ordinary input | `terminal_write`, UTF-8, actor `user`; no delimiter inserted |
-| Close GUI | Cancel requests and close MCP client; best-effort detach event only |
+| Close GUI | Cancel requests, end the window's registered presence and close its MCP client |
 
 The authoritative schemas remain in [MCP tools](../reference/mcp-tools.md). The attachment tools
 record events; they do not grant leases or reference-count Session ownership. GUI attachment IDs
@@ -691,7 +692,7 @@ Credential errors distinguish legacy-only configuration, missing identity/local 
 invalid files and read failures using typed, localized diagnostics; the presence of an old file
 does not authenticate or identify the listener. No error triggers credential regeneration, shared-token
 fallback or process termination. See the [recovery workflow](../development/electron-gui.md#old-host-or-missing-credentials-after-an-upgrade).
-The standalone Host survives GUI exit so CLI/MCP can continue sharing Sessions; stopping the Host
+The standalone Host protects registered uses and active operations through GUI exit; stopping the Host
 explicitly closes its Sessions. Packaging must include the matching native companion and notices.
 
 Targets remain Windows, Linux, and macOS on amd64/arm64 (Electron/Node calls amd64 `x64`). Dependencies
@@ -807,7 +808,10 @@ writability. The independent SSH action uses a managed task ID and Application's
 check; it neither obtains a PTY scope nor receives private task paths. See the
 [control strip workflow](../reference/gui-menus.md#human-interruption-and-control).
 
-New companions use the desktop Host idle default: release truly unused Sessions after 30 seconds while retaining MCP. Existing listeners keep their own policy. Main displays Host-reported mode, source and grace periods; Renderer owns no resource timer or management authority. An explicit configuration may instead keep resources or enable full idle exit. See [Host idle policy](../reference/configuration.md#host-idle-policy).
+The Host owns Session reclamation and idle exit. Main waits for in-flight disconnects when the last
+window closes and reads the effective policy when Host settings open. The background MCP checkbox
+sends a boolean through validated IPC to the authenticated desktop management route. It changes
+listener lifetime independently of Session use. See [Host idle policy](../reference/configuration.md#host-idle-policy).
 
 
 ### Local line metadata

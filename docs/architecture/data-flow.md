@@ -439,3 +439,7 @@ worker; only private, lease-bound recovery can then write. Completion is observe
 events and bounded result lookup. See [Application control](../modules/application.md#default-session-control-and-recovery).
 
 Idle cleanup flows from composition scheduling to Application admission/usage checks, atomic Manager removal, then ordinary Session/Channel/Transport Close outside locks. Fully idle exit is an Application admission decision followed by composition-owned HTTP shutdown; Core never terminates a process. See [Host idle reclamation](../modules/application.md#host-idle-reclamation).
+
+The desktop background MCP setting flows from the Host settings dialog through Main and the
+authenticated desktop API to Application. The setting adjusts idle exit for that Host process.
+Closing a tab releases its monitor. Other monitors and admitted operations retain their Session.

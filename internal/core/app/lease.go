@@ -298,7 +298,7 @@ func (c *leaseCoordinator) release(sessionID, owner string) (SessionLease, bool,
 	}
 	c.stopExpiryLocked(sessionID)
 	delete(c.leases, sessionID)
-	if r := c.controls.entries[sessionID]; r != nil && r.automatic && r.view.State == "active" && r.view.Version == active.controlVersion {
+	if r := c.controls.entries[sessionID]; r != nil && r.lifetime != explicitScope && r.view.State == "active" && r.view.Version == active.controlVersion {
 		finishControlLocked(r)
 	}
 	var cancelled *FileTransferCancelResolution

@@ -14,12 +14,13 @@ import (
 type capturedInputControlKey struct{}
 
 type commandControls struct {
-	mu        sync.Mutex
-	available bool
-	kind      string
-	scopes    map[string]app.ControlProof
-	leases    map[string]app.ControlProof
-	targets   map[string]string
+	mu              sync.Mutex
+	available       bool
+	singleOperation bool
+	kind            string
+	scopes          map[string]app.ControlProof
+	leases          map[string]app.ControlProof
+	targets         map[string]string
 }
 
 func (c *instanceMCPClient) controlCall(ctx context.Context, args map[string]any, out any) error {
@@ -96,7 +97,9 @@ func (c *instanceMCPClient) controlMetadata(ctx context.Context, q *protocol.Cal
 				return "", err
 			}
 			p = app.ControlProof{Version: result.Control.Version, OperationID: result.Control.OperationID}
-			c.controls.scopes[args.SessionID] = p
+			if q.Name != "terminal_write" || !c.controls.singleOperation {
+				c.controls.scopes[args.SessionID] = p
+			}
 		}
 	}
 	if q.Name == "terminal_acquire_lease" || q.Name == "debug_start" || q.Name == "debug_bridge_start" {

@@ -1,6 +1,6 @@
 # Desktop Host API
 
-The standalone HTTP Host mounts `/gui/v1/ssh`, `/gui/v1/ssh/confirm`, `/gui/v1/serial-profiles` and `/gui/v1/resize` beside its configured MCP endpoint.
+The standalone HTTP Host mounts `/gui/v1/ssh`, `/gui/v1/ssh/confirm`, `/gui/v1/serial-profiles`, `/gui/v1/resize` and `/gui/v1/background-mcp` beside its configured MCP endpoint.
 This is a separate authenticated HTTP adapter, not an MCP tool. Existing MCP names,
 schemas and stdio behavior are unchanged. `internal/guiapi` calls the same
 Application connection/configuration use cases and Session Manager used by the Host's CLI/MCP adapters.
@@ -238,3 +238,12 @@ Resize `take`/`resize` also accepts `instance: {id, secret}` and
 `control: {version, operation_id?}`. Missing or rejected control returns 409 `control_required`;
 Host rechecks under the shared write gate before resize submission. Status and release remain
 read/cleanup operations and do not grant stream-write authority. See [Session control](mcp-tools.md#session-control).
+
+## Background MCP listener
+
+The authenticated local desktop management route `/gui/v1/background-mcp` accepts an empty
+`PUT` to keep the current companion listening and an empty `DELETE` to restore idle exit.
+Success returns 204. The route rejects browser origins and requires a user credential with
+management access. A manual Host, draining Host or companion with Session reclamation disabled
+returns 409. Discover support and read the effective grace periods through `host_idle_status`.
+Session use, operation ownership and device release continue independently.

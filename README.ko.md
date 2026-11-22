@@ -382,7 +382,7 @@ GUI는 [MCP 클라이언트 구성 및 복구](docs/getting-started/mcp-server.m
 
 로컬 서명되지 않은 [데스크톱 패키지](docs/development/electron-gui.md#local-desktop-packages)는 Electron과 일치하는 Host/CLI 도우미를 포함하므로 사용자는 Node나 Go를 설치할 필요가 없습니다. Windows x64 ZIP 및 사용자별 설치 프로그램 검사가 제공됩니다. 다른 네이티브 대상과 실제 장치는 추가 검증이 필요하며, 서명과 데스크톱 배포는 구성되지 않았습니다.
 
-데스크톱이 새로 시작한 Host는 사용하지 않는 Session을 30초 후 해제하고 MCP는 계속 실행합니다. 수동으로 시작한 Host의 기본 동작은 유지됩니다. 등록된 모니터링, 실행 중인 작업, 사람이 설정한 AI 일시 중지는 Session을 유지합니다. [유휴 정책과 마이그레이션](docs/reference/configuration.md#host-idle-policy)을 참조하세요.
+기본적으로 HTTP Host는 사용하지 않는 Session을 해제하고 유휴 상태가 지속되면 종료됩니다. Host 설정에서 MCP를 백그라운드로 계속 실행할 수 있습니다. [유휴 정책과 마이그레이션](docs/reference/configuration.md#host-idle-policy)
 
 - [시리얼 터미널 워크플로](docs/getting-started/serial-terminal.md)
 - [SSH 셸 워크플로](docs/getting-started/ssh-terminal.md)

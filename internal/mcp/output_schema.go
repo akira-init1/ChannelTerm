@@ -26,7 +26,7 @@ func terminalOutputSchema(name string) (jsonSchema, bool) {
 	switch name {
 	case "host_idle_status":
 		schema = objectSchema(map[string]jsonSchema{"policy": objectSchema(map[string]jsonSchema{
-			"mode": stringSchema(), "origin": stringSchema(), "session_timeout_ms": integerSchema(), "exit_timeout_ms": integerSchema(), "draining": booleanSchema(), "truncated": booleanSchema(),
+			"mode": stringSchema(), "origin": stringSchema(), "session_timeout_ms": integerSchema(), "exit_timeout_ms": integerSchema(), "background_switch": booleanSchema(), "draining": booleanSchema(), "truncated": booleanSchema(),
 			"sessions": arraySchema(objectSchema(map[string]jsonSchema{"session_id": stringSchema(), "reference": stringSchema(), "reason": stringSchema(), "idle_since": stringSchema()}, "session_id", "reference", "reason")),
 		}, "mode", "origin", "session_timeout_ms", "exit_timeout_ms", "draining", "sessions", "truncated")}, "policy")
 	case "terminal_control":

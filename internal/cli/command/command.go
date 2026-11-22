@@ -428,9 +428,9 @@ func runMCP(ctx context.Context, args []string, output io.Writer) (err error) {
 	listen := flags.String("listen", defaultMCPListen, "HTTP listen address when --transport=http")
 	path := flags.String("path", defaultMCPPath, "HTTP endpoint path when --transport=http")
 	connectionPolicy := flags.String("connection-policy", "", "Discovery policy: ask, auto, or deny")
-	idleSession := flags.Duration("idle-session-timeout", 0, "Release unused Sessions after this grace period (0 disables; 1s..24h)")
-	idleExit := flags.Duration("idle-exit-timeout", 0, "Exit a fully idle HTTP Host after this grace period (0 disables; requires Session reclamation)")
-	hostOrigin := flags.String("host-origin", "manual", "Launch source: manual or desktop (desktop defaults to 30s Session reclamation)")
+	idleSession := flags.Duration("idle-session-timeout", 0, "Release unused HTTP Host Sessions after a grace period (default 1s; 0 disables; 1s..24h)")
+	idleExit := flags.Duration("idle-exit-timeout", 0, "Exit a fully idle HTTP Host (default 30s manual, 3s desktop; 0 disables; requires Session reclamation)")
+	hostOrigin := flags.String("host-origin", "manual", "Launch source: manual or desktop")
 	flags.Usage = func() {
 		fmt.Fprintln(output, "Usage: channelterm mcp [--transport stdio|http] [--listen ADDRESS] [--path PATH] [--connection-policy ask|auto|deny]")
 		fmt.Fprintln(output)
@@ -583,7 +583,7 @@ func serveMCPHTTP(ctx context.Context, registry *tool.Registry, listener net.Lis
 	// Preserve every existing custom MCP path, including a collision with this
 	// optional management endpoint. Each Host supplies its supported routes.
 	if gui != nil {
-		for _, route := range []string{guiapi.SSHPath, guiapi.SSHConfirmPath, guiapi.SerialProfilesPath, guiapi.ResizePath} {
+		for _, route := range []string{guiapi.SSHPath, guiapi.SSHConfirmPath, guiapi.SerialProfilesPath, guiapi.ResizePath, guiapi.BackgroundPath} {
 			if path != route {
 				mux.Handle(route, authenticate(requireDesktopManagement(gui)))
 			}

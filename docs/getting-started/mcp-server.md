@@ -58,7 +58,11 @@ ChannelTerm exposes the same terminal Tool Registry over MCP stdio and stateless
 All Session writes now require registered HTTP identity, instance and control metadata. Unregistered
 stdio remains read-only. Upgrade third-party writers using the
 [control migration guide](http-authentication-migration.md#default-controlled-sessions); agent raw
-workflows must explicitly begin/renew/end a scope and never retry interrupted input.
+writers begin a scope for each payload or explicitly request a multi-call sequence and end it
+when finished. Never retry interrupted input. With ChannelTerm on PATH an authorized client
+can start `channelterm mcp --transport http` on demand and connect with its own credential.
+An idle client heartbeat alone cannot keep an agent's HTTP Host alive. See the
+[idle policy and timeouts](../reference/configuration.md#host-idle-policy).
 
 For short bootloader windows, use the Host-side U-Boot operation and
 [diagnostic export workflow](serial-terminal.md#enter-u-boot-and-export-evidence). Keep the owning

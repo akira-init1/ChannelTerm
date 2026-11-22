@@ -16,7 +16,10 @@ var (
 	ErrIdleRegistration = errors.New("this Host reclaims idle Sessions; register a client instance and explicit Session use before monitoring")
 )
 
-// IdlePolicy is immutable for one Host lifetime. Zero retains resources. Exit
+// DesktopIdleExitTimeout allows the local GUI handshake to complete before idle exit.
+const DesktopIdleExitTimeout = 3 * time.Second
+
+// IdlePolicy supplies the launch defaults. Zero retains resources. Exit
 // requires Session reclamation and is implemented by the composition root only.
 type IdlePolicy struct {
 	SessionTimeout time.Duration
@@ -41,12 +44,13 @@ func (p IdlePolicy) Validate() error {
 }
 
 type idleState struct {
-	policy    IdlePolicy
-	since     map[string]time.Time // never-reused Manager registration references
-	exitSince time.Time
-	work      int
-	epoch     uint64
-	draining  bool
+	policy             IdlePolicy
+	backgroundOverride *bool                // guarded by instances.mu, desktop Host only
+	since              map[string]time.Time // never-reused Manager registration references
+	exitSince          time.Time
+	work               int
+	epoch              uint64
+	draining           bool
 }
 
 // IdleSession describes a bounded retention decision without terminal contents.
@@ -59,6 +63,7 @@ type IdleSession struct {
 
 // HostIdleStatus is observational. It never renews usage or changes policy.
 type HostIdleStatus struct {
+	BackgroundSwitch bool          `json:"background_switch,omitempty"`
 	Mode             string        `json:"mode"`
 	Origin           string        `json:"origin"`
 	SessionTimeoutMS int64         `json:"session_timeout_ms"`
@@ -106,19 +111,12 @@ func (a *Application) idleObservation(ctx context.Context) (uint64, map[string]b
 	epoch := a.idle.epoch
 	a.instances.mu.Unlock()
 	debug, err := a.DebugOverview(ctx)
-	// Display snapshots intentionally mark old reports unknown, even after an
-	// explicit disconnect. Reclamation must retain that terminal observation
-	// from its owner so a completed debugger cannot pin a Session forever.
-	a.observations.mu.Lock()
-	connections := make(map[string]string, len(a.observations.runs))
-	for id, run := range a.observations.runs {
-		connections[id] = run.item.Connection
-	}
-	a.observations.mu.Unlock()
 	busy := make(map[string]bool)
 	for _, operation := range debug.Operations {
-		if connection, ok := connections[operation.ID]; ok {
-			operation.Connection = connection
+		// External observations have no Host-owned worker. A vanished reporter
+		// cannot retain a Session or an empty listener indefinitely.
+		if operation.Source != "host" && debug.ObservedAt.Sub(operation.UpdatedAt) > debugObservationFreshness {
+			continue
 		}
 		if operation.Connection != "disconnected" && operation.Connection != "closed" && operation.Connection != "failed" {
 			busy[operation.SessionID] = true
@@ -145,7 +143,7 @@ func (a *Application) idleReasonLocked(id string, debug map[string]bool, now tim
 	if _, ok := a.leases.recovering[id]; ok {
 		return "recovery"
 	}
-	if c := a.leases.controls.entries[id]; c != nil {
+	if c := a.leases.controls.entries[id]; c != nil && c.view.State != "human" {
 		if c.view.AIPaused {
 			return "human_pause"
 		}
@@ -164,6 +162,38 @@ func (a *Application) idleReasonLocked(id string, debug map[string]bool, now tim
 	return "idle"
 }
 
+// SetDesktopBackground changes only this desktop listener's idle exit behavior.
+// Device reclamation, active work and the admission fence remain authoritative.
+func (a *Application) SetDesktopBackground(ctx context.Context, enabled bool) error {
+	if err := CheckClientAccess(ctx, ClientManage); err != nil || ClientIdentityFromContext(ctx).Kind != "user" {
+		return ErrClientPermissionDenied
+	}
+	a.instances.mu.Lock()
+	defer a.instances.mu.Unlock()
+	if a.idle.draining {
+		return ErrHostDraining
+	}
+	if a.idle.policy.Origin != "desktop" || a.idle.policy.SessionTimeout == 0 {
+		return errors.New("background switch requires a reclaiming desktop Host")
+	}
+	a.idle.backgroundOverride = &enabled
+	a.idle.exitSince = time.Time{}
+	return nil
+}
+
+// exitTimeoutLocked resolves the live desktop override under instances.mu.
+func (s *idleState) exitTimeoutLocked() time.Duration {
+	if s.backgroundOverride != nil {
+		if *s.backgroundOverride {
+			return 0
+		}
+		if s.policy.ExitTimeout == 0 {
+			return DesktopIdleExitTimeout
+		}
+	}
+	return s.policy.ExitTimeout
+}
+
 // HostIdlePolicy observes effective policy and retention reasons; it grants no
 // management authority and does not start countdowns merely by being read.
 func (a *Application) HostIdlePolicy(ctx context.Context) (HostIdleStatus, error) {
@@ -176,7 +206,9 @@ func (a *Application) HostIdlePolicy(ctx context.Context) (HostIdleStatus, error
 	a.instances.mu.Lock()
 	defer a.instances.mu.Unlock()
 	p := a.idle.policy
+	p.ExitTimeout = a.idle.exitTimeoutLocked()
 	out := HostIdleStatus{Mode: "keep", Origin: p.Origin, SessionTimeoutMS: p.SessionTimeout.Milliseconds(), ExitTimeoutMS: p.ExitTimeout.Milliseconds(), Draining: a.idle.draining, Sessions: []IdleSession{}}
+	out.BackgroundSwitch = p.Origin == "desktop" && p.SessionTimeout != 0
 	if out.Origin == "" {
 		out.Origin = "manual"
 	}
@@ -259,7 +291,7 @@ func (a *Application) SweepIdle(ctx context.Context) (exit bool, err error) {
 		busy = busy || active != 0
 	}
 	for _, entry := range a.instances.entries {
-		if entry.view.State != "ended" && now.Before(entry.view.ExpiresAt) {
+		if entry.view.Client.Kind != "agent" && entry.view.State != "ended" && now.Before(entry.view.ExpiresAt) {
 			busy = true
 		}
 		for _, use := range entry.uses {
@@ -268,11 +300,12 @@ func (a *Application) SweepIdle(ctx context.Context) (exit bool, err error) {
 			}
 		}
 	}
-	if busy || a.idle.policy.ExitTimeout == 0 {
+	exitTimeout := a.idle.exitTimeoutLocked()
+	if busy || exitTimeout == 0 {
 		a.idle.exitSince = time.Time{}
 	} else if a.idle.exitSince.IsZero() {
 		a.idle.exitSince = now
-	} else if now.Sub(a.idle.exitSince) >= a.idle.policy.ExitTimeout {
+	} else if now.Sub(a.idle.exitSince) >= exitTimeout {
 		a.idle.draining = true
 		exit = true
 	}

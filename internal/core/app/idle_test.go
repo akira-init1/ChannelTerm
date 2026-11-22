@@ -117,6 +117,46 @@ func TestIdleRetainsAuthorityRecoveryAndHumanPause(t *testing.T) {
 	}
 }
 
+func TestDesktopBackgroundRetainsOnlyListenerAndIdleAgentCannotPinIt(t *testing.T) {
+	a, _, now := idleFixture(t)
+	a.idle.policy.Origin = "desktop"
+	a.idle.policy.ExitTimeout = time.Second
+	agent := controlTestClient(t, a, "CL-agent", "agent")
+	human := controlTestClient(t, a, "CL-human", "user")
+	if err := a.SetDesktopBackground(agent, true); !errors.Is(err, ErrClientPermissionDenied) {
+		t.Fatal(err)
+	}
+	if err := a.SetDesktopBackground(human, true); err != nil {
+		t.Fatal(err)
+	}
+	proof := human.Value(instanceProofKey{}).(InstanceProof)
+	if err := a.EndClientInstance(human, proof); err != nil {
+		t.Fatal(err)
+	}
+	a.leases.controls.entries = map[string]*sessionControl{"board": {view: ControlStatus{State: "human", AIPaused: true}}}
+	sweepIdle(t, a)
+	*now = now.Add(30 * time.Second)
+	if sweepIdle(t, a) || len(a.ListSessions()) != 0 {
+		t.Fatal("background retained unused device or exited")
+	}
+	sweepIdle(t, a)
+	*now = now.Add(time.Second)
+	if sweepIdle(t, a) {
+		t.Fatal("background listener exited")
+	}
+	if err := a.SetDesktopBackground(human, false); err != nil {
+		t.Fatal(err)
+	}
+	sweepIdle(t, a)
+	*now = now.Add(time.Second)
+	if !sweepIdle(t, a) {
+		t.Fatal("idle agent kept listener running")
+	}
+	if err := a.SetDesktopBackground(human, true); !errors.Is(err, ErrHostDraining) {
+		t.Fatal(err)
+	}
+}
+
 func TestIdleUseAdmissionRacesRemoval(t *testing.T) {
 	for i := 0; i < 60; i++ {
 		a, ctx, now := idleFixture(t)
@@ -302,9 +342,9 @@ func TestIdleCloseRunsOutsideAdmissionAndPreventsConcurrentExit(t *testing.T) {
 	}
 }
 
-func TestIdleDebugRegistrationRetainsSessionWithoutLease(t *testing.T) {
+func TestIdleExternalDebugRegistrationRetainsSessionOnlyWhileFresh(t *testing.T) {
 	a, ctx, now := idleFixture(t)
-	_, err := a.RegisterDebugObservation(ctx, DebugRegistration{Owner: "01234567890123456789012345678901", RequestID: "idle-debug", Name: "External debugger", Mode: "tcp", Executor: "manual", SessionID: "board", Ports: []DebugPort{{Role: "target", Configured: "127.0.0.1:2345"}}})
+	observation, err := a.RegisterDebugObservation(ctx, DebugRegistration{Owner: "01234567890123456789012345678901", RequestID: "idle-debug", Name: "External debugger", Mode: "tcp", Executor: "manual", SessionID: "board", Ports: []DebugPort{{Role: "target", Configured: "127.0.0.1:2345"}}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -312,7 +352,14 @@ func TestIdleDebugRegistrationRetainsSessionWithoutLease(t *testing.T) {
 	*now = now.Add(10 * time.Minute)
 	sweepIdle(t, a)
 	if _, ok := a.manager.Get("board"); !ok {
-		t.Fatal("unconfirmed external debugger reclaimed")
+		t.Fatal("fresh external registration reclaimed")
+	}
+	a.observations.runs[observation.ID].item.UpdatedAt = time.Now().Add(-time.Minute)
+	sweepIdle(t, a)
+	*now = now.Add(time.Minute)
+	sweepIdle(t, a)
+	if _, ok := a.manager.Get("board"); ok {
+		t.Fatal("abandoned external registration retained Session")
 	}
 }
 

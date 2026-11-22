@@ -13,10 +13,11 @@ type controlTool struct{ application *app.Application }
 
 func (*controlTool) Name() string { return "terminal_control" }
 func (*controlTool) Description() string {
-	return "Read default-on Session control or explicitly begin/renew/end a multi-call operation. Writes require a live authenticated instance and current _meta io.channelterm/control version; agent raw writes also require operation_id. Scope TTL is 30 seconds. Human user credentials with Manage may take over an exact version/operation, then explicitly allow new AI work. Takeover revokes old writes before bounded recovery; unknown external/raw execution can close the Session. Poll result with the original version/operation even after closure. An interrupted agent can call wait with its original version and operation_id until the operator allows new work or the deadline expires. Read fresh output after release. No input replay or automatic retry; a closed connection does not prove all remote processes stopped."
+	return "Read Session control or begin an operation. Agent control ends after one successful raw write or lease release. Use multi_call=true only for a sequence that needs exclusive control, then end immediately. Writes require a live authenticated instance and current _meta io.channelterm/control version; agent raw writes also require operation_id. Scope TTL is 30 seconds. Human user credentials with Manage may take over an exact version/operation, then explicitly allow new AI work. Takeover revokes old writes before bounded recovery; unknown external/raw execution can close the Session. Poll result with the original version/operation even after closure. An interrupted agent can call wait with its original version and operation_id until the operator allows new work or the deadline expires. Read fresh output after release. No input replay or automatic retry; a closed connection does not prove all remote processes stopped."
 }
 func (*controlTool) InputSchema() tool.InputSchema {
 	return tool.InputSchema{Type: "object", Properties: map[string]tool.InputProperty{
+		"multi_call":   {Type: "boolean", Description: "For begin only. Reserve a sequence across raw writes or leases. End immediately after the sequence. Default agent control ends with one successful raw write or lease release."},
 		"transport":    {Type: "string", Enum: []string{"serial", "ssh"}, Description: "Saved connection policy target."},
 		"endpoint":     {Type: "string", Description: "Exact Host endpoint for a saved connection policy."},
 		"locale":       {Type: "string", Description: "Human takeover interface language; defaults to English."},
@@ -30,6 +31,7 @@ func (*controlTool) InputSchema() tool.InputSchema {
 func (t *controlTool) Call(ctx context.Context, input json.RawMessage) (tool.Result, error) {
 	var q struct {
 		Action      string `json:"action"`
+		MultiCall   bool   `json:"multi_call"`
 		SessionID   string `json:"session_id"`
 		Locale      string `json:"locale"`
 		WaitSeconds int    `json:"wait_seconds"`
@@ -39,6 +41,9 @@ func (t *controlTool) Call(ctx context.Context, input json.RawMessage) (tool.Res
 	}
 	if err := decodeDebug(input, &q); err != nil {
 		return nil, err
+	}
+	if q.MultiCall && q.Action != "begin" {
+		return nil, errors.New("multi_call requires begin")
 	}
 	if q.Action == "policies" || q.Action == "protect_saved" || q.Action == "unprotect_saved" {
 		if q.SessionID != "" || q.Version != "" || q.OperationID != "" {
@@ -64,7 +69,11 @@ func (t *controlTool) Call(ctx context.Context, input json.RawMessage) (tool.Res
 	case "status":
 		status, err = t.application.SessionControl(ctx, q.SessionID)
 	case "begin":
-		status, err = t.application.BeginControl(ctx, q.SessionID, q.ControlProof)
+		if q.MultiCall {
+			status, err = t.application.BeginControl(ctx, q.SessionID, q.ControlProof)
+		} else {
+			status, err = t.application.BeginOperationControl(ctx, q.SessionID, q.ControlProof)
+		}
 	case "renew":
 		status, err = t.application.RenewControl(ctx, q.SessionID, q.ControlProof)
 	case "end":

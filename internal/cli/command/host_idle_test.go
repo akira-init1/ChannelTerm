@@ -21,13 +21,15 @@ func TestHostIdleDefaultsOverridesAndTemporaryOwnership(t *testing.T) {
 		session, exit           time.Duration
 		invalid                 bool
 	}{
-		{name: "manual", origin: "manual", transport: "http"},
-		{name: "desktop", origin: "desktop", transport: "http", session: 30 * time.Second},
+		{name: "manual HTTP", origin: "manual", transport: "http", session: time.Second, exit: 30 * time.Second},
+		{name: "manual stdio", origin: "manual", transport: "stdio"},
+		{name: "desktop", origin: "desktop", transport: "http", session: time.Second, exit: 3 * time.Second},
+		{name: "explicit background", origin: "desktop", transport: "http", args: []string{"--idle-exit-timeout=0s"}, session: time.Second},
 		{name: "configured keep", origin: "desktop", transport: "http", file: config.Host{IdleSessionTimeout: "0s"}},
 		{name: "explicit exit", origin: "manual", transport: "http", file: config.Host{IdleSessionTimeout: "1m", IdleExitTimeout: "2m"}, session: time.Minute, exit: 2 * time.Minute},
-		{name: "flag override", origin: "desktop", transport: "http", file: config.Host{IdleSessionTimeout: "2m"}, args: []string{"--idle-session-timeout=5s"}, session: 5 * time.Second},
+		{name: "flag override", origin: "desktop", transport: "http", file: config.Host{IdleSessionTimeout: "2m"}, args: []string{"--idle-session-timeout=5s"}, session: 5 * time.Second, exit: 3 * time.Second},
 		{name: "too short", origin: "manual", transport: "http", args: []string{"--idle-session-timeout=1ms"}, invalid: true},
-		{name: "exit without release", origin: "manual", transport: "http", args: []string{"--idle-exit-timeout=1m"}, invalid: true},
+		{name: "exit without release", origin: "manual", transport: "http", args: []string{"--idle-session-timeout=0s", "--idle-exit-timeout=1m"}, invalid: true},
 		{name: "bad config", origin: "manual", transport: "http", file: config.Host{IdleSessionTimeout: "invalid"}, invalid: true},
 		{name: "stdio", origin: "desktop", transport: "stdio", invalid: true},
 		{name: "temporary preserved", origin: "manual", transport: "http", temporary: true, file: config.Host{IdleSessionTimeout: "30s", IdleExitTimeout: "30s"}},

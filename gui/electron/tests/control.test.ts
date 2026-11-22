@@ -247,6 +247,43 @@ test("authenticated agent waits for the operator, then a protected port rejects 
     const status = async () =>
       (await human.list()).find((row) => row.session_id === s.sessionId)!
         .control!;
+    // An ordinary agent write fences its proof before the response reaches the client.
+    for (const multiCall of [false, true]) {
+      const version = (await status()).version;
+      const opened = await call("terminal_control", {
+        ...target,
+        action: "begin",
+        version,
+        ...(multiCall ? { multi_call: true } : {}),
+      });
+      const scope = object(object(opened.structuredContent).control);
+      const capture = {
+        version: text(scope.version),
+        operation_id: text(scope.operation_id),
+      };
+      const sent = await call(
+        "terminal_write",
+        { ...target, data: "\r", actor: "agent" },
+        capture,
+      );
+      assert.ok(!sent.isError);
+      assert.equal((await status()).state, multiCall ? "active" : "idle");
+      if (multiCall) {
+        const ended = await call("terminal_control", {
+          ...target,
+          action: "end",
+          ...capture,
+        });
+        assert.ok(!ended.isError);
+      } else {
+        const stale = await call(
+          "terminal_write",
+          { ...target, data: "old", actor: "agent" },
+          capture,
+        );
+        assert.equal(stale.isError, true);
+      }
+    }
     const idle = await status();
     const begin = await call("terminal_control", {
       ...target,

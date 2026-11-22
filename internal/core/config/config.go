@@ -36,7 +36,7 @@ type File struct {
 }
 
 // Host configures only persistent Host idleness. Empty values select the launch
-// default; explicit "0s" retains resources. Clients cannot change this policy.
+// default; explicit "0s" disables that timeout for a newly launched Host.
 type Host struct {
 	IdleSessionTimeout string `toml:"idle_session_timeout,omitempty"`
 	IdleExitTimeout    string `toml:"idle_exit_timeout,omitempty"`

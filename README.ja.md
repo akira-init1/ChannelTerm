@@ -384,7 +384,7 @@ GUI では [MCP クライアントの設定・修復](docs/getting-started/mcp-s
 
 ローカルの未署名[デスクトップパッケージ](docs/development/electron-gui.md#local-desktop-packages)には Electron と対応する Host/CLI が含まれ、利用者は Node や Go をインストールする必要がありません。Windows x64 の ZIP とユーザー単位のインストーラー検証を用意しています。他のネイティブ環境と実機は引き続き検証が必要です。署名とデスクトップ版の公開は未設定です。
 
-デスクトップが新規起動した Host は、未使用の Session を 30 秒後に解放し、MCP は稼働を続けます。手動起動の Host の既定動作は変わりません。登録済みの監視、実行中の操作、人による AI の一時停止は Session を保持します。[アイドルポリシーと移行](docs/reference/configuration.md#host-idle-policy)を参照してください。
+HTTP Host は既定で未使用の Session を解放し、アイドル状態が続くと終了します。MCP をバックグラウンドで待機させるには Host 設定を開いてください。 [アイドルポリシーと移行](docs/reference/configuration.md#host-idle-policy)
 
 - [シリアル端末ワークフロー](docs/getting-started/serial-terminal.md)
 - [SSH シェルワークフロー](docs/getting-started/ssh-terminal.md)
