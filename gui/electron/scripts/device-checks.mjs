@@ -26,7 +26,13 @@ export async function checkDevices(page, desktop, dialog, fixture) {
     flowControl: "none",
     label: "Must not open",
   };
-  await expect(row("COM-FIXTURE")).toContainText("USB serial identity");
+  const firstDevice = row("COM-FIXTURE");
+  const identity = firstDevice.getByText(device.id, { exact: true });
+  await expect(identity).toBeHidden();
+  await firstDevice.locator("summary").click();
+  await expect(identity).toBeVisible();
+  await expect(firstDevice).toContainText("USB serial identity");
+  await firstDevice.locator("summary").click();
   await row("COM-FIXTURE").getByRole("button").click();
   await expect(connect).toBeEnabled();
   await expect(panel.locator(".device-decision")).toContainText(
@@ -87,6 +93,26 @@ export async function checkDevices(page, desktop, dialog, fixture) {
     window.setSize(760, 500);
     return size;
   });
+  await expect.poll(() => page.evaluate(() => window.outerWidth)).toBe(760);
+  const port = await dialog.locator('[name="port"]').boundingBox();
+  const discovery = await panel.boundingBox();
+  assert.ok(
+    discovery.x > port.x + port.width,
+    "discovery beside serial fields",
+  );
+  const submit = dialog.locator('button[type="submit"]');
+  const form = dialog.locator("#new-connection-form");
+  // Check the real button before any Playwright click can scroll it into view.
+  await form.evaluate((element) => element.scrollTo(0, 0));
+  await expect(submit).toBeInViewport({ ratio: 1 });
+  const footer = await submit.boundingBox();
+  const scrolled = await form.evaluate((element) => {
+    element.scrollTop = element.scrollHeight;
+    return element.scrollTop;
+  });
+  assert.ok(scrolled > 0, "expanded content scrolls in a short window");
+  assert.deepEqual(await submit.boundingBox(), footer);
+  await form.evaluate((element) => element.scrollTo(0, 0));
   for (const locale of locales) {
     const i18n = setupI18n({ locale, messages: menuCatalogs });
     await desktop.evaluate(
@@ -95,6 +121,9 @@ export async function checkDevices(page, desktop, dialog, fixture) {
       locale,
     );
     await expect(panel).toHaveAttribute("aria-label", i18n._("devices.title"));
+    await expect(submit).toBeInViewport({ ratio: 1 });
+    if (locale === "zh-CN")
+      await dialog.screenshot({ path: "test-results/serial-discovery-zh.png" });
     await expect(panel).toContainText(i18n._("devices.boundary"));
     await expect(panel.locator(".device-decision")).toContainText(
       i18n._("devices.externalUnknown"),
@@ -106,6 +135,23 @@ export async function checkDevices(page, desktop, dialog, fixture) {
     );
   }
   await page.screenshot({ path: "test-results/device-discovery-compact.png" });
+  const zoom = await desktop.evaluate(({ BrowserWindow }) => {
+    const contents = BrowserWindow.getAllWindows()[0].webContents;
+    const previous = contents.getZoomFactor();
+    contents.setZoomFactor(1.5);
+    return previous;
+  });
+  await expect
+    .poll(async () => {
+      const port = await dialog.locator('[name="port"]').boundingBox();
+      const list = await panel.boundingBox();
+      return list.y >= port.y + port.height && list.x < port.x + port.width;
+    })
+    .toBe(true);
+  await expect(submit).toBeInViewport({ ratio: 1 });
+  await desktop.evaluate(({ BrowserWindow }, zoom) => {
+    BrowserWindow.getAllWindows()[0].webContents.setZoomFactor(zoom);
+  }, zoom);
   await desktop.evaluate(({ Menu, BrowserWindow }, size) => {
     Menu.getApplicationMenu().getMenuItemById("language.en").click();
     BrowserWindow.getAllWindows()[0].setSize(...size);

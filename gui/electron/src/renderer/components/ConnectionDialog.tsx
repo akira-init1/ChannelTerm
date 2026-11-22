@@ -9,9 +9,10 @@ import {
   type ConnectionRecord,
 } from "../../shared/connection-history";
 import { DeviceDiscovery } from "../devices/DeviceDiscovery";
-import type { DeviceSelection } from "../../shared/devices";
+import type { DeviceSelection, SerialPort } from "../../shared/devices";
 import { SSHTrustConfirmation } from "./SSHTrustConfirmation";
 import { SerialProfilesFields } from "./SerialProfiles";
+import { SerialPortInput } from "./SerialPortInput";
 import type { SerialProfile } from "../../shared/serial-profiles";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
@@ -136,7 +137,7 @@ export function ConnectionDialog({
   const submitting = useRef(false);
   const [busy, setBusy] = useState(false);
   const [scanning, setScanning] = useState(false);
-  const [ports, setPorts] = useState<string[]>([]);
+  const [ports, setPorts] = useState<SerialPort[]>();
   const [discoveryOpen, setDiscoveryOpen] = useState(false);
   const [discovery, setDiscovery] = useState<DeviceSelection>();
   const [discoveryCurrent, setDiscoveryCurrent] = useState(true);
@@ -325,19 +326,20 @@ export function ConnectionDialog({
   return (
     <dialog
       ref={dialog}
-      className="connection-dialog"
+      className="connection-dialog new-connection-dialog"
       aria-labelledby="connection-title"
       onCancel={(event) => {
         if (submitting.current) event.preventDefault();
       }}
       onClose={onClose}
     >
+      <h2 id="connection-title">{t("connection.new")}</h2>
       <form
+        id="new-connection-form"
         ref={formRef}
         onSubmit={(event) => void submit(event)}
         autoComplete="off"
       >
-        <h2 id="connection-title">{t("connection.new")}</h2>
         <fieldset disabled={busy || scanning}>
           <details className="connection-history">
             <summary>{t("history.title")}</summary>
@@ -433,31 +435,93 @@ export function ConnectionDialog({
                   setBusy(value);
                 }}
               />
-              <div key={serialRevision}>
-                <label>
-                  {t("connection.port")}
-                  <div className="connection-port">
-                    <input
-                      name="port"
-                      onChange={() => {
-                        setDiscovery(undefined);
-                        setDiscoveryCurrent(true);
-                      }}
-                      defaultValue={serialDefaults?.port ?? ""}
-                      list="serial-ports"
-                      required
-                      maxLength={512}
-                    />
-                    <button type="button" onClick={() => void scan()}>
-                      {t(scanning ? "connection.scanning" : "connection.scan")}
-                    </button>
+              <div className="serial-setup" key={serialRevision}>
+                <div>
+                  <div className="serial-port-field">
+                    <label htmlFor="serial-port">{t("connection.port")}</label>
+                    <div className="connection-port">
+                      <SerialPortInput
+                        scannedPorts={ports}
+                        t={t}
+                        onEdit={() => {
+                          setDiscovery(undefined);
+                          setDiscoveryCurrent(true);
+                        }}
+                        defaultValue={serialDefaults?.port ?? ""}
+                      />
+                      <button type="button" onClick={() => void scan()}>
+                        {t(
+                          scanning ? "connection.scanning" : "connection.scan",
+                        )}
+                      </button>
+                    </div>
                   </div>
-                </label>
-                <datalist id="serial-ports">
-                  {ports.map((port) => (
-                    <option key={port} value={port} />
-                  ))}
-                </datalist>
+                  {discovery && !discoveryCurrent && (
+                    <p>{t("devices.reselect")}</p>
+                  )}
+                  <div className="connection-grid">
+                    <label>
+                      {t("connection.baud")}
+                      <select
+                        name={baudChoice === "custom" ? "baudPreset" : "baud"}
+                        value={baudChoice}
+                        onChange={(event) => setBaudChoice(event.target.value)}
+                      >
+                        {commonBaudRates.map((rate) => (
+                          <option key={rate} value={rate}>
+                            {rate}
+                          </option>
+                        ))}
+                        <option value="custom">{t("connection.custom")}</option>
+                      </select>
+                    </label>
+                    {baudChoice === "custom" && (
+                      <label>
+                        {t("connection.customBaud")}
+                        <input
+                          name="baud"
+                          type="number"
+                          min={1}
+                          max={4000000}
+                          step={1}
+                          defaultValue={serialDefaults?.baud ?? 115200}
+                          required
+                        />
+                      </label>
+                    )}
+                  </div>
+                  <div className="connection-grid serial-framing">
+                    {select(
+                      "dataBits",
+                      "connection.dataBits",
+                      ["5", "6", "7", "8"],
+                      String(serialDefaults?.dataBits ?? 8),
+                    )}
+                    {select(
+                      "parity",
+                      "connection.parity",
+                      ["none", "odd", "even", "mark", "space"],
+                      serialDefaults?.parity ?? "none",
+                    )}
+                    {select(
+                      "stopBits",
+                      "connection.stopBits",
+                      ["1", "1.5", "2"],
+                      serialDefaults?.stopBits ?? "1",
+                    )}
+                    {select(
+                      "flowControl",
+                      "connection.flowControl",
+                      ["none", "software", "hardware"],
+                      serialDefaults?.flowControl ?? "none",
+                    )}
+                  </div>
+                  <label className="display-checkbox">
+                    <input type="checkbox" name="wake" />
+                    {t("profiles.wake")}
+                  </label>
+                  <p className="connection-hint">{t("profiles.wakeHint")}</p>
+                </div>
                 {discoveryOpen && (
                   <DeviceDiscovery
                     selection={discovery}
@@ -473,71 +537,6 @@ export function ConnectionDialog({
                     t={t}
                   />
                 )}
-                {discovery && !discoveryCurrent && (
-                  <p>{t("devices.reselect")}</p>
-                )}
-                <div className="connection-grid">
-                  <label>
-                    {t("connection.baud")}
-                    <select
-                      name={baudChoice === "custom" ? "baudPreset" : "baud"}
-                      value={baudChoice}
-                      onChange={(event) => setBaudChoice(event.target.value)}
-                    >
-                      {commonBaudRates.map((rate) => (
-                        <option key={rate} value={rate}>
-                          {rate}
-                        </option>
-                      ))}
-                      <option value="custom">{t("connection.custom")}</option>
-                    </select>
-                  </label>
-                  {baudChoice === "custom" && (
-                    <label>
-                      {t("connection.customBaud")}
-                      <input
-                        name="baud"
-                        type="number"
-                        min={1}
-                        max={4000000}
-                        step={1}
-                        defaultValue={serialDefaults?.baud ?? 115200}
-                        required
-                      />
-                    </label>
-                  )}
-                </div>
-                <div className="connection-grid">
-                  {select(
-                    "dataBits",
-                    "connection.dataBits",
-                    ["5", "6", "7", "8"],
-                    String(serialDefaults?.dataBits ?? 8),
-                  )}
-                  {select(
-                    "parity",
-                    "connection.parity",
-                    ["none", "odd", "even", "mark", "space"],
-                    serialDefaults?.parity ?? "none",
-                  )}
-                  {select(
-                    "stopBits",
-                    "connection.stopBits",
-                    ["1", "1.5", "2"],
-                    serialDefaults?.stopBits ?? "1",
-                  )}
-                  {select(
-                    "flowControl",
-                    "connection.flowControl",
-                    ["none", "software", "hardware"],
-                    serialDefaults?.flowControl ?? "none",
-                  )}
-                </div>
-                <label className="display-checkbox">
-                  <input type="checkbox" name="wake" />
-                  {t("profiles.wake")}
-                </label>
-                <p className="connection-hint">{t("profiles.wakeHint")}</p>
               </div>
             </>
           ) : (
@@ -678,28 +677,32 @@ export function ConnectionDialog({
             </label>
           )}
           {kind === "serial" && (
-            <TerminalSettingsFields t={t} value={terminalDefaults} />
+            <details>
+              <summary>{t("terminal.settings")}</summary>
+              <TerminalSettingsFields t={t} value={terminalDefaults} />
+            </details>
           )}
         </fieldset>
-        {error && <p role="alert">{t(error)}</p>}
         {kind === "ssh" && busy && <SSHTrustConfirmation t={t} />}
-        <footer>
-          <button type="button" disabled={busy} onClick={onClose}>
-            {t("connection.cancel")}
-          </button>
-          <button
-            className="primary"
-            disabled={
-              busy ||
-              scanning ||
-              (kind === "serial" && !!discovery && !discoveryCurrent)
-            }
-            type="submit"
-          >
-            {t(busy ? "connection.opening" : "connection.open")}
-          </button>
-        </footer>
       </form>
+      {error && <p role="alert">{t(error)}</p>}
+      <footer>
+        <button type="button" disabled={busy} onClick={onClose}>
+          {t("connection.cancel")}
+        </button>
+        <button
+          className="primary"
+          disabled={
+            busy ||
+            scanning ||
+            (kind === "serial" && !!discovery && !discoveryCurrent)
+          }
+          form="new-connection-form"
+          type="submit"
+        >
+          {t(busy ? "connection.opening" : "connection.open")}
+        </button>
+      </footer>
       {highlightTarget && (
         <HighlightSettings
           label={

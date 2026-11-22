@@ -218,8 +218,10 @@ Accepted input still uses xterm newline/bracketed-paste processing and Main's en
 No queued draft is replayed after a state change. Preview text is local React state, never Host history.
 
 The terminal view's semantic highlighter consumes the shared default definitions and modifies only
-the bytes sent to its xterm instance. It retains at most 8 KiB of an incomplete line, with a 50 ms
-timer releasing unknown prompts raw; blocked rendering/event-loop work can delay that timer.
+the bytes sent to its xterm instance. It retains at most 8 KiB of an incomplete line. After 50 ms
+it releases incomplete text raw, except that a possible `user@host:path` prefix of up to 256 bytes
+gets one additional 200 ms for the remaining fragments. A recognized prompt displays immediately.
+Each new tail starts its own deadline. Event-loop delays can postpone timer callbacks.
 Per-line matching is capped at 2048 candidates and 512 rendered spans; excessive/unsafe lines pass
 through raw. Split UTF-8, remote ANSI state, alternate screens and data-loss resets retain explicit
 handling. HEX bypasses this layer. Disposal cancels the timer and discards unfinished local styling.
@@ -816,7 +818,7 @@ anchors are retained; stale callbacks cannot revive cleared or disposed metadata
 local clear and disposal explicitly release anchors because xterm reset alone does not dispose them.
 
 Times are local first-observation **batch** times, never device event times. A pending presentation
-tail uses its earliest receipt, with the existing 50 ms flush deadline; mixed historical/live tails
+tail uses its earliest receipt and the highlighter's bounded flush deadline. Mixed historical/live tails
 conservatively remain unknown. Initial replay and gap recovery have no historical timestamp evidence.
 Hidden tabs continue bounded reads; delayed delivery is still observation time, not reconstructed
 arrival time. This adds no disk recording, Host monitor registration or post-exit collection.

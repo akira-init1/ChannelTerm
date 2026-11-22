@@ -19,6 +19,9 @@ const bootloader = new RegExp(
 const plainPrompt =
   /^(?:[$#>](?:[ \t]+|$)|\((?:gdb|initramfs)\)|(?:>>>|\.\.\.)(?:[ \t]+|$))/;
 const maxPending = 8192;
+// A plain shell prompt can be split anywhere in user@host:path, even in the username.
+const partialShellPrompt =
+  /^[A-Za-z0-9_.-]+(?:@[A-Za-z0-9_.-]*(?::[^\s\x00-\x1f\x7f]*)?)?$/;
 
 function style(kind: string): string {
   if (/^#[0-9a-f]{6}$/.test(kind)) {
@@ -134,6 +137,29 @@ export class SemanticHighlighter {
   private passthrough = false;
   private vt = new HighlightVT();
   private custom: HighlightRule[] = [];
+  private timer?: ReturnType<typeof setTimeout>;
+
+  constructor(private readonly onTimeout?: (tail: Uint8Array) => void) {}
+
+  private cancelTimer() {
+    clearTimeout(this.timer);
+    this.timer = undefined;
+  }
+
+  private scheduleRelease() {
+    const notify = this.onTimeout;
+    if (!notify || this.timer !== undefined || !this.hasPending) return;
+    const flush = () => notify(this.release());
+    this.timer = setTimeout(() => {
+      // Check once per pending tail. More fragments cannot keep extending its deadline.
+      if (
+        this.pending.length <= 256 &&
+        partialShellPrompt.test(String.fromCharCode(...this.pending))
+      ) {
+        this.timer = setTimeout(flush, 200);
+      } else flush();
+    }, 50);
+  }
 
   /** Flush a partial line unchanged before changing rules; retain remote VT/ANSI safety state. */
   setRules(value: readonly HighlightRule[]): Uint8Array {
@@ -149,6 +175,7 @@ export class SemanticHighlighter {
   }
 
   reset() {
+    this.cancelTimer();
     this.pending = [];
     this.rawLine = false;
     this.passthrough = false;
@@ -157,6 +184,7 @@ export class SemanticHighlighter {
 
   /** Release an unknown prompt after the view's bounded latency timer, without styling its echo. */
   release(): Uint8Array {
+    this.cancelTimer();
     const result = new Uint8Array(this.pending);
     if (result.length) this.rawLine = true;
     this.pending = [];
@@ -232,6 +260,9 @@ export class SemanticHighlighter {
       result.set(chunk, offset);
       offset += chunk.length;
     }
+    // Emitted bytes consumed the previous tail. Any remaining tail starts its own deadline.
+    if (result.length || !this.hasPending) this.cancelTimer();
+    this.scheduleRelease();
     return result;
   }
 }

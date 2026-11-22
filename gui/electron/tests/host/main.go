@@ -65,9 +65,14 @@ func run() error {
 		idle = app.IdlePolicy{SessionTimeout: time.Second, Origin: "desktop"}
 	}
 	application, err := app.New(app.Dependencies{Manager: manager,
-		Devices:         discovery.registry,
-		Idle:            idle,
-		ListSerialPorts: func() ([]serialtransport.Port, error) { return []serialtransport.Port{{Name: "COM-FIXTURE"}}, nil },
+		Devices: discovery.registry,
+		Idle:    idle,
+		ListSerialPorts: func() ([]serialtransport.Port, error) {
+			return []serialtransport.Port{
+				{Name: "COM-FIXTURE", DeviceMetadata: serialtransport.DeviceMetadata{Product: "USB-SERIAL CH340"}},
+				{Name: "COM-MOVED"},
+			}, nil
+		},
 		Serial: app.SerialDependencies{
 			ConfigPath: func() (string, error) { return filepath.Join(configDirectory, "config.toml"), nil },
 			NewSession: func(id string, c serialtransport.Config) (app.ConnectedSession, error) {

@@ -162,3 +162,49 @@ test("latency release, style changes and loss discard stale styling state withou
     "\x1b[0m\n" + error + "\n",
   );
 });
+
+test("a delayed serial prompt keeps its colors across every split and releases complete text immediately", (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const prompt = "root@ATK-ZYNQ:~# ";
+  const command = "cd /\r\n";
+  const expected = new SemanticHighlighter().write(bytes(prompt + command));
+  assert.ok(expected.includes(27));
+  for (let split = 1; split < prompt.length; split++) {
+    const output: Uint8Array[] = [];
+    const renderer = new SemanticHighlighter((tail) => output.push(tail));
+    output.push(renderer.write(bytes(prompt.slice(0, split))));
+    t.mock.timers.tick(50);
+    t.mock.timers.tick(100);
+    output.push(renderer.write(bytes(prompt.slice(split) + command)));
+    assert.deepEqual(
+      Buffer.concat(output),
+      Buffer.from(expected),
+      `split ${split}`,
+    );
+    assert.equal(renderer.hasPending, false);
+  }
+});
+
+test("latency deadlines belong to each tail and ambiguous prompt prefixes still flush", (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const flushed: string[] = [];
+  const renderer = new SemanticHighlighter((tail) => flushed.push(plain(tail)));
+  renderer.write(bytes("ordinary text "));
+  t.mock.timers.tick(49);
+  renderer.write(bytes("\r\nroot@"));
+  t.mock.timers.tick(50);
+  renderer.write(bytes("ATK-"));
+  t.mock.timers.tick(199);
+  assert.deepEqual(flushed, []);
+  t.mock.timers.tick(1);
+  assert.deepEqual(flushed, ["root@ATK-"]);
+  assert.deepEqual(renderer.write(bytes("rest\r\n")), bytes("rest\r\n"));
+  renderer.write(bytes("Password: "));
+  t.mock.timers.tick(50);
+  assert.deepEqual(flushed, ["root@ATK-", "Password: "]);
+  renderer.write(bytes("\r\nroot@"));
+  t.mock.timers.tick(50);
+  renderer.reset();
+  t.mock.timers.tick(250);
+  assert.equal(flushed.length, 2);
+});

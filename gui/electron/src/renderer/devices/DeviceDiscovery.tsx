@@ -108,7 +108,6 @@ export function DeviceDiscovery({
           {t("devices.hide")}
         </button>
       </div>
-      <p className="connection-hint">{t("devices.boundary")}</p>
       {error && <p role="alert">{t(error)}</p>}
       {stale && <p>{t("devices.stale")}</p>}
       {!stale && !snapshot.rows.length && <p>{t("devices.empty")}</p>}
@@ -122,7 +121,7 @@ export function DeviceDiscovery({
           >
             <div className="device-heading">
               <strong>{device.endpoint}</strong>
-              <span>
+              <span className="device-presence">
                 {t(
                   stale
                     ? "devices.unknown"
@@ -131,17 +130,22 @@ export function DeviceDiscovery({
                       : "devices.absent",
                 )}
               </span>
+              <button
+                type="button"
+                disabled={
+                  stale ||
+                  !device.present ||
+                  device.transport !== "serial" ||
+                  !device.id
+                }
+                onClick={() =>
+                  onSelect({ deviceId: device.id, endpoint: device.endpoint })
+                }
+              >
+                {t("devices.select")}
+              </button>
             </div>
-            <p>
-              {device.product || device.manufacturer || device.transport} ·{" "}
-              {t(`devices.identity.${device.identity}`)} ·{" "}
-              {t(
-                device.persistent
-                  ? "devices.persistent"
-                  : "devices.runtimeOnly",
-              )}
-            </p>
-            <code>{device.id || t("devices.unknown")}</code>
+            <p>{device.product || device.manufacturer || device.transport}</p>
             {device.previousEndpoint && (
               <p>
                 {t("devices.previous")}: {device.previousEndpoint}
@@ -149,6 +153,15 @@ export function DeviceDiscovery({
             )}
             <details>
               <summary>{t("devices.details")}</summary>
+              <p>
+                {t(`devices.identity.${device.identity}`)} ?{" "}
+                {t(
+                  device.persistent
+                    ? "devices.persistent"
+                    : "devices.runtimeOnly",
+                )}
+              </p>
+              <code>{device.id || t("devices.unknown")}</code>
               <dl>
                 <dt>VID / PID</dt>
                 <dd>
@@ -162,20 +175,6 @@ export function DeviceDiscovery({
                 <dd>{device.lastSeen}</dd>
               </dl>
             </details>
-            <button
-              type="button"
-              disabled={
-                stale ||
-                !device.present ||
-                device.transport !== "serial" ||
-                !device.id
-              }
-              onClick={() =>
-                onSelect({ deviceId: device.id, endpoint: device.endpoint })
-              }
-            >
-              {t("devices.select")}
-            </button>
           </li>
         ))}
       </ul>
@@ -211,6 +210,7 @@ export function DeviceDiscovery({
           <p className="connection-hint">{t("devices.explicit")}</p>
         </div>
       )}
+      <p className="connection-hint">{t("devices.boundary")}</p>
     </section>
   );
 }

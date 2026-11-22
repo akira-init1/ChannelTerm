@@ -249,9 +249,6 @@ export function TerminalView({
 
   useEffect(() => {
     const presentation = new TerminalPresentation(settings);
-    const styling = new SemanticHighlighter();
-    styling.setRules(highlightRules);
-    let pendingTimer: ReturnType<typeof setTimeout> | undefined;
     const terminal = new Terminal({
       cursorBlink: true,
       fontFamily: `${display.fontFamily}, monospace`,
@@ -376,15 +373,17 @@ export function TerminalView({
       if (visibility.current) geometry.schedule(cols, rows);
     });
     if (visibility.current) geometry.schedule(terminal.cols, terminal.rows);
-    const releasePending = () => {
+    const writeTail = (tail: Uint8Array) => {
       if (stopped) return;
-      const tail = styling.release();
       if (tail.length) {
         writeObserved(tail, tailReceipt);
         tailPending = false;
         tailReceipt = undefined;
       }
     };
+    const styling = new SemanticHighlighter(writeTail);
+    styling.setRules(highlightRules);
+    const releasePending = () => writeTail(styling.release());
     releasePresentation.current = releasePending;
     changeHighlightRules.current = (rules) => {
       releasePending();
@@ -481,8 +480,6 @@ export function TerminalView({
             tailReceipt = undefined;
             presentation.reset();
             styling.reset();
-            clearTimeout(pendingTimer);
-            pendingTimer = undefined;
             callbacks.current.onDropped();
           }
           if (output.data.length) {
@@ -506,11 +503,6 @@ export function TerminalView({
               );
               tailPending = styling.hasPending;
               tailReceipt = tailPending ? receipt : undefined;
-              if (tailPending && pendingTimer === undefined)
-                pendingTimer = setTimeout(() => {
-                  pendingTimer = undefined;
-                  releasePending();
-                }, 50);
             }
             await new Promise<void>((done) => {
               finishRender = done;
@@ -528,7 +520,7 @@ export function TerminalView({
     })();
     return () => {
       stopped = true;
-      clearTimeout(pendingTimer);
+      styling.reset();
       finishRender?.();
       resize.disconnect();
       geometry.dispose();

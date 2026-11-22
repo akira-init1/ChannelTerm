@@ -148,7 +148,10 @@ test("GUI opens serial and SSH through real Host authority, preserves failed tar
   try {
     assert.equal((await client.connect()).sshAvailable, true);
     await observer.connect();
-    assert.deepEqual(await client.serialPorts(), ["COM-FIXTURE"]);
+    assert.deepEqual(await client.serialPorts(), [
+      { name: "COM-FIXTURE", product: "USB-SERIAL CH340" },
+      { name: "COM-MOVED", product: "" },
+    ]);
     const opening = client.openConnection(serial);
     await assert.rejects(client.openConnection(serial), { code: "busy" });
     const opened = await opening;

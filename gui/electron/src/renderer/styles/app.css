@@ -208,6 +208,52 @@ p {
   display: flex;
   gap: 8px;
 }
+.serial-port-field {
+  margin-bottom: 12px;
+}
+.serial-port-field label {
+  margin-bottom: 5px;
+}
+.serial-port-picker {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+}
+.serial-port-picker::after {
+  content: "";
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  border: solid transparent;
+  border-width: 5px 4px 0;
+  border-top-color: var(--muted);
+  pointer-events: none;
+}
+.serial-port-picker input {
+  padding-right: 24px;
+}
+.serial-port-picker [role="listbox"] {
+  position: absolute;
+  z-index: 2;
+  inset: 100% 0 auto;
+  margin: 2px 0 0;
+  padding: 2px;
+  list-style: none;
+  max-height: 9rem;
+  overflow: auto;
+  overflow-wrap: anywhere;
+  color: var(--foreground);
+  background: var(--panel-background);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+.serial-port-picker li {
+  padding: 5px 8px;
+}
+.serial-port-picker [role="option"]:is(:hover, [aria-selected="true"]) {
+  background: var(--selection);
+  cursor: pointer;
+}
 .connection-dialog .display-checkbox {
   display: flex;
   align-items: center;
@@ -239,6 +285,39 @@ p {
 .connection-dialog [role="alert"] {
   color: #f3b6a6;
   line-height: 1.5;
+}
+.new-connection-dialog[open] {
+  display: flex;
+  flex-direction: column;
+  width: 860px;
+  overflow: hidden;
+}
+.new-connection-dialog > form {
+  min-height: 0;
+  overflow: auto;
+  scrollbar-gutter: stable;
+}
+.new-connection-dialog > footer {
+  flex: none;
+  padding-top: 10px;
+  margin-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.new-connection-dialog fieldset {
+  min-inline-size: 0;
+}
+.serial-setup {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  align-items: start;
+  gap: 0 16px;
+}
+.serial-setup > div {
+  min-width: 0;
+}
+.serial-framing {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
+  row-gap: 0;
 }
 .workspace {
   min-height: 0;
@@ -1657,7 +1736,7 @@ main {
 }
 
 .device-discovery {
-  margin: 12px 0;
+  margin: 0 0 12px;
   padding: 10px;
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -1675,6 +1754,7 @@ main {
 }
 .device-observations {
   list-style: none;
+  margin: 6px 0 0;
   padding: 0;
   max-height: 240px;
   overflow: auto;
@@ -1697,8 +1777,11 @@ main {
 .device-discovery dd {
   margin: 0 0 6px;
 }
-.device-heading span {
+.device-heading button {
   margin-left: auto;
+}
+.device-presence {
+  color: var(--muted);
 }
 .device-decision {
   border-top: 1px solid var(--border);

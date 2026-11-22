@@ -16,6 +16,7 @@ import {
   type DeviceSelection,
   type DeviceDecision,
   type DiscoverySnapshot,
+  type SerialPort,
 } from "../../shared/devices";
 import { discoverySnapshot, deviceDecision } from "./devices";
 import type { DebugPayload } from "../../shared/debug-send";
@@ -691,14 +692,25 @@ export class HostClient {
       throw incompatible();
   }
 
-  async serialPorts(): Promise<string[]> {
+  async serialPorts(): Promise<SerialPort[]> {
     const result = await this.call("terminal_list_serial_ports", {});
     if (!Array.isArray(result.ports) || result.ports.length > 10000)
       throw incompatible();
     return result.ports.map((port) => {
-      const name = text(object(port).name);
+      const entry = object(port);
+      const name = text(entry.name);
       identifier(name);
-      return name;
+      // Missing or unusable display metadata must not hide a valid endpoint.
+      const product = entry.product;
+      return {
+        name,
+        product:
+          typeof product === "string" &&
+          product.length <= 512 &&
+          !/[\x00-\x1f\x7f]/.test(product)
+            ? product.trim()
+            : "",
+      };
     });
   }
 

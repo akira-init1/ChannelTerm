@@ -16,7 +16,15 @@ explicit overwrite opt-in, and set an existing profile as default. Profiles shar
 configuration, not GUI preferences. Applying a profile resets wake to off; sending the wake carriage
 return requires a fresh checkbox selection. See [profile semantics](gui-host-api.md#serial-profiles).
 
-**Scan ports** also opens **Device discovery**. While visible, it refreshes read-only Host observations
+Click the serial **Port** field once to list available ports, or type an endpoint manually.
+Suggestions show the endpoint and the product name reported by the Host, for example
+`COM8 — USB-SERIAL CH340`. Ports without a product name show just the endpoint.
+Typing filters by either name. Choosing a suggestion fills in only the endpoint.
+Press **Connect** to open it.
+**Connect** and **Cancel** stay below the scrollable form. Serial encoding, view mode and description
+are under **Terminal settings**. **Scan ports** opens **Device discovery** beside the serial fields
+when space permits, or below them in a narrow window. Expand **Device details** for the identity
+type, device ID and USB metadata. While visible, discovery refreshes read-only Host observations
 and shows presence/disappearance, persistent USB-serial or USB-location identity, runtime/unknown
 identity, metadata and previous endpoints. Selecting a row shows the Host's policy, decision and
 existing Session when known; selection never connects. Press **Connect** explicitly. A changed ID,

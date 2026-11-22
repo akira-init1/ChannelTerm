@@ -4,6 +4,7 @@ import type {
   DeviceSelection,
   DeviceDecision,
   DiscoverySnapshot,
+  SerialPort,
 } from "./devices";
 import type { DebugOverview } from "./debug";
 import type { RecordingRequest, RecordingStatus } from "./logging";
@@ -232,7 +233,7 @@ export interface DesktopAPI {
   list(): Promise<Result<SessionSummary[]>>;
   serialProfiles(): Promise<Result<SerialProfiles>>;
   changeSerialProfile(request: SerialProfileChange): Promise<Result<void>>;
-  serialPorts(): Promise<Result<string[]>>;
+  serialPorts(): Promise<Result<SerialPort[]>>;
   devices(): Promise<Result<DiscoverySnapshot>>;
   deviceDecision(selection: DeviceSelection): Promise<Result<DeviceDecision>>;
   sshTrustPrompt(): Promise<Result<SSHTrustPrompt | undefined>>;

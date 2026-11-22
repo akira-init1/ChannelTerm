@@ -94,13 +94,40 @@ export async function checkConnections(
     await expect(dialog.locator('[name="baud"]')).toHaveValue("123456");
     await baud.selectOption("115200");
     await expect(customBaud).toHaveCount(0);
+    const port = dialog.getByRole("combobox", { name: "Port", exact: true });
+    await port.click();
+    const candidate = dialog.getByRole("option", {
+      name: "COM-FIXTURE — USB-SERIAL CH340",
+      exact: true,
+    });
+    await expect(candidate).toBeInViewport();
+    await expect(
+      dialog.getByRole("option", { name: "COM-MOVED", exact: true }),
+    ).toBeVisible();
+    await candidate.click();
+    await expect(port).toHaveValue("COM-FIXTURE");
+    await expect(port).toHaveAttribute("aria-expanded", "false");
+    await expect(dialog.locator(".device-discovery")).toHaveCount(0);
+    assert.equal((await fixture.command("device-open-count")).data, "0");
+    await port.fill("MANUAL");
+    await port.press("Escape");
+    await expect(port).toHaveValue("MANUAL");
+    await port.click();
+    await expect(candidate).toBeVisible();
+    await port.fill("ch340");
+    await expect(candidate).toBeVisible();
+    await expect(
+      dialog.getByRole("option", { name: "COM-MOVED", exact: true }),
+    ).toHaveCount(0);
+    await port.press("ArrowDown");
+    await port.press("Enter");
+    await expect(port).toHaveValue("COM-FIXTURE");
     await dialog
       .getByRole("button", { name: "Scan ports", exact: true })
       .click();
-    await expect(dialog.locator("datalist option")).toHaveAttribute(
-      "value",
-      "COM-FIXTURE",
-    );
+    await port.click();
+    await expect(candidate).toBeVisible();
+    await port.press("Escape");
     await checkDevices(page, desktop, dialog, fixture);
     await dialog.locator('[name="port"]').fill("MISSING");
     await dialog.getByRole("button", { name: "Connect", exact: true }).click();
@@ -165,6 +192,7 @@ export async function checkConnections(
     await page.screenshot({ path: "test-results/serial-profiles.png" });
     await dialog.locator(".serial-profiles summary").click();
     await dialog.locator('[name="label"]').fill("Created serial");
+    await dialog.getByText("Terminal settings", { exact: true }).click();
     await dialog.locator('[name="encoding"]').selectOption("gbk");
     await dialog.locator('[name="description"]').fill("Local board console");
     await page.screenshot({ path: "test-results/connection-serial.png" });

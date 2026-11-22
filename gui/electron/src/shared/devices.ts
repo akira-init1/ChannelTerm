@@ -1,3 +1,9 @@
+/** Native endpoint and best-effort product name from one Host enumeration. */
+export interface SerialPort {
+  name: string;
+  product: string;
+}
+
 /** Host-assigned identity and last successful observation; endpoints are not durable IDs. */
 export interface DiscoveredDevice {
   id: string;
