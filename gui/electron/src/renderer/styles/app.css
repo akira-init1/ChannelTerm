@@ -1916,6 +1916,9 @@ main {
 .terminal-directory {
   padding: 0 8px 6px;
 }
+.sessions-directory {
+  flex: 1 0 auto;
+}
 .terminal-directory:has(.directory-protocol) {
   container-type: inline-size;
 }

@@ -1022,8 +1022,18 @@ msgstr "Перейти в терминал"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "directory.folderFailed"
+msgstr "Не удалось создать папку. Укажите уникальное имя длиной от 1 до 128 символов. Можно создать до 256 папок."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "directory.folderHint"
 msgstr "Выберите или введите имя папки. Оставьте поле пустым, чтобы переместить подключение из папки."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.folderName"
+msgstr "Имя папки"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -1034,6 +1044,16 @@ msgstr "Локальная сеть"
 #: src/shared/menu-messages.ts
 msgid "directory.moveFolder"
 msgstr "Переместить в папку…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.newFolder"
+msgstr "Новая папка"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.newSession"
+msgstr "Новый сеанс"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

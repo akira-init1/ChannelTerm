@@ -5,6 +5,8 @@ import {
   connectionHistoryKey,
   connectionHighlightsChanged,
   editConnection,
+  isFolderName,
+  readDirectoryFolders,
   maxConnectionHistoryLength,
   restoreConnections,
   type DirectoryEdit,
@@ -32,7 +34,7 @@ import type { PopupEntry } from "../components/WorkbenchMenu";
 import {
   DirectoryEditDialog,
   directoryLabels,
-  type DirectoryDialogAction,
+  type DirectoryEditor,
 } from "./DirectoryEditDialog";
 import { ProtocolFilter } from "./ProtocolFilter";
 import type { ConnectionRequest } from "../../shared/connections";
@@ -49,6 +51,7 @@ export function TerminalDirectory({
   t,
   visible,
   orderScope,
+  folderScope,
   rows,
   localSessionIds,
   history,
@@ -66,6 +69,7 @@ export function TerminalDirectory({
   t: (id: string) => string;
   visible: boolean;
   orderScope: string;
+  folderScope?: string;
   rows: OpenTabRow[];
   localSessionIds: ReadonlyMap<string, string>;
   history: ConnectionRecord[];
@@ -92,6 +96,9 @@ export function TerminalDirectory({
   const [error, setError] = useState("");
   const filter = useDirectoryFilter();
   const storageKey = "channelterm.directory-order.v1:" + orderScope;
+  const folderKey =
+    folderScope && "channelterm.directory-folders.v1:" + folderScope;
+  const [createdFolders, setCreatedFolders] = useState<string[]>([]);
   const [order, setOrder] = useState<string[]>([]);
   const dragging = useRef("");
   const [dropMark, setDropMark] = useState("");
@@ -111,12 +118,50 @@ export function TerminalDirectory({
     window.addEventListener("storage", changed);
     return () => window.removeEventListener("storage", changed);
   }, [storageKey]);
+  useEffect(() => {
+    function loadFolders() {
+      try {
+        setCreatedFolders(
+          folderKey
+            ? readDirectoryFolders(localStorage.getItem(folderKey))
+            : [],
+        );
+      } catch {
+        setCreatedFolders([]);
+        setError("workspace.storageError");
+      }
+    }
+    function changed(e: StorageEvent) {
+      if (e.key === folderKey || e.key === null) loadFolders();
+    }
+    loadFolders();
+    window.addEventListener("storage", changed);
+    return () => window.removeEventListener("storage", changed);
+  }, [folderKey]);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [protocol, setProtocol] = useState<ConnectionRequest["kind"]>();
-  const [editor, setEditor] = useState<{
-    action: DirectoryDialogAction;
-    profile: ConnectionRecord;
-  }>();
+  const [editor, setEditor] = useState<DirectoryEditor>();
+  async function createFolder(name: string) {
+    if (!folderKey || !isFolderName(name) || folders.includes(name))
+      return false;
+    try {
+      // Windows share local storage. Serialize the read and insert so simultaneous creates survive.
+      return await navigator.locks.request(folderKey, () => {
+        const names = readDirectoryFolders(localStorage.getItem(folderKey));
+        if (names.includes(name) || names.length >= 256) return false;
+        const next = [...names, name];
+        localStorage.setItem(folderKey, JSON.stringify(next));
+        setCreatedFolders(next);
+        if (!filter.matchesText(name)) filter.setQuery("");
+        filter.setStatus("all");
+        setProtocol(undefined);
+        return true;
+      });
+    } catch {
+      setError("workspace.storageError");
+      return false;
+    }
+  }
   function edit(
     profile: ConnectionRecord,
     action: DirectoryEdit,
@@ -242,9 +287,12 @@ export function TerminalDirectory({
   const protocols = (["serial", "ssh"] as const).filter((kind) =>
     [...groups.values()].some((g) => g.transport === kind),
   );
-  const folders = [
-    ...new Set(history.flatMap((p) => (p.folder ? [p.folder] : []))),
-  ].sort((a, b) => a.localeCompare(b));
+  const assignedFolders = new Set(
+    history.flatMap((p) => (p.folder ? [p.folder] : [])),
+  );
+  const folders = [...new Set([...assignedFolders, ...createdFolders])].sort(
+    (a, b) => a.localeCompare(b),
+  );
   const shown = keys.filter((key) => {
     const g = groups.get(key)!;
     return (
@@ -470,8 +518,38 @@ export function TerminalDirectory({
     );
   }
   const unfiled = shown.filter((key) => !groups.get(key)?.profile?.folder);
+  const showEmptyFolder = (folder: string) =>
+    !assignedFolders.has(folder) &&
+    !protocol &&
+    filter.status === "all" &&
+    filter.matchesText(folder);
   return (
-    <nav className="terminal-directory" aria-label={t("workbench.sessions")}>
+    <nav
+      className="terminal-directory sessions-directory"
+      aria-label={t("workbench.sessions")}
+      tabIndex={0}
+      onContextMenu={(event) => {
+        if (
+          !(event.target instanceof Element) ||
+          (event.target !== event.currentTarget &&
+            !event.target.classList.contains("empty-list"))
+        )
+          return;
+        onContext(event, undefined, [
+          {
+            id: "directory.newSession",
+            label: "directory.newSession",
+            action: { id: "connection.new" },
+          },
+          {
+            id: "directory.newFolder",
+            label: "directory.newFolder",
+            enabled: !!folderKey,
+            onChoose: () => setEditor({ action: "newFolder" }),
+          },
+        ]);
+      }}
+    >
       <h2>{t("workbench.sessions")}</h2>
       <DirectoryFilter t={t} filter={filter} />
       <ProtocolFilter
@@ -481,7 +559,7 @@ export function TerminalDirectory({
         selected={protocol}
         onSelect={setProtocol}
       />
-      {!shown.length && (
+      {!shown.length && !folders.some(showEmptyFolder) && (
         <p className="empty-list">
           {t(
             filter.active || protocol ? "workbench.noMatch" : "directory.empty",
@@ -493,7 +571,7 @@ export function TerminalDirectory({
           (key) => groups.get(key)?.profile?.folder === folder,
         );
         return (
-          members.length > 0 && (
+          (members.length > 0 || showEmptyFolder(folder)) && (
             <details open className="directory-folder" key={folder}>
               <summary>
                 <Icon name="folder" /> {folder}{" "}
@@ -511,7 +589,11 @@ export function TerminalDirectory({
           t={t}
           folders={folders}
           onClose={() => setEditor(undefined)}
-          onSave={(value) => edit(editor.profile, editor.action, value)}
+          onSave={(value) =>
+            editor.action === "newFolder"
+              ? createFolder(value)
+              : edit(editor.profile, editor.action, value)
+          }
         />
       )}
       {error && <p role="alert">{t(error)}</p>}

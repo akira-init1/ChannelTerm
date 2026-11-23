@@ -5,8 +5,12 @@ import {
 } from "../../shared/connection-history";
 
 export type DirectoryDialogAction = "folder" | "copy" | "forget";
+export type DirectoryEditor =
+  | { action: DirectoryDialogAction; profile: ConnectionRecord }
+  | { action: "newFolder"; profile?: never };
 
 export const directoryLabels = {
+  newFolder: "directory.newFolder",
   folder: "directory.moveFolder",
   copy: "directory.copy",
   forget: "history.remove",
@@ -19,11 +23,9 @@ export function DirectoryEditDialog({
   onSave,
   onClose,
   t,
-}: {
-  action: DirectoryDialogAction;
-  profile: ConnectionRecord;
+}: DirectoryEditor & {
   folders: string[];
-  onSave: (value: string) => boolean;
+  onSave: (value: string) => boolean | Promise<boolean>;
   onClose: () => void;
   t: (id: string) => string;
 }) {
@@ -32,6 +34,7 @@ export function DirectoryEditDialog({
     action === "folder" ? (profile.folder ?? "") : "",
   );
   const [failed, setFailed] = useState(false);
+  const [saving, setSaving] = useState(false);
   useEffect(() => {
     const element = dialog.current!;
     element.showModal();
@@ -46,27 +49,36 @@ export function DirectoryEditDialog({
       onCancel={onClose}
     >
       <form
-        onSubmit={(event) => {
+        onSubmit={async (event) => {
           event.preventDefault();
-          if (onSave(value.trim())) onClose();
+          if (saving) return;
+          setSaving(true);
+          if (await onSave(value.trim())) onClose();
           else setFailed(true);
+          setSaving(false);
         }}
       >
         <h2>{title}</h2>
-        <p>
-          {[profile.request.label, presetEndpoint(profile.request)]
-            .filter(Boolean)
-            .join(" · ")}
-        </p>
+        {profile && (
+          <p>
+            {[profile.request.label, presetEndpoint(profile.request)]
+              .filter(Boolean)
+              .join(" · ")}
+          </p>
+        )}
         {action !== "forget" && (
           <label>
             {t(
-              action === "folder" ? "directory.folderHint" : "connection.label",
+              action === "folder"
+                ? "directory.folderHint"
+                : action === "newFolder"
+                  ? "directory.folderName"
+                  : "connection.label",
             )}
             <input
               autoFocus
               maxLength={128}
-              required={action === "copy"}
+              required={action === "copy" || action === "newFolder"}
               value={value}
               list={action === "folder" ? "directory-folder-names" : undefined}
               onChange={(e) => {
@@ -83,9 +95,19 @@ export function DirectoryEditDialog({
             ))}
           </datalist>
         )}
-        {failed && <p role="alert">{t("directory.editFailed")}</p>}
-        <button type="submit">
-          {action === "forget" ? title : t("connection.savePreset")}
+        {failed && (
+          <p role="alert">
+            {t(
+              action === "newFolder"
+                ? "directory.folderFailed"
+                : "directory.editFailed",
+            )}
+          </p>
+        )}
+        <button type="submit" disabled={saving}>
+          {action === "forget" || action === "newFolder"
+            ? title
+            : t("connection.savePreset")}
         </button>
         <button type="button" autoFocus={action === "forget"} onClick={onClose}>
           {t("connection.cancel")}

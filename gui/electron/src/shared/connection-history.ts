@@ -143,7 +143,7 @@ export function recordConnection(
     .slice(0, 50);
 }
 
-function isFolderName(value: unknown): value is string {
+export function isFolderName(value: unknown): value is string {
   return (
     typeof value === "string" &&
     value.length > 0 &&
@@ -151,6 +151,23 @@ function isFolderName(value: unknown): value is string {
     value === value.trim() &&
     !/[\x00-\x1f\x7f]/.test(value)
   );
+}
+
+/** Explicitly created folders can exist without a saved connection. */
+export function readDirectoryFolders(raw: string | null): string[] {
+  if (!raw || raw.length > 262144) return [];
+  try {
+    const names: unknown = JSON.parse(raw);
+    if (
+      Array.isArray(names) &&
+      names.length <= 256 &&
+      names.every(isFolderName)
+    )
+      return [...new Set<string>(names)];
+  } catch {
+    // Older profiles have no explicit folders; corrupt data has the same fallback.
+  }
+  return [];
 }
 
 export type DirectoryEdit =

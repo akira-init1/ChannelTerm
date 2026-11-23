@@ -314,7 +314,9 @@ rules; [terminal display](gui-menus.md#terminal-display) owns font bounds and pe
 Neither setting changes Host configuration, serial framing, Session metadata or terminal output.
 
 A desktop connection preset may include a local folder name of up to 128 UTF-16 code units.
-Older records open at the top level. The [terminal directory](gui-menus.md#terminal-directory-and-naming)
+Older records open at the top level. The desktop profile stores up to 256 explicitly created folder
+names separately under `channelterm.directory-folders.v1:local`. Trusted peer windows keep their
+own list per peer endpoint. The [terminal directory](gui-menus.md#terminal-directory-and-naming)
 describes folder membership and protocol filters.
 
 ## SSH CLI settings

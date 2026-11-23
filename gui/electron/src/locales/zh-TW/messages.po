@@ -1022,8 +1022,18 @@ msgstr "前往終端機"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "directory.folderFailed"
+msgstr "無法新增資料夾。請輸入 1 至 128 個字元且不重複的名稱，最多可新增 256 個資料夾。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "directory.folderHint"
 msgstr "選擇或輸入資料夾名稱。留空可移出資料夾。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.folderName"
+msgstr "資料夾名稱"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -1034,6 +1044,16 @@ msgstr "區域網路"
 #: src/shared/menu-messages.ts
 msgid "directory.moveFolder"
 msgstr "移至資料夾…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.newFolder"
+msgstr "新增資料夾"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.newSession"
+msgstr "新增工作階段"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

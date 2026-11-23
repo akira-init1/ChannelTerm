@@ -8,6 +8,22 @@ import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/
 import { HostClient } from "../src/main/host/client.ts";
 import { startFixture } from "../tests/fixture.ts";
 
+async function openDirectoryBackground(page) {
+  const sidebar = page.locator(
+    "#session-sidebar .session-sidebar-content:visible",
+  );
+  const bounds = await sidebar.boundingBox();
+  assert.ok(bounds);
+  await page.mouse.click(
+    bounds.x + bounds.width / 2,
+    bounds.y + bounds.height - 12,
+    { button: "right" },
+  );
+  const menu = page.locator("#workbench-menu");
+  await expect(menu.getByRole("menuitem")).toHaveCount(2);
+  return menu;
+}
+
 /** Real isolated Hosts deliberately publish the same Session ID and short reference. */
 export async function checkDirectory(environment) {
   const local = await startFixture(),
@@ -48,6 +64,29 @@ export async function checkDirectory(environment) {
       env,
     });
     const page = await desktop.firstWindow();
+    await expect(
+      page.getByRole("button", { name: /Connect to Host/ }),
+    ).toBeVisible();
+    const background = await openDirectoryBackground(page);
+    await expect(
+      background.getByRole("menuitem", { name: "New Session" }),
+    ).toBeDisabled();
+    await background.getByRole("menuitem", { name: "New Folder" }).click();
+    const createFolder = page.getByRole("dialog", { name: "New Folder" });
+    await createFolder.getByRole("textbox").fill("Bench");
+    await createFolder.getByRole("button", { name: "New Folder" }).click();
+    await expect(page.locator(".directory-folder summary")).toContainText(
+      "Bench (0)",
+    );
+    await (
+      await openDirectoryBackground(page)
+    )
+      .getByRole("menuitem", { name: "New Folder" })
+      .click();
+    await createFolder.getByRole("textbox").fill("Bench");
+    await createFolder.getByRole("button", { name: "New Folder" }).click();
+    await expect(createFolder.getByRole("alert")).toBeVisible();
+    await createFolder.getByRole("button", { name: "Cancel" }).click();
     await page.getByRole("button", { name: /Connect to Host/ }).click();
     await chooseSession(page, undefined, "electron-fixture");
     await expect(page.locator(".xterm-screen")).toBeVisible();
@@ -58,8 +97,12 @@ export async function checkDirectory(environment) {
         id,
       );
     };
-    // Use the existing connection menu, save fake COM8, then share the selected Session.
-    await native("connection.new");
+    // The background action uses the regular connection form and Host checks.
+    await (
+      await openDirectoryBackground(page)
+    )
+      .getByRole("menuitem", { name: "New Session" })
+      .click();
     const dialog = page.locator(".new-connection-dialog");
     await dialog.locator('[name="port"]').fill("COM8");
     await dialog.locator('[name="label"]').fill("Board");
@@ -178,6 +221,17 @@ export async function checkDirectory(environment) {
     const openedWindow = desktop.waitForEvent("window");
     await native("window.new");
     const second = await openedWindow;
+    await (
+      await openDirectoryBackground(second)
+    )
+      .getByRole("menuitem", { name: "New Folder" })
+      .click();
+    const spareFolder = second.getByRole("dialog", { name: "New Folder" });
+    await spareFolder.getByRole("textbox").fill("Spare");
+    await spareFolder.getByRole("button", { name: "New Folder" }).click();
+    await expect(
+      page.locator(".directory-folder summary").filter({ hasText: "Spare" }),
+    ).toContainText("(0)");
     const sameConnection = second
       .locator(".connection-card")
       .filter({ hasText: "COM8" });
@@ -204,6 +258,15 @@ export async function checkDirectory(environment) {
       "会话",
     );
     await page.screenshot({ path: "test-results/session-rail-zh.png" });
+    const zhBackground = await openDirectoryBackground(page);
+    await expect(zhBackground.getByRole("menuitem")).toHaveText([
+      "新建会话",
+      "新建文件夹",
+    ]);
+    await zhBackground.screenshot({
+      path: "test-results/directory-background-zh.png",
+    });
+    await page.keyboard.press("Escape");
     await native("language.en");
     await expect(
       page.locator(".terminal-directory").filter({ hasText: "Lab" }),
@@ -392,9 +455,14 @@ export async function checkDirectory(environment) {
     await otherCard.locator(".session").click({ button: "right" });
     await page.getByRole("menuitem", { name: "Move to folder…" }).click();
     const folderDialog = page.getByRole("dialog", { name: "Move to folder…" });
+    await expect(
+      folderDialog.locator("datalist option[value=Bench]"),
+    ).toHaveCount(1);
     await folderDialog.getByRole("combobox").fill("Bench");
     await folderDialog.getByRole("button", { name: "Save connection" }).click();
-    await expect(page.locator(".directory-folder")).toContainText("in-memory");
+    await expect(
+      page.locator(".directory-folder").filter({ hasText: "Bench" }),
+    ).toContainText("in-memory");
     await desktop.close();
     desktop = await electron.launch({
       args: ["-r", preload, "--lang=en-US", "."],
@@ -402,10 +470,14 @@ export async function checkDirectory(environment) {
     });
     const restarted = await desktop.firstWindow();
     await expect(restarted.locator(".connection-card")).toHaveCount(2);
-    await expect(restarted.locator(".directory-folder")).toContainText("Bench");
-    await expect(restarted.locator(".directory-folder")).toContainText(
-      "in-memory",
-    );
+    await expect(
+      restarted
+        .locator(".directory-folder summary")
+        .filter({ hasText: "Spare" }),
+    ).toContainText("(0)");
+    await expect(
+      restarted.locator(".directory-folder").filter({ hasText: "Bench" }),
+    ).toContainText("in-memory");
     await expect(restarted.locator(".connection-card").last()).toContainText(
       "COM8",
     );
@@ -439,12 +511,11 @@ export async function checkDirectory(environment) {
     await expect(
       protocol.locator("li").filter({ hasText: "Build SSH" }),
     ).toBeVisible();
-    await restarted.locator(".terminal-directory:visible").screenshot({
-      path: "test-results/directory-protocol-preview.png",
+    const sshProtocol = protocol.getByRole("button", {
+      name: "SSH (1)",
+      exact: true,
     });
-    await protocol
-      .getByRole("button", { name: "SSH (1)", exact: true })
-      .click();
+    await sshProtocol.click();
     await expect(restarted.locator(".connection-card")).toHaveCount(1);
     const search = restarted.getByRole("searchbox");
     await search.fill("COM8");
@@ -452,7 +523,15 @@ export async function checkDirectory(environment) {
     await search.fill("");
     await protocolButton.focus();
     await protocolButton.press("Enter");
-    await protocol.getByRole("button", { name: "All protocols" }).click();
+    const allProtocols = protocol.getByRole("button", {
+      name: "All protocols",
+    });
+    // Native screenshot capture can move the pointer. Keep keyboard focus inside the preview.
+    await allProtocols.focus();
+    await protocol
+      .locator(".protocol-options")
+      .screenshot({ path: "test-results/directory-protocol-preview.png" });
+    await allProtocols.click();
     await expect(restarted.locator(".connection-card")).toHaveCount(3);
     await shellCard.getByRole("button", { name: "Connection actions" }).click();
     await restarted

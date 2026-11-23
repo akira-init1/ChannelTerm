@@ -2542,6 +2542,9 @@ export function App() {
           >
             <TerminalDirectory
               orderScope={JSON.stringify([peerWindow, info?.endpoint ?? ""])}
+              folderScope={
+                info && (peerWindow ? "peer:" + info.endpoint : "local")
+              }
               t={t}
               visible={sidebarVisible && sidebarView === "sessions"}
               rows={directoryTabs}

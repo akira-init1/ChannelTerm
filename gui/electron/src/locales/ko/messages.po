@@ -1022,8 +1022,18 @@ msgstr "터미널로 이동"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "directory.folderFailed"
+msgstr "폴더를 만들 수 없습니다. 1~128자의 고유한 이름을 입력하세요. 폴더는 최대 256개까지 만들 수 있습니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "directory.folderHint"
 msgstr "폴더 이름을 선택하거나 입력하세요. 비워 두면 폴더에서 꺼냅니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.folderName"
+msgstr "폴더 이름"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -1034,6 +1044,16 @@ msgstr "로컬 네트워크"
 #: src/shared/menu-messages.ts
 msgid "directory.moveFolder"
 msgstr "폴더로 이동…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.newFolder"
+msgstr "새 폴더"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.newSession"
+msgstr "새 세션"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

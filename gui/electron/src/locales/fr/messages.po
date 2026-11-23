@@ -1022,8 +1022,18 @@ msgstr "Aller au terminal"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "directory.folderFailed"
+msgstr "Impossible de créer le dossier. Utilisez un nom unique de 1 à 128 caractères. Vous pouvez créer jusqu’à 256 dossiers."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "directory.folderHint"
 msgstr "Choisissez ou saisissez un nom de dossier. Laissez le champ vide pour sortir la connexion du dossier."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.folderName"
+msgstr "Nom du dossier"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -1034,6 +1044,16 @@ msgstr "Réseau local"
 #: src/shared/menu-messages.ts
 msgid "directory.moveFolder"
 msgstr "Déplacer vers un dossier…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.newFolder"
+msgstr "Nouveau dossier"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.newSession"
+msgstr "Nouvelle session"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

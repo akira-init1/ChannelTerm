@@ -892,7 +892,8 @@ The fixture retains only 1 KiB: retention tests feed sub-capacity batches and wa
 intentional flood tests separately exercise loss. These checks do not prove native behavior on
 unavailable desktop targets or device event timing.
 
-Directory acceptance covers shared right-click and overflow menus, persistent folder assignment,
+Directory acceptance covers the empty-space menu, duplicate-folder rejection, empty folders across
+windows and restarts, shared row context and overflow menus, persistent folder assignment,
 protocol previews, combined search and independent copies of a saved endpoint.
 The desktop acceptance runner also exercises the terminal directory with two disposable
 loopback Hosts, distinct credentials and the same short reference and opaque Session ID.

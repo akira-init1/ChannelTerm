@@ -3,6 +3,14 @@ import type { MessageDescriptor } from "@lingui/core";
 // Lingui 5 extracts these official annotated descriptors without a runtime macro
 // transform. Translations belong in PO catalogs; this file owns IDs and English defaults.
 export const menuMessages = [
+  /* i18n */ { id: "directory.newSession", message: "New Session" },
+  /* i18n */ { id: "directory.newFolder", message: "New Folder" },
+  /* i18n */ { id: "directory.folderName", message: "Folder name" },
+  /* i18n */ {
+    id: "directory.folderFailed",
+    message:
+      "Could not create the folder. Use a unique name of 1–128 characters and keep at most 256 created folders.",
+  },
   /* i18n */ { id: "directory.actions", message: "Connection actions" },
   /* i18n */ { id: "directory.allProtocols", message: "All protocols" },
   /* i18n */ { id: "directory.copy", message: "Duplicate connection…" },

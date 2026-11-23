@@ -632,9 +632,14 @@ grouped by protocol. Click a protocol to combine it with the current search and 
 status. Keyboard users can open the control with Enter, Tab to a protocol and press Enter to
 select it. **All protocols** clears the protocol filter. Previewing the list does not connect.
 
+Right-click empty space in **Sessions** for **New Session** and **New Folder**. New Session opens
+the regular connection form when the Host is connected. New Folder also works offline. A folder
+created this way remains available after a restart, even while empty.
+
 Right-click a connection or click its **⋯** button for the same menu. Choose **Move to folder…**
 and select an existing name or type a new one. Clear the field to return to the top level.
-Folders are single-level groups of local presets. Empty folders disappear. Each preset can
+Folders are single-level groups of local presets. A folder created only by moving a connection
+disappears when its last member leaves. Each preset can
 be renamed, duplicated under a new name, marked as a favorite or forgotten independently,
 including presets for the same endpoint. Forgetting a preset leaves live Sessions running.
 Live Session actions use the clicked Session and retain their existing close confirmation.

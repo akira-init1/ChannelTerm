@@ -1022,8 +1022,18 @@ msgstr "转到终端"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "directory.folderFailed"
+msgstr "无法新建文件夹。请输入 1 至 128 个字符的唯一名称，最多可新建 256 个文件夹。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "directory.folderHint"
 msgstr "选择或输入文件夹名。留空可移出文件夹。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.folderName"
+msgstr "文件夹名称"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -1034,6 +1044,16 @@ msgstr "局域网"
 #: src/shared/menu-messages.ts
 msgid "directory.moveFolder"
 msgstr "移动到文件夹…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.newFolder"
+msgstr "新建文件夹"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.newSession"
+msgstr "新建会话"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

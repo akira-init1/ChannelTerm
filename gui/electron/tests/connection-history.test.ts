@@ -8,6 +8,7 @@ import {
   presetEndpoint,
   recordConnection,
   restoreConnections,
+  readDirectoryFolders,
 } from "../src/shared/connection-history";
 import type { ConnectionRequest } from "../src/shared/connections";
 
@@ -22,6 +23,22 @@ const ssh: ConnectionRequest = {
   password: "fake-password",
   keyPassphrase: "fake-passphrase",
 };
+
+test("explicit directory folders restore unique valid names independently of history", () => {
+  assert.deepEqual(readDirectoryFolders(null), []);
+  assert.deepEqual(readDirectoryFolders('["Bench","Bench","备用"]'), [
+    "Bench",
+    "备用",
+  ]);
+  for (const invalid of [
+    "{",
+    "{}",
+    JSON.stringify(["x".repeat(129)]),
+    JSON.stringify(["A\nB"]),
+    JSON.stringify(Array(257).fill("Bench")),
+  ])
+    assert.deepEqual(readDirectoryFolders(invalid), []);
+});
 
 test("directory edits preserve folder membership on reconnect and reject stale or conflicting edits", () => {
   const initial = recordConnection([], ssh, false, 1);

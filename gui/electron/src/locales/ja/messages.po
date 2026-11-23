@@ -1022,8 +1022,18 @@ msgstr "端末に移動"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "directory.folderFailed"
+msgstr "フォルダーを作成できません。1～128 文字の重複しない名前を指定してください。作成できるフォルダーは最大 256 個です。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "directory.folderHint"
 msgstr "フォルダー名を選択または入力してください。空欄にするとフォルダーから移動します。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.folderName"
+msgstr "フォルダー名"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -1034,6 +1044,16 @@ msgstr "ローカルネットワーク"
 #: src/shared/menu-messages.ts
 msgid "directory.moveFolder"
 msgstr "フォルダーへ移動…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.newFolder"
+msgstr "新しいフォルダー"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.newSession"
+msgstr "新しいセッション"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

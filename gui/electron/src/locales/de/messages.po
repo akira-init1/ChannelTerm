@@ -1022,8 +1022,18 @@ msgstr "Zum Terminal"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "directory.folderFailed"
+msgstr "Ordner konnte nicht erstellt werden. Verwenden Sie einen eindeutigen Namen mit 1–128 Zeichen. Es können bis zu 256 Ordner angelegt werden."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "directory.folderHint"
 msgstr "Ordnernamen wählen oder eingeben. Leer lassen, um die Verbindung aus dem Ordner zu verschieben."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.folderName"
+msgstr "Ordnername"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -1034,6 +1044,16 @@ msgstr "Lokales Netzwerk"
 #: src/shared/menu-messages.ts
 msgid "directory.moveFolder"
 msgstr "In Ordner verschieben…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.newFolder"
+msgstr "Neuer Ordner"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.newSession"
+msgstr "Neue Sitzung"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

@@ -1022,8 +1022,18 @@ msgstr "Go to terminal"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "directory.folderFailed"
+msgstr "Could not create the folder. Use a unique name of 1–128 characters and keep at most 256 created folders."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "directory.folderHint"
 msgstr "Choose or enter a folder name. Leave empty to move out of a folder."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.folderName"
+msgstr "Folder name"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -1034,6 +1044,16 @@ msgstr "LAN"
 #: src/shared/menu-messages.ts
 msgid "directory.moveFolder"
 msgstr "Move to folder…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.newFolder"
+msgstr "New Folder"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.newSession"
+msgstr "New Session"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

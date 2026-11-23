@@ -1022,8 +1022,18 @@ msgstr "Ir al terminal"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "directory.folderFailed"
+msgstr "No se pudo crear la carpeta. Use un nombre único de 1 a 128 caracteres. Puede crear hasta 256 carpetas."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "directory.folderHint"
 msgstr "Seleccione o escriba un nombre de carpeta. Déjelo vacío para sacar la conexión de la carpeta."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.folderName"
+msgstr "Nombre de la carpeta"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -1034,6 +1044,16 @@ msgstr "Red local"
 #: src/shared/menu-messages.ts
 msgid "directory.moveFolder"
 msgstr "Mover a una carpeta…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.newFolder"
+msgstr "Nueva carpeta"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.newSession"
+msgstr "Nueva sesión"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
