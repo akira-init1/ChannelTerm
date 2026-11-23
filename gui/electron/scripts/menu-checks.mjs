@@ -93,6 +93,13 @@ export async function checkOfflineMenus(desktop, page) {
     assert.equal((await nativeItem(desktop, id)).enabled, false);
   }
   assert.equal((await nativeItem(desktop, "host.connect")).enabled, true);
+  await open(page, "help");
+  await popup(page).locator('[data-action="help.quick"]').click();
+  const help = page.locator(".help-dialog");
+  await expect(
+    help.getByRole("link", { name: "ChannelTerm on GitHub" }),
+  ).toHaveAttribute("href", "https://github.com/akira-init1/ChannelTerm");
+  await help.getByRole("button").click();
   await open(page, "window");
   for (const id of ["window.new", "window.close", "tab.new"]) {
     assert.equal((await nativeItem(desktop, id)).enabled, true);

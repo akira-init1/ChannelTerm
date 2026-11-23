@@ -1508,6 +1508,11 @@ msgstr "Закрытие вкладки отсоединяет только эт
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "help.github"
+msgstr "ChannelTerm на GitHub"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "help.quick"
 msgstr "Краткая справка"
 

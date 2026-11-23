@@ -30,7 +30,12 @@ import {
 } from "electron";
 import { readFile, lstat, realpath } from "node:fs/promises";
 import { extname, join, resolve, sep } from "node:path";
-import { channels, type Result, type WindowInfo } from "../shared/api";
+import {
+  channels,
+  projectHomepage,
+  type Result,
+  type WindowInfo,
+} from "../shared/api";
 import { randomUUID } from "node:crypto";
 import { HostClient } from "./host/client";
 import { hostEndpoint, loadToken } from "./host/config";
@@ -859,6 +864,7 @@ function createHandlers(context: WindowContext): Record<string, Handler> {
       languagePreference: context.languagePreference,
       incoming: context.incoming,
     }),
+    [channels.openProjectHomepage]: () => shell.openExternal(projectHomepage),
     [channels.newWindow]: () => newWindow(context),
     [channels.closeWindow]: () => {
       setImmediate(() => {

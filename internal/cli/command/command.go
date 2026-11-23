@@ -212,6 +212,8 @@ func runWithDependenciesWithInterrupts(ctx context.Context, args []string, input
 		fmt.Fprintln(output)
 		fmt.Fprintln(output, "Options:")
 		flags.PrintDefaults()
+		fmt.Fprintln(output)
+		fmt.Fprintln(output, "Project homepage: https://github.com/akira-init1/ChannelTerm")
 	}
 	help := flags.Bool("help", false, "show help and exit")
 	shortHelp := flags.Bool("h", false, "show help and exit")

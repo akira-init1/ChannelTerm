@@ -1508,6 +1508,11 @@ msgstr "Closing a tab detaches only this view. Disconnecting the GUI or exiting 
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "help.github"
+msgstr "ChannelTerm on GitHub"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "help.quick"
 msgstr "Quick help"
 

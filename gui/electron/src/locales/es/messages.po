@@ -1508,6 +1508,11 @@ msgstr "Cerrar una pestaña solo desadjunta esta vista. Desconectar o salir de l
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "help.github"
+msgstr "ChannelTerm en GitHub"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "help.quick"
 msgstr "Ayuda rápida"
 

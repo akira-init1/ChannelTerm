@@ -41,6 +41,8 @@ import type { ConnectionRequest, OpenedConnection } from "./connections";
 import type { TerminalSettings } from "./terminal-settings";
 import type { ControlSnapshot, ControlRequest, ControlReply } from "./control";
 
+export const projectHomepage = "https://github.com/akira-init1/ChannelTerm";
+
 /** Display-only snapshots. The Host remains authoritative for lifecycle and leases. */
 export interface SessionSummary {
   control?: ControlSnapshot;
@@ -220,6 +222,7 @@ export interface DesktopAPI {
   ): Promise<Result<void>>;
   debugOverview(): Promise<Result<DebugOverview>>;
   windowInfo(): Promise<Result<WindowInfo>>;
+  openProjectHomepage(): Promise<Result<void>>;
   newWindow(): Promise<Result<void>>;
   closeWindow(): Promise<Result<void>>;
   focusWindow(direction: "next" | "previous"): Promise<Result<void>>;
@@ -333,6 +336,7 @@ export const channels = {
   peers: "host:peers",
   attachPeer: "host:attach-peer",
   windowInfo: "window:info",
+  openProjectHomepage: "help:open-project-homepage",
   newWindow: "window:new",
   closeWindow: "window:close",
   focusWindow: "window:focus",

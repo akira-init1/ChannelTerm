@@ -102,7 +102,7 @@ for authentication, verification and cancellation.
 | Session > Session Information... | `session.info` | Reveal the existing details sidebar for the captured current attachment; no new Host query. |
 | Settings > Language | `language.change` | Follow the system or select one of the nine supported menu languages. Exactly one preference is checked. |
 | Help > Diagnostic ZIP... | `help.diagnostics` | Export the captured attachment snapshot or download an existing Host diagnostic ID to a new local file. Requires a connected idle Host. |
-| Help > Quick help | `help.quick` | Open a local, translated usage dialog. No external navigation. |
+| Help > Quick help | `help.quick` | Show translated usage tips and a link to the [ChannelTerm repository](https://github.com/akira-init1/ChannelTerm). Selecting the link opens the system browser. |
 
 Closing a **tab**, closing a **window**, disconnecting the **GUI from Host**, closing a
 **shared Session**, and exiting the **GUI** are distinct operations. Tab close releases the

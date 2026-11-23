@@ -160,6 +160,9 @@ p {
 .help-dialog p + p {
   margin-top: 8px;
 }
+.help-dialog a {
+  color: var(--accent);
+}
 .help-dialog button {
   margin-top: 16px;
 }

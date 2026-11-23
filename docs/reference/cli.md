@@ -19,6 +19,7 @@ channelterm ssh --help
 channelterm uninstall --help
 ```
 
+Top-level help ends with the project's GitHub URL.
 The current parser also implements `channelterm connect --help`, although `connect` is not listed in
 the current top-level help text.
 

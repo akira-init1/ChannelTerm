@@ -7,6 +7,7 @@ import {
 } from "react";
 import type { Action, MenuEntry, MenuState } from "../../shared/menus";
 import { applicationMenu } from "../../shared/menus";
+import { projectHomepage } from "../../shared/api";
 import { Icon } from "./Icon";
 import { shortcutLabel } from "../../shared/shortcuts";
 
@@ -75,6 +76,7 @@ export function WorkbenchMenu({
   onContextClose,
   helpOpen,
   onHelpClose,
+  onOpenProjectHomepage,
 }: {
   state: MenuState;
   t: (id: string) => string;
@@ -84,6 +86,7 @@ export function WorkbenchMenu({
   onContextClose: () => void;
   helpOpen: boolean;
   onHelpClose: () => void;
+  onOpenProjectHomepage: () => void;
 }) {
   const [opened, setOpened] = useState<MenuPopupRequest>();
   const [expanded, setExpanded] = useState<string>();
@@ -402,6 +405,17 @@ export function WorkbenchMenu({
         <p>{t("help.connect")}</p>
         <p>{t("help.detach")}</p>
         <p>{t("help.clear")}</p>
+        <p>
+          <a
+            href={projectHomepage}
+            onClick={(event) => {
+              event.preventDefault();
+              onOpenProjectHomepage();
+            }}
+          >
+            {t("help.github")}
+          </a>
+        </p>
         <button onClick={onHelpClose}>{t("help.close")}</button>
       </dialog>
     </header>

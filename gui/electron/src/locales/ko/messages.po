@@ -1508,6 +1508,11 @@ msgstr "탭을 닫으면 이 화면만 세션에서 분리됩니다. GUI의 연�
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "help.github"
+msgstr "GitHub의 ChannelTerm"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "help.quick"
 msgstr "빠른 도움말"
 

@@ -80,6 +80,9 @@ func TestRun(t *testing.T) {
 			if !strings.Contains(output.String(), "Usage: channelterm") {
 				t.Errorf("run() output = %q, want usage", output.String())
 			}
+			if !strings.Contains(output.String(), "https://github.com/akira-init1/ChannelTerm\n") {
+				t.Errorf("run() output = %q, want project homepage", output.String())
+			}
 		})
 	}
 }

@@ -1508,6 +1508,11 @@ msgstr "Fermer un onglet détache uniquement cette vue. Déconnecter ou quitter 
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "help.github"
+msgstr "ChannelTerm sur GitHub"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "help.quick"
 msgstr "Aide rapide"
 

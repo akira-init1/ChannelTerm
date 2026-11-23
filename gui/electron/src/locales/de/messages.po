@@ -1508,6 +1508,11 @@ msgstr "Das Schließen eines Tabs löst nur diese Ansicht ab. Wenn Sie die GUI t
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "help.github"
+msgstr "ChannelTerm auf GitHub"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "help.quick"
 msgstr "Kurzhilfe"
 

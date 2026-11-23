@@ -2471,6 +2471,9 @@ export function App() {
         onContextClose={() => setMenuContext(undefined)}
         helpOpen={helpOpen}
         onHelpClose={() => setHelpOpen(false)}
+        onOpenProjectHomepage={() =>
+          void unwrap(host.openProjectHomepage()).catch(report)
+        }
       />
       <div
         className="workspace"

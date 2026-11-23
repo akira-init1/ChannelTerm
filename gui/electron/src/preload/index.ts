@@ -53,6 +53,7 @@ const api: DesktopAPI = {
   peers: () => ipcRenderer.invoke(channels.peers),
   attachPeer: (peer, id) => ipcRenderer.invoke(channels.attachPeer, peer, id),
   windowInfo: () => ipcRenderer.invoke(channels.windowInfo),
+  openProjectHomepage: () => ipcRenderer.invoke(channels.openProjectHomepage),
   newWindow: () => ipcRenderer.invoke(channels.newWindow),
   closeWindow: () => ipcRenderer.invoke(channels.closeWindow),
   focusWindow: (direction) =>

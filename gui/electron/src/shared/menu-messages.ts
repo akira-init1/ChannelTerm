@@ -1434,6 +1434,10 @@ export const menuMessages = [
     message: "日本語",
   },
   /* i18n */ {
+    id: "help.github",
+    message: "ChannelTerm on GitHub",
+  },
+  /* i18n */ {
     id: "help.quick",
     message: "Quick help",
   },
