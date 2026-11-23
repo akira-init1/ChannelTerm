@@ -1656,12 +1656,18 @@ main {
 }
 .host-versions {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.35rem 1rem;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 6px 12px;
+  padding: 12px;
+  background: var(--editor-background);
+  border-radius: 4px;
+}
+.host-versions dt {
+  color: var(--muted);
 }
 .host-versions dd {
   margin: 0;
-  overflow-wrap: anywhere;
+  text-align: end;
 }
 .host-settings-dialog {
   overflow: hidden;
@@ -1674,9 +1680,49 @@ main {
 .host-settings-content {
   min-height: 0;
   overflow: auto;
+  overflow-wrap: anywhere;
+  padding: 2px;
+}
+.host-connection-state {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 16px;
+}
+.host-connection-state::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+.host-connection-state[data-connected="true"]::before {
+  background: #68ba91;
+}
+.host-settings-content label {
+  margin: 0;
+}
+.host-settings-content .connection-hint {
+  margin: 6px 0 16px;
+  line-height: 1.5;
+}
+.host-details {
+  border-top: 1px solid var(--border);
+  margin-top: 16px;
+  padding-top: 12px;
+}
+.host-details summary {
+  cursor: pointer;
+  font-weight: 600;
 }
 .host-settings-dialog footer {
   flex-shrink: 0;
+  flex-wrap: wrap;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+.host-settings-dialog footer button {
+  white-space: normal;
 }
 .recording-list {
   padding-left: 18px;

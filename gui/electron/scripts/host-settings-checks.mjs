@@ -183,9 +183,9 @@ export async function checkHostSettings(environment) {
       await expect(page.locator("#host-settings-title")).toHaveText(
         i18n._("host.settings"),
       );
-      await expect(page.locator(".host-settings-dialog")).toContainText(
-        i18n._("host.settings.versions"),
-      );
+      const details = page.locator(".host-settings-dialog details");
+      const versions = details.locator("dl");
+      await expect(versions).toBeHidden();
       if (locale === "zh-CN") {
         const window = await desktop.browserWindow(page);
         await window.evaluate((window) => window.setSize(760, 500));
@@ -196,6 +196,13 @@ export async function checkHostSettings(environment) {
           path: "test-results/host-settings-compact.png",
         });
       }
+      await details.locator("summary").click();
+      await expect(versions).toBeVisible();
+      await expect(details).toContainText(i18n._("host.settings.versions"));
+      const content = page.locator(".host-settings-content");
+      assert.ok(
+        await content.evaluate((el) => el.scrollWidth <= el.clientWidth),
+      );
       await page
         .getByRole("button", { name: i18n._("diagnostics.close"), exact: true })
         .click();

@@ -1688,6 +1688,11 @@ msgstr "Desktop-Version"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "host.settings.details"
+msgstr "Versionen und Funktionen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "host.settings.endpoint"
 msgstr "Lokaler Host-Endpunkt"
 

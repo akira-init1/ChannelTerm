@@ -67,35 +67,38 @@ export function HostSettingsDialog({
         <div className="host-settings-content">
           {info && (
             <>
-              <p role="status">
+              <p
+                role="status"
+                className="host-connection-state"
+                data-connected={info.connected}
+              >
                 {t(
                   info.connected
                     ? "workbench.connected"
                     : "workbench.disconnected",
                 )}
               </p>
-              <dl className="host-versions">
-                <dt>{t("host.settings.desktop")}</dt>
-                <dd>{info.desktopVersion ?? unknown}</dd>
-                <dt>Electron</dt>
-                <dd>{info.electronVersion ?? unknown}</dd>
-                <dt>Host</dt>
-                <dd>
-                  {info.connected
-                    ? (info.host.hostVersion ?? unknown)
-                    : unknown}
-                </dd>
-                <dt>{t("host.settings.cli")}</dt>
-                <dd>{info.cliVersion ?? unknown}</dd>
-                <dt>SSH</dt>
-                <dd>{capability(info.host.sshAvailable)}</dd>
-                <dt>{t("host.settings.resize")}</dt>
-                <dd>{capability(info.host.remoteSize)}</dd>
-                <dt>{t("host.settings.transfers")}</dt>
-                <dd>{capability(info.host.managedTransfers)}</dd>
-              </dl>
+              <label>
+                {t("host.settings.endpoint")}
+                <input
+                  aria-describedby="host-endpoint-hint"
+                  name="host-endpoint"
+                  value={endpoint}
+                  maxLength={2048}
+                  disabled={busy || info.environmentOverride}
+                  onChange={(event) => setEndpoint(event.target.value)}
+                  required
+                />
+              </label>
+              <p className="connection-hint" id="host-endpoint-hint">
+                {t(
+                  info.environmentOverride
+                    ? "host.settings.override"
+                    : "host.settings.hint",
+                )}
+              </p>
               {info.connected && info.host.idlePolicy?.backgroundSwitch && (
-                <label>
+                <label className="display-checkbox">
                   <input
                     type="checkbox"
                     checked={info.host.idlePolicy.mode === "release"}
@@ -112,25 +115,30 @@ export function HostSettingsDialog({
                   {t("host.settings.backgroundMCP")}
                 </label>
               )}
-              <label>
-                {t("host.settings.endpoint")}
-                <input
-                  name="host-endpoint"
-                  value={endpoint}
-                  maxLength={2048}
-                  disabled={busy || info.environmentOverride}
-                  onChange={(event) => setEndpoint(event.target.value)}
-                  required
-                />
-              </label>
-              <p className="connection-hint">
-                {t(
-                  info.environmentOverride
-                    ? "host.settings.override"
-                    : "host.settings.hint",
-                )}
-              </p>
-              <p className="connection-hint">{t("host.settings.versions")}</p>
+              <details className="host-details">
+                <summary>{t("host.settings.details")}</summary>
+                <dl className="host-versions">
+                  <dt>{t("host.settings.desktop")}</dt>
+                  <dd>{info.desktopVersion ?? unknown}</dd>
+                  <dt>Electron</dt>
+                  <dd>{info.electronVersion ?? unknown}</dd>
+                  <dt>Host</dt>
+                  <dd>
+                    {info.connected
+                      ? (info.host.hostVersion ?? unknown)
+                      : unknown}
+                  </dd>
+                  <dt>{t("host.settings.cli")}</dt>
+                  <dd>{info.cliVersion ?? unknown}</dd>
+                  <dt>SSH</dt>
+                  <dd>{capability(info.host.sshAvailable)}</dd>
+                  <dt>{t("host.settings.resize")}</dt>
+                  <dd>{capability(info.host.remoteSize)}</dd>
+                  <dt>{t("host.settings.transfers")}</dt>
+                  <dd>{capability(info.host.managedTransfers)}</dd>
+                </dl>
+                <p className="connection-hint">{t("host.settings.versions")}</p>
+              </details>
             </>
           )}
           {error && <p role="alert">{t(error)}</p>}

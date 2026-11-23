@@ -503,6 +503,10 @@ export const menuMessages = [
     id: "host.settings",
     message: "Host information and connection",
   },
+  /* i18n */ {
+    id: "host.settings.details",
+    message: "Versions and capabilities",
+  },
   /* i18n */ { id: "host.settings.available", message: "Available" },
   /* i18n */ { id: "host.settings.unavailable", message: "Unavailable" },
   /* i18n */ { id: "host.settings.desktop", message: "Desktop version" },
