@@ -1,6 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import {
   presetEndpoint,
+  connectionForSession,
+  connectionHistoryKey,
+  connectionHighlightsChanged,
+  editConnection,
+  maxConnectionHistoryLength,
+  restoreConnections,
+  type DirectoryEdit,
   type ConnectionRecord,
 } from "../../shared/connection-history";
 import type {
@@ -21,6 +28,14 @@ import {
   readDirectoryOrder,
 } from "./directory-order";
 import { Icon, TransportIcon } from "../components/Icon";
+import type { PopupEntry } from "../components/WorkbenchMenu";
+import {
+  DirectoryEditDialog,
+  directoryLabels,
+  type DirectoryDialogAction,
+} from "./DirectoryEditDialog";
+import { ProtocolFilter } from "./ProtocolFilter";
+import type { ConnectionRequest } from "../../shared/connections";
 
 type Group = {
   transport: string;
@@ -35,6 +50,7 @@ export function TerminalDirectory({
   visible,
   orderScope,
   rows,
+  localSessionIds,
   history,
   sessions,
   selected,
@@ -51,6 +67,7 @@ export function TerminalDirectory({
   visible: boolean;
   orderScope: string;
   rows: OpenTabRow[];
+  localSessionIds: ReadonlyMap<string, string>;
   history: ConnectionRecord[];
   sessions: SessionSummary[];
   selected?: string;
@@ -58,10 +75,18 @@ export function TerminalDirectory({
   onAttach: (s: SessionSummary) => void;
   policies?: SavedPolicyTarget[];
   onSavedProtection: (p: ConnectionRecord, enabled: boolean) => void;
-  onSettings: (s?: SessionSummary, p?: ConnectionRecord) => void;
+  onSettings: (
+    s?: SessionSummary,
+    p?: ConnectionRecord,
+    rename?: boolean,
+  ) => void;
   onOpen: (p: ConnectionRecord) => void;
   onProtect: (s: SessionSummary) => void;
-  onContext: (event: React.MouseEvent<HTMLElement>, s: SessionSummary) => void;
+  onContext: (
+    event: React.MouseEvent<HTMLElement>,
+    s: SessionSummary | undefined,
+    entries: PopupEntry[],
+  ) => void;
 }) {
   const [others, setOthers] = useState<OpenTabRow[]>([]);
   const [error, setError] = useState("");
@@ -87,7 +112,38 @@ export function TerminalDirectory({
     return () => window.removeEventListener("storage", changed);
   }, [storageKey]);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const [menu, setMenu] = useState("");
+  const [protocol, setProtocol] = useState<ConnectionRequest["kind"]>();
+  const [editor, setEditor] = useState<{
+    action: DirectoryDialogAction;
+    profile: ConnectionRecord;
+  }>();
+  function edit(
+    profile: ConnectionRecord,
+    action: DirectoryEdit,
+    value?: string,
+  ) {
+    try {
+      const entries = restoreConnections(
+        localStorage.getItem(connectionHistoryKey),
+      );
+      const next = editConnection(
+        entries,
+        profile,
+        action,
+        value,
+        action === "copy" ? crypto.randomUUID() : undefined,
+      );
+      if (!next) return false;
+      const raw = JSON.stringify(next);
+      if (raw.length > maxConnectionHistoryLength) return false;
+      localStorage.setItem(connectionHistoryKey, raw);
+      window.dispatchEvent(new Event(connectionHighlightsChanged));
+      return true;
+    } catch {
+      setError("workspace.storageError");
+      return false;
+    }
+  }
   useEffect(() => {
     if (!visible) return;
     let active = true;
@@ -111,8 +167,35 @@ export function TerminalDirectory({
   }, [visible]);
 
   const groups = new Map<string, Group>();
-  function group(transport: string, endpoint: string, label: string) {
+  const profilesByEndpoint = new Map<string, ConnectionRecord[]>();
+  for (const profile of history) {
+    const key = JSON.stringify([
+      profile.request.kind,
+      presetEndpoint(profile.request),
+    ]);
+    const records = profilesByEndpoint.get(key) ?? [];
+    records.push(profile);
+    profilesByEndpoint.set(key, records);
+  }
+  function profileKey(profile: ConnectionRecord, endpointKey: string) {
+    return profilesByEndpoint.get(endpointKey)?.length === 1
+      ? endpointKey
+      : JSON.stringify([endpointKey, profile.id ?? profile.request]);
+  }
+  function matchingGroup(transport: string, endpoint: string, label: string) {
     const key = JSON.stringify([transport, endpoint]);
+    const records = profilesByEndpoint.get(key);
+    const match =
+      records && connectionForSession(records, { transport, endpoint, label });
+    if (match) return groups.get(profileKey(match, key));
+    return groups.get(key);
+  }
+  function group(
+    transport: string,
+    endpoint: string,
+    label: string,
+    key = JSON.stringify([transport, endpoint]),
+  ) {
     let value = groups.get(key);
     if (!value) {
       value = { transport, endpoint, label: label || endpoint, tabs: [] };
@@ -125,34 +208,59 @@ export function TerminalDirectory({
     (a, b) =>
       Number(b.favorite) - Number(a.favorite) || b.lastUsed - a.lastUsed,
   )) {
-    const g = group(p.request.kind, presetEndpoint(p.request), p.request.label);
-    g.profile ??= p;
+    const endpoint = presetEndpoint(p.request);
+    const key = JSON.stringify([p.request.kind, endpoint]);
+    const g = group(
+      p.request.kind,
+      endpoint,
+      p.request.label,
+      profileKey(p, key),
+    );
+    g.profile = p;
   }
   for (const tab of [...rows, ...others]) {
     if (!tab.endpoint || !tab.transport) continue;
-    const g = group(tab.transport, tab.endpoint, tab.connectionLabel);
+    const g =
+      matchingGroup(tab.transport, tab.endpoint, tab.connectionLabel) ??
+      group(tab.transport, tab.endpoint, tab.connectionLabel);
     if (!g.tabs.some((r) => r.id === tab.id)) g.tabs.push(tab);
     if (tab.connectionLabel) g.label = tab.connectionLabel;
   }
   for (const s of sessions) {
-    const g = groups.get(JSON.stringify([s.transport, s.endpoint]));
+    const g =
+      [...groups.values()].find(
+        (candidate) =>
+          candidate.transport === s.transport &&
+          candidate.endpoint === s.endpoint &&
+          candidate.tabs.some(
+            (tab) => localSessionIds.get(tab.id) === s.session_id,
+          ),
+      ) ?? matchingGroup(s.transport, s.endpoint, s.label);
     if (g && s.state === "open") g.live ??= s;
   }
   const keys = orderedKeys([...groups.keys()], order);
+  const protocols = (["serial", "ssh"] as const).filter((kind) =>
+    [...groups.values()].some((g) => g.transport === kind),
+  );
+  const folders = [
+    ...new Set(history.flatMap((p) => (p.folder ? [p.folder] : []))),
+  ].sort((a, b) => a.localeCompare(b));
   const shown = keys.filter((key) => {
     const g = groups.get(key)!;
     return (
+      (!protocol || protocol === g.transport) &&
       filter.matchesStatus(!!g.live) &&
       filter.matchesText(
         g.label,
         g.endpoint,
+        g.profile?.folder ?? "",
         g.live?.session_ref ?? "",
         ...g.tabs.flatMap((r) => [r.label, r.reference]),
       )
     );
   });
-  function move(source: string, target: string) {
-    const next = moveDirectoryRow(keys, shown, source, target);
+  function move(source: string, target: string, siblings: string[]) {
+    const next = moveDirectoryRow(keys, siblings, source, target);
     if (next === keys) return;
     setOrder(next);
     try {
@@ -168,194 +276,244 @@ export function TerminalDirectory({
         setError(clientErrorMessageId(e)),
       );
   }
+  function renderRow(key: string, siblings: string[]) {
+    const index = siblings.indexOf(key);
+    const g = groups.get(key)!;
+    const { live, profile, tabs } = g;
+    const protectedEntry =
+      live?.control?.manual_only ??
+      policies?.some(
+        (p) =>
+          p.transport === profile?.request.kind && p.endpoint === g.endpoint,
+      );
+    const open = expanded.has(key);
+    function toggleProtection() {
+      if (live) onProtect(live);
+      else if (profile) onSavedProtection(profile, !protectedEntry);
+    }
+    function click() {
+      if (tabs.length === 1) focus(tabs[0]!);
+      else if (tabs.length > 1)
+        setExpanded((old) => {
+          const next = new Set(old);
+          if (open) next.delete(key);
+          else next.add(key);
+          return next;
+        });
+    }
+    function activate() {
+      const tab = tabs.find((r) => r.id === selected) ?? tabs[0];
+      if (tab) focus(tab);
+      else if (live) onAttach(live);
+      else if (profile) onOpen(profile);
+    }
+    function showMenu(event: React.MouseEvent<HTMLElement>) {
+      const entries: PopupEntry[] = [];
+      const add = (id: string, onChoose: () => void) =>
+        entries.push({ id, label: id, onChoose });
+      if (tabs.length || (!live && profile))
+        add(tabs.length ? "directory.focus" : "connection.open", activate);
+      if (profile || live) {
+        add("directory.rename", () => onSettings(live, profile, true));
+        add("connection.settings", () => onSettings(live, profile));
+      }
+      if (profile) {
+        for (const action of ["copy", "folder"] as const)
+          add(directoryLabels[action], () => setEditor({ action, profile }));
+        add(
+          profile.favorite ? "history.unfavorite" : "directory.favorite",
+          () => {
+            if (!edit(profile, "favorite")) setError("directory.editFailed");
+          },
+        );
+      }
+      if (profile || live)
+        entries.push({
+          id: "control.protect",
+          label: "control.protect",
+          checked: !!protectedEntry,
+          enabled: live ? !!live.control : !!policies,
+          onChoose: toggleProtection,
+        });
+      if (profile)
+        add("history.remove", () => setEditor({ action: "forget", profile }));
+      onContext(event, live, entries);
+    }
+    return (
+      <div className="connection-card" key={key} onContextMenu={showMenu}>
+        <button
+          type="button"
+          className={
+            "directory-row session" +
+            (tabs.some((r) => r.id === selected) ? " selected" : "")
+          }
+          data-session-id={live?.session_id}
+          aria-expanded={tabs.length > 1 ? open : undefined}
+          aria-pressed={tabs.some((r) => r.id === selected)}
+          onClick={(event) => {
+            if (event.detail === 0) activate();
+            else if (event.detail === 1) click();
+          }}
+          onDoubleClick={activate}
+          draggable={siblings.length > 1}
+          aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown"
+          title={
+            g.endpoint +
+            (siblings.length > 1 ? "\n" + t("directory.reorder") : "")
+          }
+          data-drop={
+            dropMark === key
+              ? siblings.indexOf(dragging.current) < index
+                ? "after"
+                : "before"
+              : undefined
+          }
+          onDragStart={(e) => {
+            dragging.current = key;
+            e.dataTransfer.effectAllowed = "move";
+            e.dataTransfer.setData(
+              "application/x-channelterm-directory-row",
+              "row",
+            );
+          }}
+          onDragOver={(e) => {
+            if (
+              !siblings.includes(dragging.current) ||
+              dragging.current === key
+            )
+              return;
+            e.preventDefault();
+            e.dataTransfer.dropEffect = "move";
+            setDropMark(key);
+          }}
+          onDragLeave={() => setDropMark("")}
+          onDrop={(e) => {
+            if (!dragging.current) return;
+            e.preventDefault();
+            e.stopPropagation();
+            move(dragging.current, key, siblings);
+            dragging.current = "";
+            setDropMark("");
+          }}
+          onDragEnd={() => {
+            dragging.current = "";
+            setDropMark("");
+          }}
+          onKeyDown={(e) => {
+            if (!e.altKey || (e.key !== "ArrowUp" && e.key !== "ArrowDown"))
+              return;
+            e.preventDefault();
+            const target = siblings[index + (e.key === "ArrowUp" ? -1 : 1)];
+            if (target) move(key, target, siblings);
+          }}
+        >
+          <strong>
+            <ConnectionLight online={!!live} t={t} />
+            <TransportIcon transport={g.transport} t={t} />
+            {profile?.favorite ? "★ " : ""}
+            {g.label}
+          </strong>
+          <small>
+            {[
+              g.endpoint,
+              tabs.length > 1
+                ? String(tabs.length) + (open ? " ▾" : " ▸")
+                : (tabs[0]?.reference ?? live?.session_ref),
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+          </small>
+        </button>
+        {(live || profile) && (
+          <>
+            <button
+              className="quiet"
+              aria-label={t("directory.actions")}
+              aria-haspopup="menu"
+              onClick={showMenu}
+            >
+              ⋯
+            </button>
+            <label
+              className="directory-protection"
+              title={t(protectedEntry ? "control.manual" : "control.protect")}
+            >
+              <input
+                type="checkbox"
+                aria-label={t("control.protect")}
+                checked={!!protectedEntry}
+                disabled={live ? !live.control : !policies}
+                onChange={toggleProtection}
+              />
+              <Icon name={protectedEntry ? "locked" : "unlocked"} />
+              {protectedEntry && <span>{t("control.manual")}</span>}
+            </label>
+          </>
+        )}
+        {tabs.length > 1 && open && (
+          <div className="directory-tabs">
+            {tabs.map((tab) => (
+              <button
+                className="directory-row"
+                key={tab.id}
+                onClick={() => focus(tab)}
+                aria-pressed={tab.id === selected}
+              >
+                <TransportIcon transport={tab.transport} t={t} />
+                {tab.label}
+                <small>{tab.reference}</small>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+  const unfiled = shown.filter((key) => !groups.get(key)?.profile?.folder);
   return (
     <nav className="terminal-directory" aria-label={t("workbench.sessions")}>
       <h2>{t("workbench.sessions")}</h2>
       <DirectoryFilter t={t} filter={filter} />
+      <ProtocolFilter
+        t={t}
+        history={history}
+        protocols={protocols}
+        selected={protocol}
+        onSelect={setProtocol}
+      />
       {!shown.length && (
         <p className="empty-list">
-          {t(filter.active ? "workbench.noMatch" : "directory.empty")}
+          {t(
+            filter.active || protocol ? "workbench.noMatch" : "directory.empty",
+          )}
         </p>
       )}
-      {shown.map((key, index) => {
-        const g = groups.get(key)!;
-        const { live, profile, tabs } = g;
-        const protectedEntry =
-          live?.control?.manual_only ??
-          policies?.some(
-            (p) =>
-              p.transport === profile?.request.kind &&
-              p.endpoint === g.endpoint,
-          );
-        const open = expanded.has(key);
-        function click() {
-          if (tabs.length === 1) focus(tabs[0]!);
-          else if (tabs.length > 1)
-            setExpanded((old) => {
-              const next = new Set(old);
-              if (open) next.delete(key);
-              else next.add(key);
-              return next;
-            });
-        }
-        function activate() {
-          const tab = tabs.find((r) => r.id === selected) ?? tabs[0];
-          if (tab) focus(tab);
-          else if (live) onAttach(live);
-          else if (profile) onOpen(profile);
-        }
+      {folders.map((folder) => {
+        const members = shown.filter(
+          (key) => groups.get(key)?.profile?.folder === folder,
+        );
         return (
-          <div
-            className="connection-card"
-            key={key}
-            onContextMenu={(e) => {
-              if (live) {
-                onContext(e, live);
-              } else {
-                e.preventDefault();
-                setMenu(key);
-              }
-            }}
-          >
-            <button
-              type="button"
-              className={
-                "directory-row session" +
-                (tabs.some((r) => r.id === selected) ? " selected" : "")
-              }
-              data-session-id={live?.session_id}
-              aria-expanded={tabs.length > 1 ? open : undefined}
-              aria-pressed={tabs.some((r) => r.id === selected)}
-              onClick={(event) => {
-                if (event.detail === 0) activate();
-                else if (event.detail === 1) click();
-              }}
-              onDoubleClick={activate}
-              draggable={shown.length > 1}
-              aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown"
-              title={
-                g.endpoint +
-                (shown.length > 1 ? "\n" + t("directory.reorder") : "")
-              }
-              data-drop={
-                dropMark === key
-                  ? shown.indexOf(dragging.current) < index
-                    ? "after"
-                    : "before"
-                  : undefined
-              }
-              onDragStart={(e) => {
-                dragging.current = key;
-                e.dataTransfer.effectAllowed = "move";
-                e.dataTransfer.setData(
-                  "application/x-channelterm-directory-row",
-                  "row",
-                );
-              }}
-              onDragOver={(e) => {
-                if (!dragging.current || dragging.current === key) return;
-                e.preventDefault();
-                e.dataTransfer.dropEffect = "move";
-                setDropMark(key);
-              }}
-              onDragLeave={() => setDropMark("")}
-              onDrop={(e) => {
-                if (!dragging.current) return;
-                e.preventDefault();
-                e.stopPropagation();
-                move(dragging.current, key);
-                dragging.current = "";
-                setDropMark("");
-              }}
-              onDragEnd={() => {
-                dragging.current = "";
-                setDropMark("");
-              }}
-              onKeyDown={(e) => {
-                if (!e.altKey || (e.key !== "ArrowUp" && e.key !== "ArrowDown"))
-                  return;
-                e.preventDefault();
-                const target = shown[index + (e.key === "ArrowUp" ? -1 : 1)];
-                if (target) move(key, target);
-              }}
-            >
-              <strong>
-                <ConnectionLight online={!!live} t={t} />
-                <TransportIcon transport={g.transport} t={t} />
-                {profile?.favorite ? "★ " : ""}
-                {g.label}
-              </strong>
-              <small>
-                {[
-                  g.endpoint,
-                  tabs.length > 1
-                    ? String(tabs.length) + (open ? " ▾" : " ▸")
-                    : (tabs[0]?.reference ?? live?.session_ref),
-                ]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </small>
-            </button>
-            {(live || profile) && (
-              <>
-                <button
-                  className="quiet"
-                  aria-label={t("connection.settings")}
-                  onClick={() => setMenu(menu === key ? "" : key)}
-                >
-                  ⋯
-                </button>
-                {menu === key && (
-                  <button
-                    onClick={() => {
-                      onSettings(live, profile);
-                      setMenu("");
-                    }}
-                  >
-                    {t("connection.settings")}
-                  </button>
-                )}
-                <label
-                  className="directory-protection"
-                  title={t(
-                    protectedEntry ? "control.manual" : "control.protect",
-                  )}
-                >
-                  <input
-                    type="checkbox"
-                    aria-label={t("control.protect")}
-                    checked={!!protectedEntry}
-                    disabled={live ? !live.control : !policies}
-                    onChange={() =>
-                      live
-                        ? onProtect(live)
-                        : profile && onSavedProtection(profile, !protectedEntry)
-                    }
-                  />
-                  <Icon name={protectedEntry ? "locked" : "unlocked"} />
-                  {protectedEntry && <span>{t("control.manual")}</span>}
-                </label>
-              </>
-            )}
-            {tabs.length > 1 && open && (
-              <div className="directory-tabs">
-                {tabs.map((tab) => (
-                  <button
-                    className="directory-row"
-                    key={tab.id}
-                    onClick={() => focus(tab)}
-                    aria-pressed={tab.id === selected}
-                  >
-                    <TransportIcon transport={tab.transport} t={t} />
-                    {tab.label}
-                    <small>{tab.reference}</small>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          members.length > 0 && (
+            <details open className="directory-folder" key={folder}>
+              <summary>
+                <Icon name="folder" /> {folder}{" "}
+                <small>({members.length})</small>
+              </summary>
+              {members.map((key) => renderRow(key, members))}
+            </details>
+          )
         );
       })}
+      {unfiled.map((key) => renderRow(key, unfiled))}
+      {editor && (
+        <DirectoryEditDialog
+          {...editor}
+          t={t}
+          folders={folders}
+          onClose={() => setEditor(undefined)}
+          onSave={(value) => edit(editor.profile, editor.action, value)}
+        />
+      )}
       {error && <p role="alert">{t(error)}</p>}
     </nav>
   );

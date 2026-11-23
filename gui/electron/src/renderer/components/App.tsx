@@ -64,7 +64,9 @@ import { TerminalDirectory } from "../sessions/TerminalDirectory";
 import {
   presetEndpoint,
   connectionHistoryKey,
+  connectionForSession,
   connectionHighlightsChanged,
+  editConnection,
   sharedPreset,
   maxConnectionHistoryLength,
   recordConnection,
@@ -555,7 +557,9 @@ export function App() {
   const [settingsCard, setSettingsCard] = useState<{
     session?: SessionSummary;
     profile?: ConnectionRecord;
+    rename?: boolean;
   }>();
+  const [cardError, setCardError] = useState(false);
   const [connectionAlias, setConnectionAlias] = useState("");
   const [, setAliasRevision] = useState(0);
   const aliasStorageKey = (s: SessionSummary) =>
@@ -578,17 +582,16 @@ export function App() {
     window.addEventListener("storage", changed);
     return () => window.removeEventListener("storage", changed);
   }, []);
-  function settingsFor(session?: SessionSummary, profile?: ConnectionRecord) {
-    if (!session && profile)
-      session = sessions.find(
-        (s) =>
-          s.transport === profile.request.kind &&
-          s.endpoint === presetEndpoint(profile.request),
-      );
+  function settingsFor(
+    session?: SessionSummary,
+    profile?: ConnectionRecord,
+    rename = false,
+  ) {
+    setCardError(false);
     setConnectionAlias(
-      aliasFor(session) || profile?.request.label || session?.label || "",
+      profile?.request.label || aliasFor(session) || session?.label || "",
     );
-    setSettingsCard({ session, profile });
+    setSettingsCard({ session, profile, rename });
   }
   function saveCard() {
     if (!settingsCard) return;
@@ -600,21 +603,18 @@ export function App() {
         const entries = restoreConnections(
           localStorage.getItem(connectionHistoryKey),
         );
-        const match = entries.find((e) =>
-          profile.id
-            ? e.id === profile.id
-            : JSON.stringify(e.request) === JSON.stringify(profile.request),
-        );
-        if (!match) throw Error();
-        match.request.label = alias;
-        localStorage.setItem(connectionHistoryKey, JSON.stringify(entries));
+        const updated = editConnection(entries, profile, "rename", alias);
+        if (!updated) throw Error();
+        const raw = JSON.stringify(updated);
+        if (raw.length > maxConnectionHistoryLength) throw Error();
+        localStorage.setItem(connectionHistoryKey, raw);
         window.dispatchEvent(new Event(connectionHighlightsChanged));
       }
       if (session) localStorage.setItem(aliasStorageKey(session), alias);
       setAliasRevision((v) => v + 1);
       setSettingsCard(undefined);
     } catch {
-      setHistoryError(true);
+      setCardError(true);
     }
   }
   const tabSummaries = tabs.map((tab) => {
@@ -626,25 +626,21 @@ export function App() {
       (entry) => entry.id && entry.id === tab.settings.highlightProfile,
     );
     const endpoint = session?.endpoint ?? target?.endpoint;
+    const connectionName =
+      profile?.request.label ||
+      aliasFor(session) ||
+      session?.label ||
+      target?.label;
     return {
       id: tab.id,
       alias: tab.alias,
       attached: !!tab.attachment && session?.state === "open",
       session,
       profile,
-      connectionLabel:
-        aliasFor(session) ||
-        profile?.request.label ||
-        session?.label ||
-        target?.label ||
-        endpoint ||
-        "",
+      connectionLabel: connectionName || endpoint || "",
       label:
         tab.alias ||
-        aliasFor(session) ||
-        profile?.request.label ||
-        session?.label ||
-        target?.label ||
+        connectionName ||
         session?.session_ref ||
         endpoint ||
         t("tab.empty"),
@@ -1481,11 +1477,8 @@ export function App() {
         localStorage.getItem(connectionHistoryKey),
       );
       const request =
-        entries.find(
-          (p) =>
-            p.request.kind === session.transport &&
-            presetEndpoint(p.request) === session.endpoint,
-        )?.request ?? sharedPreset(session);
+        connectionForSession(entries, session)?.request ??
+        sharedPreset(session);
       if (!request) return;
       const next = recordConnection(
         entries,
@@ -1912,11 +1905,7 @@ export function App() {
           if (item)
             settingsFor(
               item,
-              highlightProfiles.entries.find(
-                (p) =>
-                  p.request.kind === item.transport &&
-                  presetEndpoint(p.request) === item.endpoint,
-              ),
+              connectionForSession(highlightProfiles.entries, item),
             );
           break;
         }
@@ -1944,19 +1933,36 @@ export function App() {
 
   function showSessionActions(
     event: MouseEvent<HTMLElement>,
-    item: SessionSummary,
+    item?: SessionSummary,
+    directoryEntries?: MenuPopupRequest["entries"],
   ) {
+    const attachedTabs = item
+      ? tabs.filter((tab) => tab.attachment?.sessionId === item.session_id)
+      : [];
+    const liveEntries = item
+      ? sessionMenu(
+          stateForTab(
+            attachedTabs.find((tab) => tab.id === selectedTabId) ??
+              attachedTabs[0],
+          ),
+          item.session_id,
+          item.state === "open" && (item.transport === "ssh" || !item.lease),
+          item.transport === "serial",
+          item.transport === "ssh",
+        )
+      : [];
     openContext(
       event,
-      sessionMenu(
-        stateForTab(
-          tabs.find((tab) => tab.attachment?.sessionId === item.session_id),
-        ),
-        item.session_id,
-        item.state === "open" && (item.transport === "ssh" || !item.lease),
-        item.transport === "serial",
-        item.transport === "ssh",
-      ),
+      directoryEntries
+        ? [
+            ...directoryEntries,
+            ...liveEntries.filter(
+              (entry) =>
+                entry.id !== "connection.settings" &&
+                (entry.id !== "tab.close" || attachedTabs.length === 1),
+            ),
+          ]
+        : liveEntries,
     );
   }
 
@@ -2291,42 +2297,56 @@ export function App() {
               saveCard();
             }}
           >
-            <h2>{t("connection.settings")}</h2>
+            <h2>
+              {t(
+                settingsCard.rename
+                  ? "directory.rename"
+                  : "connection.settings",
+              )}
+            </h2>
             <p>
               {settingsCard.session?.session_ref}{" "}
               {settingsCard.session?.endpoint}
             </p>
-            <label>
-              <input
-                type="checkbox"
-                checked={confirmTakeover}
-                onChange={(e) => setConfirmTakeover(e.target.checked)}
-              />
-              {t("control.ask")}
-            </label>
-            <label>
-              {t("control.waitLimit")}
-              <input
-                type="number"
-                min={1}
-                max={3600}
-                value={waitSeconds}
-                onChange={(e) => {
-                  const v = e.target.valueAsNumber;
-                  if (Number.isInteger(v) && v >= 1 && v <= 3600)
-                    setWaitSeconds(v);
-                }}
-              />
-            </label>
+            {!settingsCard.rename && (
+              <>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={confirmTakeover}
+                    onChange={(e) => setConfirmTakeover(e.target.checked)}
+                  />
+                  {t("control.ask")}
+                </label>
+                <label>
+                  {t("control.waitLimit")}
+                  <input
+                    type="number"
+                    min={1}
+                    max={3600}
+                    value={waitSeconds}
+                    onChange={(e) => {
+                      const v = e.target.valueAsNumber;
+                      if (Number.isInteger(v) && v >= 1 && v <= 3600)
+                        setWaitSeconds(v);
+                    }}
+                  />
+                </label>
+              </>
+            )}
             <label>
               {t("connection.label")}
               <input
                 autoFocus
                 maxLength={128}
                 value={connectionAlias}
-                onChange={(e) => setConnectionAlias(e.target.value)}
+                onChange={(e) => {
+                  setCardError(false);
+                  setConnectionAlias(e.target.value);
+                }}
               />
             </label>
+            {cardError && <p role="alert">{t("directory.editFailed")}</p>}
             <button type="submit">{t("connection.savePreset")}</button>
             <button type="button" onClick={() => setSettingsCard(undefined)}>
               {t("connection.cancel")}
@@ -2525,6 +2545,15 @@ export function App() {
               t={t}
               visible={sidebarVisible && sidebarView === "sessions"}
               rows={directoryTabs}
+              localSessionIds={
+                new Map(
+                  tabs.flatMap((tab) =>
+                    tab.attachment
+                      ? [[tab.id, tab.attachment.sessionId] as const]
+                      : [],
+                  ),
+                )
+              }
               selected={selectedTabId}
               history={peerWindow ? [] : highlightProfiles.entries}
               sessions={sessions}

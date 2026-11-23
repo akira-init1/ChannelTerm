@@ -977,8 +977,28 @@ msgstr "诊断 ZIP…"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "directory.actions"
+msgstr "连接操作"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "directory.all"
 msgstr "全部"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.allProtocols"
+msgstr "全部协议"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.copy"
+msgstr "复制为新连接…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.editFailed"
+msgstr "无法保存更改。请检查名称、历史记录容量以及连接是否仍然存在。"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -987,13 +1007,33 @@ msgstr "还没有使用过的连接。"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "directory.favorite"
+msgstr "加入收藏"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "directory.filter"
 msgstr "连接状态"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "directory.focus"
+msgstr "转到终端"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.folderHint"
+msgstr "选择或输入文件夹名。留空可移出文件夹。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "directory.lan"
 msgstr "局域网"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.moveFolder"
+msgstr "移动到文件夹…"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -1009,6 +1049,11 @@ msgstr "已断开"
 #: src/shared/menu-messages.ts
 msgid "directory.online"
 msgstr "已连接"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.rename"
+msgstr "重命名连接…"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

@@ -313,6 +313,10 @@ local storage, separately for production and development origins. The
 rules; [terminal display](gui-menus.md#terminal-display) owns font bounds and persistence.
 Neither setting changes Host configuration, serial framing, Session metadata or terminal output.
 
+A desktop connection preset may include a local folder name of up to 128 UTF-16 code units.
+Older records open at the top level. The [terminal directory](gui-menus.md#terminal-directory-and-naming)
+describes folder membership and protocol filters.
+
 ## SSH CLI settings
 
 SSH connections use explicit CLI options and do not add TOML fields or saved profiles. The CLI

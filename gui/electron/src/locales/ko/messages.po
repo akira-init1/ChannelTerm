@@ -977,8 +977,28 @@ msgstr "진단 ZIP…"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "directory.actions"
+msgstr "연결 작업"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "directory.all"
 msgstr "전체"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.allProtocols"
+msgstr "모든 프로토콜"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.copy"
+msgstr "연결 복제…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.editFailed"
+msgstr "변경 사항을 저장할 수 없습니다. 이름, 기록 공간 및 연결이 아직 존재하는지 확인하세요."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -987,13 +1007,33 @@ msgstr "사용한 연결이 없습니다."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "directory.favorite"
+msgstr "즐겨찾기에 추가"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "directory.filter"
 msgstr "연결 상태"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "directory.focus"
+msgstr "터미널로 이동"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.folderHint"
+msgstr "폴더 이름을 선택하거나 입력하세요. 비워 두면 폴더에서 꺼냅니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "directory.lan"
 msgstr "로컬 네트워크"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.moveFolder"
+msgstr "폴더로 이동…"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -1009,6 +1049,11 @@ msgstr "연결 끊김"
 #: src/shared/menu-messages.ts
 msgid "directory.online"
 msgstr "연결됨"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.rename"
+msgstr "연결 이름 바꾸기…"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

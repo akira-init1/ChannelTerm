@@ -977,8 +977,28 @@ msgstr "Diagnose-ZIP…"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "directory.actions"
+msgstr "Verbindungsaktionen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "directory.all"
 msgstr "Alle"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.allProtocols"
+msgstr "Alle Protokolle"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.copy"
+msgstr "Verbindung duplizieren…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.editFailed"
+msgstr "Änderung konnte nicht gespeichert werden. Prüfen Sie Namen, freien Platz im Verlauf und ob die Verbindung noch existiert."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -987,13 +1007,33 @@ msgstr "Noch keine Verbindungen verwendet."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "directory.favorite"
+msgstr "Zu Favoriten hinzufügen"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "directory.filter"
 msgstr "Verbindungsstatus"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "directory.focus"
+msgstr "Zum Terminal"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.folderHint"
+msgstr "Ordnernamen wählen oder eingeben. Leer lassen, um die Verbindung aus dem Ordner zu verschieben."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "directory.lan"
 msgstr "Lokales Netzwerk"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.moveFolder"
+msgstr "In Ordner verschieben…"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -1009,6 +1049,11 @@ msgstr "Getrennt"
 #: src/shared/menu-messages.ts
 msgid "directory.online"
 msgstr "Verbunden"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.rename"
+msgstr "Verbindung umbenennen…"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

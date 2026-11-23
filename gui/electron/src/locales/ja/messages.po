@@ -977,8 +977,28 @@ msgstr "診断 ZIP…"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "directory.actions"
+msgstr "接続の操作"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "directory.all"
 msgstr "すべて"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.allProtocols"
+msgstr "すべてのプロトコル"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.copy"
+msgstr "接続を複製…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.editFailed"
+msgstr "変更を保存できません。名前、履歴の空き、および接続がまだ存在するかを確認してください。"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -987,13 +1007,33 @@ msgstr "接続履歴はありません。"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "directory.favorite"
+msgstr "お気に入りに追加"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "directory.filter"
 msgstr "接続状態"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "directory.focus"
+msgstr "端末に移動"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.folderHint"
+msgstr "フォルダー名を選択または入力してください。空欄にするとフォルダーから移動します。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "directory.lan"
 msgstr "ローカルネットワーク"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.moveFolder"
+msgstr "フォルダーへ移動…"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -1009,6 +1049,11 @@ msgstr "切断"
 #: src/shared/menu-messages.ts
 msgid "directory.online"
 msgstr "接続中"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.rename"
+msgstr "接続名を変更…"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

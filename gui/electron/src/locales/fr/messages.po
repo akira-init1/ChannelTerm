@@ -977,8 +977,28 @@ msgstr "ZIP de diagnostic…"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "directory.actions"
+msgstr "Actions de connexion"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "directory.all"
 msgstr "Toutes"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.allProtocols"
+msgstr "Tous les protocoles"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.copy"
+msgstr "Dupliquer la connexion…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.editFailed"
+msgstr "Enregistrement impossible. Vérifiez le nom, la place disponible dans l’historique et si la connexion existe toujours."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -987,13 +1007,33 @@ msgstr "Aucune connexion utilisée pour le moment."
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "directory.favorite"
+msgstr "Ajouter aux favoris"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "directory.filter"
 msgstr "État de connexion"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "directory.focus"
+msgstr "Aller au terminal"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.folderHint"
+msgstr "Choisissez ou saisissez un nom de dossier. Laissez le champ vide pour sortir la connexion du dossier."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "directory.lan"
 msgstr "Réseau local"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.moveFolder"
+msgstr "Déplacer vers un dossier…"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
@@ -1009,6 +1049,11 @@ msgstr "Déconnectée"
 #: src/shared/menu-messages.ts
 msgid "directory.online"
 msgstr "Connectée"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "directory.rename"
+msgstr "Renommer la connexion…"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

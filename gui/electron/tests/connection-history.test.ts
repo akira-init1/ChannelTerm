@@ -3,6 +3,9 @@ import test from "node:test";
 import {
   sharedPreset,
   connectionPreset,
+  editConnection,
+  connectionForSession,
+  presetEndpoint,
   recordConnection,
   restoreConnections,
 } from "../src/shared/connection-history";
@@ -19,6 +22,51 @@ const ssh: ConnectionRequest = {
   password: "fake-password",
   keyPassphrase: "fake-passphrase",
 };
+
+test("directory edits preserve folder membership on reconnect and reject stale or conflicting edits", () => {
+  const initial = recordConnection([], ssh, false, 1);
+  const original = initial[0]!;
+  const filed = editConnection(initial, original, "folder", "Bench")!;
+  const reopened = recordConnection(
+    restoreConnections(JSON.stringify(filed)),
+    ssh,
+    false,
+    2,
+  );
+  assert.equal(reopened[0]?.folder, "Bench");
+  const copyId = "00000000-0000-4000-8000-000000000001";
+  const copied = editConnection(reopened, original, "copy", "Standby", copyId)!;
+  assert.equal(copied[1]?.folder, "Bench");
+  assert.equal(copied[1]?.uses, 0);
+  const snapshot = {
+    transport: "ssh",
+    endpoint: presetEndpoint(ssh),
+    label: "Standby",
+  };
+  assert.equal(connectionForSession(copied, snapshot)?.id, copyId);
+  assert.equal(
+    connectionForSession(copied, { ...snapshot, label: "unknown" }),
+    undefined,
+  );
+  assert.equal(
+    editConnection(copied, original, "rename", "Standby"),
+    undefined,
+  );
+  assert.equal(editConnection(copied, original, "folder", "a\nb"), undefined);
+  const unfiled = editConnection(copied, copied[1]!, "folder", "")!;
+  assert.equal(unfiled[1]?.folder, undefined);
+  assert.equal(unfiled[0]?.folder, "Bench");
+  const forgotten = editConnection(unfiled, copied[1]!, "forget")!;
+  assert.equal(
+    editConnection(forgotten, copied[1]!, "folder", "Stale"),
+    undefined,
+  );
+  assert.equal(
+    restoreConnections(JSON.stringify([{ ...original, folder: {} }]))[0]
+      ?.folder,
+    undefined,
+  );
+});
 
 test("history projects safe fields on write and read, preserving names and usage", () => {
   const first = recordConnection([], ssh, true, 10);

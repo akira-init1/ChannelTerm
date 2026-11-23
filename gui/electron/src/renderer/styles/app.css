@@ -1916,6 +1916,9 @@ main {
 .terminal-directory {
   padding: 0 8px 6px;
 }
+.terminal-directory:has(.directory-protocol) {
+  container-type: inline-size;
+}
 .terminal-directory h2 {
   font-size: 13px;
   margin: 8px 0;
@@ -2058,6 +2061,62 @@ main {
   flex: 1;
   min-width: 0;
   margin: 0;
+}
+.directory-protocol {
+  position: relative;
+  width: fit-content;
+  max-width: calc(100% - 16px);
+  margin: 0 8px 6px;
+}
+.menu-popup:has([data-local-command]):not(:has([aria-haspopup="menu"])) {
+  overflow-y: auto;
+}
+.menu-popup:has([data-local-command])
+  > div:has([data-local-command="history.remove"]),
+.menu-popup:has([data-local-command]) > div:has([data-action="session.close"]) {
+  border-top: 1px solid var(--border);
+}
+.directory-protocol > button {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  font: inherit;
+}
+.protocol-options {
+  position: absolute;
+  z-index: 5;
+  width: max-content;
+  min-width: 100%;
+  max-width: min(300px, 100cqw - 32px);
+  max-height: min(45vh, 320px);
+  overflow: auto;
+  padding: 4px;
+  background: var(--panel-background);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  box-shadow: 0 4px 12px #0005;
+}
+.protocol-options button {
+  width: 100%;
+  text-align: start;
+  background: transparent;
+  border: 0;
+}
+.protocol-options button[aria-pressed="true"] {
+  color: var(--accent);
+}
+.protocol-options ul {
+  padding-inline-start: 22px;
+  margin: 2px 4px 6px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.directory-folder > summary {
+  overflow-wrap: anywhere;
+}
+.directory-folder .connection-card {
+  margin-inline-start: 10px;
 }
 .directory-filters select {
   max-width: 46%;

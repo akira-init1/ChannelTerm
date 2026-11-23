@@ -85,12 +85,9 @@ export async function checkDirectory(environment) {
     await expect(card).toHaveCount(1);
     await card.locator(".session").click();
     await expect(card.getByRole("button", { name: /启动日志/ })).toBeVisible();
-    await card
-      .getByRole("button", { name: "Connection settings", exact: true })
-      .click();
-    await card
-      .getByRole("button", { name: "Connection settings", exact: true })
-      .last()
+    await card.getByRole("button", { name: "Connection actions" }).click();
+    await page
+      .getByRole("menuitem", { name: "Connection settings", exact: true })
       .click();
     const settings = page.getByRole("dialog").filter({
       has: page.getByRole("heading", { name: "Connection settings" }),
@@ -389,6 +386,15 @@ export async function checkDirectory(environment) {
     );
     assert.equal(reopened.length, 1);
     assert.notEqual(reopened[0].session_id, oldBoard.session_id);
+    const otherCard = page
+      .locator(".connection-card")
+      .filter({ hasText: "in-memory" });
+    await otherCard.locator(".session").click({ button: "right" });
+    await page.getByRole("menuitem", { name: "Move to folder…" }).click();
+    const folderDialog = page.getByRole("dialog", { name: "Move to folder…" });
+    await folderDialog.getByRole("combobox").fill("Bench");
+    await folderDialog.getByRole("button", { name: "Save connection" }).click();
+    await expect(page.locator(".directory-folder")).toContainText("in-memory");
     await desktop.close();
     desktop = await electron.launch({
       args: ["-r", preload, "--lang=en-US", "."],
@@ -396,6 +402,10 @@ export async function checkDirectory(environment) {
     });
     const restarted = await desktop.firstWindow();
     await expect(restarted.locator(".connection-card")).toHaveCount(2);
+    await expect(restarted.locator(".directory-folder")).toContainText("Bench");
+    await expect(restarted.locator(".directory-folder")).toContainText(
+      "in-memory",
+    );
     await expect(restarted.locator(".connection-card").last()).toContainText(
       "COM8",
     );
@@ -420,6 +430,58 @@ export async function checkDirectory(environment) {
     await expect(
       shellCard.getByRole("img", { name: "SSH", exact: true }),
     ).toBeVisible();
+    const protocol = restarted.locator(".directory-protocol");
+    const protocolButton = protocol.locator(":scope > button");
+    await protocolButton.hover();
+    await expect(
+      protocol.locator("li").filter({ hasText: "COM8" }),
+    ).toBeVisible();
+    await expect(
+      protocol.locator("li").filter({ hasText: "Build SSH" }),
+    ).toBeVisible();
+    await restarted.locator(".terminal-directory:visible").screenshot({
+      path: "test-results/directory-protocol-preview.png",
+    });
+    await protocol
+      .getByRole("button", { name: "SSH (1)", exact: true })
+      .click();
+    await expect(restarted.locator(".connection-card")).toHaveCount(1);
+    const search = restarted.getByRole("searchbox");
+    await search.fill("COM8");
+    await expect(restarted.locator(".connection-card")).toHaveCount(0);
+    await search.fill("");
+    await protocolButton.focus();
+    await protocolButton.press("Enter");
+    await protocol.getByRole("button", { name: "All protocols" }).click();
+    await expect(restarted.locator(".connection-card")).toHaveCount(3);
+    await shellCard.getByRole("button", { name: "Connection actions" }).click();
+    await restarted
+      .getByRole("menuitem", { name: "Duplicate connection…" })
+      .click();
+    const copyDialog = restarted.getByRole("dialog", {
+      name: "Duplicate connection…",
+    });
+    await copyDialog.getByRole("textbox").fill("Build SSH");
+    await copyDialog.getByRole("button", { name: "Save connection" }).click();
+    await expect(copyDialog.getByRole("alert")).toBeVisible();
+    await copyDialog.getByRole("textbox").fill("Second profile");
+    await copyDialog.getByRole("button", { name: "Save connection" }).click();
+    const copyCard = restarted
+      .locator(".connection-card")
+      .filter({ hasText: "Second profile" });
+    await expect(copyCard).toBeVisible();
+    await expect(
+      copyCard.getByRole("img", { name: "Disconnected" }),
+    ).toBeVisible();
+    await copyCard.locator(".session").click({ button: "right" });
+    await restarted
+      .getByRole("menuitem", { name: "Forget connection" })
+      .click();
+    await restarted
+      .getByRole("dialog", { name: "Forget connection" })
+      .getByRole("button", { name: "Forget connection" })
+      .click();
+    await expect(copyCard).toHaveCount(0);
     await restarted
       .locator(".terminal-tab.active")
       .getByRole("button", { name: "Close tab (detach)" })

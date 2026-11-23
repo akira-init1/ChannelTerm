@@ -31,8 +31,13 @@ const layoutControls = [
   },
 ] as const;
 
+/** Local directory commands stay in the renderer, outside the native IPC action set. */
+export interface PopupEntry extends MenuEntry {
+  onChoose?: () => void;
+}
+
 export interface MenuPopupRequest {
-  entries: MenuEntry[];
+  entries: PopupEntry[];
   x: number;
   y: number;
   opener: HTMLElement;
@@ -186,7 +191,7 @@ export function WorkbenchMenu({
     else help.current?.close();
   }, [helpOpen]);
 
-  function renderItems(entries: MenuEntry[], child = false) {
+  function renderItems(entries: PopupEntry[], child = false) {
     return entries.map((entry) => {
       const checked =
         entry.id === "view.sidebar"
@@ -202,6 +207,7 @@ export function WorkbenchMenu({
       return (
         <div key={entry.id}>
           <button
+            data-local-command={entry.onChoose ? entry.id : undefined}
             role={
               checked === undefined
                 ? "menuitem"
@@ -241,6 +247,7 @@ export function WorkbenchMenu({
               }
               close(true);
               if (entry.action) execute(entry.action);
+              else entry.onChoose?.();
             }}
           >
             <span className="menu-check" aria-hidden="true">

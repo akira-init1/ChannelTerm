@@ -3,6 +3,23 @@ import type { MessageDescriptor } from "@lingui/core";
 // Lingui 5 extracts these official annotated descriptors without a runtime macro
 // transform. Translations belong in PO catalogs; this file owns IDs and English defaults.
 export const menuMessages = [
+  /* i18n */ { id: "directory.actions", message: "Connection actions" },
+  /* i18n */ { id: "directory.allProtocols", message: "All protocols" },
+  /* i18n */ { id: "directory.copy", message: "Duplicate connection…" },
+  /* i18n */ {
+    id: "directory.editFailed",
+    message:
+      "Could not save this change. Check the name, available history space, and whether the connection still exists.",
+  },
+  /* i18n */ { id: "directory.favorite", message: "Add to favorites" },
+  /* i18n */ { id: "directory.focus", message: "Go to terminal" },
+  /* i18n */ {
+    id: "directory.folderHint",
+    message:
+      "Choose or enter a folder name. Leave empty to move out of a folder.",
+  },
+  /* i18n */ { id: "directory.moveFolder", message: "Move to folder…" },
+  /* i18n */ { id: "directory.rename", message: "Rename connection…" },
   /* i18n */ { id: "tab.rename", message: "Rename Tab…" },
   /* i18n */ { id: "tab.resetName", message: "Restore Default Name" },
   /* i18n */ { id: "connection.newShell", message: "New SSH terminal" },

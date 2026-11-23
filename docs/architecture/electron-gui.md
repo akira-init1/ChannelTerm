@@ -756,7 +756,8 @@ Transport ownership. They exclude credentials, credential paths and wake intent;
 only fills the connection dialog. Main and Host retain all existing validation and creation authority.
 Successful records receive local UUIDs; legacy records gain one on explicit use or opening their
 rule editor. Complete safe-preset equality preserves identity on reuse; another preset gets another
-identity even at the same physical endpoint. A connection's optional rules are stored in that record.
+identity even at the same physical endpoint. Folder membership and optional highlight rules
+belong to each local record. The renderer builds the protocol preview from these stored presets.
 Duplicate/malformed IDs discard their presentation binding and rules while retaining valid connection
 parameters. An explicit connection request that changes a current view's profile uses the existing
 guarded attachment replacement; it does not close or recreate the shared Session. Failed persistence

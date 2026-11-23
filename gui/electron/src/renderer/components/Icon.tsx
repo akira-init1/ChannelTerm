@@ -2,6 +2,7 @@ import {
   Bug,
   ChevronDown,
   FolderLock,
+  Folder,
   Network,
   LockKeyhole,
   LockKeyholeOpen,
@@ -33,6 +34,7 @@ const glyphs = {
   unlocked: LockKeyholeOpen,
   tcp: Network,
   sftp: FolderLock,
+  folder: Folder,
   telnet: SquareTerminal,
 };
 

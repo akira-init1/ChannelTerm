@@ -627,7 +627,20 @@ there is no confirmed open connection. In LAN, the dot beside the Host name repo
 latest authenticated refresh succeeded. Search LAN by Host name, Session label, endpoint or short reference.
 Closed Sessions still listed by a remote Host cannot be attached.
 
-Drag a connection row onto another to change its position, or focus it and press Alt+Up/Down.
+In **Sessions**, hover over **Protocol** to see the names and endpoints of stored connections
+grouped by protocol. Click a protocol to combine it with the current search and connection
+status. Keyboard users can open the control with Enter, Tab to a protocol and press Enter to
+select it. **All protocols** clears the protocol filter. Previewing the list does not connect.
+
+Right-click a connection or click its **⋯** button for the same menu. Choose **Move to folder…**
+and select an existing name or type a new one. Clear the field to return to the top level.
+Folders are single-level groups of local presets. Empty folders disappear. Each preset can
+be renamed, duplicated under a new name, marked as a favorite or forgotten independently,
+including presets for the same endpoint. Forgetting a preset leaves live Sessions running.
+Live Session actions use the clicked Session and retain their existing close confirmation.
+
+Drag a connection row onto another in the same folder or at the top level to change its position,
+or focus it and press Alt+Up/Down.
 The manual order is saved for that Host and shared across desktop windows. Rows hidden by a
 filter retain their positions. Newly used connections follow the manually ordered rows.
 Each connection row has a serial connector or SSH monitor icon beside its status light.
@@ -642,7 +655,7 @@ Use **New Connection...** to edit those values before connecting.
 Use **Session > New Connection...** to open a serial connection or an independent SSH shell.
 The existing-Session selector is inside that form. **Session > Attach Session...** opens
 the selector directly. **New Tab** creates an empty view. Connection settings and the
-manual-only switch are available on the connection row.
+manual-only switch are available from the row menu and lock control, respectively.
 
 Double-click a tab or use **Rename Tab...**. Enter saves, Escape cancels and **Restore Default
 Name** clears the override. The tab name takes precedence over the connection alias. The

@@ -15,6 +15,7 @@ export interface ConnectionRecord {
   favorite: boolean;
   lastUsed: number;
   uses: number;
+  folder?: string;
   highlights?: HighlightRule[];
 }
 
@@ -87,6 +88,7 @@ export function restoreConnections(raw: string | null): ConnectionRecord[] {
           favorite: v.favorite,
           lastUsed: v.lastUsed,
           uses: v.uses,
+          ...(isFolderName(v.folder) ? { folder: v.folder } : {}),
           ...(id ? { id } : {}),
           ...(highlights ? { highlights } : {}),
         },
@@ -126,6 +128,7 @@ export function recordConnection(
       favorite: favorite || !!previous?.favorite,
       lastUsed: now,
       uses: Math.min(Number.MAX_SAFE_INTEGER, (previous?.uses ?? 0) + 1),
+      ...(previous?.folder ? { folder: previous.folder } : {}),
       ...(isConnectionIdentity(id) ? { id } : {}),
       ...(isConnectionIdentity(id) && previous?.highlights
         ? { highlights: previous.highlights.map((rule) => ({ ...rule })) }
@@ -140,6 +143,62 @@ export function recordConnection(
     .slice(0, 50);
 }
 
+function isFolderName(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    value.length > 0 &&
+    value.length <= 128 &&
+    value === value.trim() &&
+    !/[\x00-\x1f\x7f]/.test(value)
+  );
+}
+
+export type DirectoryEdit =
+  "folder" | "copy" | "favorite" | "forget" | "rename";
+
+/** Apply a local edit to the latest history. Legacy rows match by their full safe preset. */
+export function editConnection(
+  entries: ConnectionRecord[],
+  target: ConnectionRecord,
+  edit: DirectoryEdit,
+  value = "",
+  newId?: string,
+): ConnectionRecord[] | undefined {
+  const current = target.id
+    ? entries.find((entry) => entry.id === target.id)
+    : findConnection(entries, target.request);
+  if (!current) return;
+  if (edit === "forget") return entries.filter((entry) => entry !== current);
+  let updated = { ...current };
+  if (edit === "folder") {
+    if (value && !isFolderName(value)) return;
+    if (value) updated.folder = value;
+    else delete updated.folder;
+  } else if (edit === "favorite") {
+    updated.favorite = !target.favorite;
+  } else {
+    const request = { ...current.request, label: value };
+    const existing = findConnection(entries, request);
+    if (
+      !isConnectionRequest(request) ||
+      (existing && (existing !== current || edit === "copy"))
+    )
+      return;
+    updated = { ...updated, request };
+    if (edit === "copy") {
+      if (
+        !value.trim() ||
+        !isConnectionIdentity(newId) ||
+        entries.length >= 50 ||
+        entries.some((entry) => entry.id === newId)
+      )
+        return;
+      return [...entries, { ...updated, id: newId, uses: 0, lastUsed: 0 }];
+    }
+  }
+  return entries.map((entry) => (entry === current ? updated : entry));
+}
+
 /** Public Host endpoint corresponding to the credential-free preset. */
 export function presetEndpoint(q: ConnectionRequest): string {
   if (q.kind === "serial") return q.port;
@@ -148,6 +207,23 @@ export function presetEndpoint(q: ConnectionRequest): string {
       ? "[" + q.host + "]"
       : q.host;
   return q.user + "@" + host + ":" + q.port;
+}
+
+/** A Host snapshot has no local preset ID. Resolve shared endpoints only when the label disambiguates them. */
+export function connectionForSession(
+  entries: ConnectionRecord[],
+  session: { transport: string; endpoint: string; label: string },
+) {
+  const candidates = entries.filter(
+    (entry) =>
+      entry.request.kind === session.transport &&
+      presetEndpoint(entry.request) === session.endpoint,
+  );
+  if (candidates.length === 1) return candidates[0];
+  const named = candidates.filter(
+    (entry) => entry.request.label === session.label,
+  );
+  return named.length === 1 ? named[0] : undefined;
 }
 
 // A Session first used through attachment supplies its endpoint. Unknown
