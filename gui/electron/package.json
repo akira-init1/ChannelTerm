@@ -10,6 +10,12 @@
     "node": ">=22.12.0"
   },
   "scripts": {
+    "icons:generate": "node scripts/generate-icons.mjs",
+    "predev": "npm run icons:generate",
+    "prestart": "npm run icons:generate",
+    "prebuild:bundle": "npm run icons:generate",
+    "pretest:prepared": "npm run icons:generate",
+    "pretest:desktop:dev": "npm run icons:generate",
     "dev": "npm run i18n:compile && node scripts/dev.mjs",
     "build": "npm run typecheck && npm run build:bundle",
     "build:bundle": "node scripts/build.mjs",

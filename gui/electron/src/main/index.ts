@@ -69,6 +69,15 @@ protocol.registerSchemesAsPrivileged([
   },
 ]);
 app.enableSandbox();
+if (process.platform === "win32")
+  app.setAppUserModelId("io.github.akira-init1.channelterm.desktop");
+const sourceBrand = resolve(app.getAppPath(), "../../assets/brand/generated");
+const windowIcon = join(
+  app.isPackaged ? process.resourcesPath : sourceBrand,
+  process.platform === "win32"
+    ? "channelterm-window.ico"
+    : "channelterm-window.png",
+);
 // Match native window chrome to the renderer's fixed dark workbench theme.
 nativeTheme.themeSource = "dark";
 
@@ -1352,6 +1361,11 @@ function makeWindow(
     throw new HostError("busy", "Close a window before opening another.");
   const created = new BrowserWindow({
     title: "ChannelTerm",
+    icon: process.platform === "darwin" ? undefined : windowIcon,
+    ...(process.platform === "win32" && {
+      titleBarStyle: "hidden",
+      titleBarOverlay: { height: 30, color: "#20252d", symbolColor: "#d9e0ea" },
+    }),
     width: 1180,
     height: 780,
     minWidth: 760,
@@ -1472,6 +1486,8 @@ function loadWindow(context: WindowContext): Promise<void> {
 void app
   .whenReady()
   .then(async () => {
+    if (process.platform === "darwin" && !app.isPackaged)
+      app.dock?.setIcon(join(sourceBrand, "png/512x512.png"));
     await hostSettings.load();
     const desktopSession = session.defaultSession;
     desktopSession.setPermissionRequestHandler(

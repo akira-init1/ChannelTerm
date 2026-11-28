@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 120 120" role="img" aria-labelledby="title">
+  <title id="title">ChannelTerm — 12 channel concept</title>
+  <rect x="2" y="2" width="116" height="116" rx="25" fill="#0D2035"/>
+  <!-- Independent channels end below the opaque terminal border. -->
+  <path d="M13 42 H28 M13 60 H28 M13 78 H28 M42 13 V28 M60 13 V28 M78 13 V28 M42 107 V92 M60 107 V92 M78 107 V92 M107 42 H92 M107 60 H92 M107 78 H92" fill="none" stroke="#43DDB7" stroke-width="7" stroke-linecap="round"/>
+  <rect x="28" y="28" width="64" height="64" rx="11" fill="#0D2035" stroke="#FFFFFF" stroke-width="8"/>
+  <path d="M43 46 L58 60 L43 74 M67 74 H78" fill="none" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

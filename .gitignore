@@ -12,6 +12,8 @@ coverage.out
 coverage.html
 *.coverprofile
 *.prof
+__pycache__/
+/assets/brand/generated/
 
 # Local credentials and machine-specific connection settings.
 .env

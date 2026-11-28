@@ -1,6 +1,7 @@
 import { chooseSession } from "./session-picker.mjs";
 import assert from "node:assert/strict";
 import { expect } from "@playwright/test";
+import { expectWindowWidth } from "./layout-checks.mjs";
 
 /** Search uses native xterm buffers/decorations, never a copied Host history or device write. */
 export async function checkTerminalSearch(
@@ -104,7 +105,7 @@ export async function checkTerminalSearch(
     if (window.isMinimized()) window.restore();
     window.setSize(760, 500);
   });
-  await expect.poll(() => page.evaluate(() => window.outerWidth)).toBe(760);
+  await expectWindowWidth(page, 760);
   await expect(query).toBeInViewport();
   await expect(
     search.getByRole("button", { name: "Close search (Escape)" }),

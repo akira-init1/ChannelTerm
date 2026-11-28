@@ -11,6 +11,7 @@ ChannelTerm/
 |   `-- workflows/
 |       |-- ci.yml                      Test, race, vet, vulnerability, and cross-build gates
 |       `-- release.yml                 Tagged cross-build, packaging, checksums, and GitHub Release
+|-- assets/brand/                   Tracked SVG app icon master; local derivatives in generated/
 |-- cmd/
 |   `-- channelterm/
 |       `-- main.go                 Process entry point and composition root
@@ -46,6 +47,9 @@ ChannelTerm/
 |-- scripts/
 |   |-- build.ps1                   Six-target build from PowerShell
 |   |-- build.sh                    Six-target build from Linux/Bash
+|   |-- build-electron.ps1          Native Windows desktop packaging
+|   |-- build-electron.sh           Native Linux/macOS desktop packaging
+|   |-- replace_icons.py            Import an SVG master, regenerate or check desktop icons
 |   `-- release.sh                  Clean tagged release verification and checksums
 |-- skills/
 |   |-- cterm-file-transfer/         Serial/SFTP/SCP transfer workflows for AI clients

@@ -1,6 +1,19 @@
 import assert from "node:assert/strict";
 import { expect } from "@playwright/test";
 
+/** The Windows overlay excludes the resize frame, with up to one DIP of border rounding. */
+export async function expectWindowWidth(page, width) {
+  await expect
+    .poll(() =>
+      page.evaluate((target) => {
+        return navigator.windowControlsOverlay?.visible
+          ? Math.abs(innerWidth - target) <= 1
+          : outerWidth === target;
+      }, width),
+    )
+    .toBe(true);
+}
+
 /** Layout shortcuts must consume their own keys without writing to the shared Session. */
 export async function checkWorkbenchPanels(
   desktop,

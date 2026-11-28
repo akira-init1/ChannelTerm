@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { expect } from "@playwright/test";
+import { expectWindowWidth } from "./layout-checks.mjs";
 import { setupI18n } from "@lingui/core";
 import { menuCatalogs } from "../src/locales/catalogs.ts";
 import { locales } from "../src/shared/menus.ts";
@@ -93,7 +94,7 @@ export async function checkDevices(page, desktop, dialog, fixture) {
     window.setSize(760, 500);
     return size;
   });
-  await expect.poll(() => page.evaluate(() => window.outerWidth)).toBe(760);
+  await expectWindowWidth(page, 760);
   const port = await dialog.locator('[name="port"]').boundingBox();
   const discovery = await panel.boundingBox();
   assert.ok(

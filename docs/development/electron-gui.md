@@ -11,17 +11,22 @@ Use Node.js 22.12 or newer (a supported LTS release), npm, and a native desktop 
 are pinned by the independent `gui/electron/package-lock.json`. Electron, React, TypeScript, Vite,
 xterm.js, Lingui Core, and the MCP TypeScript SDK are local to that project. No nested repository or global npm
 package is required. Go 1.26+ is needed to build the native companion and isolated integration fixture.
-The JavaScript GUI build remains independent of Go.
+GUI builds also require Python 3.10+ and the pinned icon rendering tools. They are build-time
+dependencies; packaged applications include their icons.
 
 From the repository root:
 
 ```powershell
+python -m venv bin/icon-venv
+.\bin\icon-venv\Scripts\python.exe -m pip install -r scripts/icon-requirements.txt
 Set-Location gui/electron
 npm.cmd ci
 npm.cmd run dev
 ```
 
-On Linux/macOS use `cd gui/electron` and `npm` in place of `npm.cmd`. The `.cmd` form avoids Windows
+On Linux/macOS use `python3 -m venv bin/icon-venv` and
+`bin/icon-venv/bin/python -m pip install -r scripts/icon-requirements.txt`, then
+`cd gui/electron` and use `npm` in place of `npm.cmd`. The `.cmd` form avoids Windows
 PowerShell script-execution policy errors without changing system policy. Electron may download its
 platform runtime on first launch; dependency and runtime downloads require network access.
 
@@ -439,7 +444,8 @@ fixture, catalogs, Main and Preload bundles. Neither command installs dependenci
 packages installers, signs, publishes or contacts a real device. Run `npm.cmd ci` first.
 There is no dedicated semantic lint command; Prettier checks formatting only.
 
-The `GUI` jobs in `.github/workflows/ci.yml` run `npm ci` with Node.js 24 and Go, then
+The `GUI` jobs in `.github/workflows/ci.yml` install the pinned Python icon tools
+and run `npm ci` with Node.js 24 and Go, then
 `check` on Linux and macOS or `check:desktop` on Windows. They use
 the existing read-only repository permission and no signing or publishing secrets. Linux/macOS
 desktop sessions, arm64 native execution and real hardware remain separate acceptance work;
@@ -731,30 +737,95 @@ native scenarios cover Lease blocking, disconnects, input composition and compac
 These checks use isolated Host fixtures; they do not establish native input-method or device
 acceptance on other operating systems.
 
+## Desktop brand icons
+
+The [SVG master](../../assets/brand/channelterm-logo.svg) is the single design source.
+Pass the path to a new SVG to replace the master and regenerate all desktop icons in one step.
+Git tracks only the SVG under `assets/brand/`. Electron's development, build and test commands
+prepare the PNG, ICO and ICNS files in the ignored `assets/brand/generated/` directory.
+The packaging scripts use the same build step. Icon generation uses the repository's
+`bin/icon-venv` interpreter when present, otherwise `python` on Windows or `python3` on Unix
+from PATH with the dependencies listed in `scripts/icon-requirements.txt`.
+
+From the repository root, in a Python 3.10+ virtual environment, run:
+
+```sh
+python -m pip install -r scripts/icon-requirements.txt
+python scripts/replace_icons.py "/path/to/new logo.svg"
+python scripts/replace_icons.py --check
+```
+
+In PowerShell, invoke the virtual environment's `python.exe` explicitly when it is not
+activated (for example, `.\bin\icon-venv\Scripts\python.exe .\scripts\replace_icons.py "D:\art\logo.svg"`).
+A successful import prints `ChannelTerm desktop icons are up to date.` Run the native packaging
+script afterwards and launch the executable from the newly printed artifact directory.
+
+The replacement script preserves the source SVG bytes and validates all renders before replacing
+project assets. Use `python scripts/replace_icons.py` to regenerate from the checked-in master.
+If a process was killed during replacement, close any remaining icon updater, remove its stale
+`assets/brand/generated/.icon-update` directory and rerun with the intended source SVG.
+The script renders square RGBA PNGs at 16, 24, 32, 48, 64, 128, 256, 512 and 1024 pixels.
+It checks for a transparent exterior and enclosed transparency defects before writing. The
+Windows ICO contains the seven sizes through 256 px. The ICNS includes standard and Retina
+representations through 1024 px. `--check` exits with an error if a generated file is missing
+or differs from a fresh render. To publish a design update, commit the SVG master.
+
+Electron uses `channelterm-window.ico` on Windows and `channelterm-window.png` on Linux
+for native windows. These are byte-for-byte copies of the application ICO and 512 px PNG.
+The Windows title bar also uses this PNG at its display size.
+
+| Platform | Where to verify the packaged icon |
+| --- | --- |
+| Windows | Inspect `channelterm-desktop.exe` and the NSIS installer in Explorer. Launch the GUI from its Start menu shortcut and check the window and taskbar. |
+| Linux | Install the deb and check the launcher entry and running window. The tar.gz carries the window PNG for running the extracted app. |
+| macOS | Inspect the app in Finder and the disk image, then launch it and check the Dock. Development runs also set the Dock icon from the generated PNG. |
+
 ## Local desktop packages
 
-From `gui/electron`, after `npm ci` and the required checks:
+From the repository root, install the [GUI build dependencies](#dependencies-and-initialization)
+and run `npm --prefix gui/electron ci` on a fresh checkout. After the
+required checks, run the native packaging script:
+
+```powershell
+# Windows
+.\scripts\build-electron.ps1
+```
+
+```sh
+# Linux or macOS
+./scripts/build-electron.sh
+```
+
+Both scripts forward their options to the Electron package command. The default build produces
+the unpacked application and the platform installation package. Pass `--all` to also generate
+the distribution archive, or `--dir` to build only the unpacked application. The equivalent
+commands from `gui/electron` on Windows are:
 
 ```powershell
 npm.cmd run package
+# Include the ZIP archive:
+npm.cmd run package -- --all
 # Only unpacked application files, without an installer/archive:
 npm.cmd run package -- --dir
 # Build the other supported CPU architecture on the same OS:
 npm.cmd run package -- --arch=arm64
 ```
 
-Packaging requires the native OS toolchain, Node/npm and Go. End users need neither Node nor Go.
+Packaging requires the native OS toolchain, Node/npm, Go and the Python icon tools. End users
+can run the packaged application without these build dependencies.
 The command uses pinned electron-builder 26.18.0 and the pinned Electron runtime; runtime/tool
-downloads require network access. It accepts only `--dir` and `--arch=x64|arm64`, builds for the
-current OS, and writes a new `release/<go-os>-<go-arch>/build-*/artifacts/` directory each time.
+downloads require network access. All three modes accept `--arch=x64|arm64`. The script builds for the
+current OS, and writes to `release/<go-os>-<go-arch>/build-<id>-<timestamp>/artifacts/`.
+The six-character random ID distinguishes concurrent builds. The suffix records the UTC build
+start time, for example `build-3a1636-20261128T141807Z`. The command prints the artifact path on completion.
 Existing developer companions and previous package directories are never overwritten. Do not
 remove a package directory while its Host is still serving shared Sessions.
 
-| Build OS | Configured formats | CPU targets |
-| --- | --- | --- |
-| Windows | ZIP directory archive, per-user NSIS installer | x64, arm64 |
-| Linux | tar.gz directory archive, deb | x64, arm64 |
-| macOS | app ZIP, DMG | x64, arm64 |
+| Build OS | Default outputs | Additional archive with `--all` | CPU targets |
+| --- | --- | --- | --- |
+| Windows | Unpacked directory and per-user NSIS installer | ZIP | x64, arm64 |
+| Linux | Unpacked directory and deb | tar.gz | x64, arm64 |
+| macOS | Unpacked app and DMG | ZIP | x64, arm64 |
 
 Windows x64 package execution and NSIS installation/removal have native automated coverage.
 The other package formats/architectures require builds and acceptance on those native systems;

@@ -35,6 +35,11 @@ jobs:
           node-version: 24
           cache: npm
           cache-dependency-path: gui/electron/package-lock.json
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install desktop icon build tools
+        run: python -m pip install -r ../../scripts/icon-requirements.txt
       - run: npm ci
       - name: Check GUI formatting, types, catalogs, tests and build
         if: runner.os != 'Windows'

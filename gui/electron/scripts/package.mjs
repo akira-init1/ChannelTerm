@@ -1,11 +1,10 @@
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { execFileSync, spawn } from "node:child_process";
 import {
   chmod,
   copyFile,
   cp,
   mkdir,
-  mkdtemp,
   readFile,
   writeFile,
 } from "node:fs/promises";
@@ -14,6 +13,8 @@ import { fileURLToPath } from "node:url";
 
 const project = fileURLToPath(new URL("../", import.meta.url));
 const repository = resolve(project, "../..");
+const brand = join(repository, "assets/brand/generated");
+const windowsIcon = join(brand, "channelterm.ico");
 const platforms = { win32: "windows", linux: "linux", darwin: "darwin" };
 const arches = { x64: "amd64", arm64: "arm64" };
 
@@ -24,11 +25,14 @@ export function packageOptions(
   arch = process.arch,
 ) {
   let directory = false;
+  let archive = false;
   for (const arg of args) {
     if (arg === "--dir") directory = true;
+    else if (arg === "--all") archive = true;
     else if (arg.startsWith("--arch=")) arch = arg.slice(7);
     else throw new Error(`Unknown package option: ${arg}`);
   }
+  if (directory && archive) throw new Error("Choose either --dir or --all.");
   if (!Object.hasOwn(platforms, platform) || !Object.hasOwn(arches, arch))
     throw new Error(
       "Packaging supports Windows, Linux and macOS on x64/arm64 only.",
@@ -37,6 +41,7 @@ export function packageOptions(
     platform,
     arch,
     directory,
+    archive,
     goos: platforms[platform],
     goarch: arches[arch],
   };
@@ -50,6 +55,7 @@ export function appMetadata(source) {
     description: source.description,
     license: source.license,
     main: "dist/main/index.cjs",
+    desktopName: "channelterm-desktop.desktop",
     // Preserve the development application's user-data identity after packaging.
     productName: source.name,
   };
@@ -76,8 +82,20 @@ export function builderConfiguration(
     nodeGypRebuild: false,
     publish: null,
     artifactName: `ChannelTerm-Desktop-${metadata.version}-${options.goos}-${options.goarch}.${"${ext}"}`,
-    win: { target: ["nsis", "zip"], signExecutable: false },
+    win: {
+      target: options.archive ? ["nsis", "zip"] : ["nsis"],
+      signExecutable: false,
+      icon: windowsIcon,
+      extraResources: [
+        {
+          from: join(brand, "channelterm-window.ico"),
+          to: "channelterm-window.ico",
+        },
+      ],
+    },
     nsis: {
+      installerIcon: windowsIcon,
+      uninstallerIcon: windowsIcon,
       oneClick: false,
       perMachine: false,
       allowElevation: false,
@@ -90,14 +108,22 @@ export function builderConfiguration(
       include: join(project, "scripts/installer.nsh"),
     },
     linux: {
-      target: ["tar.gz", "deb"],
+      target: options.archive ? ["tar.gz", "deb"] : ["deb"],
+      icon: join(brand, "png"),
+      extraResources: [
+        {
+          from: join(brand, "channelterm-window.png"),
+          to: "channelterm-window.png",
+        },
+      ],
       category: "Development",
       maintainer: "ChannelTerm contributors",
     },
     // Archive and disk-image users copy the app to a stable directory before starting
     // a persistent Host. No self-extracting portable runtime with temporary helpers.
     mac: {
-      target: ["zip", "dmg"],
+      icon: join(brand, "channelterm.icns"),
+      target: options.archive ? ["zip", "dmg"] : ["dmg"],
       identity: null,
       notarize: false,
       category: "public.app-category.developer-tools",
@@ -128,6 +154,21 @@ function run(command, args, env) {
   });
 }
 
+/** Reserve a fresh directory even when multiple builds start in the same second. */
+export async function createBuildDirectory(output, built) {
+  const timestamp = built.replace(/[-:]/g, "");
+  for (;;) {
+    const id = randomBytes(3).toString("hex");
+    const stage = join(output, `build-${id}-${timestamp}`);
+    try {
+      await mkdir(stage, { mode: 0o700 });
+      return stage;
+    } catch (error) {
+      if (error.code !== "EEXIST") throw error;
+    }
+  }
+}
+
 /** Fresh directories avoid replacing a persistent developer or packaged Host. */
 export async function packageDesktop(options) {
   const source = JSON.parse(
@@ -150,7 +191,7 @@ export async function packageDesktop(options) {
   const built = new Date().toISOString().replace(/\.\d+Z$/, "Z");
   const output = join(project, "release", `${options.goos}-${options.goarch}`);
   await mkdir(output, { recursive: true });
-  const stage = await mkdtemp(join(output, "build-"));
+  const stage = await createBuildDirectory(output, built);
   const app = join(stage, "app");
   await mkdir(join(app, "dist"), { recursive: true });
   for (const asset of [

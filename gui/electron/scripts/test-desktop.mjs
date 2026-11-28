@@ -28,7 +28,11 @@ import { checkStartup } from "./startup-checks.mjs";
 import { checkWindows } from "./window-checks.mjs";
 import { checkSplits } from "./split-checks.mjs";
 import { checkConnectionHighlights } from "./connection-highlight-checks.mjs";
-import { checkCompactLayout, checkWorkbenchPanels } from "./layout-checks.mjs";
+import {
+  checkCompactLayout,
+  checkWorkbenchPanels,
+  expectWindowWidth,
+} from "./layout-checks.mjs";
 import { randomBytes } from "node:crypto";
 import { copyFile, mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
@@ -57,7 +61,7 @@ async function checkLayout(desktop, page, state) {
       },
       [width, height],
     );
-    await expect.poll(() => page.evaluate(() => window.outerWidth)).toBe(width);
+    await expectWindowWidth(page, width);
     await expect
       .poll(() =>
         page.evaluate(() => {
@@ -76,7 +80,11 @@ async function checkLayout(desktop, page, state) {
             .querySelector(".xterm-screen")
             ?.getBoundingClientRect();
           return {
-            top: top.top === 0,
+            top:
+              top.top ===
+              (document
+                .querySelector(".window-titlebar")
+                ?.getBoundingClientRect().bottom ?? 0),
             sidebar: side.top === top.bottom && main.left === side.right,
             bottom: bottom.bottom <= innerHeight && bottom.top === main.bottom,
             right: main.right <= innerWidth,
@@ -211,6 +219,27 @@ try {
     page.getByRole("heading", { name: "ChannelTerm", exact: true }),
   ).toHaveCount(0);
   await expect(page.locator(".topbar")).toHaveCSS("height", "32px");
+  if (process.platform === "win32") {
+    const titlebar = page.locator(".window-titlebar");
+    await expect(titlebar).toHaveText("ChannelTerm");
+    await expect(titlebar).toHaveCSS("font-size", "12px");
+    await expect(titlebar.locator("img")).toHaveCSS("width", "22px");
+    await expect
+      .poll(() =>
+        titlebar.evaluate((bar) => {
+          const reserved =
+            navigator.windowControlsOverlay.getTitlebarAreaRect();
+          const bounds = bar.getBoundingClientRect();
+          return (
+            Math.abs(bounds.height - 30) <= 1 &&
+            Math.abs(bounds.width - reserved.width) <= 1 &&
+            reserved.width < window.innerWidth &&
+            bar.querySelector("img").naturalWidth > 0
+          );
+        }),
+      )
+      .toBe(true);
+  }
   await expect(page.locator(".brand-mark")).toHaveCount(0);
   await expect(page.getByText("Desktop preview", { exact: true })).toHaveCount(
     0,

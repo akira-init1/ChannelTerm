@@ -61,8 +61,33 @@ p {
   vertical-align: middle;
 }
 /* Fixed chrome and zero minimum tracks keep the terminal inside the window. */
-.app {
+#root {
   height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+.window-titlebar {
+  flex: none;
+  height: env(titlebar-area-height, 0px);
+  width: env(titlebar-area-width, 100%);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding-inline: 8px;
+  overflow: hidden;
+  background: #20252d;
+  color: var(--foreground);
+  font-size: 12px;
+  user-select: none;
+  app-region: drag;
+}
+.window-titlebar img {
+  width: 22px;
+  height: 22px;
+}
+.app {
+  flex: 1;
+  min-height: 0;
   display: grid;
   grid-template-rows: 32px minmax(0, 1fr) 24px;
   overflow: hidden;

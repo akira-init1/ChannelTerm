@@ -83,10 +83,12 @@ The current structure requires no global state framework, DI container, or plugi
 
 The renderer uses a dark terminal workbench with a `#101318` terminal, `#181d25` Session
 sidebar, muted slate chrome, and blue selection accents. xterm retains its dark ANSI palette.
-Native window chrome is requested in dark mode independently of the OS theme; there is no
-theme switcher or custom title bar. This is application-defined styling.
+Main requests dark window chrome. On Windows, Electron reserves a 30 px title bar with
+native minimize, maximize and close controls. Renderer draws the 12 px title and
+22 px brand icon in the draggable space reported by the window controls overlay. Linux and macOS
+use their native title bars.
 
-The native title bar and minimum window size (760 × 500) remain unchanged. The application
+The minimum window size is 760 × 500. The application
 area has a 32 px application menu bar, a flexible workspace, and a 24 px full-width status bar.
 The menu bar places menus on the left and three compact left/bottom/right layout toggles on the right,
 without an application name, logo, or preview banner. The original slate/blue styling and
