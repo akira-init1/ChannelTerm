@@ -6,7 +6,7 @@ import { buildProcesses } from "./build.mjs";
 import { prepareHost } from "./build-host.mjs";
 
 await prepareHost();
-await buildProcesses({ strictCatalogs: false });
+await buildProcesses();
 const nonce = randomBytes(16).toString("hex");
 const server = await createServer({ html: { cspNonce: nonce } });
 await server.listen();

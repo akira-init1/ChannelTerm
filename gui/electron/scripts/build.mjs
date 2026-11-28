@@ -1,12 +1,8 @@
 import { build } from "esbuild";
 import { build as buildRenderer } from "vite";
 import { writeNotices } from "./notices.mjs";
-import { compileCatalogs } from "./i18n.mjs";
 
-export async function buildProcesses({ strictCatalogs = true } = {}) {
-  // Vite does not transform Main. Compile shared resources before esbuild and
-  // Vite independently bundle their own copies of the generated catalogs.
-  await compileCatalogs(strictCatalogs);
+export async function buildProcesses() {
   await build({
     entryPoints: ["src/main/index.ts"],
     outfile: "dist/main/index.cjs",
@@ -28,6 +24,8 @@ export async function buildProcesses({ strictCatalogs = true } = {}) {
 
 if (process.argv[1]?.endsWith("build.mjs")) {
   await buildProcesses();
-  await buildRenderer();
-  await writeNotices();
+  if (!process.argv.includes("--processes-only")) {
+    await buildRenderer();
+    await writeNotices();
+  }
 }

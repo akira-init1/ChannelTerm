@@ -37,13 +37,11 @@ jobs:
           cache-dependency-path: gui/electron/package-lock.json
       - run: npm ci
       - name: Check GUI formatting, types, catalogs, tests and build
+        if: runner.os != 'Windows'
         run: npm run check
-      - name: Test production desktop with isolated Host
+      - name: Check GUI and test production and development desktops with isolated Host
         if: runner.os == 'Windows'
-        run: npm run test:desktop
-      - name: Test development desktop with isolated Host
-        if: runner.os == 'Windows'
-        run: npm run test:desktop:dev
+        run: npm run check:desktop
 
   test:
     name: Test (${{ matrix.name }})

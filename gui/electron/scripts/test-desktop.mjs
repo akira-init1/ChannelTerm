@@ -30,10 +30,9 @@ import { checkSplits } from "./split-checks.mjs";
 import { checkConnectionHighlights } from "./connection-highlight-checks.mjs";
 import { checkCompactLayout, checkWorkbenchPanels } from "./layout-checks.mjs";
 import { randomBytes } from "node:crypto";
-import { mkdtemp, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { createServer } from "vite";
-import { buildProcesses } from "./build.mjs";
 import {
   checkOfflineMenus,
   checkAttachedMenus,
@@ -151,6 +150,14 @@ async function checkLayout(desktop, page, state) {
   );
 }
 
+// Main resolves the file CLI relative to its bundle. Use the same executable
+// the fixture built for the unit tests, including on a fresh checkout.
+const executableSuffix = process.platform === "win32" ? ".exe" : "";
+await mkdir("dist/files", { recursive: true });
+await copyFile(
+  resolve("test-results", `files${executableSuffix}`),
+  resolve("dist/files", `channelterm${executableSuffix}`),
+);
 const fixture = await startFixture();
 // Shortcut settings persist: keep every test window off the user's GUI profile.
 const profile = await mkdtemp(resolve("test-results/desktop-profile-"));
@@ -177,7 +184,6 @@ let desktop;
 let devServer;
 try {
   if (process.argv.includes("--dev")) {
-    await buildProcesses({ strictCatalogs: false });
     const nonce = randomBytes(16).toString("hex");
     devServer = await createServer({ html: { cspNonce: nonce } });
     await devServer.listen();
