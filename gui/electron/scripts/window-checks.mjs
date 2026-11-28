@@ -238,14 +238,20 @@ export async function checkWindows(environment) {
     await source.keyboard.type("only-endpoint-two");
     await activeTerminal(second).focus();
     await second.keyboard.type("only-endpoint-one");
-    assert.equal(
-      Buffer.from((await observer.read(secondObserver.id)).data).toString(),
-      "only-endpoint-two",
-    );
-    assert.equal(
-      Buffer.from((await observer.read(firstObserver.id)).data).toString(),
-      "only-endpoint-one",
-    );
+    for (const [handle, expected] of [
+      [secondObserver, "only-endpoint-two"],
+      [firstObserver, "only-endpoint-one"],
+    ]) {
+      let received = "";
+      await expect
+        .poll(async () => {
+          const chunk = await observer.read(handle.id);
+          assert.equal(chunk.dropped, false);
+          received += Buffer.from(chunk.data).toString();
+          return received;
+        })
+        .toBe(expected);
+    }
     await expect(second.locator(".xterm-rows:visible")).toContainText(
       "only-endpoint-one",
     );

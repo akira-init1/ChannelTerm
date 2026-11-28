@@ -208,12 +208,20 @@ func (a *Application) SessionControl(ctx context.Context, id string) (ControlSta
 // CheckSessionControl checks a captured generation before non-byte Session effects.
 // Actual stream writes additionally check under the shared lease write gate.
 func (a *Application) CheckSessionControl(ctx context.Context, id string) error {
+	return a.checkSessionControl(ctx, id, "")
+}
+
+// A retained operation must never use control granted to a replacement Session.
+func (a *Application) checkSessionControl(ctx context.Context, id, expectedReference string) error {
 	if !controlExternal(ctx) {
 		return nil
 	}
 	t, ref, err := a.controlTarget(id)
 	if err != nil {
 		return err
+	}
+	if expectedReference != "" && ref != expectedReference {
+		return ErrSessionNotFound
 	}
 	a.leases.mu.Lock()
 	defer a.leases.mu.Unlock()

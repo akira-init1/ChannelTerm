@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/akira-init1/ChannelTerm/internal/core/config"
 	"github.com/akira-init1/ChannelTerm/internal/core/debugger"
 	"github.com/akira-init1/ChannelTerm/internal/core/session"
 )
@@ -92,9 +93,10 @@ type debugRun struct {
 	request               DebugStartRequest
 	fingerprint           string
 	id, owner, token, dir string
-	reference             string     // Immutable lease registration for delayed failure cleanup.
-	op                    sync.Mutex // Serializes setup, MI actions, and recovery; never held by readers.
-	mu                    sync.Mutex // State/events only; never held across I/O.
+	connection            config.ManualConnection // Original endpoint policy also protects retained events.
+	reference             string                  // Original registration for control checks and delayed cleanup.
+	op                    sync.Mutex              // Serializes setup, MI actions, and recovery; never held by readers.
+	mu                    sync.Mutex              // State/events only; never held across I/O.
 	state                 string
 	err                   error
 	expires               time.Time
@@ -153,7 +155,11 @@ func (a *Application) StartDebug(ctx context.Context, request DebugStartRequest)
 	if len(request.Owner) < 32 || len(request.Owner) > 128 || len(request.RequestID) < 1 || len(request.RequestID) > 128 {
 		return DebugStatus{}, errors.New("owner must have 32..128 characters and request_id 1..128")
 	}
-	terminal, e := a.sessionForClient(ctx, request.SessionID)
+	reference, ok := a.manager.Reference(strings.TrimSpace(request.SessionID))
+	if !ok {
+		return DebugStatus{}, ErrSessionNotFound
+	}
+	terminal, e := a.sessionForClient(ctx, reference)
 	if e != nil {
 		return DebugStatus{}, e
 	}
@@ -185,6 +191,8 @@ func (a *Application) StartDebug(ctx context.Context, request DebugStartRequest)
 		return DebugStatus{}, e
 	}
 	r := &debugRun{updated: time.Now(), clientIdentity: ClientIdentityFromContext(ctx), app: a, terminal: terminal, request: request, fingerprint: string(encoded), id: "DBG-" + token, token: token, owner: "debug-" + owner, state: "starting", expires: time.Now().Add(debugClientTTL), changed: make(chan struct{}), commands: map[string]debugCommandResult{}, finished: make(chan struct{})}
+	r.reference = reference
+	r.connection = a.connectionFor(reference)
 	r.op.Lock()
 	defer r.op.Unlock()
 	if a.debug.runs == nil {
@@ -201,13 +209,12 @@ func (a *Application) StartDebug(ctx context.Context, request DebugStartRequest)
 		close(r.finished)
 		return r.status(), e
 	}
-	lease, e := a.AcquireLeaseForClient(ctx, terminal.ID(), r.owner, LeaseTypeDebug)
+	_, e = a.AcquireLeaseForClient(ctx, reference, r.owner, LeaseTypeDebug)
 	if e != nil {
 		r.transition("failed", e)
 		close(r.finished)
 		return r.status(), e
 	}
-	r.reference = lease.sessionReference
 	e = checkDebugPendingInput(terminal)
 	if e == nil {
 		e = r.start(ctx)
@@ -454,12 +461,58 @@ func debugMICommand(action, argument string) (string, error) {
 	return "", errors.New("unsupported action or invalid argument; single inferior/all-stop only")
 }
 
+// DebugEventSessionReference identifies the original registration for request tracking.
+// It grants no access to the operation and does not resolve a reused Session ID.
+func (a *Application) DebugEventSessionReference(id string) string {
+	a.debug.mu.Lock()
+	defer a.debug.mu.Unlock()
+	if r := a.debug.runs[id]; r != nil {
+		return r.reference
+	}
+	return ""
+}
+
 // ReadDebugEvents waits up to the caller's deadline for events after cursor.
-// Reads renew the client heartbeat but not ownership after a terminal failure.
-func (a *Application) ReadDebugEvents(ctx context.Context, id, owner string, cursor uint64) (DebugEvents, error) {
+// Live reads renew the heartbeat. After disconnect, the original instance can
+// inspect a retained failure under the original endpoint's access policy.
+func (a *Application) ReadDebugEvents(ctx context.Context, id, owner string, cursor uint64) (page DebugEvents, err error) {
+	if err := CheckClientAccess(ctx, ClientWrite); err != nil {
+		return DebugEvents{}, err
+	}
 	r, e := a.debug.get(id, owner)
 	if e != nil {
 		return DebugEvents{}, e
+	}
+	ctx, finish, e := a.guardConnection(ctx, r.connection)
+	if e != nil {
+		return DebugEvents{}, e
+	}
+	defer func() {
+		if denied := finish(); denied != nil {
+			page, err = DebugEvents{}, denied
+		}
+	}()
+	if e := a.checkSessionControl(ctx, r.terminal.ID(), r.reference); e != nil {
+		if !errors.Is(e, ErrSessionNotFound) {
+			return DebugEvents{}, e
+		}
+		// The Session can disappear before the monitor publishes its final event.
+		// Only the original instance can wait here, and this wait never renews the run.
+		if e := a.validateControlIdentity(ctx, r.terminal.ID()); e != nil {
+			return DebugEvents{}, e
+		}
+		reader := ClientIdentityFromContext(ctx)
+		if reader.ID != r.clientIdentity.ID || reader.InstanceID != r.clientIdentity.InstanceID {
+			return DebugEvents{}, ErrClientInstance
+		}
+		select {
+		case <-ctx.Done():
+			return DebugEvents{}, ctx.Err()
+		case <-r.finished:
+		}
+		if r.status().State != "failed" {
+			return DebugEvents{}, ErrSessionNotFound
+		}
 	}
 	for {
 		r.mu.Lock()

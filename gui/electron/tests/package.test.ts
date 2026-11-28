@@ -55,13 +55,14 @@ test("the icon command imports, regenerates and checks assets in a clean checkou
         "[Security.Principal.WindowsIdentity]::GetCurrent().User.Value",
       )
     ).stdout.trim();
+    assert.match(sid, /^S-1-\d+(?:-\d+)+$/);
     await exec("icacls", [brand, "/grant", `*${sid}:(OI)(CI)(RX)`]);
   }
   await Promise.all([run(), run()]);
   await run("--check");
   if (sid) {
     const acl = await shell(
-      "(Get-Acl generated/channelterm-window.png).GetAccessRules($false, $true, [Security.Principal.SecurityIdentifier]).IdentityReference.Value",
+      "[IO.File]::GetAccessControl('generated/channelterm-window.png').GetAccessRules($false, $true, [Security.Principal.SecurityIdentifier]).IdentityReference.Value",
     );
     assert.ok(acl.stdout.split(/\r?\n/).includes(sid));
   }

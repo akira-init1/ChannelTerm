@@ -11,6 +11,17 @@ go vet ./...
 go test -race ./...
 ```
 
+On macOS, the resumable transfer tests use a local shell to simulate the target board. Install
+Homebrew `coreutils` and put its unprefixed commands on the test process's path.
+
+```sh
+brew install coreutils
+PATH="$(brew --prefix coreutils)/libexec/gnubin:$PATH" go test ./...
+```
+
+The simulated board uses GNU `stat` to report free space and GNU `mv` to publish a directory
+without replacing a competing destination. CI configures these tools for the macOS Go job.
+
 The pinned serial dependency has a local flow-control patch in a nested module. Also run
 `go test go.bug.st/serial -run TestFlowControl -count=1` (with `-race` on Linux).
 These tests use flag structures and disposable Linux PTYs, not physical ports. See the

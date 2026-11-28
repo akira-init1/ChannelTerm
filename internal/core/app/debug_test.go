@@ -78,3 +78,57 @@ func TestDebugOwnerAndLostEventCursor(t *testing.T) {
 		t.Fatal("future cursor accepted")
 	}
 }
+
+func TestDebugEventsAfterDisconnectRequireOriginalInstanceAndEndpointAccess(t *testing.T) {
+	a, _, _ := instanceFixture(t)
+	creator := controlTestClient(t, a, "CL-agent", "agent")
+	other := controlTestClient(t, a, "CL-agent", "agent")
+	terminal, reference, _ := a.manager.GetWithReference("board")
+	expires := time.Now().Add(time.Minute)
+	r := &debugRun{
+		id: "debug", request: DebugStartRequest{Owner: strings.Repeat("a", 32)},
+		terminal: terminal, reference: reference, connection: connectionKey("serial", "COM8"),
+		clientIdentity: ClientIdentityFromContext(creator), state: "running", expires: expires,
+		changed: make(chan struct{}), finished: make(chan struct{}),
+	}
+	a.debug.runs = map[string]*debugRun{r.id: r}
+	read := func(ctx context.Context) (DebugEvents, error) {
+		return a.ReadDebugEvents(ctx, r.id, r.request.Owner, 0)
+	}
+	if _, err := read(creator); !errors.Is(err, ErrControlRequired) {
+		t.Fatalf("live read without control: %v", err)
+	}
+	a.manager.RemoveRegistration("board", reference)
+	defer terminal.Close()
+	cancelled, cancel := context.WithCancel(creator)
+	cancel()
+	if _, err := read(cancelled); !errors.Is(err, context.Canceled) {
+		t.Fatalf("wait for pending failure: %v", err)
+	}
+	r.transition("failed", errors.New("disconnected"))
+	close(r.finished)
+	replacement := newFakeConnectedSession("board")
+	if err := replacement.Connect(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if err := a.manager.Register(replacement); err != nil {
+		t.Fatal(err)
+	}
+	page, err := read(creator)
+	if err != nil || page.Status.State != "failed" || len(page.Events) != 1 || page.Events[0].Record.Class != "failed" || !page.Status.ExpiresAt.Equal(expires) {
+		t.Fatalf("retained failure: %+v, %v", page, err)
+	}
+	if _, err := read(other); !errors.Is(err, ErrClientInstance) {
+		t.Fatalf("different instance of same client: %v", err)
+	}
+	if _, err := a.ReadDebugEvents(creator, r.id, "wrong owner", 0); err == nil {
+		t.Fatal("retained events disclosed to wrong owner")
+	}
+	if _, err := read(WithClientAccess(creator, ClientAccess{})); !errors.Is(err, ErrClientPermissionDenied) {
+		t.Fatalf("revoked write grant: %v", err)
+	}
+	a.applyConnectionPolicy(r.connection, true)
+	if _, err := read(creator); !errors.Is(err, ErrManualOnly) {
+		t.Fatalf("protected endpoint: %v", err)
+	}
+}

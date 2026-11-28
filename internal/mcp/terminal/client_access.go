@@ -25,15 +25,20 @@ func (t authorizedTool) Call(ctx context.Context, input json.RawMessage) (result
 		if err != nil {
 			return nil, err
 		}
-		// Only explicit Session targets create call-use records. Lists and discovery
-		// do not implicitly keep every device in use. Business input is unchanged.
+		// Lists and discovery do not implicitly keep every device in use.
 		var target struct {
 			SessionID string `json:"session_id"`
 			DebugID   string `json:"debug_id"`
 			BridgeID  string `json:"bridge_id"`
 		}
 		_ = json.Unmarshal(input, &target)
-		guardTarget := target.SessionID
+		callTarget := target.SessionID
+		if t.Name() == "debug_events" {
+			// ReadDebugEvents authorizes the live registration or the retained failure.
+			// Track the read against the original registration, including for delegated clients.
+			callTarget = t.application.DebugEventSessionReference(target.DebugID)
+		}
+		guardTarget := callTarget
 		if guardTarget == "" && target.DebugID != "" {
 			guardTarget = t.application.OperationSessionID(target.DebugID)
 		}
@@ -68,7 +73,7 @@ func (t authorizedTool) Call(ctx context.Context, input json.RawMessage) (result
 				} else {
 					err = t.application.CheckSessionControl(ctx, target.SessionID)
 				}
-			} else if target.DebugID != "" {
+			} else if target.DebugID != "" && t.Name() != "debug_events" {
 				err = t.application.CheckOperationControl(ctx, target.DebugID)
 			} else if target.BridgeID != "" {
 				err = t.application.CheckOperationControl(ctx, target.BridgeID)
@@ -78,7 +83,7 @@ func (t authorizedTool) Call(ctx context.Context, input json.RawMessage) (result
 			}
 		}
 		var done func()
-		ctx, done, err = t.application.BeginClientCall(ctx, target.SessionID, t.Name(), clientEffect(t.Name()) != app.ClientRead)
+		ctx, done, err = t.application.BeginClientCall(ctx, callTarget, t.Name(), clientEffect(t.Name()) != app.ClientRead)
 		if err != nil {
 			return nil, err
 		}

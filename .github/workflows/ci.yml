@@ -74,6 +74,11 @@ jobs:
         with:
           go-version: ${{ matrix.go }}
           cache-dependency-path: go.sum
+      - name: Provide Linux target shell tools for transfer tests on macOS
+        if: runner.os == 'macOS'
+        run: |
+          brew list --versions coreutils >/dev/null || brew install coreutils
+          echo "$(brew --prefix coreutils)/libexec/gnubin" >> "$GITHUB_PATH"
       - run: go test ./...
       - run: go test go.bug.st/serial -run TestFlowControl -count=1
       - name: Validate PowerShell release build

@@ -1042,7 +1042,10 @@ operations. `debug_events` changes the client heartbeat and therefore is not ann
 heartbeat `expires_at`, and optional `error`. States are `starting`, `stopped`, `running`, `exited`,
 `recovering`, `closed`, and `failed`. `closed` means shell restoration was verified. A failed call
 uses the ordinary MCP `isError` result, not a successful status object; subsequent authenticated
-event reads can still inspect the retained failure.
+event reads can still inspect the retained failure. After the original Session disconnects,
+the instance that started the operation can read the retained events with its original owner
+capability and current write grant. The original endpoint's manual-only policy still applies.
+These reads do not renew the heartbeat or restore the Session.
 
 `elf` is an absolute native amd64/arm64 executable/PIE path. Start accepts at most 128 launch
 arguments and 8192 combined path/argument bytes; NUL and newlines are rejected. The resulting

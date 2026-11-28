@@ -216,11 +216,14 @@ test("capture ignores terminal visibility and transfer suppression, retains real
     await fixture.command("flood");
     const overwritten = await capture.read();
     assert.equal(overwritten?.dropped, true);
+    // Keep a view attached so idle release cannot mask an explicit Session close.
+    const remainingView = await client.attach(id);
     const pending = capture.read().catch(() => undefined);
     await capture.close();
     await capture.close();
     await pending;
     assert.ok((await client.list()).some((entry) => entry.session_id === id));
+    await client.detach(remainingView.id);
   } finally {
     await capture?.close();
     await client.disconnect();

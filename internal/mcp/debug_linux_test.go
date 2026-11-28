@@ -343,7 +343,7 @@ func TestGDBLocalMCPAddition(t *testing.T) {
 			}
 		}
 	}
-	if out := f.command(t, "evaluate", "a + b"); !strings.Contains(fmt.Sprint(out), "7") {
+	if out := f.command(t, "evaluate", "a + b"); out["record"].(map[string]any)["results"].(map[string]any)["value"] != "7" {
 		t.Fatalf("wrong addition: %v", out)
 	}
 	f.command(t, "step", "")
@@ -354,14 +354,34 @@ func TestGDBLocalMCPAddition(t *testing.T) {
 	f.wait(t, "stopped")
 	f.command(t, "finish", "")
 	f.wait(t, "stopped")
-	if out := f.command(t, "evaluate", "sum"); !strings.Contains(fmt.Sprint(out), "7") {
-		t.Fatalf("wrong sum: %v", out)
-	}
+	// Returning from plus can stop before its return value is stored in sum.
 	f.command(t, "next", "")
 	f.wait(t, "stopped")
+	if out := f.command(t, "evaluate", "sum"); out["record"].(map[string]any)["results"].(map[string]any)["value"] != "7" {
+		t.Fatalf("wrong sum: %v", out)
+	}
 	f.command(t, "finish", "")
 	f.wait(t, "stopped")
 	f.command(t, "continue", "")
+	// Automatic shell recovery releases control. Observe its completion before
+	// fetching a fresh generation for the final MCP event read.
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	var cursor session.EventCursor
+	recovered := false
+	for !recovered {
+		chunk, err := f.terminal.ReadEvents(ctx, cursor, 128)
+		if err != nil {
+			t.Fatalf("waiting for automatic shell recovery: %v", err)
+		}
+		cursor = chunk.Next
+		for _, event := range chunk.Events {
+			if event.Type == session.EventDebugState && event.Metadata["debug_id"] == f.id && event.Metadata["state"] == "closed" {
+				recovered = true
+				break
+			}
+		}
+	}
 	f.wait(t, "closed")
 	out := f.call(t, "debug_stop", map[string]any{"debug_id": f.id, "owner": f.owner})
 	if out["status"].(map[string]any)["state"] != "closed" {
