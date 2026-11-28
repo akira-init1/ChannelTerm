@@ -26,7 +26,11 @@ prefix. Typical forms are `COM8` on Windows, `/dev/ttyUSB0` on Linux, and `/dev/
 macOS. Windows names are matched case-insensitively; Unix paths retain case-sensitive filesystem
 semantics.
 
-A native target asks ChannelTerm to discover and open an endpoint. It is not a Session. `connect`
+For `release`, the Host matches a native serial target against its existing registrations.
+It uses the registration-time endpoint key and never opens the device to check ownership.
+SSH release takes a Session reference or full ID. See [CLI release](cli.md#release-an-occupied-port-or-shared-connection).
+
+For connection commands, a native target asks ChannelTerm to discover and open an endpoint. `connect`
 and target-based `attach` check that the port is currently present before opening it. The former
 generated forms such as `SER-COM8` and `SER-/DEV/TTYUSB0` are not device targets.
 

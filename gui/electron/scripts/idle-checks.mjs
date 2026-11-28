@@ -40,6 +40,30 @@ export async function checkIdle(environment, preloadArgs) {
     await expect(page.locator(".host-idle-policy")).toHaveCount(0);
     await expect(page.getByTestId("control-takeover")).toBeEnabled();
     await expect(page.getByTestId("control-allow")).toBeVisible();
+    const single = await observer.openConnection({
+      kind: "serial",
+      port: "COM8",
+      label: "Last tab",
+      baud: 115200,
+      dataBits: 8,
+      parity: "none",
+      stopBits: "1",
+      flowControl: "none",
+    });
+    await chooseSession(page, "Last tab", single.sessionId);
+    const singleTab = page
+      .locator(".terminal-tab.active")
+      .filter({ hasText: "COM8" });
+    await singleTab.locator(".icon-button").click();
+    await expect(singleTab).toHaveCount(0);
+    // With no scheduled sweep, only normal departure (and draining reads) can release COM8.
+    await expect
+      .poll(async () =>
+        (await observer.list()).some(
+          (row) => row.session_id === single.sessionId,
+        ),
+      )
+      .toBe(false);
     await desktop.close();
     desktop = undefined;
     await fixture.command("sweep-idle");
@@ -50,10 +74,8 @@ export async function checkIdle(environment, preloadArgs) {
       id,
       "other client still owns an observation use",
     );
+    // The fixture has no automatic sweeper. Final departure must close the stream by itself.
     await observer.detach(other.id);
-    await fixture.command("sweep-idle");
-    await delay(1100);
-    await fixture.command("sweep-idle");
     assert.deepEqual(
       await observer.list(),
       [],

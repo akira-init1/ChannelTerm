@@ -25,6 +25,7 @@ import (
 	"github.com/akira-init1/ChannelTerm/internal/core/session"
 	serialtransport "github.com/akira-init1/ChannelTerm/internal/core/transport/serial"
 	protocol "github.com/modelcontextprotocol/go-sdk/mcp"
+	"golang.org/x/term"
 )
 
 const defaultMCPEndpoint = "http://" + defaultMCPListen + defaultMCPPath
@@ -206,8 +207,14 @@ func runAttachSessionWithInputEnd(ctx context.Context, args []string, input io.R
 		return err
 	}
 	defer func() {
-		if closeErr := attached.Close(); closeErr != nil && err == nil {
+		closeErr := attached.Close()
+		if closeErr != nil && err == nil {
 			err = fmt.Errorf("detach session %q: %w", flags.Arg(0), closeErr)
+		}
+		remote, shared := attached.(*mcpAttachSession)
+		console, interactive := output.(*os.File)
+		if shared && !remote.temporaryHost && closeErr == nil && interactive && term.IsTerminal(int(console.Fd())) {
+			fmt.Fprintf(output, "\r\nDetached from %q. The Host manages device release; check channelterm list or use channelterm release for explicit closure.\r\n", remote.id)
 		}
 	}()
 	if err := writeTemporaryHostNotice(output, attached); err != nil {

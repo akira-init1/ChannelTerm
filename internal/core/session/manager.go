@@ -303,10 +303,17 @@ func (m *Manager) removeExact(terminal Session) bool {
 // Manager-assigned short Reference. The returned Session remains owned by
 // Manager and must not be closed by a lookup caller.
 func (m *Manager) Get(identifier string) (Session, bool) {
+	terminal, _, ok := m.GetWithReference(identifier)
+	return terminal, ok
+}
+
+// GetWithReference resolves a target and its registration reference in one lookup.
+// Deferred usage cleanup can then identify the original registration after a reconnect.
+func (m *Manager) GetWithReference(identifier string) (Session, string, bool) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	registered, ok := m.sessionLocked(identifier)
-	return registered.session, ok
+	return registered.session, registered.metadata.Reference, ok
 }
 
 // Reference returns the short reference assigned to identifier.
@@ -385,6 +392,19 @@ func (m *Manager) Remove(identifier string) (Session, bool) {
 		delete(m.sessions, id)
 	}
 	return registered.session, ok
+}
+
+// RemoveRegistration transfers ownership only if both immutable identifiers match.
+// A delayed confirmation cannot remove a later registration of the same ID.
+func (m *Manager) RemoveRegistration(id, reference string) (Session, bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	entry, ok := m.sessions[id]
+	if !ok || entry.metadata.Reference != reference {
+		return nil, false
+	}
+	delete(m.sessions, id)
+	return entry.session, true
 }
 
 // Close closes every registered Session and removes it from Manager.

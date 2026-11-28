@@ -80,7 +80,8 @@ for authentication, verification and cancellation.
 | Window > Exit GUI | `app.quit` | Exit the Electron app through its normal cleanup path, subject to the active file-operation close guard. |
 | Session > Refresh Sessions; refresh button | `session.refresh` | Refresh the Host snapshot while connected and idle. |
 | Session > Close tab (detach); tab close icon; attached row/tab context menu | `tab.close` | Detach the captured local attachment. Still available for a closed Session so its view can be dismissed. |
-| Session > Close shared Session...; attached row/tab context menu | `session.close` | Confirm closing the captured open shared Session for every client. Requires a live attachment; no shortcut. |
+| Session > Close shared Session...; online row > Force release connection… | `session.close`, `session.release` | Preview and release the captured registration for all clients. The online row remains usable after closing its tab. |
+| Host > Release all Host connections… | `host.releaseAll` | Confirm a snapshot of open registrations on this Host and inspect each outcome. Requires human management access. |
 | Status bar > Copy for AI | `session.copyAI` | Copy metadata and guidance for the captured open Session in this window's language; no device write or AI message. |
 | Session row context menu > Attach Session; row click | `session.attach` | Attach the clicked open Session by opaque ID. Unavailable for the current attachment, closed/missing rows, offline state, or a pending operation. |
 | Terminal > Focus terminal; terminal context menu | `terminal.focus` | Focus the captured xterm view; requires a current idle attachment. |
@@ -108,8 +109,7 @@ Closing a **tab**, closing a **window**, disconnecting the **GUI from Host**, cl
 **shared Session**, and exiting the **GUI** are distinct operations. Tab close releases the
 attachment; disconnect releases this client connection. Native window close cleans up that
 window; Exit GUI ends the application. These cleanup actions do not close the shared Session or
-stop its Host. Only the separately confirmed **Close shared Session...** action closes the shared
-connection for every client. Each window can have multiple
+stop its Host. Explicitly releasing a shared connection affects every attached client. Each window can have multiple
 independent terminal attachments. Bottom-panel tabs remain local views of transfers, Session status and retained Session activity.
 
 Local clear removes xterm scrollback above the current line, retaining that line and parser
@@ -138,16 +138,9 @@ stop on a mismatch, then await a separate operation instruction. Labels and the 
 follow the current window's language, preserving actual metadata values and protocol identifiers.
 The clipboard action is unavailable without an open selected target; it has no shortcut or submenu.
 
-**Close shared Session...** displays the captured label, endpoint and full Session ID, with
-Cancel focused by default. Confirming calls the existing authenticated `terminal_close` once;
-Main validates attachment ownership and rejects stale/foreign handles or a local file operation/tab
-move. It never substitutes the selected tab or a short reference. The Host owns closure: its current
-contract can close a leased Session and interrupt transfers, debugging or remote processes. This
-is not a safe operation-cancellation or lease-release command. Other clients lose that Session too.
-Cancel/Escape sends no close request. An unconfirmed result is not retried; cancel the dialog and
-refresh Sessions before deciding what to do next. The view keeps its retained output, and input is
-paused when confirmation is submitted. Ordinary tab/window closure, disconnect and app exit still
-only release this client's resources. The Host process and other Sessions remain running.
+On a release-capable Host, the confirmation lists the exact targets and observed retention reasons. Cancel is initially focused. Closing the dialog before confirmation sends no release. After confirmation it displays one outcome per original registration. Closing a tab instead detaches that view and shows the last detached endpoint's observed registration state. With default Host settings the final human departure immediately closes an idle Session. A Host may retain a Session for another client, active work or configured policy.
+
+Older Hosts without the release route retain their attachment-bound **Close shared Session...** workflow through `terminal_close`. See the [desktop Host API](gui-host-api.md#connection-release) for the management boundary.
 
 The Window menu lists these entries in order. Actions use stable IDs and captured targets;
 Main owns BrowserWindow creation, focus and close. Tab state belongs to its renderer.
@@ -618,8 +611,9 @@ is shared by windows in the same GUI profile; independent simultaneous edits use
 ### Terminal directory and naming
 
 The far-left activity rail opens one panel at a time: **Sessions**, **LAN**, or **Debug**.
-**Sessions** shows connections used from the desktop, including previous successful
-connections and attachments. By default, explicitly saved connections are starred and appear first;
+**Sessions** shows open registrations on the connected Host alongside desktop connection history
+and attachments. Independent open shells on the same endpoint have separate rows. By default,
+explicitly saved connections are starred and appear first;
 other records are ordered by most recent use. Search by connection, endpoint, tab name
 or short reference. Use the status selector on either the Sessions or LAN panel to filter connected
 or disconnected entries. A green dot means the Host reports an open Session; a red dot means

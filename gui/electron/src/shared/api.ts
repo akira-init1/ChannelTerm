@@ -45,6 +45,7 @@ export const projectHomepage = "https://github.com/akira-init1/ChannelTerm";
 
 /** Display-only snapshots. The Host remains authoritative for lifecycle and leases. */
 export interface SessionSummary {
+  retentionReason?: string;
   control?: ControlSnapshot;
   session_id: string;
   session_ref: string;
@@ -96,7 +97,21 @@ export interface ClientError {
 }
 export type Result<T> =
   { ok: true; value: T } | { ok: false; error: ClientError };
+export interface ReleaseTarget {
+  id: string;
+  reference: string;
+  endpoint: string;
+  transport: string;
+  reason: string;
+}
+export interface ReleasePreview {
+  ticket: string;
+  targets: ReleaseTarget[];
+}
+export type ReleaseOutcome = "released" | "ended" | "rejected" | "unknown";
+
 export interface HostInfo {
+  releaseAvailable?: boolean;
   endpoint: string;
   hostVersion?: string;
   remoteSize?: boolean;
@@ -283,6 +298,9 @@ export interface DesktopAPI {
   ): Promise<Result<Attachment>>;
   detach(attachmentId: string): Promise<Result<void>>;
   /** Explicit shared close, separate from attachment cleanup. */
+  previewRelease(id: string | null): Promise<Result<ReleasePreview>>;
+  discardRelease(ticket: string): Promise<Result<void>>;
+  confirmRelease(ticket: string): Promise<Result<ReleaseOutcome[]>>;
   closeSession(attachmentId: string): Promise<Result<void>>;
   activity(attachmentId: string): Promise<Result<ActivitySnapshot>>;
   saveDiagnostics(
@@ -374,6 +392,9 @@ export const channels = {
   openConnection: "host:open-connection",
   attach: "host:attach",
   detach: "host:detach",
+  previewRelease: "host:preview-release",
+  discardRelease: "host:discard-release",
+  confirmRelease: "host:confirm-release",
   closeSession: "host:close-session",
   activity: "host:activity",
   saveDiagnostics: "diagnostics:save",

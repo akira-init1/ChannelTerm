@@ -9,6 +9,10 @@ manually started Host remains available until it is stopped explicitly.
 Endpoint -> Serial or SSH Transport -> Channel -> Session -> Client / Attachment
 ```
 
+## Hand a port to another program
+
+Close the tab or exit the attached CLI. With default settings, when yours is the last use, the Host closes the serial port or SSH shell immediately. If other clients or tasks still use it, the connection stays open. To take a retained port back, choose its online row's **Force release connection…** action or run `channelterm release COM8`. Confirm the endpoint and reference, then open the port in the other program. See [release](../reference/cli.md#release-an-occupied-port-or-shared-connection) for device paths and Host-wide release.
+
 ## Create or join by target
 
 ```powershell
@@ -204,7 +208,8 @@ cancelling them does not send terminal Ctrl+C, close a Session or prevent later 
 ## Unused Sessions and Host lifetime
 
 Closing the last tab using a Session, disconnecting, or quitting removes the GUI's monitor.
-By default the Host reclaims the Session after one second of observed inactivity. Another
+By default the Host reclaims an idle Session immediately on normal final human detach.
+After an unexpected disconnect it uses presence expiry and the idle grace period. Another
 live monitor, a background tab, active operation, lease, debugger or recovery keeps its
 Session. A list poll or a completed human takeover alone cannot pin the device. External debugger
 reports expire after 30 seconds of silence. Register a monitor for longer observation gaps.

@@ -2,6 +2,7 @@ import { UBootDialog } from "../terminal/UBootDialog";
 import { DebugSendDialog } from "../terminal/DebugSendDialog";
 import { ControlPanel } from "../sessions/ControlPanel";
 import { HostSettingsDialog } from "./HostSettings";
+import { ReleaseDialog, retentionLabel } from "../sessions/ReleaseDialog";
 import { MCPSetupDialog } from "./MCPSetup";
 import { RecordingDialog, useRecordings } from "../terminal/RecordingDialog";
 import { retainedTransfer } from "../../shared/transfers";
@@ -352,6 +353,14 @@ export function App() {
   const inputPaused = activeTab?.inputPaused ?? false;
   const preferences = useRef(new Map<string, TerminalSettings>());
   const [settingsTarget, setSettingsTarget] = useState<Attachment>();
+  const [releaseTarget, setReleaseTarget] = useState<{ id: string | null }>();
+  const [detachedTarget, setDetachedTarget] = useState<SessionSummary>();
+  useEffect(() => {
+    if (!connected) {
+      setReleaseTarget(undefined);
+      setDetachedTarget(undefined);
+    }
+  }, [connected]);
   const [closeTarget, setCloseTarget] = useState<{
     attachment: Attachment;
     session: SessionSummary;
@@ -840,6 +849,7 @@ export function App() {
       connected,
       sshAvailable: !!info?.sshAvailable,
       ubootAvailable: !!info?.ubootAvailable,
+      releaseAvailable: info?.releaseAvailable,
       busy:
         !!ubootTarget ||
         !!debugSendTarget ||
@@ -848,6 +858,7 @@ export function App() {
         hostSettingsOpen ||
         working ||
         !!closeTarget ||
+        !!releaseTarget ||
         !!activeTab?.moving ||
         !!fileDialog ||
         !!sshFileDialog ||
@@ -877,6 +888,8 @@ export function App() {
       debugSendTarget,
       ubootTarget,
       info?.ubootAvailable,
+      info?.releaseAvailable,
+      releaseTarget,
       recordingDialog,
       languagePreference,
       connected,
@@ -1429,8 +1442,15 @@ export function App() {
     setOperation("detaching");
     setError(undefined);
     try {
-      if (tab.attachment) await unwrap(host.detach(tab.attachment.id));
+      if (tab.attachment) {
+        const original = sessions.find(
+          (row) => row.session_id === tab.attachment?.sessionId,
+        );
+        await unwrap(host.detach(tab.attachment.id));
+        setDetachedTarget(original);
+      }
       removeTab(tab.id);
+      if (tab.attachment) void refresh();
     } catch (error) {
       report(error as ClientError, tab.id);
     } finally {
@@ -1582,6 +1602,7 @@ export function App() {
         hostSettingsOpen ||
         working ||
         !!closeTarget ||
+        !!releaseTarget ||
         actionBusy.current ||
         !!fileDialog ||
         !!sshFileDialog ||
@@ -1657,7 +1678,17 @@ export function App() {
         }
         return;
       }
+      case "host.releaseAll":
+        setReleaseTarget({ id: null });
+        return;
+      case "session.release":
+        setReleaseTarget({ id: action.sessionId });
+        return;
       case "session.close": {
+        if (info?.releaseAvailable) {
+          setReleaseTarget({ id: action.attachment.sessionId });
+          return;
+        }
         const session = sessions.find(
           (entry) => entry.session_id === action.attachment.sessionId,
         );
@@ -1949,6 +1980,14 @@ export function App() {
           item.state === "open" && (item.transport === "ssh" || !item.lease),
           item.transport === "serial",
           item.transport === "ssh",
+        ).map((entry) =>
+          entry.id === "session.release"
+            ? {
+                ...entry,
+                endpoint: item.endpoint,
+                enabled: entry.enabled && item.state === "open",
+              }
+            : entry,
         )
       : [];
     openContext(
@@ -1981,6 +2020,14 @@ export function App() {
     });
   }
 
+  const retained =
+    detachedTarget &&
+    sessions.find(
+      (row) =>
+        row.session_id === detachedTarget.session_id &&
+        row.session_ref === detachedTarget.session_ref &&
+        row.state === "open",
+    );
   const hostStatus =
     operation === "connecting"
       ? t("workbench.connecting")
@@ -2435,6 +2482,14 @@ export function App() {
           attachmentId={diagnostics.attachmentId}
           t={t}
           onClose={() => setDiagnostics(undefined)}
+        />
+      )}
+      {releaseTarget && connected && (
+        <ReleaseDialog
+          id={releaseTarget.id}
+          t={t}
+          onClose={() => setReleaseTarget(undefined)}
+          onRefresh={refresh}
         />
       )}
       {closeTarget && connected && (
@@ -3163,6 +3218,14 @@ export function App() {
             ? t(copyResult.message)
             : ""}
         </span>
+        {detachedTarget && connected && (
+          <span role="status" title={detachedTarget.endpoint}>
+            {detachedTarget.endpoint} ·{" "}
+            {t(retained ? "release.detached" : "release.ended")}
+            {retained?.retentionReason &&
+              ` (${retentionLabel(retained.retentionReason, t)})`}
+          </span>
+        )}
         <span className="session-total">
           {connected
             ? t("workbench.sessionCount", { count: sessions.length })

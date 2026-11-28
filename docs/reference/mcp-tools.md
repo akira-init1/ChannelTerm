@@ -68,7 +68,10 @@ lease snapshots are Host activity (`active: true`). Lease snapshots can make the
 incomplete, indicated by `uses_truncated`. This inventory is not an idle-resource authority or a
 complete audit. List polling neither renews presence nor claims every Session. Repeating `use`
 with the same key/target/kind is idempotent; rebinding the key fails. Missing `unuse` succeeds;
-active Host uses cannot be removed by that action.
+active Host uses cannot be removed by that action. Under the default persistent HTTP policy,
+`unuse` of a human management client's final monitor or `end` of its live instance immediately
+reclaims the original Session if idle. Other users, work and explicit retention policy take
+precedence. See [Host idle policy](configuration.md#host-idle-policy).
 
 For other tools, pass the returned private proof in MCP call metadata, outside business arguments:
 

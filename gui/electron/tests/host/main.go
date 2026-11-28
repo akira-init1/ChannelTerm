@@ -62,7 +62,7 @@ func run() error {
 	defer manager.Close()
 	idle := app.IdlePolicy{}
 	if os.Getenv("CHANNELTERM_FIXTURE_IDLE_TEST") == "1" {
-		idle = app.IdlePolicy{SessionTimeout: time.Second, ExitTimeout: app.DesktopIdleExitTimeout, Origin: "desktop"}
+		idle = app.IdlePolicy{ReleaseOnDetach: true, SessionTimeout: time.Second, ExitTimeout: app.DesktopIdleExitTimeout, Origin: "desktop"}
 	}
 	application, err := app.New(app.Dependencies{Manager: manager, ConfigPath: filepath.Join(configDirectory, "config.toml"),
 		Devices: discovery.registry,
@@ -170,7 +170,7 @@ func run() error {
 		}
 		ctx := app.WithClientIdentity(r.Context(), identity)
 		r = r.WithContext(app.WithClientAccess(ctx, app.ClientAccess{Write: true, Manage: manage}))
-		if r.URL.Path == guiapi.SSHPath || r.URL.Path == guiapi.SSHConfirmPath || r.URL.Path == guiapi.SerialProfilesPath || r.URL.Path == guiapi.ResizePath || r.URL.Path == guiapi.BackgroundPath {
+		if r.URL.Path == guiapi.ReleasePath || r.URL.Path == guiapi.SSHPath || r.URL.Path == guiapi.SSHConfirmPath || r.URL.Path == guiapi.SerialProfilesPath || r.URL.Path == guiapi.ResizePath || r.URL.Path == guiapi.BackgroundPath {
 			sshHandler.ServeHTTP(w, r)
 			return
 		}

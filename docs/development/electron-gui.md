@@ -807,7 +807,7 @@ desktop publish/sign/update step. The builder is a build-only MIT dependency; it
 excluded from the runtime. Audit reports include existing and build-tool advisories; review them
 for the fixed local build inputs rather than running an unrelated automatic dependency upgrade.
 
-`idle-checks.mjs` uses real Application policy with a one-second fixture grace and private sweep triggers: another client retains the Session after GUI exit, final detach permits removal, and MCP remains reachable. Core fake-clock/concurrency tests additionally cover presence expiry with active work, leases/recovery/pause, reused IDs, close outside admission locks, and explicit Host-exit fencing. No physical device or native non-Windows claim is implied.
+`idle-checks.mjs` uses real Application policy with private sweep triggers. Another client retains the Session after GUI exit. Its final detach closes the Session before another sweep, while MCP remains reachable. Core fake-clock/concurrency tests additionally cover presence expiry with active work, leases/recovery/pause, reused IDs, close outside admission locks, and explicit Host-exit fencing.
 
 ### Upgrade, mixed builds and rollback
 
@@ -857,7 +857,7 @@ not independent fingerprint verification. A changed or revoked key must still fa
 | --- | --- |
 | Package startup | Match packaged app/helper versions and hashes; start outside the checkout with empty PATH, spaces/non-ASCII paths and a clean profile. Repeat in a clean OS/account. Record OS security prompts and unsigned-package limitations. |
 | Serial receive/transmit | Open with the recorded parameters; observe first. Only send explicitly permitted bytes to an identified idle prompt. Verify actual bytes/encoding against independent device output, not local echo alone. Empty reads are inconclusive. |
-| Serial ownership/release | Keep a registered independent monitor; exit GUI and verify the same Session survives. End the last use, wait beyond the configured grace plus sweep interval, then reopen the endpoint with a new Session ID or another serial application. Explicitly close only test-owned Sessions. |
+| Serial ownership/release | Keep a registered independent monitor, exit GUI and verify the same Session survives. With default settings, end the last human monitor and immediately reopen the endpoint from another serial application. For an explicit retention timeout, verify reopening after the configured grace and sweep interval. |
 | Physical faults | With device-owner permission, test unplug/replug, port contention, sustained output and flow control. Record loss notifications, closed/stale targets and explicit recovery. Never substitute a simulated port for this result. |
 | SSH interoperability | Record server/version and authentication method. Test first trust, changed-key refusal, password/key/encrypted-key access, PTY resize and authorized disconnect/slow-write cases. An empty-password rejection is an authentication failure, not proof that SSH transport is broken; do not guess passwords. |
 | Shared control | Two clients must share the same Session while one exits. Check read-only grants, instance migration, takeover during owned work, recovery failure and explicit AI resumption. Verify rejected/uncertain input is never replayed. |

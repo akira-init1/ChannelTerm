@@ -50,6 +50,7 @@ func WithInstanceProof(ctx context.Context, proof InstanceProof) context.Context
 
 // InstanceUse describes explicit observation/monitoring or an operation, never a lease.
 type InstanceUse struct {
+	reference string // Registration captured at admission; never serialized as a capability.
 	ID        string `json:"id"`
 	SessionID string `json:"session_id"`
 	Kind      string `json:"kind"`
@@ -240,20 +241,30 @@ func (a *Application) RenewClientInstance(ctx context.Context, proof InstancePro
 	return r.snapshot(e), nil
 }
 
-// EndClientInstance is idempotent while retained. Active work is not cancelled.
+// EndClientInstance drops the instance's monitors and checks their registrations
+// for idle release. Repeated end calls are harmless; accepted work stays protected.
 func (a *Application) EndClientInstance(ctx context.Context, proof InstanceProof) error {
 	r := &a.instances
 	r.mu.Lock()
-	defer r.mu.Unlock()
 	e, err := r.authenticate(ctx, proof, true)
-	if err != nil {
+	if err != nil || e.view.State == "ended" {
+		r.mu.Unlock()
 		return err
 	}
-	if e.view.State != "ended" {
-		e.view.State = "ended"
-		e.view.ExpiresAt = r.clock()
+	targets := make(map[string]bool)
+	for _, use := range e.uses {
+		a.noteDepartureLocked(ctx, e, use)
+		if _, pending := a.idle.detached[use.reference]; pending {
+			targets[use.reference] = true
+		}
 	}
-	return nil
+	e.view.State = "ended"
+	e.view.ExpiresAt = r.clock()
+	r.mu.Unlock()
+	for ref := range targets {
+		err = errors.Join(err, a.reclaimDetached(ctx, ref))
+	}
+	return err
 }
 
 // ListClientInstances returns bounded public presence without refreshing it.
@@ -295,11 +306,8 @@ func (a *Application) SetClientUse(ctx context.Context, proof InstanceProof, key
 	if a.idle.draining {
 		return InstanceUse{}, ErrHostDraining
 	}
-	terminal, err := a.session(target)
-	if err != nil {
-		return InstanceUse{}, err
-	}
-	if terminal.State() != session.StateOpen {
+	terminal, ref, ok := a.manager.GetWithReference(strings.TrimSpace(target))
+	if !ok || terminal.State() != session.StateOpen {
 		return InstanceUse{}, ErrSessionNotFound
 	}
 	e, err := r.authenticate(ctx, proof, false)
@@ -312,7 +320,7 @@ func (a *Application) SetClientUse(ctx context.Context, proof InstanceProof, key
 	a.touchIdleLocked(terminal.ID())
 	if id := e.keys[key]; id != "" {
 		use := e.uses[id]
-		if use.SessionID != terminal.ID() || use.Kind != kind {
+		if use.reference != ref || use.Kind != kind {
 			return InstanceUse{}, ErrClientInstanceInput
 		}
 		return use, nil
@@ -320,27 +328,40 @@ func (a *Application) SetClientUse(ctx context.Context, proof InstanceProof, key
 	if len(e.uses) >= maxInstanceUses {
 		return InstanceUse{}, ErrClientInstanceLimit
 	}
-	use := InstanceUse{ID: "CU-" + rand.Text(), SessionID: terminal.ID(), Kind: kind, Label: key}
+	if kind == "monitor" {
+		delete(a.idle.detached, ref)
+	}
+	use := InstanceUse{ID: "CU-" + rand.Text(), SessionID: terminal.ID(), Kind: kind, Label: key, reference: ref}
 	e.uses[use.ID], e.keys[key] = use, use.ID
 	return use, nil
 }
 
-// EndClientUse releases only this instance's explicit usage record.
+// EndClientUse ends one explicit use. The default HTTP policy immediately
+// releases the original Session when the last human monitor leaves it idle.
 func (a *Application) EndClientUse(ctx context.Context, proof InstanceProof, id string) error {
 	r := &a.instances
 	r.mu.Lock()
-	defer r.mu.Unlock()
 	e, err := r.authenticate(ctx, proof, true)
 	if err != nil {
+		r.mu.Unlock()
 		return err
 	}
-	if use, ok := e.uses[id]; ok {
-		if use.Active {
+	use, ok := e.uses[id]
+	if !ok || use.Active {
+		r.mu.Unlock()
+		if ok {
 			return ErrClientInstanceInput
 		}
-		delete(e.keys, use.Label)
-		delete(e.uses, id)
-		a.touchIdleLocked(use.SessionID)
+		return nil
+	}
+	delete(e.keys, use.Label)
+	delete(e.uses, id)
+	a.touchIdleLocked(use.SessionID)
+	a.noteDepartureLocked(ctx, e, use)
+	_, pending := a.idle.detached[use.reference]
+	r.mu.Unlock()
+	if pending {
+		return a.reclaimDetached(ctx, use.reference)
 	}
 	return nil
 }
@@ -420,14 +441,14 @@ func (a *Application) BeginClientCall(ctx context.Context, target, label string,
 		r.mu.Unlock()
 		return ctx, nil, ErrHostDraining
 	}
-	resolved := ""
+	resolved, ref := "", ""
 	if target != "" {
-		terminal, err := a.session(target)
-		if err != nil {
+		terminal, reference, ok := a.manager.GetWithReference(strings.TrimSpace(target))
+		if !ok {
 			r.mu.Unlock()
 			return ctx, func() {}, nil
 		}
-		resolved = terminal.ID()
+		resolved, ref = terminal.ID(), reference
 	}
 	e := r.entries[client.InstanceID]
 	if e == nil || e.target != "" && e.target != resolved {
@@ -449,7 +470,7 @@ func (a *Application) BeginClientCall(ctx context.Context, target, label string,
 	if operation {
 		kind = "operation"
 	}
-	use := InstanceUse{ID: "CU-" + rand.Text(), SessionID: resolved, Kind: kind, Label: label, Active: true}
+	use := InstanceUse{ID: "CU-" + rand.Text(), SessionID: resolved, Kind: kind, Label: label, Active: true, reference: ref}
 	e.uses[use.ID] = use
 	a.touchIdleLocked(resolved)
 	if operation && client.OperationID == "" {
@@ -458,7 +479,17 @@ func (a *Application) BeginClientCall(ctx context.Context, target, label string,
 	r.mu.Unlock()
 	var once sync.Once
 	return WithClientIdentity(ctx, client), func() {
-		once.Do(func() { r.mu.Lock(); delete(e.uses, use.ID); a.touchIdleLocked(resolved); r.mu.Unlock() })
+		once.Do(func() {
+			r.mu.Lock()
+			delete(e.uses, use.ID)
+			a.touchIdleLocked(resolved)
+			_, pending := a.idle.detached[ref]
+			r.mu.Unlock()
+			if pending {
+				// A cancelled GUI poll still owns its cleanup after its request ends.
+				_ = a.reclaimDetached(context.WithoutCancel(ctx), ref)
+			}
+		})
 	}, nil
 }
 

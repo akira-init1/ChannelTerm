@@ -1663,6 +1663,11 @@ msgstr "Se déconnecter de l’hôte"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "host.releaseAll"
+msgstr "Libérer toutes les connexions de l’hôte…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "host.settings"
 msgstr "Informations du Host et connexion"
 
@@ -2210,6 +2215,51 @@ msgstr "Accès refusé. Vérifiez les permissions des identifiants et le détent
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "release.detached"
+msgstr "Onglet fermé · connexion toujours présente sur l’hôte"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "release.empty"
+msgstr "Cet hôte n’a aucune connexion ouverte."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "release.ended"
+msgstr "Enregistrement initial terminé"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "release.idle"
+msgstr "En attente de libération après inactivité"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "release.keep"
+msgstr "Connexion conservée par la politique de l’hôte"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "release.pending"
+msgstr "Libération des connexions…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "release.rejected"
+msgstr "Non libérée"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "release.released"
+msgstr "Libérée"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "release.unknown"
+msgstr "Résultat inconnu · actualisez avant de réessayer"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "search.case"
 msgstr "Respecter la casse"
 
@@ -2435,6 +2485,11 @@ msgstr "Informations sur la session..."
 #: src/shared/menu-messages.ts
 msgid "session.refresh"
 msgstr "Actualiser les sessions"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.release"
+msgstr "Forcer la libération de la connexion…"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

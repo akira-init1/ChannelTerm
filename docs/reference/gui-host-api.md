@@ -23,11 +23,17 @@ read selected identity/trust files on that Host, and persist an explicitly appro
 requires the trusted-network precautions in the [Host workflow](../getting-started/mcp-server.md).
 
 Stdio Hosts have no HTTP routes. Older HTTP Hosts may lack these routes. Current foreground CLI `ssh` Hosts expose SSH creation,
-trust confirmation and resize. Serial profile management requires the standalone HTTP Host.
+trust confirmation, release and resize. Serial profile management requires the standalone HTTP Host.
 The CLI uses the same authenticated SSH routes in `ssh --shared` mode.
 If an explicitly configured MCP path equals a desktop route, that path keeps its MCP
 meaning and that desktop route is not mounted. The GUI probes availability and disables
 SSH creation when unavailable; existing shared SSH Sessions can still be attached.
+
+## Connection release
+
+The persistent HTTP Host and foreground SSH HTTP Host also mount `/gui/v1/release` unless the MCP path occupies it. Every method requires an authenticated human management credential. `HEAD` returns 204 when available. `GET` previews all open registrations; `?target=COM8` filters on the Host by serial endpoint, reference or opaque ID. The JSON object contains a Host-instance token and `targets` with `id`, `reference`, `endpoint`, `transport` and an observed `reason`. An empty reason means unavailable.
+
+`POST` accepts one JSON object with `host`, `id` and `reference`. The Host verifies this instance and removes only the matching registration, closes its stream and clears its lease. A 204 confirms cleanup. A 410 means the registration was already removed; a 409 means the Host instance changed. A 429 rejects a request when four cleanup slots are occupied. Cleanup errors and timeouts (500/504) require checking state. Client timeouts are uncertain and must not trigger replay. Batch clients submit only their confirmed snapshot. The route adds no MCP tool.
 
 ## Requests and responses
 

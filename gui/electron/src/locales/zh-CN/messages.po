@@ -1663,6 +1663,11 @@ msgstr "断开与 Host 的连接"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "host.releaseAll"
+msgstr "释放此 Host 的全部连接…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "host.settings"
 msgstr "Host 信息与连接设置"
 
@@ -2210,6 +2215,51 @@ msgstr "访问被拒绝。检查凭据权限和当前控制方；不要禁用身
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "release.detached"
+msgstr "标签已关闭，Host 仍持有连接"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "release.empty"
+msgstr "此 Host 没有打开的连接。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "release.ended"
+msgstr "原会话登记已结束"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "release.idle"
+msgstr "等待空闲回收"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "release.keep"
+msgstr "Host 已配置为保留连接"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "release.pending"
+msgstr "正在释放连接…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "release.rejected"
+msgstr "未释放"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "release.released"
+msgstr "已释放"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "release.unknown"
+msgstr "结果未知，请刷新后再决定是否重试"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "search.case"
 msgstr "区分大小写"
 
@@ -2435,6 +2485,11 @@ msgstr "会话信息..."
 #: src/shared/menu-messages.ts
 msgid "session.refresh"
 msgstr "刷新会话列表"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.release"
+msgstr "强制释放连接…"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

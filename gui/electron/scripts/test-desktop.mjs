@@ -547,7 +547,7 @@ try {
   };
   await openClose();
   const closeDialog = recoveryPage.getByRole("dialog", {
-    name: "Close shared Session...",
+    name: /Force release connection/,
   });
   await expect(closeDialog).toContainText(reopened.sessionId);
   await recoveryPage.screenshot({
@@ -562,10 +562,30 @@ try {
     ).state,
     "open",
   );
-  await openClose();
+  // The observer keeps this unsaved connection open after the last local tab closes.
+  await desktop.evaluate(({ Menu }) =>
+    Menu.getApplicationMenu().getMenuItemById("tab.close").click(),
+  );
+  const held = recoveryPage
+    .locator(".connection-card")
+    .filter({ hasText: "COM-FIXTURE" });
+  await expect(
+    recoveryPage
+      .getByRole("status")
+      .filter({ hasText: "Host still lists this connection" }),
+  ).toBeVisible();
+  await held.getByRole("button", { name: "Connection actions" }).click();
+  await recoveryPage
+    .getByRole("menuitem", { name: /Force release connection/ })
+    .click();
+  await expect(
+    closeDialog.getByRole("button", { name: "Cancel", exact: true }),
+  ).toBeFocused();
   await closeDialog
     .getByRole("button", { name: "Close for everyone", exact: true })
     .click();
+  await expect(closeDialog).toContainText("Released");
+  await closeDialog.getByRole("button", { name: "Close", exact: true }).click();
   await expect(closeDialog).toHaveCount(0);
   assert.equal(
     (await observer.list()).some(
@@ -573,7 +593,21 @@ try {
     ),
     false,
   );
-  await expect(recoveryPage.getByText(/Session closed/).first()).toBeVisible();
+  // An offline history entry can remain, but its live ID and online light must clear.
+  await expect(held.locator("[data-session-id]")).toHaveCount(0);
+  await expect(
+    recoveryPage
+      .getByRole("status")
+      .filter({ hasText: "Original registration ended" }),
+  ).toBeVisible();
+  await desktop.evaluate(({ Menu }) =>
+    Menu.getApplicationMenu().getMenuItemById("host.releaseAll").click(),
+  );
+  const emptyBatch = recoveryPage.getByRole("dialog", {
+    name: /Release all Host connections/,
+  });
+  await expect(emptyBatch).toContainText("This Host has no open connections.");
+  await emptyBatch.getByRole("button", { name: "Close", exact: true }).click();
   await fixture.stop();
   await expect(
     recoveryPage.getByText("Host connection failed", { exact: true }),

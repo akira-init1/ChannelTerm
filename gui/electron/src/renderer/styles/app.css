@@ -177,6 +177,15 @@ p {
   border: 1px solid var(--border);
   border-radius: 6px;
 }
+.release-dialog ul {
+  max-height: 40vh;
+  overflow: auto;
+  overflow-wrap: anywhere;
+  padding-inline-start: 18px;
+}
+.release-dialog li + li {
+  margin-top: 8px;
+}
 .connection-dialog::backdrop {
   background: #0006;
 }

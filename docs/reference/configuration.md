@@ -422,8 +422,11 @@ idle_session_timeout = "30s"
 idle_exit_timeout = "0s"
 ```
 
-With omitted settings, standalone HTTP Hosts release unused Sessions after a one-second grace
-period. A desktop companion exits after three more seconds of complete inactivity. A manually
+With omitted settings, closing the last human terminal tab or exiting an attached CLI releases
+the idle Session immediately. Other clients and active work retain it. A one-second grace
+applies to otherwise unattended Sessions, including after presence expiry. Setting
+`idle_session_timeout` explicitly also applies that configured policy to normal departures.
+A desktop companion exits after three more seconds of complete inactivity. A manually
 started HTTP Host allows 30 seconds, including for its first client to connect. The example
 above opts into longer retention and a persistent listener. Explicit `"0s"` disables the
 corresponding timeout. Nonzero durations range from one second to 24 hours. Exit requires Session reclamation.

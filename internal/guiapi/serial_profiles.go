@@ -64,6 +64,7 @@ func NewSSHHostHandler(application *app.Application) http.Handler {
 
 func newSSHRoutes(application *app.Application) *http.ServeMux {
 	mux := http.NewServeMux()
+	mux.Handle(ReleasePath, releaseHandler(application))
 	ssh := NewSSHHandler(application)
 	mux.Handle(SSHPath, ssh)
 	mux.Handle(SSHConfirmPath, ssh)

@@ -1663,6 +1663,11 @@ msgstr "Отключиться от хоста"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "host.releaseAll"
+msgstr "Освободить все подключения Host…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "host.settings"
 msgstr "Сведения о Host и подключение"
 
@@ -2210,6 +2215,51 @@ msgstr "Доступ запрещён. Проверьте права учётн�
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "release.detached"
+msgstr "Вкладка закрыта · Host по-прежнему показывает подключение"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "release.empty"
+msgstr "У Host нет открытых подключений."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "release.ended"
+msgstr "Исходная регистрация завершена"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "release.idle"
+msgstr "Ожидание освобождения при простое"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "release.keep"
+msgstr "Подключение сохраняется по политике Host"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "release.pending"
+msgstr "Освобождение подключений…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "release.rejected"
+msgstr "Не освобождено"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "release.released"
+msgstr "Освобождено"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "release.unknown"
+msgstr "Результат неизвестен · обновите перед повтором"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "search.case"
 msgstr "Учитывать регистр"
 
@@ -2435,6 +2485,11 @@ msgstr "Информация о сеансе..."
 #: src/shared/menu-messages.ts
 msgid "session.refresh"
 msgstr "Обновить список сеансов"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.release"
+msgstr "Принудительно освободить подключение…"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

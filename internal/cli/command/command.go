@@ -158,6 +158,9 @@ func runWithDependenciesWithInterrupts(ctx context.Context, args []string, input
 	if len(args) > 0 && args[0] == "diagnostics" {
 		return runDiagnostics(ctx, args[1:], output)
 	}
+	if len(args) > 0 && args[0] == "release" {
+		return runRelease(ctx, args[1:], input, output)
+	}
 	if len(args) > 0 && args[0] == "list" {
 		return runList(ctx, args[1:], output)
 	}
@@ -201,6 +204,7 @@ func runWithDependenciesWithInterrupts(ctx context.Context, args []string, input
 		fmt.Fprintln(output, "  init    Configure supported MCP clients")
 		fmt.Fprintln(output, "  install Install ChannelTerm for the current user")
 		fmt.Fprintln(output, "  list    List local devices, saved profiles, and MCP sessions")
+		fmt.Fprintln(output, "  release Release a serial port, SSH Session, or all connections on one Host")
 		fmt.Fprintln(output, "  mcp     Start the Session Host MCP server")
 		fmt.Fprintln(output, "  rsp-client Connect external GDB to an authenticated RSP bridge")
 		fmt.Fprintln(output, "  serial  Connect to a serial port")
@@ -430,7 +434,7 @@ func runMCP(ctx context.Context, args []string, output io.Writer) (err error) {
 	listen := flags.String("listen", defaultMCPListen, "HTTP listen address when --transport=http")
 	path := flags.String("path", defaultMCPPath, "HTTP endpoint path when --transport=http")
 	connectionPolicy := flags.String("connection-policy", "", "Discovery policy: ask, auto, or deny")
-	idleSession := flags.Duration("idle-session-timeout", 0, "Release unused HTTP Host Sessions after a grace period (default 1s; 0 disables; 1s..24h)")
+	idleSession := flags.Duration("idle-session-timeout", 0, "Set HTTP Session retention after detach (0 disables reclamation; 1s..24h). Default: release on final human detach; 1s grace for unattended Sessions.")
 	idleExit := flags.Duration("idle-exit-timeout", 0, "Exit a fully idle HTTP Host (default 30s manual, 3s desktop; 0 disables; requires Session reclamation)")
 	hostOrigin := flags.String("host-origin", "manual", "Launch source: manual or desktop")
 	flags.Usage = func() {
@@ -585,7 +589,7 @@ func serveMCPHTTP(ctx context.Context, registry *tool.Registry, listener net.Lis
 	// Preserve every existing custom MCP path, including a collision with this
 	// optional management endpoint. Each Host supplies its supported routes.
 	if gui != nil {
-		for _, route := range []string{guiapi.SSHPath, guiapi.SSHConfirmPath, guiapi.SerialProfilesPath, guiapi.ResizePath, guiapi.BackgroundPath} {
+		for _, route := range []string{guiapi.SSHPath, guiapi.SSHConfirmPath, guiapi.SerialProfilesPath, guiapi.ResizePath, guiapi.BackgroundPath, guiapi.ReleasePath} {
 			if path != route {
 				mux.Handle(route, authenticate(requireDesktopManagement(gui)))
 			}

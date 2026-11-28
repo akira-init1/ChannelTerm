@@ -854,6 +854,58 @@ func (t *blockedWriteTransport) Close() error {
 }
 func (*blockedWriteTransport) State() channel.State { return channel.StateOpen }
 
+// delayedErrorChannel exposes the interval between starting and completing Close.
+type delayedErrorChannel struct {
+	*fakeTransport
+	started chan struct{}
+	finish  chan struct{}
+}
+
+func (d *delayedErrorChannel) Connect(context.Context) (channel.Channel, error) { return d, nil }
+func (d *delayedErrorChannel) Close() error {
+	close(d.started)
+	<-d.finish
+	_ = d.fakeTransport.Close()
+	return io.ErrClosedPipe
+}
+
+func TestConcurrentCloseObservesPhysicalCloseResult(t *testing.T) {
+	driver := &delayedErrorChannel{newFakeTransport(), make(chan struct{}), make(chan struct{})}
+	s, err := New("board", driver)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = s.Connect(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	first, second := make(chan error, 1), make(chan error, 1)
+	go func() { first <- s.Close() }()
+	<-driver.started
+	started := make(chan struct{})
+	go func() {
+		close(started)
+		second <- s.Close()
+	}()
+	<-started
+	select {
+	case err := <-second:
+		close(driver.finish)
+		t.Fatalf("concurrent close returned before driver completion: %v", err)
+	case <-time.After(20 * time.Millisecond):
+	}
+	close(driver.finish)
+	for _, result := range []chan error{first, second} {
+		select {
+		case err := <-result:
+			if !errors.Is(err, io.ErrClosedPipe) {
+				t.Fatalf("close result: %v", err)
+			}
+		case <-time.After(time.Second):
+			t.Fatal("close did not finish")
+		}
+	}
+}
+
 // newFakeTransport creates independent channels for each test so Close can
 // deterministically release a blocked Read.
 func newFakeTransport() *fakeTransport {

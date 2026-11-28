@@ -23,7 +23,7 @@ Transport result with no Channel, enters `failed` and closes the output, activit
 
 Only `open` permits read, write, activity read, event read, and resize operations. `Close` wakes
 waiting readers, closes the Channel to unblock active I/O, waits for the reader goroutine, releases
-buffer memory, and enters `closed`. Sequential repeated closes return the first close result. The
+buffer memory, and enters `closed`. Concurrent and subsequent closes wait for the first close result. The
 caller must not run `Connect` concurrently with `Close`.
 
 Application may deliberately remove and close a Manager-owned Session when an application lease

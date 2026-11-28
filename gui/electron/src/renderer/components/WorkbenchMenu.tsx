@@ -35,6 +35,7 @@ const layoutControls = [
 /** Local directory commands stay in the renderer, outside the native IPC action set. */
 export interface PopupEntry extends MenuEntry {
   onChoose?: () => void;
+  endpoint?: string;
 }
 
 export interface MenuPopupRequest {
@@ -257,6 +258,7 @@ export function WorkbenchMenu({
               {checked ? "✓" : ""}
             </span>
             {t(entry.label)}
+            {entry.endpoint && ` · ${entry.endpoint}`}
             {entry.shortcut && (
               <kbd className="menu-shortcut">{entry.shortcut}</kbd>
             )}

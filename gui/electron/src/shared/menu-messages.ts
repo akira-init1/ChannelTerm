@@ -1171,6 +1171,29 @@ export const menuMessages = [
     message:
       "Use the connected ChannelTerm MCP to operate on this target:\nName: {name}\nHost: {host}\nsession_id: {sessionId}\nShort reference: {reference}\nConnection: {transport} / {endpoint}\n\nFirst query Sessions and confirm that the full ID, endpoint, and state match.\nIf they do not match, stop. Do not automatically select another device.\nI will specify the operation separately.",
   },
+  /* i18n */ {
+    id: "host.releaseAll",
+    message: "Release all Host connections…",
+  },
+  /* i18n */ { id: "session.release", message: "Force release connection…" },
+  /* i18n */ {
+    id: "release.empty",
+    message: "This Host has no open connections.",
+  },
+  /* i18n */ {
+    id: "release.detached",
+    message: "Tab closed · Host still lists this connection",
+  },
+  /* i18n */ { id: "release.ended", message: "Original registration ended" },
+  /* i18n */ { id: "release.idle", message: "Waiting for idle release" },
+  /* i18n */ { id: "release.keep", message: "Kept open by Host policy" },
+  /* i18n */ { id: "release.released", message: "Released" },
+  /* i18n */ { id: "release.rejected", message: "Not released" },
+  /* i18n */ {
+    id: "release.unknown",
+    message: "Outcome unknown · refresh before retrying",
+  },
+  /* i18n */ { id: "release.pending", message: "Releasing connections…" },
   /* i18n */ { id: "session.close", message: "Close shared Session..." },
   /* i18n */ { id: "session.closeConfirm", message: "Close for everyone" },
   /* i18n */ {

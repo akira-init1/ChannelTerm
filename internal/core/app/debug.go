@@ -92,6 +92,7 @@ type debugRun struct {
 	request               DebugStartRequest
 	fingerprint           string
 	id, owner, token, dir string
+	reference             string     // Immutable lease registration for delayed failure cleanup.
 	op                    sync.Mutex // Serializes setup, MI actions, and recovery; never held by readers.
 	mu                    sync.Mutex // State/events only; never held across I/O.
 	state                 string
@@ -200,11 +201,13 @@ func (a *Application) StartDebug(ctx context.Context, request DebugStartRequest)
 		close(r.finished)
 		return r.status(), e
 	}
-	if _, e = a.AcquireLeaseForClient(ctx, terminal.ID(), r.owner, LeaseTypeDebug); e != nil {
+	lease, e := a.AcquireLeaseForClient(ctx, terminal.ID(), r.owner, LeaseTypeDebug)
+	if e != nil {
 		r.transition("failed", e)
 		close(r.finished)
 		return r.status(), e
 	}
+	r.reference = lease.sessionReference
 	e = checkDebugPendingInput(terminal)
 	if e == nil {
 		e = r.start(ctx)
@@ -515,8 +518,10 @@ func (r *debugRun) fail(cause error) {
 	}
 	r.transition("failed", cause)
 	if r.touched {
-		_, _ = r.app.removeAndCloseSession(r.terminal.ID())
-		r.app.leases.remove(r.terminal.ID())
+		if terminal, ok := r.app.manager.RemoveRegistration(r.terminal.ID(), r.reference); ok {
+			_ = terminal.Close()
+			r.app.leases.removeRegistration(terminal.ID(), r.reference)
+		}
 	} else {
 		_ = r.app.releaseLease(r.terminal, r.owner)
 	}

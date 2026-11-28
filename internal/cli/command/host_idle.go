@@ -50,7 +50,9 @@ func resolveHostIdlePolicy(flags *flag.FlagSet, file config.Host, sessionTimeout
 	if transport != "http" && (sessionTimeout != 0 || exitTimeout != 0 || origin == "desktop") {
 		return app.IdlePolicy{}, errors.New("idle policy requires a persistent HTTP Host")
 	}
-	policy := app.IdlePolicy{SessionTimeout: sessionTimeout, ExitTimeout: exitTimeout, Origin: origin}
+	policy := app.IdlePolicy{SessionTimeout: sessionTimeout, ExitTimeout: exitTimeout, Origin: origin,
+		ReleaseOnDetach: transport == "http" && !set["idle-session-timeout"] && file.IdleSessionTimeout == ""}
+
 	return policy, policy.Validate()
 }
 

@@ -557,6 +557,7 @@ The check is not an atomic hardware identity guarantee; see [identity limits](..
 | Initial output | `terminal_read` without cursor, Base64, at most 64 KiB |
 | Further output | `terminal_read` with Main-owned cursor and a one-second Host wait |
 | Ordinary input | `terminal_write`, UTF-8, actor `user`; no delimiter inserted |
+| Force release | Main previews exact Host registrations, pins them to a single-use window ticket and submits each confirmed registration once through the [release route](../reference/gui-host-api.md#connection-release). |
 | Close GUI | Cancel requests, end the window's registered presence and close its MCP client |
 
 The authoritative schemas remain in [MCP tools](../reference/mcp-tools.md). The attachment tools

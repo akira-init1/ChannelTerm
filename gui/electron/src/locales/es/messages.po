@@ -1663,6 +1663,11 @@ msgstr "Desconectar del host"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "host.releaseAll"
+msgstr "Liberar todas las conexiones del Host…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "host.settings"
 msgstr "Información del Host y conexión"
 
@@ -2210,6 +2215,51 @@ msgstr "Acceso denegado. Compruebe los permisos de las credenciales y quién tie
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "release.detached"
+msgstr "Pestaña cerrada · el Host aún muestra la conexión"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "release.empty"
+msgstr "Este Host no tiene conexiones abiertas."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "release.ended"
+msgstr "Registro original finalizado"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "release.idle"
+msgstr "Esperando liberación por inactividad"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "release.keep"
+msgstr "La política del Host mantiene la conexión abierta"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "release.pending"
+msgstr "Liberando conexiones…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "release.rejected"
+msgstr "No liberada"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "release.released"
+msgstr "Liberada"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "release.unknown"
+msgstr "Resultado desconocido · actualice antes de reintentar"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "search.case"
 msgstr "Distinguir mayúsculas"
 
@@ -2435,6 +2485,11 @@ msgstr "Información de la sesión..."
 #: src/shared/menu-messages.ts
 msgid "session.refresh"
 msgstr "Actualizar sesiones"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.release"
+msgstr "Forzar la liberación de la conexión…"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

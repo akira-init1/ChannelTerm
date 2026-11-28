@@ -23,6 +23,20 @@ Top-level help ends with the project's GitHub URL.
 The current parser also implements `channelterm connect --help`, although `connect` is not listed in
 the current top-level help text.
 
+## Release an occupied port or shared connection
+
+```sh
+channelterm release COM8
+channelterm release /dev/ttyUSB0
+channelterm release /dev/cu.usbserial-1234
+channelterm release SSH-1
+channelterm release --all
+```
+
+A human management credential on the selected local HTTP Host can release an open connection even while other users or agents are using it. The preview lists the reference, endpoint, transport and observed retention reason. Confirm interactively, or pass `--yes` in a script. The Host resolves serial names and known aliases using its OS conventions. Ambiguous matches require a reference or full Session ID. SSH uses the reference or ID because multiple shells may share an address. See `channelterm release --help` for endpoint selection.
+
+Confirmation captures the Host instance and exact registrations. A newly opened port or additional Session is outside that confirmation. Each original registration gets a result; partial failure or uncertain delivery gives a nonzero exit. Refresh before deciding whether to retry. An empty batch succeeds. A missing single target means only that this Host has no matching open connection. The command does not open a port to check it, launch a Host or stop another process. Independent SSH file connections and detached remote processes have separate lifetimes.
+
 ## Runtime presence
 
 Host-backed CLI commands discover `client_instance` and register one runtime instance per invocation
@@ -1065,7 +1079,8 @@ serving failure. Normal client EOF and process cancellation are normal shutdowns
 
 ### Persistent Host idle policy
 
-Standalone HTTP Hosts release unused Sessions after a one-second idle grace by default.
+By default, a standalone HTTP Host immediately releases an idle Session when its final human
+terminal monitor detaches or ends. Unattended Sessions use the one-second fallback grace.
 Fully idle exit defaults to 30 seconds for a manual launch and three seconds for a desktop
 companion. Persistent HTTP Hosts may explicitly select `--idle-session-timeout 30s` and
 `--idle-exit-timeout 1m`; zero disables the corresponding timeout. Settings/precedence and restrictions

@@ -1663,6 +1663,11 @@ msgstr "ホストから切断"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "host.releaseAll"
+msgstr "Host の全接続を解放…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "host.settings"
 msgstr "Host 情報と接続"
 
@@ -2210,6 +2215,51 @@ msgstr "アクセスが拒否されました。認証情報の権限と現在の
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "release.detached"
+msgstr "タブを閉じました · Host 上では接続中"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "release.empty"
+msgstr "開いている接続はありません。"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "release.ended"
+msgstr "元の登録は終了しました"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "release.idle"
+msgstr "アイドル時の解放待ち"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "release.keep"
+msgstr "Host の設定により接続を保持"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "release.pending"
+msgstr "接続を解放中…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "release.rejected"
+msgstr "未解放"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "release.released"
+msgstr "解放済み"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "release.unknown"
+msgstr "結果不明 · 再試行前に更新してください"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "search.case"
 msgstr "大文字と小文字を区別"
 
@@ -2435,6 +2485,11 @@ msgstr "セッション情報..."
 #: src/shared/menu-messages.ts
 msgid "session.refresh"
 msgstr "セッション一覧を更新"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.release"
+msgstr "接続を強制解放…"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

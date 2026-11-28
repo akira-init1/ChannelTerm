@@ -272,16 +272,33 @@ export function TerminalDirectory({
     if (tab.connectionLabel) g.label = tab.connectionLabel;
   }
   for (const s of sessions) {
-    const g =
+    if (s.state !== "open") continue;
+    const belongsToSession = (tab: OpenTabRow) =>
+      localSessionIds.get(tab.id) === s.session_id ||
+      (!!s.session_ref && tab.reference === s.session_ref);
+    const shared =
       [...groups.values()].find(
         (candidate) =>
           candidate.transport === s.transport &&
           candidate.endpoint === s.endpoint &&
-          candidate.tabs.some(
-            (tab) => localSessionIds.get(tab.id) === s.session_id,
-          ),
-      ) ?? matchingGroup(s.transport, s.endpoint, s.label);
-    if (g && s.state === "open") g.live ??= s;
+          candidate.tabs.some(belongsToSession),
+      ) ??
+      matchingGroup(s.transport, s.endpoint, s.label) ??
+      group(s.transport, s.endpoint, s.label);
+    if (!shared.live) {
+      shared.live = s;
+      continue;
+    }
+    // Independent SSH shells may share both the endpoint and saved preset.
+    const separate = group(
+      s.transport,
+      s.endpoint,
+      s.label,
+      JSON.stringify([s.transport, s.endpoint, s.session_id]),
+    );
+    separate.live = s;
+    separate.tabs = shared.tabs.filter(belongsToSession);
+    shared.tabs = shared.tabs.filter((tab) => !belongsToSession(tab));
   }
   const keys = orderedKeys([...groups.keys()], order);
   const protocols = (["serial", "ssh"] as const).filter((kind) =>

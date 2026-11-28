@@ -728,6 +728,10 @@ existing worker publishes the final state only after cleanup. Completion can win
 operation does not write to a terminal, close its Session, pause unrelated tasks or promise remote
 process termination. Existing owner-only status/cancel grants remain unchanged.
 
+## Explicit connection release
+
+Human management can confirm an open registration independently of attachment ownership or current leases. Application matches the opaque ID and non-reused Manager reference under admission locking. It removes the registration, cancels its bound control worker, closes the stream to wake blocked I/O, and clears lease state. A pending cleanup holds the Host alive. A concurrent removal can report that the original registration ended; only successful physical close confirms release. Batch membership is fixed by the caller's preview. See the [release contract](../reference/gui-host-api.md#connection-release).
+
 ## Host idle reclamation
 
 `IdlePolicy` supplies launch defaults. The authenticated human desktop management route can
@@ -735,6 +739,12 @@ override idle exit for the current companion under the instance lock. A zero tim
 composition root selects configured defaults and calls `SweepIdle`; Core never exits a process.
 `HostIdlePolicy` returns effective policy and at most 256 public retention decisions, with an
 explicit truncation flag. Reading that snapshot neither renews usage nor starts a countdown.
+
+The default persistent HTTP policy checks the original registration immediately when a live human
+management client's monitor ends, including normal instance shutdown. Other uses and protected
+work still retain it. If a call is draining, its completion rechecks the pending departure. A
+fresh monitor cancels the pending departure for that registration. Explicit Session timeout
+settings keep their configured grace or retention. Expiry alone uses the regular idle sweep.
 
 The decision uses complete private presence records, not their truncated display projection.
 Live explicit observe/monitor/operation uses, accepted calls even after instance expiry, active

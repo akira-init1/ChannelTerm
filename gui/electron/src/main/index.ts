@@ -1159,6 +1159,18 @@ function createHandlers(context: WindowContext): Record<string, Handler> {
         failMove(context.outgoingMove);
       return currentHost(context).detach(id);
     },
+    [channels.previewRelease]: (id) => {
+      if (id !== null) identifier(id);
+      return currentHost(context).releases.preview(id);
+    },
+    [channels.discardRelease]: (ticket) => {
+      identifier(ticket);
+      return currentHost(context).releases.discard(ticket);
+    },
+    [channels.confirmRelease]: (ticket) => {
+      identifier(ticket);
+      return currentHost(context).releases.confirm(ticket);
+    },
     [channels.closeSession]: (id) => {
       identifier(id);
       if (context.files.busy || context.sshFiles.busy || context.outgoingMove)
@@ -1286,6 +1298,9 @@ function registerIPC(): void {
                     channels.setBackgroundMCP,
                     channels.focusWindow,
                     channels.detach,
+                    channels.previewRelease,
+                    channels.discardRelease,
+                    channels.confirmRelease,
                     channels.closeSession,
                     channels.read,
                     channels.activity,

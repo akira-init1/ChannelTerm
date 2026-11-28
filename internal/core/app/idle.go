@@ -22,9 +22,12 @@ const DesktopIdleExitTimeout = 3 * time.Second
 // IdlePolicy supplies the launch defaults. Zero retains resources. Exit
 // requires Session reclamation and is implemented by the composition root only.
 type IdlePolicy struct {
-	SessionTimeout time.Duration
-	ExitTimeout    time.Duration
-	Origin         string
+	// ReleaseOnDetach closes idle registrations on confirmed human departure.
+	// Explicit retention settings continue to use SessionTimeout alone.
+	ReleaseOnDetach bool
+	SessionTimeout  time.Duration
+	ExitTimeout     time.Duration
+	Origin          string
 }
 
 // Validate checks time bounds and rejects exit without Session reclamation.
@@ -33,6 +36,9 @@ func (p IdlePolicy) Validate() error {
 		if d != 0 && (d < time.Second || d > 24*time.Hour) {
 			return errors.New("idle timeout must be zero or between 1s and 24h")
 		}
+	}
+	if p.ReleaseOnDetach && p.SessionTimeout == 0 {
+		return errors.New("release on detach requires Session reclamation")
 	}
 	if p.ExitTimeout != 0 && p.SessionTimeout == 0 {
 		return errors.New("idle exit requires Session reclamation")
@@ -47,6 +53,8 @@ type idleState struct {
 	policy             IdlePolicy
 	backgroundOverride *bool                // guarded by instances.mu, desktop Host only
 	since              map[string]time.Time // never-reused Manager registration references
+	detached           map[string]string    // registration reference -> ID awaiting a final idle check
+	closing            int                  // removed registrations whose transport cleanup is in progress
 	exitSince          time.Time
 	work               int
 	epoch              uint64
@@ -127,7 +135,7 @@ func (a *Application) idleObservation(ctx context.Context) (uint64, map[string]b
 
 // idleReasonLocked uses full authoritative records, never truncated display data.
 // Lock order is leases.mu -> instances.mu -> Manager. No owner I/O is performed.
-func (a *Application) idleReasonLocked(id string, debug map[string]bool, now time.Time) string {
+func (a *Application) idleReasonLocked(id, ref string, debug map[string]bool, now time.Time) string {
 	if a.idle.work != 0 {
 		return "setup"
 	}
@@ -154,7 +162,7 @@ func (a *Application) idleReasonLocked(id string, debug map[string]bool, now tim
 	for _, entry := range a.instances.entries {
 		live := entry.view.State != "ended" && now.Before(entry.view.ExpiresAt)
 		for _, use := range entry.uses {
-			if use.SessionID == id && (live || use.Active) {
+			if use.reference == ref && (live || use.Active) {
 				return use.Kind
 			}
 		}
@@ -225,11 +233,73 @@ func (a *Application) HostIdlePolicy(ctx context.Context) (HostIdleStatus, error
 		}
 		reason := "keep"
 		if p.SessionTimeout != 0 {
-			reason = a.idleReasonLocked(info.ID, debug, a.instances.clock())
+			reason = a.idleReasonLocked(info.ID, info.Metadata.Reference, debug, a.instances.clock())
 		}
 		out.Sessions = append(out.Sessions, IdleSession{SessionID: info.ID, Reference: info.Metadata.Reference, Reason: reason, IdleSince: a.idle.since[info.Metadata.Reference]})
 	}
 	return out, nil
+}
+
+// noteDepartureLocked remembers only a live human monitor's original registration.
+// A delayed end/unuse from an expired instance cannot reclaim a new connection.
+func (a *Application) noteDepartureLocked(ctx context.Context, entry *instanceRecord, use InstanceUse) {
+	if !a.idle.policy.ReleaseOnDetach || use.Kind != "monitor" || use.reference == "" ||
+		entry.view.Client.Kind != "user" || CheckClientAccess(ctx, ClientManage) != nil ||
+		entry.view.State == "ended" || !a.instances.clock().Before(entry.view.ExpiresAt) {
+		return
+	}
+	if a.idle.detached == nil {
+		a.idle.detached = make(map[string]string)
+	}
+	a.idle.detached[use.reference] = use.SessionID
+}
+
+// reclaimDetached checks only the original registration. A transient read can
+// finish just after detach; its completion repeats this check without a timer.
+func (a *Application) reclaimDetached(ctx context.Context, ref string) error {
+	// Continuous admissions can invalidate a debug snapshot. Leave the marker
+	// for call completion or the next sweep rather than spinning indefinitely.
+	for attempt := 0; attempt < 2; attempt++ {
+		epoch, debug, err := a.idleObservation(ctx)
+		if err != nil {
+			return err
+		}
+		a.leases.mu.Lock()
+		a.instances.mu.Lock()
+		id, pending := a.idle.detached[ref]
+		retry := pending && epoch != a.idle.epoch
+		var terminal session.Session
+		if pending && !retry && a.idleReasonLocked(id, ref, debug, a.instances.clock()) == "idle" {
+			terminal, _ = a.manager.RemoveRegistration(id, ref)
+			delete(a.idle.detached, ref)
+			delete(a.idle.since, ref)
+			if terminal != nil {
+				a.idle.closing++
+			}
+		}
+		a.instances.mu.Unlock()
+		a.leases.mu.Unlock()
+		if terminal != nil {
+			return a.closeIdle(terminal, ref)
+		}
+		if !retry {
+			return nil
+		}
+	}
+	return nil
+}
+
+// closeIdle owns a removed registration. Never hold admission locks over device I/O.
+func (a *Application) closeIdle(terminal session.Session, ref string) error {
+	terminal.PublishEvent(session.Event{Type: session.EventOperationState, Actor: "system", Metadata: map[string]any{"operation": "idle_release", "state": "closing", "reason": "no_registered_use"}})
+	err := terminal.Close()
+	a.leases.removeRegistration(terminal.ID(), ref)
+	a.instances.mu.Lock()
+	a.idle.closing--
+	a.idle.epoch++
+	a.idle.exitSince = time.Time{}
+	a.instances.mu.Unlock()
+	return err
 }
 
 // SweepIdle releases only registrations still idle at atomic removal. Close runs
@@ -263,18 +333,21 @@ func (a *Application) SweepIdle(ctx context.Context) (exit bool, err error) {
 	for _, info := range a.manager.ListInfo() {
 		ref := info.Metadata.Reference
 		live[ref] = true
-		if a.idleReasonLocked(info.ID, debug, now) != "idle" {
+		if a.idleReasonLocked(info.ID, ref, debug, now) != "idle" {
 			delete(a.idle.since, ref)
 			continue
 		}
 		since, ok := a.idle.since[ref]
-		if !ok {
-			a.idle.since[ref] = now
-			continue
+		if _, departed := a.idle.detached[ref]; !departed {
+			if !ok {
+				a.idle.since[ref] = now
+				continue
+			}
+			if now.Sub(since) < a.idle.policy.SessionTimeout {
+				continue
+			}
 		}
-		if now.Sub(since) < a.idle.policy.SessionTimeout {
-			continue
-		}
+		delete(a.idle.detached, ref)
 		if terminal, ok := a.manager.Remove(ref); ok {
 			removed = append(removed, removedSession{terminal, ref})
 		}
@@ -285,7 +358,12 @@ func (a *Application) SweepIdle(ctx context.Context) (exit bool, err error) {
 			delete(a.idle.since, ref)
 		}
 	}
-	busy := a.idle.work != 0 || len(removed) != 0 || len(a.manager.ListInfo()) != 0 || len(debug) != 0
+	for ref := range a.idle.detached {
+		if !live[ref] {
+			delete(a.idle.detached, ref)
+		}
+	}
+	busy := a.idle.work != 0 || a.idle.closing != 0 || len(removed) != 0 || len(a.manager.ListInfo()) != 0 || len(debug) != 0
 	busy = busy || len(a.leases.leases) != 0 || len(a.leases.recovering) != 0
 	for _, active := range a.leases.activeWrites {
 		busy = busy || active != 0
@@ -311,18 +389,11 @@ func (a *Application) SweepIdle(ctx context.Context) (exit bool, err error) {
 	}
 	// Another concurrent sweep must not authorize Host exit while Close is still
 	// releasing transport resources outside the coordinator locks.
-	a.idle.work += len(removed)
+	a.idle.closing += len(removed)
 	a.instances.mu.Unlock()
 	a.leases.mu.Unlock()
 	for _, item := range removed {
-		item.terminal.PublishEvent(session.Event{Type: session.EventOperationState, Actor: "system", Metadata: map[string]any{"operation": "idle_release", "state": "closing", "reason": "no_registered_use"}})
-		err = errors.Join(err, item.terminal.Close())
-		a.leases.removeRegistration(item.terminal.ID(), item.reference)
-		a.instances.mu.Lock()
-		a.idle.work--
-		a.idle.epoch++
-		a.idle.exitSince = time.Time{}
-		a.instances.mu.Unlock()
+		err = errors.Join(err, a.closeIdle(item.terminal, item.reference))
 	}
 	return exit, err
 }

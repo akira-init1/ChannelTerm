@@ -54,6 +54,7 @@ export type Action =
       id:
         | "host.connect"
         | "host.settings"
+        | "host.releaseAll"
         | "setup.open"
         | "logs.open"
         | "host.disconnect"
@@ -83,6 +84,7 @@ export type Action =
       id:
         | "connection.settings"
         | "session.attach"
+        | "session.release"
         | "file.send"
         | "file.receive"
         | "file.resume";
@@ -125,6 +127,7 @@ export interface MenuState {
   connected: boolean;
   sshAvailable: boolean;
   ubootAvailable?: boolean;
+  releaseAvailable?: boolean;
   busy: boolean;
   sidebarVisible: boolean;
   auxiliaryVisible: boolean;
@@ -205,7 +208,10 @@ function attachedAction(
     enabled:
       !!state.attachment &&
       !state.busy &&
-      (id !== "session.close" || (state.connected && state.currentOpen)) &&
+      (id !== "session.close" ||
+        (state.connected &&
+          state.currentOpen &&
+          state.releaseAvailable !== false)) &&
       (!["tab.splitRight", "tab.splitDown"].includes(id) ||
         (state.connected &&
           state.currentOpen &&
@@ -271,6 +277,12 @@ export function applicationMenu(state: MenuState): MenuEntry[] {
           label: "setup.open",
           enabled: !state.busy,
           action: { id: "setup.open" },
+        },
+        {
+          id: "host.releaseAll",
+          label: "host.releaseAll",
+          enabled: !!state.releaseAvailable && state.connected && !state.busy,
+          action: { id: "host.releaseAll" },
         },
         {
           id: "host.settings",
@@ -586,9 +598,18 @@ export function sessionMenu(
           : undefined,
     },
     ...fileMenu(state, sessionId, open && (serial || ssh), serial),
-    ...(state.attachment?.sessionId === sessionId
-      ? [attachedAction(state, "session.close")]
-      : []),
+    ...(state.releaseAvailable
+      ? [
+          {
+            id: "session.release",
+            label: "session.release",
+            enabled: state.connected && !state.busy,
+            action: { id: "session.release" as const, sessionId },
+          },
+        ]
+      : state.attachment?.sessionId === sessionId
+        ? [attachedAction(state, "session.close")]
+        : []),
     {
       id: "connection.settings",
       label: "connection.settings",
@@ -631,6 +652,7 @@ export function isAction(value: unknown): value is Action {
   switch (value.id) {
     case "setup.open":
     case "logs.open":
+    case "host.releaseAll":
     case "host.settings":
     case "host.connect":
     case "host.disconnect":
@@ -666,6 +688,7 @@ export function isAction(value: unknown): value is Action {
     case "file.receive":
     case "file.resume":
     case "connection.settings":
+    case "session.release":
     case "session.attach":
       return exact(value, ["id", "sessionId"]) && identifier(value.sessionId);
     case "tab.close":
@@ -714,6 +737,7 @@ export function isMenuState(value: unknown): value is MenuState {
       "connected",
       "sshAvailable",
       "ubootAvailable",
+      "releaseAvailable",
       "busy",
       "sidebarVisible",
       "auxiliaryVisible",
@@ -736,6 +760,8 @@ export function isMenuState(value: unknown): value is MenuState {
     return false;
   return (
     (value.lineDisplay === undefined || isLineDisplay(value.lineDisplay)) &&
+    (value.releaseAvailable === undefined ||
+      typeof value.releaseAvailable === "boolean") &&
     (value.ubootAvailable === undefined ||
       typeof value.ubootAvailable === "boolean") &&
     isMenuLocale(value.locale) &&
@@ -776,6 +802,9 @@ export function isMenuState(value: unknown): value is MenuState {
 /** Recheck live view state before dispatch, including attachment identity after async changes. */
 export function actionEnabled(action: Action, state: MenuState): boolean {
   switch (action.id) {
+    case "session.release":
+    case "host.releaseAll":
+      return !!state.releaseAvailable && state.connected && !state.busy;
     case "view.single":
       return !state.busy && !!state.split;
     case "settings.transfers":
@@ -852,6 +881,7 @@ export function actionEnabled(action: Action, state: MenuState): boolean {
         state.attachment?.id === action.attachment.id &&
         state.attachment.sessionId === action.attachment.sessionId &&
         (action.id !== "terminal.fold" || !state.hexView) &&
+        (action.id !== "session.close" || state.releaseAvailable !== false) &&
         (!["session.close", "session.copyAI"].includes(action.id) ||
           (state.connected && state.currentOpen)) &&
         (!["tab.splitRight", "tab.splitDown"].includes(action.id) ||

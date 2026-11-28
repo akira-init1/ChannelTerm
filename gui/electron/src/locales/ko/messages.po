@@ -1663,6 +1663,11 @@ msgstr "호스트 연결 끊기"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "host.releaseAll"
+msgstr "Host 연결 모두 해제…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "host.settings"
 msgstr "Host 정보 및 연결"
 
@@ -2210,6 +2215,51 @@ msgstr "접근이 거부되었습니다. 자격 증명 권한과 현재 제어�
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts
+msgid "release.detached"
+msgstr "탭 닫힘 · Host에 연결이 남아 있음"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "release.empty"
+msgstr "열린 연결이 없습니다."
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "release.ended"
+msgstr "기존 등록 종료"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "release.idle"
+msgstr "유휴 상태 해제 대기 중"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "release.keep"
+msgstr "Host 정책에 따라 연결 유지 중"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "release.pending"
+msgstr "연결 해제 중…"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "release.rejected"
+msgstr "해제되지 않음"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "release.released"
+msgstr "해제됨"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "release.unknown"
+msgstr "결과 불명 · 재시도 전에 새로 고치세요"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
 msgid "search.case"
 msgstr "대소문자 구분"
 
@@ -2435,6 +2485,11 @@ msgstr "세션 정보..."
 #: src/shared/menu-messages.ts
 msgid "session.refresh"
 msgstr "세션 새로 고침"
+
+#. js-lingui-explicit-id
+#: src/shared/menu-messages.ts
+msgid "session.release"
+msgstr "연결 강제 해제…"
 
 #. js-lingui-explicit-id
 #: src/shared/menu-messages.ts

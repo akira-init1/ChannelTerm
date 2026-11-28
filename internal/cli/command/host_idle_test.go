@@ -49,7 +49,8 @@ func TestHostIdleDefaultsOverridesAndTemporaryOwnership(t *testing.T) {
 				}
 				return
 			}
-			if err != nil || p.SessionTimeout != tc.session || p.ExitTimeout != tc.exit {
+			immediate := tc.name == "manual HTTP" || tc.name == "desktop" || tc.name == "explicit background"
+			if err != nil || p.SessionTimeout != tc.session || p.ExitTimeout != tc.exit || p.ReleaseOnDetach != immediate {
 				t.Fatalf("%+v %v", p, err)
 			}
 		})

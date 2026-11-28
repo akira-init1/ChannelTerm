@@ -267,6 +267,7 @@ type Core struct {
 	inputPending    bool
 	state           SessionState
 	closeErr        error
+	closeDone       chan struct{}
 	readerDone      chan struct{}
 	readerStop      chan struct{}
 	managerDone     chan struct{}
@@ -323,6 +324,7 @@ func New(id string, source transport.Transport, options ...Option) (*Core, error
 		state:       StateNew,
 		readerStop:  make(chan struct{}),
 		managerDone: make(chan struct{}),
+		closeDone:   make(chan struct{}),
 	}, nil
 }
 
@@ -673,8 +675,8 @@ func (s *Core) handleReadError(err error) {
 //
 // Close first wakes output consumers, then closes Channel to unblock its
 // reader, waits for that goroutine to exit, and finally releases the retained
-// buffer memory. Sequential calls after StateClosed return the original close
-// result so cleanup errors remain observable.
+// buffer memory. Concurrent and subsequent closes return the original result
+// after cleanup finishes so callers cannot report an unconfirmed release.
 func (s *Core) Close() error {
 	s.mu.Lock()
 	if s.state == StateClosed {
@@ -684,7 +686,8 @@ func (s *Core) Close() error {
 	}
 	if s.state == StateClosing {
 		s.mu.Unlock()
-		return nil
+		<-s.closeDone
+		return s.closeErr
 	}
 	s.state = StateClosing
 	done := s.readerDone
@@ -709,6 +712,7 @@ func (s *Core) Close() error {
 	s.mu.Lock()
 	s.closeErr = err
 	s.state = StateClosed
+	close(s.closeDone)
 	s.mu.Unlock()
 	s.signalManagerDone()
 	return err

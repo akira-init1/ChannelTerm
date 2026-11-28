@@ -124,6 +124,11 @@ const api: DesktopAPI = {
     ipcRenderer.invoke(channels.resizeControl, id, action),
   attach: (id, settings) => ipcRenderer.invoke(channels.attach, id, settings),
   detach: (id) => ipcRenderer.invoke(channels.detach, id),
+  previewRelease: (id) => ipcRenderer.invoke(channels.previewRelease, id),
+  discardRelease: (ticket) =>
+    ipcRenderer.invoke(channels.discardRelease, ticket),
+  confirmRelease: (ticket) =>
+    ipcRenderer.invoke(channels.confirmRelease, ticket),
   closeSession: (id) => ipcRenderer.invoke(channels.closeSession, id),
   activity: (id) => ipcRenderer.invoke(channels.activity, id),
   saveDiagnostics: (request) =>

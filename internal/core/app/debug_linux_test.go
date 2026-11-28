@@ -146,9 +146,11 @@ func simulatedDebugRun(t *testing.T) *debugRun {
 	r := &debugRun{app: a, terminal: terminal, owner: "internal-owner", id: "debug-simulated", token: "fixture", state: "stopped", client: client, changed: make(chan struct{}), finished: make(chan struct{}), expires: time.Now().Add(time.Minute), touched: true}
 	r.protocol = &terminalCommandProtocol{terminal: terminal, token: r.token}
 	a.debug.runs = map[string]*debugRun{r.id: r}
-	if _, e = a.AcquireLease(terminal.ID(), r.owner, LeaseTypeDebug); e != nil {
+	lease, e := a.AcquireLease(terminal.ID(), r.owner, LeaseTypeDebug)
+	if e != nil {
 		t.Fatal(e)
 	}
+	r.reference = lease.sessionReference
 	return r
 }
 

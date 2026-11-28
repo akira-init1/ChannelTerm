@@ -1,5 +1,6 @@
 import type { SavedPolicyTarget } from "../../shared/api";
 import { debugBytes } from "./debug-send";
+import { HostReleases } from "./release";
 import {
   isUBootRequest,
   type UBootRequest,
@@ -116,6 +117,7 @@ export class HostClient {
   private closing = new Set<string>();
   readonly sshTrust = new SSHTrustExchange();
   private sshTrustAvailable = false;
+  private lastDetachedSession?: string;
   private sshAvailable = false;
   private independentSSH = false;
   private sshAdvanced = false;
@@ -307,6 +309,7 @@ export class HostClient {
     });
   }
 
+  readonly releases: HostReleases;
   private readonly endpoint: URL;
 
   constructor(
@@ -314,10 +317,16 @@ export class HostClient {
     private readonly token: string,
   ) {
     this.endpoint = hostEndpoint(endpoint);
+    this.releases = new HostReleases(
+      this.endpoint,
+      token,
+      () => this.connection.signal,
+    );
   }
 
   info(): HostInfo {
     return {
+      releaseAvailable: this.releases.available,
       endpoint: this.endpoint.href,
       hostVersion: this.hostVersion,
       remoteSize: this.resizeAvailable,
@@ -424,6 +433,7 @@ export class HostClient {
         throw new HostError("cancelled", "Connection cancelled.");
       if (client.getServerVersion()?.name !== "channelterm")
         throw incompatible();
+      await this.releases.probe();
       this.hostVersion = displayVersion(client.getServerVersion()?.version);
       this.presence = new ClientPresence(client, signal);
       await this.presence.start();
@@ -656,6 +666,31 @@ export class HostClient {
       await this.call("terminal_list_sessions", {}),
       controlSnapshot,
     );
+    const detached = entries.find(
+      (entry) => entry.session_id === this.lastDetachedSession,
+    );
+    if (detached && this.presence?.idlePolicyAvailable) {
+      try {
+        const observed = object(
+          (await this.call("host_idle_status", {}, this.connection.signal))
+            .policy,
+        ).sessions;
+        if (Array.isArray(observed)) {
+          const row = observed.find(
+            (value) =>
+              value?.session_id === detached.session_id &&
+              value.reference === detached.session_ref,
+          );
+          if (
+            typeof row?.reason === "string" &&
+            /^[a-z_]{1,32}$/.test(row.reason)
+          )
+            detached.retentionReason = row.reason;
+        }
+      } catch {
+        /* Retention is optional; listing still reports the actual registration. */
+      }
+    }
     this.controls.clear();
     for (const entry of entries)
       if (entry.control) this.controls.set(entry.session_id, entry.control);
@@ -1250,8 +1285,8 @@ export class HostClient {
     if (!active) return;
     active.controller.abort();
     await active.sizeControl?.dispose();
-    await this.presence?.unuse(active.id);
-    // This records a lifecycle event only. No terminal_close, lease release, or Host shutdown.
+    const presence = this.presence;
+    // Record the departure while this monitor still protects the registration.
     try {
       await this.call(
         "terminal_session_detach",
@@ -1261,6 +1296,8 @@ export class HostClient {
     } catch {
       /* Best effort when the Host or Session has already gone away. */
     }
+    await presence?.unuse(active.id);
+    if (this.presence === presence) this.lastDetachedSession = active.sessionId;
   }
 
   /** Close exactly the attached shared Session once; never retry an uncertain close. */
@@ -1966,6 +2003,8 @@ export class HostClient {
   }
 
   async disconnect(): Promise<void> {
+    this.releases.reset();
+    this.lastDetachedSession = undefined;
     for (const controller of this.captures.values()) controller.abort();
     this.captures.clear();
     this.controls.clear();

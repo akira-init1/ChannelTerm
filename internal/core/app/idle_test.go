@@ -62,6 +62,107 @@ func TestIdleGraceUsageAndListObservation(t *testing.T) {
 	}
 }
 
+func TestLastHumanMonitorClosesOriginalSessionWithoutSweep(t *testing.T) {
+	for _, endInstance := range []bool{false, true} {
+		t.Run(map[bool]string{false: "tab", true: "window"}[endInstance], func(t *testing.T) {
+			a, ctx, _ := idleFixture(t)
+			a.idle.policy.ReleaseOnDetach = true
+			human := WithClientIdentity(ctx, session.ClientIdentity{ID: "CL-human", Kind: "user"})
+			_, p := registerInstance(t, a, human)
+			_, q := registerInstance(t, a, human)
+			add := func(proof InstanceProof, key string) InstanceUse {
+				t.Helper()
+				use, err := a.SetClientUse(human, proof, key, "board", "monitor")
+				if err != nil {
+					t.Fatal(err)
+				}
+				return use
+			}
+			first, second := add(p, "first"), add(q, "second")
+			if err := a.EndClientUse(human, p, first.ID); err != nil {
+				t.Fatal(err)
+			}
+			board, ok := a.manager.Get("board")
+			if !ok || board.State() != session.StateOpen {
+				t.Fatal("another window lost its connection")
+			}
+			var err error
+			if endInstance {
+				err = a.EndClientInstance(human, q)
+			} else {
+				err = a.EndClientUse(human, q, second.ID)
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, ok := a.manager.Get("board"); ok || board.State() != session.StateClosed {
+				t.Fatal("final departure returned before close")
+			}
+			if _, ok := a.manager.Get("other"); !ok {
+				t.Fatal("unrelated registration reclaimed")
+			}
+		})
+	}
+}
+
+func TestDetachDuringActiveCallClosesWhenCallCompletes(t *testing.T) {
+	a, ctx, _ := idleFixture(t)
+	a.idle.policy.ReleaseOnDetach = true
+	human := WithClientIdentity(ctx, session.ClientIdentity{ID: "CL-human", Kind: "user"})
+	_, p := registerInstance(t, a, human)
+	monitor, err := a.SetClientUse(human, p, "tab", "board", "monitor")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, q := registerInstance(t, a, ctx)
+	bound, err := a.BindClientInstance(WithInstanceProof(ctx, q), "mcp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, done, err := a.BeginClientCall(bound, "board", "active-work", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer done()
+	if err := a.EndClientUse(human, p, monitor.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := a.manager.Get("board"); !ok {
+		t.Fatal("detaching interrupted accepted work")
+	}
+	done()
+	if _, ok := a.manager.Get("board"); ok {
+		t.Fatal("waited for a sweep after work drained")
+	}
+}
+
+func TestOldMonitorDepartureLeavesReplacementOpen(t *testing.T) {
+	a, ctx, _ := idleFixture(t)
+	a.idle.policy.ReleaseOnDetach = true
+	human := WithClientIdentity(ctx, session.ClientIdentity{ID: "CL-human", Kind: "user"})
+	_, p := registerInstance(t, a, human)
+	u, err := a.SetClientUse(human, p, "old", "board", "monitor")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := a.CloseSession("board"); err != nil {
+		t.Fatal(err)
+	}
+	next := newFakeConnectedSession("board")
+	if err := next.Connect(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := a.manager.Register(next); err != nil {
+		t.Fatal(err)
+	}
+	if err := a.EndClientUse(human, p, u.ID); err != nil {
+		t.Fatal(err)
+	}
+	if s, ok := a.manager.Get("board"); !ok || s != next || next.State() != session.StateOpen {
+		t.Fatal("late unuse closed replacement")
+	}
+}
+
 func TestIdleAcceptedWorkSurvivesPresenceExpiry(t *testing.T) {
 	a, ctx, now := idleFixture(t)
 	_, p := registerInstance(t, a, ctx)
