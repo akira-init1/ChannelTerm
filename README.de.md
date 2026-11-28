@@ -105,21 +105,37 @@ channelterm attach /dev/cu.usbserial-110 --baud 115200 --label board
 
 Dieser einzelne `attach`-Befehl öffnet das serielle Gerät und verbindet das aktuelle Terminal. Wenn
 am Standard-Endpunkt kein kompatibler Host läuft, startet er automatisch einen temporären lokalen
-HTTP-MCP-Session-Host. Eine typische Ausgabe lautet:
+HTTP-MCP-Session-Host. Die Startmeldung enthält die Referenz und die ID der Session:
 
 ```text
 Shared Session created: SER-1 (0123456789abcdef0123456789abcdef)
-[ChannelTerm] Temporary Session Host started; it and all shared Sessions stop when this attachment exits. Run 'channelterm mcp --transport http' separately for a persistent Host.
 ```
 
 Für diesen schnellen Ablauf ist kein separates MCP-Server-Terminal nötig. Solange die Verbindung
 offen bleibt, kann ein konfigurierter HTTP-MCP-Client `http://127.0.0.1:37099/mcp` verwenden und
 dieselbe Session `SER-1` bedienen. Der temporäre Host und alle von ihm verwalteten Sessions enden,
-wenn die erzeugende Verbindung beendet wird. Verwenden Sie einen dauerhaften Host nur dann, wenn
-Sessions unabhängig von diesem Terminal weiterlaufen müssen.
+wenn die erzeugende Verbindung beendet wird.
 
 `--label board` ist ein optionaler Anzeigename, keine Kennung. Andere Clients müssen `SER-1` oder die
 vollständige undurchsichtige Session-ID verwenden.
+
+### Nach dem Schließen des letzten Terminals
+
+Starten Sie vor dem Verbindungsaufbau einen dieser Hosts in einem separaten Terminal. Die Tabelle gilt
+bei Standardkonfiguration, wenn das letzte interaktive Terminal die Session mit `Ctrl+] q` verlässt und
+kein anderer Client oder Auftrag sie nutzt.
+
+| Ziel | Host-Befehl | Ergebnis |
+| --- | --- | --- |
+| Seriellen Port nach Gebrauch freigeben | `channelterm mcp --transport http` | Der Port wird sofort freigegeben. Eine SSH-Session wird geschlossen und ihre Shell ist nicht mehr erreichbar. Nach etwa 30 Sekunden völliger Inaktivität beendet sich der Host. |
+| Nur den Host für neue Verbindungen bereithalten | `channelterm mcp --transport http --idle-exit-timeout 0s` | Der Host lauscht weiter und gibt den Port oder die SSH-Session sofort frei. Die nächste SSH-Verbindung öffnet eine neue Shell. |
+| Host und bestehende Sessions behalten | `channelterm mcp --transport http --idle-session-timeout 0s --idle-exit-timeout 0s` | Der Port bleibt belegt. Solange Host und SSH-Verbindung laufen, können Sie sich wieder mit derselben SSH-Shell verbinden. |
+
+Sobald der Host `MCP Streamable HTTP listening on http://127.0.0.1:37099/mcp` meldet, können sich
+Clients verbinden. Weitere Ausgaben können ausbleiben. Öffnen Sie eine SSH-Shell in einem anderen
+Terminal mit `channelterm ssh user@host.example --shared`. Zur Rückkehr in eine erhaltene Shell
+verwenden Sie die angezeigte Referenz, etwa `channelterm attach SSH-1`. `Ctrl+C` im Host-Terminal
+schließt alle zugehörigen Sessions.
 
 ### Häufige Abläufe
 
@@ -127,17 +143,11 @@ vollständige undurchsichtige Session-ID verwenden.
 | --- | --- |
 | Eine gemeinsam genutzte serielle Session öffnen und automatisch einen temporären Host starten | `channelterm attach COM8 --baud 115200` |
 | Einen unterstützten KI-Client für den gemeinsamen HTTP-Host konfigurieren | `channelterm init --mcp` |
-| Host und Sessions unabhängig vom Terminal aktiv halten | `channelterm mcp --transport http` |
 | Vorhandene Sessions auflisten oder ihnen beitreten | `channelterm list --kind session`, danach `channelterm attach SER-1` |
 | Eine private serielle Verbindung ohne MCP-Freigabe öffnen | `channelterm attach COM8 --private --baud 115200` |
 | Strukturierte Session-Ereignisse beobachten | `channelterm events SER-1` |
 | Das geführte Dateiübertragungsmenü in der aktuellen gemeinsamen Verbindung öffnen | `Ctrl+]` und danach `f` drücken |
 | Über eine gemeinsame Session senden oder empfangen | `channelterm file send firmware.bin --session SER-1` oder `channelterm file receive /tmp/log.txt ./log.txt --session SER-1` |
-
-Ein dauerhafter Host ist ein separater, lang laufender Prozess. Nachdem
-`MCP Streamable HTTP listening on http://127.0.0.1:37099/mcp` erscheint, können andere Shells und
-konfigurierte KI-Clients Sessions erstellen oder ihnen beitreten. Keine weitere Ausgabe nach dieser
-Bereitschaftsmeldung ist normal. Beenden Sie den Host und alle seine Sessions mit `Ctrl+C`.
 
 Bei normaler Terminalnutzung außerhalb von Dateiübertragung oder Debugger-Übernahme:
 

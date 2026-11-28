@@ -98,19 +98,29 @@ channelterm attach /dev/cu.usbserial-110 --baud 115200 --label board
 ```
 
 這一條 `attach` 命令會開啟序列埠並讓目前終端機連入。如果預設端點沒有相容的 Host，它也會
-自動啟動暫時的本機 HTTP MCP Session Host。典型輸出如下：
+自動啟動暫時的本機 HTTP MCP Session Host。啟動訊息會顯示 Session 的簡短參照與 ID。
 
 ```text
 Shared Session created: SER-1 (0123456789abcdef0123456789abcdef)
-[ChannelTerm] Temporary Session Host started; it and all shared Sessions stop when this attachment exits. Run 'channelterm mcp --transport http' separately for a persistent Host.
 ```
 
 快速使用時不必另外開一個終端機執行 MCP 伺服器。只要此附件保持執行，已設定的 HTTP MCP 用戶端
 即可透過 `http://127.0.0.1:37099/mcp` 操作同一個 `SER-1`。建立暫時 Host 的附件離開後，該 Host
-與其所有 Session 都會停止。只有 Session 必須獨立於目前終端機持續存在時，才需要另外執行持久
-Host。
+與其所有 Session 都會停止。
 
 `--label board` 只是選用顯示名稱，不是識別碼。其他用戶端應使用 `SER-1` 或完整 Session ID。
+
+### 關閉最後一個終端機後
+
+連線前，先在獨立的終端機執行下列其中一條命令。下表假設使用預設設定，最後一個人工操作的終端機以 `Ctrl+] q` 正常離開，且沒有其他用戶端或工作使用該 Session。
+
+| 目標 | Host 啟動命令 | 結果 |
+| --- | --- | --- |
+| 用完釋放序列埠 | `channelterm mcp --transport http` | 序列埠會立即釋放。SSH Session 也會關閉，無法接回原來的 shell。Host 完全閒置約 30 秒後結束。 |
+| 只保留 Host 等待下次連線 | `channelterm mcp --transport http --idle-exit-timeout 0s` | Host 繼續監聽，立即釋放序列埠或 SSH Session。下次 SSH 連線會開啟新的 shell。 |
+| 保留 Host 與現有的 Session | `channelterm mcp --transport http --idle-session-timeout 0s --idle-exit-timeout 0s` | 序列埠仍被占用。只要 Host 與 SSH 連線仍在運作，就能接回原來的 SSH shell。 |
+
+Host 顯示 `MCP Streamable HTTP listening on http://127.0.0.1:37099/mcp` 後即可接受連線，之後可能沒有輸出。要使用 SSH，請在另一個終端機執行 `channelterm ssh user@host.example --shared`。要接回保留的 shell，請使用先前顯示的 Session 參照，例如 `channelterm attach SSH-1`。在 Host 終端機按 `Ctrl+C` 會關閉其所有 Session。
 
 ### 常用方式
 
@@ -118,17 +128,11 @@ Host。
 | --- | --- |
 | 開啟共用序列埠 Session，並自動啟動暫時 Host | `channelterm attach COM8 --baud 115200` |
 | 為支援的 AI 用戶端設定共用 HTTP Host | `channelterm init --mcp` |
-| 讓 Host 與 Session 獨立持續執行 | `channelterm mcp --transport http` |
 | 列出或加入既有 Session | `channelterm list --kind session`，接著執行 `channelterm attach SER-1` |
 | 開啟不透過 MCP 共用的私有序列埠 | `channelterm attach COM8 --private --baud 115200` |
 | 觀察結構化 Session 活動 | `channelterm events SER-1` |
 | 在目前共用附件中開啟引導式檔案傳輸選單 | 先按 `Ctrl+]`，再按 `f` |
 | 透過共用 Session 傳送或接收檔案 | `channelterm file send firmware.bin --session SER-1` 或 `channelterm file receive /tmp/log.txt ./log.txt --session SER-1` |
-
-持久 Host 是獨立且長時間執行的程序。它顯示
-`MCP Streamable HTTP listening on http://127.0.0.1:37099/mcp` 後，其他 Shell 與已設定的 AI
-用戶端即可建立或加入 Session。就緒訊息之後沒有輸出是正常現象；需要關閉 Host 及其所有
-Session 時按 `Ctrl+C`。
 
 一般終端機操作期間（未處於檔案傳輸或除錯接管狀態）：
 

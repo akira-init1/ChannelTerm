@@ -127,11 +127,11 @@ shared token is rejected; independent AI credentials require an explicit write g
 [HTTP migration workflow](http-authentication-migration.md). SSH private keys stay in the
 opening process and never enter Session metadata.
 
-To keep several shells and serial devices on one MCP endpoint, start a persistent HTTP Host
+To keep several shells and serial devices on one MCP endpoint, start a separate HTTP Host with Session retention
 and run each interactive command in its own terminal:
 
 ```powershell
-channelterm mcp --transport http
+channelterm mcp --transport http --idle-session-timeout 0s --idle-exit-timeout 0s
 channelterm ssh user@192.168.1.50 --shared
 channelterm ssh user@192.168.1.51 --shared
 channelterm attach COM3
@@ -141,8 +141,10 @@ channelterm list
 `--shared` uses an existing local Host (default port 37099). If the first shell was
 opened with plain `channelterm ssh`, subsequent shells can also use `--shared`
 while the first command runs. Exiting the owning command closes every Session on that
-Host. Exiting a shared attachment leaves its Session open. A persistent Host avoids tying
-the other devices to the first terminal's lifetime. Use the printed Session ID to reattach.
+Host. With the retention settings above, you can leave the last shared attachment with
+`Ctrl+] q` and reattach to the same shell using the printed Session ID while the Host and
+SSH connection are running. With default settings the Host closes the Session on the last
+normal departure if no other client or task uses it. See [Shared Sessions](shared-session.md#choose-what-stays-open-after-you-leave).
 For password login with identities configured, use `--ask-password`. Use
 `--ask-passphrase` for an encrypted key. Both prompts require an interactive terminal.
 Unknown keys prompt there for explicit trust. Pipes require an existing trusted key and identity.

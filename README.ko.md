@@ -103,21 +103,34 @@ channelterm attach /dev/cu.usbserial-110 --baud 115200 --label board
 ```
 
 이 `attach` 명령 하나가 시리얼 장치를 열고 현재 터미널을 연결합니다. 기본 엔드포인트에서 호환되는
-Host가 실행 중이 아니면 임시 로컬 HTTP MCP Session Host도 자동으로 시작합니다. 일반적인 시작
-출력은 다음과 같습니다.
+Host가 실행 중이 아니면 임시 로컬 HTTP MCP Session Host도 자동으로 시작합니다. 시작 메시지에서
+Session 참조와 ID를 확인할 수 있습니다.
 
 ```text
 Shared Session created: SER-1 (0123456789abcdef0123456789abcdef)
-[ChannelTerm] Temporary Session Host started; it and all shared Sessions stop when this attachment exits. Run 'channelterm mcp --transport http' separately for a persistent Host.
 ```
 
 이 빠른 경로에는 MCP 서버용 별도 터미널이 필요하지 않습니다. 연결이 유지되는 동안 설정된 HTTP MCP
 클라이언트는 `http://127.0.0.1:37099/mcp`를 사용하여 같은 `SER-1`을 조작할 수 있습니다. 생성한
-연결이 종료되면 임시 Host와 그 Host가 소유한 모든 Session도 중지됩니다. Session이 현재 터미널과
-독립적으로 유지되어야 할 때만 영구 Host를 별도로 실행합니다.
+연결이 종료되면 임시 Host와 그 Host가 소유한 모든 Session도 중지됩니다.
 
 `--label board`는 선택적인 표시 이름이지 식별자가 아닙니다. 다른 클라이언트는 `SER-1` 또는 전체
 Session ID를 사용해야 합니다.
+
+### 마지막 터미널을 닫은 후
+
+연결하기 전에 별도 터미널에서 다음 명령 중 하나로 Host를 시작합니다. 아래 표는 기본 설정에서 마지막 사용자가 `Ctrl+] q`로 정상적으로 나가고 다른 클라이언트나 작업이 해당
+Session을 사용하지 않을 때의 동작입니다.
+
+| 목적 | Host 시작 명령 | 결과 |
+| --- | --- | --- |
+| 사용 후 직렬 포트 해제 | `channelterm mcp --transport http` | 포트가 즉시 해제됩니다. SSH Session도 닫히므로 기존 셸에 다시 연결할 수 없습니다. Host는 완전히 유휴 상태가 된 후 약 30초 뒤에 종료됩니다. |
+| Host만 유지하고 다음 연결 대기 | `channelterm mcp --transport http --idle-exit-timeout 0s` | Host는 연결을 계속 기다리고 포트 또는 SSH Session은 즉시 해제합니다. 다음 SSH 연결에서는 새 셸이 열립니다. |
+| Host와 기존 Session 유지 | `channelterm mcp --transport http --idle-session-timeout 0s --idle-exit-timeout 0s` | 포트는 계속 사용 중입니다. Host와 SSH 연결이 유지되는 동안 기존 SSH 셸에 다시 연결할 수 있습니다. |
+
+Host에 `MCP Streamable HTTP listening on http://127.0.0.1:37099/mcp`가 표시되면 클라이언트가 연결할 수 있습니다. 이후 출력이 없어도
+정상입니다. SSH를 사용하려면 다른 터미널에서 `channelterm ssh user@host.example --shared` 명령을 실행합니다. 유지된 셸에 다시 연결하려면 처음
+표시된 참조를 사용합니다(예: `channelterm attach SSH-1`). Host 터미널에서 `Ctrl+C`를 누르면 해당 Host의 모든 Session이 닫힙니다.
 
 ### 자주 쓰는 워크플로
 
@@ -125,17 +138,11 @@ Session ID를 사용해야 합니다.
 | --- | --- |
 | 공유 시리얼 Session을 열고 임시 Host 자동 시작 | `channelterm attach COM8 --baud 115200` |
 | 지원되는 AI 클라이언트에 공유 HTTP Host 설정 | `channelterm init --mcp` |
-| Host와 Session을 독립적으로 계속 실행 | `channelterm mcp --transport http` |
 | 기존 Session 목록 확인 또는 연결 | `channelterm list --kind session` 실행 후 `channelterm attach SER-1` |
 | MCP 공유 없는 비공개 시리얼 연결 열기 | `channelterm attach COM8 --private --baud 115200` |
 | 구조화된 Session 활동 관찰 | `channelterm events SER-1` |
 | 현재 공유 연결에서 안내식 파일 전송 메뉴 열기 | `Ctrl+]`를 누른 다음 `f` 누르기 |
 | 공유 Session으로 파일 송수신 | `channelterm file send firmware.bin --session SER-1` 또는 `channelterm file receive /tmp/log.txt ./log.txt --session SER-1` |
-
-영구 Host는 독립적으로 장시간 실행되는 프로세스입니다.
-`MCP Streamable HTTP listening on http://127.0.0.1:37099/mcp`가 표시된 뒤 다른 Shell과 설정된 AI
-클라이언트가 Session을 만들거나 연결할 수 있습니다. 준비 메시지 이후 출력이 없는 것은 정상입니다.
-Host와 모든 Session을 닫을 때 `Ctrl+C`를 누르십시오.
 
 파일 전송이나 디버거가 제어하는 동안을 제외한 일반 터미널 사용에서는:
 

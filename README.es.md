@@ -105,20 +105,37 @@ channelterm attach /dev/cu.usbserial-110 --baud 115200 --label board
 
 Ese único comando `attach` abre el dispositivo serie y conecta el terminal actual. Si no hay un Host
 compatible en el endpoint predeterminado, también inicia automáticamente un Host de Session MCP HTTP
-local y temporal. Una salida típica es:
+local y temporal. La salida de inicio indica la referencia y el ID de la Session:
 
 ```text
 Shared Session created: SER-1 (0123456789abcdef0123456789abcdef)
-[ChannelTerm] Temporary Session Host started; it and all shared Sessions stop when this attachment exits. Run 'channelterm mcp --transport http' separately for a persistent Host.
 ```
 
 Esta ruta rápida no requiere otro terminal para el servidor MCP. Mientras el attachment permanezca
 abierto, un cliente MCP HTTP configurado puede usar `http://127.0.0.1:37099/mcp` y operar la misma
 Session `SER-1`. El Host temporal y todas sus Sessions se detienen cuando finaliza el attachment que
-lo creó. Usa un Host persistente solo cuando las Sessions deban sobrevivir a ese terminal.
+lo creó.
 
 `--label board` es un nombre visual opcional, no un identificador. Los demás clientes deben usar
 `SER-1` o el ID opaco completo de la Session.
+
+### Al salir del último terminal
+
+Antes de conectarte, inicia uno de estos Hosts en otro terminal. La tabla supone la configuración
+predeterminada y que el último usuario sale con `Ctrl+] q` sin que ningún otro cliente o tarea use la
+Session.
+
+| Objetivo | Comando del Host | Resultado |
+| --- | --- | --- |
+| Liberar el puerto serie al terminar | `channelterm mcp --transport http` | El puerto se libera de inmediato. Si la Session es SSH, se cierra y no se puede volver al mismo shell. El Host termina tras unos 30 segundos de inactividad total. |
+| Mantener solo el Host a la espera | `channelterm mcp --transport http --idle-exit-timeout 0s` | El Host sigue escuchando y libera el puerto o la Session SSH de inmediato. La siguiente conexión SSH abre un shell nuevo. |
+| Conservar el Host y las Sessions abiertas | `channelterm mcp --transport http --idle-session-timeout 0s --idle-exit-timeout 0s` | El puerto sigue ocupado. Puedes volver al mismo shell SSH mientras el Host y la conexión SSH sigan activos. |
+
+Cuando el Host muestra `MCP Streamable HTTP listening on http://127.0.0.1:37099/mcp`, ya acepta
+clientes y puede permanecer en silencio. Para SSH, abre el shell desde otro terminal con
+`channelterm ssh user@host.example --shared`. Para volver a un shell conservado, usa la referencia que
+se mostró al abrirlo, por ejemplo `channelterm attach SSH-1`. Pulsa `Ctrl+C` en el terminal del Host
+para cerrar todas sus Sessions.
 
 ### Flujos habituales
 
@@ -126,17 +143,11 @@ lo creó. Usa un Host persistente solo cuando las Sessions deban sobrevivir a es
 | --- | --- |
 | Abrir una Session serie compartida e iniciar automáticamente un Host temporal | `channelterm attach COM8 --baud 115200` |
 | Configurar un cliente de IA compatible para el Host HTTP compartido | `channelterm init --mcp` |
-| Mantener el Host y las Sessions activos de forma independiente | `channelterm mcp --transport http` |
 | Enumerar o unirse a una Session existente | `channelterm list --kind session` y después `channelterm attach SER-1` |
 | Abrir una conexión serie privada sin compartir por MCP | `channelterm attach COM8 --private --baud 115200` |
 | Observar eventos estructurados de la Session | `channelterm events SER-1` |
 | Abrir el menú guiado de transferencia en el attachment compartido actual | Pulsa `Ctrl+]` y después `f` |
 | Enviar o recibir mediante una Session compartida | `channelterm file send firmware.bin --session SER-1` o `channelterm file receive /tmp/log.txt ./log.txt --session SER-1` |
-
-Un Host persistente es un proceso separado de larga duración. Después de mostrar
-`MCP Streamable HTTP listening on http://127.0.0.1:37099/mcp`, otros shells y los clientes de IA
-configurados pueden crear Sessions o unirse a ellas. Es normal que no haya más salida tras el mensaje
-de disponibilidad. Pulsa `Ctrl+C` para detener el Host y todas sus Sessions.
 
 Durante el uso normal del terminal, fuera de una transferencia o del control del depurador:
 

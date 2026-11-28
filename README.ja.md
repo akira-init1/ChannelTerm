@@ -104,20 +104,30 @@ channelterm attach /dev/cu.usbserial-110 --baud 115200 --label board
 
 この 1 つの `attach` コマンドがシリアルデバイスを開き、現在の端末を接続します。既定の
 エンドポイントで互換 Host が動作していない場合は、一時的なローカル HTTP MCP Session Host も
-自動的に起動します。代表的な起動出力は次のとおりです。
+自動的に起動します。起動時の出力で Session の参照と ID を確認できます。
 
 ```text
 Shared Session created: SER-1 (0123456789abcdef0123456789abcdef)
-[ChannelTerm] Temporary Session Host started; it and all shared Sessions stop when this attachment exits. Run 'channelterm mcp --transport http' separately for a persistent Host.
 ```
 
 このクイックパスでは、MCP サーバー用の別端末は不要です。アタッチメントが動作している間、設定済み
 HTTP MCP クライアントは `http://127.0.0.1:37099/mcp` を使用して同じ `SER-1` を操作できます。
-作成元のアタッチメントが終了すると、一時 Host とそのすべての Session も停止します。Session を
-現在の端末から独立して維持する必要がある場合だけ、永続 Host を別に実行します。
+作成元のアタッチメントが終了すると、一時 Host とそのすべての Session も停止します。
 
 `--label board` は任意の表示名であり、識別子ではありません。他のクライアントは `SER-1` または
 完全な Session ID を使用します。
+
+### 最後の端末を閉じた後の動作
+
+接続する前に、別の端末で次のいずれかのコマンドを実行して Host を起動します。表は既定の設定で、最後の利用者が `Ctrl+] q` で正常に離脱し、他のクライアントやタスクがその Session を使用していない場合の動作です。
+
+| 目的 | Host の起動コマンド | 結果 |
+| --- | --- | --- |
+| 使用後にシリアルポートを解放する | `channelterm mcp --transport http` | ポートは直ちに解放されます。SSH の場合は Session が閉じ、元のシェルには戻れません。Host は完全なアイドル状態が約 30 秒続くと終了します。 |
+| Host だけを残して次の接続を待つ | `channelterm mcp --transport http --idle-exit-timeout 0s` | Host は待ち受けを続け、ポートまたは SSH Session を直ちに解放します。次の SSH 接続では新しいシェルが開きます。 |
+| Host と既存の Session を保持する | `channelterm mcp --transport http --idle-session-timeout 0s --idle-exit-timeout 0s` | ポートは使用中のままです。Host と SSH 接続が維持されている間は、元の SSH シェルに戻れます。 |
+
+Host に `MCP Streamable HTTP listening on http://127.0.0.1:37099/mcp` と表示されたら接続できます。その後、出力がなくても正常です。SSH を使うには、別の端末で `channelterm ssh user@host.example --shared` を実行します。保持したシェルに戻るには、接続時に表示された参照を使います（例：`channelterm attach SSH-1`）。Host の端末で `Ctrl+C` を押すと、その Host のすべての Session が閉じます。
 
 ### よく使うワークフロー
 
@@ -125,17 +135,11 @@ HTTP MCP クライアントは `http://127.0.0.1:37099/mcp` を使用して同�
 | --- | --- |
 | 共有シリアル Session を開き、一時 Host を自動起動 | `channelterm attach COM8 --baud 115200` |
 | 対応 AI クライアントに共有 HTTP Host を設定 | `channelterm init --mcp` |
-| Host と Session を独立して維持 | `channelterm mcp --transport http` |
 | 既存 Session を一覧または接続 | `channelterm list --kind session` の後に `channelterm attach SER-1` |
 | MCP 共有なしのプライベート接続を開く | `channelterm attach COM8 --private --baud 115200` |
 | 構造化 Session アクティビティを監視 | `channelterm events SER-1` |
 | 現在の共有アタッチメントでガイド付きファイル転送を開く | `Ctrl+]` を押してから `f` を押す |
 | 共有 Session でファイルを送受信 | `channelterm file send firmware.bin --session SER-1` または `channelterm file receive /tmp/log.txt ./log.txt --session SER-1` |
-
-永続 Host は独立した長時間実行プロセスです。
-`MCP Streamable HTTP listening on http://127.0.0.1:37099/mcp` が表示された後、他の Shell や設定済み
-AI クライアントが Session を作成または接続できます。準備完了後に出力がないのは正常です。Host と
-そのすべての Session を終了するときは `Ctrl+C` を押します。
 
 ファイル転送やデバッガーの接管中を除く、通常の端末操作では：
 

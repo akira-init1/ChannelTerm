@@ -98,19 +98,29 @@ channelterm attach /dev/cu.usbserial-110 --baud 115200 --label board
 ```
 
 这一条 `attach` 命令会打开串口并让当前终端接入。如果默认端点没有兼容的 Host，它还会自动
-启动一个临时的本机 HTTP MCP Session Host。典型输出如下：
+启动一个临时的本机 HTTP MCP Session Host。启动信息中会显示 Session 的短引用和 ID。
 
 ```text
 Shared Session created: SER-1 (0123456789abcdef0123456789abcdef)
-[ChannelTerm] Temporary Session Host started; it and all shared Sessions stop when this attachment exits. Run 'channelterm mcp --transport http' separately for a persistent Host.
 ```
 
 快速使用时不需要另外打开一个终端运行 MCP 服务器。只要这个附件保持运行，已配置的 HTTP MCP
 客户端就能通过 `http://127.0.0.1:37099/mcp` 操作同一个 `SER-1`。创建临时 Host 的附件退出后，
-该 Host 及其全部 Session 都会停止。只有当 Session 必须独立于当前终端继续存在时，才需要单独
-运行持久 Host。
+该 Host 及其全部 Session 都会停止。
 
 `--label board` 只是可选显示名称，不是标识符。其他客户端应使用 `SER-1` 或完整 Session ID。
+
+### 关闭最后一个终端后
+
+连接前，先在单独的终端运行下列命令之一。下表假设使用默认配置，最后一个人工终端用 `Ctrl+] q` 正常离开，且没有其他客户端或任务使用该 Session。
+
+| 目标 | Host 启动命令 | 结果 |
+| --- | --- | --- |
+| 用完释放串口 | `channelterm mcp --transport http` | 串口立即释放。SSH Session 也会关闭，无法接回原 shell。Host 完全空闲约 30 秒后退出。 |
+| 只保留 Host 等待下次连接 | `channelterm mcp --transport http --idle-exit-timeout 0s` | Host 继续监听，立即释放串口或 SSH Session。下次 SSH 连接会打开新 shell。 |
+| 保留 Host 和现有 Session | `channelterm mcp --transport http --idle-session-timeout 0s --idle-exit-timeout 0s` | 串口仍被占用。只要 Host 和 SSH 连接仍在运行，就能接回原 SSH shell。 |
+
+Host 显示 `MCP Streamable HTTP listening on http://127.0.0.1:37099/mcp` 后即可接受连接，此后可能没有输出。要使用 SSH，在另一终端运行 `channelterm ssh user@host.example --shared`。要接回保留的 shell，使用先前显示的 Session 引用，例如 `channelterm attach SSH-1`。在 Host 终端按 `Ctrl+C` 会关闭其所有 Session。
 
 ### 常用玩法
 
@@ -118,17 +128,11 @@ Shared Session created: SER-1 (0123456789abcdef0123456789abcdef)
 | --- | --- |
 | 打开共享串口 Session，并自动启动临时 Host | `channelterm attach COM8 --baud 115200` |
 | 为受支持的 AI 客户端配置共享 HTTP Host | `channelterm init --mcp` |
-| 让 Host 和 Session 独立持续运行 | `channelterm mcp --transport http` |
 | 列出或加入已有 Session | `channelterm list --kind session`，然后执行 `channelterm attach SER-1` |
 | 打开不通过 MCP 共享的私有串口 | `channelterm attach COM8 --private --baud 115200` |
 | 观察结构化 Session 活动 | `channelterm events SER-1` |
 | 在当前共享附件中打开引导式文件传输菜单 | 先按 `Ctrl+]`，再按 `f` |
 | 通过共享 Session 发送或接收文件 | `channelterm file send firmware.bin --session SER-1` 或 `channelterm file receive /tmp/log.txt ./log.txt --session SER-1` |
-
-持久 Host 是一个单独长期运行的进程。它显示
-`MCP Streamable HTTP listening on http://127.0.0.1:37099/mcp` 后，其他 Shell 和已配置的 AI
-客户端就可以创建或加入 Session。就绪提示之后没有输出是正常现象；需要关闭 Host 及其全部
-Session 时按 `Ctrl+C`。
 
 普通终端操作期间（未处于文件传输或调试接管状态）：
 

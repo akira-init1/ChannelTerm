@@ -100,20 +100,35 @@ channelterm attach /dev/cu.usbserial-110 --baud 115200 --label board
 
 That single `attach` command opens the serial device and attaches the current terminal. When no
 compatible Host is already running at the default endpoint, it also starts a temporary local HTTP
-MCP Session Host automatically. Typical startup output is:
+MCP Session Host automatically. Look for the Session reference and ID in the startup output:
 
 ```text
 Shared Session created: SER-1 (0123456789abcdef0123456789abcdef)
-[ChannelTerm] Temporary Session Host started; it and all shared Sessions stop when this attachment exits. Run 'channelterm mcp --transport http' separately for a persistent Host.
 ```
 
 No separate MCP-server terminal is required for this quick path. While the attachment remains open,
 a configured HTTP MCP client can use `http://127.0.0.1:37099/mcp` and operate the same `SER-1`.
-The temporary Host and every Session it owns stop when the creating attachment exits; use a
-persistent Host only when Sessions must outlive that terminal.
+The temporary Host and every Session it owns stop when the creating attachment exits.
 
 `--label board` is an optional display name, not an identifier. Use `SER-1` or the opaque Session ID
 when another client needs to refer to the Session.
+
+### After the last terminal leaves
+
+Start one of these Hosts in a separate terminal before connecting. With default configuration, the
+outcomes below apply when the last human terminal leaves normally with `Ctrl+] q` and no other client
+or task uses the Session.
+
+| Goal | Host command | Result |
+| --- | --- | --- |
+| Release the serial port after use | `channelterm mcp --transport http` | The port is released immediately. An SSH Session closes, so its shell cannot be rejoined. The Host exits after about 30 seconds of complete inactivity. |
+| Keep only the Host ready | `channelterm mcp --transport http --idle-exit-timeout 0s` | The Host keeps listening and releases the port or SSH Session immediately. The next SSH connection opens a new shell. |
+| Keep the Host and existing Sessions | `channelterm mcp --transport http --idle-session-timeout 0s --idle-exit-timeout 0s` | The port stays occupied. You can reattach to the same SSH shell while the Host and SSH connection are running. |
+
+Once the Host prints `MCP Streamable HTTP listening on http://127.0.0.1:37099/mcp`, it can accept
+clients and may stay silent. For SSH, open the shell from another terminal with
+`channelterm ssh user@host.example --shared`. To rejoin a retained shell, use its printed reference,
+for example `channelterm attach SSH-1`. Press `Ctrl+C` in the Host terminal to close all its Sessions.
 
 ### Common workflows
 
@@ -121,17 +136,11 @@ when another client needs to refer to the Session.
 | --- | --- |
 | Open a shared serial Session and auto-start a temporary Host | `channelterm attach COM8 --baud 115200` |
 | Configure a supported AI client for the shared HTTP Host | `channelterm init --mcp` |
-| Keep the Host and Sessions alive independently | `channelterm mcp --transport http` |
 | List or join an existing Session | `channelterm list --kind session` then `channelterm attach SER-1` |
 | Open a private serial connection with no MCP sharing | `channelterm attach COM8 --private --baud 115200` |
 | Watch structured Session activity | `channelterm events SER-1` |
 | Open the guided file-transfer menu in the current shared attachment | Press `Ctrl+]`, then press `f` |
 | Send or receive through a shared Session | `channelterm file send firmware.bin --session SER-1` or `channelterm file receive /tmp/log.txt ./log.txt --session SER-1` |
-
-A persistent Host is a separate long-running process. After it reports
-`MCP Streamable HTTP listening on http://127.0.0.1:37099/mcp`, other shells and configured AI clients
-can create or join Sessions. Silence after the readiness line is normal; stop the Host with
-`Ctrl+C` when all of its Sessions should close.
 
 During ordinary terminal use, outside a file transfer or debugger takeover:
 

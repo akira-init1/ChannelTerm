@@ -2,12 +2,29 @@
 
 An HTTP MCP process can act as a local Session Host. It owns the underlying connection while
 CLI windows and MCP Clients use independent cursors over the same Session. When `attach` starts the
-default local Host automatically, that Host is stopped when the initiating `attach` process exits. A
-manually started Host remains available until it is stopped explicitly.
+default local Host automatically, that Host and its Sessions stop when the initiating `attach`
+process exits.
 
 ```text
 Endpoint -> Serial or SSH Transport -> Channel -> Session -> Client / Attachment
 ```
+
+## Choose what stays open after you leave
+
+Start one of these commands in a separate terminal **before** opening the connection. Keep that
+Host terminal open. The table assumes the default Host configuration and a normal departure
+(`Ctrl+] q`) by the last human terminal, with no other client or task using the Session.
+
+| Goal | Host command | What happens after the last terminal leaves? |
+| --- | --- | --- |
+| Release the serial port after use (default) | `channelterm mcp --transport http` | The Host immediately releases the port or closes the SSH Session. The original SSH shell cannot be rejoined. The Host exits after about 30 seconds of complete inactivity. |
+| Keep only the Host ready for the next connection | `channelterm mcp --transport http --idle-exit-timeout 0s` | The Host releases the port or SSH Session immediately and keeps listening. The next SSH connection opens a new shell. |
+| Keep the Host and its existing Sessions | `channelterm mcp --transport http --idle-session-timeout 0s --idle-exit-timeout 0s` | The port stays occupied. For SSH, you can reattach to the same shell while the Host and SSH connection are still running. |
+
+From another terminal, use `channelterm attach COM8 --baud 115200` for serial or
+`channelterm ssh user@host.example --shared` for SSH. With Session retention enabled, return
+to the shell using its printed reference (for example, `channelterm attach SSH-1`).
+Press `Ctrl+C` in the Host terminal to stop the Host and close all its Sessions.
 
 ## Hand a port to another program
 
@@ -113,12 +130,10 @@ target, not with a Session reference.
 
 ## Lifecycle boundary
 
-An ordinary attachment disconnects without closing its shared Session. Host owners have a different
-lifetime boundary:
-
 | Process that exits | Effect |
 | --- | --- |
-| Secondary `attach`, or an attachment to a separately running Host | Only that attachment leaves; the Host and Sessions remain. |
+| Attachment to a separately started HTTP Host | Other users and active tasks keep the Session open. On the last normal departure, the Host applies the [selected idle policy](#choose-what-stays-open-after-you-leave). |
+| Secondary attachment to an attachment-owned Host | The owning terminal keeps the Host running. |
 | `attach` that created the temporary Host | The temporary Host and all of its Sessions stop. |
 | Foreground `ssh` owner | Its sharing Host and all of its Sessions stop. |
 | Separately started `mcp --transport http` Host | All Sessions owned by that Host close. |

@@ -106,21 +106,37 @@ channelterm attach /dev/cu.usbserial-110 --baud 115200 --label board
 
 Cette seule commande `attach` ouvre le périphérique série et connecte le terminal courant. Si aucun
 Host compatible n’écoute sur le point de terminaison par défaut, elle démarre automatiquement un
-Host de Session MCP HTTP local temporaire. Une sortie typique est :
+Host de Session MCP HTTP local temporaire. Le message de démarrage indique la référence et l’ID de la Session :
 
 ```text
 Shared Session created: SER-1 (0123456789abcdef0123456789abcdef)
-[ChannelTerm] Temporary Session Host started; it and all shared Sessions stop when this attachment exits. Run 'channelterm mcp --transport http' separately for a persistent Host.
 ```
 
 Aucun terminal distinct n’est nécessaire pour le serveur MCP dans ce parcours rapide. Tant que
 l’attachement reste ouvert, un client MCP HTTP configuré peut utiliser
 `http://127.0.0.1:37099/mcp` et piloter la même Session `SER-1`. Le Host temporaire et toutes ses
-Sessions s’arrêtent lorsque l’attachement qui l’a créé se termine. Utilisez un Host persistant
-seulement si les Sessions doivent survivre à ce terminal.
+Sessions s’arrêtent lorsque l’attachement qui l’a créé se termine.
 
 `--label board` est un nom d’affichage facultatif, pas un identifiant. Les autres clients doivent
 utiliser `SER-1` ou l’ID opaque complet de la Session.
+
+### À la fermeture du dernier terminal
+
+Avant de vous connecter, lancez un de ces Hosts dans un terminal séparé. Le tableau suppose la
+configuration par défaut et une sortie normale du dernier terminal avec `Ctrl+] q`, sans autre client
+ni tâche utilisant la Session.
+
+| Objectif | Commande du Host | Résultat |
+| --- | --- | --- |
+| Libérer le port série après utilisation | `channelterm mcp --transport http` | Le port est libéré immédiatement. Une Session SSH se ferme et son shell devient inaccessible. Le Host s’arrête après environ 30 secondes d’inactivité complète. |
+| Garder uniquement le Host en écoute | `channelterm mcp --transport http --idle-exit-timeout 0s` | Le Host reste en écoute et libère immédiatement le port ou la Session SSH. La prochaine connexion SSH ouvre un nouveau shell. |
+| Conserver le Host et les Sessions ouvertes | `channelterm mcp --transport http --idle-session-timeout 0s --idle-exit-timeout 0s` | Le port reste occupé. Vous pouvez retrouver le même shell SSH tant que le Host et la connexion SSH restent actifs. |
+
+Dès que le Host affiche `MCP Streamable HTTP listening on http://127.0.0.1:37099/mcp`, il accepte les
+clients et peut rester silencieux. Pour SSH, ouvrez le shell depuis un autre terminal avec
+`channelterm ssh user@host.example --shared`. Pour retrouver un shell conservé, utilisez la référence
+affichée à l’ouverture, par exemple `channelterm attach SSH-1`. Appuyez sur `Ctrl+C` dans le terminal
+du Host pour fermer toutes ses Sessions.
 
 ### Utilisations courantes
 
@@ -128,17 +144,11 @@ utiliser `SER-1` ou l’ID opaque complet de la Session.
 | --- | --- |
 | Ouvrir une Session série partagée et démarrer automatiquement un Host temporaire | `channelterm attach COM8 --baud 115200` |
 | Configurer un client IA pris en charge pour le Host HTTP partagé | `channelterm init --mcp` |
-| Maintenir le Host et les Sessions indépendamment du terminal | `channelterm mcp --transport http` |
 | Lister ou rejoindre une Session existante | `channelterm list --kind session`, puis `channelterm attach SER-1` |
 | Ouvrir une connexion série privée sans partage MCP | `channelterm attach COM8 --private --baud 115200` |
 | Observer les événements structurés d’une Session | `channelterm events SER-1` |
 | Ouvrir le menu guidé de transfert dans l’attachement partagé courant | Appuyez sur `Ctrl+]`, puis sur `f` |
 | Envoyer ou recevoir via une Session partagée | `channelterm file send firmware.bin --session SER-1` ou `channelterm file receive /tmp/log.txt ./log.txt --session SER-1` |
-
-Un Host persistant est un processus distinct de longue durée. Après l’affichage de
-`MCP Streamable HTTP listening on http://127.0.0.1:37099/mcp`, d’autres shells et les clients IA
-configurés peuvent créer ou rejoindre des Sessions. L’absence de sortie après ce message est
-normale. Appuyez sur `Ctrl+C` pour arrêter le Host et toutes ses Sessions.
 
 En usage normal du terminal, hors transfert de fichiers ou prise de contrôle par le débogueur :
 
